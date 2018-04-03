@@ -1,0 +1,103 @@
+
+{
+  "metadata": {
+    "spec-version": "1.5"
+  },
+  "display-name": "Google Cloud Storage Text File",
+  "configuration-groups": [
+    {
+      "label" : "Governance",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Reference Name",
+          "name": "referenceName"
+        }
+      ]
+    },
+    {
+      "label" : "Service Account and Project",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "placeholder": "Path to service account file (Local to host running on)."
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Project Id",
+          "name": "project",
+          "widget-attributes" : {
+            "placeholder": "The Project Id of GCS."
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Bucket Name",
+          "name": "bucket",
+          "widget-attributes" : {
+            "placeholder": "Temporary Google Cloud Storage bucket name."
+          }
+        }
+
+      ]
+    },
+    {
+      "label": "File Configuration",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Base Path",
+          "name": "path"
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Path Format",
+          "name": "format"
+        },
+        {
+          "widget-type": "select",
+          "label": "File Type",
+          "name": "type",
+          "widget-attributes": {
+            "values": [
+              "Text Comma Separated",
+              "Text Tab Separated",
+              "Text Pipe Separated",
+              "Text Ctrl+A Separated",
+              "Json"
+            ],
+            "default": "Json"
+          }
+        },
+        {
+          "widget-type": "json-editor",
+          "label": "Advanced Properties",
+          "name": "properties"
+        }
+      ]
+    }
+  ],
+  "outputs": [
+    {
+      "name": "schema",
+      "widget-type": "schema",
+      "widget-attributes": {
+        "schema-types": [
+          "boolean",
+          "int",
+          "long",
+          "float",
+          "double",
+          "bytes",
+          "string",
+          "map<string, string>"
+        ],
+        "schema-default-type": "string"
+      }
+    }
+  ]
+}

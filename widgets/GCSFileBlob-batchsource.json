@@ -1,0 +1,70 @@
+{
+  "metadata": {
+    "spec-version": "1.0"
+  },
+  "display-name": "Google Cloud Storage File Blob",
+  "configuration-groups": [
+    {
+      "label" : "Governance",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Reference Name",
+          "name": "referenceName"
+        }
+      ]
+    },
+    {
+      "label" : "Service Account and Project",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "placeholder": "Path to service account file (Local to host running on)."
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Project Id",
+          "name": "project",
+          "widget-attributes" : {
+            "placeholder": "The Project Id of GCS."
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Bucket Name",
+          "name": "bucket",
+          "widget-attributes" : {
+            "placeholder": "Google Cloud Storage bucket name."
+          }
+        }
+
+      ]
+    },
+    {
+      "label": "GCS Path",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Input path",
+          "name": "path",
+          "widget-attributes" : {
+            "placeholder" : "gs://users/joltie/my/directory"
+          }
+        }
+      ]
+    }
+  ],
+  "outputs": [
+    {
+      "widget-type": "non-editable-schema-editor",
+      "schema": {
+        "path" : "string",
+        "body": "bytes"
+      }
+    }
+  ]
+}

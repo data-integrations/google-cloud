@@ -1,0 +1,177 @@
+{
+  "metadata": {
+    "spec-version": "1.5"
+  },
+  "display-name": "Google Cloud Storage File",
+  "configuration-groups": [
+    {
+      "label" : "Governance",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Reference Name",
+          "name": "referenceName"
+        }
+      ]
+    },
+    {
+      "label" : "Service Account and Project",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "placeholder": "Path to service account file (Local to host running on)."
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Project Id",
+          "name": "project",
+          "widget-attributes" : {
+            "placeholder": "The Project Id of GCS."
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Bucket Name",
+          "name": "bucket",
+          "widget-attributes" : {
+            "placeholder": "Temporary Google Cloud Storage bucket name."
+          }
+        }
+
+      ]
+    },
+    {
+      "label": "Google Cloud Storage Configuration",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Path",
+          "name": "path",
+          "widget-attributes" : {
+            "placeholder": "Path to be processed, specified as gs://<bucket>/<dir>/<dir>"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Regex Path Filter",
+          "name": "fileRegex",
+          "widget-attributes" : {
+            "placeholder": "Regex to filter out files in the path."
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Maximum Split Size",
+          "name": "maxSplitSize",
+          "widget-attributes" : {
+            "placeholder": "Maximum split size for each process specified in bytes."
+          }
+        },
+        {
+          "widget-type": "select",
+          "label": "Read files recursively",
+          "name": "recursive",
+          "widget-attributes": {
+            "values": [
+              "true",
+              "false"
+            ],
+            "default": "false"
+          }
+        }
+      ]
+    },
+    {
+      "label": "Filename propagation",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Propagation as field",
+          "name": "pathField",
+          "plugin-function": {
+            "method": "POST",
+            "widget": "outputSchema",
+            "output-property": "schema",
+            "plugin-method": "getSchema"
+          },
+          "widget-attributes" : {
+            "placeholder": "Propagate filename or complete path in the field specified."
+          }
+        },
+        {
+          "widget-type": "select",
+          "label": "Progragate Filename",
+          "name": "filenameOnly",
+          "widget-attributes": {
+            "values": [
+              "true",
+              "false"
+            ],
+            "default": "false"
+          }
+        }
+      ]
+    },
+    {
+      "label": "Advanced Properties",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Input Format Class",
+          "name": "inputFormatClass"
+        },
+        {
+          "widget-type": "json-editor",
+          "label": "File System Properties",
+          "name": "fileSystemProperties"
+        },
+        {
+          "widget-type": "select",
+          "label": "Ignore Non-Existing Folders",
+          "name": "ignoreNonExistingFolders",
+          "widget-attributes": {
+            "values": [
+              "true",
+              "false"
+            ],
+            "default": "false"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Time Table",
+          "name": "timeTable",
+          "widget-attributes" : {
+            "placeholder": "Name of table to remember the last time of processing."
+          }
+        }
+      ]
+    }
+  ],
+  "outputs": [
+    {
+      "name": "schema",
+      "widget-type": "schema",
+      "widget-attributes": {
+        "default-schema": {
+          "name": "fileRecord",
+          "type": "record",
+          "fields": [
+            {
+              "name": "offset",
+              "type": "long"
+            },
+            {
+              "name": "body",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

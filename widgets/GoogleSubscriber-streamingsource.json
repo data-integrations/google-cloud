@@ -1,0 +1,69 @@
+{
+  "metadata": {
+    "spec-version": "1.0"
+  },
+  "display-name" : "Google Subscriber",
+  "configuration-groups": [
+    {
+      "label" : "Governance",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Reference Name",
+          "name": "referenceName"
+        }
+      ]
+    },
+    {
+      "label" : "Service Account and Project",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "placeholder": "Path to service account file (Local to host running on)."
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Project Id",
+          "name": "project"
+        }
+      ]
+    },
+    {
+      "label": "Subscriber",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Subscriber Id",
+          "name": "subscriber"
+        }
+      ]
+    }
+  ],
+  "outputs": [
+    {
+      "widget-type": "non-editable-schema-editor",
+      "schema": {
+        "name": "event",
+        "type": "record",
+        "fields": [
+          {
+            "name": "message",
+            "type": "string"
+          },
+          {
+            "name": "id",
+            "type": "string"
+          },
+          {
+            "name": "timestamp",
+            "type": "long"
+          }
+        ]
+      }
+    }
+  ]
+}

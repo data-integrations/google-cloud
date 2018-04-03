@@ -1,0 +1,112 @@
+
+{
+  "metadata": {
+    "spec-version": "1.5"
+  },
+  "display-name": "Google Speech Translator",
+  "configuration-groups": [
+    {
+      "label" : "Service Account",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "placeholder": "Path to service account file (Local to host running on)."
+          }
+        }
+      ]
+    },
+    {
+      "label": "Speech Translator Configuration",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Audio Field",
+          "name": "audio",
+          "widget-attributes" : {
+            "placeholder" : "Specify input field containing raw audio data"
+          }
+        },
+        {
+          "widget-type": "select",
+          "label": "Audio Encoding",
+          "name": "encoding",
+          "widget-attributes" : {
+            "values" : [
+              "LINEAR16",
+              "AMR",
+              "AMR_WB",
+              "FLAC",
+              "MULAW",
+              "OGG_OPUS",
+              "SPEEX_WITH_HEADER_BYTE"
+            ],
+            "default" : "LINEAR16"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Sampling Rate",
+          "name": "samplerate",
+          "widget-attributes": {
+            "placeholder" : "Specify the sampling rate in hertz"
+          }
+        },
+        {
+          "widget-type": "select",
+          "label": "Profanity",
+          "name": "profanity",
+          "widget-attributes" : {
+            "values" : [
+              "True",
+              "False"
+            ],
+            "default" : "True"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Language",
+          "name": "language",
+          "widget-attributes" : {
+            "values" : [
+              "en-US"
+            ],
+            "default" : "en-US"
+          },
+          "plugin-function": {
+            "method": "POST",
+            "label": "Extract Schema",
+            "widget": "outputSchema",
+            "output-property": "schema",
+            "plugin-method": "getSchema",
+            "position": "bottom",
+            "multiple-inputs": true,
+            "button-class": "btn-hydrator"
+          }
+        }
+      ]
+    }
+  ],
+  "outputs": [
+    {
+      "name": "schema",
+      "widget-type": "schema",
+      "widget-attributes": {
+        "schema-types": [
+          "boolean",
+          "int",
+          "long",
+          "float",
+          "double",
+          "bytes",
+          "string",
+          "map<string, string>"
+        ],
+        "schema-default-type": "string"
+      }
+    }
+  ]
+}

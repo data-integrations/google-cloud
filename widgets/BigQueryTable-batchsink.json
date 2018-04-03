@@ -1,0 +1,88 @@
+{
+  "metadata": {
+    "spec-version": "1.5"
+  },
+  "display-name" : "Google Big Query Table",
+  "configuration-groups": [
+    {
+      "label" : "Service Account and Temporary Google Storage",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "placeholder": "Path to service account file (Local to host running on)."
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Bucket Name",
+          "name": "bucket",
+          "widget-attributes" : {
+            "placeholder": "Temporary Google Cloud Storage bucket name."
+          }
+        }
+      ]
+    },
+    {
+      "label": "Dataset Information",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Project Id",
+          "name": "project",
+          "widget-attributes" : {
+            "placeholder": "The Project Id the BigQuery table is in."
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Dataset Id",
+          "name": "dataset",
+          "widget-attributes" : {
+            "placeholder": "The BigQuery dataset Id the table belongs to."
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Table Id",
+          "name": "table",
+          "widget-attributes" : {
+            "placeholder": "The BigQuery table to write to."
+          }
+        }
+      ]
+    },
+    {
+      "label": "Table Schema",
+      "properties": [
+      ]
+    }
+  ],
+  "outputs": [
+    {
+      "name": "schema",
+      "label": "schema",
+      "widget-type": "schema",
+      "widget-attributes": {
+        "schema-types": [
+          "boolean",
+          "int",
+          "long",
+          "float",
+          "double",
+          "bytes",
+          "string",
+          "array",
+          "enum",
+          "record",
+          "map",
+          "union"
+        ],
+        "schema-default-type": "string",
+        "property-watch": "format"
+      }
+    }
+  ]
+}
