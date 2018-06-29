@@ -42,13 +42,13 @@ import javax.annotation.Nullable;
 public class PubSubRecordWriter extends RecordWriter<NullWritable, Text> {
 
   private static final Logger LOG = LoggerFactory.getLogger(PubSubRecordWriter.class);
-	private  Publisher publisher;
+  private Publisher publisher;
 
-	public PubSubRecordWriter(final String projectId, final String topicId,
-														final String credentialsPath) throws IOException {
+  public PubSubRecordWriter(final String projectId, final String topicId,
+                            final String credentialsPath) throws IOException {
 
-		TopicName topic = TopicName.create(projectId, topicId);
-		this.publisher = Publisher.defaultBuilder(topic)
+    TopicName topic = TopicName.create(projectId, topicId);
+    this.publisher = Publisher.defaultBuilder(topic)
       .setCredentialsProvider(new FixedCredentialsProvider() {
         @Nullable
         @Override
@@ -56,43 +56,43 @@ public class PubSubRecordWriter extends RecordWriter<NullWritable, Text> {
           return loadCredentials(credentialsPath);
         }
       }).build();
-	}
+  }
 
-	private Credentials loadCredentials (String credentialsPath) {
-		File path = new File(credentialsPath);
-		if (!path.exists()) {
-			throw new IllegalArgumentException("credentialsPath does not exist");
-		}
+  private Credentials loadCredentials(String credentialsPath) {
+    File path = new File(credentialsPath);
+    if (!path.exists()) {
+      throw new IllegalArgumentException("credentialsPath does not exist");
+    }
 
-		try (FileInputStream serviceAccountStream = new FileInputStream(credentialsPath)) {
-				return ServiceAccountCredentials.fromStream(serviceAccountStream);
+    try (FileInputStream serviceAccountStream = new FileInputStream(credentialsPath)) {
+      return ServiceAccountCredentials.fromStream(serviceAccountStream);
     } catch (IOException e) {
       throw new IllegalArgumentException(String.format("Exception reading from credentials file %s",
                                                        credentialsPath));
     }
-	}
+  }
 
-	@Override
-	public void write(NullWritable key, Text value) throws IOException {
-		if (publisher == null) {
-			throw new IOException("PubSub publisher is not initialized");
-		}
-		ByteString data = ByteString.copyFromUtf8(value.toString());
-		PubsubMessage message = PubsubMessage.newBuilder().setData(data).build();
+  @Override
+  public void write(NullWritable key, Text value) throws IOException {
+    if (publisher == null) {
+      throw new IOException("PubSub publisher is not initialized");
+    }
+    ByteString data = ByteString.copyFromUtf8(value.toString());
+    PubsubMessage message = PubsubMessage.newBuilder().setData(data).build();
 
-		try {
+    try {
       publisher.publish(message).get();
     } catch (InterruptedException | ExecutionException e) {
       throw new IOException(e);
     }
   }
 
-	@Override
-	public void close(TaskAttemptContext taskAttemptContext) {
-		try {
-			publisher.shutdown();
-		} catch (Exception e) {
-			LOG.warn("Error while shutting down publisher", e.getMessage());
-  	}
-	}
+  @Override
+  public void close(TaskAttemptContext taskAttemptContext) {
+    try {
+      publisher.shutdown();
+    } catch (Exception e) {
+      LOG.warn("Error while shutting down publisher", e.getMessage());
+    }
+  }
 }
