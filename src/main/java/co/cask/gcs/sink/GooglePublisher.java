@@ -44,70 +44,71 @@ import java.util.Map;
 @Name("GooglePublisher")
 @Description("Streaming Source to write events to Google PubSub.")
 public class GooglePublisher extends ReferenceBatchSink<StructuredRecord, NullWritable, Text> {
-	private Config publisherConfig;
+  private Config publisherConfig;
 
-	private final PubSubOutputFormatProvider pubsubOutputFormatProvider;
+  private final PubSubOutputFormatProvider pubsubOutputFormatProvider;
 
-	public GooglePublisher(Config config) {
-		super(config);
-		this.publisherConfig = config;
-		pubsubOutputFormatProvider = new PubSubOutputFormatProvider(config);
-	}
+  @SuppressWarnings("unused")
+  public GooglePublisher(Config config) {
+    super(config);
+    this.publisherConfig = config;
+    pubsubOutputFormatProvider = new PubSubOutputFormatProvider(config);
+  }
 
-	@Override
-	public void prepareRun(BatchSinkContext context) throws Exception {
+  @Override
+  public void prepareRun(BatchSinkContext context) throws Exception {
     context.addOutput(Output.of(publisherConfig.referenceName, pubsubOutputFormatProvider));
-	}
+  }
 
-	@Override
-	public void transform(StructuredRecord input, Emitter<KeyValue<NullWritable, Text>> emitter) throws Exception {
-		String body = StructuredRecordStringConverter.toJsonString(input);
-		emitter.emit(new KeyValue<>(NullWritable.get(), new Text(body)));
-	}
+  @Override
+  public void transform(StructuredRecord input, Emitter<KeyValue<NullWritable, Text>> emitter) throws Exception {
+    String body = StructuredRecordStringConverter.toJsonString(input);
+    emitter.emit(new KeyValue<>(NullWritable.get(), new Text(body)));
+  }
 
-	public static class Config extends ReferencePluginConfig {
+  public static class Config extends ReferencePluginConfig {
 
-		public Config(String referenceName, String projectId, String topic, String serviceFilePath) {
-			super(referenceName);
-			this.projectId = projectId;
-			this.topic = topic;
-			this.serviceFilePath = serviceFilePath;
-		}
+    public Config(String referenceName, String projectId, String topic, String serviceFilePath) {
+      super(referenceName);
+      this.projectId = projectId;
+      this.topic = topic;
+      this.serviceFilePath = serviceFilePath;
+    }
 
-		@Name("project")
-		@Description("Google Cloud Project Id")
-		@Macro
-		private String projectId;
+    @Name("project")
+    @Description("Google Cloud Project Id")
+    @Macro
+    private String projectId;
 
-		@Name("topic")
-		@Description("Topic to publish the events")
-		@Macro
-		private String topic;
+    @Name("topic")
+    @Description("Topic to publish the events")
+    @Macro
+    private String topic;
 
-		@Name("serviceFilePath")
-		@Description("Service account file path.")
-		@Macro
-		private String serviceFilePath;
-	}
+    @Name("serviceFilePath")
+    @Description("Service account file path.")
+    @Macro
+    private String serviceFilePath;
+  }
 
-	private static class PubSubOutputFormatProvider implements OutputFormatProvider {
-		private final Map<String, String> conf;
+  private static class PubSubOutputFormatProvider implements OutputFormatProvider {
+    private final Map<String, String> conf;
 
-		public PubSubOutputFormatProvider(Config config) {
-			this.conf = Maps.newHashMap();
-			conf.put("pubsub.project", config.projectId);
-			conf.put("pubsub.topic", config.topic);
-			conf.put("pubsub.serviceFilePath", config.serviceFilePath);
-		}
+    public PubSubOutputFormatProvider(Config config) {
+      this.conf = Maps.newHashMap();
+      conf.put("pubsub.project", config.projectId);
+      conf.put("pubsub.topic", config.topic);
+      conf.put("pubsub.serviceFilePath", config.serviceFilePath);
+    }
 
-		@Override
-		public String getOutputFormatClassName() {
-			return PubSubOutputFormat.class.getName();
-		}
+    @Override
+    public String getOutputFormatClassName() {
+      return PubSubOutputFormat.class.getName();
+    }
 
-		@Override
-		public Map<String, String> getOutputFormatConfiguration() {
-			return conf;
-		}
-	}
+    @Override
+    public Map<String, String> getOutputFormatConfiguration() {
+      return conf;
+    }
+  }
 }

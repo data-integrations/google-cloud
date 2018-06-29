@@ -19,7 +19,11 @@ package co.cask.gcs.sink.io;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.*;
+import org.apache.hadoop.mapreduce.JobContext;
+import org.apache.hadoop.mapreduce.OutputCommitter;
+import org.apache.hadoop.mapreduce.OutputFormat;
+import org.apache.hadoop.mapreduce.RecordWriter;
+import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 import java.io.IOException;
 
@@ -28,47 +32,45 @@ import java.io.IOException;
  */
 public class PubSubOutputFormat extends OutputFormat<NullWritable, Text> {
 
+  @Override
+  public RecordWriter<NullWritable, Text> getRecordWriter(TaskAttemptContext taskAttemptContext) throws IOException {
+    Configuration config = taskAttemptContext.getConfiguration();
+    return new PubSubRecordWriter(config.get("pubsub.project"), config.get("pubsub.topic"),
+                                  config.get("pubsub.serviceFilePath"));
+  }
 
-	@Override
-	public RecordWriter<NullWritable, Text> getRecordWriter(TaskAttemptContext taskAttemptContext) throws IOException,
-			InterruptedException {
-		Configuration config = taskAttemptContext.getConfiguration();
-		return new PubSubRecordWriter(config.get("pubsub.project"), config.get("pubsub.topic"),
-				config.get("pubsub.serviceFilePath"));
-	}
+  @Override
+  public void checkOutputSpecs(JobContext jobContext) {
+  }
 
-	@Override
-	public void checkOutputSpecs(JobContext jobContext) throws IOException, InterruptedException {
-	}
+  @Override
+  public OutputCommitter getOutputCommitter(TaskAttemptContext taskAttemptContext) {
+    return new OutputCommitter() {
 
-	@Override
-	public OutputCommitter getOutputCommitter(TaskAttemptContext taskAttemptContext) throws IOException, InterruptedException {
-		return new OutputCommitter() {
+      @Override
+      public void setupJob(JobContext jobContext) {
 
-			@Override
-			public void setupJob(JobContext jobContext) throws IOException {
+      }
 
-			}
+      @Override
+      public void setupTask(TaskAttemptContext taskAttemptContext) {
 
-			@Override
-			public void setupTask(TaskAttemptContext taskAttemptContext) throws IOException {
+      }
 
-			}
+      @Override
+      public boolean needsTaskCommit(TaskAttemptContext taskAttemptContext) {
+        return false;
+      }
 
-			@Override
-			public boolean needsTaskCommit(TaskAttemptContext taskAttemptContext) throws IOException {
-				return false;
-			}
+      @Override
+      public void commitTask(TaskAttemptContext taskAttemptContext) {
 
-			@Override
-			public void commitTask(TaskAttemptContext taskAttemptContext) throws IOException {
+      }
 
-			}
+      @Override
+      public void abortTask(TaskAttemptContext taskAttemptContext) {
 
-			@Override
-			public void abortTask(TaskAttemptContext taskAttemptContext) throws IOException {
-
-			}
-		};
-	}
+      }
+    };
+  }
 }
