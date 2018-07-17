@@ -1,5 +1,5 @@
 /*
- * Copyright © 2018 Cask Data, Inc.
+ * Copyright © 2018 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -41,6 +41,13 @@ import java.util.Map;
 
 /**
  * This class implements a {@link ReferenceBatchSink} to write to Google Spanner.
+ *
+ * Uses a {@link SpannerOutputFormat} and {@link SpannerRecordWriter} to write configure
+ * and write to spanner. The <code>prepareRun</code> method configures the job by extracting
+ * the user provided configuration and preparing it to be passed to {@link SpannerOutputFormat}.
+ *
+ * @see SpannerOutputFormat
+ * @see SpannerRecordWriter
  */
 @Plugin(type = "batchsink")
 @Name(SpannerSink.NAME)
@@ -53,6 +60,10 @@ public final class SpannerSink
   private Configuration configuration;
   private final SpannerSinkConfig config;
 
+  /**
+   * Initializes <code>SpannerSink</code>.
+   * @param config
+   */
   public SpannerSink(SpannerSinkConfig config) {
     super(config);
     this.config = config;
@@ -111,7 +122,8 @@ public final class SpannerSink
   }
 
   @Override
-  public void transform(StructuredRecord input, Emitter<KeyValue<NullWritable, StructuredRecord>> emitter)
+  public void transform(StructuredRecord input, Emitter<KeyValue<NullWritable,
+    StructuredRecord>> emitter)
     throws Exception {
     emitter.emit(new KeyValue<NullWritable, StructuredRecord>(null, input));
   }

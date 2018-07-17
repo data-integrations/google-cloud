@@ -20,18 +20,18 @@
       "properties" : [
         {
           "widget-type": "textbox",
-          "label": "Service Account File Path",
-          "name": "serviceFilePath",
+          "label": "Project Id",
+          "name": "project",
           "widget-attributes" : {
-            "placeholder": "Path to service account file (Local to host running on)."
+            "placeholder": "GCP Project Id."
           }
         },
         {
           "widget-type": "textbox",
-          "label": "Project Id",
-          "name": "project",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
           "widget-attributes" : {
-            "placeholder": "The GCP Project Id."
+            "placeholder": "Path to service account file (Local to host running on)."
           }
         },
         {
@@ -55,43 +55,8 @@
           "label": "Table Name",
           "name": "table",
           "widget-attributes" : {
-            "placeholder": "Spanner Table Name."
+            "placeholder": "Spanner table name within a database."
           }
-        }
-      ]
-    },
-    {
-      "label": "File Configuration",
-      "properties": [
-        {
-          "widget-type": "textbox",
-          "label": "Base Path",
-          "name": "path"
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Path Format",
-          "name": "format"
-        },
-        {
-          "widget-type": "select",
-          "label": "File Type",
-          "name": "type",
-          "widget-attributes": {
-            "values": [
-              "Text Comma Separated",
-              "Text Tab Separated",
-              "Text Pipe Separated",
-              "Text Ctrl+A Separated",
-              "Json"
-            ],
-            "default": "Json"
-          }
-        },
-        {
-          "widget-type": "json-editor",
-          "label": "Advanced Properties",
-          "name": "properties"
         }
       ]
     }
@@ -107,9 +72,7 @@
           "long",
           "float",
           "double",
-          "bytes",
-          "string",
-          "map<string, string>"
+          "string"
         ],
         "schema-default-type": "string"
       }
