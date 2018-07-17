@@ -25,7 +25,6 @@ import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
-import com.google.cloud.spanner.ValueBinder;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.RecordWriter;
@@ -38,7 +37,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- *
+ * This class <code>SpannerRecordWriter</code> is Hadoop output format for writing records
+ * to Spanner.
  */
 public class SpannerRecordWriter extends RecordWriter<NullWritable, StructuredRecord> {
   private static final Logger LOG = LoggerFactory.getLogger(SpannerRecordWriter.class);
@@ -58,6 +58,10 @@ public class SpannerRecordWriter extends RecordWriter<NullWritable, StructuredRe
     tableName = configuration.get(SpannerConstants.TABLE_NAME);
   }
 
+  /**
+   * Reads the service credentials from the file and initialize the <code>Spanner</code>
+   * @throws IOException if there is issue reading the file.
+   */
   private void initialize() throws IOException {
     GoogleCredentials credentials = null;
     try {
@@ -75,6 +79,14 @@ public class SpannerRecordWriter extends RecordWriter<NullWritable, StructuredRe
     client = spanner.getDatabaseClient(db);
   }
 
+  /**
+   * Invoked by the framework to write data to spanner converts from {@link StructuredRecord}
+   * to a {@link Mutation}.
+   *
+   * @param nullWritable Null key
+   * @param record {@link StructuredRecord} to be written to Spanner.
+   * @throws IOException throw when issue writing records to spanner.
+   */
   @Override
   public void write(NullWritable nullWritable, StructuredRecord record)
     throws IOException, InterruptedException {
@@ -82,44 +94,42 @@ public class SpannerRecordWriter extends RecordWriter<NullWritable, StructuredRe
       initialized = true;
       initialize();
     }
-    Mutation.WriteBuilder builder = Mutation.newInsertBuilder(tableName);
+
+    Mutation.WriteBuilder builder = Mutation.newInsertOrUpdateBuilder(tableName);
     List<Schema.Field> fields = record.getSchema().getFields();
+    List<Mutation> mutations = new ArrayList<>();
     for (Schema.Field field : fields) {
-      ValueBinder<Mutation.WriteBuilder> value = builder.set(field.getName());
-      if (field.getSchema().getType().isSimpleType()) {
-        Schema.Type type = field.getSchema().getType();
-        switch(type) {
-          case INT:
-            value.to(record.<Integer>get(field.getName()));
-            break;
+      Schema.Type type = field.getSchema().getNonNullable().getType();
+      String name = field.getName();
+      switch(type) {
+        case INT:
+          builder.set(name).to(record.<Integer>get(name));
+          break;
 
-          case FLOAT:
-            value.to(record.<Float>get(field.getName()));
-            break;
+        case FLOAT:
+          builder.set(name).to(record.<Float>get(name));
+          break;
 
-          case BOOLEAN:
-            value.to(record.<Boolean>get(field.getName()));
-            break;
+        case BOOLEAN:
+          builder.set(name).to(record.<Boolean>get(name));
+          break;
 
-          case STRING:
-            value.to(record.<String>get(field.getName()));
-            break;
+        case STRING:
+          builder.set(name).to(record.<String>get(name));
+          break;
 
-          case LONG:
-            value.to(record.<Long>get(field.getName()));
-            break;
+        case LONG:
+          builder.set(name).to(record.<Long>get(name));
+          break;
 
-          case DOUBLE:
-            value.to(record.<Double>get(field.getName()));
-            break;
+        case DOUBLE:
+          builder.set(name).to(record.<Double>get(name));
+          break;
 
-          default:
-            throw new IOException("Type currently not supported.");
-        }
-
+        default:
+          throw new IOException(type.name() + " : Type currently not supported.");
       }
     }
-    List<Mutation> mutations = new ArrayList<>();
     mutations.add(builder.build());
     client.write(mutations);
   }
