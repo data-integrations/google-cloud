@@ -35,6 +35,7 @@ import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.LegacySQLTypeName;
+import com.google.cloud.bigquery.StandardSQLTypeName;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
@@ -235,26 +236,26 @@ public final class BigQuerySource extends BatchSource<LongWritable, JsonObject, 
 
       List<Schema.Field> fields = new ArrayList<>();
       for (Field field : bgSchema.getFields()) {
-        Field.Type type = field.getType();
+        LegacySQLTypeName type = field.getType();
         Schema.Type cType = Schema.Type.STRING;
-        LegacySQLTypeName value = type.getValue();
-        if (value == LegacySQLTypeName.FLOAT) {
+        StandardSQLTypeName value = type.getStandardType();
+        if (value == StandardSQLTypeName.FLOAT64) {
           cType = Schema.Type.FLOAT;
-        } else if (value == LegacySQLTypeName.BOOLEAN) {
+        } else if (value == StandardSQLTypeName.BOOL) {
           cType = Schema.Type.BOOLEAN;
-        } else if (value == LegacySQLTypeName.INTEGER) {
+        } else if (value == StandardSQLTypeName.INT64) {
           cType = Schema.Type.INT;
-        } else if (value == LegacySQLTypeName.STRING) {
+        } else if (value == StandardSQLTypeName.STRING) {
           cType = Schema.Type.STRING;
-        } else if (value == LegacySQLTypeName.BYTES) {
+        } else if (value == StandardSQLTypeName.BYTES) {
           cType = Schema.Type.BYTES;
-        } else if (value == LegacySQLTypeName.TIME) {
+        } else if (value == StandardSQLTypeName.TIME) {
           cType = Schema.Type.STRING;
-        } else if (value == LegacySQLTypeName.DATE) {
+        } else if (value == StandardSQLTypeName.DATE) {
           cType = Schema.Type.STRING;
-        } else if (value == LegacySQLTypeName.DATETIME) {
+        } else if (value == StandardSQLTypeName.DATETIME) {
           cType = Schema.Type.STRING;
-        } else if (value == LegacySQLTypeName.RECORD) {
+        } else if (value == StandardSQLTypeName.STRUCT) {
           throw new Exception("Nested records not supported yet.");
         }
 

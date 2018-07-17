@@ -34,6 +34,8 @@ import com.google.cloud.bigquery.Field;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryOutputConfiguration;
+import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
+import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableSchema;
 import com.google.cloud.hadoop.io.bigquery.output.IndirectBigQueryOutputFormat;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
@@ -41,6 +43,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.JobID;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -115,7 +118,7 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
       );
     }
 
-    List<TableFieldSchema> fields = new ArrayList<>();
+    List<BigQueryTableFieldSchema> fields = new ArrayList<>();
     for(Schema.Field field : schema.getFields()) {
       String name = field.getName();
       Schema.Type type = field.getSchema().getType();
@@ -135,7 +138,7 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
         );
       }
 
-      TableFieldSchema fieldSchema = new TableFieldSchema()
+      BigQueryTableFieldSchema fieldSchema = new BigQueryTableFieldSchema()
         .setName(name)
         .setType(typeName)
         .setMode(Field.Mode.NULLABLE.name());
@@ -145,7 +148,7 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
     BigQueryOutputConfiguration.configure(
       configuration,
       String.format("%s.%s", config.dataset, config.table),
-      new TableSchema().setFields(fields),
+      new BigQueryTableSchema().setFields(fields),
       temporaryGcsPath,
       BigQueryFileFormat.NEWLINE_DELIMITED_JSON,
       TextOutputFormat.class);
