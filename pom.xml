@@ -19,7 +19,7 @@
 
   <groupId>co.cask</groupId>
   <artifactId>google-cloud</artifactId>
-  <version>0.11.0</version>
+  <version>0.11.0-SNAPSHOT</version>
   <name>Google Cloud Plugins</name>
   <packaging>jar</packaging>
   <description>Plugins for Google Big Query</description>
@@ -390,8 +390,8 @@
           <artifactId>maven-compiler-plugin</artifactId>
           <version>3.1</version>
           <configuration>
-            <source>1.7</source>
-            <target>1.7</target>
+            <source>1.8</source>
+            <target>1.8</target>
           </configuration>
         </plugin>
         <plugin>
@@ -500,8 +500,8 @@
         <version>1.0.0-SNAPSHOT</version>
         <configuration>
           <cdapArtifacts>
-            <parent>system:cdap-data-pipeline[4.2.0,5.0.0)</parent>
-            <parent>system:cdap-data-streams[4.0.0,9.0.0-SNAPSHOT)</parent>
+            <parent>system:cdap-data-pipeline[4.2.0,6.0.0-SNAPSHOT)</parent>
+            <parent>system:cdap-data-streams[4.0.0,6.0.0-SNAPSHOT)</parent>
           </cdapArtifacts>
         </configuration>
         <executions>

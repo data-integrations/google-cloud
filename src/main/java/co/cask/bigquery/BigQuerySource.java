@@ -31,7 +31,6 @@ import co.cask.cdap.etl.api.batch.BatchSource;
 import co.cask.cdap.etl.api.batch.BatchSourceContext;
 import co.cask.gcs.GCPUtil;
 import com.google.auth.oauth2.GoogleCredentials;
-import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.ServiceOptions;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryOptions;
@@ -56,8 +55,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -65,6 +62,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import javax.ws.rs.Path;
+
+import static co.cask.common.GCPUtils.loadServiceAccountCredentials;
 
 /**
  * Class description here.
@@ -298,25 +297,4 @@ public final class BigQuerySource extends BatchSource<LongWritable, JsonObject, 
     // Service account file path.
     public String serviceFilePath;
   }
-
-  public static ServiceAccountCredentials loadServiceAccountCredentials(String path) throws Exception {
-    File credentialsPath = new File(path);
-    if (!credentialsPath.exists()) {
-      throw new FileNotFoundException("Service account file " + credentialsPath.getName() + " does not exist.");
-    }
-    try (FileInputStream serviceAccountStream = new FileInputStream(credentialsPath)) {
-      return ServiceAccountCredentials.fromStream(serviceAccountStream);
-    } catch (FileNotFoundException e) {
-      throw new Exception(
-        String.format("Unable to find service account file '%s'.", path)
-      );
-    } catch (IOException e) {
-      throw new Exception(
-        String.format(
-          "Issue reading service account file '%s', please check permission of the file", path
-        )
-      );
-    }
-  }
-
 }

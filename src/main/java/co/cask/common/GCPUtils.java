@@ -14,17 +14,22 @@
  * the License.
  */
 
-package co.cask.spanner;
+package co.cask.common;
+
+import com.google.auth.oauth2.ServiceAccountCredentials;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 
 /**
- * Spanner constants
+ * GCP utility class to get service account credentials
  */
-public final class SpannerConstants {
-  public static final String PROJECT_ID = "project.id";
-  public static final String INSTANCE_ID = "instance.id";
-  public static final String DATABASE = "database.name";
-  public static final String SERVICE_ACCOUNT_FILE_PATH = "service.account.path";
-  public static final String PARTITIONS_LIST = "partitions.list";
-  public static final String QUERY = "query";
-  public static final String SPANNER_BATCH_TRANSACTION_ID = "spanner.batch.transaction.id";
+public class GCPUtils {
+  public static ServiceAccountCredentials loadServiceAccountCredentials(String path) throws IOException {
+    File credentialsPath = new File(path);
+    try (FileInputStream serviceAccountStream = new FileInputStream(credentialsPath)) {
+      return ServiceAccountCredentials.fromStream(serviceAccountStream);
+    }
+  }
 }

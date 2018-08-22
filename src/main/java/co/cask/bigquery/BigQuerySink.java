@@ -29,9 +29,6 @@ import co.cask.cdap.etl.api.batch.BatchRuntimeContext;
 import co.cask.cdap.etl.api.batch.BatchSink;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
 import co.cask.gcs.GCPUtil;
-import com.google.api.services.bigquery.model.TableFieldSchema;
-import com.google.api.services.bigquery.model.TableSchema;
-import com.google.cloud.ServiceOptions;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
@@ -45,7 +42,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.JobID;
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -124,7 +120,7 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
     }
 
 
-    List<TableFieldSchema> fields = new ArrayList<>();
+    List<BigQueryTableFieldSchema> fields = new ArrayList<>();
     for (Schema.Field field : schema.getFields()) {
       String name = field.getName();
       Schema.Type type = field.getSchema().getType();

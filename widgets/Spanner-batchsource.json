@@ -1,9 +1,8 @@
-
 {
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name": "Google Spanner",
+  "display-name": "Google Cloud Spanner Source",
   "configuration-groups": [
     {
       "label" : "Governance",
@@ -37,9 +36,9 @@
         {
           "widget-type": "textbox",
           "label": "Instance Id",
-          "name": "instanceid",
+          "name": "instance",
           "widget-attributes" : {
-            "placeholder": "Spanner Instance Id."
+            "placeholder": "Cloud Spanner Instance Id."
           }
         },
         {
@@ -47,15 +46,42 @@
           "label": "Database Name",
           "name": "database",
           "widget-attributes" : {
-            "placeholder": "Spanner database name."
+            "placeholder": "Cloud Spanner database name."
           }
-        },
+        }
+      ]
+    },
+    {
+      "label" : "Table Name and Properties",
+      "properties" : [
         {
           "widget-type": "textbox",
           "label": "Table Name",
           "name": "table",
           "widget-attributes" : {
-            "placeholder": "Spanner table name within a database."
+            "placeholder": "Cloud Spanner table name."
+          },
+          "plugin-function": {
+            "method": "POST",
+            "widget": "outputSchema",
+            "output-property": "schema",
+            "plugin-method": "getSchema"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Max Partitions",
+          "name": "maxPartitions",
+          "widget-attributes" : {
+            "placeholder": "Maximum number of partitions."
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Partition Size (Megabytes)",
+          "name": "partitionSizeMB",
+          "widget-attributes" : {
+            "placeholder": "Partition size in Megabytes."
           }
         }
       ]
@@ -68,11 +94,10 @@
       "widget-attributes": {
         "schema-types": [
           "boolean",
-          "int",
           "long",
-          "float",
           "double",
-          "string"
+          "string",
+          "bytes"
         ],
         "schema-default-type": "string"
       }

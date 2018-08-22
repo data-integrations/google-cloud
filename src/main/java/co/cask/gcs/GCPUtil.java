@@ -30,7 +30,7 @@ public class GCPUtil {
    * return the project id.
    */
   public static String getProjectId(@Nullable String project) {
-    String projectId = project == null ? ServiceOptions.getDefaultProjectId() : project;
+    String projectId = project == null || project.isEmpty() ? ServiceOptions.getDefaultProjectId() : project;
     if (projectId == null) {
       throw new IllegalArgumentException(
         "Could not detect Google Cloud project id from the environment. Please specify a project id.");
