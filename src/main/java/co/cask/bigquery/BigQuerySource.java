@@ -1,5 +1,5 @@
 /*
- * Copyright © 2015 Cask Data, Inc.
+ * Copyright © 2018 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -23,14 +23,15 @@ import co.cask.cdap.api.data.batch.Input;
 import co.cask.cdap.api.data.batch.InputFormatProvider;
 import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
+import co.cask.cdap.api.data.schema.UnsupportedTypeException;
 import co.cask.cdap.api.dataset.lib.KeyValue;
 import co.cask.cdap.etl.api.Emitter;
 import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchRuntimeContext;
 import co.cask.cdap.etl.api.batch.BatchSource;
 import co.cask.cdap.etl.api.batch.BatchSourceContext;
+import co.cask.common.AvroToStructuredTransformer;
 import co.cask.gcs.GCPUtil;
-import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.ServiceOptions;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryOptions;
@@ -39,10 +40,10 @@ import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.StandardSQLTypeName;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
+import com.google.cloud.hadoop.io.bigquery.AvroBigQueryInputFormat;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
-import com.google.cloud.hadoop.io.bigquery.GsonBigQueryInputFormat;
 import com.google.cloud.hadoop.util.ConfigurationUtil;
-import com.google.gson.JsonObject;
+import org.apache.avro.generic.GenericData;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.io.LongWritable;
@@ -73,15 +74,14 @@ import static co.cask.common.GCPUtils.loadServiceAccountCredentials;
 @Description("This source reads the entire contents of a BigQuery table. "
   + "BigQuery is Google's serverless, highly scalable, enterprise data warehouse."
   + "Data is first written to a temporary location on Google Cloud Storage, then read into the pipeline from there.")
-public final class BigQuerySource extends BatchSource<LongWritable, JsonObject, StructuredRecord> {
+public final class BigQuerySource extends BatchSource<LongWritable, GenericData.Record, StructuredRecord> {
   private static final Logger LOG = LoggerFactory.getLogger(BigQuerySource.class);
   public static final String NAME = "BigQueryTable";
   private BigQuerySourceConfig config;
   private Schema outputSchema;
-  private GoogleCredentials credentials;
   private Configuration configuration;
   private JobID jobID = null;
-  private final RecordConvertor convertor = new RecordConvertor();
+  private final AvroToStructuredTransformer transformer = new AvroToStructuredTransformer();
 
   @Override
   public void configurePipeline(PipelineConfigurer configurer) {
@@ -141,9 +141,10 @@ public final class BigQuerySource extends BatchSource<LongWritable, JsonObject, 
     configuration.setBoolean("fs.gs.metadata.cache.enable", false);
 
     String temporaryGcsPath = String.format("gs://%s/hadoop/output/%s", config.bucket, uuid);
-    GsonBigQueryInputFormat.setTemporaryCloudStorageDirectory(configuration, temporaryGcsPath);
-    GsonBigQueryInputFormat.setEnableShardedExport(configuration, false);
-    BigQueryConfiguration.configureBigQueryInput(configuration, projectId, config.dataset, config.table);
+
+    AvroBigQueryInputFormat.setTemporaryCloudStorageDirectory(configuration, temporaryGcsPath);
+    AvroBigQueryInputFormat.setEnableShardedExport(configuration, false);
+    BigQueryConfiguration.configureBigQueryInput(configuration, config.project, config.dataset, config.table);
     BigQueryConfiguration.getTemporaryPathRoot(configuration, jobID);
 
     job.setOutputKeyClass(LongWritable.class);
@@ -151,7 +152,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, JsonObject, 
     context.setInput(Input.of(config.table, new InputFormatProvider() {
       @Override
       public String getInputFormatClassName() {
-        return GsonBigQueryInputFormat.class.getName();
+        return AvroBigQueryInputFormat.class.getName();
       }
 
       @Override
@@ -185,9 +186,9 @@ public final class BigQuerySource extends BatchSource<LongWritable, JsonObject, 
    * @param emitter emitting the transformed record into downstream nodes.
    */
   @Override
-  public void transform(KeyValue<LongWritable, JsonObject> input, Emitter<StructuredRecord> emitter)
+  public void transform(KeyValue<LongWritable, GenericData.Record> input, Emitter<StructuredRecord> emitter)
     throws Exception {
-    emitter.emit(convertor.toSr(input.getValue(), outputSchema));
+    emitter.emit(transformer.transform(input.getValue(), outputSchema));
   }
 
   @Override
@@ -209,7 +210,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, JsonObject, 
         // This matches the FileOutputCommitter pattern.
         LOG.warn("Could not delete intermediate GCS files. Temporary data not cleaned up.", e);
       }
-      GsonBigQueryInputFormat.cleanupJob(configuration, jobID);
+      AvroBigQueryInputFormat.cleanupJob(configuration, jobID);
     } catch (IOException e) {
       LOG.warn("There was issue shutting down BigQuery job. " + e.getMessage());
     }
@@ -247,33 +248,37 @@ public final class BigQuerySource extends BatchSource<LongWritable, JsonObject, 
       List<Schema.Field> fields = new ArrayList<>();
       for (Field field : bgSchema.getFields()) {
         LegacySQLTypeName type = field.getType();
-        Schema.Type cType = Schema.Type.STRING;
+        Schema schema;
         StandardSQLTypeName value = type.getStandardType();
         if (value == StandardSQLTypeName.FLOAT64) {
-          cType = Schema.Type.FLOAT;
+          // float is a float64, so corresponding type becomes double
+          schema = Schema.of(Schema.Type.DOUBLE);
         } else if (value == StandardSQLTypeName.BOOL) {
-          cType = Schema.Type.BOOLEAN;
+          schema = Schema.of(Schema.Type.BOOLEAN);
         } else if (value == StandardSQLTypeName.INT64) {
-          cType = Schema.Type.INT;
+          // int is a int64, so corresponding type becomes long
+          schema = Schema.of(Schema.Type.LONG);
         } else if (value == StandardSQLTypeName.STRING) {
-          cType = Schema.Type.STRING;
+          schema = Schema.of(Schema.Type.STRING);
         } else if (value == StandardSQLTypeName.BYTES) {
-          cType = Schema.Type.BYTES;
+          schema = Schema.of(Schema.Type.BYTES);
         } else if (value == StandardSQLTypeName.TIME) {
-          cType = Schema.Type.STRING;
+          schema = Schema.of(Schema.LogicalType.TIME_MICROS);
         } else if (value == StandardSQLTypeName.DATE) {
-          cType = Schema.Type.STRING;
-        } else if (value == StandardSQLTypeName.DATETIME) {
-          cType = Schema.Type.STRING;
-        } else if (value == StandardSQLTypeName.STRUCT) {
-          throw new Exception("Nested records not supported yet.");
+          schema = Schema.of(Schema.LogicalType.DATE);
+        } else if (value == StandardSQLTypeName.TIMESTAMP || value == StandardSQLTypeName.DATETIME) {
+          schema = Schema.of(Schema.LogicalType.TIMESTAMP_MICROS);
+        } else {
+          // this should never happen
+          throw new UnsupportedTypeException(String.format("Big Query Sql type %s is not supported", value));
         }
 
         if (field.getMode() == null || field.getMode() == Field.Mode.NULLABLE) {
-          Schema fieldType = Schema.nullableOf(Schema.of(cType));
-          fields.add(Schema.Field.of(field.getName(), fieldType));
+          fields.add(Schema.Field.of(field.getName(), Schema.nullableOf(schema)));
         } else if (field.getMode() == Field.Mode.REQUIRED) {
-          fields.add(Schema.Field.of(field.getName(), Schema.of(cType)));
+          fields.add(Schema.Field.of(field.getName(), schema));
+        } else if (field.getMode() == Field.Mode.REPEATED) {
+          throw new UnsupportedTypeException("Repeated type is not supported");
         }
       }
       return Schema.recordOf("output", fields);

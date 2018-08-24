@@ -1,5 +1,5 @@
 /*
- * Copyright © 2015 Cask Data, Inc.
+ * Copyright © 2018 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -22,6 +22,7 @@ import co.cask.cdap.api.annotation.Plugin;
 import co.cask.cdap.api.data.batch.Output;
 import co.cask.cdap.api.data.batch.OutputFormatProvider;
 import co.cask.cdap.api.data.format.StructuredRecord;
+import co.cask.cdap.api.data.format.UnexpectedFormatException;
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.cdap.api.dataset.lib.KeyValue;
 import co.cask.cdap.etl.api.Emitter;
@@ -50,8 +51,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.sql.Time;
-import java.sql.Timestamp;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -73,6 +73,8 @@ import java.util.UUID;
 public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, NullWritable> {
   private static final Logger LOG = LoggerFactory.getLogger(BigQuerySink.class);
   public static final String NAME = "BigQueryTable";
+  private static final DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
+
   private BigQuerySinkConfig config;
   private Schema schema;
   private Configuration configuration;
@@ -126,26 +128,18 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
       String name = field.getName();
       Schema.Type type = field.getSchema().getType();
 
-      if (type == Schema.Type.RECORD) {
-        continue;
+      Schema fieldSchema = field.getSchema();
+      fieldSchema = fieldSchema.isNullable()? fieldSchema.getNonNullable() : fieldSchema;
+      if (!fieldSchema.getType().isSimpleType()) {
+        throw new IllegalArgumentException(String.format("Field '%s' is of unsupported type '%s'", name, type));
       }
+      String tableTypeName = getTableDataType(fieldSchema);
 
-      String typeName = "STRING";
-      if (type.isSimpleType()) {
-        typeName = simpleType(field.getSchema());
-      } else if (type == Schema.Type.UNION) {
-        typeName = unionType(field.getSchema());
-      } else if (type == Schema.Type.RECORD) {
-        throw new IllegalArgumentException(
-          String.format("Current implementation of BigQuery sink does not yet support complex records.")
-        );
-      }
-
-      BigQueryTableFieldSchema fieldSchema = new BigQueryTableFieldSchema()
+      BigQueryTableFieldSchema tableFieldSchema = new BigQueryTableFieldSchema()
         .setName(name)
-        .setType(typeName)
+        .setType(tableTypeName)
         .setMode(Field.Mode.NULLABLE.name());
-      fields.add(fieldSchema);
+      fields.add(tableFieldSchema);
     }
 
     BigQueryOutputConfiguration.configure(
@@ -155,6 +149,7 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
       temporaryGcsPath,
       BigQueryFileFormat.NEWLINE_DELIMITED_JSON,
       TextOutputFormat.class);
+
     
     context.addOutput(Output.of(config.table.replace("-", "_").replace(".", "_"), new OutputFormatProvider() {
       @Override
@@ -185,20 +180,28 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
     }
   }
 
-  String unionType(Schema schema) {
-    for (Schema s : schema.getUnionSchemas()) {
-      Schema.Type type = s.getType();
-      if (type.isSimpleType()) {
-        return simpleType(s);
+  private String getTableDataType(Schema schema) {
+    Schema.LogicalType logicalType = schema.getLogicalType();
+
+    if (logicalType != null) {
+      switch (logicalType) {
+        case DATE:
+          return "DATE";
+        case TIME_MILLIS:
+        case TIME_MICROS:
+          return "TIME";
+        case TIMESTAMP_MILLIS:
+        case TIMESTAMP_MICROS:
+          return "TIMESTAMP";
+        default:
+          throw new UnexpectedFormatException("Unsupported logical type " + logicalType);
       }
     }
-    return "STRING";
-  }
 
-  String simpleType(Schema schema) {
     Schema.Type type = schema.getType();
     switch(type) {
       case INT:
+      case LONG:
         return "INTEGER";
 
       case STRING:
@@ -213,8 +216,9 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
 
       case BYTES:
         return "BYTES";
+      default:
+        throw new UnexpectedFormatException("Unsupported type " + type);
     }
-    return "STRING";
   }
 
 
@@ -224,40 +228,50 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
     JsonObject object = new JsonObject();
     for (Schema.Field field : fields) {
       String name = field.getName();
-      Object value = input.get(name);
-      Schema.Type type = field.getSchema().getType();
-      switch(type) {
-        case INT:
-        case LONG:
-        case STRING:
-        case FLOAT:
-        case DOUBLE:
-        case BOOLEAN:
-          decodeSimpleTypes(object, name, value, field.getSchema());
-          break;
+      Schema fieldSchema = field.getSchema();
+      fieldSchema = fieldSchema.isNullable() ? fieldSchema.getNonNullable() : fieldSchema;
+      Schema.Type type = fieldSchema.getType();
 
-        case UNION:
-          for (Schema schema : field.getSchema().getUnionSchemas()) {
-            if (schema.getType().isSimpleType()) {
-              decodeSimpleTypes(object, name, value, schema);
-              break;
-            }
-          }
-          break;
+      if (!type.isSimpleType()) {
+        throw new RecordConverterException(String.format("Field '%s' is of unsupported type '%s'.", name, type));
       }
+
+      decodeSimpleTypes(object, name, input, fieldSchema);
     }
     emitter.emit(new KeyValue<>(object, NullWritable.get()));
   }
 
-  private void decodeSimpleTypes(JsonObject json, String name,
-                                 Object object, Schema schema) throws RecordConvertorException {
-    Schema.Type type = schema.getType();
+  private void decodeSimpleTypes(JsonObject json, String name, StructuredRecord input, Schema schema)
+    throws RecordConverterException {
+    Object object = input.get(name);
 
     if (object == null) {
       json.add(name, JsonNull.INSTANCE);
       return;
     }
 
+    Schema.LogicalType logicalType = schema.getLogicalType();
+    if (logicalType != null) {
+      switch (logicalType) {
+        case DATE:
+          json.addProperty(name, input.getDate(name).toString());
+          break;
+        case TIME_MILLIS:
+        case TIME_MICROS:
+          json.addProperty(name, input.getTime(name).toString());
+          break;
+        case TIMESTAMP_MILLIS:
+        case TIMESTAMP_MICROS:
+          //timestamp for json input should be in this format yyyy-MM-dd HH:mm:ss.SSSSSS
+          json.addProperty(name, dtf.format(input.getTimestamp(name)));
+          break;
+        default:
+          throw new RecordConverterException(String.format("Unsupported logical type %s", logicalType));
+      }
+      return;
+    }
+
+    Schema.Type type = schema.getType();
     switch (type) {
       case NULL:
         json.add(name, JsonNull.INSTANCE); // nothing much to do here.
@@ -271,12 +285,12 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
           try {
             json.addProperty(name, Integer.parseInt(value));
           } catch (NumberFormatException e) {
-            throw new RecordConvertorException(
+            throw new RecordConverterException(
               String.format("Unable to convert '%s' to integer for field name '%s'", value, name)
             );
           }
         } else {
-          throw new RecordConvertorException(
+          throw new RecordConverterException(
             String.format("Schema specifies field '%s' is integer, but the value is not a integer or string. " +
                             "It is of type '%s'", name, object.getClass().getName())
           );
@@ -290,12 +304,6 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
           json.addProperty(name, ((Integer) object).longValue());
         } else if (object instanceof Date) {
           json.addProperty(name, ((Date) object).getTime() / 1000); // Converts from milli-seconds to seconds.
-        } else if (object instanceof java.sql.Date) {
-          json.addProperty(name, ((java.sql.Date) object).getTime() / 1000);
-        } else if (object instanceof Time) {
-          json.addProperty(name, ((Time) object).getTime() / 1000);
-        } else if (object instanceof Timestamp) {
-          json.addProperty(name, ((Timestamp) object).getTime() / 1000);
         } else if (object instanceof Short) {
           json.addProperty(name, ((Short) object).longValue());
         } else if (object instanceof String) {
@@ -303,12 +311,12 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
           try {
             json.addProperty(name, Long.parseLong(value));
           } catch (NumberFormatException e) {
-            throw new RecordConvertorException(
+            throw new RecordConverterException(
               String.format("Unable to convert '%s' to long for field name '%s'", value, name)
             );
           }
         } else {
-          throw new RecordConvertorException(
+          throw new RecordConverterException(
             String.format("Schema specifies field '%s' is long, but the value is nor a string or long. " +
                             "It is of type '%s'", name, object.getClass().getName())
           );
@@ -329,12 +337,12 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
           try {
             json.addProperty(name, Float.parseFloat(value));
           } catch (NumberFormatException e) {
-            throw new RecordConvertorException(
+            throw new RecordConverterException(
               String.format("Unable to convert '%s' to float for field name '%s'", value, name)
             );
           }
         } else {
-          throw new RecordConvertorException(
+          throw new RecordConverterException(
             String.format("Schema specifies field '%s' is float, but the value is nor a string or float. " +
                             "It is of type '%s'", name, object.getClass().getName())
           );
@@ -359,12 +367,12 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
           try {
             json.addProperty(name, Double.parseDouble(value));
           } catch (NumberFormatException e) {
-            throw new RecordConvertorException(
+            throw new RecordConverterException(
               String.format("Unable to convert '%s' to double for field name '%s'", value, name)
             );
           }
         } else {
-          throw new RecordConvertorException(
+          throw new RecordConverterException(
             String.format("Schema specifies field '%s' is double, but the value is nor a string or double. " +
                             "It is of type '%s'", name, object.getClass().getName())
           );
@@ -379,12 +387,12 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
           try {
             json.addProperty(name, Boolean.parseBoolean(value));
           } catch (NumberFormatException e) {
-            throw new RecordConvertorException(
+            throw new RecordConverterException(
               String.format("Unable to convert '%s' to boolean for field name '%s'", value, name)
             );
           }
         } else {
-          throw new RecordConvertorException(
+          throw new RecordConverterException(
             String.format("Schema specifies field '%s' is double, but the value is nor a string or boolean. " +
                             "It is of type '%s'", name, object.getClass().getName())
           );
