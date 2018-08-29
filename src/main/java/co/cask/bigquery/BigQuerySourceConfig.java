@@ -21,6 +21,8 @@ import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.plugin.PluginConfig;
 
+import javax.annotation.Nullable;
+
 /**
  * Class description here.
  */
@@ -38,6 +40,7 @@ public final class BigQuerySourceConfig extends PluginConfig {
   @Name("project")
   @Description("Project ID")
   @Macro
+  @Nullable
   public String project;
 
   @Name("bucket")
@@ -48,6 +51,7 @@ public final class BigQuerySourceConfig extends PluginConfig {
   @Name("serviceFilePath")
   @Description("Service Account File Path")
   @Macro
+  @Nullable
   public String serviceAccountFilePath;
 
   @Name("schema")

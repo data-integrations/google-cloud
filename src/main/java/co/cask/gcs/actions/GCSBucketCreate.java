@@ -23,6 +23,8 @@ import co.cask.cdap.api.annotation.Plugin;
 import co.cask.cdap.api.plugin.PluginConfig;
 import co.cask.cdap.etl.api.action.Action;
 import co.cask.cdap.etl.api.action.ActionContext;
+import co.cask.gcs.GCPUtil;
+import com.google.cloud.ServiceOptions;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -50,10 +52,15 @@ public final class GCSBucketCreate extends Action {
   @Override
   public void run(ActionContext context) throws Exception {
     Configuration configuration = new Configuration();
-    configuration.set("google.cloud.auth.service.account.json.keyfile", config.serviceAccountFilePath);
+    if (config.serviceAccountFilePath != null) {
+      configuration.set("google.cloud.auth.service.account.json.keyfile", config.serviceAccountFilePath);
+    }
     configuration.set("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
     configuration.set("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
-    configuration.set("fs.gs.project.id", config.project);
+    // validate project id availability
+    String projectId = GCPUtil.getProjectId(config.project);
+    configuration.set("fs.gs.project.id", projectId);
+
     configuration.set("fs.gs.system.bucket", config.bucket);
     configuration.setBoolean("fs.gs.impl.disable.cache", true);
     configuration.setBoolean("fs.gs.metadata.cache.enable", false);
@@ -130,11 +137,13 @@ public final class GCSBucketCreate extends Action {
     @Name("project")
     @Description("Project ID")
     @Macro
+    @Nullable
     public String project;
 
     @Name("serviceFilePath")
     @Description("Service account file path.")
     @Macro
+    @Nullable
     public String serviceAccountFilePath;
 
     @Name("bucket")

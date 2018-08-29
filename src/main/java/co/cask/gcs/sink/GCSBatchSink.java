@@ -26,6 +26,7 @@ import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
 import co.cask.common.ReferenceConfig;
 import co.cask.common.ReferenceSink;
+import co.cask.gcs.GCPUtil;
 import co.cask.hydrator.common.batch.sink.SinkOutputFormatProvider;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.reflect.TypeToken;
@@ -79,6 +80,8 @@ public abstract class GCSBatchSink<KEY_OUT, VAL_OUT> extends ReferenceSink<Struc
   @Override
   public final void prepareRun(BatchSinkContext context) {
     config.validate();
+    // validate project id availability
+    GCPUtil.getProjectId(config.project);
     OutputFormatProvider outputFormatProvider = createOutputFormatProvider(context);
     Map<String, String> outputConfig = new HashMap<>(outputFormatProvider.getOutputFormatConfiguration());
 
@@ -137,11 +140,13 @@ public abstract class GCSBatchSink<KEY_OUT, VAL_OUT> extends ReferenceSink<Struc
     @Name("project")
     @Description("Project ID")
     @Macro
+    @Nullable
     protected String project;
 
     @Name("serviceFilePath")
     @Description("Service account file path.")
     @Macro
+    @Nullable
     protected String serviceAccountFilePath;
 
     @Name("bucket")
