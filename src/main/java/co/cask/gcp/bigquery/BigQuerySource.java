@@ -25,11 +25,14 @@ import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.cdap.api.data.schema.UnsupportedTypeException;
 import co.cask.cdap.api.dataset.lib.KeyValue;
+import co.cask.cdap.api.lineage.field.EndPoint;
 import co.cask.cdap.etl.api.Emitter;
 import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchRuntimeContext;
 import co.cask.cdap.etl.api.batch.BatchSource;
 import co.cask.cdap.etl.api.batch.BatchSourceContext;
+import co.cask.cdap.etl.api.lineage.field.FieldOperation;
+import co.cask.cdap.etl.api.lineage.field.FieldReadOperation;
 import co.cask.gcp.common.AvroToStructuredTransformer;
 import co.cask.gcp.common.GCPUtils;
 import com.google.cloud.ServiceOptions;
@@ -58,10 +61,12 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import javax.ws.rs.Path;
 
 import static co.cask.gcp.common.GCPUtils.loadServiceAccountCredentials;
@@ -149,7 +154,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
 
     job.setOutputKeyClass(LongWritable.class);
     job.setOutputKeyClass(Text.class);
-    context.setInput(Input.of(config.table, new InputFormatProvider() {
+    context.setInput(Input.of(config.referenceName, new InputFormatProvider() {
       @Override
       public String getInputFormatClassName() {
         return AvroBigQueryInputFormat.class.getName();
@@ -164,6 +169,22 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
         return config;
       }
     }));
+
+    if (config.schema != null) {
+      try {
+        Schema schema = Schema.parseJson(config.schema);
+        if (schema.getFields() != null) {
+          FieldOperation operation =
+            new FieldReadOperation("Read", "Read from BigQuery table",
+                                   EndPoint.of(context.getNamespace(), config.referenceName),
+                                   schema.getFields().stream().map(Schema.Field::getName)
+                                      .collect(Collectors.toList()));
+          context.record(Collections.singletonList(operation));
+        }
+      } catch (IOException e) {
+        throw new IllegalStateException("Failed to parse schema.", e);
+      }
+    }
   }
 
   @Override

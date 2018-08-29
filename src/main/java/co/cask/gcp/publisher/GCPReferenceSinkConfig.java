@@ -22,11 +22,11 @@ import co.cask.cdap.api.annotation.Name;
 import co.cask.gcp.common.GCPConfig;
 
 /**
- * Reference config extending GCPConfig
+ * Reference config extending GCPConfig for sinks.
  */
-public class GCPReferenceConfig extends GCPConfig {
+public class GCPReferenceSinkConfig extends GCPConfig {
   @Name("referenceName")
-  @Description("This will be used to uniquely identify this source/sink for lineage, annotating metadata, etc.")
+  @Description("This will be used to uniquely identify this sink for lineage, annotating metadata, etc.")
   @Macro
   public String referenceName;
 }

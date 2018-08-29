@@ -76,7 +76,7 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, T
   /**
    * PubSub Publisher config
    */
-  public static class Config extends GCPReferenceConfig {
+  public static class Config extends GCPReferenceSinkConfig {
     @Description("Cloud Pub/Sub topic to publish records to")
     @Macro
     public String topic;
