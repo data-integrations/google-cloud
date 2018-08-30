@@ -20,11 +20,15 @@ import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.annotation.Plugin;
+import co.cask.cdap.etl.api.batch.BatchSourceContext;
+import co.cask.gcs.GCPUtil;
+import com.google.cloud.ServiceOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 /**
  * Class description here.
@@ -43,6 +47,12 @@ public class GCSSource extends AbstractFileBatchSource {
     this.config = config;
   }
 
+  @Override
+  public void prepareRun(BatchSourceContext context) throws Exception {
+    super.prepareRun(context);
+    config.validate();
+    GCPUtil.getProjectId(config.project);
+  }
 
   public static class GCSSourceConfig extends FileSourceConfig {
     @Name("path")
@@ -53,11 +63,13 @@ public class GCSSource extends AbstractFileBatchSource {
     @Name("project")
     @Description("Project ID")
     @Macro
+    @Nullable
     public String project;
 
     @Name("serviceFilePath")
     @Description("Service account file path.")
     @Macro
+    @Nullable
     public String serviceAccountFilePath;
 
     @Name("bucket")
@@ -76,11 +88,14 @@ public class GCSSource extends AbstractFileBatchSource {
     @Override
     protected Map<String, String> getFileSystemProperties() {
       Map<String, String> properties = new HashMap<>(super.getFileSystemProperties());
-      properties.put("mapred.bq.auth.service.account.json.keyfile", serviceAccountFilePath);
-      properties.put("google.cloud.auth.service.account.json.keyfile", serviceAccountFilePath);
+      if (serviceAccountFilePath != null) {
+        properties.put("mapred.bq.auth.service.account.json.keyfile", serviceAccountFilePath);
+        properties.put("google.cloud.auth.service.account.json.keyfile", serviceAccountFilePath);
+      }
       properties.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
       properties.put("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
-      properties.put("fs.gs.project.id", project);
+      String projectId = project == null ? ServiceOptions.getDefaultProjectId() : project;
+      properties.put("fs.gs.project.id", projectId);
       properties.put("fs.gs.system.bucket", bucket);
       properties.put("fs.gs.impl.disable.cache", "true");
       return properties;

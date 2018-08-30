@@ -29,8 +29,10 @@ import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchRuntimeContext;
 import co.cask.cdap.etl.api.batch.BatchSource;
 import co.cask.cdap.etl.api.batch.BatchSourceContext;
+import co.cask.gcs.GCPUtil;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
+import com.google.cloud.ServiceOptions;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.Field;
@@ -83,7 +85,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, JsonObject, 
   @Override
   public void configurePipeline(PipelineConfigurer configurer) {
     super.configurePipeline(configurer);
-    if(!config.containsMacro("serviceFilePath")) {
+    if (!config.containsMacro("serviceFilePath") && config.serviceAccountFilePath != null) {
       File file = new File(config.serviceAccountFilePath);
       if (!file.exists()) {
         throw new IllegalArgumentException(
@@ -123,20 +125,24 @@ public final class BigQuerySource extends BatchSource<LongWritable, JsonObject, 
     configuration = job.getConfiguration();
     configuration.clear();
 
-    configuration.set("mapred.bq.auth.service.account.json.keyfile", config.serviceAccountFilePath);
-    configuration.set("google.cloud.auth.service.account.json.keyfile", config.serviceAccountFilePath);
+    if (config.serviceAccountFilePath != null) {
+      configuration.set("mapred.bq.auth.service.account.json.keyfile", config.serviceAccountFilePath);
+      configuration.set("google.cloud.auth.service.account.json.keyfile", config.serviceAccountFilePath);
+    }
     configuration.set("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
     configuration.set("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
-    configuration.set("fs.gs.project.id", config.project);
+    String projectId = GCPUtil.getProjectId(config.project);
+    configuration.set("fs.gs.project.id", projectId);
+    configuration.set(BigQueryConfiguration.PROJECT_ID_KEY, projectId);
+
     configuration.set("fs.gs.system.bucket", config.bucket);
     configuration.setBoolean("fs.gs.impl.disable.cache", true);
     configuration.setBoolean("fs.gs.metadata.cache.enable", false);
-    configuration.set(BigQueryConfiguration.PROJECT_ID_KEY, config.project);
 
     String temporaryGcsPath = String.format("gs://%s/hadoop/output/%s", config.bucket, uuid);
     GsonBigQueryInputFormat.setTemporaryCloudStorageDirectory(configuration, temporaryGcsPath);
     GsonBigQueryInputFormat.setEnableShardedExport(configuration, false);
-    BigQueryConfiguration.configureBigQueryInput(configuration, config.project, config.dataset, config.table);
+    BigQueryConfiguration.configureBigQueryInput(configuration, projectId, config.dataset, config.table);
     BigQueryConfiguration.getTemporaryPathRoot(configuration, jobID);
 
     job.setOutputKeyClass(LongWritable.class);
@@ -219,17 +225,21 @@ public final class BigQuerySource extends BatchSource<LongWritable, JsonObject, 
    */
   @Path("getSchema")
   public Schema getSchema(Request request) throws Exception {
-    GoogleCredentials credentials = loadServiceAccountCredentials(request.serviceFilePath);
     try {
       BigQuery bigquery;
-      bigquery = BigQueryOptions.newBuilder()
-        .setProjectId(request.project)
-        .setCredentials(credentials)
-        .build()
-        .getService();
+      BigQueryOptions.Builder bigqueryBuilder = BigQueryOptions.newBuilder();
+      if (request.serviceFilePath != null) {
+        bigqueryBuilder.setCredentials(loadServiceAccountCredentials(request.serviceFilePath));
+      }
+      String project = request.project == null ? ServiceOptions.getDefaultProjectId() : request.project;
+      if (project == null) {
+        throw new Exception("Could not detect Google Cloud project id from the environment. " +
+                              "Please specify a project id.");
+      }
+      bigqueryBuilder.setProjectId(project);
+      bigquery = bigqueryBuilder.build().getService();
 
-
-      TableId id = TableId.of(request.project, request.dataset, request.table);
+      TableId id = TableId.of(project, request.dataset, request.table);
       Table table = bigquery.getTable(id);
       com.google.cloud.bigquery.Schema bgSchema = table.getDefinition().getSchema();
 

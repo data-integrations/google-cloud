@@ -28,8 +28,10 @@ import co.cask.cdap.etl.api.Emitter;
 import co.cask.cdap.etl.api.batch.BatchRuntimeContext;
 import co.cask.cdap.etl.api.batch.BatchSink;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
+import co.cask.gcs.GCPUtil;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.cloud.ServiceOptions;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
@@ -95,17 +97,20 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
 
     configuration = job.getConfiguration();
     configuration.clear();
-
-    configuration.set("mapred.bq.auth.service.account.json.keyfile", config.serviceAccountFilePath);
-    configuration.set("google.cloud.auth.service.account.json.keyfile", config.serviceAccountFilePath);
+    if (config.serviceAccountFilePath != null) {
+      configuration.set("mapred.bq.auth.service.account.json.keyfile", config.serviceAccountFilePath);
+      configuration.set("google.cloud.auth.service.account.json.keyfile", config.serviceAccountFilePath);
+    }
     configuration.set("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
     configuration.set("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
-    configuration.set("fs.gs.project.id", config.project);
+    String projectId = GCPUtil.getProjectId(config.project);
+    configuration.set("fs.gs.project.id", projectId);
+    configuration.set(BigQueryConfiguration.PROJECT_ID_KEY, projectId);
+
     String temporaryGcsPath = String.format("gs://%s/hadoop/input/%s", config.bucket, uuid);
     configuration.set("fs.gs.system.bucket", config.bucket);
     configuration.setBoolean("fs.gs.impl.disable.cache", true);
     configuration.setBoolean("fs.gs.metadata.cache.enable", false);
-    configuration.set(BigQueryConfiguration.PROJECT_ID_KEY, config.project);
 
     try {
       schema = Schema.parseJson(config.schema);
@@ -116,7 +121,7 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
     }
 
     List<TableFieldSchema> fields = new ArrayList<>();
-    for(Schema.Field field : schema.getFields()) {
+    for (Schema.Field field : schema.getFields()) {
       String name = field.getName();
       Schema.Type type = field.getSchema().getType();
 
@@ -243,7 +248,8 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
     emitter.emit(new KeyValue<>(object, NullWritable.get()));
   }
 
-  private void decodeSimpleTypes(JsonObject json, String name, Object object, Schema schema) throws RecordConvertorException {
+  private void decodeSimpleTypes(JsonObject json, String name,
+                                 Object object, Schema schema) throws RecordConvertorException {
     Schema.Type type = schema.getType();
 
     if (object == null) {

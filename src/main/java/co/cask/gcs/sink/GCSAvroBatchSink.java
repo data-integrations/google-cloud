@@ -29,6 +29,7 @@ import co.cask.cdap.etl.api.batch.BatchSink;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
 import co.cask.common.FileSetUtil;
 import co.cask.common.StructuredToAvroTransformer;
+import com.google.cloud.ServiceOptions;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapreduce.AvroKeyOutputFormat;
@@ -116,11 +117,14 @@ public class GCSAvroBatchSink extends GCSBatchSink<AvroKey<GenericRecord>, NullW
       properties.put(JobContext.OUTPUT_KEY_CLASS, AvroKey.class.getName());
       properties.put(FileOutputFormat.OUTDIR, String.format("%s/%s", config.path,
                                                       format.format(context.getLogicalStartTime())));
-      properties.put("mapred.bq.auth.service.account.json.keyfile", config.serviceAccountFilePath);
-      properties.put("google.cloud.auth.service.account.json.keyfile", config.serviceAccountFilePath);
+      if (config.serviceAccountFilePath != null) {
+        properties.put("mapred.bq.auth.service.account.json.keyfile", config.serviceAccountFilePath);
+        properties.put("google.cloud.auth.service.account.json.keyfile", config.serviceAccountFilePath);
+      }
       properties.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
       properties.put("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
-      properties.put("fs.gs.project.id", config.project);
+      String projectId = config.project == null ? ServiceOptions.getDefaultProjectId() : config.project;
+      properties.put("fs.gs.project.id", projectId);
       properties.put("fs.gs.system.bucket", config.bucket);
       properties.put("fs.gs.impl.disable.cache", "true");
     }

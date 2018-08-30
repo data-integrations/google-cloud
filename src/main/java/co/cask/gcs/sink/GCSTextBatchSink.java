@@ -27,6 +27,7 @@ import co.cask.cdap.etl.api.batch.BatchRuntimeContext;
 import co.cask.cdap.etl.api.batch.BatchSink;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
 import co.cask.cdap.format.StructuredRecordStringConverter;
+import com.google.cloud.ServiceOptions;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobContext;
@@ -159,11 +160,14 @@ public class GCSTextBatchSink extends GCSBatchSink<NullWritable, Text> {
       properties.put(JobContext.OUTPUT_KEY_CLASS, Text.class.getName());
       properties.put(FileOutputFormat.OUTDIR, String.format("%s/%s", config.path,
                                                       format.format(context.getLogicalStartTime())));
-      properties.put("mapred.bq.auth.service.account.json.keyfile", config.serviceAccountFilePath);
-      properties.put("google.cloud.auth.service.account.json.keyfile", config.serviceAccountFilePath);
+      if (config.serviceAccountFilePath != null) {
+        properties.put("mapred.bq.auth.service.account.json.keyfile", config.serviceAccountFilePath);
+        properties.put("google.cloud.auth.service.account.json.keyfile", config.serviceAccountFilePath);
+      }
       properties.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
       properties.put("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
-      properties.put("fs.gs.project.id", config.project);
+      String projectId = config.project == null ? ServiceOptions.getDefaultProjectId() : config.project;
+      properties.put("fs.gs.project.id", projectId);
       properties.put("fs.gs.system.bucket", config.bucket);
       properties.put("fs.gs.impl.disable.cache", "true");
     }

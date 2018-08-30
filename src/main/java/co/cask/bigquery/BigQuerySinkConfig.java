@@ -21,6 +21,8 @@ import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.plugin.PluginConfig;
 
+import javax.annotation.Nullable;
+
 /**
  * This class <code>BigQuerySinkConfig</code> provides all the configuration required for
  * configuring the <code>BigQuerySink</code> plugin.
@@ -39,6 +41,7 @@ public final class BigQuerySinkConfig extends PluginConfig {
   @Name("project")
   @Description("Project ID")
   @Macro
+  @Nullable
   public String project;
 
   @Name("bucket")
@@ -49,6 +52,7 @@ public final class BigQuerySinkConfig extends PluginConfig {
   @Name("serviceFilePath")
   @Description("Service Account File Path")
   @Macro
+  @Nullable
   public String serviceAccountFilePath;
 
   @Name("schema")
