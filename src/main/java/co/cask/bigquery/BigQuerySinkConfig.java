@@ -20,6 +20,7 @@ import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.plugin.PluginConfig;
+import co.cask.common.GCPConfig;
 
 import javax.annotation.Nullable;
 
@@ -27,35 +28,28 @@ import javax.annotation.Nullable;
  * This class <code>BigQuerySinkConfig</code> provides all the configuration required for
  * configuring the <code>BigQuerySink</code> plugin.
  */
-public final class BigQuerySinkConfig extends PluginConfig {
+public final class BigQuerySinkConfig extends GCPConfig {
   @Name("dataset")
-  @Description("Dataset name")
+  @Description("The dataset to write to. A dataset is contained within a specific project. "
+    + "Datasets are top-level containers that are used to organize and control access to tables and views.")
   @Macro
   public String dataset;
 
   @Name("table")
-  @Description("Table to be read")
+  @Description("The table to write to. A table contains individual records organized in rows. "
+    + "Each record is composed of columns (also called fields). "
+    + "Every table is defined by a schema that describes the column names, data types, and other information.")
   @Macro
   public String table;
 
-  @Name("project")
-  @Description("Project ID")
-  @Macro
-  @Nullable
-  public String project;
-
   @Name("bucket")
-  @Description("Temporary Google Cloud Storage bucket name. Files will be automatically cleaned after job completion.")
+  @Description("The Google Cloud Storage bucket to store temporary data in. "
+    + "It will be automatically created if it does not exist, but will not be automatically deleted. "
+    + "Cloud Storage data will be deleted after it is loaded into BigQuery.")
   @Macro
   public String bucket;
 
-  @Name("serviceFilePath")
-  @Description("Service Account File Path")
-  @Macro
-  @Nullable
-  public String serviceAccountFilePath;
-
   @Name("schema")
-  @Description("Schema of the BigQuery table")
+  @Description("The schema of the data to write. Must be compatible with the table schema.")
   public String schema;
 }

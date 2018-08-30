@@ -2,7 +2,7 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name" : "Google Cloud Storage Path Create",
+  "display-name" : "Google Cloud Storage Object Create",
   "configuration-groups": [
     {
       "label" : "Service Account and Project Information",
@@ -12,15 +12,15 @@
           "label": "Service Account File Path",
           "name": "serviceFilePath",
           "widget-attributes" : {
-            "placeholder": "Path to service account file (Local to host running on)."
+            "placeholder": "Path to the service account file on local file system"
           }
         },
         {
           "widget-type": "textbox",
-          "label": "Project Id",
+          "label": "Project ID",
           "name": "project",
           "widget-attributes" : {
-            "placeholder": "The Project Id the Google Cloud Storage bucket is in."
+            "placeholder": "The project id of the Cloud Storage bucket"
           }
         }
       ]
@@ -38,7 +38,7 @@
         },
         {
           "name" : "failIfExists",
-          "label" : "Fail if path exists.",
+          "label" : "Fail if Object Exists",
           "widget-type": "select",
           "widget-attributes": {
             "default": "No",
@@ -48,22 +48,9 @@
         {
           "name": "paths",
           "widget-type": "csv",
-          "label" : "Paths to be created in the bucket.",
+          "label" : "Objects to Create",
           "widget-attributes": {
-            "value-placeholder": "Path"
-          }
-        }
-      ]
-    },
-    {
-      "label": "Path Propogation",
-      "properties": [
-        {
-          "widget-type": "textbox",
-          "label": "Variable Name",
-          "name": "variable",
-          "widget-attributes" : {
-            "placeholder": "Name of macro name used to pass information of paths created."
+            "value-placeholder": "Object"
           }
         }
       ]

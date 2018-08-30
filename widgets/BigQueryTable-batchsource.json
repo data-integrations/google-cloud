@@ -12,7 +12,7 @@
           "label": "Service Account File Path",
           "name": "serviceFilePath",
           "widget-attributes" : {
-            "placeholder": "Path to service account file (Local to host running on)."
+            "placeholder": "Path to the service account file on local file system"
           }
         },
         {
@@ -20,7 +20,7 @@
           "label": "Bucket Name",
           "name": "bucket",
           "widget-attributes" : {
-            "placeholder": "Temporary Google Cloud Storage bucket name."
+            "placeholder": "Google Cloud Storage bucket for temporary data"
           }
         },
       ]
@@ -30,26 +30,26 @@
       "properties": [
         {
           "widget-type": "textbox",
-          "label": "Project Id",
+          "label": "Project ID",
           "name": "project",
           "widget-attributes" : {
-            "placeholder": "The Project Id the BigQuery table is in."
+            "placeholder": "The project id of the dataset"
           }
         },
         {
           "widget-type": "textbox",
-          "label": "Dataset Id",
+          "label": "Dataset",
           "name": "dataset",
           "widget-attributes" : {
-            "placeholder": "The BigQuery dataset Id the table belongs to."
+            "placeholder": "The dataset the table belongs to"
           }
         },
         {
           "widget-type": "textbox",
-          "label": "Table Id",
+          "label": "Table",
           "name": "table",
           "widget-attributes" : {
-            "placeholder": "The BigQuery table to read from."
+            "placeholder": "The table to write to"
           },
           "plugin-function": {
             "method": "POST",
@@ -73,20 +73,13 @@
       "widget-attributes": {
         "schema-types": [
           "boolean",
-          "int",
           "long",
-          "float",
           "double",
           "bytes",
           "string",
-          "array",
-          "enum",
-          "record",
-          "map",
-          "union"
+          "array"
         ],
-        "schema-default-type": "string",
-        "property-watch": "format"
+        "schema-default-type": "string"
       }
     }
   ]
