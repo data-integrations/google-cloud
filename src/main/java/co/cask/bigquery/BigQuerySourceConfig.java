@@ -20,52 +20,36 @@ import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.plugin.PluginConfig;
+import co.cask.common.GCPConfig;
 
 import javax.annotation.Nullable;
 
 /**
  * Class description here.
  */
-public final class BigQuerySourceConfig extends PluginConfig {
+public final class BigQuerySourceConfig extends GCPConfig {
   @Name("dataset")
-  @Description("Dataset name")
+  @Description("The dataset the table belongs to. A dataset is contained within a specific project. "
+    + "Datasets are top-level containers that are used to organize and control access to tables and views.")
   @Macro
   public String dataset;
 
   @Name("table")
-  @Description("Table to be read")
+  @Description("The table to read from. A table contains individual records organized in rows. "
+    + "Each record is composed of columns (also called fields). "
+    + "Every table is defined by a schema that describes the column names, data types, and other information.")
   @Macro
   public String table;
 
-  @Name("project")
-  @Description("Project ID")
-  @Macro
-  @Nullable
-  public String project;
-
   @Name("bucket")
-  @Description("Temporary Google Cloud Storage bucket name. Files will be automatically cleaned after job completion.")
+  @Description("The Google Cloud Storage bucket to store temporary data in. "
+    + "It will be automatically created if it does not exist, but will not be automatically deleted. "
+    + "Temporary data will be deleted after it has been read.")
   @Macro
   public String bucket;
 
-  @Name("serviceFilePath")
-  @Description("Service Account File Path")
-  @Macro
-  @Nullable
-  public String serviceAccountFilePath;
-
   @Name("schema")
-  @Description("Schema")
+  @Description("The schema of the table to read.")
   @Macro
   public String schema;
-
-  public BigQuerySourceConfig(String dataset, String table, String project, String bucket, String schema,
-                              String serviceAccountFilePath) {
-    this.dataset = dataset;
-    this.table = table;
-    this.project = project;
-    this.bucket = bucket;
-    this.schema = schema;
-    this.serviceAccountFilePath = serviceAccountFilePath;
-  }
 }

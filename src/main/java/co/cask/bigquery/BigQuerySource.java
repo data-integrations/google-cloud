@@ -70,11 +70,12 @@ import static co.cask.common.GCPUtils.loadServiceAccountCredentials;
  */
 @Plugin(type = "batchsource")
 @Name(BigQuerySource.NAME)
-@Description(BigQuerySource.DESCRIPTION)
+@Description("This source reads the entire contents of a BigQuery table. "
+  + "BigQuery is Google's serverless, highly scalable, enterprise data warehouse."
+  + "Data is first written to a temporary location on Google Cloud Storage, then read into the pipeline from there.")
 public final class BigQuerySource extends BatchSource<LongWritable, JsonObject, StructuredRecord> {
   private static final Logger LOG = LoggerFactory.getLogger(BigQuerySource.class);
   public static final String NAME = "BigQueryTable";
-  public static final String DESCRIPTION = "Reads from Google BigQuery Table";
   private BigQuerySourceConfig config;
   private Schema outputSchema;
   private GoogleCredentials credentials;

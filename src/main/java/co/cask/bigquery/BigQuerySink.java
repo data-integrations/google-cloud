@@ -67,11 +67,12 @@ import java.util.UUID;
  */
 @Plugin(type = "batchsink")
 @Name(BigQuerySink.NAME)
-@Description(BigQuerySink.DESCRIPTION)
+@Description("This sink writes to a BigQuery table. "
+  + "BigQuery is Google's serverless, highly scalable, enterprise data warehouse. "
+  + "Data is first written to a temporary location on Google Cloud Storage, then loaded into BigQuery from there.")
 public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, NullWritable> {
   private static final Logger LOG = LoggerFactory.getLogger(BigQuerySink.class);
   public static final String NAME = "BigQueryTable";
-  public static final String DESCRIPTION = "Writes to Google BigQuery Table";
   private BigQuerySinkConfig config;
   private Schema schema;
   private Configuration configuration;

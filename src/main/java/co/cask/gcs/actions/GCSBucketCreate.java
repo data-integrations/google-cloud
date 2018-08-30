@@ -20,11 +20,10 @@ import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.annotation.Plugin;
-import co.cask.cdap.api.plugin.PluginConfig;
 import co.cask.cdap.etl.api.action.Action;
 import co.cask.cdap.etl.api.action.ActionContext;
+import co.cask.common.GCPConfig;
 import co.cask.gcs.GCPUtil;
-import com.google.cloud.ServiceOptions;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -34,7 +33,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import javax.annotation.Nullable;
 
 
 /**
@@ -42,11 +40,10 @@ import javax.annotation.Nullable;
  */
 @Plugin(type = Action.PLUGIN_TYPE)
 @Name(GCSBucketCreate.NAME)
-@Description(GCSBucketCreate.DESCRIPTION)
+@Description("Creates objects in a Google Cloud Storage bucket.")
 public final class GCSBucketCreate extends Action {
   private static final Logger LOG = LoggerFactory.getLogger(GCSBucketCreate.class);
   public static final String NAME = "GCSBucketCreate";
-  public static final String DESCRIPTION = "Creates Google Cloud Storage Bucket.";
   private Config config;
 
   @Override
@@ -103,7 +100,7 @@ public final class GCSBucketCreate extends Action {
           if (config.failIfExists.equalsIgnoreCase("yes")) {
             rollback = true;
             throw new Exception(
-              String.format("Path %s already exists")
+              String.format("Object %s already exists")
             );
           }
         }
@@ -121,30 +118,14 @@ public final class GCSBucketCreate extends Action {
         }
       } else {
         context.getMetrics().gauge("gc.file.create.count", gcsPaths.size());
-        if (config.variable != null) {
-          int count = 0;
-          context.getArguments().set(String.format("%s_count", config.variable), String.valueOf(gcsPaths.size()));
-          for (Path path : gcsPaths) {
-            context.getArguments().set(String.format("%s_%s", config.variable, count), path.toUri().getPath());
-            count++;
-          }
-        }
       }
     }
   }
 
-  public final class Config extends PluginConfig {
-    @Name("project")
-    @Description("Project ID")
-    @Macro
-    @Nullable
-    public String project;
-
-    @Name("serviceFilePath")
-    @Description("Service account file path.")
-    @Macro
-    @Nullable
-    public String serviceAccountFilePath;
+  /**
+   * Config for the plugin.
+   */
+  public final class Config extends GCPConfig {
 
     @Name("bucket")
     @Description("Name of the bucket.")
@@ -152,7 +133,7 @@ public final class GCSBucketCreate extends Action {
     public String bucket;
 
     @Name("paths")
-    @Description("List of paths to be created within a bucket")
+    @Description("List of objects to be created within a bucket")
     @Macro
     public String paths;
 
@@ -160,12 +141,5 @@ public final class GCSBucketCreate extends Action {
     @Description("Fail if path exists.")
     @Macro
     public String failIfExists;
-
-    @Name("variable")
-    @Description("Token variable name used as base to pass files created to rest of pipeline. They are " +
-      "available as ${variable_1}, ${variable_2} ... along with count in ${variable_count}")
-    @Macro
-    @Nullable
-    public String variable;
   }
 }

@@ -2,7 +2,7 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name" : "Google Cloud Storage Path Delete",
+  "display-name" : "Google Cloud Storage Object Delete",
   "configuration-groups": [
     {
       "label" : "Service Account and Project Information",
@@ -12,15 +12,15 @@
           "label": "Service Account File Path",
           "name": "serviceFilePath",
           "widget-attributes" : {
-            "placeholder": "Path to service account file (Local to host running on)."
+            "placeholder": "Path to the service account file on local file system"
           }
         },
         {
           "widget-type": "textbox",
-          "label": "Project Id",
+          "label": "Project ID",
           "name": "project",
           "widget-attributes" : {
-            "placeholder": "The Project Id the Google Cloud Storage bucket is in."
+            "placeholder": "The project id of the Cloud Storage bucket"
           }
         }
       ]
@@ -33,27 +33,14 @@
           "label": "Bucket Name",
           "name": "bucket",
           "widget-attributes" : {
-            "placeholder": "The bucket to be used to delete directories."
+            "placeholder": "The bucket to delete objects from"
           }
         },
         {
           "name": "paths",
           "widget-type": "csv",
-          "label" : "Paths to be deleted in the bucket.",
+          "label" : "Objects to Delete",
           "widget-attributes": {}
-        }
-      ]
-    },
-    {
-      "label": "Path Propogation",
-      "properties": [
-        {
-          "widget-type": "textbox",
-          "label": "Variable Name",
-          "name": "variable",
-          "widget-attributes" : {
-            "placeholder": "Name of macro name used to pass information of paths deleted."
-          }
         }
       ]
     }
