@@ -1,0 +1,106 @@
+{
+  "metadata": {
+    "spec-version": "1.5"
+  },
+  "display-name": "Google Cloud Spanner Source",
+  "configuration-groups": [
+    {
+      "label" : "Governance",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Reference Name",
+          "name": "referenceName"
+        }
+      ]
+    },
+    {
+      "label" : "Service Account and Project",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Project Id",
+          "name": "project",
+          "widget-attributes" : {
+            "placeholder": "GCP Project Id."
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "placeholder": "Path to service account file (Local to host running on)."
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Instance Id",
+          "name": "instance",
+          "widget-attributes" : {
+            "placeholder": "Cloud Spanner Instance Id."
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Database Name",
+          "name": "database",
+          "widget-attributes" : {
+            "placeholder": "Cloud Spanner database name."
+          }
+        }
+      ]
+    },
+    {
+      "label" : "Table Name and Properties",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Table Name",
+          "name": "table",
+          "widget-attributes" : {
+            "placeholder": "Cloud Spanner table name."
+          },
+          "plugin-function": {
+            "method": "POST",
+            "widget": "outputSchema",
+            "output-property": "schema",
+            "plugin-method": "getSchema"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Max Partitions",
+          "name": "maxPartitions",
+          "widget-attributes" : {
+            "placeholder": "Maximum number of partitions."
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Partition Size (Megabytes)",
+          "name": "partitionSizeMB",
+          "widget-attributes" : {
+            "placeholder": "Partition size in Megabytes."
+          }
+        }
+      ]
+    }
+  ],
+  "outputs": [
+    {
+      "name": "schema",
+      "widget-type": "schema",
+      "widget-attributes": {
+        "schema-types": [
+          "boolean",
+          "long",
+          "double",
+          "string",
+          "bytes"
+        ],
+        "schema-default-type": "string"
+      }
+    }
+  ]
+}

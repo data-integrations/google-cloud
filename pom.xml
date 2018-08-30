@@ -19,7 +19,7 @@
 
   <groupId>co.cask</groupId>
   <artifactId>google-cloud</artifactId>
-  <version>0.10.0</version>
+  <version>0.11.0-SNAPSHOT</version>
   <name>Google Cloud Plugins</name>
   <packaging>jar</packaging>
   <description>Plugins for Google Big Query</description>
@@ -62,19 +62,20 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <cdap.version>4.3.1</cdap.version>
+    <cdap.version>4.3.3</cdap.version>
     <guava.version>20.0</guava.version>
     <slf4j.version>1.7.5</slf4j.version>
     <junit.version>4.12</junit.version>
     <hadoop.version>2.8.0</hadoop.version>
     <hydrator.version>1.8.0</hydrator.version>
-    <bigquery.connector.hadoop2.version>0.10.2-hadoop2</bigquery.connector.hadoop2.version>
-    <google.cloud.bigquery.version>0.25.0-beta</google.cloud.bigquery.version>
+    <bigquery.connector.hadoop2.version>0.13.1-hadoop2</bigquery.connector.hadoop2.version>
+    <google.cloud.bigquery.version>1.36.0</google.cloud.bigquery.version>
+    <google.cloud.spanner.version>0.53.0-beta</google.cloud.spanner.version>
     <spark.version>1.6.1</spark.version>
-    <google.cloud.speech.version>0.25.0-alpha</google.cloud.speech.version>
+    <google.cloud.speech.version>0.54.0-beta</google.cloud.speech.version>
     <twitter.parquet.avro.version>1.6.0</twitter.parquet.avro.version>
     <google.protobuf.java.version>3.4.0</google.protobuf.java.version>
-    <google.cloud.pubsub.version>0.25.0-beta</google.cloud.pubsub.version>
+    <google.cloud.pubsub.version>1.36.0</google.cloud.pubsub.version>
     <orc.mapreduce.version>1.1.0</orc.mapreduce.version>
     <avro.mapred.version>1.7.7</avro.mapred.version>
     <jackson.core.version>2.8.8</jackson.core.version>
@@ -140,6 +141,11 @@
       <groupId>com.google.cloud</groupId>
       <artifactId>google-cloud-bigquery</artifactId>
       <version>${google.cloud.bigquery.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-spanner</artifactId>
+      <version>${google.cloud.spanner.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.hadoop</groupId>
@@ -384,8 +390,8 @@
           <artifactId>maven-compiler-plugin</artifactId>
           <version>3.1</version>
           <configuration>
-            <source>1.7</source>
-            <target>1.7</target>
+            <source>1.8</source>
+            <target>1.8</target>
           </configuration>
         </plugin>
         <plugin>
@@ -408,7 +414,7 @@
         <plugin>
           <groupId>org.apache.felix</groupId>
           <artifactId>maven-bundle-plugin</artifactId>
-          <version>2.3.7</version>
+          <version>3.5.1</version>
           <extensions>true</extensions>
           <configuration>
             <instructions>
@@ -416,7 +422,8 @@
               <Embed-Transitive>true</Embed-Transitive>
               <Embed-Directory>lib</Embed-Directory>
               <!--Only @Plugin classes in the export packages will be included as plugin-->
-              <_exportcontents>co.cask.bigquery.*,com.google.cloud.hadoop.*,co.cask.gcs.*,co.cask.speech.*,co.cask.common.*</_exportcontents>
+              <_exportcontents>co.cask.bigquery.*,com.google.cloud.hadoop.*,co.cask.gcs.*,
+                co.cask.spanner.*,co.cask.speech.*,co.cask.common.*</_exportcontents>
             </instructions>
           </configuration>
           <executions>
@@ -493,8 +500,8 @@
         <version>1.0.0-SNAPSHOT</version>
         <configuration>
           <cdapArtifacts>
-            <parent>system:cdap-data-pipeline[4.2.0,5.0.0)</parent>
-            <parent>system:cdap-data-streams[4.0.0,9.0.0-SNAPSHOT)</parent>
+            <parent>system:cdap-data-pipeline[4.2.0,6.0.0-SNAPSHOT)</parent>
+            <parent>system:cdap-data-streams[4.0.0,6.0.0-SNAPSHOT)</parent>
           </cdapArtifacts>
         </configuration>
         <executions>
