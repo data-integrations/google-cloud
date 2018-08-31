@@ -20,7 +20,7 @@ import co.cask.common.GCPUtils;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 
-import java.net.URLEncoder;
+import java.io.IOException;
 
 /**
  * Spanner utility classs to get spanner service
@@ -29,7 +29,7 @@ public class SpannerUtil {
   /**
    * Construct and return the {@link Spanner} service for the provided credentials and projectId
    */
-  public static Spanner getSpannerService(String serviceAccountFilePath, String projectId) throws Exception {
+  public static Spanner getSpannerService(String serviceAccountFilePath, String projectId) throws IOException {
     SpannerOptions.Builder optionsBuilder = SpannerOptions.newBuilder();
     if (serviceAccountFilePath != null) {
       optionsBuilder.setCredentials(GCPUtils.loadServiceAccountCredentials(serviceAccountFilePath));

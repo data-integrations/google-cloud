@@ -27,4 +27,7 @@ public final class SpannerConstants {
   public static final String PARTITIONS_LIST = "partitions.list";
   public static final String QUERY = "query";
   public static final String SPANNER_BATCH_TRANSACTION_ID = "spanner.batch.transaction.id";
+  public static final String TABLE_NAME = "table";
+  public static final String SPANNER_WRITE_BATCH_SIZE = "spanner.write.batch.size";
+  public static final String SCHEMA = "schema";
 }
