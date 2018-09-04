@@ -34,6 +34,7 @@ import co.cask.hydrator.common.SourceInputFormatProvider;
 import co.cask.spanner.SpannerConstants;
 import co.cask.spanner.common.SpannerUtil;
 import com.google.cloud.ByteArray;
+import com.google.cloud.Date;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.BatchClient;
 import com.google.cloud.spanner.BatchReadOnlyTransaction;
@@ -55,7 +56,11 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
-import java.sql.SQLException;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -147,7 +152,7 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
         continue;
       }
       switch (columnType.getCode()) {
-        // todo CDAP-14233 - add support for array, date and timestamp
+        // todo CDAP-14233 - add support for array
         case BOOL:
           builder.set(fieldName, resultSet.getBoolean(fieldName));
           break;
@@ -163,6 +168,19 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
         case BYTES:
           ByteArray byteArray = resultSet.getBytes(fieldName);
           builder.set(fieldName, byteArray.toByteArray());
+          break;
+        case DATE:
+          // spanner DATE is a date without time zone. so create LocalDate from spanner DATE
+          Date spannerDate = resultSet.getDate(fieldName);
+          builder.setDate(fieldName, LocalDate.of(spannerDate.getYear(), spannerDate.getMonth(),
+                                                  spannerDate.getDayOfMonth()));
+          break;
+        case TIMESTAMP:
+          Timestamp spannerTs = resultSet.getTimestamp(fieldName);
+          // Spanner TIMESTAMP supports nano second level precision, however, cdap schema only supports
+          // microsecond level precision.
+          Instant instant = Instant.ofEpochSecond(spannerTs.getSeconds()).plusNanos(spannerTs.getNanos());
+          builder.setTimestamp(fieldName, ZonedDateTime.ofInstant(instant, ZoneId.ofOffset("UTC", ZoneOffset.UTC)));
           break;
       }
     }
@@ -262,9 +280,13 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
           return Schema.of(Schema.Type.LONG);
         case FLOAT64:
           return Schema.of(Schema.Type.DOUBLE);
-        // todo CDAP-14233 - add support for array, date and timestamp
+        case DATE:
+          return Schema.of(Schema.LogicalType.DATE);
+        case TIMESTAMP:
+          return Schema.of(Schema.LogicalType.TIMESTAMP_MICROS);
+        // todo CDAP-14233 - add support for array
         default:
-          throw new UnsupportedTypeException(String.format("Type : %s is unsupported currently" + spannerType));
+          throw new UnsupportedTypeException(String.format("Type : %s is unsupported currently", spannerType));
       }
     }
   }

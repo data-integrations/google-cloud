@@ -31,10 +31,13 @@ import javax.annotation.Nullable;
  * Spanner configuration
  */
 public class SpannerConfig extends ReferencePluginConfig {
-  // todo CDAP-14233 - add support for array, date and timestamp
+  // todo CDAP-14233 - add support for array
   private static final Set<Schema.Type> SUPPORTED_TYPES =
     ImmutableSet.of(Schema.Type.BOOLEAN, Schema.Type.STRING, Schema.Type.LONG, Schema.Type.DOUBLE,
                     Schema.Type.BYTES);
+
+  private static final Set<Schema.LogicalType> SUPPORTED_LOGICAL_TYPES =
+    ImmutableSet.of(Schema.LogicalType.DATE, Schema.LogicalType.TIMESTAMP_MICROS);
 
   @Description("Google Cloud Project ID, which uniquely identifies your project." +
     "You can find it on the Dashboard in the Cloud Platform Console.")
@@ -80,9 +83,19 @@ public class SpannerConfig extends ReferencePluginConfig {
     Schema schema = getSchema();
     for (Schema.Field field : schema.getFields()) {
       Schema fieldSchema = field.getSchema();
-      Schema.Type type = fieldSchema.isNullable() ? fieldSchema.getNonNullable().getType() : fieldSchema.getType();
-      if (!SUPPORTED_TYPES.contains(type)) {
-        throw new IllegalArgumentException(String.format("Schema type %s not supported by Spanner source", type));
+      fieldSchema = fieldSchema.isNullable() ? fieldSchema.getNonNullable() : fieldSchema;
+
+      Schema.LogicalType logicalType = fieldSchema.getLogicalType();
+      if (logicalType != null && !SUPPORTED_LOGICAL_TYPES.contains(logicalType)) {
+        throw new IllegalArgumentException(String.format("Schema logical type %s not supported by Spanner source",
+                                                         logicalType));
+      }
+
+      if (logicalType == null) {
+        Schema.Type type = fieldSchema.getType();
+        if (!SUPPORTED_TYPES.contains(type)) {
+          throw new IllegalArgumentException(String.format("Schema type %s not supported by Spanner source", type));
+        }
       }
     }
   }
