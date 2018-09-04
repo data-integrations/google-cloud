@@ -107,7 +107,7 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
     initializeConfig(configuration, projectId);
 
     // initialize spanner
-    spanner = SpannerUtil.getSpannerService(config.serviceAccountFilePath, projectId);
+    spanner = SpannerUtil.getSpannerService(config.serviceFilePath, projectId);
     BatchClient batchClient =
       spanner.getBatchClient(DatabaseId.of(projectId, config.instance, config.database));
     Timestamp logicalStartTimeMicros =
@@ -198,7 +198,7 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
 
   private void initializeConfig(Configuration configuration, String projectId) {
     setIfValueNotNull(configuration, SpannerConstants.PROJECT_ID, projectId);
-    setIfValueNotNull(configuration, SpannerConstants.SERVICE_ACCOUNT_FILE_PATH, config.serviceAccountFilePath);
+    setIfValueNotNull(configuration, SpannerConstants.SERVICE_ACCOUNT_FILE_PATH, config.serviceFilePath);
     setIfValueNotNull(configuration, SpannerConstants.INSTANCE_ID, config.instance);
     setIfValueNotNull(configuration, SpannerConstants.DATABASE, config.database);
     setIfValueNotNull(configuration, SpannerConstants.QUERY, String.format("Select * from %s;", config.table));
@@ -243,7 +243,7 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
   @Path("getSchema")
   public Schema getSchema(SpannerSourceConfig request) throws Exception {
     String projectId = GCPUtil.getProjectId(request.project);
-    Spanner spanner = SpannerUtil.getSpannerService(request.serviceAccountFilePath, projectId);
+    Spanner spanner = SpannerUtil.getSpannerService(request.serviceFilePath, projectId);
     DatabaseClient databaseClient =
       spanner.getDatabaseClient(DatabaseId.of(projectId, request.instance, request.database));
     Statement getTableSchemaStatement = SCHEMA_STATEMENT_BUILDER.bind(TABLE_NAME).to(request.table).build();

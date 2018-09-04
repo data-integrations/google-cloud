@@ -54,15 +54,13 @@ public class SpannerConfig extends ReferencePluginConfig {
   @Macro
   public String database;
 
-  @Name("serviceFilePath")
   @Description("Path on the local file system to the service account key used for access to Spanner. " +
     "Does not need to be specified when running on a Dataproc cluster. " +
     "When running on other clusters, the file must be present on every node in the cluster.")
   @Macro
   @Nullable
-  public String serviceAccountFilePath;
+  public String serviceFilePath;
 
-  @Name("schema")
   @Description("Schema of the Spanner table.")
   @Macro
   public String schema;
