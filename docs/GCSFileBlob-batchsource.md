@@ -1,8 +1,10 @@
-# Google Cloud Storage Text File Sink
+# Google Cloud Storage File Blob Reader
 
 Description
 -----------
-This plugin writes records to one or more text files in a directory on Google Cloud Storage.
+This plugin reads the entire content of a Google Cloud Storage object into a single record.
+It can be used in situations where an object is small enough to fit in memory and cannot be
+split. For example, it may make sense to read XML objects in this way.
 
 Cloud Storage allows world-wide storage and retrieval of any amount of data at any time.
 You can use Cloud Storage for a range of scenarios including serving website content,
@@ -22,7 +24,7 @@ must be readable by all users running the job.
 
 Properties
 ----------
-**Reference Name:** This will be used to uniquely identify this sink for lineage, annotating metadata, etc.
+**Reference Name:** This will be used to uniquely identify this source for lineage, annotating metadata, etc.
 
 **Project ID**: The Google Cloud Project ID, which uniquely identifies a project.
 It can be found on the Dashboard in the Google Cloud Platform Console.
@@ -31,13 +33,7 @@ It can be found on the Dashboard in the Google Cloud Platform Console.
 authorization. Does not need to be specified when running on a Dataproc cluster.
 When running on other clusters, the file must be present on every node in the cluster.
 
-**Bucket Name**: The bucket to write to.
+**Bucket Name**: The bucket to read from.
 
-**Base Path:** The path to write to. For example, gs://<bucket>/path/to/directory
-
-**Path Suffix:** The time format for the output directory that will be appended to the path.
-For example, the format 'yyyy-MM-dd-HH-mm' will result in a directory of the form '2015-01-01-20-42'.
-If not specified, nothing will be appended to the path."
-
-**File Type:** The type of file to write. Supports json, or comma, tab, pipe or Ctrl+A separated types.
-Defaults to json.
+**Path:** Path to file(s) to be read. If a directory is specified, terminate the path name with a '/'.
+For example, gs://<bucket>/path/to/directory/

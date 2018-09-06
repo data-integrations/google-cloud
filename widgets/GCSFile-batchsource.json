@@ -15,38 +15,34 @@
       ]
     },
     {
-      "label" : "Service Account and Project",
+      "label" : "Service Account and Project Information",
       "properties" : [
         {
           "widget-type": "textbox",
           "label": "Service Account File Path",
           "name": "serviceFilePath",
           "widget-attributes" : {
-            "placeholder": "Path to service account file (Local to host running on)."
+            "placeholder": "Path to the service account file on local file system"
           }
         },
         {
           "widget-type": "textbox",
-          "label": "Project Id",
+          "label": "Project ID",
           "name": "project",
           "widget-attributes" : {
-            "placeholder": "The Project Id of GCS."
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Bucket Name",
-          "name": "bucket",
-          "widget-attributes" : {
-            "placeholder": "Temporary Google Cloud Storage bucket name."
+            "placeholder": "The project id of the Cloud Storage bucket"
           }
         }
-
       ]
     },
     {
-      "label": "Google Cloud Storage Configuration",
+      "label": "Path Information",
       "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Bucket Name",
+          "name": "bucket"
+        },
         {
           "widget-type": "textbox",
           "label": "Path",
@@ -73,7 +69,7 @@
         },
         {
           "widget-type": "select",
-          "label": "Read files recursively",
+          "label": "Read Files Recursively",
           "name": "recursive",
           "widget-attributes": {
             "values": [
@@ -86,11 +82,11 @@
       ]
     },
     {
-      "label": "Filename propagation",
+      "label": "Filename Propagation",
       "properties": [
         {
           "widget-type": "textbox",
-          "label": "Propagation as field",
+          "label": "Path Field",
           "name": "pathField",
           "plugin-function": {
             "method": "POST",
@@ -104,7 +100,7 @@
         },
         {
           "widget-type": "select",
-          "label": "Progragate Filename",
+          "label": "Filename Only",
           "name": "filenameOnly",
           "widget-attributes": {
             "values": [
@@ -120,9 +116,12 @@
       "label": "Advanced Properties",
       "properties": [
         {
-          "widget-type": "textbox",
-          "label": "Input Format Class",
+          "widget-type": "hidden",
           "name": "inputFormatClass"
+        },
+        {
+          "widget-type": "hidden",
+          "name": "timeTable"
         },
         {
           "widget-type": "json-editor",
@@ -139,14 +138,6 @@
               "false"
             ],
             "default": "false"
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Time Table",
-          "name": "timeTable",
-          "widget-attributes" : {
-            "placeholder": "Name of table to remember the last time of processing."
           }
         }
       ]

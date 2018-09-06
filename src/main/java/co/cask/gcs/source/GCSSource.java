@@ -20,11 +20,11 @@ import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.annotation.Plugin;
+import co.cask.cdap.etl.api.batch.BatchSource;
 import co.cask.cdap.etl.api.batch.BatchSourceContext;
+import co.cask.common.GCPConfig;
 import co.cask.gcs.GCPUtil;
 import com.google.cloud.ServiceOptions;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -33,13 +33,11 @@ import javax.annotation.Nullable;
 /**
  * Class description here.
  */
-@Plugin(type = "batchsource")
+@Plugin(type = BatchSource.PLUGIN_TYPE)
 @Name(GCSSource.NAME)
-@Description(GCSSource.DESCRIPTION)
+@Description("Reads objects from a path in a Google Cloud Storage bucket.")
 public class GCSSource extends AbstractFileBatchSource {
-  private static final Logger LOG = LoggerFactory.getLogger(GCSSource.class);
   public static final String NAME = "GCSFile";
-  public static final String DESCRIPTION = "Source for Google Cloud Storage.";
   private final GCSSourceConfig config;
 
   public GCSSource(GCSSourceConfig config) {
@@ -55,24 +53,20 @@ public class GCSSource extends AbstractFileBatchSource {
   }
 
   public static class GCSSourceConfig extends FileSourceConfig {
-    @Name("path")
-    @Description("Google Cloud Storage File path")
+    @Description("The path to read from. For example, gs://<bucket>/path/to/directory/")
     @Macro
     public String path;
 
-    @Name("project")
-    @Description("Project ID")
+    @Description(GCPConfig.PROJECT_DESC)
     @Macro
     @Nullable
     public String project;
 
-    @Name("serviceFilePath")
-    @Description("Service account file path.")
+    @Description(GCPConfig.SERVICE_ACCOUNT_DESC)
     @Macro
     @Nullable
-    public String serviceAccountFilePath;
+    public String serviceFilePath;
 
-    @Name("bucket")
     @Description("Name of the bucket.")
     @Macro
     public String bucket;
@@ -88,9 +82,9 @@ public class GCSSource extends AbstractFileBatchSource {
     @Override
     protected Map<String, String> getFileSystemProperties() {
       Map<String, String> properties = new HashMap<>(super.getFileSystemProperties());
-      if (serviceAccountFilePath != null) {
-        properties.put("mapred.bq.auth.service.account.json.keyfile", serviceAccountFilePath);
-        properties.put("google.cloud.auth.service.account.json.keyfile", serviceAccountFilePath);
+      if (serviceFilePath != null) {
+        properties.put("mapred.bq.auth.service.account.json.keyfile", serviceFilePath);
+        properties.put("google.cloud.auth.service.account.json.keyfile", serviceFilePath);
       }
       properties.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
       properties.put("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");

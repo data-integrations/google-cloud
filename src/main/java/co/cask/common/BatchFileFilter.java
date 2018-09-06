@@ -16,7 +16,7 @@
 
 package co.cask.common;
 
-import co.cask.gcs.source.FileBatchSource;
+import co.cask.gcs.source.AbstractFileBatchSource;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import org.apache.hadoop.conf.Configuration;
@@ -130,15 +130,15 @@ public final class BatchFileFilter extends Configured implements PathFilter {
       return;
     }
     configuration = conf;
-    pathName = conf.get(FileBatchSource.INPUT_NAME_CONFIG, "/");
+    pathName = conf.get(AbstractFileBatchSource.INPUT_NAME_CONFIG, "/");
 
     //path is a directory so remove trailing '/'
     if (pathName.endsWith("/")) {
       pathName = pathName.substring(0, pathName.length() - 1);
     }
 
-    String input = conf.get(FileBatchSource.INPUT_REGEX_CONFIG);
-    if (input.equals(FileBatchSource.USE_TIMEFILTER)) {
+    String input = conf.get(AbstractFileBatchSource.INPUT_REGEX_CONFIG);
+    if (input.equals(AbstractFileBatchSource.USE_TIMEFILTER)) {
       useTimeFilter = true;
     } else {
       useTimeFilter = false;
@@ -149,14 +149,14 @@ public final class BatchFileFilter extends Configured implements PathFilter {
       regex = Pattern.compile(input);
     }
     
-    lastRead = conf.get(FileBatchSource.LAST_TIME_READ, "-1");
+    lastRead = conf.get(AbstractFileBatchSource.LAST_TIME_READ, "-1");
 
     if (!lastRead.equals("-1")) {
       dateRangesToRead = GSON.fromJson(lastRead, ARRAYLIST_DATE_TYPE);
     }
 
     try {
-      prevHour = sdf.parse(conf.get(FileBatchSource.CUTOFF_READ_TIME));
+      prevHour = sdf.parse(conf.get(AbstractFileBatchSource.CUTOFF_READ_TIME));
     } catch (ParseException pe) {
       prevHour = new Date(System.currentTimeMillis());
     }

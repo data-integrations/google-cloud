@@ -437,8 +437,18 @@
               <Embed-Transitive>true</Embed-Transitive>
               <Embed-Directory>lib</Embed-Directory>
               <!--Only @Plugin classes in the export packages will be included as plugin-->
-              <_exportcontents>co.cask.bigquery.*,com.google.cloud.hadoop.*,co.cask.gcs.*,
-                co.cask.spanner.*,co.cask.speech.*,co.cask.common.*</_exportcontents>
+              <_exportcontents>
+                co.cask.bigquery.*;
+                com.google.cloud.hadoop.*;
+                co.cask.gcs.*;
+                co.cask.spanner.*;
+                co.cask.speech.*;
+                co.cask.common.*;
+                org.apache.avro.mapred.*;
+                org.apache.avro.mapreduce;
+                parquet.avro.*;
+                parquet.hadoop.*;
+              </_exportcontents>
             </instructions>
           </configuration>
           <executions>

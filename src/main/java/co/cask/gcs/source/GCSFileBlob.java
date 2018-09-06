@@ -31,6 +31,8 @@ import co.cask.cdap.etl.api.Emitter;
 import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchSource;
 import co.cask.cdap.etl.api.batch.BatchSourceContext;
+import co.cask.common.GCPConfig;
+import co.cask.common.ReferenceConfig;
 import co.cask.common.WholeFileInputFormat;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.BytesWritable;
@@ -50,7 +52,7 @@ import java.util.Map;
  */
 @Plugin(type = BatchSource.PLUGIN_TYPE)
 @Name("GCSFileBlob")
-@Description("Reads content of the whole file as one record")
+@Description("Reads the entire content of a Google Cloud Storage object into a single record.")
 public class GCSFileBlob extends BatchSource<String, BytesWritable, StructuredRecord> {
   private static final Logger LOG = LoggerFactory.getLogger(GCSFileBlob.class);
 
@@ -142,29 +144,19 @@ public class GCSFileBlob extends BatchSource<String, BytesWritable, StructuredRe
   /**
    * Configurations for the {@link GCSFileBlob} plugin.
    */
-  public static final class Config extends PluginConfig {
-    @Name("referenceName")
-    @Description(
-      "This will be used to uniquely identify this source/sink for lineage, annotating metadata, etc."
-    )
-    @Macro
-    private String referenceName;
+  public static final class Config extends ReferenceConfig {
 
-    @Description(
-      "Path to file(s) to be read. If a directory is specified, " +
-        "terminate the path name with a \'/\'. The path uses " +
-        "filename expansion (globbing) to read files."
-    )
+    @Description("The path to read from. For example, gs://<bucket>/path/to/directory/")
     @Macro
     private String path;
 
     @Name("project")
-    @Description("Project ID")
+    @Description(GCPConfig.PROJECT_DESC)
     @Macro
     private String project;
 
     @Name("serviceFilePath")
-    @Description("Service account file path.")
+    @Description(GCPConfig.SERVICE_ACCOUNT_DESC)
     @Macro
     private String serviceAccountFilePath;
 
@@ -172,6 +164,10 @@ public class GCSFileBlob extends BatchSource<String, BytesWritable, StructuredRe
     @Description("Name of the bucket.")
     @Macro
     private String bucket;
+
+    public Config(String referenceName) {
+      super(referenceName);
+    }
   }
 }
 

@@ -3,7 +3,7 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name": "Google Cloud Storage Parquet File",
+  "display-name": "Google Cloud Storage Parquet",
   "configuration-groups": [
     {
       "label" : "Governance",
@@ -16,33 +16,24 @@
       ]
     },
     {
-      "label" : "Service Account and Project",
+      "label" : "Service Account and Project Information",
       "properties" : [
         {
           "widget-type": "textbox",
           "label": "Service Account File Path",
           "name": "serviceFilePath",
           "widget-attributes" : {
-            "placeholder": "Path to service account file (Local to host running on)."
+            "placeholder": "Path to the service account file on local file system"
           }
         },
         {
           "widget-type": "textbox",
-          "label": "Project Id",
+          "label": "Project ID",
           "name": "project",
           "widget-attributes" : {
-            "placeholder": "The Project Id of GCS."
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Bucket Name",
-          "name": "bucket",
-          "widget-attributes" : {
-            "placeholder": "Temporary Google Cloud Storage bucket name."
+            "placeholder": "The project id of the Cloud Storage bucket"
           }
         }
-
       ]
     },
     {
@@ -55,8 +46,16 @@
         },
         {
           "widget-type": "textbox",
-          "label": "Path Format",
-          "name": "format"
+          "label": "Path Suffix",
+          "name": "suffix",
+          "widget-attributes": {
+            "default": "yyyy-MM-dd-HH-mm"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Bucket Name",
+          "name": "bucket"
         },
         {
           "widget-type": "select",
@@ -71,11 +70,6 @@
             ],
             "default": "None"
           }
-        },
-        {
-          "widget-type": "json-editor",
-          "label": "Advanced Properties",
-          "name": "properties"
         }
       ]
     }
@@ -92,8 +86,7 @@
           "float",
           "double",
           "bytes",
-          "string",
-          "map<string, string>"
+          "string"
         ],
         "schema-default-type": "string"
       }
