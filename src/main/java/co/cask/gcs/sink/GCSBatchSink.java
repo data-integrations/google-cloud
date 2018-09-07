@@ -20,19 +20,20 @@ import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.data.batch.Output;
-import co.cask.cdap.api.data.batch.OutputFormatProvider;
 import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
+import co.cask.common.GCPConfig;
 import co.cask.common.ReferenceConfig;
 import co.cask.common.ReferenceSink;
 import co.cask.gcs.GCPUtil;
 import co.cask.hydrator.common.batch.sink.SinkOutputFormatProvider;
+import com.google.cloud.ServiceOptions;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.reflect.TypeToken;
-import com.google.gson.Gson;
+import com.google.common.base.Strings;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
-import java.lang.reflect.Type;
+import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -44,31 +45,11 @@ import javax.annotation.Nullable;
  * @param <VAL_OUT> the type of value the sink outputs
  */
 public abstract class GCSBatchSink<KEY_OUT, VAL_OUT> extends ReferenceSink<StructuredRecord, KEY_OUT, VAL_OUT> {
-
-  public static final String PATH_DESC = "The GCS path where the data is stored. Example: 'gs://logs'.";
-  private static final String PATH_FORMAT_DESCRIPTION = "The format for the path that will be suffixed to the " +
-    "base path; for example: the format 'yyyy-MM-dd-HH-mm' will create a file path ending in '2015-01-01-20-42'. " +
-    "Default format used is 'yyyy-MM-dd-HH-mm'.";
-  private static final String FILESYSTEM_PROPERTIES_DESCRIPTION = "A JSON string representing a map of properties " +
-    "needed for the distributed file system.";
-  private static final String DEFAULT_PATH_FORMAT = "yyyy-MM-dd-HH-mm";
-  private static final Gson GSON = new Gson();
-  private static final Type MAP_STRING_STRING_TYPE = new TypeToken<Map<String, String>>() {
-  }.getType();
-
   private final GCSBatchSinkConfig config;
 
   public GCSBatchSink(GCSBatchSinkConfig config) {
     super(config);
     this.config = config;
-    // update properties to include accessID and accessKey, so prepareRun can only set properties
-    // in configuration, and not deal with accessID and accessKey separately
-    // do not create file system properties if macros were provided unless in a test case
-    if (!this.config.containsMacro("properties") && !this.config.containsMacro("accessID") &&
-      !this.config.containsMacro("accessKey")) {
-      this.config.properties = updateFileSystemProperties(this.config.path,
-                                                          this.config.properties);
-    }
   }
 
   @Override
@@ -80,33 +61,27 @@ public abstract class GCSBatchSink<KEY_OUT, VAL_OUT> extends ReferenceSink<Struc
   @Override
   public final void prepareRun(BatchSinkContext context) {
     config.validate();
-    // validate project id availability
-    GCPUtil.getProjectId(config.project);
-    OutputFormatProvider outputFormatProvider = createOutputFormatProvider(context);
-    Map<String, String> outputConfig = new HashMap<>(outputFormatProvider.getOutputFormatConfiguration());
-
-    if (config.properties != null) {
-      Map<String, String> properties = GSON.fromJson(config.properties, MAP_STRING_STRING_TYPE);
-      outputConfig.putAll(properties);
+    Map<String, String> outputConfig = new HashMap<>();
+    outputConfig.put(FileOutputFormat.OUTDIR, config.getOutputDir(context.getLogicalStartTime()));
+    if (config.serviceFilePath != null) {
+      outputConfig.put("mapred.bq.auth.service.account.json.keyfile", config.serviceFilePath);
+      outputConfig.put("google.cloud.auth.service.account.json.keyfile", config.serviceFilePath);
     }
-    context.addOutput(Output.of(config.referenceName, new SinkOutputFormatProvider(
-      outputFormatProvider.getOutputFormatClassName(), outputConfig)));
+    outputConfig.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
+    outputConfig.put("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
+    String projectId = GCPUtil.getProjectId(config.project);
+    outputConfig.put("fs.gs.project.id", projectId);
+    outputConfig.put("fs.gs.system.bucket", config.bucket);
+    outputConfig.put("fs.gs.impl.disable.cache", "true");
+    outputConfig.putAll(getOutputFormatConfig());
+
+    context.addOutput(Output.of(config.referenceName,
+                                new SinkOutputFormatProvider(getOutputFormatClassname(), outputConfig)));
   }
 
-  /**
-   * Returns a {@link OutputFormatProvider} to be used for output.
-   */
-  protected abstract OutputFormatProvider createOutputFormatProvider(BatchSinkContext context);
+  protected abstract String getOutputFormatClassname();
 
-  private static String updateFileSystemProperties(String basePath, @Nullable String fileSystemProperties) {
-    Map<String, String> providedProperties;
-    if (fileSystemProperties == null) {
-      providedProperties = new HashMap<>();
-    } else {
-      providedProperties = GSON.fromJson(fileSystemProperties, MAP_STRING_STRING_TYPE);
-    }
-    return GSON.toJson(providedProperties);
-  }
+  protected abstract Map<String, String> getOutputFormatConfig();
 
   @VisibleForTesting
   GCSBatchSinkConfig getConfig() {
@@ -114,42 +89,31 @@ public abstract class GCSBatchSink<KEY_OUT, VAL_OUT> extends ReferenceSink<Struc
   }
 
   /**
-   * S3 Sink configuration.
+   * Sink configuration.
    */
   public static class GCSBatchSinkConfig extends ReferenceConfig {
     @Name("path")
-    @Description("The GCS path where the data is stored. Example: 'gs://logs'.")
+    @Description("The path to write to. For example, gs://<bucket>/path/to/directory")
     @Macro
     protected String path;
 
-    @Name("format")
-    @Description("The format for the path that will be suffixed to the " +
-      "base path; for example: the format 'yyyy-MM-dd-HH-mm' will create a file path ending in '2015-01-01-20-42'. " +
-      "Default format used is 'yyyy-MM-dd-HH-mm'.")
+    @Description("The time format for the output directory that will be appended to the path. " +
+      "For example, the format 'yyyy-MM-dd-HH-mm' will result in a directory of the form '2015-01-01-20-42'. " +
+      "If not specified, nothing will be appended to the path.")
     @Nullable
     @Macro
-    protected String format;
+    protected String suffix;
 
-    @Name("properties")
-    @Description("A JSON string representing a map of properties " +
-      "needed for the distributed file system.")
-    @Nullable
-    @Macro
-    protected String properties;
-
-    @Name("project")
-    @Description("Project ID")
+    @Description(GCPConfig.PROJECT_DESC)
     @Macro
     @Nullable
     protected String project;
 
-    @Name("serviceFilePath")
-    @Description("Service account file path.")
+    @Description(GCPConfig.SERVICE_ACCOUNT_DESC)
     @Macro
     @Nullable
-    protected String serviceAccountFilePath;
+    protected String serviceFilePath;
 
-    @Name("bucket")
     @Description("Name of the bucket.")
     @Macro
     protected String bucket;
@@ -157,26 +121,20 @@ public abstract class GCSBatchSink<KEY_OUT, VAL_OUT> extends ReferenceSink<Struc
     public GCSBatchSinkConfig() {
       // Set default value for Nullable properties.
       super("");
-      this.format = DEFAULT_PATH_FORMAT;
-      this.properties = updateFileSystemProperties(path, null);
-    }
-
-    public GCSBatchSinkConfig(String referenceName, String path,
-                              @Nullable String format, @Nullable String properties,
-                              String project, String serviceAccountFilePath, String bucket) {
-      super(referenceName);
-      this.path = path;
-      this.format = format == null || format.isEmpty() ? DEFAULT_PATH_FORMAT : format;
-      this.project = project;
-      this.serviceAccountFilePath = serviceAccountFilePath;
-      this.bucket = bucket;
-      this.properties = updateFileSystemProperties(path, properties);
     }
 
     public void validate() {
-      if (path != null && !path.startsWith("gs://")) {
+      if (path != null && !containsMacro("path") && !path.startsWith("gs://")) {
         throw new IllegalArgumentException("Path must start with gs://.");
       }
+      if (suffix != null && !containsMacro("suffix")) {
+        new SimpleDateFormat(suffix);
+      }
+    }
+
+    protected String getOutputDir(long logicalStartTime) {
+      String timeSuffix = !Strings.isNullOrEmpty(suffix) ? new SimpleDateFormat(suffix).format(logicalStartTime) : "";
+      return String.format("%s/%s", path, timeSuffix);
     }
   }
 }

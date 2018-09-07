@@ -19,34 +19,29 @@ package co.cask.gcs.sink;
 import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.annotation.Plugin;
-import co.cask.cdap.api.data.batch.OutputFormatProvider;
 import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.dataset.lib.KeyValue;
 import co.cask.cdap.etl.api.Emitter;
 import co.cask.cdap.etl.api.batch.BatchRuntimeContext;
 import co.cask.cdap.etl.api.batch.BatchSink;
-import co.cask.cdap.etl.api.batch.BatchSinkContext;
 import co.cask.cdap.format.StructuredRecordStringConverter;
-import com.google.cloud.ServiceOptions;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapred.JobContext;
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.Map;
 
 /**
- * {@link GCSTextBatchSink} that stores data in avro format to S3.
+ * {@link GCSTextBatchSink} that stores data in text format to Google Cloud Storage.
  */
 @Plugin(type = BatchSink.PLUGIN_TYPE)
 @Name("GCSText")
-@Description("GCS Text Batch Sink.")
+@Description("Writes records to one or more text files in a directory on Google Cloud Storage.")
 public class GCSTextBatchSink extends GCSBatchSink<NullWritable, Text> {
   private static final Logger LOG = LoggerFactory.getLogger(GCSTextBatchSink.class);
   private final GCSTextSinkConfig config;
@@ -73,19 +68,19 @@ public class GCSTextBatchSink extends GCSBatchSink<NullWritable, Text> {
   }
 
   @Override
-  protected OutputFormatProvider createOutputFormatProvider(BatchSinkContext context) {
-    return new GCSTextOutputFormatProvider(config, context);
+  public void transform(StructuredRecord input, Emitter<KeyValue<NullWritable, Text>> emitter) throws IOException {
+    String record = convertor.convert(input);
+    emitter.emit(new KeyValue<>(NullWritable.get(), new Text(record)));
   }
 
   @Override
-  public void transform(StructuredRecord input,
-                        Emitter<KeyValue<NullWritable, Text>> emitter) throws Exception {
-    try {
-      String record = convertor.convert(input);
-      emitter.emit(new KeyValue<>(NullWritable.get(), new Text(record)));
-    } catch (IOException e) {
-      // no-op
-    }
+  protected String getOutputFormatClassname() {
+    return TextOutputFormat.class.getName();
+  }
+
+  @Override
+  protected Map<String, String> getOutputFormatConfig() {
+    return Collections.singletonMap(JobContext.OUTPUT_KEY_CLASS, Text.class.getName());
   }
 
   interface Convertor {
@@ -94,21 +89,21 @@ public class GCSTextBatchSink extends GCSBatchSink<NullWritable, Text> {
 
   private static class CommaSeparated implements Convertor {
     @Override
-    public String convert(StructuredRecord input) throws IOException {
+    public String convert(StructuredRecord input) {
       return StructuredRecordStringConverter.toDelimitedString(input, ",");
     }
   }
 
   private static class TabSeparated implements Convertor {
     @Override
-    public String convert(StructuredRecord input) throws IOException {
+    public String convert(StructuredRecord input) {
       return StructuredRecordStringConverter.toDelimitedString(input, "\t");
     }
   }
 
   private static class PipeSeparated implements Convertor {
     @Override
-    public String convert(StructuredRecord input) throws IOException {
+    public String convert(StructuredRecord input) {
       return StructuredRecordStringConverter.toDelimitedString(input, "|");
     }
   }
@@ -122,64 +117,17 @@ public class GCSTextBatchSink extends GCSBatchSink<NullWritable, Text> {
 
   private static class CtrlASeparated implements Convertor {
     @Override
-    public String convert(StructuredRecord input) throws IOException {
+    public String convert(StructuredRecord input) {
       return StructuredRecordStringConverter.toDelimitedString(input, "\u0001");
     }
   }
 
   /**
-   * Configuration for the GCSAvroSink.
+   * Configuration for the sink.
    */
   public static class GCSTextSinkConfig extends GCSBatchSinkConfig {
     @Name("type")
     @Description("Specifies the type of output.")
     private String type;
-
-    @SuppressWarnings("unused")
-    public GCSTextSinkConfig() {
-      super();
-    }
-
-    @SuppressWarnings("unused")
-    public GCSTextSinkConfig(String referenceName, String path,
-                             String format, String properties, String type,
-                             String project, String serviceAccountFilePath, String bucket) {
-      super(referenceName, path, format, properties, project, serviceAccountFilePath, bucket);
-      this.type = type;
-    }
-  }
-
-  /**
-   * Output format provider that sets avro output format to be use in MapReduce.
-   */
-  public static class GCSTextOutputFormatProvider implements OutputFormatProvider {
-    private final Map<String, String> properties = new HashMap<>();
-
-    public GCSTextOutputFormatProvider(GCSTextSinkConfig config, BatchSinkContext context) {
-      SimpleDateFormat format = new SimpleDateFormat(config.format);
-      properties.put(JobContext.OUTPUT_KEY_CLASS, Text.class.getName());
-      properties.put(FileOutputFormat.OUTDIR, String.format("%s/%s", config.path,
-                                                      format.format(context.getLogicalStartTime())));
-      if (config.serviceAccountFilePath != null) {
-        properties.put("mapred.bq.auth.service.account.json.keyfile", config.serviceAccountFilePath);
-        properties.put("google.cloud.auth.service.account.json.keyfile", config.serviceAccountFilePath);
-      }
-      properties.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
-      properties.put("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
-      String projectId = config.project == null ? ServiceOptions.getDefaultProjectId() : config.project;
-      properties.put("fs.gs.project.id", projectId);
-      properties.put("fs.gs.system.bucket", config.bucket);
-      properties.put("fs.gs.impl.disable.cache", "true");
-    }
-
-    @Override
-    public String getOutputFormatClassName() {
-      return TextOutputFormat.class.getName();
-    }
-
-    @Override
-    public Map<String, String> getOutputFormatConfiguration() {
-      return properties;
-    }
   }
 }

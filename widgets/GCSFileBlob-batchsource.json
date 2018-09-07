@@ -15,44 +15,40 @@
       ]
     },
     {
-      "label" : "Service Account and Project",
+      "label" : "Service Account and Project Information",
       "properties" : [
         {
           "widget-type": "textbox",
           "label": "Service Account File Path",
           "name": "serviceFilePath",
           "widget-attributes" : {
-            "placeholder": "Path to service account file (Local to host running on)."
+            "placeholder": "Path to the service account file on local file system"
           }
         },
         {
           "widget-type": "textbox",
-          "label": "Project Id",
+          "label": "Project ID",
           "name": "project",
           "widget-attributes" : {
-            "placeholder": "The Project Id of GCS."
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Bucket Name",
-          "name": "bucket",
-          "widget-attributes" : {
-            "placeholder": "Google Cloud Storage bucket name."
+            "placeholder": "The project id of the Cloud Storage bucket"
           }
         }
-
       ]
     },
     {
-      "label": "GCS Path",
+      "label": "Path Information",
       "properties": [
         {
           "widget-type": "textbox",
-          "label": "Input path",
+          "label": "Bucket Name",
+          "name": "bucket"
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Path",
           "name": "path",
           "widget-attributes" : {
-            "placeholder" : "gs://users/joltie/my/directory"
+            "placeholder": "Path to be processed, specified as gs://<bucket>/<dir>/<dir>"
           }
         }
       ]
