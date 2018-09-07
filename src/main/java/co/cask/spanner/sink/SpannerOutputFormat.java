@@ -22,6 +22,8 @@ import co.cask.gcs.GCPUtil;
 import co.cask.spanner.SpannerConstants;
 import co.cask.spanner.common.SpannerUtil;
 import com.google.cloud.ByteArray;
+import com.google.cloud.Date;
+import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Mutation;
@@ -37,6 +39,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.time.LocalDate;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -107,9 +111,33 @@ public class SpannerOutputFormat extends OutputFormat<NullWritable, StructuredRe
       Mutation.WriteBuilder builder = Mutation.newInsertOrUpdateBuilder(tableName);
       List<Schema.Field> fields = schema.getFields();
       for (Schema.Field field : fields) {
-        Schema fieldSchema = field.getSchema();
-        Schema.Type type = fieldSchema.isNullable() ? fieldSchema.getNonNullable().getType() : fieldSchema.getType();
         String name = field.getName();
+        Schema fieldSchema = field.getSchema();
+        fieldSchema = fieldSchema.isNullable() ? fieldSchema.getNonNullable() : fieldSchema;
+        Schema.LogicalType logicalType = fieldSchema.getLogicalType();
+
+        if (logicalType != null) {
+          if (record.get(name) != null) {
+            switch (logicalType) {
+              case DATE:
+                LocalDate date = record.getDate(name);
+                Date spannerDate = Date.fromYearMonthDay(date.getYear(), date.getMonthValue(), date.getDayOfMonth());
+                builder.set(name).to(spannerDate);
+                break;
+              case TIMESTAMP_MILLIS:
+              case TIMESTAMP_MICROS:
+                ZonedDateTime ts = record.getTimestamp(name);
+                Timestamp spannerTs = Timestamp.ofTimeSecondsAndNanos(ts.toEpochSecond(), ts.getNano());
+                builder.set(name).to(spannerTs);
+                break;
+              default:
+                throw new IOException("Logical type" + logicalType + " is not supported.");
+            }
+          }
+          continue;
+        }
+
+        Schema.Type type = fieldSchema.getType();
         switch(type) {
           case BOOLEAN:
             builder.set(name).to(record.<Boolean>get(name));
@@ -127,7 +155,7 @@ public class SpannerOutputFormat extends OutputFormat<NullWritable, StructuredRe
             byte[] byteArray = record.get(name);
             builder.set(name).to(ByteArray.copyFrom(byteArray));
             break;
-          // todo CDAP-14233 - add support for array, date and timestamp
+          // todo CDAP-14233 - add support for array
           default:
             throw new IOException(type.name() + " : Type currently not supported.");
         }
