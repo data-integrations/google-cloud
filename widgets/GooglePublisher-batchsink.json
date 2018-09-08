@@ -1,0 +1,92 @@
+{
+  "metadata": {
+    "spec-version": "1.5"
+  },
+  "display-name": "Google Cloud PubSub Publisher",
+  "configuration-groups": [
+    {
+      "label" : "Governance",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Reference Name",
+          "name": "referenceName"
+        }
+      ]
+    },
+    {
+      "label" : "Service Account and Project Information",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "placeholder": "Path to the service account file on local file system."
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Project Id",
+          "name": "project",
+          "widget-attributes" : {
+            "placeholder": "The project id of the Cloud Pub/Sub."
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "PubSub topic",
+          "name": "topic",
+          "widget-attributes" : {
+            "placeholder": "Name of the Google PubSub topic to publish to."
+          }
+        }
+      ]
+    },
+    {
+      "label" : "Advanced : Batching and Error Settings",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Maximum Batch Count",
+          "name": "messageCountBatchSize",
+          "widget-attributes" : {
+            "default": "100"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Maximum Batch Size (KB)",
+          "name": "requestThresholdKB",
+          "widget-attributes" : {
+            "default": "1"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Publish Delay Threshold (ms)",
+          "name": "publishDelayThresholdMillis",
+          "widget-attributes" : {
+            "default": "1"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Retry Timeout (seconds)",
+          "name": "retryTimeoutSeconds",
+          "widget-attributes" : {
+            "default": "30"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Error Threshold",
+          "name": "errorThreshold",
+          "widget-attributes" : {
+            "default": "0"
+          }
+        }
+      ]
+    }
+  ]
+}
