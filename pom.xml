@@ -442,6 +442,7 @@
                 com.google.cloud.hadoop.*;
                 co.cask.gcs.*;
                 co.cask.spanner.*;
+                co.cask.publisher.*;
                 co.cask.speech.*;
                 co.cask.common.*;
                 org.apache.avro.mapred.*;
@@ -546,7 +547,7 @@
     </plugins>
   </build>
 
-   <!-- Profile for release. Includes signing of jars. -->
+  <!-- Profile for release. Includes signing of jars. -->
   <profiles>
     <profile>
       <id>release</id>

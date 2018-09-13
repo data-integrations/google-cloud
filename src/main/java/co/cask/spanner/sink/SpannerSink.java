@@ -63,6 +63,7 @@ public final class SpannerSink
 
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
+    super.configurePipeline(pipelineConfigurer);
     config.validate();
   }
 
