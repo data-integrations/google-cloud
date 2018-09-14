@@ -116,14 +116,6 @@
       "label": "Advanced Properties",
       "properties": [
         {
-          "widget-type": "hidden",
-          "name": "inputFormatClass"
-        },
-        {
-          "widget-type": "hidden",
-          "name": "timeTable"
-        },
-        {
           "widget-type": "json-editor",
           "label": "File System Properties",
           "name": "fileSystemProperties"
