@@ -25,10 +25,13 @@ import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.format.UnexpectedFormatException;
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.cdap.api.dataset.lib.KeyValue;
+import co.cask.cdap.api.lineage.field.EndPoint;
 import co.cask.cdap.etl.api.Emitter;
 import co.cask.cdap.etl.api.batch.BatchRuntimeContext;
 import co.cask.cdap.etl.api.batch.BatchSink;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
+import co.cask.cdap.etl.api.lineage.field.FieldOperation;
+import co.cask.cdap.etl.api.lineage.field.FieldWriteOperation;
 import co.cask.gcp.common.GCPUtils;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
@@ -53,11 +56,13 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * This class <code>BigQuerySink</code> is a plugin that would allow users
@@ -150,8 +155,8 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
       BigQueryFileFormat.NEWLINE_DELIMITED_JSON,
       TextOutputFormat.class);
 
-    
-    context.addOutput(Output.of(config.table.replace("-", "_").replace(".", "_"), new OutputFormatProvider() {
+    String outputName = config.table.replace("-", "_").replace(".", "_");
+    context.addOutput(Output.of(outputName, new OutputFormatProvider() {
       @Override
       public String getOutputFormatClassName() {
         return IndirectBigQueryOutputFormat.class.getName();
@@ -166,6 +171,15 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
         return config;
       }
     }));
+
+    if (!fields.isEmpty()) {
+      // Record the field level WriteOperation
+      FieldOperation operation = new FieldWriteOperation("Write", "Wrote to BigQuery table.",
+                                                         EndPoint.of(context.getNamespace(), outputName),
+                                                         fields.stream().map(BigQueryTableFieldSchema::getName)
+                                                           .collect(Collectors.toList()));
+      context.record(Collections.singletonList(operation));
+    }
   }
 
   @Override
