@@ -24,15 +24,18 @@ import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.cdap.api.data.schema.UnsupportedTypeException;
 import co.cask.cdap.api.dataset.lib.KeyValue;
+import co.cask.cdap.api.lineage.field.EndPoint;
 import co.cask.cdap.etl.api.Emitter;
 import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchRuntimeContext;
 import co.cask.cdap.etl.api.batch.BatchSource;
 import co.cask.cdap.etl.api.batch.BatchSourceContext;
+import co.cask.cdap.etl.api.lineage.field.FieldOperation;
+import co.cask.cdap.etl.api.lineage.field.FieldReadOperation;
 import co.cask.gcp.common.GCPUtils;
-import co.cask.hydrator.common.SourceInputFormatProvider;
 import co.cask.gcp.spanner.SpannerConstants;
 import co.cask.gcp.spanner.common.SpannerUtil;
+import co.cask.hydrator.common.SourceInputFormatProvider;
 import com.google.cloud.ByteArray;
 import com.google.cloud.Date;
 import com.google.cloud.Timestamp;
@@ -63,8 +66,10 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import javax.ws.rs.Path;
 
 /**
@@ -132,6 +137,16 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
     // set input format and pass configuration
     batchSourceContext.setInput(Input.of(config.referenceName,
                                          new SourceInputFormatProvider(SpannerInputFormat.class, configuration)));
+    if (config.getSchema() != null) {
+      if (config.getSchema().getFields() != null) {
+        FieldOperation operation =
+          new FieldReadOperation("Read", "Read from Spanner table",
+                                 EndPoint.of(batchSourceContext.getNamespace(), config.referenceName),
+                                 config.getSchema().getFields().stream().map(Schema.Field::getName)
+                                   .collect(Collectors.toList()));
+        batchSourceContext.record(Collections.singletonList(operation));
+      }
+    }
   }
 
   @Override
