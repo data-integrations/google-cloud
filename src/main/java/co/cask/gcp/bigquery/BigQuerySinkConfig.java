@@ -19,13 +19,13 @@ package co.cask.gcp.bigquery;
 import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.annotation.Name;
-import co.cask.gcp.common.GCPConfig;
+import co.cask.gcp.publisher.GCPReferenceSinkConfig;
 
 /**
  * This class <code>BigQuerySinkConfig</code> provides all the configuration required for
  * configuring the <code>BigQuerySink</code> plugin.
  */
-public final class BigQuerySinkConfig extends GCPConfig {
+public final class BigQuerySinkConfig extends GCPReferenceSinkConfig {
   @Name("dataset")
   @Description("The dataset to write to. A dataset is contained within a specific project. "
     + "Datasets are top-level containers that are used to organize and control access to tables and views.")

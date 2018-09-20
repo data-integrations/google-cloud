@@ -19,12 +19,12 @@ package co.cask.gcp.bigquery;
 import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.annotation.Name;
-import co.cask.gcp.common.GCPConfig;
+import co.cask.gcp.publisher.GCPReferenceSourceConfig;
 
 /**
  * Class description here.
  */
-public final class BigQuerySourceConfig extends GCPConfig {
+public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   @Name("dataset")
   @Description("The dataset the table belongs to. A dataset is contained within a specific project. "
     + "Datasets are top-level containers that are used to organize and control access to tables and views.")
