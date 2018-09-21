@@ -21,8 +21,12 @@ import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.data.batch.Output;
 import co.cask.cdap.api.data.format.StructuredRecord;
+import co.cask.cdap.api.data.schema.Schema;
+import co.cask.cdap.api.lineage.field.EndPoint;
 import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
+import co.cask.cdap.etl.api.lineage.field.FieldOperation;
+import co.cask.cdap.etl.api.lineage.field.FieldWriteOperation;
 import co.cask.gcp.common.GCPConfig;
 import co.cask.gcp.common.GCPUtils;
 import co.cask.gcp.common.ReferenceConfig;
@@ -33,12 +37,14 @@ import com.google.common.base.Strings;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 import java.text.SimpleDateFormat;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 /**
- * {@link GCSBatchSink} that stores the data of the latest run of an adapter in S3.
+ * {@link GCSBatchSink} that stores the data of various format to Google Cloud Storage.
  *
  * @param <KEY_OUT> the type of key the sink outputs
  * @param <VAL_OUT> the type of value the sink outputs
@@ -73,9 +79,17 @@ public abstract class GCSBatchSink<KEY_OUT, VAL_OUT> extends ReferenceSink<Struc
     outputConfig.put("fs.gs.system.bucket", config.bucket);
     outputConfig.put("fs.gs.impl.disable.cache", "true");
     outputConfig.putAll(getOutputFormatConfig());
-
     context.addOutput(Output.of(config.referenceName,
                                 new SinkOutputFormatProvider(getOutputFormatClassname(), outputConfig)));
+    // record field level lineage information
+    Schema inputSchema = context.getInputSchema();
+    if (inputSchema != null && inputSchema.getFields() != null && !inputSchema.getFields().isEmpty()) {
+      FieldOperation operation = new FieldWriteOperation("Write", "Wrote to Google Cloud Storage.",
+                                                         EndPoint.of(context.getNamespace(), config.referenceName),
+                                                         inputSchema.getFields().stream().map(Schema.Field::getName)
+                                                           .collect(Collectors.toList()));
+      context.record(Collections.singletonList(operation));
+    }
   }
 
   protected abstract String getOutputFormatClassname();

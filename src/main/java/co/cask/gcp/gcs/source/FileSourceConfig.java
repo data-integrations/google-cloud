@@ -57,29 +57,29 @@ public abstract class FileSourceConfig extends ReferencePluginConfig {
   public Long maxSplitSize;
 
   @Nullable
-  @Description("Identify if path needs to be ignored or not, for case when directory or file does not exists. If " +
-    "set to true it will treat the not present folder as zero input and log a warning. Default is false.")
-  public Boolean ignoreNonExistingFolders;
-
-  @Nullable
-  @Description("Boolean value to determine if files are to be read recursively from the path. Default is false.")
-  public Boolean recursive;
-
-  @Nullable
   @Description("If specified, each output record will include a field with this name that contains the file URI " +
     "that the record was read from. Requires a customized version of CombineFileInputFormat, so it cannot be used " +
     "if an inputFormatClass is given.")
   public String pathField;
 
-  @Nullable
-  @Description("If true and a pathField is specified, only the filename will be used. If false, the full " +
-    "URI will be used. Defaults to false.")
-  public Boolean filenameOnly;
-
   // TODO: remove once CDAP-11371 is fixed
   // This is only here because the UI requires a property otherwise a default schema cannot be set.
   @Nullable
   public String schema;
+
+  @Nullable
+  @Description("If true and a pathField is specified, only the filename will be used. If false, the full " +
+    "URI will be used. Defaults to false.")
+  private Boolean filenameOnly;
+
+  @Nullable
+  @Description("Identify if path needs to be ignored or not, for case when directory or file does not exists. If " +
+    "set to true it will treat the not present folder as zero input and log a warning. Default is false.")
+  private Boolean ignoreNonExistingFolders;
+
+  @Nullable
+  @Description("Boolean value to determine if files are to be read recursively from the path. Default is false.")
+  private Boolean recursive;
 
   public FileSourceConfig() {
     super("");
@@ -87,6 +87,18 @@ public abstract class FileSourceConfig extends ReferencePluginConfig {
     this.ignoreNonExistingFolders = false;
     this.recursive = false;
     this.filenameOnly = false;
+  }
+
+  public boolean useFilenameOnly() {
+    return Boolean.TRUE.equals(filenameOnly);
+  }
+
+  public boolean shouldIgnoreNonExistingFolders() {
+    return Boolean.TRUE.equals(ignoreNonExistingFolders);
+  }
+
+  public boolean isRecursive() {
+    return Boolean.TRUE.equals(recursive);
   }
 
   protected void validate() {
