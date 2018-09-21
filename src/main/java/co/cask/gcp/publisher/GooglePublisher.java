@@ -22,17 +22,23 @@ import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.annotation.Plugin;
 import co.cask.cdap.api.data.batch.Output;
 import co.cask.cdap.api.data.format.StructuredRecord;
+import co.cask.cdap.api.data.schema.Schema;
 import co.cask.cdap.api.dataset.lib.KeyValue;
+import co.cask.cdap.api.lineage.field.EndPoint;
 import co.cask.cdap.etl.api.Emitter;
 import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchSink;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
+import co.cask.cdap.etl.api.lineage.field.FieldOperation;
+import co.cask.cdap.etl.api.lineage.field.FieldWriteOperation;
 import co.cask.cdap.format.StructuredRecordStringConverter;
 import co.cask.hydrator.common.batch.sink.SinkOutputFormatProvider;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
 
+import java.util.Collections;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 /**
@@ -65,6 +71,15 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, T
     PubSubOutputFormat.configure(configuration, config);
     context.addOutput(Output.of(config.referenceName,
                                 new SinkOutputFormatProvider(PubSubOutputFormat.class, configuration)));
+    // record field level lineage information
+    Schema inputSchema = context.getInputSchema();
+    if (inputSchema != null && inputSchema.getFields() != null && !inputSchema.getFields().isEmpty()) {
+      FieldOperation operation = new FieldWriteOperation("Write", "Wrote to Google Cloud Pub/Sub.",
+                                                         EndPoint.of(context.getNamespace(), config.referenceName),
+                                                         inputSchema.getFields().stream().map(Schema.Field::getName)
+                                                           .collect(Collectors.toList()));
+      context.record(Collections.singletonList(operation));
+    }
   }
 
   @Override
