@@ -35,7 +35,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.slf4j.Logger;
@@ -82,15 +81,17 @@ public abstract class AbstractFileBatchSource extends ReferenceBatchSource<Objec
       conf.set(entry.getKey(), entry.getValue());
     }
 
-    conf.set(INPUT_REGEX_CONFIG, config.fileRegex);
+    if (config.fileRegex != null) {
+      conf.set(INPUT_REGEX_CONFIG, config.fileRegex);
+    }
 
-    FileInputFormat.setInputDirRecursive(job, config.recursive);
+    FileInputFormat.setInputDirRecursive(job, config.isRecursive());
 
     FileSystem pathFileSystem = FileSystem.get(new Path(config.getPath()).toUri(), conf);
     FileStatus[] fileStatus = pathFileSystem.globStatus(new Path(config.getPath()));
     fs = FileSystem.get(conf);
 
-    if (fileStatus == null && config.ignoreNonExistingFolders) {
+    if (fileStatus == null &&  config.shouldIgnoreNonExistingFolders()) {
       Path path = fs.getWorkingDirectory().suffix("/tmp/tmp.txt");
       LOG.warn(String.format("File/Folder specified in %s does not exists. Setting input path to %s.", config.getPath(),
                              path));
@@ -105,7 +106,7 @@ public abstract class AbstractFileBatchSource extends ReferenceBatchSource<Objec
     if (config.maxSplitSize != null) {
       FileInputFormat.setMaxInputSplitSize(job, config.maxSplitSize);
     }
-    PathTrackingInputFormat.configure(conf, config.pathField, config.filenameOnly);
+    PathTrackingInputFormat.configure(conf, config.pathField, config.useFilenameOnly());
     context.setInput(Input.of(config.referenceName,
                               new SourceInputFormatProvider(CombinePathTrackingInputFormat.class, conf)));
   }

@@ -20,14 +20,24 @@ import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.annotation.Plugin;
+import co.cask.cdap.api.data.batch.Input;
+import co.cask.cdap.api.data.schema.Schema;
+import co.cask.cdap.api.lineage.field.EndPoint;
 import co.cask.cdap.etl.api.batch.BatchSource;
 import co.cask.cdap.etl.api.batch.BatchSourceContext;
+import co.cask.cdap.etl.api.lineage.field.FieldOperation;
+import co.cask.cdap.etl.api.lineage.field.FieldReadOperation;
+import co.cask.cdap.etl.api.lineage.field.FieldWriteOperation;
 import co.cask.gcp.common.GCPConfig;
 import co.cask.gcp.common.GCPUtils;
+import co.cask.gcp.spanner.source.SpannerInputFormat;
+import co.cask.hydrator.common.SourceInputFormatProvider;
 import com.google.cloud.ServiceOptions;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 /**
@@ -50,6 +60,16 @@ public class GCSSource extends AbstractFileBatchSource {
     super.prepareRun(context);
     config.validate();
     GCPUtils.getProjectId(config.project);
+
+    // record field level lineage information
+    Schema outputSchema = context.getOutputSchema();
+    if (outputSchema != null && outputSchema.getFields() != null && !outputSchema.getFields().isEmpty()) {
+      FieldOperation operation = new FieldReadOperation("Read", "Read from Google Cloud Storage.",
+                                                        EndPoint.of(context.getNamespace(), config.referenceName),
+                                                        outputSchema.getFields().stream().map(Schema.Field::getName)
+                                                           .collect(Collectors.toList()));
+      context.record(Collections.singletonList(operation));
+    }
   }
 
   public static class GCSSourceConfig extends FileSourceConfig {
