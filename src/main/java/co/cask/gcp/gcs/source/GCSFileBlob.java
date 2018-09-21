@@ -26,18 +26,23 @@ import co.cask.cdap.api.data.batch.InputFormatProvider;
 import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.cdap.api.dataset.lib.KeyValue;
+import co.cask.cdap.api.lineage.field.EndPoint;
 import co.cask.cdap.etl.api.Emitter;
 import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchSource;
 import co.cask.cdap.etl.api.batch.BatchSourceContext;
+import co.cask.cdap.etl.api.lineage.field.FieldOperation;
+import co.cask.cdap.etl.api.lineage.field.FieldReadOperation;
 import co.cask.gcp.common.GCPConfig;
 import co.cask.gcp.common.ReferenceConfig;
 import co.cask.gcp.common.WholeFileInputFormat;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * A source that uses the {@link WholeFileInputFormat} to read whole file as one record.
@@ -81,6 +86,16 @@ public class GCSFileBlob extends BatchSource<String, BytesWritable, StructuredRe
         return properties;
       }
     }));
+
+    // record field level lineage information
+    Schema outputSchema = context.getOutputSchema();
+    if (outputSchema != null && outputSchema.getFields() != null && !outputSchema.getFields().isEmpty()) {
+      FieldOperation operation = new FieldReadOperation("Read", "Read from Google Cloud Storage.",
+                                                        EndPoint.of(context.getNamespace(), config.referenceName),
+                                                        outputSchema.getFields().stream().map(Schema.Field::getName)
+                                                          .collect(Collectors.toList()));
+      context.record(Collections.singletonList(operation));
+    }
   }
 
   @Override
