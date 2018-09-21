@@ -175,7 +175,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
         Schema schema = Schema.parseJson(config.schema);
         if (schema.getFields() != null) {
           FieldOperation operation =
-            new FieldReadOperation("Read", "Read from BigQuery table",
+            new FieldReadOperation("Read", "Read from BigQuery table.",
                                    EndPoint.of(context.getNamespace(), config.referenceName),
                                    schema.getFields().stream().map(Schema.Field::getName)
                                       .collect(Collectors.toList()));
