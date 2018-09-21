@@ -1,8 +1,9 @@
-# Google Cloud Storage Text File Sink
+# Google Cloud Storage Sink
 
 Description
 -----------
-This plugin writes records to one or more text files in a directory on Google Cloud Storage.
+This plugin writes records to one or more files in a directory on Google Cloud Storage.
+Files can be written in various formats such as csv, avro, parquet, and json.
 
 Cloud Storage allows world-wide storage and retrieval of any amount of data at any time.
 You can use Cloud Storage for a range of scenarios including serving website content,
@@ -39,5 +40,11 @@ When running on other clusters, the file must be present on every node in the cl
 For example, the format 'yyyy-MM-dd-HH-mm' will result in a directory of the form '2015-01-01-20-42'.
 If not specified, nothing will be appended to the path."
 
-**File Type:** The type of file to write. Supports json, or comma, tab, pipe or Ctrl+A separated types.
-Defaults to json.
+**Format:** The format to write the records in.
+The format must be one of 'json', 'avro', 'parquet', 'csv', 'tsv', or 'delimited'.
+
+**Delimiter:** The delimiter to use if the format is 'delimited'.
+The delimiter will be ignored if the format is anything other than 'delimited'.
+
+**Schema:** The schema of the data to write.
+The 'avro' and 'parquet' formats require a schema but other formats do not.
