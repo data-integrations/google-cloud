@@ -21,15 +21,25 @@ import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.annotation.Plugin;
 import co.cask.cdap.api.data.batch.Output;
 import co.cask.cdap.api.data.format.StructuredRecord;
+import co.cask.cdap.api.data.schema.Schema;
 import co.cask.cdap.api.dataset.lib.KeyValue;
+import co.cask.cdap.api.lineage.field.EndPoint;
 import co.cask.cdap.etl.api.Emitter;
 import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchRuntimeContext;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
+import co.cask.cdap.etl.api.lineage.field.FieldOperation;
+import co.cask.cdap.etl.api.lineage.field.FieldWriteOperation;
 import co.cask.hydrator.common.ReferenceBatchSink;
 import co.cask.hydrator.common.batch.sink.SinkOutputFormatProvider;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
 
 /**
@@ -45,8 +55,7 @@ import org.apache.hadoop.io.NullWritable;
 @Description("Batch sink to write to Cloud Spanner. Cloud Spanner is a fully managed, mission-critical, " +
   "relational database service that offers transactional consistency at global scale, schemas, " +
   "SQL (ANSI 2011 with extensions), and automatic, synchronous replication for high availability.")
-public final class SpannerSink
-  extends ReferenceBatchSink<StructuredRecord, NullWritable, StructuredRecord> {
+public final class SpannerSink extends ReferenceBatchSink<StructuredRecord, NullWritable, StructuredRecord> {
   public static final String NAME = "Spanner";
   private final SpannerSinkConfig config;
 
@@ -72,6 +81,16 @@ public final class SpannerSink
     SpannerOutputFormat.configure(configuration, config);
     context.addOutput(Output.of(config.referenceName,
                                 new SinkOutputFormatProvider(SpannerOutputFormat.class, configuration)));
+
+    List<Schema.Field> fields = config.getSchema().getFields();
+    if (fields != null && !fields.isEmpty()) {
+        // Record the field level WriteOperation
+        FieldOperation operation = new FieldWriteOperation("Write", "Wrote to Spanner table.",
+                                                           EndPoint.of(context.getNamespace(), config.referenceName),
+                                                           fields.stream().map(Schema.Field::getName)
+                                                             .collect(Collectors.toList()));
+        context.record(Collections.singletonList(operation));
+    }
   }
 
   @Override
