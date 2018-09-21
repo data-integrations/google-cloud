@@ -140,7 +140,7 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
     if (config.getSchema() != null) {
       if (config.getSchema().getFields() != null) {
         FieldOperation operation =
-          new FieldReadOperation("Read", "Read from Spanner table",
+          new FieldReadOperation("Read", "Read from Spanner table.",
                                  EndPoint.of(batchSourceContext.getNamespace(), config.referenceName),
                                  config.getSchema().getFields().stream().map(Schema.Field::getName)
                                    .collect(Collectors.toList()));
