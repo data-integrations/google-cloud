@@ -26,6 +26,7 @@ import org.apache.avro.generic.GenericRecordBuilder;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 /**
  * Creates GenericRecords from StructuredRecords
@@ -36,15 +37,10 @@ public final class StructuredToAvroTransformer extends RecordConverter<Structure
   private final co.cask.cdap.api.data.schema.Schema outputCDAPSchema;
   private final Schema outputAvroSchema;
 
-  public StructuredToAvroTransformer(String outputSchema) {
+  public StructuredToAvroTransformer(@Nullable co.cask.cdap.api.data.schema.Schema outputSchema) {
     this.schemaCache = Maps.newHashMap();
-    try {
-      this.outputCDAPSchema =
-        (outputSchema != null) ? co.cask.cdap.api.data.schema.Schema.parseJson(outputSchema) : null;
-    } catch (IOException e) {
-      throw new IllegalArgumentException("Unable to parse schema: Reason: " + e.getMessage(), e);
-    }
-    this.outputAvroSchema = (outputSchema != null) ? new Schema.Parser().parse(outputSchema) : null;
+    this.outputCDAPSchema = outputSchema;
+    this.outputAvroSchema = (outputSchema != null) ? new Schema.Parser().parse(outputSchema.toString()) : null;
   }
 
   public GenericRecord transform(StructuredRecord structuredRecord) throws IOException {

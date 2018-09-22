@@ -3,7 +3,7 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name": "Google Cloud Storage Avro",
+  "display-name": "Google Cloud Storage",
   "configuration-groups": [
     {
       "label" : "Governance",
@@ -59,15 +59,26 @@
         },
         {
           "widget-type": "select",
-          "label": "Compression Codec",
-          "name": "codec",
+          "label": "Format",
+          "name": "format",
           "widget-attributes": {
             "values": [
-              "None",
-              "Snappy",
-              "Deflate"
+              "avro",
+              "csv",
+              "delimited",
+              "json",
+              "parquet",
+              "tsv"
             ],
-            "default": "None"
+            "default": "json"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Delimiter",
+          "name": "delimiter",
+          "widget-attributes": {
+            "placeholder": "set if the format is 'delimited'"
           }
         }
       ]

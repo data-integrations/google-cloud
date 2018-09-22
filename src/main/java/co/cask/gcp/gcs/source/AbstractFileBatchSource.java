@@ -91,7 +91,7 @@ public abstract class AbstractFileBatchSource extends ReferenceBatchSource<Objec
     FileStatus[] fileStatus = pathFileSystem.globStatus(new Path(config.getPath()));
     fs = FileSystem.get(conf);
 
-    if (fileStatus == null &&  config.shouldIgnoreNonExistingFolders()) {
+    if (fileStatus == null && config.shouldIgnoreNonExistingFolders()) {
       Path path = fs.getWorkingDirectory().suffix("/tmp/tmp.txt");
       LOG.warn(String.format("File/Folder specified in %s does not exists. Setting input path to %s.", config.getPath(),
                              path));
