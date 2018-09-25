@@ -21,6 +21,8 @@ import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.annotation.Name;
 import co.cask.gcp.common.GCPReferenceSinkConfig;
 
+import javax.annotation.Nullable;
+
 /**
  * This class <code>BigQuerySinkConfig</code> provides all the configuration required for
  * configuring the <code>BigQuerySink</code> plugin.
@@ -39,10 +41,12 @@ public final class BigQuerySinkConfig extends GCPReferenceSinkConfig {
   @Macro
   public String table;
 
+  @Nullable
   @Name("bucket")
   @Description("The Google Cloud Storage bucket to store temporary data in. "
     + "It will be automatically created if it does not exist, but will not be automatically deleted. "
-    + "Cloud Storage data will be deleted after it is loaded into BigQuery.")
+    + "Cloud Storage data will be deleted after it is loaded into BigQuery. " +
+    "If it is not provided, a unique bucket will be created and then deleted after the run finishes.")
   @Macro
   public String bucket;
 

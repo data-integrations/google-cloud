@@ -34,7 +34,6 @@ import co.cask.cdap.etl.api.batch.BatchSourceContext;
 import co.cask.cdap.etl.api.lineage.field.FieldOperation;
 import co.cask.cdap.etl.api.lineage.field.FieldReadOperation;
 import co.cask.gcp.common.AvroToStructuredTransformer;
-import co.cask.gcp.common.GCPUtils;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.Field;
@@ -44,7 +43,6 @@ import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.AvroBigQueryInputFormat;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
-import com.google.cloud.hadoop.util.ConfigurationUtil;
 import org.apache.avro.generic.GenericData;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -57,7 +55,6 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -86,6 +83,8 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
   private Configuration configuration;
   private JobID jobID = null;
   private final AvroToStructuredTransformer transformer = new AvroToStructuredTransformer();
+  // UUID for the run. Will be used as bucket name if bucket is not provided.
+  private UUID uuid;
 
   @Override
   public void configurePipeline(PipelineConfigurer configurer) {
@@ -104,6 +103,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
 
   @Override
   public void prepareRun(BatchSourceContext context) throws Exception {
+    uuid = UUID.randomUUID();
     Job job = Job.getInstance();
 
     // some input formats require the credentials to be present in the job. We don't know for
@@ -114,8 +114,6 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
       job.getCredentials().addAll(credentials);
     }
 
-    // Construct a unique job id
-    String uuid = UUID.randomUUID().toString();
     jobID = JobID.forName(String.format("job_%s-%s-%s_%s", context.getNamespace(),
                                         context.getPipelineName().replaceAll("_", "-"), uuid, 1));
 
@@ -133,12 +131,19 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     configuration.set("fs.gs.project.id", projectId);
     configuration.set(BigQueryConfiguration.PROJECT_ID_KEY, projectId);
 
-    configuration.set("fs.gs.system.bucket", config.bucket);
+    String bucket = config.bucket;
+    if (config.bucket == null) {
+      bucket = uuid.toString();
+      // By default, this option is false, meaning the job can not delete the bucket. So enable it only when bucket name
+      // is not provided.
+      configuration.setBoolean("fs.gs.bucket.delete.enable", true);
+    }
+
+    configuration.set("fs.gs.system.bucket", bucket);
     configuration.setBoolean("fs.gs.impl.disable.cache", true);
     configuration.setBoolean("fs.gs.metadata.cache.enable", false);
 
-    String temporaryGcsPath = String.format("gs://%s/hadoop/output/%s", config.bucket, uuid);
-
+    String temporaryGcsPath = String.format("gs://%s/hadoop/input/%s", bucket, uuid);
     AvroBigQueryInputFormat.setTemporaryCloudStorageDirectory(configuration, temporaryGcsPath);
     AvroBigQueryInputFormat.setEnableShardedExport(configuration, false);
     BigQueryConfiguration.configureBigQueryInput(configuration, config.getProject(), config.dataset, config.table);
@@ -206,26 +211,16 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
 
   @Override
   public void onRunFinish(boolean succeeded, BatchSourceContext context) {
-    super.onRunFinish(succeeded, context);
+    org.apache.hadoop.fs.Path gcsPath = new org.apache.hadoop.fs.Path(String.format("gs://%s", uuid.toString()));
     try {
-      org.apache.hadoop.fs.Path tempPath = new org.apache.hadoop.fs.Path(
-        ConfigurationUtil.getMandatoryConfig(
-          configuration, BigQueryConfiguration.TEMP_GCS_PATH_KEY));
-      try {
-        FileSystem fs = tempPath.getFileSystem(configuration);
-        if (fs.exists(tempPath)) {
-          LOG.info("Deleting temp GCS input path '{}'", tempPath);
-          fs.delete(tempPath, true);
-        }
-      } catch (IOException e) {
-        // Error is swallowed as job has completed successfully and the only failure is deleting
-        // temporary data.
-        // This matches the FileOutputCommitter pattern.
-        LOG.warn("Could not delete intermediate GCS files. Temporary data not cleaned up.", e);
+      if (config.bucket == null) {
+          FileSystem fs = gcsPath.getFileSystem(configuration);
+          if (fs.exists(gcsPath)) {
+            fs.delete(gcsPath, true);
+          }
       }
-      AvroBigQueryInputFormat.cleanupJob(configuration, jobID);
     } catch (IOException e) {
-      LOG.warn("There was issue shutting down BigQuery job. " + e.getMessage());
+      LOG.warn("Failed to delete bucket " + gcsPath.toUri().getPath() + ", " + e.getMessage());
     }
   }
 

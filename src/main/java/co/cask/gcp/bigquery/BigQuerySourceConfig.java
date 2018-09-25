@@ -21,6 +21,8 @@ import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.annotation.Name;
 import co.cask.gcp.common.GCPReferenceSourceConfig;
 
+import javax.annotation.Nullable;
+
 /**
  * Class description here.
  */
@@ -38,10 +40,12 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   @Macro
   public String table;
 
+  @Nullable
   @Name("bucket")
   @Description("The Google Cloud Storage bucket to store temporary data in. "
     + "It will be automatically created if it does not exist, but will not be automatically deleted. "
-    + "Temporary data will be deleted after it has been read.")
+    + "Temporary data will be deleted after it has been read. " +
+    "If it is not provided, a unique bucket will be created and then deleted after the run finishes.")
   @Macro
   public String bucket;
 
