@@ -13,9 +13,10 @@ Objects are the individual pieces of data that are stored in Cloud Storage.
 Object names can contain any combination of Unicode characters (UTF-8 encoded) and must be less than 1024 bytes in length.
 Object names often look like file paths.
 
-Authorization
--------------
-If the plugin is run on a Google Cloud Dataproc cluster, the service account key does not need to be provided.
+Credentials
+-----------
+If the plugin is run on a Google Cloud Dataproc cluster, the service account key does not need to be
+provided and can be set to 'auto-detect'.
 Credentials will be automatically read from the cluster environment.
 
 If the plugin is not run on a Dataproc cluster, the path to a service account key must be provided.
@@ -26,15 +27,15 @@ must be readable by all users running the job.
 
 Properties
 ----------
-**Project ID**: The Google Cloud Project ID, which uniquely identifies a project.
+**Project ID**: Google Cloud Project ID, which uniquely identifies a project.
 It can be found on the Dashboard in the Google Cloud Platform Console.
 
-**Service Account File Path**: Path on the local file system of the service account key used for
-authorization. Does not need to be specified when running on a Dataproc cluster.
-When running on other clusters, the file must be present on every node in the cluster.
+**Bucket Name**: Bucket to create objects in.
 
-**Bucket Name**: The bucket to create objects in.
-
-**Objects to Create**: The objects to create in the bucket.
+**Objects to Create**: Objects to create in the bucket.
 
 **Fail if Object Exists**: Whether to fail the pipeline if an object already exists.
+
+**Service Account File Path**: Path on the local file system of the service account key used for
+authorization. Can be set to 'auto-detect' when running on a Dataproc cluster.
+When running on other clusters, the file must be present on every node in the cluster.

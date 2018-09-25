@@ -32,7 +32,6 @@ import co.cask.cdap.etl.api.batch.BatchSink;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
 import co.cask.cdap.etl.api.lineage.field.FieldOperation;
 import co.cask.cdap.etl.api.lineage.field.FieldWriteOperation;
-import co.cask.gcp.common.GCPUtils;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
@@ -49,8 +48,6 @@ import org.apache.hadoop.mapreduce.JobID;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -76,14 +73,16 @@ import java.util.stream.Collectors;
   + "BigQuery is Google's serverless, highly scalable, enterprise data warehouse. "
   + "Data is first written to a temporary location on Google Cloud Storage, then loaded into BigQuery from there.")
 public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, NullWritable> {
-  private static final Logger LOG = LoggerFactory.getLogger(BigQuerySink.class);
   public static final String NAME = "BigQueryTable";
   private static final DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
 
-  private BigQuerySinkConfig config;
+  private final BigQuerySinkConfig config;
   private Schema schema;
   private Configuration configuration;
-  private JobID jobID = null;
+
+  public BigQuerySink(BigQuerySinkConfig config) {
+    this.config = config;
+  }
 
   @Override
   public void prepareRun(BatchSinkContext context) throws Exception {
@@ -99,18 +98,17 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
 
     // Construct a unique job id
     String uuid = UUID.randomUUID().toString();
-    jobID = JobID.forName(String.format("job_%s-%s-%s_%s", context.getNamespace(),
-                                        context.getPipelineName().replaceAll("_", "-"), uuid, 1));
 
     configuration = job.getConfiguration();
     configuration.clear();
-    if (config.serviceAccountFilePath != null) {
-      configuration.set("mapred.bq.auth.service.account.json.keyfile", config.serviceAccountFilePath);
-      configuration.set("google.cloud.auth.service.account.json.keyfile", config.serviceAccountFilePath);
+    String serviceAccountFilePath = config.getServiceAccountFilePath();
+    if (serviceAccountFilePath != null) {
+      configuration.set("mapred.bq.auth.service.account.json.keyfile", serviceAccountFilePath);
+      configuration.set("google.cloud.auth.service.account.json.keyfile", serviceAccountFilePath);
     }
     configuration.set("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
     configuration.set("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
-    String projectId = GCPUtils.getProjectId(config.project);
+    String projectId = config.getProject();
     configuration.set("fs.gs.project.id", projectId);
     configuration.set(BigQueryConfiguration.PROJECT_ID_KEY, projectId);
 

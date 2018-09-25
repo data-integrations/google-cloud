@@ -62,8 +62,11 @@ public class PubSubOutputFormat extends OutputFormat<NullWritable, Text> {
   private static final String RETRY_TIMEOUT_SECONDS = "retry.timeout";
 
   public static void configure(Configuration configuration, GooglePublisher.Config config) {
-    configuration.set(SERVICE_PATH, config.serviceAccountFilePath);
-    String projectId = GCPUtils.getProjectId(config.project);
+    String serviceAccountFilePath = config.getServiceAccountFilePath();
+    if (serviceAccountFilePath != null) {
+      configuration.set(SERVICE_PATH, config.getServiceAccountFilePath());
+    }
+    String projectId = config.getProject();
     configuration.set(PROJECT, projectId);
     configuration.set(TOPIC, config.topic);
     configuration.set(COUNT_BATCH_SIZE, String.valueOf(config.getMessageCountBatchSize()));

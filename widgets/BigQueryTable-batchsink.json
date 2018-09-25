@@ -2,27 +2,46 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name" : "Google Big Query Table",
+  "display-name" : "Google BigQuery",
   "configuration-groups": [
     {
-      "label" : "Service Account and Temporary Google Storage",
-      "properties" : [
+      "label": "Basic",
+      "properties": [
         {
           "widget-type": "textbox",
           "label": "Reference Name",
-          "name": "referenceName"
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Service Account File Path",
-          "name": "serviceFilePath",
+          "name": "referenceName",
           "widget-attributes" : {
-            "placeholder": "Path to the service account file on local file system"
+            "placeholder": "Name used to identify this sink for lineage"
           }
         },
         {
           "widget-type": "textbox",
-          "label": "Bucket Name",
+          "label": "Project ID",
+          "name": "project",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Dataset",
+          "name": "dataset",
+          "widget-attributes" : {
+            "placeholder": "Dataset the table belongs to"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Table",
+          "name": "table",
+          "widget-attributes" : {
+            "placeholder": "Table to write to"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Temporary Bucket Name",
           "name": "bucket",
           "widget-attributes" : {
             "placeholder": "Google Cloud Storage bucket for temporary data"
@@ -31,37 +50,16 @@
       ]
     },
     {
-      "label": "Dataset Information",
-      "properties": [
+      "label" : "Credentials",
+      "properties" : [
         {
           "widget-type": "textbox",
-          "label": "Project ID",
-          "name": "project",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
           "widget-attributes" : {
-            "placeholder": "The project id of the dataset"
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Dataset",
-          "name": "dataset",
-          "widget-attributes" : {
-            "placeholder": "The dataset the table belongs to"
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Table",
-          "name": "table",
-          "widget-attributes" : {
-            "placeholder": "The table to write to"
+            "default": "auto-detect"
           }
         }
-      ]
-    },
-    {
-      "label": "Table Schema",
-      "properties": [
       ]
     }
   ],
@@ -83,5 +81,12 @@
         "schema-default-type": "string"
       }
     }
-  ]
+  ],
+  "jump-config": {
+    "datasets": [
+      {
+        "ref-property-name": "referenceName"
+      }
+    ]
+  }
 }

@@ -5,42 +5,44 @@
   "display-name" : "Google Cloud Storage Object Delete",
   "configuration-groups": [
     {
-      "label" : "Service Account and Project Information",
-      "properties" : [
-        {
-          "widget-type": "textbox",
-          "label": "Service Account File Path",
-          "name": "serviceFilePath",
-          "widget-attributes" : {
-            "placeholder": "Path to the service account file on local file system"
-          }
-        },
+      "label": "Basic",
+      "properties": [
         {
           "widget-type": "textbox",
           "label": "Project ID",
           "name": "project",
           "widget-attributes" : {
-            "placeholder": "The project id of the Cloud Storage bucket"
+            "default": "auto-detect"
           }
-        }
-      ]
-    },
-    {
-      "label": "Bucket and Path Information",
-      "properties": [
+        },
         {
           "widget-type": "textbox",
           "label": "Bucket Name",
           "name": "bucket",
           "widget-attributes" : {
-            "placeholder": "The bucket to delete objects from"
+            "placeholder": "Bucket to delete objects from"
           }
         },
         {
           "name": "paths",
           "widget-type": "csv",
           "label" : "Objects to Delete",
-          "widget-attributes": {}
+          "widget-attributes": {
+            "placeholder": "Object to delete"
+          }
+        }
+      ]
+    },
+    {
+      "label" : "Credentials",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
         }
       ]
     }

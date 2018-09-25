@@ -19,7 +19,7 @@ package co.cask.gcp.bigquery;
 import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.annotation.Name;
-import co.cask.gcp.publisher.GCPReferenceSinkConfig;
+import co.cask.gcp.common.GCPReferenceSinkConfig;
 
 /**
  * This class <code>BigQuerySinkConfig</code> provides all the configuration required for

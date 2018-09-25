@@ -17,12 +17,10 @@
 package co.cask.gcp.common;
 
 import com.google.auth.oauth2.ServiceAccountCredentials;
-import com.google.cloud.ServiceOptions;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import javax.annotation.Nullable;
 
 /**
  * GCP utility class to get service account credentials
@@ -34,18 +32,5 @@ public class GCPUtils {
     try (FileInputStream serviceAccountStream = new FileInputStream(credentialsPath)) {
       return ServiceAccountCredentials.fromStream(serviceAccountStream);
     }
-  }
-
-  /**
-   * If project id is not provided and cannot be detected from environment, throw an exception indicating that else
-   * return the project id.
-   */
-  public static String getProjectId(@Nullable String project) {
-    String projectId = project == null || project.isEmpty() ? ServiceOptions.getDefaultProjectId() : project;
-    if (projectId == null) {
-      throw new IllegalArgumentException(
-        "Could not detect Google Cloud project id from the environment. Please specify a project id.");
-    }
-    return projectId;
   }
 }

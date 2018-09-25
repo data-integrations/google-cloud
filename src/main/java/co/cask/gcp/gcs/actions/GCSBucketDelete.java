@@ -23,7 +23,6 @@ import co.cask.cdap.api.annotation.Plugin;
 import co.cask.cdap.etl.api.action.Action;
 import co.cask.cdap.etl.api.action.ActionContext;
 import co.cask.gcp.common.GCPConfig;
-import co.cask.gcp.common.GCPUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -50,13 +49,14 @@ public final class GCSBucketDelete extends Action {
   @Override
   public void run(ActionContext context) throws Exception {
     Configuration configuration = new Configuration();
-    if (config.serviceAccountFilePath != null) {
-      configuration.set("google.cloud.auth.service.account.json.keyfile", config.serviceAccountFilePath);
+    String serviceAccountFilePath = config.getServiceAccountFilePath();
+    if (serviceAccountFilePath != null) {
+      configuration.set("google.cloud.auth.service.account.json.keyfile", serviceAccountFilePath);
     }
     configuration.set("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
     configuration.set("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
     // validate project id availability
-    String projectId = GCPUtils.getProjectId(config.project);
+    String projectId = config.getProject();
     configuration.set("fs.gs.project.id", projectId);
 
     configuration.set("fs.gs.system.bucket", config.bucket);

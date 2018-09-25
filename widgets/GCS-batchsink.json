@@ -6,24 +6,14 @@
   "display-name": "Google Cloud Storage",
   "configuration-groups": [
     {
-      "label" : "Governance",
-      "properties" : [
+      "label": "Basic",
+      "properties": [
         {
           "widget-type": "textbox",
           "label": "Reference Name",
-          "name": "referenceName"
-        }
-      ]
-    },
-    {
-      "label" : "Service Account and Project Information",
-      "properties" : [
-        {
-          "widget-type": "textbox",
-          "label": "Service Account File Path",
-          "name": "serviceFilePath",
+          "name": "referenceName",
           "widget-attributes" : {
-            "placeholder": "Path to the service account file on local file system"
+            "placeholder": "Name used to identify this sink for lineage"
           }
         },
         {
@@ -31,18 +21,16 @@
           "label": "Project ID",
           "name": "project",
           "widget-attributes" : {
-            "placeholder": "The project id of the Cloud Storage bucket"
+            "default": "auto-detect"
           }
-        }
-      ]
-    },
-    {
-      "label": "File Configuration",
-      "properties": [
+        },
         {
           "widget-type": "textbox",
-          "label": "Base Path",
-          "name": "path"
+          "label": "Path",
+          "name": "path",
+          "widget-attributes" : {
+            "placeholder": "gs://<bucket>/path/to/output"
+          }
         },
         {
           "widget-type": "textbox",
@@ -78,7 +66,20 @@
           "label": "Delimiter",
           "name": "delimiter",
           "widget-attributes": {
-            "placeholder": "set if the format is 'delimited'"
+            "placeholder": "Delimiter if the format is 'delimited'"
+          }
+        }
+      ]
+    },
+    {
+      "label" : "Credentials",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "default": "auto-detect"
           }
         }
       ]
@@ -101,5 +102,12 @@
         "schema-default-type": "string"
       }
     }
-  ]
+  ],
+  "jump-config": {
+    "datasets": [
+      {
+        "ref-property-name": "referenceName"
+      }
+    ]
+  }
 }

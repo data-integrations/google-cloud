@@ -27,6 +27,7 @@ import co.cask.cdap.api.lineage.field.EndPoint;
 import co.cask.cdap.etl.api.Emitter;
 import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchRuntimeContext;
+import co.cask.cdap.etl.api.batch.BatchSink;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
 import co.cask.cdap.etl.api.lineage.field.FieldOperation;
 import co.cask.cdap.etl.api.lineage.field.FieldWriteOperation;
@@ -34,8 +35,6 @@ import co.cask.hydrator.common.ReferenceBatchSink;
 import co.cask.hydrator.common.batch.sink.SinkOutputFormatProvider;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.List;
@@ -55,16 +54,11 @@ import java.util.stream.Collectors;
 @Description("Batch sink to write to Cloud Spanner. Cloud Spanner is a fully managed, mission-critical, " +
   "relational database service that offers transactional consistency at global scale, schemas, " +
   "SQL (ANSI 2011 with extensions), and automatic, synchronous replication for high availability.")
-public final class SpannerSink extends ReferenceBatchSink<StructuredRecord, NullWritable, StructuredRecord> {
+public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable, StructuredRecord> {
   public static final String NAME = "Spanner";
   private final SpannerSinkConfig config;
 
-  /**
-   * Initializes <code>SpannerSink</code>.
-   * @param config
-   */
   public SpannerSink(SpannerSinkConfig config) {
-    super(config);
     this.config = config;
   }
 
@@ -75,7 +69,7 @@ public final class SpannerSink extends ReferenceBatchSink<StructuredRecord, Null
   }
 
   @Override
-  public void prepareRun(BatchSinkContext context) throws Exception {
+  public void prepareRun(BatchSinkContext context) {
     config.validate();
     Configuration configuration = new Configuration();
     SpannerOutputFormat.configure(configuration, config);
@@ -100,8 +94,7 @@ public final class SpannerSink extends ReferenceBatchSink<StructuredRecord, Null
   }
 
   @Override
-  public void transform(StructuredRecord input,
-                        Emitter<KeyValue<NullWritable, StructuredRecord>> emitter) throws Exception {
+  public void transform(StructuredRecord input, Emitter<KeyValue<NullWritable, StructuredRecord>> emitter) {
     emitter.emit(new KeyValue<>(null, input));
   }
 

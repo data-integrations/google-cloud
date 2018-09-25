@@ -2,27 +2,17 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name": "Google Cloud Storage File",
+  "display-name": "Google Cloud Storage",
   "configuration-groups": [
     {
-      "label" : "Governance",
-      "properties" : [
+      "label": "Basic",
+      "properties": [
         {
           "widget-type": "textbox",
           "label": "Reference Name",
-          "name": "referenceName"
-        }
-      ]
-    },
-    {
-      "label" : "Service Account and Project Information",
-      "properties" : [
-        {
-          "widget-type": "textbox",
-          "label": "Service Account File Path",
-          "name": "serviceFilePath",
+          "name": "referenceName",
           "widget-attributes" : {
-            "placeholder": "Path to the service account file on local file system"
+            "placeholder": "Name used to identify this source for lineage"
           }
         },
         {
@@ -30,14 +20,9 @@
           "label": "Project ID",
           "name": "project",
           "widget-attributes" : {
-            "placeholder": "The project id of the Cloud Storage bucket"
+            "default": "auto-detect"
           }
-        }
-      ]
-    },
-    {
-      "label": "Path Information",
-      "properties": [
+        },
         {
           "widget-type": "textbox",
           "label": "Bucket Name",
@@ -48,89 +33,85 @@
           "label": "Path",
           "name": "path",
           "widget-attributes" : {
-            "placeholder": "Path to be processed, specified as gs://<bucket>/<dir>/<dir>"
+            "placeholder": "gs://<bucket>/path/to/input"
           }
-        },
+        }
+      ]
+    },
+    {
+      "label" : "Credentials",
+      "properties" : [
         {
           "widget-type": "textbox",
-          "label": "Regex Path Filter",
-          "name": "fileRegex",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
           "widget-attributes" : {
-            "placeholder": "Regex to filter out files in the path."
+            "default": "auto-detect"
           }
-        },
+        }
+      ]
+    },
+    {
+      "label": "Advanced",
+      "properties": [
         {
           "widget-type": "textbox",
           "label": "Maximum Split Size",
           "name": "maxSplitSize",
           "widget-attributes" : {
-            "placeholder": "Maximum split size for each process specified in bytes."
+            "placeholder": "Maximum split size for each partition specified in bytes"
           }
         },
-        {
-          "widget-type": "select",
-          "label": "Read Files Recursively",
-          "name": "recursive",
-          "widget-attributes": {
-            "values": [
-              "true",
-              "false"
-            ],
-            "default": "false"
-          }
-        }
-      ]
-    },
-    {
-      "label": "Filename Propagation",
-      "properties": [
         {
           "widget-type": "textbox",
           "label": "Path Field",
           "name": "pathField",
-          "plugin-function": {
-            "method": "POST",
-            "widget": "outputSchema",
-            "output-property": "schema",
-            "plugin-method": "getSchema"
-          },
           "widget-attributes" : {
-            "placeholder": "Propagate filename or complete path in the field specified."
+            "placeholder": "Output field to contain the path of the object that was read from"
           }
         },
         {
-          "widget-type": "select",
-          "label": "Filename Only",
+          "widget-type": "radio-group",
           "name": "filenameOnly",
+          "label": "Path Filename Only",
           "widget-attributes": {
-            "values": [
-              "true",
-              "false"
-            ],
-            "default": "false"
+            "layout": "inline",
+            "default": "false",
+            "options": [
+              {
+                "id": "true",
+                "label": "True"
+              },
+              {
+                "id": "false",
+                "label": "False"
+              }
+            ]
           }
-        }
-      ]
-    },
-    {
-      "label": "Advanced Properties",
-      "properties": [
+        },
+        {
+          "widget-type": "radio-group",
+          "name": "recursive",
+          "label": "Read Files Recursively",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "false",
+            "options": [
+              {
+                "id": "true",
+                "label": "True"
+              },
+              {
+                "id": "false",
+                "label": "False"
+              }
+            ]
+          }
+        },
         {
           "widget-type": "json-editor",
           "label": "File System Properties",
           "name": "fileSystemProperties"
-        },
-        {
-          "widget-type": "select",
-          "label": "Ignore Non-Existing Folders",
-          "name": "ignoreNonExistingFolders",
-          "widget-attributes": {
-            "values": [
-              "true",
-              "false"
-            ],
-            "default": "false"
-          }
         }
       ]
     }
@@ -156,5 +137,12 @@
         }
       }
     }
-  ]
+  ],
+  "jump-config": {
+    "datasets": [
+      {
+        "ref-property-name": "referenceName"
+      }
+    ]
+  }
 }

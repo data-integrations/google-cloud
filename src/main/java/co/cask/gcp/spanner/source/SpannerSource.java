@@ -32,7 +32,6 @@ import co.cask.cdap.etl.api.batch.BatchSource;
 import co.cask.cdap.etl.api.batch.BatchSourceContext;
 import co.cask.cdap.etl.api.lineage.field.FieldOperation;
 import co.cask.cdap.etl.api.lineage.field.FieldReadOperation;
-import co.cask.gcp.common.GCPUtils;
 import co.cask.gcp.spanner.SpannerConstants;
 import co.cask.gcp.spanner.common.SpannerUtil;
 import co.cask.hydrator.common.SourceInputFormatProvider;
@@ -107,12 +106,12 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
   @Override
   public void prepareRun(BatchSourceContext batchSourceContext) throws Exception {
     config.validate();
-    String projectId = GCPUtils.getProjectId(config.project);
+    String projectId = config.getProject();
     Configuration configuration = new Configuration();
     initializeConfig(configuration, projectId);
 
     // initialize spanner
-    spanner = SpannerUtil.getSpannerService(config.serviceFilePath, projectId);
+    spanner = SpannerUtil.getSpannerService(config.getServiceAccountFilePath(), projectId);
     BatchClient batchClient =
       spanner.getBatchClient(DatabaseId.of(projectId, config.instance, config.database));
     Timestamp logicalStartTimeMicros =
@@ -213,7 +212,7 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
 
   private void initializeConfig(Configuration configuration, String projectId) {
     setIfValueNotNull(configuration, SpannerConstants.PROJECT_ID, projectId);
-    setIfValueNotNull(configuration, SpannerConstants.SERVICE_ACCOUNT_FILE_PATH, config.serviceFilePath);
+    setIfValueNotNull(configuration, SpannerConstants.SERVICE_ACCOUNT_FILE_PATH, config.getServiceAccountFilePath());
     setIfValueNotNull(configuration, SpannerConstants.INSTANCE_ID, config.instance);
     setIfValueNotNull(configuration, SpannerConstants.DATABASE, config.database);
     setIfValueNotNull(configuration, SpannerConstants.QUERY, String.format("Select * from %s;", config.table));
@@ -257,8 +256,8 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
    */
   @Path("getSchema")
   public Schema getSchema(SpannerSourceConfig request) throws Exception {
-    String projectId = GCPUtils.getProjectId(request.project);
-    Spanner spanner = SpannerUtil.getSpannerService(request.serviceFilePath, projectId);
+    String projectId = request.getProject();
+    Spanner spanner = SpannerUtil.getSpannerService(request.getServiceAccountFilePath(), projectId);
     DatabaseClient databaseClient =
       spanner.getDatabaseClient(DatabaseId.of(projectId, request.instance, request.database));
     Statement getTableSchemaStatement = SCHEMA_STATEMENT_BUILDER.bind(TABLE_NAME).to(request.table).build();

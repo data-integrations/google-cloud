@@ -35,7 +35,6 @@ import co.cask.cdap.etl.api.lineage.field.FieldOperation;
 import co.cask.cdap.etl.api.lineage.field.FieldReadOperation;
 import co.cask.gcp.common.AvroToStructuredTransformer;
 import co.cask.gcp.common.GCPUtils;
-import com.google.cloud.ServiceOptions;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.Field;
@@ -91,14 +90,6 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
   @Override
   public void configurePipeline(PipelineConfigurer configurer) {
     super.configurePipeline(configurer);
-    if (!config.containsMacro("serviceFilePath") && config.serviceAccountFilePath != null) {
-      File file = new File(config.serviceAccountFilePath);
-      if (!file.exists()) {
-        throw new IllegalArgumentException(
-          String.format("Service account file '%s' does not exist in the path specified.", file.getName())
-        );
-      }
-    }
     if (!config.containsMacro("schema")) {
       try {
         outputSchema = Schema.parseJson(config.schema);
@@ -131,13 +122,14 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     configuration = job.getConfiguration();
     configuration.clear();
 
-    if (config.serviceAccountFilePath != null) {
-      configuration.set("mapred.bq.auth.service.account.json.keyfile", config.serviceAccountFilePath);
-      configuration.set("google.cloud.auth.service.account.json.keyfile", config.serviceAccountFilePath);
+    String serviceAccountFilePath = config.getServiceAccountFilePath();
+    if (serviceAccountFilePath != null) {
+      configuration.set("mapred.bq.auth.service.account.json.keyfile", serviceAccountFilePath);
+      configuration.set("google.cloud.auth.service.account.json.keyfile", serviceAccountFilePath);
     }
     configuration.set("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
     configuration.set("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
-    String projectId = GCPUtils.getProjectId(config.project);
+    String projectId = config.getProject();
     configuration.set("fs.gs.project.id", projectId);
     configuration.set(BigQueryConfiguration.PROJECT_ID_KEY, projectId);
 
@@ -149,7 +141,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
 
     AvroBigQueryInputFormat.setTemporaryCloudStorageDirectory(configuration, temporaryGcsPath);
     AvroBigQueryInputFormat.setEnableShardedExport(configuration, false);
-    BigQueryConfiguration.configureBigQueryInput(configuration, config.project, config.dataset, config.table);
+    BigQueryConfiguration.configureBigQueryInput(configuration, config.getProject(), config.dataset, config.table);
     BigQueryConfiguration.getTemporaryPathRoot(configuration, jobID);
 
     job.setOutputKeyClass(LongWritable.class);
@@ -247,14 +239,15 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
    * @throws Exception
    */
   @Path("getSchema")
-  public Schema getSchema(Request request) throws Exception {
+  public Schema getSchema(BigQuerySourceConfig request) throws Exception {
     try {
       BigQuery bigquery;
       BigQueryOptions.Builder bigqueryBuilder = BigQueryOptions.newBuilder();
-      if (request.serviceFilePath != null) {
-        bigqueryBuilder.setCredentials(loadServiceAccountCredentials(request.serviceFilePath));
+      String serviceAccountFilePath = request.getServiceAccountFilePath();
+      if (serviceAccountFilePath != null) {
+        bigqueryBuilder.setCredentials(loadServiceAccountCredentials(serviceAccountFilePath));
       }
-      String project = request.project == null ? ServiceOptions.getDefaultProjectId() : request.project;
+      String project = request.getProject();
       if (project == null) {
         throw new Exception("Could not detect Google Cloud project id from the environment. " +
                               "Please specify a project id.");
@@ -306,22 +299,5 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     } catch (Exception e) {
       throw new Exception(e.getMessage(), e);
     }
-  }
-
-  /**
-   * Request object for retrieving schema from the BigQuery table.
-   */
-  class Request {
-    // Specifies the master list of servers.
-    public String project;
-
-    // Name of dataset
-    public String dataset;
-
-    // Name of the table.
-    public String table;
-
-    // Service account file path.
-    public String serviceFilePath;
   }
 }
