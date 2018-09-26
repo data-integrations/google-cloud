@@ -42,12 +42,16 @@ import com.google.cloud.hadoop.io.bigquery.output.IndirectBigQueryOutputFormat;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.JobID;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -74,11 +78,14 @@ import java.util.stream.Collectors;
   + "Data is first written to a temporary location on Google Cloud Storage, then loaded into BigQuery from there.")
 public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, NullWritable> {
   public static final String NAME = "BigQueryTable";
+  private static final Logger LOG = LoggerFactory.getLogger(BigQuerySink.class);
   private static final DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
 
   private final BigQuerySinkConfig config;
   private Schema schema;
   private Configuration configuration;
+  // UUID for the run. Will be used as bucket name if bucket is not provided.
+  private UUID uuid;
 
   public BigQuerySink(BigQuerySinkConfig config) {
     this.config = config;
@@ -86,6 +93,7 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
 
   @Override
   public void prepareRun(BatchSinkContext context) throws Exception {
+    uuid = UUID.randomUUID();
     Job job = Job.getInstance();
 
     // some input formats require the credentials to be present in the job. We don't know for
@@ -95,9 +103,6 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
       Credentials credentials = UserGroupInformation.getCurrentUser().getCredentials();
       job.getCredentials().addAll(credentials);
     }
-
-    // Construct a unique job id
-    String uuid = UUID.randomUUID().toString();
 
     configuration = job.getConfiguration();
     configuration.clear();
@@ -112,8 +117,16 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
     configuration.set("fs.gs.project.id", projectId);
     configuration.set(BigQueryConfiguration.PROJECT_ID_KEY, projectId);
 
-    String temporaryGcsPath = String.format("gs://%s/hadoop/input/%s", config.bucket, uuid);
-    configuration.set("fs.gs.system.bucket", config.bucket);
+    String bucket = config.bucket;
+    if (config.bucket == null) {
+      bucket = uuid.toString();
+      // By default, this option is false, meaning the job can not delete the bucket. So enable it only when bucket name
+      // is not provided.
+      configuration.setBoolean("fs.gs.bucket.delete.enable", true);
+    }
+
+    String temporaryGcsPath = String.format("gs://%s/hadoop/input/%s", bucket, uuid);
+    configuration.set("fs.gs.system.bucket", bucket);
     configuration.setBoolean("fs.gs.impl.disable.cache", true);
     configuration.setBoolean("fs.gs.metadata.cache.enable", false);
 
@@ -121,8 +134,7 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
       schema = Schema.parseJson(config.schema);
     } catch (IOException e) {
       throw new IllegalArgumentException(
-        String.format("Unable to parse output schema. Reason: %s", e.getMessage()), e
-      );
+        String.format("Unable to parse output schema. Reason: %s", e.getMessage()), e);
     }
 
 
@@ -250,6 +262,21 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
       decodeSimpleTypes(object, name, input, fieldSchema);
     }
     emitter.emit(new KeyValue<>(object, NullWritable.get()));
+  }
+
+  @Override
+  public void onRunFinish(boolean succeeded, BatchSinkContext context) {
+    if (config.bucket == null) {
+      Path gcsPath = new Path(String.format("gs://%s", uuid.toString()));
+      try {
+        FileSystem fs = gcsPath.getFileSystem(configuration);
+        if (fs.exists(gcsPath)) {
+          fs.delete(gcsPath, true);
+        }
+      } catch (IOException e) {
+        LOG.warn("Failed to delete bucket " + gcsPath.toUri().getPath() + ", " + e.getMessage());
+      }
+    }
   }
 
   private void decodeSimpleTypes(JsonObject json, String name, StructuredRecord input, Schema schema)
