@@ -39,7 +39,6 @@ import org.slf4j.LoggerFactory;
 import org.threeten.bp.Duration;
 
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -87,13 +86,15 @@ public class PubSubOutputFormat extends OutputFormat<NullWritable, Text> {
     long delayThreshold = Long.parseLong(config.get(DELAY_THRESHOLD));
     long errorThreshold = Long.parseLong(config.get(ERROR_THRESHOLD));
     int retryTimeout = Integer.parseInt(config.get(RETRY_TIMEOUT_SECONDS));
-    Publisher publisher = Publisher.newBuilder(ProjectTopicName.of(projectId, topic))
-      .setCredentialsProvider(() -> GCPUtils.loadServiceAccountCredentials(serviceAccountFilePath))
+    Publisher.Builder publisher = Publisher.newBuilder(ProjectTopicName.of(projectId, topic))
       .setBatchingSettings(getBatchingSettings(countSize, bytesThreshold, delayThreshold))
-      .setRetrySettings(getRetrySettings(retryTimeout))
-      .build();
+      .setRetrySettings(getRetrySettings(retryTimeout));
 
-    return new PubSubRecordWriter(publisher, errorThreshold);
+    if (serviceAccountFilePath != null) {
+      publisher.setCredentialsProvider(() -> GCPUtils.loadServiceAccountCredentials(serviceAccountFilePath));
+    }
+
+    return new PubSubRecordWriter(publisher.build(), errorThreshold);
   }
 
   private RetrySettings getRetrySettings(int maxRetryTimeout) {
@@ -168,9 +169,9 @@ public class PubSubOutputFormat extends OutputFormat<NullWritable, Text> {
     public void close(TaskAttemptContext taskAttemptContext) throws IOException {
       try {
         // wait till the pending futures are complete before calling shutdown
-        Iterator<ApiFuture> futureIterator = futures.iterator();
-        while (futureIterator.hasNext()) {
-          futureIterator.next().get();
+        publisher.publishAllOutstanding();
+        for (ApiFuture future : futures) {
+          future.get();
           handleErrorIfAny();
         }
       } catch (ExecutionException | InterruptedException e) {
