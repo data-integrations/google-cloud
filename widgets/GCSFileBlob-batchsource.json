@@ -2,7 +2,7 @@
   "metadata": {
     "spec-version": "1.0"
   },
-  "display-name": "Google Cloud Storage File Blob",
+  "display-name": "Google Cloud Storage Blob",
   "configuration-groups": [
     {
       "label" : "Governance",
@@ -52,6 +52,19 @@
           }
         }
       ]
+    },
+    {
+      "label" : "Credentials",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        }
+      ]
     }
   ],
   "outputs": [
@@ -62,5 +75,12 @@
         "body": "bytes"
       }
     }
-  ]
+  ],
+  "jump-config": {
+    "datasets": [
+      {
+        "ref-property-name": "referenceName"
+      }
+    ]
+  }
 }

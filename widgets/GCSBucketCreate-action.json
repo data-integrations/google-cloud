@@ -5,44 +5,22 @@
   "display-name" : "Google Cloud Storage Object Create",
   "configuration-groups": [
     {
-      "label" : "Service Account and Project Information",
-      "properties" : [
-        {
-          "widget-type": "textbox",
-          "label": "Service Account File Path",
-          "name": "serviceFilePath",
-          "widget-attributes" : {
-            "placeholder": "Path to the service account file on local file system"
-          }
-        },
+      "label": "Basic",
+      "properties": [
         {
           "widget-type": "textbox",
           "label": "Project ID",
           "name": "project",
           "widget-attributes" : {
-            "placeholder": "The project id of the Cloud Storage bucket"
+            "default": "auto-detect"
           }
-        }
-      ]
-    },
-    {
-      "label": "Bucket and Path Information",
-      "properties": [
+        },
         {
           "widget-type": "textbox",
           "label": "Bucket Name",
           "name": "bucket",
           "widget-attributes" : {
-            "placeholder": "The bucket to be used to create directories."
-          }
-        },
-        {
-          "name" : "failIfExists",
-          "label" : "Fail if Object Exists",
-          "widget-type": "select",
-          "widget-attributes": {
-            "default": "No",
-            "values": ["Yes", "No"]
+            "placeholder": "Bucket to create objects in"
           }
         },
         {
@@ -50,7 +28,39 @@
           "widget-type": "csv",
           "label" : "Objects to Create",
           "widget-attributes": {
-            "value-placeholder": "Object"
+            "value-placeholder": "Object to create"
+          }
+        },
+        {
+          "widget-type": "radio-group",
+          "name" : "failIfExists",
+          "label" : "Fail if Object Exists",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "true",
+            "options": [
+              {
+                "id": "true",
+                "label": "True"
+              },
+              {
+                "id": "false",
+                "label": "False"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "label" : "Credentials",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "default": "auto-detect"
           }
         }
       ]

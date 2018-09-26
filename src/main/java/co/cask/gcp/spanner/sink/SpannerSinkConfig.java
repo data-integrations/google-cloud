@@ -19,14 +19,17 @@ package co.cask.gcp.spanner.sink;
 import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.annotation.Name;
-import co.cask.gcp.spanner.common.SpannerConfig;
+import co.cask.cdap.api.data.schema.Schema;
+import co.cask.gcp.common.GCPReferenceSinkConfig;
+import co.cask.gcp.spanner.common.SpannerUtil;
 
+import java.io.IOException;
 import javax.annotation.Nullable;
 
 /**
  * Spanner sink config
  */
-public class SpannerSinkConfig extends SpannerConfig {
+public class SpannerSinkConfig extends GCPReferenceSinkConfig {
   private static final int DEFAULT_SPANNER_WRITE_BATCH_SIZE = 100;
 
   @Name("table")
@@ -42,14 +45,31 @@ public class SpannerSinkConfig extends SpannerConfig {
   @Nullable
   public Integer batchSize;
 
-  public SpannerSinkConfig(String referenceName) {
-    super(referenceName);
-  }
+  @Description("Cloud Spanner instance id. " +
+    "Uniquely identifies Cloud Spanner instance within your Google Cloud Platform project.")
+  @Macro
+  public String instance;
+
+  @Description("Cloud Spanner database id. Uniquely identifies your database within the Cloud Spanner instance.")
+  @Macro
+  public String database;
+
+  @Description("Schema of the Spanner table.")
+  @Macro
+  public String schema;
 
   public void validate() {
-    super.validate();
+    SpannerUtil.validateSchema(getSchema());
     if (!containsMacro("batchSize") && batchSize != null && batchSize < 1) {
       throw new IllegalArgumentException("Spanner batch size for writes should be positive");
+    }
+  }
+
+  public Schema getSchema() {
+    try {
+      return Schema.parseJson(schema);
+    } catch (IOException e) {
+      throw new IllegalArgumentException("Unable to parse output schema: " + e.getMessage(), e);
     }
   }
 

@@ -14,7 +14,7 @@
  * the License.
  */
 
-package co.cask.gcp.publisher;
+package co.cask.gcp.common;
 
 import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Macro;

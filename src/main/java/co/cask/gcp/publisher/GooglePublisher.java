@@ -32,6 +32,7 @@ import co.cask.cdap.etl.api.batch.BatchSinkContext;
 import co.cask.cdap.etl.api.lineage.field.FieldOperation;
 import co.cask.cdap.etl.api.lineage.field.FieldWriteOperation;
 import co.cask.cdap.format.StructuredRecordStringConverter;
+import co.cask.gcp.common.GCPReferenceSinkConfig;
 import co.cask.hydrator.common.batch.sink.SinkOutputFormatProvider;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
@@ -65,7 +66,7 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, T
   }
 
   @Override
-  public void prepareRun(BatchSinkContext context) throws Exception {
+  public void prepareRun(BatchSinkContext context) {
     config.validate();
     Configuration configuration = new Configuration();
     PubSubOutputFormat.configure(configuration, config);

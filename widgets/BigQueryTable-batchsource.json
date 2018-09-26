@@ -2,43 +2,25 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name" : "Google Big Query Table",
+  "display-name" : "Google BigQuery",
   "configuration-groups": [
     {
-      "label" : "Service Account and Temporary Google Storage",
-      "properties" : [
+      "label": "Basic",
+      "properties": [
         {
           "widget-type": "textbox",
           "label": "Reference Name",
-          "name": "referenceName"
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Service Account File Path",
-          "name": "serviceFilePath",
+          "name": "referenceName",
           "widget-attributes" : {
-            "placeholder": "Path to the service account file on local file system"
+            "placeholder": "Name used to identify this source for lineage"
           }
         },
-        {
-          "widget-type": "textbox",
-          "label": "Bucket Name",
-          "name": "bucket",
-          "widget-attributes" : {
-            "placeholder": "Google Cloud Storage bucket for temporary data"
-          }
-        }
-      ]
-    },
-    {
-      "label": "Dataset Information",
-      "properties": [
         {
           "widget-type": "textbox",
           "label": "Project ID",
           "name": "project",
           "widget-attributes" : {
-            "placeholder": "The project id of the dataset"
+            "default": "auto-detect"
           }
         },
         {
@@ -46,7 +28,7 @@
           "label": "Dataset",
           "name": "dataset",
           "widget-attributes" : {
-            "placeholder": "The dataset the table belongs to"
+            "placeholder": "Dataset the table belongs to"
           }
         },
         {
@@ -54,7 +36,7 @@
           "label": "Table",
           "name": "table",
           "widget-attributes" : {
-            "placeholder": "The table to write to"
+            "placeholder": "Table to write to"
           },
           "plugin-function": {
             "method": "POST",
@@ -65,6 +47,27 @@
             "position": "bottom",
             "multiple-inputs": true,
             "button-class": "btn-hydrator"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Temporary Bucket Name",
+          "name": "bucket",
+          "widget-attributes" : {
+            "placeholder": "Google Cloud Storage bucket for temporary data"
+          }
+        }
+      ]
+    },
+    {
+      "label" : "Credentials",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "default": "auto-detect"
           }
         }
       ]
@@ -87,5 +90,12 @@
         "schema-default-type": "string"
       }
     }
-  ]
+  ],
+  "jump-config": {
+    "datasets": [
+      {
+        "ref-property-name": "referenceName"
+      }
+    ]
+  }
 }

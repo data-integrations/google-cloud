@@ -18,7 +18,6 @@ package co.cask.gcp.spanner.sink;
 
 import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
-import co.cask.gcp.common.GCPUtils;
 import co.cask.gcp.spanner.SpannerConstants;
 import co.cask.gcp.spanner.common.SpannerUtil;
 import com.google.cloud.ByteArray;
@@ -35,8 +34,6 @@ import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.OutputFormat;
 import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.LocalDate;
@@ -48,18 +45,19 @@ import java.util.List;
  * Spanner output format
  */
 public class SpannerOutputFormat extends OutputFormat<NullWritable, StructuredRecord> {
-  private static final Logger LOG = LoggerFactory.getLogger(SpannerOutputFormat.class);
 
   /**
    * Get properties from SparkSinkConfig and store them as properties in Configuration
-   * @param configuration
-   * @param config
+   *
+   * @param configuration the Hadoop configuration to set the properties in
+   * @param config the spanner configuration
    */
   public static void configure(Configuration configuration, SpannerSinkConfig config) {
-    String projectId = GCPUtils.getProjectId(config.project);
+    String projectId = config.getProject();
     configuration.set(SpannerConstants.PROJECT_ID, projectId);
-    if (config.serviceFilePath != null) {
-      configuration.set(SpannerConstants.SERVICE_ACCOUNT_FILE_PATH, config.serviceFilePath);
+    String serviceAccountFilePath = config.getServiceAccountFilePath();
+    if (serviceAccountFilePath != null) {
+      configuration.set(SpannerConstants.SERVICE_ACCOUNT_FILE_PATH, serviceAccountFilePath);
     }
     configuration.set(SpannerConstants.INSTANCE_ID, config.instance);
     configuration.set(SpannerConstants.DATABASE, config.database);
@@ -70,7 +68,7 @@ public class SpannerOutputFormat extends OutputFormat<NullWritable, StructuredRe
 
   @Override
   public RecordWriter<NullWritable, StructuredRecord> getRecordWriter(TaskAttemptContext context)
-    throws IOException, InterruptedException {
+    throws IOException {
     Configuration configuration = context.getConfiguration();
     String projectId = configuration.get(SpannerConstants.PROJECT_ID);
     String instanceId = configuration.get(SpannerConstants.INSTANCE_ID);
@@ -107,7 +105,7 @@ public class SpannerOutputFormat extends OutputFormat<NullWritable, StructuredRe
     }
 
     @Override
-    public void write(NullWritable nullWritable, StructuredRecord record) throws IOException, InterruptedException {
+    public void write(NullWritable nullWritable, StructuredRecord record) throws IOException {
       Mutation.WriteBuilder builder = Mutation.newInsertOrUpdateBuilder(tableName);
       List<Schema.Field> fields = schema.getFields();
       for (Schema.Field field : fields) {
@@ -168,7 +166,7 @@ public class SpannerOutputFormat extends OutputFormat<NullWritable, StructuredRe
     }
 
     @Override
-    public void close(TaskAttemptContext taskAttemptContext) throws IOException, InterruptedException {
+    public void close(TaskAttemptContext taskAttemptContext) {
       if (mutations.size() > 0) {
         databaseClient.write(mutations);
         mutations.clear();
@@ -178,38 +176,37 @@ public class SpannerOutputFormat extends OutputFormat<NullWritable, StructuredRe
   }
 
   @Override
-  public void checkOutputSpecs(JobContext jobContext) throws IOException, InterruptedException {
+  public void checkOutputSpecs(JobContext jobContext) {
   }
 
   /**
    * No op output committer
    */
   @Override
-  public OutputCommitter getOutputCommitter(TaskAttemptContext taskAttemptContext)
-    throws IOException, InterruptedException {
+  public OutputCommitter getOutputCommitter(TaskAttemptContext taskAttemptContext) {
     return new OutputCommitter() {
       @Override
-      public void setupJob(JobContext jobContext) throws IOException {
+      public void setupJob(JobContext jobContext) {
 
       }
 
       @Override
-      public void setupTask(TaskAttemptContext taskAttemptContext) throws IOException {
+      public void setupTask(TaskAttemptContext taskAttemptContext) {
 
       }
 
       @Override
-      public boolean needsTaskCommit(TaskAttemptContext taskAttemptContext) throws IOException {
+      public boolean needsTaskCommit(TaskAttemptContext taskAttemptContext) {
         return false;
       }
 
       @Override
-      public void commitTask(TaskAttemptContext taskAttemptContext) throws IOException {
+      public void commitTask(TaskAttemptContext taskAttemptContext) {
 
       }
 
       @Override
-      public void abortTask(TaskAttemptContext taskAttemptContext) throws IOException {
+      public void abortTask(TaskAttemptContext taskAttemptContext) {
 
       }
     };

@@ -33,11 +33,9 @@ import co.cask.cdap.etl.api.batch.BatchSinkContext;
 import co.cask.cdap.etl.api.lineage.field.FieldOperation;
 import co.cask.cdap.etl.api.lineage.field.FieldWriteOperation;
 import co.cask.gcp.common.GCPConfig;
-import co.cask.gcp.common.GCPUtils;
-import co.cask.gcp.common.ReferenceConfig;
-import co.cask.gcp.common.ReferenceSink;
 import co.cask.gcp.format.FileFormat;
 import co.cask.gcp.format.output.FileOutputFormatter;
+import co.cask.gcp.common.GCPReferenceSinkConfig;
 import co.cask.hydrator.common.batch.sink.SinkOutputFormatProvider;
 import com.google.common.base.Strings;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
@@ -60,12 +58,11 @@ import javax.annotation.Nullable;
 @Plugin(type = BatchSink.PLUGIN_TYPE)
 @Name("GCS")
 @Description("Writes records to one or more files in a directory on Google Cloud Storage.")
-public class GCSBatchSink<KEY_OUT, VAL_OUT> extends ReferenceSink<StructuredRecord, KEY_OUT, VAL_OUT> {
+public class GCSBatchSink<KEY_OUT, VAL_OUT> extends BatchSink<StructuredRecord, KEY_OUT, VAL_OUT> {
   private final GCSBatchSinkConfig config;
   private FileOutputFormatter<KEY_OUT, VAL_OUT> outputFormatter;
 
   public GCSBatchSink(GCSBatchSinkConfig config) {
-    super(config);
     this.config = config;
   }
 
@@ -82,13 +79,13 @@ public class GCSBatchSink<KEY_OUT, VAL_OUT> extends ReferenceSink<StructuredReco
     // set common properties
     Map<String, String> outputConfig = new HashMap<>();
     outputConfig.put(FileOutputFormat.OUTDIR, config.getOutputDir(context.getLogicalStartTime()));
-    if (config.serviceFilePath != null) {
-      outputConfig.put("mapred.bq.auth.service.account.json.keyfile", config.serviceFilePath);
-      outputConfig.put("google.cloud.auth.service.account.json.keyfile", config.serviceFilePath);
+    String serviceAccountFilePath = config.getServiceAccountFilePath();
+    if (serviceAccountFilePath != null) {
+      outputConfig.put("google.cloud.auth.service.account.json.keyfile", serviceAccountFilePath);
     }
     outputConfig.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
     outputConfig.put("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
-    String projectId = GCPUtils.getProjectId(config.project);
+    String projectId = config.getProject();
     outputConfig.put("fs.gs.project.id", projectId);
     outputConfig.put("fs.gs.system.bucket", config.bucket);
     outputConfig.put("fs.gs.impl.disable.cache", "true");
@@ -132,7 +129,7 @@ public class GCSBatchSink<KEY_OUT, VAL_OUT> extends ReferenceSink<StructuredReco
    * Sink configuration.
    */
   @SuppressWarnings("unused")
-  public static class GCSBatchSinkConfig extends ReferenceConfig {
+  public static class GCSBatchSinkConfig extends GCPReferenceSinkConfig {
     @Name("path")
     @Description("The path to write to. For example, gs://<bucket>/path/to/directory")
     @Macro
@@ -144,16 +141,6 @@ public class GCSBatchSink<KEY_OUT, VAL_OUT> extends ReferenceSink<StructuredReco
     @Nullable
     @Macro
     private String suffix;
-
-    @Description(GCPConfig.PROJECT_DESC)
-    @Macro
-    @Nullable
-    private String project;
-
-    @Description(GCPConfig.SERVICE_ACCOUNT_DESC)
-    @Macro
-    @Nullable
-    private String serviceFilePath;
 
     @Description("Name of the bucket.")
     @Macro
@@ -175,11 +162,6 @@ public class GCSBatchSink<KEY_OUT, VAL_OUT> extends ReferenceSink<StructuredReco
     @Macro
     @Nullable
     private String schema;
-
-    public GCSBatchSinkConfig() {
-      // Set default value for Nullable properties.
-      super("");
-    }
 
     private void validate() {
       if (path != null && !containsMacro("path") && !path.startsWith("gs://")) {

@@ -2,35 +2,25 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name": "Google Cloud PubSub Publisher",
+  "display-name": "Google Cloud PubSub",
   "configuration-groups": [
     {
-      "label" : "Governance",
+      "label" : "Basic",
       "properties" : [
         {
           "widget-type": "textbox",
           "label": "Reference Name",
-          "name": "referenceName"
-        }
-      ]
-    },
-    {
-      "label" : "Service Account and Project Information",
-      "properties" : [
-        {
-          "widget-type": "textbox",
-          "label": "Service Account File Path",
-          "name": "serviceFilePath",
+          "name": "referenceName",
           "widget-attributes" : {
-            "placeholder": "Path to the service account file on local file system."
+            "placeholder": "Name used to identify this sink for lineage"
           }
         },
         {
           "widget-type": "textbox",
-          "label": "Project Id",
+          "label": "Project ID",
           "name": "project",
           "widget-attributes" : {
-            "placeholder": "The project id of the Cloud Pub/Sub."
+            "default": "auto-detect"
           }
         },
         {
@@ -38,13 +28,26 @@
           "label": "PubSub topic",
           "name": "topic",
           "widget-attributes" : {
-            "placeholder": "Name of the Google PubSub topic to publish to."
+            "placeholder": "Topic to publish to"
           }
         }
       ]
     },
     {
-      "label" : "Advanced : Batching and Error Settings",
+      "label" : "Credentials",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        }
+      ]
+    },
+    {
+      "label" : "Advanced",
       "properties" : [
         {
           "widget-type": "textbox",
@@ -88,5 +91,12 @@
         }
       ]
     }
-  ]
+  ],
+  "jump-config": {
+    "datasets": [
+      {
+        "ref-property-name": "referenceName"
+      }
+    ]
+  }
 }

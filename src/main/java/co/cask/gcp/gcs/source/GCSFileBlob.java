@@ -34,8 +34,8 @@ import co.cask.cdap.etl.api.batch.BatchSourceContext;
 import co.cask.cdap.etl.api.lineage.field.FieldOperation;
 import co.cask.cdap.etl.api.lineage.field.FieldReadOperation;
 import co.cask.gcp.common.GCPConfig;
-import co.cask.gcp.common.ReferenceConfig;
 import co.cask.gcp.common.WholeFileInputFormat;
+import co.cask.gcp.common.GCPReferenceSourceConfig;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 
@@ -76,11 +76,10 @@ public class GCSFileBlob extends BatchSource<String, BytesWritable, StructuredRe
       public Map<String, String> getInputFormatConfiguration() {
         Map<String, String> properties = new HashMap<>();
         properties.put(FileInputFormat.INPUT_DIR, config.path);
-        properties.put("mapred.bq.auth.service.account.json.keyfile", config.serviceAccountFilePath);
-        properties.put("google.cloud.auth.service.account.json.keyfile", config.serviceAccountFilePath);
+        properties.put("google.cloud.auth.service.account.json.keyfile", config.getServiceAccountFilePath());
         properties.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
         properties.put("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
-        properties.put("fs.gs.project.id", config.project);
+        properties.put("fs.gs.project.id", config.getProject());
         properties.put("fs.gs.system.bucket", config.bucket);
         properties.put("fs.gs.impl.disable.cache", "true");
         return properties;
@@ -113,30 +112,16 @@ public class GCSFileBlob extends BatchSource<String, BytesWritable, StructuredRe
   /**
    * Configurations for the {@link GCSFileBlob} plugin.
    */
-  public static final class Config extends ReferenceConfig {
+  public static final class Config extends GCPReferenceSourceConfig {
 
     @Description("The path to read from. For example, gs://<bucket>/path/to/directory/")
     @Macro
     private String path;
 
-    @Name("project")
-    @Description(GCPConfig.PROJECT_DESC)
-    @Macro
-    private String project;
-
-    @Name("serviceFilePath")
-    @Description(GCPConfig.SERVICE_ACCOUNT_DESC)
-    @Macro
-    private String serviceAccountFilePath;
-
     @Name("bucket")
     @Description("Name of the bucket.")
     @Macro
     private String bucket;
-
-    public Config(String referenceName) {
-      super(referenceName);
-    }
   }
 }
 
