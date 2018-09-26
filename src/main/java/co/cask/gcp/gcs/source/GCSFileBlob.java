@@ -33,9 +33,9 @@ import co.cask.cdap.etl.api.batch.BatchSource;
 import co.cask.cdap.etl.api.batch.BatchSourceContext;
 import co.cask.cdap.etl.api.lineage.field.FieldOperation;
 import co.cask.cdap.etl.api.lineage.field.FieldReadOperation;
-import co.cask.gcp.common.GCPConfig;
-import co.cask.gcp.common.WholeFileInputFormat;
 import co.cask.gcp.common.GCPReferenceSourceConfig;
+import co.cask.gcp.common.WholeFileInputFormat;
+import co.cask.gcp.gcs.GCSConfigHelper;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 
@@ -61,11 +61,13 @@ public class GCSFileBlob extends BatchSource<String, BytesWritable, StructuredRe
 
   @Override
   public void configurePipeline(PipelineConfigurer configurer) {
+    config.validate();
     configurer.getStageConfigurer().setOutputSchema(outputSchema);
   }
 
   @Override
   public void prepareRun(BatchSourceContext context){
+    config.validate();
     context.setInput(Input.of(config.referenceName, new InputFormatProvider() {
       @Override
       public String getInputFormatClassName() {
@@ -75,12 +77,12 @@ public class GCSFileBlob extends BatchSource<String, BytesWritable, StructuredRe
       @Override
       public Map<String, String> getInputFormatConfiguration() {
         Map<String, String> properties = new HashMap<>();
-        properties.put(FileInputFormat.INPUT_DIR, config.path);
+        properties.put(FileInputFormat.INPUT_DIR, GCSConfigHelper.getPath(config.path).toString());
         properties.put("google.cloud.auth.service.account.json.keyfile", config.getServiceAccountFilePath());
         properties.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
         properties.put("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
         properties.put("fs.gs.project.id", config.getProject());
-        properties.put("fs.gs.system.bucket", config.bucket);
+        properties.put("fs.gs.system.bucket", GCSConfigHelper.getBucket(config.path));
         properties.put("fs.gs.impl.disable.cache", "true");
         return properties;
       }
@@ -118,10 +120,9 @@ public class GCSFileBlob extends BatchSource<String, BytesWritable, StructuredRe
     @Macro
     private String path;
 
-    @Name("bucket")
-    @Description("Name of the bucket.")
-    @Macro
-    private String bucket;
+    void validate() {
+      GCSConfigHelper.getPath(path);
+    }
   }
 }
 

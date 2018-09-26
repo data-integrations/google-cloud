@@ -41,11 +41,6 @@
           }
         },
         {
-          "widget-type": "textbox",
-          "label": "Bucket Name",
-          "name": "bucket"
-        },
-        {
           "widget-type": "select",
           "label": "Format",
           "name": "format",
