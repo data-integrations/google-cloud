@@ -34,7 +34,5 @@ It can be found on the Dashboard in the Google Cloud Platform Console.
 authorization. Can be set to 'auto-detect' when running on a Dataproc cluster.
 When running on other clusters, the file must be present on every node in the cluster.
 
-**Bucket Name**: Bucket to read from.
-
 **Path:** Path to file(s) to be read. If a directory is specified, terminate the path name with a '/'.
 For example, gs://<bucket>/path/to/directory/

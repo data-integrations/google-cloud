@@ -35,8 +35,6 @@ It can be found on the Dashboard in the Google Cloud Platform Console.
 For example, the format 'yyyy-MM-dd-HH-mm' will result in a directory of the form '2015-01-01-20-42'.
 If not specified, nothing will be appended to the path."
 
-**Bucket Name**: Bucket to write to.
-
 **Format:** Format to write the records in.
 The format must be one of 'json', 'avro', 'parquet', 'csv', 'tsv', or 'delimited'.
 

@@ -32,6 +32,7 @@ import co.cask.cdap.etl.api.lineage.field.FieldReadOperation;
 import co.cask.gcp.common.CombinePathTrackingInputFormat;
 import co.cask.gcp.common.GCPReferenceSourceConfig;
 import co.cask.gcp.common.PathTrackingInputFormat;
+import co.cask.gcp.gcs.GCSConfigHelper;
 import co.cask.hydrator.common.SourceInputFormatProvider;
 import co.cask.hydrator.common.batch.JobUtils;
 import com.google.gson.Gson;
@@ -70,12 +71,14 @@ public class GCSSource extends BatchSource<Object, Object, StructuredRecord> {
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     super.configurePipeline(pipelineConfigurer);
+    // validate configs
     config.validate();
     pipelineConfigurer.getStageConfigurer().setOutputSchema(DEFAULT_SCHEMA);
   }
 
   @Override
   public void prepareRun(BatchSourceContext context) throws Exception {
+    // validate configs
     config.validate();
 
     Job job = JobUtils.createInstance();
@@ -90,14 +93,14 @@ public class GCSSource extends BatchSource<Object, Object, StructuredRecord> {
     properties.put("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
     String projectId = config.getProject();
     properties.put("fs.gs.project.id", projectId);
-    properties.put("fs.gs.system.bucket", config.bucket);
+    properties.put("fs.gs.system.bucket", GCSConfigHelper.getBucket(config.path));
     properties.put("fs.gs.impl.disable.cache", "true");
     for (Map.Entry<String, String> entry : properties.entrySet()) {
       conf.set(entry.getKey(), entry.getValue());
     }
 
     FileInputFormat.setInputDirRecursive(job, config.isRecursive());
-    FileInputFormat.addInputPath(job, new Path(config.getPath()));
+    FileInputFormat.addInputPath(job, new Path(GCSConfigHelper.getPath(config.path)));
 
     if (config.maxSplitSize != null) {
       FileInputFormat.setMaxInputSplitSize(job, config.maxSplitSize * 1024 * 1024);
@@ -127,10 +130,6 @@ public class GCSSource extends BatchSource<Object, Object, StructuredRecord> {
     @Description("The path to read from. For example, gs://<bucket>/path/to/directory/")
     @Macro
     private String path;
-
-    @Description("Name of the bucket.")
-    @Macro
-    private String bucket;
 
     @Nullable
     @Description("Map of properties to set on the InputFormat.")
@@ -176,10 +175,9 @@ public class GCSSource extends BatchSource<Object, Object, StructuredRecord> {
       return Boolean.TRUE.equals(recursive);
     }
 
-    public void validate() {
-      if (!containsMacro("path") && (!path.startsWith("gs://"))) {
-        throw new IllegalArgumentException("Path must start with gs:// for Google Cloud Storage (GCS).");
-      }
+    void validate() {
+      // validate that path is valid
+      GCSConfigHelper.getPath(path);
       getFileSystemProperties();
     }
 
@@ -189,10 +187,5 @@ public class GCSSource extends BatchSource<Object, Object, StructuredRecord> {
       }
       return GSON.fromJson(fileSystemProperties, MAP_STRING_STRING_TYPE);
     }
-
-    public String getPath() {
-      return path;
-    }
   }
-
 }

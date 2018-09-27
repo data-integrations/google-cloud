@@ -25,11 +25,6 @@
         },
         {
           "widget-type": "textbox",
-          "label": "Bucket Name",
-          "name": "bucket"
-        },
-        {
-          "widget-type": "textbox",
           "label": "Path",
           "name": "path",
           "widget-attributes" : {

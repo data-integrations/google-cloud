@@ -32,10 +32,10 @@ import co.cask.cdap.etl.api.batch.BatchSink;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
 import co.cask.cdap.etl.api.lineage.field.FieldOperation;
 import co.cask.cdap.etl.api.lineage.field.FieldWriteOperation;
-import co.cask.gcp.common.GCPConfig;
+import co.cask.gcp.common.GCPReferenceSinkConfig;
 import co.cask.gcp.format.FileFormat;
 import co.cask.gcp.format.output.FileOutputFormatter;
-import co.cask.gcp.common.GCPReferenceSinkConfig;
+import co.cask.gcp.gcs.GCSConfigHelper;
 import co.cask.hydrator.common.batch.sink.SinkOutputFormatProvider;
 import com.google.common.base.Strings;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
@@ -87,7 +87,7 @@ public class GCSBatchSink<KEY_OUT, VAL_OUT> extends BatchSink<StructuredRecord, 
     outputConfig.put("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
     String projectId = config.getProject();
     outputConfig.put("fs.gs.project.id", projectId);
-    outputConfig.put("fs.gs.system.bucket", config.bucket);
+    outputConfig.put("fs.gs.system.bucket", GCSConfigHelper.getBucket(config.path));
     outputConfig.put("fs.gs.impl.disable.cache", "true");
     
     // set format specific properties.
@@ -142,10 +142,6 @@ public class GCSBatchSink<KEY_OUT, VAL_OUT> extends BatchSink<StructuredRecord, 
     @Macro
     private String suffix;
 
-    @Description("Name of the bucket.")
-    @Macro
-    private String bucket;
-
     @Description("The format to write in. The format must be one of 'json', 'avro', 'parquet', 'csv', 'tsv', "
       + "or 'delimited'.")
     @Macro
@@ -164,9 +160,7 @@ public class GCSBatchSink<KEY_OUT, VAL_OUT> extends BatchSink<StructuredRecord, 
     private String schema;
 
     private void validate() {
-      if (path != null && !containsMacro("path") && !path.startsWith("gs://")) {
-        throw new IllegalArgumentException("Path must start with gs://.");
-      }
+      GCSConfigHelper.getPath(path);
       if (suffix != null && !containsMacro("suffix")) {
         new SimpleDateFormat(suffix);
       }
@@ -207,7 +201,7 @@ public class GCSBatchSink<KEY_OUT, VAL_OUT> extends BatchSink<StructuredRecord, 
 
     private String getOutputDir(long logicalStartTime) {
       String timeSuffix = !Strings.isNullOrEmpty(suffix) ? new SimpleDateFormat(suffix).format(logicalStartTime) : "";
-      return String.format("%s/%s", path, timeSuffix);
+      return String.format("%s/%s", GCSConfigHelper.getPath(path), timeSuffix);
     }
   }
 }
