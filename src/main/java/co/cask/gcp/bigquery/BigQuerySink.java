@@ -29,14 +29,22 @@ import co.cask.cdap.etl.api.Emitter;
 import co.cask.cdap.etl.api.batch.BatchRuntimeContext;
 import co.cask.cdap.etl.api.batch.BatchSink;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
+import co.cask.gcp.common.GCPUtils;
 import co.cask.hydrator.common.LineageRecorder;
+import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.Field;
+import com.google.cloud.bigquery.FieldList;
+import com.google.cloud.bigquery.LegacySQLTypeName;
+import com.google.cloud.bigquery.Table;
+import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryOutputConfiguration;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableSchema;
 import com.google.cloud.hadoop.io.bigquery.output.IndirectBigQueryOutputFormat;
+import com.google.common.collect.ImmutableMap;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import org.apache.hadoop.conf.Configuration;
@@ -77,6 +85,24 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
   private static final Logger LOG = LoggerFactory.getLogger(BigQuerySink.class);
   private static final DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
 
+  private static final Map<Schema.Type, LegacySQLTypeName> TYPE_MAP = ImmutableMap.<Schema.Type,
+    LegacySQLTypeName>builder()
+    .put(Schema.Type.INT, LegacySQLTypeName.INTEGER)
+    .put(Schema.Type.LONG, LegacySQLTypeName.INTEGER)
+    .put(Schema.Type.STRING, LegacySQLTypeName.STRING)
+    .put(Schema.Type.FLOAT, LegacySQLTypeName.FLOAT)
+    .put(Schema.Type.DOUBLE, LegacySQLTypeName.FLOAT)
+    .put(Schema.Type.BOOLEAN, LegacySQLTypeName.BOOLEAN)
+    .put(Schema.Type.BYTES, LegacySQLTypeName.BYTES)
+    .build();
+
+  private static final Map<Schema.LogicalType, LegacySQLTypeName> LOGICAL_TYPE_MAP = ImmutableMap.of(
+    Schema.LogicalType.DATE, LegacySQLTypeName.DATE,
+    Schema.LogicalType.TIME_MILLIS, LegacySQLTypeName.TIME, Schema.LogicalType.TIME_MICROS, LegacySQLTypeName.TIME,
+    Schema.LogicalType.TIMESTAMP_MILLIS, LegacySQLTypeName.TIMESTAMP,
+    Schema.LogicalType.TIMESTAMP_MICROS, LegacySQLTypeName.TIMESTAMP
+  );
+
   private final BigQuerySinkConfig config;
   private Schema schema;
   private Configuration configuration;
@@ -89,6 +115,7 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
 
   @Override
   public void prepareRun(BatchSinkContext context) throws Exception {
+    validateSchema();
     uuid = UUID.randomUUID();
     Job job = Job.getInstance();
 
@@ -421,6 +448,133 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
       case STRING:
         json.addProperty(name, object.toString());
         break;
+    }
+  }
+
+  /**
+   * Validates output schema against bigquery table schema. It throws {@link IllegalArgumentException}
+   * if the output schema has more fields than bigquery table or output schema field types does not match bigquery
+   * column types.
+   */
+  private void validateSchema() throws IOException {
+    Table table = getBigqueryTable(config);
+    if (table == null) {
+      // Table does not exist, so no further validation is required.
+      return;
+    }
+
+    com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
+    if (bqSchema == null) {
+      // Table is created without schema, so no further validation is required.
+      return;
+    }
+
+    FieldList bqFields = bqSchema.getFields();
+    List<Schema.Field> outputSchemaFields = config.getSchema().getFields();
+
+    // Output schema should not have fields that are not present in BigQuery table.
+    List<String> diff = getFieldDiff(bqFields, outputSchemaFields);
+    if (!diff.isEmpty()) {
+      throw new IllegalArgumentException(
+        String.format("The output schema does not match the BigQuery table schema for '%s.%s' table. " +
+                        "The table does not contain the '%s' column(s).", config.dataset, config.table, diff));
+    }
+
+    // validate the missing columns in output schema are nullable fields in bigquery
+    List<String> remainingBQFields = getFieldDiff(outputSchemaFields, bqFields);
+    for (String field : remainingBQFields) {
+      if (bqFields.get(field).getMode() != Field.Mode.NULLABLE) {
+        throw new IllegalArgumentException(
+          String.format("The output schema does not match the BigQuery table schema for '%s.%s'. " +
+                          "The table requires column '%s', which is not in the output schema.",
+                        config.dataset, config.table, field));
+      }
+    }
+
+    // Match output schema field types with bigquery column types
+    matchSchema(config, bqFields, outputSchemaFields);
+  }
+
+  private Table getBigqueryTable(BigQuerySinkConfig config) throws IOException {
+    BigQuery bigquery;
+    BigQueryOptions.Builder bigqueryBuilder = BigQueryOptions.newBuilder();
+    String serviceAccountFilePath = config.getServiceAccountFilePath();
+    if (serviceAccountFilePath != null) {
+      bigqueryBuilder.setCredentials(GCPUtils.loadServiceAccountCredentials(serviceAccountFilePath));
+    }
+    String project = config.getProject();
+    bigqueryBuilder.setProjectId(project);
+    bigquery = bigqueryBuilder.build().getService();
+
+    TableId id = TableId.of(project, config.dataset, config.table);
+    return bigquery.getTable(id);
+  }
+
+  private List<String> getFieldDiff(FieldList bqFields, List<Schema.Field> outputSchemaFields) {
+    List<String> diff = new ArrayList<>();
+
+    for (Schema.Field field : outputSchemaFields) {
+      diff.add(field.getName());
+    }
+
+    for (Field field : bqFields) {
+      diff.remove(field.getName());
+    }
+    return diff;
+  }
+
+  private List<String> getFieldDiff(List<Schema.Field> outputSchemaFields, FieldList bqFields) {
+    List<String> diff = new ArrayList<>();
+
+    for (Field field : bqFields) {
+      diff.add(field.getName());
+    }
+
+    for (Schema.Field field : outputSchemaFields) {
+      diff.remove(field.getName());
+    }
+    return diff;
+  }
+
+  private void matchSchema(BigQuerySinkConfig config, FieldList bqFields, List<Schema.Field> outputSchemaFields) {
+    // validate type of fields against bigquery column types
+    for (Schema.Field field : outputSchemaFields) {
+      Schema fieldSchema = field.getSchema().isNullable() ? field.getSchema().getNonNullable() : field.getSchema();
+      Schema.Type type = fieldSchema.getType();
+      Schema.LogicalType logicalType = fieldSchema.getLogicalType();
+
+      // validate logical types
+      if (logicalType != null) {
+        if (LOGICAL_TYPE_MAP.get(logicalType) == null) {
+          throw new IllegalArgumentException(String.format("Field '%s' is of unsupported type '%s'",
+                                                           field.getName(), logicalType));
+        }
+        if (LOGICAL_TYPE_MAP.get(logicalType) != bqFields.get(field.getName()).getType()) {
+          throw new IllegalArgumentException(
+            String.format("Field '%s' of type '%s' is not compatible with column '%s' in BigQuery table" +
+                            " '%s.%s' of type '%s'. It must be of type '%s'.",
+                          field.getName(), logicalType, bqFields.get(field.getName()).getName(), config.dataset,
+                          config.table, bqFields.get(field.getName()).getType(),
+                          bqFields.get(field.getName()).getType()));
+        }
+        // return once logical types are validated. This is because logical types are represented as primitive types
+        // internally.
+        return;
+      }
+
+      if (TYPE_MAP.get(type) == null) {
+        throw new IllegalArgumentException(String.format("Field '%s' is of unsupported type '%s'",
+                                                         field.getName(), type));
+      }
+
+      if (TYPE_MAP.get(type) != bqFields.get(field.getName()).getType()) {
+        throw new IllegalArgumentException(
+          String.format("Field '%s' of type '%s' is not compatible with column '%s' in BigQuery table" +
+                          " '%s.%s' of type '%s'. It must be of type '%s'.",
+                        field.getName(), type, bqFields.get(field.getName()).getName(), config.dataset,
+                        config.table, bqFields.get(field.getName()).getType(),
+                        bqFields.get(field.getName()).getType()));
+      }
     }
   }
 }
