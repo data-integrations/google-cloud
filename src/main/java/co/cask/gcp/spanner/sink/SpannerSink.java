@@ -23,20 +23,17 @@ import co.cask.cdap.api.data.batch.Output;
 import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.cdap.api.dataset.lib.KeyValue;
-import co.cask.cdap.api.lineage.field.EndPoint;
 import co.cask.cdap.etl.api.Emitter;
 import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchRuntimeContext;
 import co.cask.cdap.etl.api.batch.BatchSink;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
-import co.cask.cdap.etl.api.lineage.field.FieldOperation;
-import co.cask.cdap.etl.api.lineage.field.FieldWriteOperation;
+import co.cask.hydrator.common.LineageRecorder;
 import co.cask.hydrator.common.ReferenceBatchSink;
 import co.cask.hydrator.common.batch.sink.SinkOutputFormatProvider;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -72,6 +69,10 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
   public void prepareRun(BatchSinkContext context) {
     config.validate();
     Configuration configuration = new Configuration();
+
+    LineageRecorder lineageRecorder = new LineageRecorder(context, config.referenceName);
+    lineageRecorder.createExternalDataset(config.getSchema());
+
     SpannerOutputFormat.configure(configuration, config);
     context.addOutput(Output.of(config.referenceName,
                                 new SinkOutputFormatProvider(SpannerOutputFormat.class, configuration)));
@@ -79,11 +80,8 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
     List<Schema.Field> fields = config.getSchema().getFields();
     if (fields != null && !fields.isEmpty()) {
         // Record the field level WriteOperation
-        FieldOperation operation = new FieldWriteOperation("Write", "Wrote to Spanner table.",
-                                                           EndPoint.of(context.getNamespace(), config.referenceName),
-                                                           fields.stream().map(Schema.Field::getName)
-                                                             .collect(Collectors.toList()));
-        context.record(Collections.singletonList(operation));
+        lineageRecorder.recordWrite("Write", "Wrote to Spanner table.",
+                                    fields.stream().map(Schema.Field::getName).collect(Collectors.toList()));
     }
   }
 

@@ -24,18 +24,16 @@ import co.cask.cdap.api.data.batch.Output;
 import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.cdap.api.dataset.lib.KeyValue;
-import co.cask.cdap.api.lineage.field.EndPoint;
 import co.cask.cdap.etl.api.Emitter;
 import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchRuntimeContext;
 import co.cask.cdap.etl.api.batch.BatchSink;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
-import co.cask.cdap.etl.api.lineage.field.FieldOperation;
-import co.cask.cdap.etl.api.lineage.field.FieldWriteOperation;
 import co.cask.gcp.common.GCPReferenceSinkConfig;
 import co.cask.gcp.format.FileFormat;
 import co.cask.gcp.format.output.FileOutputFormatter;
 import co.cask.gcp.gcs.GCSConfigHelper;
+import co.cask.hydrator.common.LineageRecorder;
 import co.cask.hydrator.common.batch.sink.SinkOutputFormatProvider;
 import com.google.common.base.Strings;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
@@ -43,7 +41,6 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -100,16 +97,16 @@ public class GCSBatchSink<KEY_OUT, VAL_OUT> extends BatchSink<StructuredRecord, 
 
     outputConfig.putAll(outputFormatter.getFormatConfig());
 
+    LineageRecorder lineageRecorder = new LineageRecorder(context, config.referenceName);
+    lineageRecorder.createExternalDataset(config.getSchema());
+
     context.addOutput(Output.of(config.referenceName,
                                 new SinkOutputFormatProvider(outputFormatter.getFormatClassName(), outputConfig)));
     // record field level lineage information
-    Schema inputSchema = context.getInputSchema();
-    if (inputSchema != null && inputSchema.getFields() != null && !inputSchema.getFields().isEmpty()) {
-      FieldOperation operation = new FieldWriteOperation("Write", "Wrote to Google Cloud Storage.",
-                                                         EndPoint.of(context.getNamespace(), config.referenceName),
-                                                         inputSchema.getFields().stream().map(Schema.Field::getName)
-                                                           .collect(Collectors.toList()));
-      context.record(Collections.singletonList(operation));
+    Schema schema = config.getSchema();
+    if (schema != null && schema.getFields() != null && !schema.getFields().isEmpty()) {
+      lineageRecorder.recordWrite("Write", "Wrote to Google Cloud Storage.",
+                                  schema.getFields().stream().map(Schema.Field::getName).collect(Collectors.toList()));
     }
   }
 

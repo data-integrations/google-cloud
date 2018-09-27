@@ -26,20 +26,17 @@ import co.cask.cdap.api.data.batch.InputFormatProvider;
 import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.cdap.api.dataset.lib.KeyValue;
-import co.cask.cdap.api.lineage.field.EndPoint;
 import co.cask.cdap.etl.api.Emitter;
 import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchSource;
 import co.cask.cdap.etl.api.batch.BatchSourceContext;
-import co.cask.cdap.etl.api.lineage.field.FieldOperation;
-import co.cask.cdap.etl.api.lineage.field.FieldReadOperation;
 import co.cask.gcp.common.GCPReferenceSourceConfig;
 import co.cask.gcp.common.WholeFileInputFormat;
 import co.cask.gcp.gcs.GCSConfigHelper;
+import co.cask.hydrator.common.LineageRecorder;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -68,6 +65,11 @@ public class GCSFileBlob extends BatchSource<String, BytesWritable, StructuredRe
   @Override
   public void prepareRun(BatchSourceContext context){
     config.validate();
+    Schema outputSchema = context.getOutputSchema();
+
+    LineageRecorder lineageRecorder = new LineageRecorder(context, config.referenceName);
+    lineageRecorder.createExternalDataset(outputSchema);
+
     context.setInput(Input.of(config.referenceName, new InputFormatProvider() {
       @Override
       public String getInputFormatClassName() {
@@ -89,13 +91,10 @@ public class GCSFileBlob extends BatchSource<String, BytesWritable, StructuredRe
     }));
 
     // record field level lineage information
-    Schema outputSchema = context.getOutputSchema();
     if (outputSchema != null && outputSchema.getFields() != null && !outputSchema.getFields().isEmpty()) {
-      FieldOperation operation = new FieldReadOperation("Read", "Read from Google Cloud Storage.",
-                                                        EndPoint.of(context.getNamespace(), config.referenceName),
-                                                        outputSchema.getFields().stream().map(Schema.Field::getName)
-                                                          .collect(Collectors.toList()));
-      context.record(Collections.singletonList(operation));
+      lineageRecorder.recordRead("Read", "Read from Google Cloud Storage.",
+                                 outputSchema.getFields().stream().map(Schema.Field::getName)
+                                   .collect(Collectors.toList()));
     }
   }
 
