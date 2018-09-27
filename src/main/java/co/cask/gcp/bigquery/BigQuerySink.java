@@ -25,13 +25,11 @@ import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.format.UnexpectedFormatException;
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.cdap.api.dataset.lib.KeyValue;
-import co.cask.cdap.api.lineage.field.EndPoint;
 import co.cask.cdap.etl.api.Emitter;
 import co.cask.cdap.etl.api.batch.BatchRuntimeContext;
 import co.cask.cdap.etl.api.batch.BatchSink;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
-import co.cask.cdap.etl.api.lineage.field.FieldOperation;
-import co.cask.cdap.etl.api.lineage.field.FieldWriteOperation;
+import co.cask.hydrator.common.LineageRecorder;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
@@ -46,7 +44,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.Job;
-import org.apache.hadoop.mapreduce.JobID;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -57,7 +54,6 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -130,16 +126,8 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
     configuration.setBoolean("fs.gs.impl.disable.cache", true);
     configuration.setBoolean("fs.gs.metadata.cache.enable", false);
 
-    try {
-      schema = Schema.parseJson(config.schema);
-    } catch (IOException e) {
-      throw new IllegalArgumentException(
-        String.format("Unable to parse output schema. Reason: %s", e.getMessage()), e);
-    }
-
-
     List<BigQueryTableFieldSchema> fields = new ArrayList<>();
-    for (Schema.Field field : schema.getFields()) {
+    for (Schema.Field field : config.getSchema().getFields()) {
       String name = field.getName();
       Schema.Type type = field.getSchema().getType();
 
@@ -164,7 +152,10 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
       temporaryGcsPath,
       BigQueryFileFormat.NEWLINE_DELIMITED_JSON,
       TextOutputFormat.class);
-    
+
+    LineageRecorder lineageRecorder = new LineageRecorder(context, config.referenceName);
+    lineageRecorder.createExternalDataset(config.getSchema());
+
     context.addOutput(Output.of(config.referenceName, new OutputFormatProvider() {
       @Override
       public String getOutputFormatClassName() {
@@ -182,25 +173,15 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
     }));
 
     if (!fields.isEmpty()) {
-      // Record the field level WriteOperation
-      FieldOperation operation = new FieldWriteOperation("Write", "Wrote to BigQuery table.",
-                                                         EndPoint.of(context.getNamespace(), config.referenceName),
-                                                         fields.stream().map(BigQueryTableFieldSchema::getName)
-                                                           .collect(Collectors.toList()));
-      context.record(Collections.singletonList(operation));
+      lineageRecorder.recordWrite("Write", "Wrote to BigQuery table.",
+                                  fields.stream().map(BigQueryTableFieldSchema::getName).collect(Collectors.toList()));
     }
   }
 
   @Override
   public void initialize(BatchRuntimeContext context) throws Exception {
     super.initialize(context);
-    try {
-      schema = Schema.parseJson(config.schema);
-    } catch (IOException e) {
-      throw new IllegalArgumentException(
-        String.format("Unable to parse output schema. Reason: %s", e.getMessage()), e
-      );
-    }
+    schema = config.getSchema();
   }
 
   private String getTableDataType(Schema schema) {
@@ -247,7 +228,7 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
 
   @Override
   public void transform(StructuredRecord input, Emitter<KeyValue<JsonObject, NullWritable>> emitter) throws Exception {
-    List<Schema.Field> fields = schema.getFields();
+    List<Schema.Field> fields = config.getSchema().getFields();
     JsonObject object = new JsonObject();
     for (Schema.Field field : fields) {
       String name = field.getName();

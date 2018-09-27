@@ -25,15 +25,13 @@ import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.cdap.api.data.schema.UnsupportedTypeException;
 import co.cask.cdap.api.dataset.lib.KeyValue;
-import co.cask.cdap.api.lineage.field.EndPoint;
 import co.cask.cdap.etl.api.Emitter;
 import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchRuntimeContext;
 import co.cask.cdap.etl.api.batch.BatchSource;
 import co.cask.cdap.etl.api.batch.BatchSourceContext;
-import co.cask.cdap.etl.api.lineage.field.FieldOperation;
-import co.cask.cdap.etl.api.lineage.field.FieldReadOperation;
 import co.cask.gcp.common.AvroToStructuredTransformer;
+import co.cask.hydrator.common.LineageRecorder;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.Field;
@@ -57,7 +55,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -151,6 +148,10 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
 
     job.setOutputKeyClass(LongWritable.class);
     job.setOutputKeyClass(Text.class);
+
+    LineageRecorder lineageRecorder = new LineageRecorder(context, config.referenceName);
+    lineageRecorder.createExternalDataset(config.getSchema());
+
     context.setInput(Input.of(config.referenceName, new InputFormatProvider() {
       @Override
       public String getInputFormatClassName() {
@@ -167,33 +168,17 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
       }
     }));
 
-    if (config.schema != null) {
-      try {
-        Schema schema = Schema.parseJson(config.schema);
-        if (schema.getFields() != null) {
-          FieldOperation operation =
-            new FieldReadOperation("Read", "Read from BigQuery table.",
-                                   EndPoint.of(context.getNamespace(), config.referenceName),
-                                   schema.getFields().stream().map(Schema.Field::getName)
-                                      .collect(Collectors.toList()));
-          context.record(Collections.singletonList(operation));
-        }
-      } catch (IOException e) {
-        throw new IllegalStateException("Failed to parse schema.", e);
-      }
+    if (config.getSchema().getFields() != null) {
+      lineageRecorder.recordRead("Read", "Read from BigQuery table.",
+                                 config.getSchema().getFields().stream()
+                                   .map(Schema.Field::getName).collect(Collectors.toList()));
     }
   }
 
   @Override
   public void initialize(BatchRuntimeContext context) throws Exception {
     super.initialize(context);
-    try {
-      outputSchema = Schema.parseJson(config.schema);
-    } catch (IOException e) {
-      throw new IllegalArgumentException(
-        String.format("Unable to parse output schema. Reason: %s", e.getMessage()), e
-      );
-    }
+    outputSchema = config.getSchema();
   }
 
   /**

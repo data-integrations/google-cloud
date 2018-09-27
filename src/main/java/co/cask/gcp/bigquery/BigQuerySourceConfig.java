@@ -19,8 +19,10 @@ package co.cask.gcp.bigquery;
 import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.annotation.Name;
+import co.cask.cdap.api.data.schema.Schema;
 import co.cask.gcp.common.GCPReferenceSourceConfig;
 
+import java.io.IOException;
 import javax.annotation.Nullable;
 
 /**
@@ -53,4 +55,19 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   @Description("The schema of the table to read.")
   @Macro
   public String schema;
+
+  /**
+   * @return the schema of the dataset
+   * @throws IllegalArgumentException if the schema is null or invalid
+   */
+  public Schema getSchema() {
+    if (schema == null) {
+      throw new IllegalArgumentException("Schema must be specified.");
+    }
+    try {
+      return Schema.parseJson(schema);
+    } catch (IOException e) {
+      throw new IllegalArgumentException("Invalid schema: " + e.getMessage());
+    }
+  }
 }
