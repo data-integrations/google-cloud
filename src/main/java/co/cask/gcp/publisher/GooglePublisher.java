@@ -33,11 +33,20 @@ import co.cask.cdap.etl.api.lineage.field.FieldOperation;
 import co.cask.cdap.etl.api.lineage.field.FieldWriteOperation;
 import co.cask.cdap.format.StructuredRecordStringConverter;
 import co.cask.gcp.common.GCPReferenceSinkConfig;
+import co.cask.gcp.common.GCPUtils;
 import co.cask.hydrator.common.batch.sink.SinkOutputFormatProvider;
+import com.google.api.gax.rpc.AlreadyExistsException;
+import com.google.api.gax.rpc.ApiException;
+import com.google.api.gax.rpc.NotFoundException;
+import com.google.cloud.pubsub.v1.TopicAdminClient;
+import com.google.cloud.pubsub.v1.TopicAdminSettings;
+import com.google.pubsub.v1.ProjectTopicName;
+import com.google.pubsub.v1.Topic;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -66,8 +75,35 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, T
   }
 
   @Override
-  public void prepareRun(BatchSinkContext context) {
+  public void prepareRun(BatchSinkContext context) throws IOException {
     config.validate();
+
+    TopicAdminSettings.Builder topicAdminSettings = TopicAdminSettings.newBuilder();
+    String serviceAccountPath = config.getServiceAccountFilePath();
+    if (serviceAccountPath != null) {
+      topicAdminSettings.setCredentialsProvider(() -> GCPUtils.loadServiceAccountCredentials(serviceAccountPath));
+    }
+    String projectId = config.getProject();
+    ProjectTopicName projectTopicName = ProjectTopicName.of(projectId, config.topic);
+
+    try (TopicAdminClient topicAdminClient = TopicAdminClient.create(topicAdminSettings.build())) {
+      try {
+        topicAdminClient.getTopic(projectTopicName);
+      } catch (NotFoundException e) {
+        try {
+          topicAdminClient.createTopic(projectTopicName);
+        } catch (AlreadyExistsException e1) {
+          // can happen if there is a race condition. Ignore this error since all that matters is the topic exists
+        } catch (ApiException e1) {
+          throw new IOException(
+            String.format("Could not auto-create topic '%s' in project '%s'. "
+                            + "Please ensure it is created before running the pipeline, "
+                            + "or ensure that the service account has permission to create the topic.",
+                          config.topic, projectId), e);
+        }
+      }
+    }
+
     Configuration configuration = new Configuration();
     PubSubOutputFormat.configure(configuration, config);
     context.addOutput(Output.of(config.referenceName,
