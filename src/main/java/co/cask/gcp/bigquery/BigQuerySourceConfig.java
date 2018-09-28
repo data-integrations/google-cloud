@@ -26,7 +26,7 @@ import java.io.IOException;
 import javax.annotation.Nullable;
 
 /**
- * Class description here.
+ * Holds configuration required for configuring {@link BigQuerySource}.
  */
 public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   @Name("dataset")
