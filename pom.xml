@@ -396,6 +396,13 @@
         </exclusion>
       </exclusions>
     </dependency>
+    <!-- Start: dependency for Google PubSub Streaming Source -->
+    <dependency>
+      <groupId>org.apache.bahir</groupId>
+      <artifactId>spark-streaming-pubsub_2.11</artifactId>
+      <version>2.2.1</version>
+    </dependency>
+    <!-- End: dependency for Google PubSub Streaming Source -->
   </dependencies>
 
   <build>
@@ -445,6 +452,7 @@
                 org.apache.avro.mapreduce;
                 parquet.avro.*;
                 parquet.hadoop.*;
+                org.apache.spark.streaming.pubsub*;
               </_exportcontents>
             </instructions>
           </configuration>
