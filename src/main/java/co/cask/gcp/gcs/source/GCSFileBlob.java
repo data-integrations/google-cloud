@@ -63,7 +63,7 @@ public class GCSFileBlob extends BatchSource<String, BytesWritable, StructuredRe
   }
 
   @Override
-  public void prepareRun(BatchSourceContext context){
+  public void prepareRun(BatchSourceContext context) {
     config.validate();
     Schema outputSchema = context.getOutputSchema();
 

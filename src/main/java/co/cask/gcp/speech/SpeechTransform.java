@@ -146,7 +146,7 @@ public class SpeechTransform extends Transform<StructuredRecord, StructuredRecor
 
   @Override
   public void transform(StructuredRecord input, Emitter<StructuredRecord> emitter) throws Exception {
-    ByteString audioBytes = ByteString.copyFrom((byte[])input.get(config.audio));
+    ByteString audioBytes = ByteString.copyFrom((byte[]) input.get(config.audio));
     RecognitionAudio audio = RecognitionAudio.newBuilder()
       .setContent(audioBytes)
       .build();
@@ -200,6 +200,9 @@ public class SpeechTransform extends Transform<StructuredRecord, StructuredRecor
     }
   }
 
+  /**
+   * Request object from the Plugin REST call.
+   */
   public static final class Request {
     private Map<String, Schema> inputSchemas;
   }
