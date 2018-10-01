@@ -159,7 +159,7 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
       Schema.Type type = field.getSchema().getType();
 
       Schema fieldSchema = field.getSchema();
-      fieldSchema = fieldSchema.isNullable()? fieldSchema.getNonNullable() : fieldSchema;
+      fieldSchema = fieldSchema.isNullable() ? fieldSchema.getNonNullable() : fieldSchema;
       if (!fieldSchema.getType().isSimpleType()) {
         throw new IllegalArgumentException(String.format("Field '%s' is of unsupported type '%s'", name, type));
       }

@@ -19,7 +19,6 @@ package co.cask.gcp.common;
 import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.annotation.Name;
-import co.cask.gcp.common.GCPConfig;
 
 /**
  * Reference config extending GCPConfig for sinks.

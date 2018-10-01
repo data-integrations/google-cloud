@@ -19,7 +19,6 @@ import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.annotation.Plugin;
-import co.cask.cdap.api.common.Bytes;
 import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.cdap.etl.api.PipelineConfigurer;
@@ -27,7 +26,6 @@ import co.cask.cdap.etl.api.streaming.StreamingContext;
 import co.cask.cdap.etl.api.streaming.StreamingSource;
 import co.cask.gcp.common.GCPReferenceSourceConfig;
 import com.google.cloud.Timestamp;
-import org.apache.spark.api.java.function.Function;
 import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaReceiverInputDStream;
@@ -89,7 +87,7 @@ public class GoogleSubscriber extends StreamingSource<StructuredRecord> {
       PubsubUtils.createStream(streamingContext.getSparkStreamingContext(), config.getProject(), config.topic,
                                config.subscription, credentials, StorageLevel.MEMORY_ONLY());
 
-    return pubSubMessages.map((Function<SparkPubsubMessage, StructuredRecord>) pubSubMessage -> StructuredRecord.builder(DEFAULT_SCHEMA)
+    return pubSubMessages.map(pubSubMessage -> StructuredRecord.builder(DEFAULT_SCHEMA)
       .set("message", pubSubMessage.getData())
       .set("id", pubSubMessage.getMessageId())
       .setTimestamp("timestamp", getTimestamp(pubSubMessage.getPublishTime())).build());
@@ -104,6 +102,9 @@ public class GoogleSubscriber extends StreamingSource<StructuredRecord> {
     return ZonedDateTime.ofInstant(instant, ZoneId.ofOffset("UTC", ZoneOffset.UTC));
   }
 
+  /**
+   * Configuration class for the subscriber source.
+   */
   public static class SubscriberConfig extends GCPReferenceSourceConfig {
 
     @Description("Cloud Pub/Sub subscription to read from. If the subscription does not exist it will be " +
