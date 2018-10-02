@@ -30,7 +30,6 @@ import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchRuntimeContext;
 import co.cask.cdap.etl.api.batch.BatchSource;
 import co.cask.cdap.etl.api.batch.BatchSourceContext;
-import co.cask.gcp.common.AvroToStructuredTransformer;
 import co.cask.hydrator.common.LineageRecorder;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
@@ -71,7 +70,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
   private BigQuerySourceConfig config;
   private Schema outputSchema;
   private Configuration configuration;
-  private final AvroToStructuredTransformer transformer = new AvroToStructuredTransformer();
+  private final BigQueryAvroToStructuredTransformer transformer = new BigQueryAvroToStructuredTransformer();
   // UUID for the run. Will be used as bucket name if bucket is not provided.
   private UUID uuid;
 

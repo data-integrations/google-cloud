@@ -11,7 +11,7 @@
           "widget-type": "textbox",
           "label": "Reference Name",
           "name": "referenceName",
-          "widget-attributes" : {
+          "widget-attributes": {
             "placeholder": "Name used to identify this source for lineage"
           }
         },
@@ -19,7 +19,7 @@
           "widget-type": "textbox",
           "label": "Project ID",
           "name": "project",
-          "widget-attributes" : {
+          "widget-attributes": {
             "default": "auto-detect"
           }
         },
@@ -27,8 +27,21 @@
           "widget-type": "textbox",
           "label": "Path",
           "name": "path",
-          "widget-attributes" : {
+          "widget-attributes": {
             "placeholder": "gs://<bucket>/path/to/input"
+          }
+        },
+        {
+          "widget-type": "select",
+          "label": "Format",
+          "name": "format",
+          "widget-attributes": {
+            "values": [
+              "avro",
+              "parquet",
+              "text"
+            ],
+            "default": "text"
           }
         }
       ]
@@ -40,7 +53,7 @@
           "widget-type": "textbox",
           "label": "Service Account File Path",
           "name": "serviceFilePath",
-          "widget-attributes" : {
+          "widget-attributes": {
             "default": "auto-detect"
           }
         }
@@ -53,15 +66,23 @@
           "widget-type": "textbox",
           "label": "Maximum Split Size",
           "name": "maxSplitSize",
-          "widget-attributes" : {
+          "widget-attributes": {
             "placeholder": "Maximum split size for each partition specified in bytes"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Regex Path Filter",
+          "name": "fileRegex",
+          "widget-attributes": {
+            "placeholder": "Regular expression for files to read"
           }
         },
         {
           "widget-type": "textbox",
           "label": "Path Field",
           "name": "pathField",
-          "widget-attributes" : {
+          "widget-attributes": {
             "placeholder": "Output field to contain the path of the object that was read from"
           }
         },
@@ -107,6 +128,10 @@
           "widget-type": "json-editor",
           "label": "File System Properties",
           "name": "fileSystemProperties"
+        },
+        {
+          "widget-type": "hidden",
+          "name": "copyHeader"
         }
       ]
     }

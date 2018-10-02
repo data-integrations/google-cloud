@@ -14,7 +14,7 @@
  * the License.
  */
 
-package co.cask.gcp.common;
+package co.cask.gcp.bigquery;
 
 import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.format.UnexpectedFormatException;
@@ -29,9 +29,9 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
 /**
- * Create StructuredRecords from GenericRecords
+ * Create StructuredRecords from GenericRecords. Contains custom logic for BigQuery date and time types.
  */
-public class AvroToStructuredTransformer extends RecordConverter<GenericRecord, StructuredRecord> {
+public class BigQueryAvroToStructuredTransformer extends RecordConverter<GenericRecord, StructuredRecord> {
   @Override
   public StructuredRecord transform(GenericRecord genericRecord, Schema structuredSchema) throws IOException {
     StructuredRecord.Builder builder = StructuredRecord.builder(structuredSchema);

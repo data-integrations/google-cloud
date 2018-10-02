@@ -20,113 +20,64 @@ import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.annotation.Plugin;
-import co.cask.cdap.api.data.batch.Output;
-import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
-import co.cask.cdap.api.dataset.lib.KeyValue;
-import co.cask.cdap.etl.api.Emitter;
-import co.cask.cdap.etl.api.PipelineConfigurer;
-import co.cask.cdap.etl.api.batch.BatchRuntimeContext;
 import co.cask.cdap.etl.api.batch.BatchSink;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
 import co.cask.gcp.common.GCPReferenceSinkConfig;
-import co.cask.gcp.format.FileFormat;
-import co.cask.gcp.format.output.FileOutputFormatter;
 import co.cask.gcp.gcs.GCSConfigHelper;
 import co.cask.hydrator.common.LineageRecorder;
-import co.cask.hydrator.common.batch.sink.SinkOutputFormatProvider;
+import co.cask.hydrator.format.FileFormat;
+import co.cask.hydrator.format.plugin.AbstractFileSink;
+import co.cask.hydrator.format.plugin.FileSinkProperties;
 import com.google.common.base.Strings;
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 /**
  * Writes data to files on Google Cloud Storage.
- *
- * @param <KEY_OUT> the type of key the sink outputs
- * @param <VAL_OUT> the type of value the sink outputs
  */
 @Plugin(type = BatchSink.PLUGIN_TYPE)
 @Name("GCS")
 @Description("Writes records to one or more files in a directory on Google Cloud Storage.")
-public class GCSBatchSink<KEY_OUT, VAL_OUT> extends BatchSink<StructuredRecord, KEY_OUT, VAL_OUT> {
+public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConfig> {
   private final GCSBatchSinkConfig config;
-  private FileOutputFormatter<KEY_OUT, VAL_OUT> outputFormatter;
 
   public GCSBatchSink(GCSBatchSinkConfig config) {
+    super(config);
     this.config = config;
   }
 
   @Override
-  public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
-    config.validate();
-    super.configurePipeline(pipelineConfigurer);
-  }
-
-  @Override
-  public final void prepareRun(BatchSinkContext context) {
-    config.validate();
-
-    // set common properties
-    Map<String, String> outputConfig = new HashMap<>();
-    outputConfig.put(FileOutputFormat.OUTDIR, config.getOutputDir(context.getLogicalStartTime()));
+  protected Map<String, String> getFileSystemProperties(BatchSinkContext context) {
+    Map<String, String> properties = new HashMap<>();
     String serviceAccountFilePath = config.getServiceAccountFilePath();
     if (serviceAccountFilePath != null) {
-      outputConfig.put("google.cloud.auth.service.account.json.keyfile", serviceAccountFilePath);
+      properties.put("google.cloud.auth.service.account.json.keyfile", serviceAccountFilePath);
     }
-    outputConfig.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
-    outputConfig.put("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
+    properties.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
+    properties.put("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
     String projectId = config.getProject();
-    outputConfig.put("fs.gs.project.id", projectId);
-    outputConfig.put("fs.gs.system.bucket", GCSConfigHelper.getBucket(config.path));
-    outputConfig.put("fs.gs.impl.disable.cache", "true");
-    
-    // set format specific properties.
-    outputFormatter = config.getFileFormat().getFileOutputFormatter(config.getProperties().getProperties(),
-                                                                    config.getSchema());
-    if (outputFormatter == null) {
-      // should never happen, as validation should enforce the allowed formats
-      throw new IllegalArgumentException(String.format("Format '%s' cannot be used to write data.", config.format));
-    }
-
-    outputConfig.putAll(outputFormatter.getFormatConfig());
-
-    LineageRecorder lineageRecorder = new LineageRecorder(context, config.referenceName);
-    lineageRecorder.createExternalDataset(config.getSchema());
-
-    context.addOutput(Output.of(config.referenceName,
-                                new SinkOutputFormatProvider(outputFormatter.getFormatClassName(), outputConfig)));
-    // record field level lineage information
-    Schema schema = config.getSchema();
-    if (schema != null && schema.getFields() != null && !schema.getFields().isEmpty()) {
-      lineageRecorder.recordWrite("Write", "Wrote to Google Cloud Storage.",
-                                  schema.getFields().stream().map(Schema.Field::getName).collect(Collectors.toList()));
-    }
+    properties.put("fs.gs.project.id", projectId);
+    properties.put("fs.gs.system.bucket", GCSConfigHelper.getBucket(config.path));
+    properties.put("fs.gs.impl.disable.cache", "true");
+    return properties;
   }
 
   @Override
-  public void initialize(BatchRuntimeContext context) throws Exception {
-    super.initialize(context);
-    outputFormatter = config.getFileFormat().getFileOutputFormatter(config.getProperties().getProperties(),
-                                                                    config.getSchema());
-  }
-
-  @Override
-  public void transform(StructuredRecord input, Emitter<KeyValue<KEY_OUT, VAL_OUT>> emitter) throws Exception {
-    emitter.emit(outputFormatter.transform(input));
+  protected void recordLineage(LineageRecorder lineageRecorder, List<String> outputFields) {
+    lineageRecorder.recordWrite("Write", "Wrote to Google Cloud Storage.", outputFields);
   }
 
   /**
    * Sink configuration.
    */
   @SuppressWarnings("unused")
-  public static class GCSBatchSinkConfig extends GCPReferenceSinkConfig {
+  public static class GCSBatchSinkConfig extends GCPReferenceSinkConfig implements FileSinkProperties {
     @Name("path")
     @Description("The path to write to. For example, gs://<bucket>/path/to/directory")
     @Macro
@@ -156,19 +107,35 @@ public class GCSBatchSink<KEY_OUT, VAL_OUT> extends BatchSink<StructuredRecord, 
     @Nullable
     private String schema;
 
-    private void validate() {
+    @Override
+    public void validate() {
       GCSConfigHelper.getPath(path);
       if (suffix != null && !containsMacro("suffix")) {
         new SimpleDateFormat(suffix);
       }
       if (!containsMacro("format")) {
-        getFileFormat();
+        getFormat();
       }
       getSchema();
     }
 
+    @Override
+    public String getReferenceName() {
+      return referenceName;
+    }
+
+    @Override
+    public String getPath() {
+      return GCSConfigHelper.getPath(path).toString();
+    }
+
+    @Override
+    public FileFormat getFormat() {
+      return FileFormat.from(format, FileFormat::canWrite);
+    }
+
     @Nullable
-    private Schema getSchema() {
+    public Schema getSchema() {
       if (containsMacro("schema") || schema == null) {
         return null;
       }
@@ -179,26 +146,10 @@ public class GCSBatchSink<KEY_OUT, VAL_OUT> extends BatchSink<StructuredRecord, 
       }
     }
 
-    /**
-     * Logically equivalent to valueOf except it throws an exception with a message that indicates what the valid
-     * enum values are.
-     */
-    private FileFormat getFileFormat() {
-      try {
-        return FileFormat.valueOf(format.toUpperCase());
-      } catch (IllegalArgumentException e) {
-        String values = Arrays.stream(FileFormat.values())
-          .filter(f -> f != FileFormat.BLOB)
-          .map(f -> f.name().toLowerCase())
-          .collect(Collectors.joining(", "));
-        throw new IllegalArgumentException(String.format("Invalid format '%s'. The value must be one of %s",
-                                                         format, values));
-      }
-    }
-
-    private String getOutputDir(long logicalStartTime) {
-      String timeSuffix = !Strings.isNullOrEmpty(suffix) ? new SimpleDateFormat(suffix).format(logicalStartTime) : "";
-      return String.format("%s/%s", GCSConfigHelper.getPath(path), timeSuffix);
+    @Nullable
+    @Override
+    public String getSuffix() {
+      return suffix;
     }
   }
 }
