@@ -20,31 +20,25 @@ import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.annotation.Plugin;
-import co.cask.cdap.api.data.batch.Input;
-import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
-import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchSource;
 import co.cask.cdap.etl.api.batch.BatchSourceContext;
-import co.cask.gcp.common.CombinePathTrackingInputFormat;
 import co.cask.gcp.common.GCPReferenceSourceConfig;
-import co.cask.gcp.common.PathTrackingInputFormat;
 import co.cask.gcp.gcs.GCSConfigHelper;
 import co.cask.hydrator.common.LineageRecorder;
-import co.cask.hydrator.common.SourceInputFormatProvider;
-import co.cask.hydrator.common.batch.JobUtils;
+import co.cask.hydrator.format.FileFormat;
+import co.cask.hydrator.format.input.PathTrackingInputFormat;
+import co.cask.hydrator.format.plugin.AbstractFileSource;
+import co.cask.hydrator.format.plugin.FileSourceProperties;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.mapreduce.Job;
-import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 
 import java.lang.reflect.Type;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
 /**
@@ -53,35 +47,17 @@ import javax.annotation.Nullable;
 @Plugin(type = BatchSource.PLUGIN_TYPE)
 @Name(GCSSource.NAME)
 @Description("Reads objects from a path in a Google Cloud Storage bucket.")
-public class GCSSource extends BatchSource<Object, Object, StructuredRecord> {
+public class GCSSource extends AbstractFileSource {
   public static final String NAME = "GCSFile";
-  public static final Schema DEFAULT_SCHEMA = Schema.recordOf(
-    "event",
-    Schema.Field.of("offset", Schema.of(Schema.Type.LONG)),
-    Schema.Field.of("body", Schema.of(Schema.Type.STRING))
-  );
   private final GCSSourceConfig config;
 
   public GCSSource(GCSSourceConfig config) {
+    super(config);
     this.config = config;
   }
 
   @Override
-  public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
-    super.configurePipeline(pipelineConfigurer);
-    // validate configs
-    config.validate();
-    pipelineConfigurer.getStageConfigurer().setOutputSchema(DEFAULT_SCHEMA);
-  }
-
-  @Override
-  public void prepareRun(BatchSourceContext context) throws Exception {
-    // validate configs
-    config.validate();
-
-    Job job = JobUtils.createInstance();
-    Configuration conf = job.getConfiguration();
-
+  protected Map<String, String> getFileSystemProperties(BatchSourceContext context) {
     Map<String, String> properties = new HashMap<>(config.getFileSystemProperties());
     String serviceAccountFilePath = config.getServiceAccountFilePath();
     if (serviceAccountFilePath != null) {
@@ -93,89 +69,153 @@ public class GCSSource extends BatchSource<Object, Object, StructuredRecord> {
     properties.put("fs.gs.project.id", projectId);
     properties.put("fs.gs.system.bucket", GCSConfigHelper.getBucket(config.path));
     properties.put("fs.gs.impl.disable.cache", "true");
-    for (Map.Entry<String, String> entry : properties.entrySet()) {
-      conf.set(entry.getKey(), entry.getValue());
+    if (config.copyHeader) {
+      properties.put(PathTrackingInputFormat.COPY_HEADER, "true");
     }
+    return properties;
+  }
 
-    FileInputFormat.setInputDirRecursive(job, config.isRecursive());
-    FileInputFormat.addInputPath(job, new Path(GCSConfigHelper.getPath(config.path)));
-
-    if (config.maxSplitSize != null) {
-      FileInputFormat.setMaxInputSplitSize(job, config.maxSplitSize * 1024 * 1024);
-    }
-
-    LineageRecorder lineageRecorder = new LineageRecorder(context, config.referenceName);
-    lineageRecorder.createExternalDataset(DEFAULT_SCHEMA);
-
-    PathTrackingInputFormat.configure(conf, config.pathField, config.useFilenameOnly());
-    context.setInput(Input.of(config.referenceName,
-                              new SourceInputFormatProvider(CombinePathTrackingInputFormat.class, conf)));
-
-    // record field level lineage information
-    lineageRecorder.recordRead("Read", "Read from Google Cloud Storage.",
-                               DEFAULT_SCHEMA.getFields().stream().map(Schema.Field::getName)
-                                 .collect(Collectors.toList()));
+  @Override
+  protected void recordLineage(LineageRecorder lineageRecorder, List<String> outputFields) {
+    lineageRecorder.recordRead("Read", "Read from Google Cloud Storage.", outputFields);
   }
 
   /**
    * Config for the plugin.
    */
-  public static class GCSSourceConfig extends GCPReferenceSourceConfig {
+  @SuppressWarnings("ConstantConditions")
+  public static class GCSSourceConfig extends GCPReferenceSourceConfig implements FileSourceProperties {
     private static final Gson GSON = new Gson();
     private static final Type MAP_STRING_STRING_TYPE = new TypeToken<Map<String, String>>() { }.getType();
 
-    @Description("The path to read from. For example, gs://<bucket>/path/to/directory/")
     @Macro
+    @Description("The path to read from. For example, gs://<bucket>/path/to/directory/")
     private String path;
 
+    @Macro
     @Nullable
     @Description("Map of properties to set on the InputFormat.")
-    @Macro
     private String fileSystemProperties;
 
-    @Nullable
-    @Description("Maximum split-size for each mapper in the MapReduce " +
-      "Job. Defaults to 128MB.")
     @Macro
+    @Nullable
+    @Description("Maximum size of each partition used to read data. "
+      + "Smaller partitions will increase the level of parallelism, but will require more resources and overhead.")
     private Long maxSplitSize;
 
     @Nullable
-    @Description("If specified, each output record will include a field with this name that contains the file URI " +
-      "that the record was read from. Requires a customized version of CombineFileInputFormat, so it cannot be used " +
-      "if an inputFormatClass is given.")
+    @Description("Output field to place the path of the file that the record was read from. "
+      + "If not specified, the file path will not be included in output records. "
+      + "If specified, the field must exist in the output schema as a string.")
     private String pathField;
+
+    @Macro
+    @Nullable
+    @Description("Format of the data to read. Supported formats are 'text', 'avro' or 'parquet'. "
+      + "The default value is 'text'.")
+    private String format;
 
     @Nullable
     @Description("Output schema. If a Path Field is set, it must be present in the schema as a string.")
     private String schema;
 
     @Nullable
-    @Description("If true and a pathField is specified, only the filename will be used. If false, the full " +
-      "URI will be used. Defaults to false.")
+    @Description("Whether to only use the filename instead of the URI of the file path when a path field is given. "
+      + "The default value is false.")
     private Boolean filenameOnly;
 
+    @Macro
     @Nullable
-    @Description("Boolean value to determine if files are to be read recursively from the path. Default is false.")
+    @Description("Regular expression that file paths must match in order to be included in the input. "
+      + "The full file path is compared, not just the file name."
+      + "If no value is given, no file filtering will be done. "
+      + "See https://docs.oracle.com/javase/8/docs/api/java/util/regex/Pattern.html for more information about "
+      + "the regular expression syntax.")
+    private String fileRegex;
+
+    @Nullable
+    @Description("Whether to recursively read directories within the input directory. The default is false.")
     private Boolean recursive;
 
+    // this is a hidden property that only exists for wrangler's parse-as-csv that uses the header as the schema
+    // when this is true and the format is text, the header will be the first record returned by every record reader
+    @Nullable
+    private Boolean copyHeader;
+
     public GCSSourceConfig() {
-      this.maxSplitSize = 128L;
+      this.maxSplitSize = 128L * 1024 * 1024;
       this.recursive = false;
       this.filenameOnly = false;
+      this.copyHeader = false;
     }
 
-    boolean useFilenameOnly() {
-      return Boolean.TRUE.equals(filenameOnly);
-    }
-
-    boolean isRecursive() {
-      return Boolean.TRUE.equals(recursive);
-    }
-
-    void validate() {
+    public void validate() {
       // validate that path is valid
-      GCSConfigHelper.getPath(path);
+      if (!containsMacro("path")) {
+        GCSConfigHelper.getPath(path);
+      }
       getFileSystemProperties();
+    }
+
+    @Override
+    public String getReferenceName() {
+      return referenceName;
+    }
+
+    @Override
+    public String getPath() {
+      return path;
+    }
+
+    @Override
+    public FileFormat getFormat() {
+      return FileFormat.from(format, FileFormat::canRead);
+    }
+
+    @Nullable
+    @Override
+    public Pattern getFilePattern() {
+      try {
+        return fileRegex == null ? null : Pattern.compile(fileRegex);
+      } catch (RuntimeException e) {
+        throw new IllegalArgumentException("Invalid file regular expression: " + e.getMessage(), e);
+      }
+    }
+
+    @Override
+    public long getMaxSplitSize() {
+      return maxSplitSize;
+    }
+
+    @Override
+    public boolean shouldAllowEmptyInput() {
+      return false;
+    }
+
+    @Override
+    public boolean shouldReadRecursively() {
+      return recursive;
+    }
+
+    @Nullable
+    @Override
+    public String getPathField() {
+      return pathField;
+    }
+
+    @Override
+    public boolean useFilenameAsPath() {
+      return filenameOnly;
+    }
+
+    @Nullable
+    @Override
+    public Schema getSchema() {
+      try {
+        return schema == null ? null : Schema.parseJson(schema);
+      } catch (Exception e) {
+        throw new IllegalArgumentException("Unable to parse schema with error: " + e.getMessage(), e);
+      }
     }
 
     Map<String, String> getFileSystemProperties() {
