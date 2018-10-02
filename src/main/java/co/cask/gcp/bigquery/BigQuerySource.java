@@ -32,13 +32,11 @@ import co.cask.cdap.etl.api.batch.BatchSource;
 import co.cask.cdap.etl.api.batch.BatchSourceContext;
 import co.cask.gcp.common.AvroToStructuredTransformer;
 import co.cask.hydrator.common.LineageRecorder;
-import com.google.cloud.bigquery.BigQuery;
-import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.Field;
+import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.StandardSQLTypeName;
 import com.google.cloud.bigquery.Table;
-import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.AvroBigQueryInputFormat;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import org.apache.avro.generic.GenericData;
@@ -47,9 +45,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
-import org.apache.hadoop.mapreduce.JobID;
-import org.apache.hadoop.security.Credentials;
-import org.apache.hadoop.security.UserGroupInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,8 +56,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import javax.ws.rs.Path;
-
-import static co.cask.gcp.common.GCPUtils.loadServiceAccountCredentials;
 
 /**
  * Class description here.
@@ -78,7 +71,6 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
   private BigQuerySourceConfig config;
   private Schema outputSchema;
   private Configuration configuration;
-  private JobID jobID = null;
   private final AvroToStructuredTransformer transformer = new AvroToStructuredTransformer();
   // UUID for the run. Will be used as bucket name if bucket is not provided.
   private UUID uuid;
@@ -87,46 +79,17 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
   public void configurePipeline(PipelineConfigurer configurer) {
     super.configurePipeline(configurer);
     if (!config.containsMacro("schema")) {
-      try {
-        outputSchema = Schema.parseJson(config.schema);
-        configurer.getStageConfigurer().setOutputSchema(outputSchema);
-      } catch (IOException e) {
-        throw new IllegalArgumentException(
-          String.format("Unable to parse output schema. Reason: %s", e.getMessage()), e
-        );
-      }
+      outputSchema = config.getSchema();
+      configurer.getStageConfigurer().setOutputSchema(outputSchema);
     }
   }
 
   @Override
   public void prepareRun(BatchSourceContext context) throws Exception {
+    validateOutputSchema();
+
     uuid = UUID.randomUUID();
-    Job job = Job.getInstance();
-
-    // some input formats require the credentials to be present in the job. We don't know for
-    // sure which ones (HCatalog is one of them), so we simply always add them. This has no other
-    // effect, because this method is only used at configure time and will be ignored later on.
-    if (UserGroupInformation.isSecurityEnabled()) {
-      Credentials credentials = UserGroupInformation.getCurrentUser().getCredentials();
-      job.getCredentials().addAll(credentials);
-    }
-
-    jobID = JobID.forName(String.format("job_%s-%s-%s_%s", context.getNamespace(),
-                                        context.getPipelineName().replaceAll("_", "-"), uuid, 1));
-
-    configuration = job.getConfiguration();
-    configuration.clear();
-
-    String serviceAccountFilePath = config.getServiceAccountFilePath();
-    if (serviceAccountFilePath != null) {
-      configuration.set("mapred.bq.auth.service.account.json.keyfile", serviceAccountFilePath);
-      configuration.set("google.cloud.auth.service.account.json.keyfile", serviceAccountFilePath);
-    }
-    configuration.set("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
-    configuration.set("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
-    String projectId = config.getProject();
-    configuration.set("fs.gs.project.id", projectId);
-    configuration.set(BigQueryConfiguration.PROJECT_ID_KEY, projectId);
+    configuration = BigQueryUtils.getBigQueryConfig(config.getServiceAccountFilePath(), config.getProject());
 
     String bucket = config.bucket;
     if (config.bucket == null) {
@@ -144,35 +107,13 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     AvroBigQueryInputFormat.setTemporaryCloudStorageDirectory(configuration, temporaryGcsPath);
     AvroBigQueryInputFormat.setEnableShardedExport(configuration, false);
     BigQueryConfiguration.configureBigQueryInput(configuration, config.getProject(), config.dataset, config.table);
-    BigQueryConfiguration.getTemporaryPathRoot(configuration, jobID);
 
+    Job job = Job.getInstance(configuration);
     job.setOutputKeyClass(LongWritable.class);
     job.setOutputKeyClass(Text.class);
 
-    LineageRecorder lineageRecorder = new LineageRecorder(context, config.referenceName);
-    lineageRecorder.createExternalDataset(config.getSchema());
-
-    context.setInput(Input.of(config.referenceName, new InputFormatProvider() {
-      @Override
-      public String getInputFormatClassName() {
-        return AvroBigQueryInputFormat.class.getName();
-      }
-
-      @Override
-      public Map<String, String> getInputFormatConfiguration() {
-        Map<String, String> config = new HashMap<>();
-        for (Map.Entry<String, String> entry : configuration) {
-          config.put(entry.getKey(), entry.getValue());
-        }
-        return config;
-      }
-    }));
-
-    if (config.getSchema().getFields() != null) {
-      lineageRecorder.recordRead("Read", "Read from BigQuery table.",
-                                 config.getSchema().getFields().stream()
-                                   .map(Schema.Field::getName).collect(Collectors.toList()));
-    }
+    setInputFormat(context);
+    emitLineage(context);
   }
 
   @Override
@@ -220,64 +161,149 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
    */
   @Path("getSchema")
   public Schema getSchema(BigQuerySourceConfig request) throws Exception {
-    try {
-      BigQuery bigquery;
-      BigQueryOptions.Builder bigqueryBuilder = BigQueryOptions.newBuilder();
-      String serviceAccountFilePath = request.getServiceAccountFilePath();
-      if (serviceAccountFilePath != null) {
-        bigqueryBuilder.setCredentials(loadServiceAccountCredentials(serviceAccountFilePath));
-      }
-      String project = request.getProject();
-      if (project == null) {
-        throw new Exception("Could not detect Google Cloud project id from the environment. " +
-                              "Please specify a project id.");
-      }
-      bigqueryBuilder.setProjectId(project);
-      bigquery = bigqueryBuilder.build().getService();
+    Table table = BigQueryUtils.getBigQueryTable(request.getServiceAccountFilePath(), request.getProject(),
+                                                 request.dataset, request.table);
+    if (table == null) {
+      // Table does not exist
+      throw new IllegalArgumentException(String.format("BigQuery table '%s.%s' does not exist",
+                                                       request.dataset, request.table));
+    }
 
-      TableId id = TableId.of(project, request.dataset, request.table);
-      Table table = bigquery.getTable(id);
-      com.google.cloud.bigquery.Schema bgSchema = table.getDefinition().getSchema();
+    com.google.cloud.bigquery.Schema bgSchema = table.getDefinition().getSchema();
+    if (bgSchema == null) {
+      throw new IllegalArgumentException(String.format("Cannot read from table '%s.%s' because it has no schema.",
+                                                       request.dataset, request.table));
+    }
+    List<Schema.Field> fields = getSchemaFields(bgSchema);
+    return Schema.recordOf("output", fields);
+  }
 
-      List<Schema.Field> fields = new ArrayList<>();
-      for (Field field : bgSchema.getFields()) {
-        LegacySQLTypeName type = field.getType();
-        Schema schema;
-        StandardSQLTypeName value = type.getStandardType();
-        if (value == StandardSQLTypeName.FLOAT64) {
-          // float is a float64, so corresponding type becomes double
-          schema = Schema.of(Schema.Type.DOUBLE);
-        } else if (value == StandardSQLTypeName.BOOL) {
-          schema = Schema.of(Schema.Type.BOOLEAN);
-        } else if (value == StandardSQLTypeName.INT64) {
-          // int is a int64, so corresponding type becomes long
-          schema = Schema.of(Schema.Type.LONG);
-        } else if (value == StandardSQLTypeName.STRING) {
-          schema = Schema.of(Schema.Type.STRING);
-        } else if (value == StandardSQLTypeName.BYTES) {
-          schema = Schema.of(Schema.Type.BYTES);
-        } else if (value == StandardSQLTypeName.TIME) {
-          schema = Schema.of(Schema.LogicalType.TIME_MICROS);
-        } else if (value == StandardSQLTypeName.DATE) {
-          schema = Schema.of(Schema.LogicalType.DATE);
-        } else if (value == StandardSQLTypeName.TIMESTAMP || value == StandardSQLTypeName.DATETIME) {
-          schema = Schema.of(Schema.LogicalType.TIMESTAMP_MICROS);
-        } else {
-          // this should never happen
-          throw new UnsupportedTypeException(String.format("Big Query Sql type %s is not supported", value));
+  /**
+   * Validate output schema. This is needed because its possible that output schema is set without using
+   * {@link #getSchema(BigQuerySourceConfig)} method.
+   */
+  private void validateOutputSchema() throws IOException {
+    Table table = BigQueryUtils.getBigQueryTable(config.getServiceAccountFilePath(), config.getProject(),
+                                                 config.dataset, config.table);
+    if (table == null) {
+      // Table does not exist
+      throw new IllegalArgumentException(String.format("BigQuery table '%s.%s' does not exist.", config.dataset,
+                                                       config.table));
+    }
+
+    com.google.cloud.bigquery.Schema bgSchema = table.getDefinition().getSchema();
+    if (bgSchema == null) {
+      throw new IllegalArgumentException(String.format("Cannot read from table '%s.%s' because it has no schema.",
+                                                       config.dataset, config.table));
+    }
+
+    // Output schema should not have more fields than BigQuery table
+    List<String> diff = BigQueryUtils.getSchemaMinusBqFields(config.getSchema().getFields(), bgSchema.getFields());
+    if (!diff.isEmpty()) {
+      throw new IllegalArgumentException(String.format("Output schema has field(s) '%s' which are not present in table"
+                                                         + " '%s.%s' schema.", diff, config.dataset, config.table));
+    }
+
+    FieldList fields = bgSchema.getFields();
+    // Match output schema field type with bigquery column type
+    for (Schema.Field field : config.getSchema().getFields()) {
+      validateSimpleTypes(field);
+      BigQueryUtils.validateFieldSchemaMatches(fields.get(field.getName()), field, config.dataset, config.table);
+    }
+  }
+
+  private void validateSimpleTypes(Schema.Field field) {
+    String name = field.getName();
+    Schema fieldSchema = BigQueryUtils.getNonNullableSchema(field.getSchema());
+    Schema.Type type = fieldSchema.getType();
+
+    // Complex types like arrays, maps and unions are not supported in BigQuery plugins.
+    if (!type.isSimpleType()) {
+      throw new IllegalArgumentException(String.format("Field '%s' is of unsupported type '%s'.", name, type));
+    }
+
+    // bigquery does not support int types
+    if (fieldSchema.getLogicalType() == null && type == Schema.Type.INT) {
+      throw new IllegalArgumentException(String.format("Field '%s' is of unsupported type 'int'." +
+                                                         " It should be 'long'", name));
+    }
+
+    // bigquery does not support float types
+    if (fieldSchema.getLogicalType() == null && type == Schema.Type.FLOAT) {
+      throw new IllegalArgumentException(String.format("Field '%s' is of unsupported type 'float'." +
+                                                         " It should be 'double'", name));
+    }
+  }
+
+  private List<Schema.Field> getSchemaFields(com.google.cloud.bigquery.Schema bgSchema)
+    throws UnsupportedTypeException {
+    List<Schema.Field> fields = new ArrayList<>();
+    for (Field field : bgSchema.getFields()) {
+      LegacySQLTypeName type = field.getType();
+      Schema schema;
+      StandardSQLTypeName value = type.getStandardType();
+      if (value == StandardSQLTypeName.FLOAT64) {
+        // float is a float64, so corresponding type becomes double
+        schema = Schema.of(Schema.Type.DOUBLE);
+      } else if (value == StandardSQLTypeName.BOOL) {
+        schema = Schema.of(Schema.Type.BOOLEAN);
+      } else if (value == StandardSQLTypeName.INT64) {
+        // int is a int64, so corresponding type becomes long
+        schema = Schema.of(Schema.Type.LONG);
+      } else if (value == StandardSQLTypeName.STRING) {
+        schema = Schema.of(Schema.Type.STRING);
+      } else if (value == StandardSQLTypeName.BYTES) {
+        schema = Schema.of(Schema.Type.BYTES);
+      } else if (value == StandardSQLTypeName.TIME) {
+        schema = Schema.of(Schema.LogicalType.TIME_MICROS);
+      } else if (value == StandardSQLTypeName.DATE) {
+        schema = Schema.of(Schema.LogicalType.DATE);
+      } else if (value == StandardSQLTypeName.TIMESTAMP || value == StandardSQLTypeName.DATETIME) {
+        schema = Schema.of(Schema.LogicalType.TIMESTAMP_MICROS);
+      } else {
+        // this should never happen
+        throw new UnsupportedTypeException(String.format("BigQuery column '%s' is of unsupported type '%s'.",
+                                                         field.getName(), value));
+      }
+
+      if (field.getMode() == null || field.getMode() == Field.Mode.NULLABLE) {
+        fields.add(Schema.Field.of(field.getName(), Schema.nullableOf(schema)));
+      } else if (field.getMode() == Field.Mode.REQUIRED) {
+        fields.add(Schema.Field.of(field.getName(), schema));
+      } else if (field.getMode() == Field.Mode.REPEATED) {
+        throw new UnsupportedTypeException(
+          String.format("BigQuery column '%s' is of unsupported mode 'repeated'.", field.getName()));
+      }
+    }
+    return fields;
+  }
+
+  private void setInputFormat(BatchSourceContext context) {
+    context.setInput(Input.of(config.referenceName, new InputFormatProvider() {
+      @Override
+      public String getInputFormatClassName() {
+        return AvroBigQueryInputFormat.class.getName();
+      }
+
+      @Override
+      public Map<String, String> getInputFormatConfiguration() {
+        Map<String, String> config = new HashMap<>();
+        for (Map.Entry<String, String> entry : configuration) {
+          config.put(entry.getKey(), entry.getValue());
         }
-
-        if (field.getMode() == null || field.getMode() == Field.Mode.NULLABLE) {
-          fields.add(Schema.Field.of(field.getName(), Schema.nullableOf(schema)));
-        } else if (field.getMode() == Field.Mode.REQUIRED) {
-          fields.add(Schema.Field.of(field.getName(), schema));
-        } else if (field.getMode() == Field.Mode.REPEATED) {
-          throw new UnsupportedTypeException("Repeated type is not supported");
-        }
+        return config;
       }
-      return Schema.recordOf("output", fields);
-    } catch (Exception e) {
-      throw new Exception(e.getMessage(), e);
+    }));
+  }
+
+  private void emitLineage(BatchSourceContext context) {
+    LineageRecorder lineageRecorder = new LineageRecorder(context, config.referenceName);
+    lineageRecorder.createExternalDataset(config.getSchema());
+
+    if (config.getSchema().getFields() != null) {
+      lineageRecorder.recordRead("Read", "Read from BigQuery table.",
+                                 config.getSchema().getFields().stream()
+                                   .map(Schema.Field::getName).collect(Collectors.toList()));
     }
   }
 }
