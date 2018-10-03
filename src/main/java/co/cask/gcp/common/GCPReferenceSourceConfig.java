@@ -19,6 +19,7 @@ package co.cask.gcp.common;
 import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.annotation.Name;
+import co.cask.hydrator.common.IdUtils;
 
 /**
  * Reference config extending GCPConfig for sources.
@@ -28,4 +29,11 @@ public class GCPReferenceSourceConfig extends GCPConfig {
   @Description("This will be used to uniquely identify this source for lineage, annotating metadata, etc.")
   @Macro
   public String referenceName;
+
+  /**
+   * Validates the given referenceName to consists of characters allowed to represent a dataset.
+   */
+  public void validate() {
+    IdUtils.validateId(referenceName);
+  }
 }

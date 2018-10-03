@@ -58,6 +58,7 @@ public class SpannerSourceConfig extends GCPReferenceSourceConfig {
   public String schema;
 
   public void validate() {
+    super.validate();
     SpannerUtil.validateSchema(getSchema());
     if (!containsMacro("maxPartitions") && maxPartitions != null && maxPartitions < 1) {
       throw new IllegalArgumentException("Max partitions should be positive");

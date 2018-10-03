@@ -119,7 +119,8 @@ public class GCSFileBlob extends BatchSource<String, BytesWritable, StructuredRe
     @Macro
     private String path;
 
-    void validate() {
+    public void validate() {
+      super.validate();
       GCSConfigHelper.getPath(path);
     }
   }
