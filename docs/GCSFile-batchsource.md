@@ -31,7 +31,14 @@ It can be found on the Dashboard in the Google Cloud Platform Console.
 **Path:** Path to file(s) to be read. If a directory is specified, terminate the path name with a '/'.
 For example, gs://<bucket>/path/to/directory/.
 
-**format:** Format of the files to read. Must be 'text', 'avro' or 'parquet'. The default value is 'text'.
+**Format:** Format of the data to read.
+The format must be one of 'avro', 'blob', 'csv', 'delimited', 'json', 'parquet', 'text', or 'tsv'.
+If the format is 'blob', every input file will be read into a separate record.
+The 'blob' format also requires a schema that contains a field named 'body' of type 'bytes'.
+If the format is 'text', the schema must contain a field named 'offset' of type 'long' and a field
+named 'body' of type 'string'.
+
+**Delimiter:** Delimiter to use when the format is 'delimited'. This will be ignored for other formats.
 
 **Service Account File Path**: Path on the local file system of the service account key used for
 authorization. Can be set to 'auto-detect' when running on a Dataproc cluster.
