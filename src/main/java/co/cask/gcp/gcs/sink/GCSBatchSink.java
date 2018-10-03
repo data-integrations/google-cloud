@@ -21,6 +21,7 @@ import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.annotation.Plugin;
 import co.cask.cdap.api.data.schema.Schema;
+import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchSink;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
 import co.cask.gcp.common.GCPReferenceSinkConfig;
@@ -29,7 +30,6 @@ import co.cask.hydrator.common.LineageRecorder;
 import co.cask.hydrator.format.FileFormat;
 import co.cask.hydrator.format.plugin.AbstractFileSink;
 import co.cask.hydrator.format.plugin.FileSinkProperties;
-import com.google.common.base.Strings;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -50,6 +50,12 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
   public GCSBatchSink(GCSBatchSinkConfig config) {
     super(config);
     this.config = config;
+  }
+
+  @Override
+  public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
+    super.configurePipeline(pipelineConfigurer);
+    config.validate();
   }
 
   @Override
@@ -109,6 +115,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
 
     @Override
     public void validate() {
+      super.validate();
       GCSConfigHelper.getPath(path);
       if (suffix != null && !containsMacro("suffix")) {
         new SimpleDateFormat(suffix);

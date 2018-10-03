@@ -59,6 +59,7 @@ public class SpannerSinkConfig extends GCPReferenceSinkConfig {
   public String schema;
 
   public void validate() {
+    super.validate();
     SpannerUtil.validateSchema(getSchema());
     if (!containsMacro("batchSize") && batchSize != null && batchSize < 1) {
       throw new IllegalArgumentException("Spanner batch size for writes should be positive");

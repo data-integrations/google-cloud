@@ -77,6 +77,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
   @Override
   public void configurePipeline(PipelineConfigurer configurer) {
     super.configurePipeline(configurer);
+    config.validate();
     if (!config.containsMacro("schema")) {
       outputSchema = config.getSchema();
       configurer.getStageConfigurer().setOutputSchema(outputSchema);

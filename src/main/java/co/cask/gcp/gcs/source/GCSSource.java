@@ -21,6 +21,7 @@ import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.annotation.Plugin;
 import co.cask.cdap.api.data.schema.Schema;
+import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchSource;
 import co.cask.cdap.etl.api.batch.BatchSourceContext;
 import co.cask.gcp.common.GCPReferenceSourceConfig;
@@ -54,6 +55,12 @@ public class GCSSource extends AbstractFileSource {
   public GCSSource(GCSSourceConfig config) {
     super(config);
     this.config = config;
+  }
+
+  @Override
+  public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
+    super.configurePipeline(pipelineConfigurer);
+    config.validate();
   }
 
   @Override
@@ -150,6 +157,7 @@ public class GCSSource extends AbstractFileSource {
     }
 
     public void validate() {
+      super.validate();
       // validate that path is valid
       if (!containsMacro("path")) {
         GCSConfigHelper.getPath(path);
