@@ -48,7 +48,7 @@ import javax.annotation.Nullable;
 @Plugin(type = BatchSource.PLUGIN_TYPE)
 @Name(GCSSource.NAME)
 @Description("Reads objects from a path in a Google Cloud Storage bucket.")
-public class GCSSource extends AbstractFileSource {
+public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
   public static final String NAME = "GCSFile";
   private final GCSSourceConfig config;
 
@@ -118,8 +118,8 @@ public class GCSSource extends AbstractFileSource {
 
     @Macro
     @Nullable
-    @Description("Format of the data to read. Supported formats are 'text', 'avro' or 'parquet'. "
-      + "The default value is 'text'.")
+    @Description("Format of the data to read. Supported formats are 'avro', 'blob', 'csv', 'delimited', 'json', "
+      + "'parquet', 'text', and 'tsv'.")
     private String format;
 
     @Nullable
@@ -140,9 +140,16 @@ public class GCSSource extends AbstractFileSource {
       + "the regular expression syntax.")
     private String fileRegex;
 
+    @Macro
     @Nullable
     @Description("Whether to recursively read directories within the input directory. The default is false.")
     private Boolean recursive;
+
+    @Macro
+    @Nullable
+    @Description("The delimiter to use if the format is 'delimited'. The delimiter will be ignored if the format "
+      + "is anything other than 'delimited'.")
+    private String delimiter;
 
     // this is a hidden property that only exists for wrangler's parse-as-csv that uses the header as the schema
     // when this is true and the format is text, the header will be the first record returned by every record reader
