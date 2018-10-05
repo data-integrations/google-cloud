@@ -35,8 +35,7 @@ For example, gs://<bucket>/path/to/directory/.
 The format must be one of 'avro', 'blob', 'csv', 'delimited', 'json', 'parquet', 'text', or 'tsv'.
 If the format is 'blob', every input file will be read into a separate record.
 The 'blob' format also requires a schema that contains a field named 'body' of type 'bytes'.
-If the format is 'text', the schema must contain a field named 'offset' of type 'long' and a field
-named 'body' of type 'string'.
+If the format is 'text', the schema must contain a field named 'body' of type 'string'.
 
 **Delimiter:** Delimiter to use when the format is 'delimited'. This will be ignored for other formats.
 
