@@ -128,8 +128,10 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
       BigQueryFileFormat.NEWLINE_DELIMITED_JSON,
       TextOutputFormat.class);
 
-    setOutputFormat(context);
+    // Both emitLineage and setOutputFormat internally try to create an external dataset if it does not already exists.
+    // We call emitLineage before since it creates the dataset with schema which .
     emitLineage(context, fields);
+    setOutputFormat(context);
   }
 
   @Override
