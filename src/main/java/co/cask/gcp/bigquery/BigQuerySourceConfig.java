@@ -29,31 +29,27 @@ import javax.annotation.Nullable;
  * Holds configuration required for configuring {@link BigQuerySource}.
  */
 public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
-  @Name("dataset")
+  @Macro
   @Description("The dataset the table belongs to. A dataset is contained within a specific project. "
     + "Datasets are top-level containers that are used to organize and control access to tables and views.")
-  @Macro
   public String dataset;
 
-  @Name("table")
+  @Macro
   @Description("The table to read from. A table contains individual records organized in rows. "
     + "Each record is composed of columns (also called fields). "
     + "Every table is defined by a schema that describes the column names, data types, and other information.")
-  @Macro
   public String table;
 
+  @Macro
   @Nullable
-  @Name("bucket")
   @Description("The Google Cloud Storage bucket to store temporary data in. "
     + "It will be automatically created if it does not exist, but will not be automatically deleted. "
     + "Temporary data will be deleted after it has been read. " +
     "If it is not provided, a unique bucket will be created and then deleted after the run finishes.")
-  @Macro
   public String bucket;
 
-  @Name("schema")
-  @Description("The schema of the table to read.")
   @Macro
+  @Description("The schema of the table to read.")
   public String schema;
 
   /**

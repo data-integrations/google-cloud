@@ -30,29 +30,26 @@ import javax.annotation.Nullable;
  * configuring the <code>BigQuerySink</code> plugin.
  */
 public final class BigQuerySinkConfig extends GCPReferenceSinkConfig {
-  @Name("dataset")
+  @Macro
   @Description("The dataset to write to. A dataset is contained within a specific project. "
     + "Datasets are top-level containers that are used to organize and control access to tables and views.")
-  @Macro
   public String dataset;
 
-  @Name("table")
+  @Macro
   @Description("The table to write to. A table contains individual records organized in rows. "
     + "Each record is composed of columns (also called fields). "
     + "Every table is defined by a schema that describes the column names, data types, and other information.")
-  @Macro
   public String table;
 
+  @Macro
   @Nullable
-  @Name("bucket")
   @Description("The Google Cloud Storage bucket to store temporary data in. "
     + "It will be automatically created if it does not exist, but will not be automatically deleted. "
     + "Cloud Storage data will be deleted after it is loaded into BigQuery. " +
     "If it is not provided, a unique bucket will be created and then deleted after the run finishes.")
-  @Macro
   public String bucket;
 
-  @Name("schema")
+  @Macro
   @Description("The schema of the data to write. Must be compatible with the table schema.")
   public String schema;
 
