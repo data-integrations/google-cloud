@@ -40,7 +40,7 @@
           },
           "plugin-function": {
             "method": "POST",
-            "label": "Extract Schema",
+            "label": "Get Schema",
             "widget": "outputSchema",
             "output-property": "schema",
             "plugin-method": "getSchema",
