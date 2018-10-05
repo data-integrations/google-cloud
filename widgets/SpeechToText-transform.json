@@ -3,17 +3,17 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name": "Google Speech Translator",
+  "display-name": "Google Cloud Speech-to-Text",
   "configuration-groups": [
     {
-      "label": "Speech Translator Configuration",
+      "label": "Basic",
       "properties": [
         {
           "widget-type": "textbox",
           "label": "Audio Field",
-          "name": "audio",
+          "name": "audiofield",
           "widget-attributes" : {
-            "placeholder" : "Specify input field containing raw audio data"
+            "placeholder" : "Input field containing raw audio data"
           }
         },
         {
@@ -42,15 +42,22 @@
           }
         },
         {
-          "widget-type": "select",
-          "label": "Profanity",
-          "name": "profanity",
-          "widget-attributes" : {
-            "values" : [
-              "True",
-              "False"
-            ],
-            "default" : "True"
+          "widget-type": "radio-group",
+          "name" : "profanity",
+          "label" : "Mask Profanity",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "false",
+            "options": [
+              {
+                "id": "true",
+                "label": "True"
+              },
+              {
+                "id": "false",
+                "label": "False"
+              }
+            ]
           }
         },
         {
@@ -62,15 +69,31 @@
               "en-US"
             ],
             "default" : "en-US"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Transcript Parts Field",
+          "name": "transcriptionPartsField",
+          "widget-attributes" : {
+            "placeholder" : "Field name to use to store all the different chunks of transcription"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Transcription Text Field",
+          "name": "transcriptionTextField",
+          "widget-attributes" : {
+            "default" : "transcript"
           },
           "plugin-function": {
             "method": "POST",
-            "label": "Extract Schema",
+            "label": "Get Schema",
             "widget": "outputSchema",
             "output-property": "schema",
             "plugin-method": "getSchema",
             "position": "bottom",
-            "multiple-inputs": true,
+            "multiple-inputs": false,
             "button-class": "btn-hydrator"
           }
         }

@@ -11,7 +11,7 @@ import javax.annotation.Nullable;
  * Contains config properties common to all GCP plugins, like project id and service account key.
  */
 public class GCPConfig extends PluginConfig {
-  private static final String AUTO_DETECT = "auto-detect";
+  public static final String AUTO_DETECT = "auto-detect";
 
   @Description("Google Cloud Project ID, which uniquely identifies a project. "
     + "It can be found on the Dashboard in the Google Cloud Platform Console.")
