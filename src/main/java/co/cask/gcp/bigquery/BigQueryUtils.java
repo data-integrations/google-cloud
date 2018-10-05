@@ -116,17 +116,25 @@ final class BigQueryUtils {
   @Nullable
   static Table getBigQueryTable(@Nullable String serviceAccountFilePath, String project,
                                 String dataset, String table) throws IOException {
-    BigQuery bigquery;
+    BigQuery bigquery = getBigQuery(serviceAccountFilePath, project);
+
+    TableId id = TableId.of(project, dataset, table);
+    return bigquery.getTable(id);
+  }
+
+  /**
+   * Get BigQuery service
+   * @param serviceAccountFilePath service account file path
+   * @param project BigQuery project ID
+   */
+  static BigQuery getBigQuery(@Nullable String serviceAccountFilePath, String project) throws IOException {
     BigQueryOptions.Builder bigqueryBuilder = BigQueryOptions.newBuilder();
     if (serviceAccountFilePath != null) {
       bigqueryBuilder.setCredentials(loadServiceAccountCredentials(serviceAccountFilePath));
     }
 
     bigqueryBuilder.setProjectId(project);
-    bigquery = bigqueryBuilder.build().getService();
-
-    TableId id = TableId.of(project, dataset, table);
-    return bigquery.getTable(id);
+    return bigqueryBuilder.build().getService();
   }
 
   /**
