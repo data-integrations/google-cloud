@@ -122,6 +122,7 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
       + "'parquet', 'text', and 'tsv'.")
     private String format;
 
+    @Macro
     @Nullable
     @Description("Output schema. If a Path Field is set, it must be present in the schema as a string.")
     private String schema;
