@@ -112,8 +112,10 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     job.setOutputKeyClass(LongWritable.class);
     job.setOutputKeyClass(Text.class);
 
-    setInputFormat(context);
+    // Both emitLineage and setOutputFormat internally try to create an external dataset if it does not already exists.
+    // We call emitLineage before since it creates the dataset with schema which .
     emitLineage(context);
+    setInputFormat(context);
   }
 
   @Override
