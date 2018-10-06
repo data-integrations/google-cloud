@@ -30,6 +30,9 @@ import co.cask.cdap.etl.api.batch.BatchRuntimeContext;
 import co.cask.cdap.etl.api.batch.BatchSink;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
 import co.cask.hydrator.common.LineageRecorder;
+import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryException;
+import com.google.cloud.bigquery.DatasetInfo;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.LegacySQLTypeName;
@@ -92,6 +95,16 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
 
   @Override
   public void prepareRun(BatchSinkContext context) throws Exception {
+    BigQuery bigquery = BigQueryUtils.getBigQuery(config.getServiceAccountFilePath(), config.getProject());
+    // create dataset if dataset does not exist
+    if (bigquery.getDataset(config.dataset) == null) {
+      try {
+        bigquery.create(DatasetInfo.newBuilder(config.dataset).build());
+      } catch (BigQueryException e) {
+        throw new RuntimeException("Exception occured while creating dataset " + config.dataset + ".", e);
+      }
+    }
+
     validateSchema();
 
     uuid = UUID.randomUUID();

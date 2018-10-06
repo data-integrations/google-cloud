@@ -116,7 +116,10 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     @Override
     public void validate() {
       super.validate();
-      GCSConfigHelper.getPath(path);
+      // validate that path is valid
+      if (!containsMacro("path")) {
+        GCSConfigHelper.getPath(path);
+      }
       if (suffix != null && !containsMacro("suffix")) {
         new SimpleDateFormat(suffix);
       }
