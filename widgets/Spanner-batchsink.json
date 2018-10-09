@@ -46,6 +46,15 @@
           "widget-attributes" : {
             "placeholder": "Table name"
           }
+        },
+        {
+          "widget-type": "csv",
+          "label": "Primary Key",
+          "name": "keys",
+          "widget-attributes": {
+            "delimiter": ",",
+            "value-placeholder": "Field Name"
+          }
         }
       ]
     },

@@ -30,11 +30,15 @@ It can be found on the Dashboard in the Google Cloud Platform Console.
  Instance is an allocation of resources that is used by Cloud Spanner databases created in that instance.
 
 **Database Name**: Database the Spanner table belongs to.
-Spanner database is contained within a specific Spanner instance.
+Spanner database is contained within a specific Spanner instance. If the database does not exist, it will get created.
 
 **Table Name**: Table to write to. A table contains individual records organized in rows.
 Each record is composed of columns (also called fields).
 Every table is defined by a schema that describes the column names, data types, and other information.
+If the table does not exist, it will get created.
+
+**Primary Key**: If the table does not exist, a primary key must be provided in order to auto-create the table.
+The key can be a composite key of multiple fields in the schema. This is not required if the table already exists.
 
 **Service Account File Path**: Path on the local file system of the service account key used for
 authorization. Can be set to 'auto-detect' when running on a Dataproc cluster.

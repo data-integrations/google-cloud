@@ -67,7 +67,7 @@ public class PubSubOutputFormat extends OutputFormat<NullWritable, Text> {
     }
     String projectId = config.getProject();
     configuration.set(PROJECT, projectId);
-    configuration.set(TOPIC, config.topic);
+    configuration.set(TOPIC, config.getTopic());
     configuration.set(COUNT_BATCH_SIZE, String.valueOf(config.getMessageCountBatchSize()));
     configuration.set(REQUEST_BYTES_THRESHOLD, String.valueOf(config.getRequestBytesThreshold()));
     configuration.set(DELAY_THRESHOLD, String.valueOf(config.getPublishDelayThresholdMillis()));

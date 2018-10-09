@@ -96,12 +96,12 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
   @Override
   public void prepareRun(BatchSinkContext context) throws Exception {
     BigQuery bigquery = BigQueryUtils.getBigQuery(config.getServiceAccountFilePath(), config.getProject());
-    // create dataset if dataset does not exist
-    if (bigquery.getDataset(config.dataset) == null) {
+    // create dataset if it does not exist
+    if (bigquery.getDataset(config.getDataset()) == null) {
       try {
-        bigquery.create(DatasetInfo.newBuilder(config.dataset).build());
+        bigquery.create(DatasetInfo.newBuilder(config.getDataset()).build());
       } catch (BigQueryException e) {
-        throw new RuntimeException("Exception occured while creating dataset " + config.dataset + ".", e);
+        throw new RuntimeException("Exception occurred while creating dataset " + config.getDataset() + ".", e);
       }
     }
 
@@ -120,8 +120,8 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
       fields.add(tableFieldSchema);
     }
 
-    String bucket = config.bucket;
-    if (config.bucket == null) {
+    String bucket = config.getBucket();
+    if (config.getBucket() == null) {
       bucket = uuid.toString();
       // By default, this option is false, meaning the job can not delete the bucket. So enable it only when bucket name
       // is not provided.
@@ -135,7 +135,7 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
 
     BigQueryOutputConfiguration.configure(
       configuration,
-      String.format("%s.%s", config.dataset, config.table),
+      String.format("%s.%s", config.getDataset(), config.getTable()),
       new BigQueryTableSchema().setFields(fields),
       temporaryGcsPath,
       BigQueryFileFormat.NEWLINE_DELIMITED_JSON,
@@ -165,7 +165,7 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
 
   @Override
   public void onRunFinish(boolean succeeded, BatchSinkContext context) {
-    if (config.bucket == null) {
+    if (config.getBucket() == null) {
       Path gcsPath = new Path(String.format("gs://%s", uuid.toString()));
       try {
         FileSystem fs = gcsPath.getFileSystem(configuration);
@@ -216,7 +216,7 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
   }
 
   private void setOutputFormat(BatchSinkContext context) {
-    context.addOutput(Output.of(config.referenceName, new OutputFormatProvider() {
+    context.addOutput(Output.of(config.getReferenceName(), new OutputFormatProvider() {
       @Override
       public String getOutputFormatClassName() {
         return IndirectBigQueryOutputFormat.class.getName();
@@ -234,7 +234,7 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
   }
 
   private void emitLineage(BatchSinkContext context, List<BigQueryTableFieldSchema> fields) {
-    LineageRecorder lineageRecorder = new LineageRecorder(context, config.referenceName);
+    LineageRecorder lineageRecorder = new LineageRecorder(context, config.getReferenceName());
     lineageRecorder.createExternalDataset(config.getSchema());
 
     if (!fields.isEmpty()) {
@@ -302,7 +302,7 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
    */
   private void validateSchema() throws IOException {
     Table table = BigQueryUtils.getBigQueryTable(config.getServiceAccountFilePath(), config.getProject(),
-                                                 config.dataset, config.table);
+                                                 config.getDataset(), config.getTable());
     if (table == null) {
       // Table does not exist, so no further validation is required.
       return;
@@ -322,7 +322,8 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
     if (!diff.isEmpty()) {
       throw new IllegalArgumentException(
         String.format("The output schema does not match the BigQuery table schema for '%s.%s' table. " +
-                        "The table does not contain the '%s' column(s).", config.dataset, config.table, diff));
+                        "The table does not contain the '%s' column(s).",
+                      config.getDataset(), config.getTable(), diff));
     }
 
     // validate the missing columns in output schema are nullable fields in bigquery
@@ -332,14 +333,15 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
         throw new IllegalArgumentException(
           String.format("The output schema does not match the BigQuery table schema for '%s.%s'. " +
                           "The table requires column '%s', which is not in the output schema.",
-                        config.dataset, config.table, field));
+                        config.getDataset(), config.getTable(), field));
       }
     }
 
     // Match output schema field type with bigquery column type
     for (Schema.Field field : config.getSchema().getFields()) {
       validateSimpleTypes(field);
-      BigQueryUtils.validateFieldSchemaMatches(bqFields.get(field.getName()), field, config.dataset, config.table);
+      BigQueryUtils.validateFieldSchemaMatches(bqFields.get(field.getName()),
+                                               field, config.getDataset(), config.getTable());
     }
   }
 

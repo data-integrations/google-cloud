@@ -59,9 +59,9 @@ public class SpannerOutputFormat extends OutputFormat<NullWritable, StructuredRe
     if (serviceAccountFilePath != null) {
       configuration.set(SpannerConstants.SERVICE_ACCOUNT_FILE_PATH, serviceAccountFilePath);
     }
-    configuration.set(SpannerConstants.INSTANCE_ID, config.instance);
-    configuration.set(SpannerConstants.DATABASE, config.database);
-    configuration.set(SpannerConstants.TABLE_NAME, config.table);
+    configuration.set(SpannerConstants.INSTANCE_ID, config.getInstance());
+    configuration.set(SpannerConstants.DATABASE, config.getDatabase());
+    configuration.set(SpannerConstants.TABLE_NAME, config.getTable());
     configuration.set(SpannerConstants.SPANNER_WRITE_BATCH_SIZE, String.valueOf(config.getBatchSize()));
     configuration.set(SpannerConstants.SCHEMA, config.getSchema().toString());
   }

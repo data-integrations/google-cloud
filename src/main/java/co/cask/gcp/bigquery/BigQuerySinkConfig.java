@@ -18,7 +18,6 @@ package co.cask.gcp.bigquery;
 
 import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Macro;
-import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.gcp.common.GCPReferenceSinkConfig;
 
@@ -33,13 +32,13 @@ public final class BigQuerySinkConfig extends GCPReferenceSinkConfig {
   @Macro
   @Description("The dataset to write to. A dataset is contained within a specific project. "
     + "Datasets are top-level containers that are used to organize and control access to tables and views.")
-  public String dataset;
+  private String dataset;
 
   @Macro
   @Description("The table to write to. A table contains individual records organized in rows. "
     + "Each record is composed of columns (also called fields). "
     + "Every table is defined by a schema that describes the column names, data types, and other information.")
-  public String table;
+  private String table;
 
   @Macro
   @Nullable
@@ -47,11 +46,33 @@ public final class BigQuerySinkConfig extends GCPReferenceSinkConfig {
     + "It will be automatically created if it does not exist, but will not be automatically deleted. "
     + "Cloud Storage data will be deleted after it is loaded into BigQuery. " +
     "If it is not provided, a unique bucket will be created and then deleted after the run finishes.")
-  public String bucket;
+  private String bucket;
 
   @Macro
   @Description("The schema of the data to write. Must be compatible with the table schema.")
-  public String schema;
+  private String schema;
+
+  public BigQuerySinkConfig(String referenceName, String dataset, String table,
+                            @Nullable String bucket, String schema) {
+    this.referenceName = referenceName;
+    this.dataset = dataset;
+    this.table = table;
+    this.bucket = bucket;
+    this.schema = schema;
+  }
+
+  public String getDataset() {
+    return dataset;
+  }
+
+  public String getTable() {
+    return table;
+  }
+
+  @Nullable
+  public String getBucket() {
+    return bucket;
+  }
 
   /**
    * @return the schema of the dataset

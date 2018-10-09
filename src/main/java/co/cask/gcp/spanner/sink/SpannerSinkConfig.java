@@ -35,7 +35,7 @@ public class SpannerSinkConfig extends GCPReferenceSinkConfig {
   @Name("table")
   @Description("Cloud Spanner table id. Uniquely identifies your table within the Cloud Spanner database")
   @Macro
-  public String table;
+  private String table;
 
   @Name("batchSize")
   @Description("Size of the batched writes to the Spanner table. " +
@@ -43,20 +43,53 @@ public class SpannerSinkConfig extends GCPReferenceSinkConfig {
     "the mutations are written to Spanner table, Default value is 100")
   @Macro
   @Nullable
-  public Integer batchSize;
+  private Integer batchSize;
 
   @Description("Cloud Spanner instance id. " +
     "Uniquely identifies Cloud Spanner instance within your Google Cloud Platform project.")
   @Macro
-  public String instance;
+  private String instance;
 
   @Description("Cloud Spanner database id. Uniquely identifies your database within the Cloud Spanner instance.")
   @Macro
-  public String database;
+  private String database;
+
+  @Nullable
+  @Description("Primary keys to be used to create spanner table, if the spanner table does not exist.")
+  @Macro
+  private String keys;
 
   @Description("Schema of the Spanner table.")
   @Macro
-  public String schema;
+  private String schema;
+
+  public SpannerSinkConfig(String referenceName, String table, @Nullable Integer batchSize, String instance,
+                           String database, @Nullable String keys, String schema) {
+    this.referenceName = referenceName;
+    this.table = table;
+    this.batchSize = batchSize;
+    this.instance = instance;
+    this.database = database;
+    this.keys = keys;
+    this.schema = schema;
+  }
+
+  public String getTable() {
+    return table;
+  }
+
+  public String getInstance() {
+    return instance;
+  }
+
+  public String getDatabase() {
+    return database;
+  }
+
+  @Nullable
+  public String getKeys() {
+    return keys;
+  }
 
   public void validate() {
     super.validate();
@@ -65,6 +98,17 @@ public class SpannerSinkConfig extends GCPReferenceSinkConfig {
     }
     if (!containsMacro("batchSize") && batchSize != null && batchSize < 1) {
       throw new IllegalArgumentException("Spanner batch size for writes should be positive");
+    }
+    if (!containsMacro("keys") && keys != null && !containsMacro("schema")) {
+      Schema schema = getSchema();
+      String[] splitted = keys.split(",");
+
+      for (String key : splitted) {
+        if (schema.getField(key.trim()) == null) {
+          throw new IllegalArgumentException(
+            String.format("Spanner primary key '%s' must be present in output schema", key));
+        }
+      }
     }
   }
 
