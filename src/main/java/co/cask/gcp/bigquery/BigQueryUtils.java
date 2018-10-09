@@ -226,6 +226,43 @@ final class BigQueryUtils {
     return diff;
   }
 
+  static LegacySQLTypeName getTableDataType(Schema schema) {
+    Schema.LogicalType logicalType = schema.getLogicalType();
+
+    if (logicalType != null) {
+      switch (logicalType) {
+        case DATE:
+          return LegacySQLTypeName.DATE;
+        case TIME_MILLIS:
+        case TIME_MICROS:
+          return LegacySQLTypeName.TIME;
+        case TIMESTAMP_MILLIS:
+        case TIMESTAMP_MICROS:
+          return LegacySQLTypeName.TIMESTAMP;
+        default:
+          throw new IllegalStateException("Unsupported logical type " + logicalType);
+      }
+    }
+
+    Schema.Type type = schema.getType();
+    switch(type) {
+      case INT:
+      case LONG:
+        return LegacySQLTypeName.INTEGER;
+      case STRING:
+        return LegacySQLTypeName.STRING;
+      case FLOAT:
+      case DOUBLE:
+        return LegacySQLTypeName.FLOAT;
+      case BOOLEAN:
+        return LegacySQLTypeName.BOOLEAN;
+      case BYTES:
+        return LegacySQLTypeName.BYTES;
+      default:
+        throw new IllegalStateException("Unsupported type " + type);
+    }
+  }
+
   private BigQueryUtils() {
   }
 }
