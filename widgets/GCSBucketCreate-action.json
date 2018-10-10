@@ -16,14 +16,6 @@
           }
         },
         {
-          "widget-type": "textbox",
-          "label": "Bucket Name",
-          "name": "bucket",
-          "widget-attributes" : {
-            "placeholder": "Bucket to create objects in"
-          }
-        },
-        {
           "name": "paths",
           "widget-type": "csv",
           "label" : "Objects to Create",

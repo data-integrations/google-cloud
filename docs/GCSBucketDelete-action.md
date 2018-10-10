@@ -30,9 +30,7 @@ Properties
 **Project ID**: The Google Cloud Project ID, which uniquely identifies a project.
 It can be found on the Dashboard in the Google Cloud Platform Console.
 
-**Bucket Name**: The bucket to delete objects from.
-
-**Objects to Delete**: Objects to delete from the bucket.
+**Objects to Delete**: Comma separated list of objects to delete.
 
 **Service Account File Path**: Path on the local file system of the service account key used for
 authorization. Can be set to 'auto-detect' when running on a Dataproc cluster.
