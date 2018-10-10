@@ -21,7 +21,7 @@ must be readable by all users running the job.
 
 Properties
 ----------
-**Reference Name:** Name used to uniquely identify this sink for lineage, annotating metadata, etc.
+**Reference Name:** Name used to uniquely identify this source for lineage, annotating metadata, etc.
 
 **Project ID**: Google Cloud Project ID, which uniquely identifies a project.
 It can be found on the Dashboard in the Google Cloud Platform Console.
