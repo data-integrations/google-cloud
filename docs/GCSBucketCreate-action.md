@@ -30,9 +30,7 @@ Properties
 **Project ID**: Google Cloud Project ID, which uniquely identifies a project.
 It can be found on the Dashboard in the Google Cloud Platform Console.
 
-**Bucket Name**: Bucket to create objects in.
-
-**Objects to Create**: Objects to create in the bucket.
+**Objects to Create**: Comma separated list of objects to create.
 
 **Fail if Object Exists**: Whether to fail the pipeline if an object already exists.
 
