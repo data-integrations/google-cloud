@@ -19,7 +19,7 @@
 
   <groupId>co.cask</groupId>
   <artifactId>google-cloud</artifactId>
-  <version>0.11.0-SNAPSHOT</version>
+  <version>0.11.0</version>
   <name>Google Cloud Plugins</name>
   <packaging>jar</packaging>
   <description>Plugins for Google Big Query</description>
@@ -56,8 +56,8 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <cdap.version>5.1.0-SNAPSHOT</cdap.version>
-    <hydrator.version>2.1.0-SNAPSHOT</hydrator.version>
+    <cdap.version>5.1.0</cdap.version>
+    <hydrator.version>2.1.0</hydrator.version>
     <guava.version>20.0</guava.version>
     <slf4j.version>1.7.5</slf4j.version>
     <junit.version>4.12</junit.version>
