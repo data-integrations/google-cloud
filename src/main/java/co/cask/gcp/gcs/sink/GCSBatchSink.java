@@ -58,7 +58,7 @@ public abstract class GCSBatchSink<KEY_OUT, VAL_OUT> extends ReferenceSink<Struc
   }
 
   @Override
-  public final void prepareRun(BatchSinkContext context) {
+  public void prepareRun(BatchSinkContext context) {
     config.validate();
     Map<String, String> outputConfig = new HashMap<>();
     outputConfig.put(FileOutputFormat.OUTDIR, config.getOutputDir(context.getLogicalStartTime()));

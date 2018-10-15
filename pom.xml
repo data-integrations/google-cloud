@@ -396,6 +396,34 @@
         </exclusion>
       </exclusions>
     </dependency>
+
+
+
+    <!--multi spport and tests-->
+    <!--<dependency>-->
+      <!--<groupId>mysql</groupId>-->
+      <!--<artifactId>mysql-connector-java</artifactId>-->
+      <!--<version>5.1.38</version>-->
+      <!--<scope>test</scope>-->
+    <!--</dependency>-->
+    <!--<dependency>-->
+      <!--<groupId>com.wix</groupId>-->
+      <!--<artifactId>wix-embedded-mysql</artifactId>-->
+      <!--<version>4.2.0</version>-->
+      <!--<scope>test</scope>-->
+    <!--</dependency>-->
+    <!--<dependency>-->
+      <!--<groupId>co.cask.cdap</groupId>-->
+      <!--<artifactId>cdap-data-pipeline</artifactId>-->
+      <!--<version>${cdap.version}</version>-->
+      <!--<scope>test</scope>-->
+    <!--</dependency>-->
+    <!--<dependency>-->
+      <!--<groupId>co.cask.plugin</groupId>-->
+      <!--<artifactId>multi-table-plugins</artifactId>-->
+      <!--&lt;!&ndash;<version>1.1.0-SNAPSHOT</version>&ndash;&gt;-->
+      <!--<scope>test</scope>-->
+    <!--</dependency>-->
   </dependencies>
 
   <build>
@@ -539,6 +567,11 @@
       <plugin>
         <groupId>net.alchim31.maven</groupId>
         <artifactId>scala-maven-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <version>2.10</version>
       </plugin>
     </plugins>
   </build>
