@@ -24,14 +24,19 @@ import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
 import co.cask.gcp.common.*;
+import co.cask.hydrator.common.batch.JobUtils;
 import co.cask.hydrator.common.batch.sink.SinkOutputFormatProvider;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
+import org.apache.avro.mapreduce.AvroJob;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 import javax.annotation.Nullable;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -57,7 +62,7 @@ public abstract class GCSMultiBatchSink<KEY_OUT, VAL_OUT> extends ReferenceSink<
     }
 
     @Override
-    public void prepareRun(BatchSinkContext context) {
+    public void prepareRun(BatchSinkContext context) throws IOException {
         config.validate();
         for (Map.Entry<String, String> argument : context.getArguments()) {
             String key = argument.getKey();
@@ -70,25 +75,34 @@ public abstract class GCSMultiBatchSink<KEY_OUT, VAL_OUT> extends ReferenceSink<
             String[] parts = dbTableName.split(":");
             String db = parts[0];
             String name = parts[1];
-            Map<String, String> outputConfig = new HashMap<>();
-            outputConfig.put(FileOutputFormat.OUTDIR, String.format("%s_%s_%s", db, name, config.getOutputDir(context.getLogicalStartTime())));
+
+            Job job = JobUtils.createInstance();
+            Configuration outputConfig = job.getConfiguration();
+
+            outputConfig.set(FileOutputFormat.OUTDIR, String.format("%s_%s_%s", config.getOutputDir(context.getLogicalStartTime()), db, name));
             if (config.serviceFilePath != null) {
-                outputConfig.put("mapred.bq.auth.service.account.json.keyfile", config.serviceFilePath);
-                outputConfig.put("google.cloud.auth.service.account.json.keyfile", config.serviceFilePath);
+                outputConfig.set("mapred.bq.auth.service.account.json.keyfile", config.serviceFilePath);
+                outputConfig.set("google.cloud.auth.service.account.json.keyfile", config.serviceFilePath);
             }
-            outputConfig.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
-            outputConfig.put("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
+            outputConfig.set("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
+            outputConfig.set("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
             String projectId = GCPUtils.getProjectId(config.project);
-            outputConfig.put("fs.gs.project.id", projectId);
-            outputConfig.put("fs.gs.system.bucket", config.bucket);
-            outputConfig.put("fs.gs.impl.disable.cache", "true");
+            outputConfig.set("fs.gs.project.id", projectId);
+            outputConfig.set("fs.gs.system.bucket", config.bucket);
+            outputConfig.set("fs.gs.impl.disable.cache", "true");
 
-            outputConfig.put(RecordFilterOutputFormat.PASS_VALUE, name);
-            outputConfig.put(RecordFilterOutputFormat.ORIGINAL_SCHEMA, schema);
+            outputConfig.set(RecordFilterOutputFormat.PASS_VALUE, name);
+            outputConfig.set(RecordFilterOutputFormat.ORIGINAL_SCHEMA, schema);
 
 
-            outputConfig.putAll(getOutputFormatConfig());
+            Map<String, String> outputFormatConfig = getOutputFormatConfig();
+            for (Map.Entry<String, String> entry : outputFormatConfig.entrySet()) {
+                outputConfig.set(entry.getKey(), entry.getValue());
+            }
 
+            job.setOutputValueClass(NullWritable.class);
+            org.apache.avro.Schema avroSchema = new org.apache.avro.Schema.Parser().parse(schema);
+            AvroJob.setOutputKeySchema(job, avroSchema);
 
 
             context.addOutput(Output.of(config.referenceName,

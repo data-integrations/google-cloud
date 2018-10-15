@@ -16,17 +16,13 @@
 
 package co.cask.gcp.common;
 
-import co.cask.cdap.api.common.Bytes;
 import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapreduce.AvroKeyOutputFormat;
-import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.*;
-import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
-import org.apache.orc.mapreduce.OrcOutputFormat;
 
 import java.io.IOException;
 
@@ -45,10 +41,6 @@ public class RecordFilterOutputFormat extends OutputFormat<NullWritable, Structu
     public static final String ORC = "orc";
 
 
-//  private MultiStructuredToAvroTransformer recordTransformer;
-//  private final GCSAvroBatchSink.GCSAvroSinkConfig config;
-
-
     @Override
     public RecordWriter<NullWritable, StructuredRecord> getRecordWriter(TaskAttemptContext context)
             throws IOException, InterruptedException {
@@ -56,7 +48,7 @@ public class RecordFilterOutputFormat extends OutputFormat<NullWritable, Structu
 
         String filterField = conf.get(FILTER_FIELD);
         String passthroughVal = conf.get(PASS_VALUE);
-        String delimiter = Bytes.toString(Base64.decodeBase64(conf.get(DELIMITER)));
+        String delimiter = conf.get(DELIMITER);
         String format = conf.get(FORMAT);
         String originalSchema = conf.get(ORIGINAL_SCHEMA);
 
@@ -76,13 +68,14 @@ public class RecordFilterOutputFormat extends OutputFormat<NullWritable, Structu
     }
 
     private OutputFormat getOutputFormat(String format) {
-        if (AVRO.equals(format)) {
-            return new AvroKeyOutputFormat<>();
-        } else if (ORC.equals(format)) {
-            return new OrcOutputFormat<>();
-        } else {
-            return new TextOutputFormat<>();
-        }
+        return new AvroKeyOutputFormat<>();
+//        if (AVRO.equals(format)) {
+//            return new AvroKeyOutputFormat<>();
+//        } else if (ORC.equals(format)) {
+//            return new OrcOutputFormat<>();
+//        } else {
+//            return new TextOutputFormat<>();
+//        }
     }
 
     private MultiStructuredToAvroTransformer getStructuredRecordTransformer(String format, String delimiter) {
@@ -129,11 +122,6 @@ public class RecordFilterOutputFormat extends OutputFormat<NullWritable, Structu
                     recordBuilder.set(fieldName, fieldVal);
                 }
                 delegate.write(new AvroKey<>(transformer.transform(recordBuilder.build())), key);
-//        if (transformer instanceof StructuredToAvroTransformer) {
-//          delegate.write(new AvroKey<>(transformer.transform(recordBuilder.build())), key);
-//        } else {
-//          delegate.write(key, transformer.transform(recordBuilder.build()));
-//        }
             }
         }
 
