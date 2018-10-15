@@ -1,0 +1,101 @@
+{
+    "artifact": {
+        "name": "cdap-data-pipeline",
+        "version": "5.0.0",
+        "scope": "SYSTEM"
+    },
+    "description": "Data Pipeline Application",
+    "name": "avro_ingestion_v1",
+    "config": {
+        "resources": {
+            "memoryMB": 1024,
+            "virtualCores": 1
+        },
+        "driverResources": {
+            "memoryMB": 1024,
+            "virtualCores": 1
+        },
+        "connections": [
+            {
+                "from": "Multiple Database Tables",
+                "to": "Multi Google Cloud Storage Avro Sink"
+            }
+        ],
+        "comments": [],
+        "postActions": [],
+        "properties": {},
+        "processTimingEnabled": true,
+        "stageLoggingEnabled": true,
+        "stages": [
+            {
+                "name": "Multiple Database Tables",
+                "plugin": {
+                    "name": "MultiTableDatabase",
+                    "type": "batchsource",
+                    "label": "Multiple Database Tables",
+                    "artifact": {
+                        "name": "multi-table-plugins",
+                        "version": "1.1.1-SNAPSHOT",
+                        "scope": "USER"
+                    },
+                    "properties": {
+                        "whiteList": "${table1},${table2}",
+                        "jdbcPluginName": "mysql",
+                        "password": "${mysql_password}",
+                        "user": "${mysql_username}",
+                        "connectionString": "jdbc:mysql://${mysql_server}:${mysql_port}/${account_id}",
+                        "referenceName": "multi_db_tables",
+                        "schemaNamePattern": "${account_id}"
+                    }
+                },
+                "outputSchema": [
+                    {
+                        "name": "etlSchemaBody",
+                        "schema": ""
+                    }
+                ]
+            },
+            {
+                "name": "Multi Google Cloud Storage Avro Sink",
+                "plugin": {
+                    "name": "GCSMultiAvro",
+                    "type": "batchsink",
+                    "label": "Multi Google Cloud Storage Avro Sink",
+                    "artifact": {
+                        "name": "google-cloud",
+                        "version": "0.12.0-SNAPSHOT",
+                        "scope": "USER"
+                    },
+                    "properties": {
+                        "suffix": "yyyy-MM-dd-HH-mm",
+                        "codec": "None",
+                        "splitField": "tablename",
+                        "delimiter": "\t",
+                        "bucket": "${gcs_bucket_name}",
+                        "path": "${gcs_base_path}",
+                        "project": "${gcp_project_id}",
+                        "serviceFilePath": "${gcp_service_account_file_path}",
+                        "referenceName": "multi_gcs_avro_sink"
+                    }
+                },
+                "outputSchema": [
+                    {
+                        "name": "etlSchemaBody",
+                        "schema": ""
+                    }
+                ],
+                "inputSchema": [
+                    {
+                        "name": "Multiple Database Tables",
+                        "schema": ""
+                    }
+                ]
+            }
+        ],
+        "schedule": "0 * * * *",
+        "engine": "mapreduce",
+        "numOfRecordsPreview": 100,
+        "description": "Data Pipeline Application",
+        "maxConcurrentRuns": 1
+    }
+}
