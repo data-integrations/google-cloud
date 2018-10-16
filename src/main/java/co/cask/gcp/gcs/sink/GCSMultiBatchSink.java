@@ -21,6 +21,8 @@ import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.data.batch.Output;
 import co.cask.cdap.api.data.format.StructuredRecord;
+import co.cask.cdap.api.data.schema.Schema;
+import co.cask.cdap.api.data.schema.UnsupportedTypeException;
 import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
 import co.cask.gcp.common.*;
@@ -47,6 +49,7 @@ import java.util.Map;
  */
 public abstract class GCSMultiBatchSink<KEY_OUT, VAL_OUT> extends ReferenceSink<StructuredRecord, KEY_OUT, VAL_OUT> {
     public static final String TABLE_PREFIX = "multisink.";
+    private static final String PARQUET_AVRO_SCHEMA = "parquet.avro.schema";
 
     private final GCSBatchSinkConfig config;
 
@@ -62,7 +65,7 @@ public abstract class GCSMultiBatchSink<KEY_OUT, VAL_OUT> extends ReferenceSink<
     }
 
     @Override
-    public void prepareRun(BatchSinkContext context) throws IOException {
+    public void prepareRun(BatchSinkContext context) throws IOException, UnsupportedTypeException {
         config.validate();
         for (Map.Entry<String, String> argument : context.getArguments()) {
             String key = argument.getKey();
@@ -93,6 +96,7 @@ public abstract class GCSMultiBatchSink<KEY_OUT, VAL_OUT> extends ReferenceSink<
 
             outputConfig.set(RecordFilterOutputFormat.PASS_VALUE, name);
             outputConfig.set(RecordFilterOutputFormat.ORIGINAL_SCHEMA, schema);
+            outputConfig.set(RecordFilterOutputFormat.FORMAT, config.outputFormat);
 
 
             Map<String, String> outputFormatConfig = getOutputFormatConfig();
@@ -101,8 +105,26 @@ public abstract class GCSMultiBatchSink<KEY_OUT, VAL_OUT> extends ReferenceSink<
             }
 
             job.setOutputValueClass(NullWritable.class);
-            org.apache.avro.Schema avroSchema = new org.apache.avro.Schema.Parser().parse(schema);
-            AvroJob.setOutputKeySchema(job, avroSchema);
+            if (RecordFilterOutputFormat.AVRO.equals(config.outputFormat)) {
+                org.apache.avro.Schema avroSchema = new org.apache.avro.Schema.Parser().parse(schema);
+                for (Map.Entry<String, String> entry : FileSetUtil.getAvroCompressionConfiguration(config.codec, config.schema, false).entrySet()) {
+                    outputConfig.set(entry.getKey(), entry.getValue());
+                }
+                AvroJob.setOutputKeySchema(job, avroSchema);
+            } else if (RecordFilterOutputFormat.ORC.equals(config.outputFormat)) {
+                StringBuilder builder = new StringBuilder();
+                co.cask.hydrator.common.HiveSchemaConverter.appendType(builder, Schema.parseJson(schema));
+                outputConfig.set("orc.mapred.output.schema", builder.toString());
+            } else if (RecordFilterOutputFormat.PARQUET.equals(config.outputFormat)) {
+                for (Map.Entry<String, String> entry : FileSetUtil.getParquetCompressionConfiguration(config.codec, config.schema, false).entrySet()) {
+                    outputConfig.set(entry.getKey(), entry.getValue());
+                }
+                outputConfig.set(PARQUET_AVRO_SCHEMA,schema);
+            }  else {
+                // Encode the delimiter to base64 to support control characters. Otherwise serializing it in Cconf would result
+                // in an error
+                outputConfig.set(RecordFilterOutputFormat.DELIMITER,config.delimiter);
+            }
 
 
             context.addOutput(Output.of(config.referenceName,
@@ -148,6 +170,27 @@ public abstract class GCSMultiBatchSink<KEY_OUT, VAL_OUT> extends ReferenceSink<
         @Description("Name of the bucket.")
         @Macro
         protected String bucket;
+
+
+        @Description("The format of output files.")
+        @Macro
+        private String outputFormat;
+
+        @Nullable
+        @Description("The delimiter to use to separate record fields. Defaults to the tab character.")
+        private String delimiter;
+
+        @Name("schema")
+        @Description("The schema of records to write.")
+        @Macro
+        @Nullable
+        protected String schema;
+
+        @Name("codec")
+        @Description("The compression codec to use when writing data. Must be 'none', 'snappy', or 'deflated'.")
+        @Nullable
+        private String codec;
+
 
         public GCSBatchSinkConfig() {
             // Set default value for Nullable properties.

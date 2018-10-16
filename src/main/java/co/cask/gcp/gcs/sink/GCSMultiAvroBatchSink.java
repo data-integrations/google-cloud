@@ -17,7 +17,6 @@
 package co.cask.gcp.gcs.sink;
 
 import co.cask.cdap.api.annotation.Description;
-import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.annotation.Plugin;
 import co.cask.cdap.api.data.format.StructuredRecord;
@@ -40,65 +39,48 @@ import java.util.Map;
 @Description("Writes records to one or more avro files in a directory on Google Cloud Storage.")
 public class GCSMultiAvroBatchSink extends GCSMultiBatchSink<NullWritable, StructuredRecord> {
 
-  private final GCSMultiAvroSinkConfig config;
+    private final GCSMultiAvroSinkConfig config;
 
-  public GCSMultiAvroBatchSink(GCSMultiAvroSinkConfig config) {
-    super(config);
-    this.config = config;
-  }
+    public GCSMultiAvroBatchSink(GCSMultiAvroSinkConfig config) {
+        super(config);
+        this.config = config;
+    }
 
-  @Override
-  public void initialize(BatchRuntimeContext context) throws Exception {
-    super.initialize(context);
+    @Override
+    public void initialize(BatchRuntimeContext context) throws Exception {
+        super.initialize(context);
 //    recordTransformer = new RecordFilterOutputFormat(config.schema);
-  }
+    }
 
 
+    @Override
+    public void transform(StructuredRecord input,
+                          Emitter<KeyValue<NullWritable, StructuredRecord>> emitter) throws Exception {
+        emitter.emit(new KeyValue<>(NullWritable.get(), input));
+    }
 
+    @Override
+    protected String getOutputFormatClassname() {
+        return RecordFilterOutputFormat.class.getName();
+    }
 
-  @Override
-  public void transform(StructuredRecord input,
-                        Emitter<KeyValue<NullWritable, StructuredRecord>> emitter) throws Exception {
-    emitter.emit(new KeyValue<>(NullWritable.get(), input));
-  }
-
-  @Override
-  protected String getOutputFormatClassname() {
-    return RecordFilterOutputFormat.class.getName();
-  }
-
-  @Override
-  protected Map<String, String> getOutputFormatConfig() {
-    Map<String, String> conf = new HashMap<>();
+    @Override
+    protected Map<String, String> getOutputFormatConfig() {
+        Map<String, String> conf = new HashMap<>();
 //    conf.putAll(FileSetUtil.getAvroCompressionConfiguration(config.codec, config.schema, false));
 //    conf.put(JobContext.OUTPUT_KEY_CLASS, AvroKey.class.getName());
-    conf.put(RecordFilterOutputFormat.FILTER_FIELD, config.splitField);
-    return conf;
-  }
+        conf.put(RecordFilterOutputFormat.FILTER_FIELD, config.splitField);
+        return conf;
+    }
 
-  /**
-   * Configuration for the GCSAvroSink.
-   */
-  public static class GCSMultiAvroSinkConfig extends GCSBatchSinkConfig {
-    @Name("schema")
-    @Description("The schema of records to write.")
-    @Macro
-    @Nullable
-    protected String schema;
+    /**
+     * Configuration for the GCSAvroSink.
+     */
+    public static class GCSMultiAvroSinkConfig extends GCSBatchSinkConfig {
 
-    @Name("codec")
-    @Description("The compression codec to use when writing data. Must be 'none', 'snappy', or 'deflated'.")
-    @Nullable
-    private String codec;
-
-    @Nullable
-    @Description("The name of the field that will be used to determine which fileset to write to. " +
-            "Defaults to 'tablename'.")
-    private String splitField;
-
-    @Nullable
-    @Description("The delimiter to use to separate record fields. Defaults to the tab character.")
-    private String delimiter;
-
-  }
+        @Nullable
+        @Description("The name of the field that will be used to determine which fileset to write to. " +
+                "Defaults to 'tablename'.")
+        private String splitField;
+    }
 }

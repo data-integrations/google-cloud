@@ -84,6 +84,20 @@
           }
         },
         {
+          "widget-type": "select",
+          "label": "File Output Format",
+          "name": "outputFormat",
+          "widget-attributes": {
+            "values": [
+              "text",
+              "avro",
+              "orc",
+              "parquet"
+            ],
+            "default": "text"
+          }
+        },
+        {
           "widget-type": "textbox",
           "label": "Field Delimiter",
           "name": "delimiter",

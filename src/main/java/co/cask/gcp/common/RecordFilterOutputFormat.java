@@ -23,6 +23,9 @@ import org.apache.avro.mapreduce.AvroKeyOutputFormat;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.*;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+import org.apache.orc.mapreduce.OrcOutputFormat;
+import parquet.avro.AvroParquetOutputFormat;
 
 import java.io.IOException;
 
@@ -39,6 +42,7 @@ public class RecordFilterOutputFormat extends OutputFormat<NullWritable, Structu
     public static final String AVRO = "avro";
     public static final String TEXT = "text";
     public static final String ORC = "orc";
+    public static final String PARQUET = "parquet";
 
 
     @Override
@@ -68,25 +72,27 @@ public class RecordFilterOutputFormat extends OutputFormat<NullWritable, Structu
     }
 
     private OutputFormat getOutputFormat(String format) {
-        return new AvroKeyOutputFormat<>();
-//        if (AVRO.equals(format)) {
-//            return new AvroKeyOutputFormat<>();
-//        } else if (ORC.equals(format)) {
-//            return new OrcOutputFormat<>();
-//        } else {
-//            return new TextOutputFormat<>();
-//        }
+        if (AVRO.equals(format)) {
+            return new AvroKeyOutputFormat<>();
+        } else if (ORC.equals(format)) {
+            return new OrcOutputFormat<>();
+        } else if (PARQUET.equals(format)) {
+            return new AvroParquetOutputFormat();
+        } else {
+            return new TextOutputFormat<>();
+        }
     }
 
-    private MultiStructuredToAvroTransformer getStructuredRecordTransformer(String format, String delimiter) {
-//    if (AVRO.equals(format)) {
-//      return new StructuredToAvroTransformer(null);
-//    } else if (ORC.equals(format)) {
-//      return new StructuredToOrcTransformer(null);
-//    } else {
-//      return new StructuredToTextTransformer(delimiter, null);
-//    }
-        return new MultiStructuredToAvroTransformer(null);
+    private AbstractStructuredRecordTransformer getStructuredRecordTransformer(String format, String delimiter) {
+        if (AVRO.equals(format)) {
+            return new MultiStructuredToAvroTransformer(null);
+        } else if (ORC.equals(format)) {
+            return new StructuredToOrcTransformer(null);
+        } else if (PARQUET.equals(format)) {
+            return new MultiStructuredToParquetTransformer(null);
+        } else {
+            return new StructuredToTextTransformer(delimiter, null);
+        }
     }
 
     /**
@@ -121,7 +127,13 @@ public class RecordFilterOutputFormat extends OutputFormat<NullWritable, Structu
                     Object fieldVal = record.get(fieldName);
                     recordBuilder.set(fieldName, fieldVal);
                 }
-                delegate.write(new AvroKey<>(transformer.transform(recordBuilder.build())), key);
+                if (transformer instanceof MultiStructuredToAvroTransformer) {
+                    delegate.write(new AvroKey<>(transformer.transform(recordBuilder.build())), key);
+                } else if (transformer instanceof MultiStructuredToParquetTransformer){
+                    delegate.write(null, transformer.transform(recordBuilder.build()));
+                } else {
+                    delegate.write(key, transformer.transform(recordBuilder.build()));
+                }
             }
         }
 
