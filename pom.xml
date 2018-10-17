@@ -85,6 +85,10 @@
             <id>sonatype-snapshots</id>
             <url>https://oss.sonatype.org/content/repositories/snapshots</url>
         </repository>
+        <repository>
+            <id>twitter-twttr</id>
+            <url>http://maven.twttr.com</url>
+        </repository>
     </repositories>
 
     <pluginRepositories>
@@ -402,7 +406,17 @@
             <artifactId>hive-storage-api</artifactId>
             <version>2.7.0</version>
         </dependency>
-
+        <dependency>
+            <groupId>org.xerial.snappy</groupId>
+            <artifactId>snappy-java</artifactId>
+            <version>1.1.7.2</version>
+        </dependency>
+        <!-- also requires: sudo apt-get install lzop -->
+        <dependency>
+            <groupId>com.hadoop.gplcompression</groupId>
+            <artifactId>hadoop-lzo</artifactId>
+            <version>0.4.20</version>
+        </dependency>
     </dependencies>
 
     <build>

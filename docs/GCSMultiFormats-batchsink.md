@@ -1,4 +1,4 @@
-# Google Cloud Storage Avro File Sink
+# Google Cloud Storage Multi Formats File Sink
 
 Description
 -----------

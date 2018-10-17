@@ -3,7 +3,7 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name": "Multi Google Cloud Storage Avro Sink",
+  "display-name": "Multi Formats Google Cloud Storage Sink",
   "configuration-groups": [
     {
       "label" : "Governance",
@@ -65,7 +65,9 @@
             "values": [
               "None",
               "Snappy",
-              "Deflate"
+              "Deflate",
+              "GZip",
+              "LZO"
             ],
             "default": "None"
           }
@@ -73,7 +75,7 @@
       ]
     },
     {
-      "label": "Multi Google Cloud Storage Avro Sink Configuration",
+      "label": "Multi Format Google Cloud Storage Sink Configuration",
       "properties": [
         {
           "widget-type": "textbox",

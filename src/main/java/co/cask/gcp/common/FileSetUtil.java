@@ -104,6 +104,7 @@ public final class FileSetUtil {
           conf.put(prefix + PARQUET_COMPRESSION, CODEC_GZIP.toUpperCase());
           break;
         case CODEC_LZO:
+          //requires: sudo apt-get install lzop
           conf.put(prefix + PARQUET_COMPRESSION, CODEC_LZO.toUpperCase());
           break;
         default:

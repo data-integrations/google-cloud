@@ -58,7 +58,7 @@
             {
                 "name": "Multi Google Cloud Storage Avro Sink",
                 "plugin": {
-                    "name": "GCSMultiAvro",
+                    "name": "GCSMultiFormat",
                     "type": "batchsink",
                     "label": "Multi Google Cloud Storage Avro Sink",
                     "artifact": {
