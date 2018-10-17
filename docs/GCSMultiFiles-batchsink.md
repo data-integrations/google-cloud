@@ -47,6 +47,8 @@ When running on other clusters, the file must be present on every node in the cl
 
 **Base Path:** The path to write to. For example, gs://<bucket>/path/to/directory
 
+**Prefix:** The GCS folder name prefix
+
 **Path Suffix:** The time format for the output directory that will be appended to the path.
 For example, the format 'yyyy-MM-dd-HH-mm' will result in a directory of the form '2015-01-01-20-42'.
 If not specified, nothing will be appended to the path."

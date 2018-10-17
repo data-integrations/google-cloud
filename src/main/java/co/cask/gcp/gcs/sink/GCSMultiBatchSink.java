@@ -45,6 +45,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * {@link GCSMultiBatchSink} that stores the data of the latest run of an adapter in S3.
@@ -81,17 +82,14 @@ public class GCSMultiBatchSink extends ReferenceSink<StructuredRecord, NullWrita
             if (!key.startsWith(TABLE_PREFIX)) {
                 continue;
             }
+            String name = key.substring(TABLE_PREFIX.length());
+
             String schema = argument.getValue();
-            String dbTableName = key.substring(TABLE_PREFIX.length());
-            //dbTableName is of the form db:table
-            String[] parts = dbTableName.split(":");
-            String db = parts[0];
-            String name = parts[1];
 
             Job job = JobUtils.createInstance();
             Configuration outputConfig = job.getConfiguration();
 
-            outputConfig.set(FileOutputFormat.OUTDIR, String.format("%s_%s_%s", config.getOutputDir(context.getLogicalStartTime()), db, name));
+            outputConfig.set(FileOutputFormat.OUTDIR, config.getOutputDir(context.getLogicalStartTime(),name));
             if (config.serviceFilePath != null) {
                 outputConfig.set("mapred.bq.auth.service.account.json.keyfile", config.serviceFilePath);
                 outputConfig.set("google.cloud.auth.service.account.json.keyfile", config.serviceFilePath);
@@ -156,6 +154,12 @@ public class GCSMultiBatchSink extends ReferenceSink<StructuredRecord, NullWrita
         @Macro
         protected String path;
 
+
+      @Description("The prefix for the folder in GCS")
+      @Nullable
+      @Macro
+      protected String prefix;
+
         @Description("The time format for the output directory that will be appended to the path. " +
                 "For example, the format 'yyyy-MM-dd-HH-mm' will result in a directory of the form '2015-01-01-20-42'. " +
                 "If not specified, nothing will be appended to the path.")
@@ -212,9 +216,9 @@ public class GCSMultiBatchSink extends ReferenceSink<StructuredRecord, NullWrita
             }
         }
 
-        protected String getOutputDir(long logicalStartTime) {
+        protected String getOutputDir(long logicalStartTime, String context) {
             String timeSuffix = !Strings.isNullOrEmpty(suffix) ? new SimpleDateFormat(suffix).format(logicalStartTime) : "";
-            return String.format("%s/%s", path, timeSuffix);
+            return String.format("%s/%s_%s_%s", path, prefix,timeSuffix,context);
         }
     }
 }

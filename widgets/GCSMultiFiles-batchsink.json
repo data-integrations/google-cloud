@@ -45,6 +45,11 @@
           "name": "path"
         },
         {
+          "widget-type": "prefix",
+          "label": "GCS Folder Name Prefix",
+          "name": "prefix"
+        },
+        {
           "widget-type": "textbox",
           "label": "Path Suffix",
           "name": "suffix",
