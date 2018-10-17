@@ -18,6 +18,7 @@ package co.cask.gcp.common;
 
 import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
+import co.cask.hydrator.common.RecordConverter;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapreduce.AvroKeyOutputFormat;
 import org.apache.hadoop.conf.Configuration;
@@ -58,7 +59,7 @@ public class RecordFilterOutputFormat extends OutputFormat<NullWritable, Structu
 
         return new FilterRecordWriter(getOutputFormat(format).getRecordWriter(context),
                 filterField, passthroughVal, getStructuredRecordTransformer(format, delimiter),
-                originalSchema);
+                originalSchema, format);
     }
 
     @Override
@@ -83,15 +84,15 @@ public class RecordFilterOutputFormat extends OutputFormat<NullWritable, Structu
         }
     }
 
-    private AbstractStructuredRecordTransformer getStructuredRecordTransformer(String format, String delimiter) {
+    private RecordConverter getStructuredRecordTransformer(String format, String delimiter) {
         if (AVRO.equals(format)) {
-            return new MultiStructuredToAvroTransformer(null);
+            return new StructuredToAvroTransformer(null);
         } else if (ORC.equals(format)) {
-            return new StructuredToOrcTransformer(null);
+            return new StructuredToOrcTransformer();
         } else if (PARQUET.equals(format)) {
-            return new MultiStructuredToParquetTransformer(null);
+            return new StructuredToAvroTransformer(null);
         } else {
-            return new StructuredToTextTransformer(delimiter, null);
+            return new StructuredToTextTransformer(delimiter);
         }
     }
 
@@ -102,16 +103,18 @@ public class RecordFilterOutputFormat extends OutputFormat<NullWritable, Structu
         private final String filterField;
         private final String passthroughValue;
         private final RecordWriter delegate;
-        private final AbstractStructuredRecordTransformer transformer;
+        private final RecordConverter transformer;
         private final Schema schema;
+        private String format;
 
         FilterRecordWriter(RecordWriter delegate, String filterField, String passthroughValue,
-                           AbstractStructuredRecordTransformer transformer, String originalSchema) throws IOException {
+                           RecordConverter transformer, String originalSchema, String format) throws IOException {
             this.filterField = filterField;
             this.passthroughValue = passthroughValue;
             this.delegate = delegate;
             this.transformer = transformer;
             this.schema = Schema.parseJson(originalSchema);
+            this.format = format;
         }
 
         @Override
@@ -127,12 +130,17 @@ public class RecordFilterOutputFormat extends OutputFormat<NullWritable, Structu
                     Object fieldVal = record.get(fieldName);
                     recordBuilder.set(fieldName, fieldVal);
                 }
-                if (transformer instanceof MultiStructuredToAvroTransformer) {
-                    delegate.write(new AvroKey<>(transformer.transform(recordBuilder.build())), key);
-                } else if (transformer instanceof MultiStructuredToParquetTransformer){
-                    delegate.write(null, transformer.transform(recordBuilder.build()));
+                StructuredRecord structuredRecord = recordBuilder.build();
+
+                if (AVRO.equals(format)) {
+                    delegate.write(new AvroKey<>(transformer.transform(structuredRecord,
+                            structuredRecord.getSchema())), key);
+                } else if (PARQUET.equals(format)) {
+                    delegate.write(null, transformer.transform(structuredRecord,
+                            structuredRecord.getSchema()));
                 } else {
-                    delegate.write(key, transformer.transform(recordBuilder.build()));
+                    delegate.write(key, transformer.transform(structuredRecord,
+                            structuredRecord.getSchema()));
                 }
             }
         }
