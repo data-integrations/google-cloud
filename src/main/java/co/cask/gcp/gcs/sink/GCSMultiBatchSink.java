@@ -50,7 +50,7 @@ import java.util.Map;
  * {@link GCSMultiBatchSink} that stores the data of the latest run of an adapter in S3.
  */
 @Plugin(type = BatchSink.PLUGIN_TYPE)
-@Name("GCSMultiFormats")
+@Name("GCSMultiFiles")
 @Description("Writes records to one or more avro files in a directory on Google Cloud Storage.")
 public class GCSMultiBatchSink extends ReferenceSink<StructuredRecord, NullWritable, StructuredRecord> {
     private static final String TABLE_PREFIX = "multisink.";

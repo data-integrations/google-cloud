@@ -1,4 +1,4 @@
-# Google Cloud Storage Multi Formats File Sink
+# Google Cloud Storage Multi Files Sink
 
 Description
 -----------

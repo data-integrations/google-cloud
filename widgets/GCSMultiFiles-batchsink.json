@@ -3,7 +3,7 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name": "Multi Formats Google Cloud Storage Sink",
+  "display-name": "Multi Files Google Cloud Storage Sink",
   "configuration-groups": [
     {
       "label" : "Governance",
