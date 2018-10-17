@@ -19,7 +19,7 @@
 
   <groupId>co.cask</groupId>
   <artifactId>google-cloud</artifactId>
-  <version>0.11.0</version>
+  <version>0.11.1-SNAPSHOT</version>
   <name>Google Cloud Plugins</name>
   <packaging>jar</packaging>
   <description>Plugins for Google Big Query</description>
@@ -72,7 +72,7 @@
     <google.cloud.pubsub.version>1.36.0</google.cloud.pubsub.version>
     <orc.mapreduce.version>1.1.0</orc.mapreduce.version>
     <avro.mapred.version>1.7.7</avro.mapred.version>
-    <jackson.core.version>2.8.8</jackson.core.version>
+    <jackson.core.version>2.8.11.1</jackson.core.version>
   </properties>
 
   <repositories>
