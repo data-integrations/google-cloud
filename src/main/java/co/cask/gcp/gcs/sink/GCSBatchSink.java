@@ -113,6 +113,16 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     @Nullable
     private String schema;
 
+    public GCSBatchSinkConfig(String referenceName, String path, @Nullable String suffix, String format,
+                              @Nullable String delimiter, @Nullable String schema) {
+      this.referenceName = referenceName;
+      this.path = path;
+      this.suffix = suffix;
+      this.format = format;
+      this.delimiter = delimiter;
+      this.schema = schema;
+    }
+
     @Override
     public void validate() {
       super.validate();
@@ -127,11 +137,6 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
         getFormat();
       }
       getSchema();
-    }
-
-    @Override
-    public String getReferenceName() {
-      return referenceName;
     }
 
     @Override

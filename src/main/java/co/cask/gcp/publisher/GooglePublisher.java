@@ -101,12 +101,12 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, T
     }
 
     Schema inputSchema = context.getInputSchema();
-    LineageRecorder lineageRecorder = new LineageRecorder(context, config.referenceName);
+    LineageRecorder lineageRecorder = new LineageRecorder(context, config.getReferenceName());
     lineageRecorder.createExternalDataset(inputSchema);
 
     Configuration configuration = new Configuration();
     PubSubOutputFormat.configure(configuration, config);
-    context.addOutput(Output.of(config.referenceName,
+    context.addOutput(Output.of(config.getReferenceName(),
                                 new SinkOutputFormatProvider(PubSubOutputFormat.class, configuration)));
 
     // record field level lineage information
@@ -129,38 +129,51 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, T
   public static class Config extends GCPReferenceSinkConfig {
     @Description("Cloud Pub/Sub topic to publish records to")
     @Macro
-    public String topic;
+    private String topic;
 
     // batching options
     @Description("Maximum count of messages in a batch. The default value is 100.")
     @Macro
     @Nullable
-    public Long messageCountBatchSize;
+    private Long messageCountBatchSize;
 
     @Description("Maximum size of a batch in kilo bytes. The default value is 1KB.")
     @Macro
     @Nullable
-    public Long requestThresholdKB;
+    private Long requestThresholdKB;
 
     @Description("Maximum delay in milli-seconds for publishing the batched messages. The default value is 1 ms.")
     @Macro
     @Nullable
-    public Long publishDelayThresholdMillis;
+    private Long publishDelayThresholdMillis;
 
     @Description("Maximum number of message publishing failures to tolerate per partition " +
       "before the pipeline will be failed. The default value is 0.")
     @Macro
     @Nullable
-    public Long errorThreshold;
+    private Long errorThreshold;
 
     @Description("Maximum amount of time in seconds to spend retrying publishing failures. " +
       "The default value is 30 seconds.")
     @Macro
     @Nullable
-    public Integer retryTimeoutSeconds;
+    private Integer retryTimeoutSeconds;
 
+
+    public Config(String referenceName, String topic, @Nullable Long messageCountBatchSize,
+                  @Nullable Long requestThresholdKB, @Nullable Long publishDelayThresholdMillis,
+                  @Nullable Long errorThreshold, @Nullable Integer retryTimeoutSeconds) {
+      this.referenceName = referenceName;
+      this.topic = topic;
+      this.messageCountBatchSize = messageCountBatchSize;
+      this.requestThresholdKB = requestThresholdKB;
+      this.publishDelayThresholdMillis = publishDelayThresholdMillis;
+      this.errorThreshold = errorThreshold;
+      this.retryTimeoutSeconds = retryTimeoutSeconds;
+    }
 
     public void validate() {
+      super.validate();
       if (!containsMacro("messageCountBatchSize") && messageCountBatchSize != null && messageCountBatchSize < 1) {
         throw new IllegalArgumentException("Maximum count of messages in a batch should be positive for Pub/Sub");
       }
@@ -198,6 +211,15 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, T
 
     public int getRetryTimeoutSeconds() {
       return retryTimeoutSeconds == null ? 30 : retryTimeoutSeconds;
+    }
+
+    public String getTopic() {
+      return topic;
+    }
+
+    @Nullable
+    public Long getRequestThresholdKB() {
+      return requestThresholdKB;
     }
   }
 }

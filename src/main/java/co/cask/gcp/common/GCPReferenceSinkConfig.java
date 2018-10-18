@@ -28,12 +28,16 @@ public class GCPReferenceSinkConfig extends GCPConfig {
   @Name("referenceName")
   @Description("This will be used to uniquely identify this sink for lineage, annotating metadata, etc.")
   @Macro
-  public String referenceName;
+  protected String referenceName;
 
   /**
    * Validates the given referenceName to consists of characters allowed to represent a dataset.
    */
   public void validate() {
     IdUtils.validateId(referenceName);
+  }
+
+  public String getReferenceName() {
+    return referenceName;
   }
 }
