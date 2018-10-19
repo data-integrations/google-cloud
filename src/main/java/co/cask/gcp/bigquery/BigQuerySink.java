@@ -89,12 +89,13 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
 
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
+    config.validate(pipelineConfigurer.getStageConfigurer().getInputSchema());
     super.configurePipeline(pipelineConfigurer);
-    config.validate();
   }
 
   @Override
   public void prepareRun(BatchSinkContext context) throws Exception {
+    config.validate(context.getInputSchema());
     BigQuery bigquery = BigQueryUtils.getBigQuery(config.getServiceAccountFilePath(), config.getProject());
     // create dataset if it does not exist
     if (bigquery.getDataset(config.getDataset()) == null) {
@@ -105,6 +106,7 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
       }
     }
 
+    // schema validation against bigquery table schema
     validateSchema();
 
     uuid = UUID.randomUUID();
@@ -155,10 +157,12 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
 
   @Override
   public void transform(StructuredRecord input, Emitter<KeyValue<JsonObject, NullWritable>> emitter) throws Exception {
-    List<Schema.Field> fields = config.getSchema().getFields();
     JsonObject object = new JsonObject();
-    for (Schema.Field field : fields) {
-      decodeSimpleTypes(object, field.getName(), input);
+    for (Schema.Field recordField : input.getSchema().getFields()) {
+      // From all the fields in input record, decode only those fields that are present in output schema
+      if (schema.getField(recordField.getName()) != null) {
+        decodeSimpleTypes(object, recordField.getName(), input);
+      }
     }
     emitter.emit(new KeyValue<>(object, NullWritable.get()));
   }
@@ -339,20 +343,8 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
 
     // Match output schema field type with bigquery column type
     for (Schema.Field field : config.getSchema().getFields()) {
-      validateSimpleTypes(field);
       BigQueryUtils.validateFieldSchemaMatches(bqFields.get(field.getName()),
                                                field, config.getDataset(), config.getTable());
-    }
-  }
-
-  private void validateSimpleTypes(Schema.Field field) {
-    String name = field.getName();
-    Schema fieldSchema = BigQueryUtils.getNonNullableSchema(field.getSchema());
-    Schema.Type type = fieldSchema.getType();
-
-    // Complex types like arrays, maps and unions are not supported in BigQuery plugins.
-    if (!type.isSimpleType()) {
-      throw new IllegalArgumentException(String.format("Field '%s' is of unsupported type '%s'.", name, type));
     }
   }
 }

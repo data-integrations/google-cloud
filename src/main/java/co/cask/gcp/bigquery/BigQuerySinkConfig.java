@@ -88,4 +88,31 @@ public final class BigQuerySinkConfig extends GCPReferenceSinkConfig {
       throw new IllegalArgumentException("Invalid schema: " + e.getMessage());
     }
   }
+
+  /**
+   * Verifies if output schema only contains simple types. It also verifies if all the output schema fields are
+   * present in input schema.
+   *
+   * @param inputSchema input schema to bigquery sink
+   */
+  public void validate(@Nullable Schema inputSchema) {
+    super.validate();
+    if (!containsMacro("schema")) {
+      Schema outputSchema = getSchema();
+      for (Schema.Field field : outputSchema.getFields()) {
+        // check if the required fields are present in the input schema.
+        if (!field.getSchema().isNullable() && inputSchema != null && inputSchema.getField(field.getName()) == null) {
+          throw new IllegalArgumentException(String.format("Required output field '%s' is not present in input schema.",
+                                                           field.getName()));
+        }
+
+        Schema fieldSchema = BigQueryUtils.getNonNullableSchema(field.getSchema());
+
+        if (!fieldSchema.getType().isSimpleType()) {
+          throw new IllegalArgumentException(String.format("Field '%s' is of unsupported type '%s'.",
+                                                           field.getName(), fieldSchema.getType()));
+        }
+      }
+    }
+  }
 }
