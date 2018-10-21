@@ -1,11 +1,15 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Join CDAP community](https://cdap-users.herokuapp.com/badge.svg?t=wrangler)](https://cdap-users.herokuapp.com?t=1)
 
-# GCP Specific plugins 
+# Overview
 
-  * BigQuery Source/Sink 
-  * GCS Source/Sink 
-  * PubSub Source/Sink 
+Following plugins are available in this repository. 
+
+  * Cloud BigQuery Source & Sink 
+  * Google Cloud Storage Source, Sink, Create & Delete Actions 
+  * Cloud Pub/Sub Source & Sink
+  * Cloud Spanner Source & Sink
+  * Cloud Speech API
 
 # Contact
 
