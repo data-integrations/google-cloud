@@ -18,7 +18,6 @@ package co.cask.gcp.bigquery;
 
 import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Macro;
-import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.gcp.common.GCPConfig;
 import co.cask.gcp.common.GCPReferenceSourceConfig;

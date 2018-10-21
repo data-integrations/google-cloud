@@ -14,7 +14,7 @@
  * the License.
  */
 
-package co.cask.gcp.publisher;
+package co.cask.gcp.pubsub;
 
 import co.cask.gcp.common.GCPUtils;
 import com.google.api.core.ApiFuture;
@@ -181,7 +181,7 @@ public class PubSubOutputFormat extends OutputFormat<NullWritable, Text> {
           publisher.shutdown();
         } catch (Exception e) {
           // if there is an exception while shutting down, we only log
-          LOG.debug("Exception while shutting down publisher ", e);
+          LOG.debug("Exception while shutting down pubsub ", e);
         }
       }
     }
