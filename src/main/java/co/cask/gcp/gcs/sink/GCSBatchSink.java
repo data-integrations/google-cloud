@@ -70,6 +70,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     String projectId = config.getProject();
     properties.put("fs.gs.project.id", projectId);
     properties.put("fs.gs.system.bucket", GCSConfigHelper.getBucket(config.path));
+    properties.put("fs.gs.working.dir", GCSConfigHelper.ROOT_DIR);
     properties.put("fs.gs.impl.disable.cache", "true");
     return properties;
   }
