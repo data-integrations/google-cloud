@@ -23,6 +23,7 @@ import java.net.URISyntaxException;
  */
 public final class GCSConfigHelper {
 
+  public static final String ROOT_DIR = "/";
   private static final String FILE_SYSTEM_PATH_PREFIX = "gs://";
 
   /**
