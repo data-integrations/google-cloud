@@ -1,5 +1,5 @@
 /*
- * Copyright © 2018 Cask Data, Inc.
+ * Copyright 2018 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -24,17 +24,28 @@ import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.action.Action;
 import co.cask.cdap.etl.api.action.ActionContext;
 import co.cask.gcp.common.GCPConfig;
+import co.cask.gcp.common.GCPUtils;
+import com.google.cloud.RetryOption;
+import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryOptions;
+import com.google.cloud.bigquery.Job;
 import com.google.cloud.bigquery.JobId;
 import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.TableId;
+import com.google.cloud.bigquery.TableResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.threeten.bp.Duration;
 
 import javax.annotation.Nullable;
 
 /**
- * This class <code>BigQueryExecute</code> executes a Cloud BigQuery SQL query.
+ * This class <code>BigQueryExecute</code> executes a single Cloud BigQuery SQL.
+ *
+ * The plugin provides the ability different options like choosing interactive or batch execution
+ * of sql query, setting of resulting dataset and table, enabling/disbaling cache, specifying whether
+ * the query being executed is legacy or standard and reattempt strategy.
  */
 @Plugin(type = Action.PLUGIN_TYPE)
 @Name(BigQueryExecute.NAME)
@@ -42,11 +53,15 @@ import javax.annotation.Nullable;
 public final class BigQueryExecute extends Action {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryExecute.class);
   public static final String NAME = "BigQueryExecute";
+  private static final String RECORDS_OUT = "records.out";
+  private static final String MODE_BATCH = "batch";
+  private static final String CACHE_ENABLED = "enabled";
+  private static final String LEGACY_ENABLED = "legacy-enabled";
+
   private Config config;
 
   @Override
-  public void run(ActionContext actionContext) throws Exception {
-    LOG.info("Query %s", config.sql);
+  public void run(ActionContext context) throws Exception {
     // Check if a SQL has been specified, if the SQL has not been specified,
     // then there is nothing for this class to do.
     if (config.sql == null || config.sql.isEmpty()) {
@@ -58,31 +73,67 @@ public final class BigQueryExecute extends Action {
     QueryJobConfiguration.Builder builder = QueryJobConfiguration.newBuilder(config.sql);
 
     // Run at batch priority, which won't count toward concurrent rate limit.
-    if (config.mode.equalsIgnoreCase("batch")) {
+    if (config.mode.equalsIgnoreCase(MODE_BATCH)) {
       builder.setPriority(QueryJobConfiguration.Priority.BATCH);
+    } else {
+      builder.setPriority(QueryJobConfiguration.Priority.INTERACTIVE);
     }
 
     // Save the results of the query to a permanent table.
     if (config.dataset != null && config.table != null
       && !config.dataset.isEmpty() && !config.table.isEmpty()) {
       builder.setDestinationTable(TableId.of(config.dataset, config.table));
+      context.getArguments().set(context.getStageName() + ".dataset", config.dataset);
+      context.getArguments().set(context.getStageName() + ".table", config.dataset);
     }
 
-    // Disable the query cache to force live query evaluation.
-    if (config.cache != null && config.cache.equalsIgnoreCase("true")) {
+    // Enable or Disable the query cache to force live query evaluation.
+    if (config.cache.equalsIgnoreCase(CACHE_ENABLED)) {
       builder.setUseQueryCache(true);
+    }
+
+    // Enable legacy SQL
+    if (config.legacy.equalsIgnoreCase(LEGACY_ENABLED)) {
+      builder.setUseLegacySql(true);
     } else {
-      builder.setUseQueryCache(false);
+      builder.setUseLegacySql(false);
     }
 
     QueryJobConfiguration queryConfig = builder.build();
 
     // Location must match that of the dataset(s) referenced in the query.
     JobId jobId = JobId.newBuilder().setRandomJob().setLocation("US").build();
-    String jobIdString = jobId.getJob();
 
     // API request - starts the query.
-    bigquery.create(JobInfo.newBuilder(queryConfig).setJobId(jobId).build());
+    BigQueryOptions.Builder bqBuilder = GCPUtils.getBigQuery(config.getProject(), config.getServiceAccountFilePath());
+    BigQuery bigquery = bqBuilder.build().getService();
+    Job queryJob = bigquery.create(
+      JobInfo.newBuilder(queryConfig)
+        .setJobId(jobId).build()
+    );
+
+    LOG.info("Executing query %s, Job id %s.", config.sql, jobId.getJob());
+
+    // Wait for the query to complete
+    RetryOption retryOption = RetryOption.totalTimeout(Duration.ofMinutes(10));
+    queryJob.waitFor(retryOption);
+
+    // Check for errors
+    if (queryJob == null) {
+      throw new RuntimeException("Job " + jobId.getJob() + " no longer exists");
+    } else if (queryJob.getStatus().getError() != null) {
+      // You can also look at queryJob.getStatus().getExecutionErrors() for all
+      // errors, not just the latest one.
+      throw new RuntimeException(queryJob.getStatus().getExecutionErrors().toString());
+    }
+
+    TableResult queryResults = queryJob.getQueryResults();
+    long rows = queryResults.getTotalRows();
+
+    context.getMetrics().gauge(RECORDS_OUT, rows);
+    context.getArguments().set(context.getStageName() + ".query", config.sql);
+    context.getArguments().set(context.getStageName() + ".jobid", jobId.getJob());
+    context.getArguments().set(RECORDS_OUT, String.valueOf(rows));
   }
 
   @Override
@@ -100,12 +151,17 @@ public final class BigQueryExecute extends Action {
    * Config for the plugin.
    */
   public final class Config extends GCPConfig {
+    @Name("legacy")
+    @Description("Use Legacy SQL")
+    @Macro
+    public String legacy;
+
     @Name("sql")
     @Description("SQL query to execuute.")
     @Macro
     public String sql;
 
-    @Name("model")
+    @Name("mode")
     @Description("Batch or Interactive.")
     @Macro
     public String mode;
@@ -113,7 +169,7 @@ public final class BigQueryExecute extends Action {
     @Name("cache")
     @Description("Use Cache")
     @Macro
-    public Boolean cache;
+    public String cache;
 
     @Name("dataset")
     @Description("Permanent Dataset.")

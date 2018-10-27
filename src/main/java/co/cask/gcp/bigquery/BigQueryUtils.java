@@ -17,6 +17,7 @@
 package co.cask.gcp.bigquery;
 
 import co.cask.cdap.api.data.schema.Schema;
+import co.cask.gcp.common.GCPUtils;
 import co.cask.gcp.gcs.GCSConfigHelper;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryOptions;
@@ -37,8 +38,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
-
-import static co.cask.gcp.common.GCPUtils.loadServiceAccountCredentials;
 
 /**
  * Common Util class for big query plugins such as {@link BigQuerySource} and {@link BigQuerySink}
@@ -132,7 +131,7 @@ final class BigQueryUtils {
   static BigQuery getBigQuery(@Nullable String serviceAccountFilePath, String project) throws IOException {
     BigQueryOptions.Builder bigqueryBuilder = BigQueryOptions.newBuilder();
     if (serviceAccountFilePath != null) {
-      bigqueryBuilder.setCredentials(loadServiceAccountCredentials(serviceAccountFilePath));
+      bigqueryBuilder.setCredentials(GCPUtils.loadCredentials(serviceAccountFilePath));
     }
 
     bigqueryBuilder.setProjectId(project);

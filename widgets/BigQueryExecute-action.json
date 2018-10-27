@@ -1,0 +1,121 @@
+{
+  "metadata": {
+    "spec-version": "1.5"
+  },
+  "display-name" : "Google BigQuery Execute",
+  "configuration-groups": [
+    {
+      "label" : "Project",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Project ID",
+          "name": "project",
+          "widget-attributes" : {
+            "placeholder": "auto detect"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "placeholder": "auto detect"
+          }
+        }
+      ]
+    },
+    {
+      "label": "Query Execution",
+      "properties": [
+        {
+          "name": "legacy",
+          "label" : "Legacy",
+          "widget-type": "radio-group",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "non-legacy-sql",
+            "options": [
+              {
+                "id": "legacy-sql",
+                "label": "Legacy SQL"
+              },
+              {
+                "id": "non-legacy-sql",
+                "label": "Non Legacy SQL"
+              }
+            ]
+          }
+        },
+        {
+          "widget-type": "textarea",
+          "label": "SQL",
+          "name": "sql",
+          "widget-attributes" : {
+            "placeholder": "Specifies the query to be executed."
+          }
+        }
+      ]
+    },
+    {
+      "label" : "Execution Options",
+      "properties" : [
+        {
+          "name": "mode",
+          "label" : "Mode",
+          "widget-type": "radio-group",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "batch",
+            "options": [
+              {
+                "id": "batch",
+                "label": "Batch"
+              },
+              {
+                "id": "interactive",
+                "label": "Interactive"
+              }
+            ]
+          }
+        },
+        {
+          "name": "cache",
+          "label" : "Cache",
+          "widget-type": "radio-group",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "disabled",
+            "options": [
+              {
+                "id": "enabled",
+                "label": "Enabled"
+              },
+              {
+                "id": "disabled",
+                "label": "Disabled"
+              }
+            ]
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Dataset Name",
+          "name": "dataset",
+          "widget-attributes" : {
+            "placeholder": "Name of dataset to store the results."
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Table Name",
+          "name": "table",
+          "widget-attributes" : {
+            "placeholder": "Name of table to store the results."
+          }
+        }
+      ]
+    }
+  ],
+  "outputs": []
+}

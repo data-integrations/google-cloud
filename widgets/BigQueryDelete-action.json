@@ -1,0 +1,70 @@
+{
+  "metadata": {
+    "spec-version": "1.5"
+  },
+  "display-name" : "Google BigQuery Delete",
+  "configuration-groups": [
+    {
+      "label" : "Project",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Project ID",
+          "name": "project",
+          "widget-attributes" : {
+            "placeholder": "auto detect"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "placeholder": "auto detect"
+          }
+        }
+      ]
+    },
+    {
+      "label": "Query Execution",
+      "properties": [
+        {
+          "name": "type",
+          "label" : "Delete",
+          "widget-type": "radio-group",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "table",
+            "options": [
+              {
+                "id": "table",
+                "label": "Table"
+              },
+              {
+                "id": "database",
+                "label": "Database"
+              }
+            ]
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Dataset Name",
+          "name": "dataset",
+          "widget-attributes" : {
+            "placeholder": "Name of Dataset"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Table Name",
+          "name": "table",
+          "widget-attributes" : {
+            "placeholder": "Name of Table"
+          }
+        }
+      ]
+    }
+  ],
+  "outputs": []
+}
