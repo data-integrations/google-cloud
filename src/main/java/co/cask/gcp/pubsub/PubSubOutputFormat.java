@@ -91,7 +91,7 @@ public class PubSubOutputFormat extends OutputFormat<NullWritable, Text> {
       .setRetrySettings(getRetrySettings(retryTimeout));
 
     if (serviceAccountFilePath != null) {
-      publisher.setCredentialsProvider(() -> GCPUtils.loadServiceAccountCredentials(serviceAccountFilePath));
+      publisher.setCredentialsProvider(() -> GCPUtils.loadCredentials(serviceAccountFilePath));
     }
 
     return new PubSubRecordWriter(publisher.build(), errorThreshold);

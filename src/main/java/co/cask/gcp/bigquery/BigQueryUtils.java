@@ -38,7 +38,7 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 
-import static co.cask.gcp.common.GCPUtils.loadServiceAccountCredentials;
+import static co.cask.gcp.common.GCPUtils.loadCredentials;
 
 /**
  * Common Util class for big query plugins such as {@link BigQuerySource} and {@link BigQuerySink}
@@ -132,7 +132,7 @@ final class BigQueryUtils {
   static BigQuery getBigQuery(@Nullable String serviceAccountFilePath, String project) throws IOException {
     BigQueryOptions.Builder bigqueryBuilder = BigQueryOptions.newBuilder();
     if (serviceAccountFilePath != null) {
-      bigqueryBuilder.setCredentials(loadServiceAccountCredentials(serviceAccountFilePath));
+      bigqueryBuilder.setCredentials(loadCredentials(serviceAccountFilePath));
     }
 
     bigqueryBuilder.setProjectId(project);

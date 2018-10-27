@@ -43,7 +43,7 @@ public class SpannerUtil {
   public static Spanner getSpannerService(String serviceAccountFilePath, String projectId) throws IOException {
     SpannerOptions.Builder optionsBuilder = SpannerOptions.newBuilder();
     if (serviceAccountFilePath != null) {
-      optionsBuilder.setCredentials(GCPUtils.loadServiceAccountCredentials(serviceAccountFilePath));
+      optionsBuilder.setCredentials(GCPUtils.loadCredentials(serviceAccountFilePath));
     }
     optionsBuilder.setProjectId(projectId);
     return optionsBuilder.build().getService();

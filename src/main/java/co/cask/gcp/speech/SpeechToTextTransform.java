@@ -181,7 +181,7 @@ public class SpeechToTextTransform extends Transform<StructuredRecord, Structure
   private SpeechSettings getSettings() throws IOException {
     SpeechSettings.Builder builder = SpeechSettings.newBuilder();
     if (config.getServiceAccountFilePath() != null) {
-      builder.setCredentialsProvider(() -> GCPUtils.loadServiceAccountCredentials(config.getServiceAccountFilePath()));
+      builder.setCredentialsProvider(() -> GCPUtils.loadCredentials(config.getServiceAccountFilePath()));
     }
     return builder.build();
   }
