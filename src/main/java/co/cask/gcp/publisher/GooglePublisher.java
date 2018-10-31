@@ -22,17 +22,29 @@ import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.annotation.Plugin;
 import co.cask.cdap.api.data.batch.Output;
 import co.cask.cdap.api.data.format.StructuredRecord;
+import co.cask.cdap.api.data.schema.Schema;
 import co.cask.cdap.api.dataset.lib.KeyValue;
 import co.cask.cdap.etl.api.Emitter;
 import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchSink;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
 import co.cask.cdap.format.StructuredRecordStringConverter;
+import co.cask.gcp.common.GCPReferenceSinkConfig;
+import co.cask.gcp.common.GCPUtils;
+import co.cask.hydrator.common.LineageRecorder;
 import co.cask.hydrator.common.batch.sink.SinkOutputFormatProvider;
+import com.google.api.gax.rpc.AlreadyExistsException;
+import com.google.api.gax.rpc.ApiException;
+import com.google.api.gax.rpc.NotFoundException;
+import com.google.cloud.pubsub.v1.TopicAdminClient;
+import com.google.cloud.pubsub.v1.TopicAdminSettings;
+import com.google.pubsub.v1.ProjectTopicName;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
 
+import java.io.IOException;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 /**
@@ -59,12 +71,50 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, T
   }
 
   @Override
-  public void prepareRun(BatchSinkContext context) throws Exception {
+  public void prepareRun(BatchSinkContext context) throws IOException {
     config.validate();
+
+    TopicAdminSettings.Builder topicAdminSettings = TopicAdminSettings.newBuilder();
+    String serviceAccountPath = config.getServiceAccountFilePath();
+    if (serviceAccountPath != null) {
+      topicAdminSettings.setCredentialsProvider(() -> GCPUtils.loadServiceAccountCredentials(serviceAccountPath));
+    }
+    String projectId = config.getProject();
+    ProjectTopicName projectTopicName = ProjectTopicName.of(projectId, config.topic);
+
+    try (TopicAdminClient topicAdminClient = TopicAdminClient.create(topicAdminSettings.build())) {
+      try {
+        topicAdminClient.getTopic(projectTopicName);
+      } catch (NotFoundException e) {
+        try {
+          topicAdminClient.createTopic(projectTopicName);
+        } catch (AlreadyExistsException e1) {
+          // can happen if there is a race condition. Ignore this error since all that matters is the topic exists
+        } catch (ApiException e1) {
+          throw new IOException(
+            String.format("Could not auto-create topic '%s' in project '%s'. "
+                            + "Please ensure it is created before running the pipeline, "
+                            + "or ensure that the service account has permission to create the topic.",
+                          config.topic, projectId), e);
+        }
+      }
+    }
+
+    Schema inputSchema = context.getInputSchema();
+    LineageRecorder lineageRecorder = new LineageRecorder(context, config.getReferenceName());
+    lineageRecorder.createExternalDataset(inputSchema);
+
     Configuration configuration = new Configuration();
     PubSubOutputFormat.configure(configuration, config);
-    context.addOutput(Output.of(config.referenceName,
+    context.addOutput(Output.of(config.getReferenceName(),
                                 new SinkOutputFormatProvider(PubSubOutputFormat.class, configuration)));
+
+    // record field level lineage information
+    if (inputSchema != null && inputSchema.getFields() != null && !inputSchema.getFields().isEmpty()) {
+      lineageRecorder.recordWrite("Write", "Wrote to Google Cloud Pub/Sub.",
+                                  inputSchema.getFields().stream().map(Schema.Field::getName)
+                                    .collect(Collectors.toList()));
+    }
   }
 
   @Override
@@ -79,38 +129,51 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, T
   public static class Config extends GCPReferenceSinkConfig {
     @Description("Cloud Pub/Sub topic to publish records to")
     @Macro
-    public String topic;
+    private String topic;
 
     // batching options
     @Description("Maximum count of messages in a batch. The default value is 100.")
     @Macro
     @Nullable
-    public Long messageCountBatchSize;
+    private Long messageCountBatchSize;
 
     @Description("Maximum size of a batch in kilo bytes. The default value is 1KB.")
     @Macro
     @Nullable
-    public Long requestThresholdKB;
+    private Long requestThresholdKB;
 
     @Description("Maximum delay in milli-seconds for publishing the batched messages. The default value is 1 ms.")
     @Macro
     @Nullable
-    public Long publishDelayThresholdMillis;
+    private Long publishDelayThresholdMillis;
 
     @Description("Maximum number of message publishing failures to tolerate per partition " +
       "before the pipeline will be failed. The default value is 0.")
     @Macro
     @Nullable
-    public Long errorThreshold;
+    private Long errorThreshold;
 
     @Description("Maximum amount of time in seconds to spend retrying publishing failures. " +
       "The default value is 30 seconds.")
     @Macro
     @Nullable
-    public Integer retryTimeoutSeconds;
+    private Integer retryTimeoutSeconds;
 
+
+    public Config(String referenceName, String topic, @Nullable Long messageCountBatchSize,
+                  @Nullable Long requestThresholdKB, @Nullable Long publishDelayThresholdMillis,
+                  @Nullable Long errorThreshold, @Nullable Integer retryTimeoutSeconds) {
+      this.referenceName = referenceName;
+      this.topic = topic;
+      this.messageCountBatchSize = messageCountBatchSize;
+      this.requestThresholdKB = requestThresholdKB;
+      this.publishDelayThresholdMillis = publishDelayThresholdMillis;
+      this.errorThreshold = errorThreshold;
+      this.retryTimeoutSeconds = retryTimeoutSeconds;
+    }
 
     public void validate() {
+      super.validate();
       if (!containsMacro("messageCountBatchSize") && messageCountBatchSize != null && messageCountBatchSize < 1) {
         throw new IllegalArgumentException("Maximum count of messages in a batch should be positive for Pub/Sub");
       }
@@ -148,6 +211,15 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, T
 
     public int getRetryTimeoutSeconds() {
       return retryTimeoutSeconds == null ? 30 : retryTimeoutSeconds;
+    }
+
+    public String getTopic() {
+      return topic;
+    }
+
+    @Nullable
+    public Long getRequestThresholdKB() {
+      return requestThresholdKB;
     }
   }
 }

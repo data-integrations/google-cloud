@@ -1,12 +1,13 @@
+
 {
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name": "Google Cloud Spanner",
+  "display-name": "Google Cloud Storage",
   "configuration-groups": [
     {
-      "label" : "Basic",
-      "properties" : [
+      "label": "Basic",
+      "properties": [
         {
           "widget-type": "textbox",
           "label": "Reference Name",
@@ -25,35 +26,42 @@
         },
         {
           "widget-type": "textbox",
-          "label": "Instance ID",
-          "name": "instance",
+          "label": "Path",
+          "name": "path",
           "widget-attributes" : {
-            "placeholder": "Instance ID"
+            "placeholder": "gs://<bucket>/path/to/output"
           }
         },
         {
           "widget-type": "textbox",
-          "label": "Database Name",
-          "name": "database",
-          "widget-attributes" : {
-            "placeholder": "Database name"
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Table Name",
-          "name": "table",
-          "widget-attributes" : {
-            "placeholder": "Table name"
-          }
-        },
-        {
-          "widget-type": "csv",
-          "label": "Primary Key",
-          "name": "keys",
+          "label": "Path Suffix",
+          "name": "suffix",
           "widget-attributes": {
-            "delimiter": ",",
-            "value-placeholder": "Field Name"
+            "default": "yyyy-MM-dd-HH-mm"
+          }
+        },
+        {
+          "widget-type": "select",
+          "label": "Format",
+          "name": "format",
+          "widget-attributes": {
+            "values": [
+              "avro",
+              "csv",
+              "delimited",
+              "json",
+              "parquet",
+              "tsv"
+            ],
+            "default": "json"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Delimiter",
+          "name": "delimiter",
+          "widget-attributes": {
+            "placeholder": "Delimiter if the format is 'delimited'"
           }
         }
       ]
@@ -70,19 +78,6 @@
           }
         }
       ]
-    },
-    {
-      "label" : "Advanced",
-      "properties" : [
-        {
-          "widget-type": "textbox",
-          "label": "Write Batch Size",
-          "name": "batchSize",
-          "widget-attributes" : {
-            "placeholder": "Maximum number of records to buffer in RecordWriter before writing to spanner table."
-          }
-        }
-      ]
     }
   ],
   "outputs": [
@@ -92,10 +87,12 @@
       "widget-attributes": {
         "schema-types": [
           "boolean",
+          "int",
           "long",
+          "float",
           "double",
-          "string",
-          "bytes"
+          "bytes",
+          "string"
         ],
         "schema-default-type": "string"
       }

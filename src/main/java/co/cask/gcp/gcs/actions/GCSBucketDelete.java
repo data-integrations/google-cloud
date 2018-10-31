@@ -23,7 +23,7 @@ import co.cask.cdap.api.annotation.Plugin;
 import co.cask.cdap.etl.api.action.Action;
 import co.cask.cdap.etl.api.action.ActionContext;
 import co.cask.gcp.common.GCPConfig;
-import co.cask.gcp.common.GCPUtils;
+import co.cask.gcp.gcs.GCSConfigHelper;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -32,12 +32,13 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 
 /**
- * This action plugin <code>GCSBucketDelete</code> provides a way to delete
- * directories within a given GCS bucket.
+ * This action plugin <code>GCSBucketDelete</code> provides a way to delete directories within a given GCS bucket.
  */
 @Plugin(type = Action.PLUGIN_TYPE)
 @Name(GCSBucketDelete.NAME)
@@ -50,26 +51,21 @@ public final class GCSBucketDelete extends Action {
   @Override
   public void run(ActionContext context) throws Exception {
     Configuration configuration = new Configuration();
-    if (config.serviceAccountFilePath != null) {
-      configuration.set("google.cloud.auth.service.account.json.keyfile", config.serviceAccountFilePath);
+    String serviceAccountFilePath = config.getServiceAccountFilePath();
+    if (serviceAccountFilePath != null) {
+      configuration.set("google.cloud.auth.service.account.json.keyfile", serviceAccountFilePath);
     }
     configuration.set("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
     configuration.set("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
     // validate project id availability
-    String projectId = GCPUtils.getProjectId(config.project);
+    String projectId = config.getProject();
     configuration.set("fs.gs.project.id", projectId);
 
-    configuration.set("fs.gs.system.bucket", config.bucket);
     configuration.setBoolean("fs.gs.impl.disable.cache", true);
 
-    String[] paths = config.paths.split(",");
     List<Path> gcsPaths = new ArrayList<>();
-    for (String path : paths) {
-      String gcsPath = String.format("gs://%s/%s", config.bucket, path);
-      if (path.startsWith("/")) {
-        gcsPath = String.format("gs://%s%s", config.bucket, path);
-      }
-      gcsPaths.add(new Path(gcsPath));
+    for (String path : config.getPaths()) {
+      gcsPaths.add(new Path(GCSConfigHelper.getPath(path)));
     }
 
     FileSystem fs;
@@ -98,15 +94,13 @@ public final class GCSBucketDelete extends Action {
    * Config for the plugin.
    */
   public final class Config extends GCPConfig {
-
-    @Name("bucket")
-    @Description("Name of the bucket.")
-    @Macro
-    public String bucket;
-
     @Name("paths")
-    @Description("List of objects to be deleted within a bucket")
+    @Description("Comma separated list of objects to be deleted.")
     @Macro
-    public String paths;
+    private String paths;
+
+    public List<String> getPaths() {
+      return Arrays.stream(paths.split(",")).map(String::trim).collect(Collectors.toList());
+    }
   }
 }

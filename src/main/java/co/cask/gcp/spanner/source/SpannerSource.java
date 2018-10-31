@@ -24,17 +24,14 @@ import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.cdap.api.data.schema.UnsupportedTypeException;
 import co.cask.cdap.api.dataset.lib.KeyValue;
-import co.cask.cdap.api.lineage.field.EndPoint;
 import co.cask.cdap.etl.api.Emitter;
 import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchRuntimeContext;
 import co.cask.cdap.etl.api.batch.BatchSource;
 import co.cask.cdap.etl.api.batch.BatchSourceContext;
-import co.cask.cdap.etl.api.lineage.field.FieldOperation;
-import co.cask.cdap.etl.api.lineage.field.FieldReadOperation;
-import co.cask.gcp.common.GCPUtils;
 import co.cask.gcp.spanner.SpannerConstants;
 import co.cask.gcp.spanner.common.SpannerUtil;
+import co.cask.hydrator.common.LineageRecorder;
 import co.cask.hydrator.common.SourceInputFormatProvider;
 import com.google.cloud.ByteArray;
 import com.google.cloud.Date;
@@ -66,7 +63,6 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -107,12 +103,12 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
   @Override
   public void prepareRun(BatchSourceContext batchSourceContext) throws Exception {
     config.validate();
-    String projectId = GCPUtils.getProjectId(config.project);
+    String projectId = config.getProject();
     Configuration configuration = new Configuration();
     initializeConfig(configuration, projectId);
 
     // initialize spanner
-    spanner = SpannerUtil.getSpannerService(config.serviceFilePath, projectId);
+    spanner = SpannerUtil.getSpannerService(config.getServiceAccountFilePath(), projectId);
     BatchClient batchClient =
       spanner.getBatchClient(DatabaseId.of(projectId, config.instance, config.database));
     Timestamp logicalStartTimeMicros =
@@ -134,17 +130,17 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
     configuration.set(SpannerConstants.SPANNER_BATCH_TRANSACTION_ID, getSerializedObjectString(batchTransactionId));
     configuration.set(SpannerConstants.PARTITIONS_LIST, getSerializedObjectString(partitions));
 
+    LineageRecorder lineageRecorder = new LineageRecorder(batchSourceContext, config.referenceName);
+    lineageRecorder.createExternalDataset(config.getSchema());
+
     // set input format and pass configuration
     batchSourceContext.setInput(Input.of(config.referenceName,
                                          new SourceInputFormatProvider(SpannerInputFormat.class, configuration)));
     if (config.getSchema() != null) {
       if (config.getSchema().getFields() != null) {
-        FieldOperation operation =
-          new FieldReadOperation("Read", "Read from Spanner table",
-                                 EndPoint.of(batchSourceContext.getNamespace(), config.referenceName),
-                                 config.getSchema().getFields().stream().map(Schema.Field::getName)
-                                   .collect(Collectors.toList()));
-        batchSourceContext.record(Collections.singletonList(operation));
+        lineageRecorder.recordRead("Read", "Read from Spanner table.",
+                                   config.getSchema().getFields().stream().map(Schema.Field::getName)
+                                     .collect(Collectors.toList()));
       }
     }
   }
@@ -213,7 +209,7 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
 
   private void initializeConfig(Configuration configuration, String projectId) {
     setIfValueNotNull(configuration, SpannerConstants.PROJECT_ID, projectId);
-    setIfValueNotNull(configuration, SpannerConstants.SERVICE_ACCOUNT_FILE_PATH, config.serviceFilePath);
+    setIfValueNotNull(configuration, SpannerConstants.SERVICE_ACCOUNT_FILE_PATH, config.getServiceAccountFilePath());
     setIfValueNotNull(configuration, SpannerConstants.INSTANCE_ID, config.instance);
     setIfValueNotNull(configuration, SpannerConstants.DATABASE, config.database);
     setIfValueNotNull(configuration, SpannerConstants.QUERY, String.format("Select * from %s;", config.table));
@@ -257,8 +253,8 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
    */
   @Path("getSchema")
   public Schema getSchema(SpannerSourceConfig request) throws Exception {
-    String projectId = GCPUtils.getProjectId(request.project);
-    Spanner spanner = SpannerUtil.getSpannerService(request.serviceFilePath, projectId);
+    String projectId = request.getProject();
+    Spanner spanner = SpannerUtil.getSpannerService(request.getServiceAccountFilePath(), projectId);
     DatabaseClient databaseClient =
       spanner.getDatabaseClient(DatabaseId.of(projectId, request.instance, request.database));
     Statement getTableSchemaStatement = SCHEMA_STATEMENT_BUILDER.bind(TABLE_NAME).to(request.table).build();

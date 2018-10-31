@@ -2,43 +2,33 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name": "Google Cloud Spanner Source",
+  "display-name": "Google Cloud Spanner",
   "configuration-groups": [
     {
-      "label" : "Governance",
+      "label" : "Basic",
       "properties" : [
         {
           "widget-type": "textbox",
           "label": "Reference Name",
-          "name": "referenceName"
-        }
-      ]
-    },
-    {
-      "label" : "Service Account and Project",
-      "properties" : [
+          "name": "referenceName",
+          "widget-attributes" : {
+            "placeholder": "Name used to identify this source for lineage"
+          }
+        },
         {
           "widget-type": "textbox",
-          "label": "Project Id",
+          "label": "Project ID",
           "name": "project",
           "widget-attributes" : {
-            "placeholder": "GCP Project Id."
+            "default": "auto-detect"
           }
         },
         {
           "widget-type": "textbox",
-          "label": "Service Account File Path",
-          "name": "serviceFilePath",
-          "widget-attributes" : {
-            "placeholder": "Path to service account file (Local to host running on)."
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Instance Id",
+          "label": "Instance ID",
           "name": "instance",
           "widget-attributes" : {
-            "placeholder": "Cloud Spanner Instance Id."
+            "placeholder": "Instance ID"
           }
         },
         {
@@ -46,20 +36,15 @@
           "label": "Database Name",
           "name": "database",
           "widget-attributes" : {
-            "placeholder": "Cloud Spanner database name."
+            "placeholder": "Database name"
           }
-        }
-      ]
-    },
-    {
-      "label" : "Table Name and Properties",
-      "properties" : [
+        },
         {
           "widget-type": "textbox",
           "label": "Table Name",
           "name": "table",
           "widget-attributes" : {
-            "placeholder": "Cloud Spanner table name."
+            "placeholder": "Table name"
           },
           "plugin-function": {
             "method": "POST",
@@ -67,7 +52,25 @@
             "output-property": "schema",
             "plugin-method": "getSchema"
           }
-        },
+        }
+      ]
+    },
+    {
+      "label": "Credentials",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        }
+      ]
+    },
+    {
+      "label": "Advanced",
+      "properties": [
         {
           "widget-type": "textbox",
           "label": "Max Partitions",
@@ -102,5 +105,12 @@
         "schema-default-type": "string"
       }
     }
-  ]
+  ],
+  "jump-config": {
+    "datasets": [
+      {
+        "ref-property-name": "referenceName"
+      }
+    ]
+  }
 }
