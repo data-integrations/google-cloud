@@ -14,7 +14,7 @@
  * the License.
  */
 
-package co.cask.gcp.common;
+package co.cask.gcp.bigquery;
 
 import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.format.UnexpectedFormatException;
@@ -29,14 +29,14 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 
 /**
- * Tests for {@link AvroToStructuredTransformer}
+ * Tests for {@link BigQueryAvroToStructuredTransformer}
  */
 public class AvroToStructuredRecordTest {
 
   @Test(expected = UnexpectedFormatException.class)
   public void testAvroToStructuredRecordUnsupportedType() throws Exception {
 
-    AvroToStructuredTransformer avroToStructuredTransformer = new AvroToStructuredTransformer();
+    BigQueryAvroToStructuredTransformer avroToStructuredTransformer = new BigQueryAvroToStructuredTransformer();
 
     Schema innerNestedSchema = Schema.recordOf("innerNested",
                                                Schema.Field.of("int", Schema.of(Schema.Type.INT)));
@@ -93,7 +93,7 @@ public class AvroToStructuredRecordTest {
       .set("timestamp", 1464181635000000L)
       .build();
 
-    AvroToStructuredTransformer transformer = new AvroToStructuredTransformer();
+    BigQueryAvroToStructuredTransformer transformer = new BigQueryAvroToStructuredTransformer();
     StructuredRecord actual = transformer.transform(record, schema);
 
     StructuredRecord expected = StructuredRecord.builder(schema)
@@ -136,7 +136,7 @@ public class AvroToStructuredRecordTest {
                                     Schema.Field.of("union",
                                                     Schema.unionOf(Schema.of(Schema.Type.STRING),
                                                                    Schema.of(Schema.Type.INT))));
-    AvroToStructuredTransformer transformer = new AvroToStructuredTransformer();
+    BigQueryAvroToStructuredTransformer transformer = new BigQueryAvroToStructuredTransformer();
     org.apache.avro.Schema avroSchema = convertSchema(schema);
     GenericRecord record = new GenericRecordBuilder(avroSchema)
       .set("id", 1L)

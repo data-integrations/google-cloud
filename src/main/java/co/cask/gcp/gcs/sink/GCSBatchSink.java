@@ -19,31 +19,32 @@ package co.cask.gcp.gcs.sink;
 import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.annotation.Name;
-import co.cask.cdap.api.data.batch.Output;
-import co.cask.cdap.api.data.format.StructuredRecord;
+import co.cask.cdap.api.annotation.Plugin;
+import co.cask.cdap.api.data.schema.Schema;
 import co.cask.cdap.etl.api.PipelineConfigurer;
+import co.cask.cdap.etl.api.batch.BatchSink;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
-import co.cask.gcp.common.GCPConfig;
-import co.cask.gcp.common.GCPUtils;
-import co.cask.gcp.common.ReferenceConfig;
-import co.cask.gcp.common.ReferenceSink;
-import co.cask.hydrator.common.batch.sink.SinkOutputFormatProvider;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Strings;
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import co.cask.gcp.common.GCPReferenceSinkConfig;
+import co.cask.gcp.gcs.GCSConfigHelper;
+import co.cask.hydrator.common.LineageRecorder;
+import co.cask.hydrator.format.FileFormat;
+import co.cask.hydrator.format.plugin.AbstractFileSink;
+import co.cask.hydrator.format.plugin.FileSinkProperties;
 
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 
 /**
- * {@link GCSBatchSink} that stores the data of the latest run of an adapter in S3.
- *
- * @param <KEY_OUT> the type of key the sink outputs
- * @param <VAL_OUT> the type of value the sink outputs
+ * Writes data to files on Google Cloud Storage.
  */
-public abstract class GCSBatchSink<KEY_OUT, VAL_OUT> extends ReferenceSink<StructuredRecord, KEY_OUT, VAL_OUT> {
+@Plugin(type = BatchSink.PLUGIN_TYPE)
+@Name("GCS")
+@Description("Writes records to one or more files in a directory on Google Cloud Storage.")
+public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConfig> {
   private final GCSBatchSinkConfig config;
 
   public GCSBatchSink(GCSBatchSinkConfig config) {
@@ -53,87 +54,118 @@ public abstract class GCSBatchSink<KEY_OUT, VAL_OUT> extends ReferenceSink<Struc
 
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
-    config.validate();
     super.configurePipeline(pipelineConfigurer);
+    config.validate();
   }
 
   @Override
-  public final void prepareRun(BatchSinkContext context) {
-    config.validate();
-    Map<String, String> outputConfig = new HashMap<>();
-    outputConfig.put(FileOutputFormat.OUTDIR, config.getOutputDir(context.getLogicalStartTime()));
-    if (config.serviceFilePath != null) {
-      outputConfig.put("mapred.bq.auth.service.account.json.keyfile", config.serviceFilePath);
-      outputConfig.put("google.cloud.auth.service.account.json.keyfile", config.serviceFilePath);
+  protected Map<String, String> getFileSystemProperties(BatchSinkContext context) {
+    Map<String, String> properties = new HashMap<>();
+    String serviceAccountFilePath = config.getServiceAccountFilePath();
+    if (serviceAccountFilePath != null) {
+      properties.put("google.cloud.auth.service.account.json.keyfile", serviceAccountFilePath);
     }
-    outputConfig.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
-    outputConfig.put("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
-    String projectId = GCPUtils.getProjectId(config.project);
-    outputConfig.put("fs.gs.project.id", projectId);
-    outputConfig.put("fs.gs.system.bucket", config.bucket);
-    outputConfig.put("fs.gs.impl.disable.cache", "true");
-    outputConfig.putAll(getOutputFormatConfig());
-
-    context.addOutput(Output.of(config.referenceName,
-                                new SinkOutputFormatProvider(getOutputFormatClassname(), outputConfig)));
+    properties.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
+    properties.put("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
+    String projectId = config.getProject();
+    properties.put("fs.gs.project.id", projectId);
+    properties.put("fs.gs.system.bucket", GCSConfigHelper.getBucket(config.path));
+    properties.put("fs.gs.working.dir", GCSConfigHelper.ROOT_DIR);
+    properties.put("fs.gs.impl.disable.cache", "true");
+    return properties;
   }
 
-  protected abstract String getOutputFormatClassname();
-
-  protected abstract Map<String, String> getOutputFormatConfig();
-
-  @VisibleForTesting
-  GCSBatchSinkConfig getConfig() {
-    return config;
+  @Override
+  protected void recordLineage(LineageRecorder lineageRecorder, List<String> outputFields) {
+    lineageRecorder.recordWrite("Write", "Wrote to Google Cloud Storage.", outputFields);
   }
 
   /**
    * Sink configuration.
    */
-  public static class GCSBatchSinkConfig extends ReferenceConfig {
+  @SuppressWarnings("unused")
+  public static class GCSBatchSinkConfig extends GCPReferenceSinkConfig implements FileSinkProperties {
     @Name("path")
     @Description("The path to write to. For example, gs://<bucket>/path/to/directory")
     @Macro
-    protected String path;
+    private String path;
 
     @Description("The time format for the output directory that will be appended to the path. " +
       "For example, the format 'yyyy-MM-dd-HH-mm' will result in a directory of the form '2015-01-01-20-42'. " +
       "If not specified, nothing will be appended to the path.")
     @Nullable
     @Macro
-    protected String suffix;
+    private String suffix;
 
-    @Description(GCPConfig.PROJECT_DESC)
+    @Description("The format to write in. The format must be one of 'json', 'avro', 'parquet', 'csv', 'tsv', "
+      + "or 'delimited'.")
+    @Macro
+    private String format;
+
+    @Description("The delimiter to use if the format is 'delimited'. The delimiter will be ignored if the format "
+      + "is anything other than 'delimited'.")
     @Macro
     @Nullable
-    protected String project;
+    private String delimiter;
 
-    @Description(GCPConfig.SERVICE_ACCOUNT_DESC)
+    @Description("The schema of the data to write. The 'avro' and 'parquet' formats require a schema but other "
+      + "formats do not.")
     @Macro
     @Nullable
-    protected String serviceFilePath;
+    private String schema;
 
-    @Description("Name of the bucket.")
-    @Macro
-    protected String bucket;
-
-    public GCSBatchSinkConfig() {
-      // Set default value for Nullable properties.
-      super("");
+    public GCSBatchSinkConfig(String referenceName, String path, @Nullable String suffix, String format,
+                              @Nullable String delimiter, @Nullable String schema) {
+      this.referenceName = referenceName;
+      this.path = path;
+      this.suffix = suffix;
+      this.format = format;
+      this.delimiter = delimiter;
+      this.schema = schema;
     }
 
+    @Override
     public void validate() {
-      if (path != null && !containsMacro("path") && !path.startsWith("gs://")) {
-        throw new IllegalArgumentException("Path must start with gs://.");
+      super.validate();
+      // validate that path is valid
+      if (!containsMacro("path")) {
+        GCSConfigHelper.getPath(path);
       }
       if (suffix != null && !containsMacro("suffix")) {
         new SimpleDateFormat(suffix);
       }
+      if (!containsMacro("format")) {
+        getFormat();
+      }
+      getSchema();
     }
 
-    protected String getOutputDir(long logicalStartTime) {
-      String timeSuffix = !Strings.isNullOrEmpty(suffix) ? new SimpleDateFormat(suffix).format(logicalStartTime) : "";
-      return String.format("%s/%s", path, timeSuffix);
+    @Override
+    public String getPath() {
+      return GCSConfigHelper.getPath(path).toString();
+    }
+
+    @Override
+    public FileFormat getFormat() {
+      return FileFormat.from(format, FileFormat::canWrite);
+    }
+
+    @Nullable
+    public Schema getSchema() {
+      if (containsMacro("schema") || schema == null) {
+        return null;
+      }
+      try {
+        return Schema.parseJson(schema);
+      } catch (IOException e) {
+        throw new IllegalArgumentException("Unable to parse schema: " + e.getMessage(), e);
+      }
+    }
+
+    @Nullable
+    @Override
+    public String getSuffix() {
+      return suffix;
     }
   }
 }

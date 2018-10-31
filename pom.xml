@@ -67,12 +67,12 @@
     <google.cloud.spanner.version>0.53.0-beta</google.cloud.spanner.version>
     <spark.version>1.6.1</spark.version>
     <google.cloud.speech.version>0.54.0-beta</google.cloud.speech.version>
-    <twitter.parquet.avro.version>1.6.0</twitter.parquet.avro.version>
+    <parquet.avro.version>1.8.1</parquet.avro.version>
     <google.protobuf.java.version>3.4.0</google.protobuf.java.version>
     <google.cloud.pubsub.version>1.36.0</google.cloud.pubsub.version>
     <orc.mapreduce.version>1.1.0</orc.mapreduce.version>
     <avro.mapred.version>1.7.7</avro.mapred.version>
-    <jackson.core.version>2.8.8</jackson.core.version>
+    <jackson.core.version>2.8.11.1</jackson.core.version>
   </properties>
 
   <repositories>
@@ -133,6 +133,11 @@
       <artifactId>cdap-etl-batch</artifactId>
       <version>${cdap.version}</version>
       <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>co.cask.hydrator</groupId>
+      <artifactId>format-common</artifactId>
+      <version>${hydrator.version}</version>
     </dependency>
     <dependency>
       <groupId>co.cask.hydrator</groupId>
@@ -261,9 +266,15 @@
       <version>${google.cloud.speech.version}</version>
     </dependency>
     <dependency>
-      <groupId>com.twitter</groupId>
+      <groupId>org.apache.parquet</groupId>
       <artifactId>parquet-avro</artifactId>
-      <version>${twitter.parquet.avro.version}</version>
+      <version>${parquet.avro.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.avro</groupId>
+          <artifactId>avro</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>com.google.protobuf</groupId>
@@ -396,134 +407,151 @@
         </exclusion>
       </exclusions>
     </dependency>
+    <!-- Start: dependency for Google PubSub Streaming Source -->
+    <dependency>
+      <groupId>org.apache.bahir</groupId>
+      <artifactId>spark-streaming-pubsub_2.11</artifactId>
+      <version>2.2.1</version>
+    </dependency>
+    <!-- End: dependency for Google PubSub Streaming Source -->
   </dependencies>
 
   <build>
-    <pluginManagement>
-      <plugins>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.1</version>
-          <configuration>
-            <source>1.8</source>
-            <target>1.8</target>
-          </configuration>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-surefire-plugin</artifactId>
-          <version>2.14.1</version>
-          <configuration>
-            <argLine>-Xmx512m</argLine>
-            <systemPropertyVariables>
-              <java.io.tmpdir>${project.build.directory}</java.io.tmpdir>
-            </systemPropertyVariables>
-            <includes>
-              <include>**/*TestSuite.java</include>
-              <include>**/Test*.java</include>
-              <include>**/*Test.java</include>
-              <include>**/*TestCase.java</include>
-            </includes>
-          </configuration>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.felix</groupId>
-          <artifactId>maven-bundle-plugin</artifactId>
-          <version>3.5.1</version>
-          <extensions>true</extensions>
-          <configuration>
-            <instructions>
-              <Embed-Dependency>*;inline=false;scope=compile</Embed-Dependency>
-              <Embed-Transitive>true</Embed-Transitive>
-              <Embed-Directory>lib</Embed-Directory>
-              <!--Only @Plugin classes in the export packages will be included as plugin-->
-              <_exportcontents>
-                co.cask.gcp.*;
-                com.google.cloud.hadoop.*;
-                org.apache.avro.mapred.*;
-                org.apache.avro.mapreduce;
-                parquet.avro.*;
-                parquet.hadoop.*;
-              </_exportcontents>
-            </instructions>
-          </configuration>
-          <executions>
-            <execution>
-              <phase>package</phase>
-              <goals>
-                <goal>bundle</goal>
-              </goals>
-            </execution>
-          </executions>
-        </plugin>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-antrun-plugin</artifactId>
-          <version>1.7</version>
-        </plugin>
-        <plugin>
-          <groupId>net.alchim31.maven</groupId>
-          <artifactId>scala-maven-plugin</artifactId>
-          <version>3.2.2</version>
-          <configuration>
-            <args>
-              <arg>-target:jvm-1.7</arg>
-            </args>
-          </configuration>
-          <executions>
-            <execution>
-              <id>scala-add-source</id>
-              <goals>
-                <goal>add-source</goal>
-              </goals>
-            </execution>
-            <execution>
-              <id>scala-compile</id>
-              <!-- Needs to be before the compile phase -->
-              <phase>process-resources</phase>
-              <goals>
-                <goal>compile</goal>
-              </goals>
-            </execution>
-            <execution>
-              <id>scala-test-compile</id>
-              <!-- Needs to be before the test-compile phase -->
-              <phase>process-test-resources</phase>
-              <goals>
-                <goal>testCompile</goal>
-              </goals>
-            </execution>
-          </executions>
-        </plugin>
-      </plugins>
-    </pluginManagement>
-
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <version>2.17</version>
+        <executions>
+          <execution>
+            <id>validate</id>
+            <phase>process-test-classes</phase>
+            <configuration>
+              <configLocation>checkstyle.xml</configLocation>
+              <suppressionsLocation>suppressions.xml</suppressionsLocation>
+              <encoding>UTF-8</encoding>
+              <consoleOutput>true</consoleOutput>
+              <failsOnError>true</failsOnError>
+              <includeTestSourceDirectory>true</includeTestSourceDirectory>
+            </configuration>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+        <dependencies>
+          <dependency>
+            <groupId>com.puppycrawl.tools</groupId>
+            <artifactId>checkstyle</artifactId>
+            <version>6.19</version>
+          </dependency>
+        </dependencies>
       </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.1</version>
+        <configuration>
+          <source>1.8</source>
+          <target>1.8</target>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>net.alchim31.maven</groupId>
+        <artifactId>scala-maven-plugin</artifactId>
+        <version>3.2.2</version>
+        <configuration>
+          <args>
+            <arg>-target:jvm-1.7</arg>
+          </args>
+        </configuration>
+        <executions>
+          <execution>
+            <id>scala-add-source</id>
+            <goals>
+              <goal>add-source</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>scala-compile</id>
+            <!-- Needs to be before the compile phase -->
+            <phase>process-resources</phase>
+            <goals>
+              <goal>compile</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>scala-test-compile</id>
+            <!-- Needs to be before the test-compile phase -->
+            <phase>process-test-resources</phase>
+            <goals>
+              <goal>testCompile</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
+        <version>2.14.1</version>
+        <configuration>
+          <argLine>-Xmx512m</argLine>
+          <systemPropertyVariables>
+            <java.io.tmpdir>${project.build.directory}</java.io.tmpdir>
+          </systemPropertyVariables>
+          <includes>
+            <include>**/*TestSuite.java</include>
+            <include>**/Test*.java</include>
+            <include>**/*Test.java</include>
+            <include>**/*TestCase.java</include>
+          </includes>
+        </configuration>
       </plugin>
+
       <plugin>
         <groupId>org.apache.felix</groupId>
         <artifactId>maven-bundle-plugin</artifactId>
+        <version>3.5.1</version>
+        <extensions>true</extensions>
+        <configuration>
+          <instructions>
+            <Embed-Dependency>*;inline=false;scope=compile</Embed-Dependency>
+            <Embed-Transitive>true</Embed-Transitive>
+            <Embed-Directory>lib</Embed-Directory>
+            <!--Only @Plugin classes in the export packages will be included as plugin-->
+            <_exportcontents>
+              co.cask.gcp.*;
+              co.cask.hydrator.format.*;
+              com.google.cloud.hadoop.*;
+              org.apache.avro.mapred.*;
+              org.apache.avro.mapreduce;
+              org.apache.parquet.avro.*;
+              org.apache.parquet.hadoop.*;
+              org.apache.spark.streaming.pubsub*;
+            </_exportcontents>
+          </instructions>
+        </configuration>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>bundle</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-antrun-plugin</artifactId>
-      </plugin>
+
       <plugin>
         <groupId>co.cask</groupId>
         <artifactId>cdap-maven-plugin</artifactId>
         <version>1.0.1</version>
         <configuration>
           <cdapArtifacts>
-            <parent>system:cdap-data-pipeline[4.2.0,6.0.0-SNAPSHOT)</parent>
-            <parent>system:cdap-data-streams[4.2.0,6.0.0-SNAPSHOT)</parent>
+            <parent>system:cdap-data-pipeline[5.0.0,6.0.0-SNAPSHOT)</parent>
+            <parent>system:cdap-data-streams[5.0.0,6.0.0-SNAPSHOT)</parent>
           </cdapArtifacts>
         </configuration>
         <executions>
@@ -535,10 +563,6 @@
             </goals>
           </execution>
         </executions>
-      </plugin>
-      <plugin>
-        <groupId>net.alchim31.maven</groupId>
-        <artifactId>scala-maven-plugin</artifactId>
       </plugin>
     </plugins>
   </build>

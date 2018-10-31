@@ -14,12 +14,12 @@
  * the License.
  */
 
-package co.cask.gcp.publisher;
+package co.cask.gcp.common;
 
 import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.annotation.Name;
-import co.cask.gcp.common.GCPConfig;
+import co.cask.hydrator.common.IdUtils;
 
 /**
  * Reference config extending GCPConfig for sinks.
@@ -28,5 +28,16 @@ public class GCPReferenceSinkConfig extends GCPConfig {
   @Name("referenceName")
   @Description("This will be used to uniquely identify this sink for lineage, annotating metadata, etc.")
   @Macro
-  public String referenceName;
+  protected String referenceName;
+
+  /**
+   * Validates the given referenceName to consists of characters allowed to represent a dataset.
+   */
+  public void validate() {
+    IdUtils.validateId(referenceName);
+  }
+
+  public String getReferenceName() {
+    return referenceName;
+  }
 }
