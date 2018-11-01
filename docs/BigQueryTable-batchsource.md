@@ -24,7 +24,13 @@ Properties
 **Reference Name:** Name used to uniquely identify this source for lineage, annotating metadata, etc.
 
 **Project ID**: Google Cloud Project ID, which uniquely identifies a project.
-It can be found on the Dashboard in the Google Cloud Platform Console.
+It can be found on the Dashboard in the Google Cloud Platform Console. This is the project
+that the BigQuery job will run in. If a temporary bucket needs to be created, the service account
+must have permission in this project to create buckets.
+
+**Dataset Project**: Project the dataset belongs to. This is only required if the dataset is not
+in the same project that the BigQuery job will run in. If no value is given,
+it will default to the configured Project ID.
 
 **Dataset**: Dataset the table belongs to. A dataset is contained within a specific project.
 Datasets are top-level containers that are used to organize and control access to tables and views.

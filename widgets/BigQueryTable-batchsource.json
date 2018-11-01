@@ -25,6 +25,14 @@
         },
         {
           "widget-type": "textbox",
+          "label": "Dataset Project ID",
+          "name": "datasetProject",
+          "widget-attributes" : {
+            "placeholder": "Project the dataset belongs to, if different from the Project ID."
+          }
+        },
+        {
+          "widget-type": "textbox",
           "label": "Dataset",
           "name": "dataset",
           "widget-attributes" : {
