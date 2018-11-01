@@ -1,8 +1,8 @@
-# Google Cloud PubSub Sink
+# Google Cloud PubSub Streaming Source
 
 Description
 -----------
-This sink writes to a Google Cloud Pub/Sub topic.
+This sources reads from a Google Cloud Pub/Sub subscription in realtime.
 Cloud Pub/Sub brings the scalability, flexibility, and reliability of enterprise message-oriented
 middleware to the cloud. By providing many-to-many, asynchronous messaging that decouples senders and receivers,
 it allows for secure and highly available communication between independently written applications.
@@ -26,22 +26,13 @@ Properties
 **Project ID**: Google Cloud Project ID, which uniquely identifies a project.
 It can be found on the Dashboard in the Google Cloud Platform Console.
 
-**Topic**: Name of the Google Cloud PubSub topic to publish to.
+**Subscription**: Name of the Google Cloud PubSub subscription to subscribe.
+If the subscription needs to be created then the topic to which the subscription will belong must be provided.
+
+**Topic**: Name of the Google Cloud PubSub topic to subscribe to. If a topic is provided and the given subscriber
+does not exists it will be created. If a subscriber does not exists and is created only the messages arrived after
+the creation of subscriber will be received.
 
 **Service Account File Path**: Path on the local file system of the service account key used for
 authorization. Can be set to 'auto-detect' when running on a Dataproc cluster.
 When running on other clusters, the file must be present on every node in the cluster.
-
-**Maximum Batch Count**: Maximum number of messages to publish in a single batch.
-Messages are published in batches to improve throughput. The default value is 100.
-
-**Maximum Batch Size**: Maximum combined size of messages in kilobytes to publish in a single batch.
-The default value is 1 KB.
-
-**Publish Delay Threshold**: Maximum amount of time in milliseconds to wait before publishing a batch of messages.
-The default value is 1 millisecond.
-
-**Retry Timeout**: Maximum amount of time in seconds to retry publishing failures. The default value is 30 seconds.
-
-**Error Threshold**: Maximum number of messages that failed to publish per partition before
-the pipeline will be failed. The default value is 0.

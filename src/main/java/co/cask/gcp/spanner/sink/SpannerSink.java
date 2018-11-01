@@ -23,23 +23,38 @@ import co.cask.cdap.api.data.batch.Output;
 import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.cdap.api.dataset.lib.KeyValue;
-import co.cask.cdap.api.lineage.field.EndPoint;
 import co.cask.cdap.etl.api.Emitter;
 import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchRuntimeContext;
+import co.cask.cdap.etl.api.batch.BatchSink;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
-import co.cask.cdap.etl.api.lineage.field.FieldOperation;
-import co.cask.cdap.etl.api.lineage.field.FieldWriteOperation;
+import co.cask.gcp.spanner.common.SpannerUtil;
+import co.cask.hydrator.common.LineageRecorder;
 import co.cask.hydrator.common.ReferenceBatchSink;
 import co.cask.hydrator.common.batch.sink.SinkOutputFormatProvider;
+import com.google.cloud.spanner.Database;
+import com.google.cloud.spanner.DatabaseAdminClient;
+import com.google.cloud.spanner.DatabaseClient;
+import com.google.cloud.spanner.DatabaseId;
+import com.google.cloud.spanner.ErrorCode;
+import com.google.cloud.spanner.Operation;
+import com.google.cloud.spanner.ResultSet;
+import com.google.cloud.spanner.Spanner;
+import com.google.cloud.spanner.SpannerException;
+import com.google.cloud.spanner.Statement;
+import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
+import com.google.spanner.admin.database.v1.UpdateDatabaseDdlMetadata;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
+import org.apache.parquet.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 
 /**
@@ -55,16 +70,13 @@ import java.util.stream.Collectors;
 @Description("Batch sink to write to Cloud Spanner. Cloud Spanner is a fully managed, mission-critical, " +
   "relational database service that offers transactional consistency at global scale, schemas, " +
   "SQL (ANSI 2011 with extensions), and automatic, synchronous replication for high availability.")
-public final class SpannerSink extends ReferenceBatchSink<StructuredRecord, NullWritable, StructuredRecord> {
+public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable, StructuredRecord> {
+  private static final Logger LOG = LoggerFactory.getLogger(SpannerSink.class);
   public static final String NAME = "Spanner";
+  private static final String TABLE_NAME = "tablename";
   private final SpannerSinkConfig config;
 
-  /**
-   * Initializes <code>SpannerSink</code>.
-   * @param config
-   */
   public SpannerSink(SpannerSinkConfig config) {
-    super(config);
     this.config = config;
   }
 
@@ -75,22 +87,115 @@ public final class SpannerSink extends ReferenceBatchSink<StructuredRecord, Null
   }
 
   @Override
-  public void prepareRun(BatchSinkContext context) throws Exception {
+  public void prepareRun(BatchSinkContext context) {
     config.validate();
+    Spanner spanner = null;
+
+    try {
+      spanner = SpannerUtil.getSpannerService(config.getServiceAccountFilePath(), config.getProject());
+      DatabaseId db = DatabaseId.of(config.getProject(), config.getInstance(), config.getDatabase());
+      DatabaseClient dbClient = spanner.getDatabaseClient(db);
+      DatabaseAdminClient dbAdminClient = spanner.getDatabaseAdminClient();
+      // create database
+      Database database = getOrCreateDatabase(dbAdminClient);
+      // create table
+      createTableIfNotPresent(dbClient, database);
+    } catch (IOException e) {
+      throw new RuntimeException("Exception while trying to get Spanner service. ", e);
+    } finally {
+      // Close spanner to release resources.
+      if (spanner != null) {
+        spanner.close();
+      }
+    }
+
     Configuration configuration = new Configuration();
+
+    LineageRecorder lineageRecorder = new LineageRecorder(context, config.getReferenceName());
+    lineageRecorder.createExternalDataset(config.getSchema());
+
     SpannerOutputFormat.configure(configuration, config);
-    context.addOutput(Output.of(config.referenceName,
+    context.addOutput(Output.of(config.getReferenceName(),
                                 new SinkOutputFormatProvider(SpannerOutputFormat.class, configuration)));
 
     List<Schema.Field> fields = config.getSchema().getFields();
     if (fields != null && !fields.isEmpty()) {
-        // Record the field level WriteOperation
-        FieldOperation operation = new FieldWriteOperation("Write", "Wrote to Spanner table.",
-                                                           EndPoint.of(context.getNamespace(), config.referenceName),
-                                                           fields.stream().map(Schema.Field::getName)
-                                                             .collect(Collectors.toList()));
-        context.record(Collections.singletonList(operation));
+      // Record the field level WriteOperation
+      lineageRecorder.recordWrite("Write", "Wrote to Spanner table.",
+                                  fields.stream().map(Schema.Field::getName).collect(Collectors.toList()));
     }
+  }
+
+  private void createTableIfNotPresent(DatabaseClient dbClient, Database database) {
+    boolean tableExists = isTablePresent(dbClient);
+    if (!tableExists) {
+      if (Strings.isNullOrEmpty(config.getKeys())) {
+        throw new IllegalArgumentException(String.format("Spanner table %s does not exist. To create it from the " +
+                                                           "pipeline, primary keys must be provided",
+                                                         config.getTable()));
+      }
+      String createStmt = SpannerUtil.convertSchemaToCreateStatement(config.getTable(),
+                                                                     config.getKeys(), config.getSchema());
+      LOG.debug("Creating table with create statement: {} in database {} of instance {}", createStmt,
+                config.getDatabase(), config.getInstance());
+      // In Spanner table creation is an update ddl operation on the database.
+      Operation<Void, UpdateDatabaseDdlMetadata> op = database.updateDdl(Collections.singletonList(createStmt), null);
+      // Table creation is an async operation. So wait until table is created.
+      op.waitFor().getResult();
+    }
+  }
+
+  private boolean isTablePresent(DatabaseClient dbClient) {
+    // Spanner does not have apis to get table or check if a given table exists. So select the table name from
+    // information schema (metadata) of spanner database.
+    Statement statement = Statement.newBuilder(String.format("SELECT\n" +
+                                                               "    t.table_name\n" +
+                                                               "FROM\n" +
+                                                               "    information_schema.tables AS t\n" +
+                                                               "WHERE\n" +
+                                                               "    t.table_catalog = '' AND t.table_schema = '' AND\n"
+                                                               + "    t.table_name = @%s", TABLE_NAME))
+      .bind(TABLE_NAME).to(config.getTable()).build();
+
+    ResultSet resultSet = dbClient.singleUse().executeQuery(statement);
+
+    boolean tableExists = false;
+    while (resultSet.next()) {
+      tableExists = true;
+      break;
+    }
+    // close result set to free up resources.
+    resultSet.close();
+    return tableExists;
+  }
+
+  private Database getOrCreateDatabase(DatabaseAdminClient dbAdminClient) {
+    Database database = getDatabaseIfPresent(dbAdminClient);
+
+    if (database == null) {
+      LOG.debug("Database not found. Creating database {} in instance {}.", config.getDatabase(), config.getInstance());
+      // Create database
+      Operation<Database, CreateDatabaseMetadata> op =
+        dbAdminClient.createDatabase(config.getInstance(), config.getDatabase(), Collections.emptyList());
+      // database creation is an async operation. Wait until database creation operation is complete.
+      database = op.waitFor().getResult();
+    }
+
+    return database;
+  }
+
+  @Nullable
+  private Database getDatabaseIfPresent(DatabaseAdminClient dbAdminClient) {
+    Database database = null;
+    try {
+      database = dbAdminClient.getDatabase(config.getInstance(), config.getDatabase());
+    } catch (SpannerException e) {
+      if (e.getErrorCode() != ErrorCode.NOT_FOUND) {
+        throw e;
+      }
+    }
+
+    return database;
   }
 
   @Override
@@ -100,8 +205,7 @@ public final class SpannerSink extends ReferenceBatchSink<StructuredRecord, Null
   }
 
   @Override
-  public void transform(StructuredRecord input,
-                        Emitter<KeyValue<NullWritable, StructuredRecord>> emitter) throws Exception {
+  public void transform(StructuredRecord input, Emitter<KeyValue<NullWritable, StructuredRecord>> emitter) {
     emitter.emit(new KeyValue<>(null, input));
   }
 

@@ -18,14 +18,17 @@ package co.cask.gcp.spanner.source;
 
 import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Macro;
-import co.cask.gcp.spanner.common.SpannerConfig;
+import co.cask.cdap.api.data.schema.Schema;
+import co.cask.gcp.common.GCPReferenceSourceConfig;
+import co.cask.gcp.spanner.common.SpannerUtil;
 
+import java.io.IOException;
 import javax.annotation.Nullable;
 
 /**
  * Spanner source config
  */
-public class SpannerSourceConfig extends SpannerConfig {
+public class SpannerSourceConfig extends GCPReferenceSourceConfig {
 
   @Description("Maximum number of partitions. This is only a hint. The actual number of partitions may vary")
   @Macro
@@ -37,22 +40,41 @@ public class SpannerSourceConfig extends SpannerConfig {
   @Nullable
   public Long partitionSizeMB;
 
+  @Description("Cloud Spanner instance id. " +
+    "Uniquely identifies Cloud Spanner instance within your Google Cloud Platform project.")
+  @Macro
+  public String instance;
+
+  @Description("Cloud Spanner database id. Uniquely identifies your database within the Cloud Spanner instance.")
+  @Macro
+  public String database;
+
   @Description("Cloud Spanner table id. Uniquely identifies your table within the Cloud Spanner database")
   @Macro
   public String table;
 
-  public SpannerSourceConfig(String referenceName) {
-    super(referenceName);
-  }
+  @Description("Schema of the Spanner table.")
+  @Macro
+  public String schema;
 
-  @Override
   public void validate() {
     super.validate();
+    if (!containsMacro("schema")) {
+      SpannerUtil.validateSchema(getSchema());
+    }
     if (!containsMacro("maxPartitions") && maxPartitions != null && maxPartitions < 1) {
       throw new IllegalArgumentException("Max partitions should be positive");
     }
     if (!containsMacro("partitionSizeMB") && partitionSizeMB != null && partitionSizeMB < 1) {
       throw new IllegalArgumentException("Partition size in mega bytes should be positive");
+    }
+  }
+
+  public Schema getSchema() {
+    try {
+      return Schema.parseJson(schema);
+    } catch (IOException e) {
+      throw new IllegalArgumentException("Unable to parse output schema: " + e.getMessage(), e);
     }
   }
 }
