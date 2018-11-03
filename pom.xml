@@ -56,7 +56,7 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <cdap.version>5.2.0-SNAPSHOT</cdap.version>
+    <cdap.version>6.0.0-SNAPSHOT</cdap.version>
     <hydrator.version>2.2.0-SNAPSHOT</hydrator.version>
     <guava.version>20.0</guava.version>
     <slf4j.version>1.7.5</slf4j.version>
@@ -550,8 +550,8 @@
         <version>1.0.1</version>
         <configuration>
           <cdapArtifacts>
-            <parent>system:cdap-data-pipeline[5.0.0,6.0.0-SNAPSHOT)</parent>
-            <parent>system:cdap-data-streams[5.0.0,6.0.0-SNAPSHOT)</parent>
+            <parent>system:cdap-data-pipeline[5.0.0,7.0.0-SNAPSHOT)</parent>
+            <parent>system:cdap-data-streams[5.0.0,7.0.0-SNAPSHOT)</parent>
           </cdapArtifacts>
         </configuration>
         <executions>
