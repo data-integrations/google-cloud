@@ -57,7 +57,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <cdap.version>5.1.0</cdap.version>
-    <hydrator.version>2.1.0</hydrator.version>
+    <hydrator.version>2.1.1-SNAPSHOT</hydrator.version>
     <guava.version>20.0</guava.version>
     <slf4j.version>1.7.5</slf4j.version>
     <junit.version>4.12</junit.version>
@@ -67,11 +67,9 @@
     <google.cloud.spanner.version>0.53.0-beta</google.cloud.spanner.version>
     <spark.version>1.6.1</spark.version>
     <google.cloud.speech.version>0.54.0-beta</google.cloud.speech.version>
-    <parquet.avro.version>1.8.1</parquet.avro.version>
     <google.protobuf.java.version>3.4.0</google.protobuf.java.version>
     <google.cloud.pubsub.version>1.36.0</google.cloud.pubsub.version>
-    <orc.mapreduce.version>1.1.0</orc.mapreduce.version>
-    <avro.mapred.version>1.7.7</avro.mapred.version>
+    <avro.version>1.7.7</avro.version>
     <jackson.core.version>2.8.11.1</jackson.core.version>
   </properties>
 
@@ -97,7 +95,7 @@
     <dependency>
       <groupId>org.apache.avro</groupId>
       <artifactId>avro</artifactId>
-      <version>1.7.7</version>
+      <version>${avro.version}</version>
     </dependency>
     <dependency>
       <groupId>co.cask.cdap</groupId>
@@ -266,17 +264,6 @@
       <version>${google.cloud.speech.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.apache.parquet</groupId>
-      <artifactId>parquet-avro</artifactId>
-      <version>${parquet.avro.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>org.apache.avro</groupId>
-          <artifactId>avro</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
       <version>${google.protobuf.java.version}</version>
@@ -287,33 +274,10 @@
       <version>${google.cloud.pubsub.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.apache.orc</groupId>
-      <artifactId>orc-mapreduce</artifactId>
-      <version>${orc.mapreduce.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-hdfs</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-common</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-mapreduce-client-core</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.hive</groupId>
-          <artifactId>hive-storage-api</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
       <groupId>org.apache.avro</groupId>
       <artifactId>avro-mapred</artifactId>
       <classifier>hadoop2</classifier>
-      <version>${avro.mapred.version}</version>
+      <version>${avro.version}</version>
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
@@ -524,12 +488,7 @@
             <!--Only @Plugin classes in the export packages will be included as plugin-->
             <_exportcontents>
               co.cask.gcp.*;
-              co.cask.hydrator.format.*;
               com.google.cloud.hadoop.*;
-              org.apache.avro.mapred.*;
-              org.apache.avro.mapreduce;
-              org.apache.parquet.avro.*;
-              org.apache.parquet.hadoop.*;
               org.apache.spark.streaming.pubsub*;
             </_exportcontents>
           </instructions>

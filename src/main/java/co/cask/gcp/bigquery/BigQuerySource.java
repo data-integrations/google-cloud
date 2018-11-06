@@ -165,16 +165,16 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
   @Path("getSchema")
   public Schema getSchema(BigQuerySourceConfig request) throws Exception {
     String dataset = request.getDataset();
-    String table = request.getTable();
+    String tableName = request.getTable();
     String project = request.getDatasetProject();
-    Table bqTable = BigQueryUtils.getBigQueryTable(request.getServiceAccountFilePath(), project, dataset, table);
+    Table table = BigQueryUtils.getBigQueryTable(request.getServiceAccountFilePath(), project, dataset, tableName);
     if (table == null) {
       // Table does not exist
       throw new IllegalArgumentException(String.format("BigQuery table '%s:%s.%s' does not exist",
-                                                       project, dataset, table));
+                                                       project, dataset, tableName));
     }
 
-    com.google.cloud.bigquery.Schema bgSchema = bqTable.getDefinition().getSchema();
+    com.google.cloud.bigquery.Schema bgSchema = table.getDefinition().getSchema();
     if (bgSchema == null) {
       throw new IllegalArgumentException(String.format("Cannot read from table '%s:%s.%s' because it has no schema.",
                                                        project, dataset, table));
@@ -195,7 +195,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     if (table == null) {
       // Table does not exist
       throw new IllegalArgumentException(String.format("BigQuery table '%s:%s.%s' does not exist.",
-                                                       project, dataset, table));
+                                                       project, dataset, tableName));
     }
 
     com.google.cloud.bigquery.Schema bgSchema = table.getDefinition().getSchema();
