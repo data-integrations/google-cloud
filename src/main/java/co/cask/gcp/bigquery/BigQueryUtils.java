@@ -17,6 +17,7 @@
 package co.cask.gcp.bigquery;
 
 import co.cask.cdap.api.data.schema.Schema;
+import co.cask.gcp.gcs.GCSConfigHelper;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.Field;
@@ -99,6 +100,7 @@ final class BigQueryUtils {
     configuration.set("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
     configuration.set("fs.AbstractFileSystm.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
     configuration.set("fs.gs.project.id", projectId);
+    configuration.set("fs.gs.working.dir", GCSConfigHelper.ROOT_DIR);
     configuration.set(BigQueryConfiguration.PROJECT_ID_KEY, projectId);
     return configuration;
   }
