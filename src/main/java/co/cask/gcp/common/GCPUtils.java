@@ -16,11 +16,15 @@
 
 package co.cask.gcp.common;
 
+import co.cask.gcp.gcs.GCSConfigHelper;
+import co.cask.gcp.gcs.sink.GCSBatchSink.GCSBatchSinkConfig;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * GCP utility class to get service account credentials
@@ -32,5 +36,21 @@ public class GCPUtils {
     try (FileInputStream serviceAccountStream = new FileInputStream(credentialsPath)) {
       return ServiceAccountCredentials.fromStream(serviceAccountStream);
     }
+  }
+
+  public static Map<String, String> getFileSystemProperties(GCSBatchSinkConfig config) {
+    Map<String, String> properties = new HashMap<>();
+    String serviceAccountFilePath = config.getServiceAccountFilePath();
+    if (serviceAccountFilePath != null) {
+      properties.put("google.cloud.auth.service.account.json.keyfile", serviceAccountFilePath);
+    }
+    properties.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
+    properties.put("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
+    String projectId = config.getProject();
+    properties.put("fs.gs.project.id", projectId);
+    properties.put("fs.gs.system.bucket", GCSConfigHelper.getBucket(config.getPath()));
+    properties.put("fs.gs.working.dir", GCSConfigHelper.ROOT_DIR);
+    properties.put("fs.gs.impl.disable.cache", "true");
+    return properties;
   }
 }
