@@ -91,8 +91,8 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     uuid = UUID.randomUUID();
     configuration = BigQueryUtils.getBigQueryConfig(config.getServiceAccountFilePath(), config.getProject());
 
-    String bucket = config.bucket;
-    if (config.bucket == null) {
+    String bucket = config.getBucket();
+    if (bucket == null) {
       bucket = uuid.toString();
       // By default, this option is false, meaning the job can not delete the bucket. So enable it only when bucket name
       // is not provided.
@@ -106,7 +106,8 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     String temporaryGcsPath = String.format("gs://%s/hadoop/input/%s", bucket, uuid);
     AvroBigQueryInputFormat.setTemporaryCloudStorageDirectory(configuration, temporaryGcsPath);
     AvroBigQueryInputFormat.setEnableShardedExport(configuration, false);
-    BigQueryConfiguration.configureBigQueryInput(configuration, config.getProject(), config.dataset, config.table);
+    BigQueryConfiguration.configureBigQueryInput(configuration, config.getDatasetProject(),
+                                                 config.getDataset(), config.getTable());
 
     Job job = Job.getInstance(configuration);
     job.setOutputKeyClass(LongWritable.class);
@@ -141,7 +142,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
   public void onRunFinish(boolean succeeded, BatchSourceContext context) {
     org.apache.hadoop.fs.Path gcsPath = new org.apache.hadoop.fs.Path(String.format("gs://%s", uuid.toString()));
     try {
-      if (config.bucket == null) {
+      if (config.getBucket() == null) {
           FileSystem fs = gcsPath.getFileSystem(configuration);
           if (fs.exists(gcsPath)) {
             fs.delete(gcsPath, true);
@@ -163,18 +164,20 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
    */
   @Path("getSchema")
   public Schema getSchema(BigQuerySourceConfig request) throws Exception {
-    Table table = BigQueryUtils.getBigQueryTable(request.getServiceAccountFilePath(), request.getProject(),
-                                                 request.dataset, request.table);
+    String dataset = request.getDataset();
+    String tableName = request.getTable();
+    String project = request.getDatasetProject();
+    Table table = BigQueryUtils.getBigQueryTable(request.getServiceAccountFilePath(), project, dataset, tableName);
     if (table == null) {
       // Table does not exist
-      throw new IllegalArgumentException(String.format("BigQuery table '%s.%s' does not exist",
-                                                       request.dataset, request.table));
+      throw new IllegalArgumentException(String.format("BigQuery table '%s:%s.%s' does not exist",
+                                                       project, dataset, tableName));
     }
 
     com.google.cloud.bigquery.Schema bgSchema = table.getDefinition().getSchema();
     if (bgSchema == null) {
-      throw new IllegalArgumentException(String.format("Cannot read from table '%s.%s' because it has no schema.",
-                                                       request.dataset, request.table));
+      throw new IllegalArgumentException(String.format("Cannot read from table '%s:%s.%s' because it has no schema.",
+                                                       project, dataset, table));
     }
     List<Schema.Field> fields = getSchemaFields(bgSchema);
     return Schema.recordOf("output", fields);
@@ -185,32 +188,34 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
    * {@link #getSchema(BigQuerySourceConfig)} method.
    */
   private void validateOutputSchema() throws IOException {
-    Table table = BigQueryUtils.getBigQueryTable(config.getServiceAccountFilePath(), config.getProject(),
-                                                 config.dataset, config.table);
+    String dataset = config.getDataset();
+    String tableName = config.getTable();
+    String project = config.getDatasetProject();
+    Table table = BigQueryUtils.getBigQueryTable(config.getServiceAccountFilePath(), project, dataset, tableName);
     if (table == null) {
       // Table does not exist
-      throw new IllegalArgumentException(String.format("BigQuery table '%s.%s' does not exist.", config.dataset,
-                                                       config.table));
+      throw new IllegalArgumentException(String.format("BigQuery table '%s:%s.%s' does not exist.",
+                                                       project, dataset, tableName));
     }
 
     com.google.cloud.bigquery.Schema bgSchema = table.getDefinition().getSchema();
     if (bgSchema == null) {
-      throw new IllegalArgumentException(String.format("Cannot read from table '%s.%s' because it has no schema.",
-                                                       config.dataset, config.table));
+      throw new IllegalArgumentException(String.format("Cannot read from table '%s:%s.%s' because it has no schema.",
+                                                       project, dataset, table));
     }
 
     // Output schema should not have more fields than BigQuery table
     List<String> diff = BigQueryUtils.getSchemaMinusBqFields(config.getSchema().getFields(), bgSchema.getFields());
     if (!diff.isEmpty()) {
       throw new IllegalArgumentException(String.format("Output schema has field(s) '%s' which are not present in table"
-                                                         + " '%s.%s' schema.", diff, config.dataset, config.table));
+                                                         + " '%s:%s.%s' schema.", diff, project, dataset, table));
     }
 
     FieldList fields = bgSchema.getFields();
     // Match output schema field type with bigquery column type
     for (Schema.Field field : config.getSchema().getFields()) {
       validateSimpleTypes(field);
-      BigQueryUtils.validateFieldSchemaMatches(fields.get(field.getName()), field, config.dataset, config.table);
+      BigQueryUtils.validateFieldSchemaMatches(fields.get(field.getName()), field, dataset, tableName);
     }
   }
 
