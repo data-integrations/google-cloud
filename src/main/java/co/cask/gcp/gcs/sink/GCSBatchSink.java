@@ -25,6 +25,7 @@ import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchSink;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
 import co.cask.gcp.common.GCPReferenceSinkConfig;
+import co.cask.gcp.common.GCPUtils;
 import co.cask.gcp.gcs.GCSConfigHelper;
 import co.cask.hydrator.common.LineageRecorder;
 import co.cask.hydrator.format.FileFormat;
@@ -60,19 +61,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
 
   @Override
   protected Map<String, String> getFileSystemProperties(BatchSinkContext context) {
-    Map<String, String> properties = new HashMap<>();
-    String serviceAccountFilePath = config.getServiceAccountFilePath();
-    if (serviceAccountFilePath != null) {
-      properties.put("google.cloud.auth.service.account.json.keyfile", serviceAccountFilePath);
-    }
-    properties.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
-    properties.put("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
-    String projectId = config.getProject();
-    properties.put("fs.gs.project.id", projectId);
-    properties.put("fs.gs.system.bucket", GCSConfigHelper.getBucket(config.path));
-    properties.put("fs.gs.working.dir", GCSConfigHelper.ROOT_DIR);
-    properties.put("fs.gs.impl.disable.cache", "true");
-    return properties;
+    return GCPUtils.getFileSystemProperties(config);
   }
 
   @Override
@@ -100,7 +89,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     @Description("The format to write in. The format must be one of 'json', 'avro', 'parquet', 'csv', 'tsv', "
       + "or 'delimited'.")
     @Macro
-    private String format;
+    protected String format;
 
     @Description("The delimiter to use if the format is 'delimited'. The delimiter will be ignored if the format "
       + "is anything other than 'delimited'.")
@@ -166,6 +155,11 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     @Override
     public String getSuffix() {
       return suffix;
+    }
+
+    @Nullable
+    public String getDelimiter() {
+      return delimiter;
     }
   }
 }

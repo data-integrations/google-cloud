@@ -1,0 +1,132 @@
+{
+  "metadata": {
+    "spec-version": "1.5"
+  },
+  "display-name": "Multi Files Google Cloud Storage",
+  "configuration-groups": [
+    {
+      "label": "Basic",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Reference Name",
+          "name": "referenceName",
+          "widget-attributes" : {
+            "placeholder": "Name used to identify this sink for lineage"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Project ID",
+          "name": "project",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Path",
+          "name": "path",
+          "widget-attributes" : {
+            "placeholder": "gs://<bucket>/path/to/output"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Path Suffix",
+          "name": "suffix",
+          "widget-attributes": {
+            "default": "yyyy-MM-dd-HH-mm"
+          }
+        },
+        {
+          "widget-type": "select",
+          "label": "Format",
+          "name": "format",
+          "widget-attributes": {
+            "values": [
+              "avro",
+              "delimited",
+              "parquet",
+              "orc"
+            ],
+            "default": "delimited"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Delimiter",
+          "name": "delimiter",
+          "widget-attributes": {
+            "placeholder": "Delimiter if the format is 'delimited'"
+          }
+        }
+      ]
+    },
+    {
+      "label" : "Credentials",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        }
+      ]
+    },
+    {
+      "label": "Advanced",
+      "properties": [
+        {
+          "widget-type": "select",
+          "label": "Codec",
+          "name": "codec",
+          "widget-attributes": {
+            "values": [
+              "None",
+              "Snappy",
+              "Deflate",
+              "GZip"
+            ],
+            "default": "None"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Split Field",
+          "name": "splitField",
+          "widget-attributes": {
+            "default": "tablename"
+          }
+        }
+      ]
+    }
+  ],
+  "outputs": [
+    {
+      "name": "schema",
+      "widget-type": "schema",
+      "widget-attributes": {
+        "schema-types": [
+          "boolean",
+          "int",
+          "long",
+          "float",
+          "double",
+          "bytes",
+          "string"
+        ],
+        "schema-default-type": "string"
+      }
+    }
+  ],
+  "jump-config": {
+    "datasets": [
+      {
+        "ref-property-name": "referenceName"
+      }
+    ]
+  }
+}
