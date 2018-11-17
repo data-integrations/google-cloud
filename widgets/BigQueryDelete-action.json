@@ -2,56 +2,32 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name" : "Google BigQuery Delete",
+  "display-name": "Google BigQuery Delete",
   "configuration-groups": [
     {
-      "label" : "Project",
-      "properties" : [
+      "label": "Basic",
+      "properties": [
         {
           "widget-type": "textbox",
           "label": "Project ID",
           "name": "project",
-          "widget-attributes" : {
-            "placeholder": "auto detect"
+          "widget-attributes": {
+            "default": "auto-detect"
           }
         },
         {
           "widget-type": "textbox",
-          "label": "Service Account File Path",
-          "name": "serviceFilePath",
-          "widget-attributes" : {
-            "placeholder": "auto detect"
-          }
-        }
-      ]
-    },
-    {
-      "label": "Query Execution",
-      "properties": [
-        {
-          "name": "type",
-          "label" : "Delete",
-          "widget-type": "radio-group",
+          "label": "Dataset Project ID",
+          "name": "datasetProject",
           "widget-attributes": {
-            "layout": "inline",
-            "default": "table",
-            "options": [
-              {
-                "id": "table",
-                "label": "Table"
-              },
-              {
-                "id": "database",
-                "label": "Database"
-              }
-            ]
+            "placeholder": "Project the dataset or table belongs to, if different from the Project ID."
           }
         },
         {
           "widget-type": "textbox",
           "label": "Dataset Name",
           "name": "dataset",
-          "widget-attributes" : {
+          "widget-attributes": {
             "placeholder": "Name of Dataset"
           }
         },
@@ -59,8 +35,40 @@
           "widget-type": "textbox",
           "label": "Table Name",
           "name": "table",
-          "widget-attributes" : {
+          "widget-attributes": {
             "placeholder": "Name of Table"
+          }
+        },
+        {
+          "name": "deleteContents",
+          "label": "Delete Contents",
+          "widget-type": "radio-group",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "false",
+            "options": [
+              {
+                "id": "false",
+                "label": "False"
+              },
+              {
+                "id": "true",
+                "label": "True"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "label": "Credentials",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes": {
+            "default": "auto-detect"
           }
         }
       ]

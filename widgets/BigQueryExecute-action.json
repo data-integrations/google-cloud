@@ -2,67 +2,54 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name" : "Google BigQuery Execute",
+  "display-name": "Google BigQuery Execute",
   "configuration-groups": [
     {
-      "label" : "Project",
-      "properties" : [
+      "label": "Basic",
+      "properties": [
         {
           "widget-type": "textbox",
           "label": "Project ID",
           "name": "project",
-          "widget-attributes" : {
-            "placeholder": "auto detect"
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Service Account File Path",
-          "name": "serviceFilePath",
-          "widget-attributes" : {
-            "placeholder": "auto detect"
-          }
-        }
-      ]
-    },
-    {
-      "label": "Query Execution",
-      "properties": [
-        {
-          "name": "legacy",
-          "label" : "Legacy",
-          "widget-type": "radio-group",
           "widget-attributes": {
-            "layout": "inline",
-            "default": "non-legacy-sql",
-            "options": [
-              {
-                "id": "legacy-sql",
-                "label": "Legacy SQL"
-              },
-              {
-                "id": "non-legacy-sql",
-                "label": "Non Legacy SQL"
-              }
-            ]
+            "default": "auto-detect"
           }
         },
         {
           "widget-type": "textarea",
           "label": "SQL",
           "name": "sql",
-          "widget-attributes" : {
+          "widget-attributes": {
             "placeholder": "Specifies the query to be executed."
           }
         }
       ]
     },
     {
-      "label" : "Execution Options",
-      "properties" : [
+      "label": "Advanced",
+      "properties": [
+        {
+          "name": "legacy",
+          "label": "Legacy",
+          "widget-type": "radio-group",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "false",
+            "options": [
+              {
+                "id": "true",
+                "label": "True"
+              },
+              {
+                "id": "false",
+                "label": "False"
+              }
+            ]
+          }
+        },
         {
           "name": "mode",
-          "label" : "Mode",
+          "label": "Mode",
           "widget-type": "radio-group",
           "widget-attributes": {
             "layout": "inline",
@@ -80,29 +67,10 @@
           }
         },
         {
-          "name": "cache",
-          "label" : "Cache",
-          "widget-type": "radio-group",
-          "widget-attributes": {
-            "layout": "inline",
-            "default": "disabled",
-            "options": [
-              {
-                "id": "enabled",
-                "label": "Enabled"
-              },
-              {
-                "id": "disabled",
-                "label": "Disabled"
-              }
-            ]
-          }
-        },
-        {
           "widget-type": "textbox",
           "label": "Dataset Name",
           "name": "dataset",
-          "widget-attributes" : {
+          "widget-attributes": {
             "placeholder": "Name of dataset to store the results."
           }
         },
@@ -110,8 +78,58 @@
           "widget-type": "textbox",
           "label": "Table Name",
           "name": "table",
-          "widget-attributes" : {
+          "widget-attributes": {
             "placeholder": "Name of table to store the results."
+          }
+        },
+        {
+          "name": "cache",
+          "label": "Cache",
+          "widget-type": "radio-group",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "false",
+            "options": [
+              {
+                "id": "true",
+                "label": "True"
+              },
+              {
+                "id": "false",
+                "label": "False"
+              }
+            ]
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Job Location",
+          "name": "location",
+          "widget-attributes": {
+            "placeholder": "Location of the job.",
+            "default": "US"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Timeout",
+          "name": "timeout",
+          "widget-attributes": {
+            "placeholder": "Query timeout in minutes. Defaults to 10.",
+            "default": "10"
+          }
+        }
+      ]
+    },
+    {
+      "label": "Credentials",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes": {
+            "default": "auto-detect"
           }
         }
       ]

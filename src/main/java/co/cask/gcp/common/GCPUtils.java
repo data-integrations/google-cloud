@@ -56,24 +56,24 @@ public class GCPUtils {
     return properties;
   }
 
-  /**
-   *
-   * @param projectId
-   * @param serviceFilePath
-   * @return
-   * @throws Exception
-   */
-  public static BigQueryOptions.Builder getBigQuery(String projectId, String serviceFilePath) throws Exception {
-    BigQueryOptions.Builder builder = BigQueryOptions.newBuilder();
-    if (serviceFilePath != null) {
-      builder.setCredentials(loadCredentials(serviceFilePath));
-    }
-    String project = projectId == null ? ServiceOptions.getDefaultProjectId() : projectId;
-    if (project == null) {
-      throw new Exception("Could not detect Google Cloud project id from the environment. " +
-                            "Please specify a project id.");
-    }
-    builder.setProjectId(project);
-    return builder;
-  }
+//  /**
+//   *
+//   * @param projectId
+//   * @param serviceFilePath
+//   * @return
+//   * @throws Exception
+//   */
+//  public static BigQueryOptions.Builder getBigQuery(String projectId, String serviceFilePath) throws Exception {
+//    BigQueryOptions.Builder builder = BigQueryOptions.newBuilder();
+//    if (serviceFilePath != null) {
+//      builder.setCredentials(loadCredentials(serviceFilePath));
+//    }
+//    String project = projectId == null ? ServiceOptions.getDefaultProjectId() : projectId;
+//    if (project == null) {
+//      throw new Exception("Could not detect Google Cloud project id from the environment. " +
+//                            "Please specify a project id.");
+//    }
+//    builder.setProjectId(project);
+//    return builder.;
+//  }
 }

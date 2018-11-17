@@ -24,10 +24,8 @@ import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.action.Action;
 import co.cask.cdap.etl.api.action.ActionContext;
 import co.cask.gcp.common.GCPConfig;
-import co.cask.gcp.common.GCPUtils;
 import com.google.cloud.RetryOption;
 import com.google.cloud.bigquery.BigQuery;
-import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.Job;
 import com.google.cloud.bigquery.JobId;
 import com.google.cloud.bigquery.JobInfo;
@@ -42,10 +40,10 @@ import javax.annotation.Nullable;
 
 /**
  * This class <code>BigQueryExecute</code> executes a single Cloud BigQuery SQL.
- *
- * The plugin provides the ability different options like choosing interactive or batch execution
- * of sql query, setting of resulting dataset and table, enabling/disbaling cache, specifying whether
- * the query being executed is legacy or standard and reattempt strategy.
+ * <p>
+ * The plugin provides the ability different options like choosing interactive or batch execution of sql query, setting
+ * of resulting dataset and table, enabling/disabling cache, specifying whether the query being executed is legacy or
+ * standard and retry strategy.
  */
 @Plugin(type = Action.PLUGIN_TYPE)
 @Name(BigQueryExecute.NAME)
@@ -55,73 +53,55 @@ public final class BigQueryExecute extends Action {
   public static final String NAME = "BigQueryExecute";
   private static final String RECORDS_OUT = "records.out";
   private static final String MODE_BATCH = "batch";
-  private static final String CACHE_ENABLED = "enabled";
-  private static final String LEGACY_ENABLED = "legacy-enabled";
 
   private Config config;
 
   @Override
   public void run(ActionContext context) throws Exception {
-    // Check if a SQL has been specified, if the SQL has not been specified,
-    // then there is nothing for this class to do.
-    if (config.sql == null || config.sql.isEmpty()) {
-      throw new IllegalArgumentException(
-        "SQL not specified. Please specify a SQL to execute"
-      );
-    }
-
-    QueryJobConfiguration.Builder builder = QueryJobConfiguration.newBuilder(config.sql);
-
+    config.validate();
+    QueryJobConfiguration.Builder builder = QueryJobConfiguration.newBuilder(config.getSql());
     // Run at batch priority, which won't count toward concurrent rate limit.
-    if (config.mode.equalsIgnoreCase(MODE_BATCH)) {
+    if (config.getMode().equalsIgnoreCase(MODE_BATCH)) {
       builder.setPriority(QueryJobConfiguration.Priority.BATCH);
     } else {
       builder.setPriority(QueryJobConfiguration.Priority.INTERACTIVE);
     }
 
     // Save the results of the query to a permanent table.
-    if (config.dataset != null && config.table != null
-      && !config.dataset.isEmpty() && !config.table.isEmpty()) {
-      builder.setDestinationTable(TableId.of(config.dataset, config.table));
-      context.getArguments().set(context.getStageName() + ".dataset", config.dataset);
-      context.getArguments().set(context.getStageName() + ".table", config.dataset);
+    if (config.getDataset() != null  && config.getTable() != null) {
+      builder.setDestinationTable(TableId.of(config.getDataset(), config.getTable()));
+      context.getArguments().set(context.getStageName() + ".dataset", config.getDataset());
+      context.getArguments().set(context.getStageName() + ".table", config.getTable());
     }
 
     // Enable or Disable the query cache to force live query evaluation.
-    if (config.cache.equalsIgnoreCase(CACHE_ENABLED)) {
+    if (config.shouldUseCache()) {
       builder.setUseQueryCache(true);
     }
 
     // Enable legacy SQL
-    if (config.legacy.equalsIgnoreCase(LEGACY_ENABLED)) {
-      builder.setUseLegacySql(true);
-    } else {
-      builder.setUseLegacySql(false);
-    }
+    builder.setUseLegacySql(config.isLegacySQL());
 
     QueryJobConfiguration queryConfig = builder.build();
 
     // Location must match that of the dataset(s) referenced in the query.
-    JobId jobId = JobId.newBuilder().setRandomJob().setLocation("US").build();
+    JobId jobId = JobId.newBuilder().setRandomJob().setLocation(config.getLocation()).build();
 
     // API request - starts the query.
-    BigQueryOptions.Builder bqBuilder = GCPUtils.getBigQuery(config.getProject(), config.getServiceAccountFilePath());
-    BigQuery bigquery = bqBuilder.build().getService();
-    Job queryJob = bigquery.create(
+    BigQuery bigQuery = BigQueryUtils.getBigQuery(config.getServiceAccountFilePath(), config.getProject());
+    Job queryJob = bigQuery.create(
       JobInfo.newBuilder(queryConfig)
         .setJobId(jobId).build()
     );
 
-    LOG.info("Executing query %s, Job id %s.", config.sql, jobId.getJob());
+    LOG.info("Executing query '%s'. The Google BigQuery job id is '%s'.", config.getSql(), jobId.getJob());
 
     // Wait for the query to complete
-    RetryOption retryOption = RetryOption.totalTimeout(Duration.ofMinutes(10));
+    RetryOption retryOption = RetryOption.totalTimeout(Duration.ofMinutes(config.getQueryTimeoutInMins()));
     queryJob.waitFor(retryOption);
 
     // Check for errors
-    if (queryJob == null) {
-      throw new RuntimeException("Job " + jobId.getJob() + " no longer exists");
-    } else if (queryJob.getStatus().getError() != null) {
+    if (queryJob.getStatus().getError() != null) {
       // You can also look at queryJob.getStatus().getExecutionErrors() for all
       // errors, not just the latest one.
       throw new RuntimeException(queryJob.getStatus().getExecutionErrors().toString());
@@ -131,56 +111,120 @@ public final class BigQueryExecute extends Action {
     long rows = queryResults.getTotalRows();
 
     context.getMetrics().gauge(RECORDS_OUT, rows);
-    context.getArguments().set(context.getStageName() + ".query", config.sql);
-    context.getArguments().set(context.getStageName() + ".jobid", jobId.getJob());
-    context.getArguments().set(RECORDS_OUT, String.valueOf(rows));
+    context.getArguments().set(context.getStageName().concat(".query"), config.getSql());
+    context.getArguments().set(context.getStageName().concat(".jobid"), jobId.getJob());
+    context.getArguments().set(context.getStageName().concat(RECORDS_OUT), String.valueOf(rows));
   }
 
   @Override
   public void configurePipeline(PipelineConfigurer configurer) throws IllegalArgumentException {
     super.configurePipeline(configurer);
 
-    if (!config.containsMacro("sql")) {
-      if (config.sql == null || config.sql.isEmpty()) {
-        throw new IllegalArgumentException("SQL not specified. Please specify a SQL to execute");
-      }
-    }
+    config.validate();
   }
 
   /**
    * Config for the plugin.
    */
   public final class Config extends GCPConfig {
-    @Name("legacy")
-    @Description("Use Legacy SQL")
+    @Description("Use Legacy SQL.")
     @Macro
-    public String legacy;
+    private String legacy;
 
-    @Name("sql")
-    @Description("SQL query to execuute.")
+    @Description("SQL query to execute.")
     @Macro
-    public String sql;
+    private String sql;
 
-    @Name("mode")
-    @Description("Batch or Interactive.")
+    @Description("Mode to execute the query in. The value must be 'batch' or 'interactive'. " +
+      "A batch query is executed as soon as possible and count towards the concurrent rate limit and the daily " +
+      "rate limit. An interactive query is queued and started as soon as idle resources are available, usually " +
+      "within a few minutes. If the query hasn't started within 3 hours, its priority is changed to 'INTERACTIVE'")
     @Macro
-    public String mode;
+    private String mode;
 
-    @Name("cache")
-    @Description("Use Cache")
+    @Description("Use the cache when executing the query.")
     @Macro
-    public String cache;
+    private String cache;
 
-    @Name("dataset")
-    @Description("Permanent Dataset.")
+    @Description("Location of the job. Must match the location of the dataset specified in the query. Defaults to 'US'")
+    @Macro
+    private String location;
+
+    @Description("The dataset to store the query results in. If not specified, the results will not be stored.")
     @Macro
     @Nullable
-    public String dataset;
+    private String dataset;
 
-    @Name("table")
-    @Description("Permanent Table.")
+    @Description("The table to store the query results in. If not specified, the results will not be stored.")
     @Macro
     @Nullable
-    public String table;
+    private String table;
+
+    @Name("timeout")
+    @Description("Query timeout in minutes. Defaults to 10.")
+    @Macro
+    private Long queryTimeoutInMins;
+
+    public Long getQueryTimeoutInMins() {
+      return queryTimeoutInMins == null ? 10 : queryTimeoutInMins;
+    }
+
+    public boolean isLegacySQL() {
+      return legacy.equalsIgnoreCase("true");
+    }
+
+    public boolean shouldUseCache() {
+      return cache.equalsIgnoreCase("true");
+    }
+
+    public String getLocation() {
+      return location;
+    }
+
+    public String getLegacy() {
+      return legacy;
+    }
+
+    public String getSql() {
+      return sql;
+    }
+
+    public String getMode() {
+      return mode;
+    }
+
+    public String getCache() {
+      return cache;
+    }
+
+    @Nullable
+    public String getDataset() {
+      return dataset;
+    }
+
+    @Nullable
+    public String getTable() {
+      return table;
+    }
+
+    public void validate() {
+      if (!containsMacro("sql") && (sql == null || sql.isEmpty())) {
+        throw new IllegalArgumentException("SQL not specified. Please specify a SQL to execute");
+      }
+
+      // validates that either they are null together or not null together
+      if ((dataset == null && table != null) || (table == null && dataset != null)) {
+        throw new IllegalArgumentException("Dataset and table must be specified together.");
+      }
+
+      if (dataset != null) {
+        // if one is not null then we know another is not null either. Now validate they are empty or non-empty
+        // together
+        if ((dataset.isEmpty() && !table.isEmpty()) ||
+          (table.isEmpty() && !dataset.isEmpty())) {
+          throw new IllegalArgumentException("Dataset and table must be specified together.");
+        }
+      }
+    }
   }
 }

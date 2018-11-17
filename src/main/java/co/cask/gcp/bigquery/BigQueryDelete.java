@@ -23,9 +23,8 @@ import co.cask.cdap.api.annotation.Plugin;
 import co.cask.cdap.etl.api.action.Action;
 import co.cask.cdap.etl.api.action.ActionContext;
 import co.cask.gcp.common.GCPConfig;
-import co.cask.gcp.common.GCPUtils;
+import com.google.cloud.ServiceOptions;
 import com.google.cloud.bigquery.BigQuery;
-import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.DatasetId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,8 +33,8 @@ import javax.annotation.Nullable;
 
 /**
  * This class <code>BigQueryDelete</code> deletes a dataset or a table.
- *
- * If the table or dataset does not exist, it's still successful.
+ * <p>
+ * If the table or dataset does not exist, the delete action is still successful.
  */
 @Plugin(type = Action.PLUGIN_TYPE)
 @Name(BigQueryDelete.NAME)
@@ -50,52 +49,72 @@ public final class BigQueryDelete extends Action {
 
   @Override
   public void run(ActionContext context) throws Exception {
-    // API request - starts the query.
-    BigQueryOptions.Builder bqBuilder = GCPUtils.getBigQuery(config.getProject(), config.getServiceAccountFilePath());
-    BigQuery bigquery = bqBuilder.build().getService();
+    BigQuery bigQuery = BigQueryUtils.getBigQuery(config.getServiceAccountFilePath(), config.getDatasetProject());
 
-    // Delete a table.
-    if (config.type.equalsIgnoreCase(TABLE)) {
-      boolean delete = bigquery.delete(config.dataset, config.table);
-      if (!delete) {
-        LOG.info("Table %s was deleted", config.table);
+    // if a table is specified it is a delete a table command
+    if (config.getTable() != null) {
+      if (!bigQuery.delete(config.getDataset(), config.getTable())) {
+        LOG.info("Failed to delete table '%s'. Table '%s' does not exist in dataset '%s'.", config.getTable(),
+                 config.getTable(), config.getDatasetProject());
       }
-    }
-
-    // Delete a dataset
-    if (config.type.equalsIgnoreCase(DATASET)) {
-      boolean delete = false;
-      if (config.getProject() == null) {
-        delete = bigquery.delete(DatasetId.of(config.dataset));
+    } else {
+      boolean deleted;
+      if (config.shouldDeleteContents()) {
+        deleted = bigQuery.delete(DatasetId.of(config.getDatasetProject(), config.getDataset()),
+                                  BigQuery.DatasetDeleteOption.deleteContents());
       } else {
-        delete = bigquery.delete(DatasetId.of(config.getProject(), config.dataset));
+        deleted = bigQuery.delete(DatasetId.of(config.getDatasetProject(), config.getDataset()));
       }
-      if (!delete) {
-        LOG.info("Dataset %s was deleted", config.dataset);
+      if (!deleted) {
+        LOG.info("Failed to delete dataset '%s'. Dataset '%s' does not exist.", config.getDataset(),
+                 config.getDataset());
       }
     }
-
-    context.getMetrics().gauge("records.out", 1);
+    context.getMetrics().gauge(RECORDS_OUT, 1);
   }
 
   /**
    * Config for the plugin.
    */
   public final class Config extends GCPConfig {
-    @Name("type")
-    @Description("Delete table or dataset")
+    @Description("Name of the dataset to delete.")
     @Macro
-    public String type;
+    private String dataset;
 
-    @Name("dataset")
-    @Description("Name of dataset.")
-    @Macro
-    public String dataset;
-
-    @Name("table")
-    @Description("Name of table.")
+    @Description("Name of the table to delete. Should be left empty while deleting a dataset.")
     @Macro
     @Nullable
-    public String table;
+    private String table;
+
+    @Macro
+    @Nullable
+    @Description("The project the dataset or table belongs to. This is only required if the dataset or table is not "
+      + "in the same project that the BigQuery job will run in. If no value is given, it will default to the " +
+      "configured project ID.")
+    private String datasetProject;
+
+    @Macro
+    @Description("Deletes a dataset even if non-empty. Defaults to 'false'")
+    private String deleteContents;
+
+    public String getDataset() {
+      return dataset;
+    }
+
+    public boolean shouldDeleteContents() {
+      return deleteContents.equalsIgnoreCase("true");
+    }
+
+    @Nullable
+    public String getTable() {
+      return table;
+    }
+
+    public String getDatasetProject() {
+      if (GCPConfig.AUTO_DETECT.equalsIgnoreCase(datasetProject)) {
+        return ServiceOptions.getDefaultProjectId();
+      }
+      return datasetProject == null ? getProject() : datasetProject;
+    }
   }
 }

@@ -181,7 +181,7 @@ public class PubSubOutputFormat extends OutputFormat<NullWritable, Text> {
           publisher.shutdown();
         } catch (Exception e) {
           // if there is an exception while shutting down, we only log
-          LOG.debug("Exception while shutting down pubsub ", e);
+          LOG.debug("Exception while shutting down publisher ", e);
         }
       }
     }
