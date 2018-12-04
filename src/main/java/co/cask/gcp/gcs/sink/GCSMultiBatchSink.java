@@ -20,29 +20,25 @@ import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.annotation.Plugin;
 import co.cask.cdap.api.data.batch.Output;
+import co.cask.cdap.api.data.batch.OutputFormatProvider;
 import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
-import co.cask.cdap.api.data.schema.UnsupportedTypeException;
 import co.cask.cdap.api.dataset.lib.KeyValue;
+import co.cask.cdap.api.plugin.PluginProperties;
 import co.cask.cdap.etl.api.Emitter;
 import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchSink;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
-import co.cask.gcp.common.FileSetUtil;
 import co.cask.gcp.common.GCPUtils;
-import co.cask.gcp.common.RecordFilterOutputFormat;
-import co.cask.hydrator.common.batch.JobUtils;
 import co.cask.hydrator.common.batch.sink.SinkOutputFormatProvider;
 import co.cask.hydrator.format.FileFormat;
 import com.google.common.base.Strings;
-import org.apache.avro.mapreduce.AvroJob;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
-import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
 
@@ -55,6 +51,8 @@ import javax.annotation.Nullable;
 @Description("Writes records to one or more avro files in a directory on Google Cloud Storage.")
 public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable, StructuredRecord> {
   private static final String TABLE_PREFIX = "multisink.";
+  private static final String FORMAT_PLUGIN_ID = "format";
+  private static final String SCHEMA_MACRO = "__provided_schema__";
 
   private final GCSMultiBatchSinkConfig config;
 
@@ -65,68 +63,47 @@ public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable,
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     config.validate();
-    super.configurePipeline(pipelineConfigurer);
+    FileFormat format = config.getFormat();
+    // add schema as a macro since we don't know it until runtime
+    PluginProperties formatProperties = PluginProperties.builder()
+      .addAll(config.getProperties().getProperties())
+      .add("schema", String.format("${%s}", SCHEMA_MACRO)).build();
+    OutputFormatProvider outputFormatProvider =
+      pipelineConfigurer.usePlugin(BatchSink.FORMAT_PLUGIN_TYPE, format.name().toLowerCase(),
+                                   FORMAT_PLUGIN_ID, formatProperties);
+    if (outputFormatProvider == null) {
+      throw new IllegalArgumentException(String.format("Could not find the '%s' output format plugin.",
+                                                       format.name().toLowerCase()));
+    }
   }
 
   @Override
-  public void prepareRun(BatchSinkContext context) throws IOException, UnsupportedTypeException {
+  public void prepareRun(BatchSinkContext context) throws IOException, InstantiationException {
     config.validate();
-    for (Map.Entry<String, String> argument : context.getArguments()) {
+    Map<String, String> baseProperties = new HashMap<>(GCPUtils.getFileSystemProperties(config));
+
+    Map<String, String> argumentCopy = new HashMap<>(context.getArguments().asMap());
+    for (Map.Entry<String, String> argument : argumentCopy.entrySet()) {
       String key = argument.getKey();
       if (!key.startsWith(TABLE_PREFIX)) {
         continue;
       }
       String name = key.substring(TABLE_PREFIX.length());
+      Schema schema = Schema.parseJson(argument.getValue());
+      // TODO: (CDAP-14600) pass in schema as an argument instead of using macros and setting arguments
+      // add better platform support to allow passing in arguments when instantiating a plugin
+      context.getArguments().set(SCHEMA_MACRO, schema.toString());
+      OutputFormatProvider outputFormatProvider = context.newPluginInstance(FORMAT_PLUGIN_ID);
 
-      String schema = argument.getValue();
+      Map<String, String> outputProperties = new HashMap<>(baseProperties);
+      outputProperties.putAll(outputFormatProvider.getOutputFormatConfiguration());
+      outputProperties.putAll(RecordFilterOutputFormat.configure(outputFormatProvider.getOutputFormatClassName(),
+                                                                 config.splitField, name, schema));
+      outputProperties.put(FileOutputFormat.OUTDIR, config.getOutputDir(context.getLogicalStartTime(), name));
 
-      Job job = JobUtils.createInstance();
-      Configuration outputConfig = job.getConfiguration();
-
-      outputConfig.set(FileOutputFormat.OUTDIR, config.getOutputDir(context.getLogicalStartTime(), name));
-      Map<String, String> gcsProperties = GCPUtils.getFileSystemProperties(config);
-      for (Map.Entry<String, String> entry : gcsProperties.entrySet()) {
-        outputConfig.set(entry.getKey(), entry.getValue());
-      }
-
-
-      outputConfig.set(RecordFilterOutputFormat.PASS_VALUE, name);
-      outputConfig.set(RecordFilterOutputFormat.ORIGINAL_SCHEMA, schema);
-      String format = config.getOutputFormat();
-      outputConfig.set(RecordFilterOutputFormat.FORMAT, format);
-
-
-      outputConfig.set(RecordFilterOutputFormat.FILTER_FIELD, config.splitField);
-      job.setOutputValueClass(org.apache.hadoop.io.NullWritable.class);
-      if (RecordFilterOutputFormat.AVRO.equals(format)) {
-        org.apache.avro.Schema avroSchema = new org.apache.avro.Schema.Parser().parse(schema);
-        Map<String, String> configuration =
-            FileSetUtil.getAvroCompressionConfiguration(format, config.codec, schema, false);
-        for (Map.Entry<String, String> entry : configuration.entrySet()) {
-          outputConfig.set(entry.getKey(), entry.getValue());
-        }
-        AvroJob.setOutputKeySchema(job, avroSchema);
-      } else if (RecordFilterOutputFormat.ORC.equals(format)) {
-        StringBuilder builder = new StringBuilder();
-        co.cask.hydrator.common.HiveSchemaConverter.appendType(builder, Schema.parseJson(schema));
-        outputConfig.set("orc.mapred.output.schema", builder.toString());
-      } else if (RecordFilterOutputFormat.PARQUET.equals(format)) {
-        Map<String, String> configuration =
-            FileSetUtil.getParquetCompressionConfiguration(format, config.codec, schema, false);
-        for (Map.Entry<String, String> entry : configuration.entrySet()) {
-          outputConfig.set(entry.getKey(), entry.getValue());
-        }
-      } else {
-        // Encode the delimiter to base64 to support control characters. Otherwise serializing it in Cconf would result
-        // in an error
-        outputConfig.set(RecordFilterOutputFormat.DELIMITER, config.getDelimiter());
-      }
-
-
-      context.addOutput(
-          Output.of(config.getReferenceName() + "_" + name,
-              new SinkOutputFormatProvider(RecordFilterOutputFormat.class.getName(), outputConfig))
-      );
+      context.addOutput(Output.of(
+        config.getReferenceName() + "_" + name,
+        new SinkOutputFormatProvider(RecordFilterOutputFormat.class.getName(), outputProperties)));
     }
   }
 
@@ -141,27 +118,14 @@ public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable,
    */
   public static class GCSMultiBatchSinkConfig extends GCSBatchSink.GCSBatchSinkConfig {
 
-    @Name("codec")
-    @Description("The codec to use when writing data. \n" +
-        "The 'avro' format supports 'snappy' and 'deflate'. The parquet format supports 'snappy' and 'gzip'. \n" +
-        "Other formats does not support compression.")
+    @Description("The codec to use when writing data. " +
+      "The 'avro' format supports 'snappy' and 'deflate'. The parquet format supports 'snappy' and 'gzip'. " +
+      "Other formats do not support compression.")
     @Nullable
-    private String codec;
+    private String compressionCodec;
 
-    @Description("The name of the field that will be used to determine which fileset to write to. " +
-        "Defaults to 'tablename'.")
+    @Description("The name of the field that will be used to determine which directory to write to.")
     private String splitField = "tablename";
-
-
-    public GCSMultiBatchSinkConfig(String referenceName, String path, @Nullable String suffix, String format,
-                                   @Nullable String delimiter, @Nullable String schema,
-                                   @Nullable String codec, String splitField) {
-      // Set default value for Nullable properties.
-      super(referenceName, path, suffix, format, delimiter, schema);
-      this.codec = codec;
-      this.splitField = splitField == null ? "tablename" : splitField;
-
-    }
 
     protected String getOutputDir(long logicalStartTime, String context) {
       boolean suffixOk = !Strings.isNullOrEmpty(getSuffix());
@@ -169,27 +133,5 @@ public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable,
       return String.format("%s/%s/%s", getPath(), context, timeSuffix);
     }
 
-    public String getOutputFormat() {
-      return format;
-    }
-
-    @Override
-    public FileFormat getFormat() {
-      //Skip format validation to support ORC until the ORC will be supported by format-common
-      //The values are from drop down box
-      return RecordFilterOutputFormat.ORC.equals(format) ? null : super.getFormat();
-    }
-
-    @Override
-    public void validate() {
-      super.validate();
-      if (RecordFilterOutputFormat.PARQUET.equalsIgnoreCase(format)) {
-        FileSetUtil.isCompressionRequired(format, codec, FileSetUtil.PARQUET_CODECS);
-      } else if (RecordFilterOutputFormat.AVRO.equalsIgnoreCase(format)) {
-        FileSetUtil.isCompressionRequired(format, codec, FileSetUtil.AVRO_CODECS);
-      } else if (!FileSetUtil.NONE.equalsIgnoreCase(codec)) {
-        throw new IllegalArgumentException("format " + format + " does not support compression");
-      }
-    }
   }
 }

@@ -34,7 +34,6 @@ import co.cask.hydrator.format.plugin.FileSinkProperties;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -102,16 +101,6 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     @Macro
     @Nullable
     private String schema;
-
-    public GCSBatchSinkConfig(String referenceName, String path, @Nullable String suffix, String format,
-                              @Nullable String delimiter, @Nullable String schema) {
-      this.referenceName = referenceName;
-      this.path = path;
-      this.suffix = suffix;
-      this.format = format;
-      this.delimiter = delimiter;
-      this.schema = schema;
-    }
 
     @Override
     public void validate() {
