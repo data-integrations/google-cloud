@@ -57,7 +57,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <cdap.version>6.0.0-SNAPSHOT</cdap.version>
-    <hydrator.version>2.2.0-SNAPSHOT</hydrator.version>
+    <hydrator.version>2.1.2</hydrator.version>
     <guava.version>20.0</guava.version>
     <slf4j.version>1.7.5</slf4j.version>
     <junit.version>4.12</junit.version>
@@ -318,17 +318,6 @@
       </exclusions>
     </dependency>
     <dependency>
-      <groupId>org.apache.orc</groupId>
-      <artifactId>orc-mapreduce</artifactId>
-      <version>1.1.0</version>
-      <exclusions>
-        <exclusion>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-hdfs</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <version>${junit.version}</version>
@@ -381,11 +370,6 @@
           <artifactId>jets3t</artifactId>
         </exclusion>
       </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.hive</groupId>
-      <artifactId>hive-storage-api</artifactId>
-      <version>2.7.0</version>
     </dependency>
     <dependency>
       <groupId>org.xerial.snappy</groupId>

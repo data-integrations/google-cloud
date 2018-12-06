@@ -50,6 +50,7 @@
               "csv",
               "delimited",
               "json",
+              "orc",
               "parquet",
               "tsv"
             ],

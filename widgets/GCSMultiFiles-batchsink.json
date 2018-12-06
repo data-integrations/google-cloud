@@ -46,11 +46,14 @@
           "widget-attributes": {
             "values": [
               "avro",
+              "csv",
               "delimited",
+              "json",
+              "orc",
               "parquet",
-              "orc"
+              "tsv"
             ],
-            "default": "delimited"
+            "default": "json"
           }
         },
         {
@@ -82,7 +85,7 @@
         {
           "widget-type": "select",
           "label": "Codec",
-          "name": "codec",
+          "name": "compressionCodec",
           "widget-attributes": {
             "values": [
               "None",
