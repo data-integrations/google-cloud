@@ -75,6 +75,7 @@ import java.util.stream.Collectors;
 public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, NullWritable> {
   public static final String NAME = "BigQueryTable";
   private static final DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
+  private static final DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSSSSS");
   private static final Logger LOG = LoggerFactory.getLogger(BigQuerySink.class);
 
   private final BigQuerySinkConfig config;
@@ -264,7 +265,7 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
           break;
         case TIME_MILLIS:
         case TIME_MICROS:
-          json.addProperty(name, input.getTime(name).toString());
+          json.addProperty(name, timeFormatter.format(input.getTime(name)));
           break;
         case TIMESTAMP_MILLIS:
         case TIMESTAMP_MICROS:
