@@ -257,7 +257,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
       } else if (value == StandardSQLTypeName.INT64) {
         // int is a int64, so corresponding type becomes long
         schema = Schema.of(Schema.Type.LONG);
-      } else if (value == StandardSQLTypeName.STRING) {
+      } else if (value == StandardSQLTypeName.STRING || value == StandardSQLTypeName.DATETIME) {
         schema = Schema.of(Schema.Type.STRING);
       } else if (value == StandardSQLTypeName.BYTES) {
         schema = Schema.of(Schema.Type.BYTES);
@@ -265,7 +265,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
         schema = Schema.of(Schema.LogicalType.TIME_MICROS);
       } else if (value == StandardSQLTypeName.DATE) {
         schema = Schema.of(Schema.LogicalType.DATE);
-      } else if (value == StandardSQLTypeName.TIMESTAMP || value == StandardSQLTypeName.DATETIME) {
+      } else if (value == StandardSQLTypeName.TIMESTAMP) {
         schema = Schema.of(Schema.LogicalType.TIMESTAMP_MICROS);
       } else {
         // this should never happen
