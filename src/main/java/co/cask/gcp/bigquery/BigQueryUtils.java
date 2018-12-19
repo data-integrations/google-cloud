@@ -27,6 +27,7 @@ import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.security.Credentials;
@@ -36,6 +37,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import javax.annotation.Nullable;
 
 import static co.cask.gcp.common.GCPUtils.loadServiceAccountCredentials;
@@ -44,15 +46,15 @@ import static co.cask.gcp.common.GCPUtils.loadServiceAccountCredentials;
  * Common Util class for big query plugins such as {@link BigQuerySource} and {@link BigQuerySink}
  */
 final class BigQueryUtils {
-  private static final Map<Schema.Type, LegacySQLTypeName> TYPE_MAP = ImmutableMap.<Schema.Type,
-    LegacySQLTypeName>builder()
-    .put(Schema.Type.INT, LegacySQLTypeName.INTEGER)
-    .put(Schema.Type.LONG, LegacySQLTypeName.INTEGER)
-    .put(Schema.Type.STRING, LegacySQLTypeName.STRING)
-    .put(Schema.Type.FLOAT, LegacySQLTypeName.FLOAT)
-    .put(Schema.Type.DOUBLE, LegacySQLTypeName.FLOAT)
-    .put(Schema.Type.BOOLEAN, LegacySQLTypeName.BOOLEAN)
-    .put(Schema.Type.BYTES, LegacySQLTypeName.BYTES)
+  private static final Map<Schema.Type, Set<LegacySQLTypeName>> TYPE_MAP = ImmutableMap.<Schema.Type,
+    Set<LegacySQLTypeName>>builder()
+    .put(Schema.Type.INT, ImmutableSet.of(LegacySQLTypeName.INTEGER))
+    .put(Schema.Type.LONG, ImmutableSet.of(LegacySQLTypeName.INTEGER))
+    .put(Schema.Type.STRING, ImmutableSet.of(LegacySQLTypeName.STRING, LegacySQLTypeName.DATETIME))
+    .put(Schema.Type.FLOAT, ImmutableSet.of(LegacySQLTypeName.FLOAT))
+    .put(Schema.Type.DOUBLE, ImmutableSet.of(LegacySQLTypeName.FLOAT))
+    .put(Schema.Type.BOOLEAN, ImmutableSet.of(LegacySQLTypeName.BOOLEAN))
+    .put(Schema.Type.BYTES, ImmutableSet.of(LegacySQLTypeName.BYTES))
     .build();
 
   private static final Map<Schema.LogicalType, LegacySQLTypeName> LOGICAL_TYPE_MAP = ImmutableMap.of(
@@ -178,7 +180,7 @@ final class BigQueryUtils {
                                                        field.getName(), type));
     }
 
-    if (TYPE_MAP.get(type) != bqField.getType()) {
+    if (!TYPE_MAP.get(type).contains(bqField.getType())) {
       throw new IllegalArgumentException(
         String.format("Field '%s' of type '%s' is not compatible with column '%s' in BigQuery table" +
                         " '%s.%s' of type '%s'. It must be of type '%s'.",
