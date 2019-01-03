@@ -1,0 +1,89 @@
+{
+  "metadata": {
+    "spec-version": "1.5"
+  },
+  "display-name" : "Google Cloud Storage Move",
+  "configuration-groups": [
+    {
+      "label": "Basic",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Project ID",
+          "name": "project",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "name": "sourcePath",
+          "widget-type": "textbox",
+          "label" : "Source Path",
+          "widget-attributes": {
+            "value-placeholder": "gs://bucket/path/to/source"
+          }
+        },
+        {
+          "name": "destPath",
+          "widget-type": "textbox",
+          "label" : "Destination Path",
+          "widget-attributes": {
+            "value-placeholder": "gs://bucket/path/to/destination"
+          }
+        },
+        {
+          "widget-type": "radio-group",
+          "name" : "recursive",
+          "label" : "Move All Subdirectories",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "false",
+            "options": [
+              {
+                "id": "true",
+                "label": "True"
+              },
+              {
+                "id": "false",
+                "label": "False"
+              }
+            ]
+          }
+        },
+        {
+          "widget-type": "radio-group",
+          "name" : "overwrite",
+          "label" : "Overwrite Existing Files",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "false",
+            "options": [
+              {
+                "id": "true",
+                "label": "True"
+              },
+              {
+                "id": "false",
+                "label": "False"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "label" : "Credentials",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        }
+      ]
+    }
+  ],
+  "outputs": []
+}
