@@ -26,7 +26,7 @@ import co.cask.cdap.etl.api.batch.BatchSink;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
 import co.cask.gcp.common.GCPReferenceSinkConfig;
 import co.cask.gcp.common.GCPUtils;
-import co.cask.gcp.gcs.GCSConfigHelper;
+import co.cask.gcp.gcs.GCSPath;
 import co.cask.hydrator.common.LineageRecorder;
 import co.cask.hydrator.format.FileFormat;
 import co.cask.hydrator.format.plugin.AbstractFileSink;
@@ -107,7 +107,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
       super.validate();
       // validate that path is valid
       if (!containsMacro("path")) {
-        GCSConfigHelper.getPath(path);
+        GCSPath.from(path);
       }
       if (suffix != null && !containsMacro("suffix")) {
         new SimpleDateFormat(suffix);
@@ -120,7 +120,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
 
     @Override
     public String getPath() {
-      return GCSConfigHelper.getPath(path).toString();
+      return GCSPath.from(path).getUri().toString();
     }
 
     @Override

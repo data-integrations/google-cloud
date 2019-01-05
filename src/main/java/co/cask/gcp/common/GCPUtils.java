@@ -16,7 +16,7 @@
 
 package co.cask.gcp.common;
 
-import co.cask.gcp.gcs.GCSConfigHelper;
+import co.cask.gcp.gcs.GCSPath;
 import co.cask.gcp.gcs.sink.GCSBatchSink.GCSBatchSinkConfig;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 
@@ -48,8 +48,8 @@ public class GCPUtils {
     properties.put("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
     String projectId = config.getProject();
     properties.put("fs.gs.project.id", projectId);
-    properties.put("fs.gs.system.bucket", GCSConfigHelper.getBucket(config.getPath()));
-    properties.put("fs.gs.working.dir", GCSConfigHelper.ROOT_DIR);
+    properties.put("fs.gs.system.bucket", GCSPath.from(config.getPath()).getBucket());
+    properties.put("fs.gs.working.dir", GCSPath.ROOT_DIR);
     properties.put("fs.gs.impl.disable.cache", "true");
     return properties;
   }

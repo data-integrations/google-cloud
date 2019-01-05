@@ -20,10 +20,11 @@ import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.annotation.Plugin;
+import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.action.Action;
 import co.cask.cdap.etl.api.action.ActionContext;
 import co.cask.gcp.common.GCPConfig;
-import co.cask.gcp.gcs.GCSConfigHelper;
+import co.cask.gcp.gcs.GCSPath;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -49,7 +50,13 @@ public final class GCSBucketCreate extends Action {
   private Config config;
 
   @Override
+  public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
+    config.validate();
+  }
+
+  @Override
   public void run(ActionContext context) throws Exception {
+    config.validate();
     Configuration configuration = new Configuration();
     String serviceAccountFilePath = config.getServiceAccountFilePath();
     if (serviceAccountFilePath != null) {
@@ -66,7 +73,7 @@ public final class GCSBucketCreate extends Action {
 
     List<Path> gcsPaths = new ArrayList<>();
     for (String path : config.getPaths()) {
-      gcsPaths.add(new Path(GCSConfigHelper.getPath(path)));
+      gcsPaths.add(new Path(GCSPath.from(path).getUri()));
     }
 
     FileSystem fs;
@@ -139,6 +146,15 @@ public final class GCSBucketCreate extends Action {
 
     public boolean getFailIfExists() {
       return failIfExists;
+    }
+
+    void validate() {
+      if (containsMacro("paths")) {
+        return;
+      }
+      for (String path : config.getPaths()) {
+        GCSPath.from(path);
+      }
     }
   }
 }

@@ -26,7 +26,7 @@ import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchSource;
 import co.cask.cdap.etl.api.batch.BatchSourceContext;
 import co.cask.gcp.common.GCPReferenceSourceConfig;
-import co.cask.gcp.gcs.GCSConfigHelper;
+import co.cask.gcp.gcs.GCSPath;
 import co.cask.hydrator.common.LineageRecorder;
 import co.cask.hydrator.format.FileFormat;
 import co.cask.hydrator.format.input.PathTrackingInputFormat;
@@ -76,8 +76,8 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
     properties.put("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
     String projectId = config.getProject();
     properties.put("fs.gs.project.id", projectId);
-    properties.put("fs.gs.system.bucket", GCSConfigHelper.getBucket(config.path));
-    properties.put("fs.gs.working.dir", GCSConfigHelper.ROOT_DIR);
+    properties.put("fs.gs.system.bucket", GCSPath.from(config.path).getBucket());
+    properties.put("fs.gs.working.dir", GCSPath.ROOT_DIR);
     properties.put("fs.gs.impl.disable.cache", "true");
     if (config.copyHeader) {
       properties.put(PathTrackingInputFormat.COPY_HEADER, "true");
@@ -188,7 +188,7 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
       super.validate();
       // validate that path is valid
       if (!containsMacro("path")) {
-        GCSConfigHelper.getPath(path);
+        GCSPath.from(path);
       }
       getFileSystemProperties();
     }
