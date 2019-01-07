@@ -63,7 +63,7 @@ public class GCSPathTest {
     for (String path : new String[] { "gs://b0/", "gs://b0", "/b0", "/b0/" }) {
       GCSPath gcsPath = GCSPath.from(path);
       Assert.assertEquals("b0", gcsPath.getBucket());
-      Assert.assertNull(gcsPath.getName());
+      Assert.assertTrue(gcsPath.getName().isEmpty());
     }
   }
 
