@@ -1,0 +1,133 @@
+{
+  "metadata": {
+    "spec-version": "1.5"
+  },
+  "display-name": "Google Cloud Datastore",
+  "configuration-groups": [
+    {
+      "label" : "Basic",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Reference Name",
+          "name": "referenceName",
+          "widget-attributes" : {
+            "placeholder": "Name used to identify this sink for lineage"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Project ID",
+          "name": "project",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Namespace",
+          "name": "namespace",
+          "widget-attributes" : {
+            "placeholder": "Namespace"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Kind",
+          "name": "kind",
+          "widget-attributes" : {
+            "placeholder": "Kind name"
+          }
+        },
+        {
+          "widget-type": "select",
+          "label": "Key Type",
+          "name": "keyType",
+          "widget-attributes": {
+            "default": "Auto-generated key",
+            "values": [
+              "Auto-generated key",
+              "Custom name",
+              "Key literal",
+              "URL-safe key"
+            ]
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Key Alias",
+          "name": "keyAlias",
+          "widget-attributes" : {
+            "placeholder": "Key alias"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Ancestor",
+          "name": "ancestor",
+          "widget-attributes" : {
+            "placeholder": "Key literal"
+          }
+        }
+      ]
+    },
+    {
+      "label" : "Credentials",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        }
+      ]
+    },
+    {
+      "label" : "Advanced",
+      "properties" : [
+        {
+          "widget-type": "select",
+          "label": "Index Strategy",
+          "name": "indexStrategy",
+          "widget-attributes": {
+            "default": "All",
+            "values": [
+              "All",
+              "None",
+              "Custom"
+            ]
+          }
+        },
+        {
+          "widget-type": "csv",
+          "label": "Indexed Properties",
+          "name": "indexedProperties",
+          "widget-attributes": {
+            "delimiter": ",",
+            "value-placeholder": "Field Name"
+          }
+        },
+        {
+          "widget-type": "number",
+          "label": "Batch Size",
+          "name": "batchSize",
+          "widget-attributes": {
+            "default": "25",
+            "min": "1",
+            "max": "500"
+          }
+        }
+      ]
+    }
+  ],
+  "outputs": [],
+  "jump-config": {
+    "datasets": [
+      {
+        "ref-property-name": "referenceName"
+      }
+    ]
+  }
+}

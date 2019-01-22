@@ -69,6 +69,7 @@
     <google.cloud.spanner.version>0.53.0-beta</google.cloud.spanner.version>
     <google.cloud.speech.version>0.54.0-beta</google.cloud.speech.version>
     <google.cloud.storage.version>1.36.0</google.cloud.storage.version>
+    <google.cloud.datastore.version>1.61.0</google.cloud.datastore.version>
     <google.protobuf.java.version>3.4.0</google.protobuf.java.version>
     <slf4j.version>1.7.5</slf4j.version>
     <spark.version>1.6.1</spark.version>
@@ -162,6 +163,11 @@
       <groupId>com.google.cloud</groupId>
       <artifactId>google-cloud-spanner</artifactId>
       <version>${google.cloud.spanner.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-datastore</artifactId>
+      <version>${google.cloud.datastore.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.hadoop</groupId>
@@ -389,6 +395,14 @@
       <version>2.2.1</version>
     </dependency>
     <!-- End: dependency for Google PubSub Streaming Source -->
+    
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>2.24.0</version>
+      <scope>test</scope>
+    </dependency>
+
   </dependencies>
 
   <build>
