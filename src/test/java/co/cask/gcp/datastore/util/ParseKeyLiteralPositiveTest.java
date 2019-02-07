@@ -16,6 +16,7 @@
 package co.cask.gcp.datastore.util;
 
 import com.google.cloud.datastore.PathElement;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -26,8 +27,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import static org.junit.Assert.assertEquals;
 
 /**
  * Tests method {@link DatastorePropertyUtil#parseKeyLiteral(String)} positive cases.
@@ -45,7 +44,7 @@ public class ParseKeyLiteralPositiveTest {
 
   @Test
   public void testParseKeyLiteral() {
-    assertEquals(expectedPathElements, DatastorePropertyUtil.parseKeyLiteral(keyLiteral));
+    Assert.assertEquals(expectedPathElements, DatastorePropertyUtil.parseKeyLiteral(keyLiteral));
   }
 
   @Parameterized.Parameters(name = "{0}")

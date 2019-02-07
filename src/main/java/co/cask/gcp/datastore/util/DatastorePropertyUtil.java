@@ -15,31 +15,23 @@
  */
 package co.cask.gcp.datastore.util;
 
-import co.cask.cdap.api.data.schema.Schema;
-import co.cask.cdap.api.dataset.lib.KeyValue;
-import co.cask.hydrator.common.KeyValueListParser;
 import com.google.cloud.datastore.PathElement;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.datastore.v1.client.DatastoreHelper;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
+import javax.annotation.Nullable;
 
 /**
  * Utility class that provides method for validation, parsing and conversion of config properties.
  */
 public class DatastorePropertyUtil {
 
-  private static final KeyValueListParser KV_PARSER = new KeyValueListParser(";", "\\|");
   private static final Pattern KEY_PATTERN = Pattern.compile("\\s*key\\s*\\((.*)\\)\\s*", Pattern.CASE_INSENSITIVE);
   public static final String DEFAULT_NAMESPACE = "";
 
@@ -50,41 +42,8 @@ public class DatastorePropertyUtil {
    * @param namespace namespace value
    * @return valid namespace value
    */
-  public static String getNamespace(String namespace) {
+  public static String getNamespace(@Nullable String namespace) {
     return Strings.isNullOrEmpty(namespace) ? DEFAULT_NAMESPACE : namespace;
-  }
-
-  /**
-   * Parser JSON schema into CDAP schema object.
-   *
-   * @param schema schema in JSON format
-   * @return CDAP schema
-   */
-  public static Schema parseSchema(String schema) {
-    try {
-      return Schema.parseJson(schema);
-    } catch (IOException e) {
-      throw new IllegalArgumentException("Unable to parse output schema: " + schema, e);
-    }
-  }
-
-  /**
-   * Parsers given string value into map of strings.
-   * If given value is null or empty, returns empty map.
-   *
-   * @param value string value
-   * @return map with parsed string value
-   */
-  public static Map<String, String> parseKeyValuePairs(String value) {
-    if (Strings.isNullOrEmpty(value)) {
-      return Collections.emptyMap();
-    }
-    return StreamSupport.stream(KV_PARSER.parse(value).spliterator(), false)
-      .collect(Collectors.toMap(
-        KeyValue::getKey,
-        KeyValue::getValue,
-        (o, n) -> n,
-        LinkedHashMap::new));
   }
 
   /**
@@ -101,7 +60,7 @@ public class DatastorePropertyUtil {
     Matcher matcher = KEY_PATTERN.matcher(keyLiteral);
     if (!matcher.find()) {
       throw new IllegalArgumentException(
-        String.format("Unsupported datastore key literal format: [%s]. Expected format: %s", keyLiteral,
+        String.format("Unsupported datastore key literal format: '%s'. Expected format: %s", keyLiteral,
                       "key(kind, identifier, kind, identifier, [...])"));
     }
 
@@ -120,8 +79,9 @@ public class DatastorePropertyUtil {
       }
       return resultList;
     } catch (Exception e) {
-      throw new IllegalArgumentException(String.format("Datastore key literal [%s] parsing exception: [%s]. " +
-        "Expected format: %s", keyLiteral, e.getMessage(), "key(kind, identifier, kind, identifier, [...])"), e);
+      throw new IllegalArgumentException(
+        String.format("Datastore key literal '%s' parsing exception: '%s'. Expected format: '%s'",
+                      keyLiteral, e.getMessage(), "key(kind, identifier, kind, identifier, [...])"), e);
     }
   }
 
@@ -131,19 +91,8 @@ public class DatastorePropertyUtil {
    * @param keyAlias key alias value
    * @return valid key alias
    */
-  public static String getKeyAlias(String keyAlias) {
+  public static String getKeyAlias(@Nullable String keyAlias) {
     return Strings.isNullOrEmpty(keyAlias) ? DatastoreHelper.KEY_PROPERTY_NAME : keyAlias;
-  }
-
-  /**
-   * Validates if given kind name is not null or empty.
-   *
-   * @param kind kind name
-   */
-  public static void validateKind(String kind) {
-    if (Strings.isNullOrEmpty(kind)) {
-      throw new IllegalArgumentException("Kind can not be null or empty");
-    }
   }
 
 }

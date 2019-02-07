@@ -23,11 +23,11 @@ import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.DatastoreOptions;
 import com.google.common.base.Strings;
 import com.google.datastore.v1.client.DatastoreFactory;
-import com.google.datastore.v1.client.DatastoreHelper;
 
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import javax.annotation.Nullable;
 
 /**
  * Utility class that provides methods to connect to Datastore instance.
@@ -41,7 +41,7 @@ public class DatastoreUtil {
    * @param projectId Google Cloud project ID
    * @return Datastore service
    */
-  public static Datastore getDatastore(String serviceAccountFilePath, String projectId) {
+  public static Datastore getDatastore(@Nullable String serviceAccountFilePath, String projectId) {
     try {
       DatastoreOptions.Builder optionsBuilder = DatastoreOptions.newBuilder()
         .setProjectId(projectId);
@@ -52,7 +52,7 @@ public class DatastoreUtil {
 
       return optionsBuilder.build().getService();
     } catch (IOException e) {
-      throw new DatastoreInitializationException("Unable to connect to to Datastore", e);
+      throw new DatastoreInitializationException("Unable to connect to Datastore", e);
     }
   }
 
@@ -64,7 +64,7 @@ public class DatastoreUtil {
    * @return Datastore service
    * @throws DatastoreInitializationException when unable to connect to Datastore
    */
-  public static com.google.datastore.v1.client.Datastore getDatastoreV1(String serviceAccountFilePath,
+  public static com.google.datastore.v1.client.Datastore getDatastoreV1(@Nullable String serviceAccountFilePath,
                                                                         String projectId) {
     try {
       com.google.datastore.v1.client.DatastoreOptions options =
@@ -75,7 +75,7 @@ public class DatastoreUtil {
 
       return DatastoreFactory.get().create(options);
     } catch (IOException e) {
-      throw new DatastoreInitializationException("Unable to connect to Datastore", e);
+      throw new DatastoreInitializationException("Unable to connect to Datastore V1", e);
     }
   }
 
@@ -87,16 +87,13 @@ public class DatastoreUtil {
    * @return Google Cloud credential
    * @throws IOException if the credential cannot be created in the current environment
    */
-  private static Credential getCredential(String serviceAccountFilePath) throws IOException {
+  private static Credential getCredential(@Nullable String serviceAccountFilePath) throws IOException {
     GoogleCredential credential;
     if (!Strings.isNullOrEmpty(serviceAccountFilePath)) {
       try (InputStream inputStream = new FileInputStream(serviceAccountFilePath)) {
         credential = GoogleCredential.fromStream(inputStream);
       }
     } else {
-      if (System.getenv(DatastoreHelper.LOCAL_HOST_ENV_VAR) != null) {
-        return null;
-      }
       credential = GoogleCredential.getApplicationDefault();
     }
     return credential.createScoped(com.google.datastore.v1.client.DatastoreOptions.SCOPES);

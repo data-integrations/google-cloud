@@ -16,18 +16,11 @@
 package co.cask.gcp.datastore.source;
 
 import co.cask.cdap.api.data.batch.InputFormatProvider;
-import co.cask.gcp.datastore.source.util.DatastoreSourceQueryUtil;
+import co.cask.gcp.datastore.source.util.DatastoreSourceConstants;
 import com.google.common.collect.ImmutableMap;
 
 import java.util.Map;
 import java.util.Objects;
-
-import static co.cask.gcp.datastore.source.util.DatastoreSourceConstants.CONFIG_KIND;
-import static co.cask.gcp.datastore.source.util.DatastoreSourceConstants.CONFIG_NAMESPACE;
-import static co.cask.gcp.datastore.source.util.DatastoreSourceConstants.CONFIG_NUM_SPLITS;
-import static co.cask.gcp.datastore.source.util.DatastoreSourceConstants.CONFIG_PROJECT;
-import static co.cask.gcp.datastore.source.util.DatastoreSourceConstants.CONFIG_QUERY;
-import static co.cask.gcp.datastore.source.util.DatastoreSourceConstants.CONFIG_SERVICE_ACCOUNT_FILE_PATH;
 
 /**
  * Provides DatastoreInputFormat class name and configuration.
@@ -38,14 +31,13 @@ public class DatastoreInputFormatProvider implements InputFormatProvider {
 
   public DatastoreInputFormatProvider(DatastoreSourceConfig config) {
     ImmutableMap.Builder<String, String> builder = new ImmutableMap.Builder<String, String>()
-      .put(CONFIG_PROJECT, config.getProject())
-      .put(CONFIG_NAMESPACE, config.getNamespace())
-      .put(CONFIG_KIND, config.getKind())
-      .put(CONFIG_QUERY, DatastoreSourceQueryUtil.constructPbQuery(config).toString())
-      .put(CONFIG_NUM_SPLITS, String.valueOf(config.getNumSplits()));
-
+      .put(DatastoreSourceConstants.CONFIG_PROJECT, config.getProject())
+      .put(DatastoreSourceConstants.CONFIG_NAMESPACE, config.getNamespace())
+      .put(DatastoreSourceConstants.CONFIG_KIND, config.getKind())
+      .put(DatastoreSourceConstants.CONFIG_QUERY, config.constructPbQuery().toString())
+      .put(DatastoreSourceConstants.CONFIG_NUM_SPLITS, String.valueOf(config.getNumSplits()));
     if (Objects.nonNull(config.getServiceAccountFilePath())) {
-      builder.put(CONFIG_SERVICE_ACCOUNT_FILE_PATH, config.getServiceAccountFilePath());
+      builder.put(DatastoreSourceConstants.CONFIG_SERVICE_ACCOUNT_FILE_PATH, config.getServiceAccountFilePath());
     }
     this.configMap = builder.build();
   }

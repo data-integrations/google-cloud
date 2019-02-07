@@ -16,28 +16,26 @@
 package co.cask.gcp.datastore.sink;
 
 import co.cask.cdap.api.data.schema.Schema;
+import co.cask.cdap.etl.api.validation.InvalidConfigPropertyException;
 import co.cask.gcp.datastore.sink.util.DatastoreSinkConstants;
 import co.cask.gcp.datastore.sink.util.IndexStrategy;
 import co.cask.gcp.datastore.sink.util.SinkKeyType;
 import co.cask.gcp.datastore.util.DatastorePropertyUtil;
 import com.google.cloud.datastore.PathElement;
 import com.google.datastore.v1.client.DatastoreHelper;
+import org.hamcrest.CoreMatchers;
+import org.hamcrest.Matchers;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.mockito.Mockito;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.spy;
 
 /**
  * Tests of {@link DatastoreSinkConfig} methods.
@@ -53,7 +51,7 @@ public class DatastoreSinkConfigTest {
       .setNamespace(null)
       .build();
 
-    assertEquals(DatastorePropertyUtil.DEFAULT_NAMESPACE, config.getNamespace());
+    Assert.assertEquals(DatastorePropertyUtil.DEFAULT_NAMESPACE, config.getNamespace());
   }
 
   @Test
@@ -62,7 +60,7 @@ public class DatastoreSinkConfigTest {
       .setNamespace("")
       .build();
 
-    assertEquals(DatastorePropertyUtil.DEFAULT_NAMESPACE, config.getNamespace());
+    Assert.assertEquals(DatastorePropertyUtil.DEFAULT_NAMESPACE, config.getNamespace());
   }
 
   @Test
@@ -72,7 +70,7 @@ public class DatastoreSinkConfigTest {
       .setNamespace(namespace)
       .build();
 
-    assertEquals(namespace, config.getNamespace());
+    Assert.assertEquals(namespace, config.getNamespace());
   }
 
   @Test
@@ -81,7 +79,7 @@ public class DatastoreSinkConfigTest {
       .setIndexedProperties(null)
       .build();
 
-    assertEquals(Collections.emptySet(), config.getIndexedProperties());
+    Assert.assertEquals(Collections.emptySet(), config.getIndexedProperties());
   }
 
   @Test
@@ -90,7 +88,7 @@ public class DatastoreSinkConfigTest {
       .setIndexedProperties("")
       .build();
 
-    assertEquals(Collections.emptySet(), config.getIndexedProperties());
+    Assert.assertEquals(Collections.emptySet(), config.getIndexedProperties());
   }
 
   @Test
@@ -106,9 +104,7 @@ public class DatastoreSinkConfigTest {
     expectedProps.add("prop3");
 
     Set<String> actualProps = config.getIndexedProperties();
-    assertNotNull(actualProps);
-
-    assertEquals(expectedProps, new TreeSet<>(actualProps));
+    Assert.assertEquals(expectedProps, actualProps);
   }
 
   @Test
@@ -117,8 +113,9 @@ public class DatastoreSinkConfigTest {
       .setKeyType(null)
       .build();
 
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Unsupported key type value: " + null);
+    thrown.expect(InvalidConfigPropertyException.class);
+    thrown.expect(Matchers.hasProperty("property",
+                                       CoreMatchers.is(DatastoreSinkConstants.PROPERTY_KEY_TYPE)));
 
     config.getKeyType();
   }
@@ -130,7 +127,7 @@ public class DatastoreSinkConfigTest {
       .setKeyType(keyType.getValue())
       .build();
 
-    assertEquals(keyType, config.getKeyType());
+    Assert.assertEquals(keyType, config.getKeyType());
   }
 
   @Test
@@ -139,8 +136,9 @@ public class DatastoreSinkConfigTest {
       .setIndexStrategy(null)
       .build();
 
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Unsupported index strategy value: " + null);
+    thrown.expect(InvalidConfigPropertyException.class);
+    thrown.expect(Matchers.hasProperty("property",
+                                       CoreMatchers.is(DatastoreSinkConstants.PROPERTY_INDEX_STRATEGY)));
 
     config.getIndexStrategy();
   }
@@ -152,7 +150,7 @@ public class DatastoreSinkConfigTest {
       .setIndexStrategy(indexStrategy.getValue())
       .build();
 
-    assertEquals(indexStrategy, config.getIndexStrategy());
+    Assert.assertEquals(indexStrategy, config.getIndexStrategy());
   }
 
   @Test
@@ -161,7 +159,7 @@ public class DatastoreSinkConfigTest {
       .setKeyAlias(null)
       .build();
 
-    assertEquals(DatastoreHelper.KEY_PROPERTY_NAME, config.getKeyAlias());
+    Assert.assertEquals(DatastoreHelper.KEY_PROPERTY_NAME, config.getKeyAlias());
   }
 
   @Test
@@ -171,7 +169,7 @@ public class DatastoreSinkConfigTest {
       .setKeyAlias(keyAlias)
       .build();
 
-    assertEquals(keyAlias, config.getKeyAlias());
+    Assert.assertEquals(keyAlias, config.getKeyAlias());
   }
 
   @Test
@@ -180,7 +178,7 @@ public class DatastoreSinkConfigTest {
       .setAncestor(null)
       .build();
 
-    assertEquals(Collections.emptyList(), config.getAncestor());
+    Assert.assertEquals(Collections.emptyList(), config.getAncestor());
   }
 
   @Test
@@ -189,7 +187,7 @@ public class DatastoreSinkConfigTest {
       .setAncestor("")
       .build();
 
-    assertEquals(Collections.emptyList(), config.getAncestor());
+    Assert.assertEquals(Collections.emptyList(), config.getAncestor());
   }
 
   @Test
@@ -203,7 +201,7 @@ public class DatastoreSinkConfigTest {
                                                        PathElement.of("B", "bId"),
                                                        PathElement.of("C C C", 123));
 
-    assertEquals(expectedAncestor, config.getAncestor());
+    Assert.assertEquals(expectedAncestor, config.getAncestor());
   }
 
   @Test
@@ -213,7 +211,7 @@ public class DatastoreSinkConfigTest {
       .setKeyType(keyType.getValue())
       .build();
 
-    assertFalse(config.isUseAutoGeneratedKey());
+    Assert.assertFalse(config.shouldUseAutoGeneratedKey());
   }
 
   @Test
@@ -222,13 +220,13 @@ public class DatastoreSinkConfigTest {
       .setKeyType(SinkKeyType.AUTO_GENERATED_KEY.getValue())
       .build();
 
-    assertTrue(config.isUseAutoGeneratedKey());
+    Assert.assertTrue(config.shouldUseAutoGeneratedKey());
   }
 
   @Test
   public void testValidateCustomKeyWithKeyAliasInSchema() {
     String keyAlias = "testKeyAlias";
-    DatastoreSinkConfig config = spy(DatastoreSinkConfigHelper.newConfigBuilder()
+    DatastoreSinkConfig config = Mockito.spy(DatastoreSinkConfigHelper.newConfigBuilder()
       .setNamespace("testNs")
       .setKind("testKind")
       .setKeyType(SinkKeyType.CUSTOM_NAME.getValue())
@@ -241,15 +239,14 @@ public class DatastoreSinkConfigTest {
       .build());
     Schema schema = Schema.recordOf("record",
                                     Schema.Field.of(keyAlias, Schema.of(Schema.Type.STRING)),
-                                    Schema.Field.of("id", Schema.of(Schema.Type.LONG))
-    );
-    doNothing().when(config).validateDatastoreConnection();
+                                    Schema.Field.of("id", Schema.of(Schema.Type.LONG)));
+    Mockito.doNothing().when(config).validateDatastoreConnection();
     config.validate(schema);
   }
 
   @Test
   public void testValidateAutoGeneratedKeySchema() {
-    DatastoreSinkConfig config = spy(DatastoreSinkConfigHelper.newConfigBuilder()
+    DatastoreSinkConfig config = Mockito.spy(DatastoreSinkConfigHelper.newConfigBuilder()
       .setNamespace("testNs")
       .setKind("testKind")
       .setKeyType(SinkKeyType.AUTO_GENERATED_KEY.getValue())
@@ -261,15 +258,14 @@ public class DatastoreSinkConfigTest {
       .build());
     Schema schema = Schema.recordOf("record",
                                     Schema.Field.of("testName", Schema.of(Schema.Type.STRING)),
-                                    Schema.Field.of("id", Schema.of(Schema.Type.LONG))
-    );
-    doNothing().when(config).validateDatastoreConnection();
+                                    Schema.Field.of("id", Schema.of(Schema.Type.LONG)));
+    Mockito.doNothing().when(config).validateDatastoreConnection();
     config.validate(schema);
   }
 
   @Test
   public void testValidateIndexStrategyCustom() {
-    DatastoreSinkConfig config = spy(DatastoreSinkConfigHelper.newConfigBuilder()
+    DatastoreSinkConfig config = Mockito.spy(DatastoreSinkConfigHelper.newConfigBuilder()
                                        .setNamespace("testNs")
                                        .setKind("testKind")
                                        .setKeyType(SinkKeyType.AUTO_GENERATED_KEY.getValue())
@@ -281,15 +277,14 @@ public class DatastoreSinkConfigTest {
                                        .build());
     Schema schema = Schema.recordOf("record",
                                     Schema.Field.of("testName", Schema.of(Schema.Type.STRING)),
-                                    Schema.Field.of("id", Schema.of(Schema.Type.LONG))
-    );
-    doNothing().when(config).validateDatastoreConnection();
+                                    Schema.Field.of("id", Schema.of(Schema.Type.LONG)));
+    Mockito.doNothing().when(config).validateDatastoreConnection();
     config.validate(schema);
   }
 
   @Test
   public void testValidateIndexStrategyCustomWithoutFieldNameInSchema() {
-    DatastoreSinkConfig config = spy(DatastoreSinkConfigHelper.newConfigBuilder()
+    DatastoreSinkConfig config = Mockito.spy(DatastoreSinkConfigHelper.newConfigBuilder()
                                        .setNamespace("testNs")
                                        .setKind("testKind")
                                        .setKeyType(SinkKeyType.AUTO_GENERATED_KEY.getValue())
@@ -301,45 +296,20 @@ public class DatastoreSinkConfigTest {
                                        .build());
     Schema schema = Schema.recordOf("record",
                                     Schema.Field.of("testName", Schema.of(Schema.Type.STRING)),
-                                    Schema.Field.of("id", Schema.of(Schema.Type.LONG))
-    );
+                                    Schema.Field.of("id", Schema.of(Schema.Type.LONG)));
 
-    doNothing().when(config).validateDatastoreConnection();
+    Mockito.doNothing().when(config).validateDatastoreConnection();
 
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Indexed properties should exist in schema. Missed properties: [testNameError]");
-
-    config.validate(schema);
-  }
-
-  @Test
-  public void testValidateIndexStrategyCustomWithEmptyIndexedProperties() {
-    DatastoreSinkConfig config = spy(DatastoreSinkConfigHelper.newConfigBuilder()
-                                       .setNamespace("testNs")
-                                       .setKind("testKind")
-                                       .setKeyType(SinkKeyType.AUTO_GENERATED_KEY.getValue())
-                                       .setServiceFilePath(null)
-                                       .setAncestor(null)
-                                       .setIndexedProperties(null)
-                                       .setIndexStrategy(IndexStrategy.CUSTOM.getValue())
-                                       .setBatchSize(1)
-                                       .build());
-    Schema schema = Schema.recordOf("record",
-                                    Schema.Field.of("testName", Schema.of(Schema.Type.STRING)),
-                                    Schema.Field.of("id", Schema.of(Schema.Type.LONG))
-    );
-
-    doNothing().when(config).validateDatastoreConnection();
-
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Indexed properties can not be empty if index strategy is [Custom]");
+    thrown.expect(InvalidConfigPropertyException.class);
+    thrown.expect(Matchers.hasProperty("property",
+                                       CoreMatchers.is(DatastoreSinkConstants.PROPERTY_INDEXED_PROPERTIES)));
 
     config.validate(schema);
   }
 
   @Test
   public void testValidateKeyLiteralTypeWithoutKeyNameInSchema() {
-    DatastoreSinkConfig config = spy(DatastoreSinkConfigHelper.newConfigBuilder()
+    DatastoreSinkConfig config = Mockito.spy(DatastoreSinkConfigHelper.newConfigBuilder()
       .setNamespace("testNs")
       .setKind("testKind")
       .setKeyType(SinkKeyType.KEY_LITERAL.getValue())
@@ -350,20 +320,20 @@ public class DatastoreSinkConfigTest {
       .build());
     Schema schema = Schema.recordOf("record",
                                     Schema.Field.of("testName", Schema.of(Schema.Type.STRING)),
-                                    Schema.Field.of("id", Schema.of(Schema.Type.LONG))
-    );
+                                    Schema.Field.of("id", Schema.of(Schema.Type.LONG)));
 
-    doNothing().when(config).validateDatastoreConnection();
+    Mockito.doNothing().when(config).validateDatastoreConnection();
 
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Key Alias [__key__] should exist in schema.");
+    thrown.expect(InvalidConfigPropertyException.class);
+    thrown.expect(Matchers.hasProperty("property",
+                                       CoreMatchers.is(DatastoreSinkConstants.PROPERTY_KEY_ALIAS)));
 
     config.validate(schema);
   }
 
   @Test
   public void testValidateBatchSizeWithinLimit() {
-    DatastoreSinkConfig config = spy(DatastoreSinkConfigHelper.newConfigBuilder()
+    DatastoreSinkConfig config = Mockito.spy(DatastoreSinkConfigHelper.newConfigBuilder()
       .setKeyType(SinkKeyType.AUTO_GENERATED_KEY.getValue())
       .setServiceFilePath(null)
       .setBatchSize(10)
@@ -372,16 +342,15 @@ public class DatastoreSinkConfigTest {
 
     Schema schema = Schema.recordOf("record",
                                     Schema.Field.of("testName", Schema.of(Schema.Type.STRING)),
-                                    Schema.Field.of("id", Schema.of(Schema.Type.LONG))
-    );
-    doNothing().when(config).validateDatastoreConnection();
+                                    Schema.Field.of("id", Schema.of(Schema.Type.LONG)));
+    Mockito.doNothing().when(config).validateDatastoreConnection();
     config.validate(schema);
   }
 
   @Test
   public void testValidateBatchSizeZero() {
     int batchSize = 0;
-    DatastoreSinkConfig config = spy(DatastoreSinkConfigHelper.newConfigBuilder()
+    DatastoreSinkConfig config = Mockito.spy(DatastoreSinkConfigHelper.newConfigBuilder()
       .setKeyType(SinkKeyType.AUTO_GENERATED_KEY.getValue())
       .setServiceFilePath(null)
       .setBatchSize(batchSize)
@@ -390,15 +359,13 @@ public class DatastoreSinkConfigTest {
 
     Schema schema = Schema.recordOf("record",
                                     Schema.Field.of("testName", Schema.of(Schema.Type.STRING)),
-                                    Schema.Field.of("name", Schema.of(Schema.Type.LONG))
-    );
+                                    Schema.Field.of("name", Schema.of(Schema.Type.LONG)));
 
-    doNothing().when(config).validateDatastoreConnection();
+    Mockito.doNothing().when(config).validateDatastoreConnection();
 
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(String.format("Invalid Datastore batch size: [%s]. "
-      + "Minimum number of entries in one batch: [1], maximum: [%s]", batchSize,
-                                       DatastoreSinkConstants.MAX_BATCH_SIZE));
+    thrown.expect(InvalidConfigPropertyException.class);
+    thrown.expect(Matchers.hasProperty("property",
+                                       CoreMatchers.is(DatastoreSinkConstants.PROPERTY_BATCH_SIZE)));
 
     config.validate(schema);
   }
@@ -406,7 +373,7 @@ public class DatastoreSinkConfigTest {
   @Test
   public void testValidateBatchNegative() {
     int batchSize = -10;
-    DatastoreSinkConfig config = spy(DatastoreSinkConfigHelper.newConfigBuilder()
+    DatastoreSinkConfig config = Mockito.spy(DatastoreSinkConfigHelper.newConfigBuilder()
       .setKeyType(SinkKeyType.AUTO_GENERATED_KEY.getValue())
       .setServiceFilePath(null)
       .setBatchSize(batchSize)
@@ -415,22 +382,20 @@ public class DatastoreSinkConfigTest {
 
     Schema schema = Schema.recordOf("record",
                                     Schema.Field.of("testName", Schema.of(Schema.Type.STRING)),
-                                    Schema.Field.of("name", Schema.of(Schema.Type.LONG))
-    );
+                                    Schema.Field.of("name", Schema.of(Schema.Type.LONG)));
 
-    doNothing().when(config).validateDatastoreConnection();
+    Mockito.doNothing().when(config).validateDatastoreConnection();
 
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(String.format("Invalid Datastore batch size: [%s]. "
-      + "Minimum number of entries in one batch: [1], maximum: [%s]", batchSize,
-                                       DatastoreSinkConstants.MAX_BATCH_SIZE));
+    thrown.expect(InvalidConfigPropertyException.class);
+    thrown.expect(Matchers.hasProperty("property",
+                                       CoreMatchers.is(DatastoreSinkConstants.PROPERTY_BATCH_SIZE)));
 
     config.validate(schema);
   }
 
   @Test
   public void testValidateBatchMax() {
-    DatastoreSinkConfig config = spy(DatastoreSinkConfigHelper.newConfigBuilder()
+    DatastoreSinkConfig config = Mockito.spy(DatastoreSinkConfigHelper.newConfigBuilder()
       .setKeyType(SinkKeyType.AUTO_GENERATED_KEY.getValue())
       .setServiceFilePath(null)
       .setBatchSize(DatastoreSinkConstants.MAX_BATCH_SIZE)
@@ -439,16 +404,15 @@ public class DatastoreSinkConfigTest {
 
     Schema schema = Schema.recordOf("record",
                                     Schema.Field.of("testName", Schema.of(Schema.Type.STRING)),
-                                    Schema.Field.of("name", Schema.of(Schema.Type.LONG))
-    );
-    doNothing().when(config).validateDatastoreConnection();
+                                    Schema.Field.of("name", Schema.of(Schema.Type.LONG)));
+    Mockito.doNothing().when(config).validateDatastoreConnection();
     config.validate(schema);
   }
 
   @Test
   public void testValidateBatchOverMax() {
     int batchSize = DatastoreSinkConstants.MAX_BATCH_SIZE + 1;
-    DatastoreSinkConfig config = spy(DatastoreSinkConfigHelper.newConfigBuilder()
+    DatastoreSinkConfig config = Mockito.spy(DatastoreSinkConfigHelper.newConfigBuilder()
       .setKeyType(SinkKeyType.AUTO_GENERATED_KEY.getValue())
       .setServiceFilePath(null)
       .setBatchSize(batchSize)
@@ -457,15 +421,13 @@ public class DatastoreSinkConfigTest {
 
     Schema schema = Schema.recordOf("record",
                                     Schema.Field.of("testName", Schema.of(Schema.Type.STRING)),
-                                    Schema.Field.of("name", Schema.of(Schema.Type.LONG))
-    );
+                                    Schema.Field.of("name", Schema.of(Schema.Type.LONG)));
 
-    doNothing().when(config).validateDatastoreConnection();
+    Mockito.doNothing().when(config).validateDatastoreConnection();
 
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(String.format("Invalid Datastore batch size: [%s]. "
-      + "Minimum number of entries in one batch: [1], maximum: [%s]", batchSize,
-                                       DatastoreSinkConstants.MAX_BATCH_SIZE));
+    thrown.expect(InvalidConfigPropertyException.class);
+    thrown.expect(Matchers.hasProperty("property",
+                                       CoreMatchers.is(DatastoreSinkConstants.PROPERTY_BATCH_SIZE)));
 
     config.validate(schema);
   }

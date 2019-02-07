@@ -17,7 +17,6 @@ package co.cask.gcp.datastore.source;
 
 import co.cask.gcp.datastore.exception.DatastoreExecutionException;
 import co.cask.gcp.datastore.source.util.DatastoreSourceConstants;
-import co.cask.gcp.datastore.source.util.DatastoreSourceQueryUtil;
 import co.cask.gcp.datastore.util.DatastoreUtil;
 import com.google.cloud.datastore.Entity;
 import com.google.datastore.v1.PartitionId;
@@ -41,9 +40,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static co.cask.gcp.datastore.source.util.DatastoreSourceConstants.CONFIG_PROJECT;
-import static co.cask.gcp.datastore.source.util.DatastoreSourceConstants.CONFIG_SERVICE_ACCOUNT_FILE_PATH;
-
 /**
  * Datastore input format, splits query from the configuration into list of queries
  * using {@link QuerySplitter} in order to create input splits.
@@ -61,12 +57,14 @@ public class DatastoreInputFormat extends InputFormat<LongWritable, Entity> {
 
     Query query = queryBuilder.build();
     LOG.debug("Query to be split: {}", query);
-    PartitionId partitionId = DatastoreSourceQueryUtil.getPartitionId(
-      config.get(DatastoreSourceConstants.CONFIG_PROJECT),
-      config.get(DatastoreSourceConstants.CONFIG_NAMESPACE));
+    PartitionId partitionId = PartitionId.newBuilder()
+      .setNamespaceId(config.get(DatastoreSourceConstants.CONFIG_NAMESPACE))
+      .setProjectId(config.get(DatastoreSourceConstants.CONFIG_PROJECT))
+      .build();
     int numSplits = config.getInt(DatastoreSourceConstants.CONFIG_NUM_SPLITS, 1);
-    Datastore datastore = DatastoreUtil.getDatastoreV1(config.get(CONFIG_SERVICE_ACCOUNT_FILE_PATH),
-                                                       config.get(CONFIG_PROJECT));
+    Datastore datastore = DatastoreUtil.getDatastoreV1(
+      config.get(DatastoreSourceConstants.CONFIG_SERVICE_ACCOUNT_FILE_PATH),
+      config.get(DatastoreSourceConstants.CONFIG_PROJECT));
     QuerySplitter querySplitter = DatastoreHelper.getQuerySplitter();
 
     try {
@@ -76,7 +74,7 @@ public class DatastoreInputFormat extends InputFormat<LongWritable, Entity> {
         .map(QueryInputSplit::new)
         .collect(Collectors.toList());
     } catch (DatastoreException e) {
-      throw new DatastoreExecutionException("Unable to split the query", e);
+      throw new DatastoreExecutionException("Unable to split the query: " + query, e);
     }
   }
 

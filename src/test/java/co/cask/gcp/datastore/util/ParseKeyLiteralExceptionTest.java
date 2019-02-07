@@ -15,8 +15,6 @@
  */
 package co.cask.gcp.datastore.util;
 
-import org.hamcrest.CoreMatchers;
-import org.hamcrest.Matcher;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -38,19 +36,15 @@ public class ParseKeyLiteralExceptionTest {
 
   private final String keyLiteral;
   private final Class<? extends Throwable> exceptionClass;
-  private final Matcher<String> messageMatcher;
 
-  public ParseKeyLiteralExceptionTest(String keyLiteral, Class<? extends Throwable> exceptionClass,
-                                      Matcher<String> messageMatcher) {
+  public ParseKeyLiteralExceptionTest(String keyLiteral, Class<? extends Throwable> exceptionClass) {
     this.keyLiteral = keyLiteral;
     this.exceptionClass = exceptionClass;
-    this.messageMatcher = messageMatcher;
   }
 
   @Test
   public void testParseKeyLiteral() {
     thrown.expect(exceptionClass);
-    thrown.expectMessage(messageMatcher);
 
     DatastorePropertyUtil.parseKeyLiteral(keyLiteral);
   }
@@ -58,26 +52,13 @@ public class ParseKeyLiteralExceptionTest {
   @Parameterized.Parameters(name = "{0}")
   public static Collection<Object[]> data() {
     return Stream.of(
-      new Object[]{"100", IllegalArgumentException.class,
-        CoreMatchers.containsString("Unsupported datastore key literal format: [100]")},
-      new Object[]{"'value'", IllegalArgumentException.class,
-        CoreMatchers.containsString("Unsupported datastore key literal format: ['value']")},
-      new Object[]{"(A,'StringId')", IllegalArgumentException.class,
-        CoreMatchers.containsString("Unsupported datastore key literal format: [(A,'StringId')]")},
-      new Object[]{"keyLiteral(`a a`,)", IllegalArgumentException.class,
-        CoreMatchers.containsString("Unsupported datastore key literal format: [keyLiteral(`a a`,)]")},
-      new Object[]{"KEY(A,100,B,200,C)", IllegalArgumentException.class, CoreMatchers.allOf(
-        CoreMatchers.containsString("Datastore key literal [KEY(A,100,B,200,C)] parsing exception"),
-        CoreMatchers.containsString("Key literal must have even number of elements"))
-      },
-      new Object[]{"key(A,)", IllegalArgumentException.class, CoreMatchers.allOf(
-        CoreMatchers.containsString("Datastore key literal [key(A,)] parsing exception"),
-        CoreMatchers.containsString("Key literal must have even number of elements"))
-      },
-      new Object[]{"key()", IllegalArgumentException.class, CoreMatchers.allOf(
-        CoreMatchers.containsString("Datastore key literal [key()] parsing exception"),
-        CoreMatchers.containsString("Key literal must have even number of elements"))
-      }
+      new Object[]{"100", IllegalArgumentException.class},
+      new Object[]{"'value'", IllegalArgumentException.class},
+      new Object[]{"(A,'StringId')", IllegalArgumentException.class},
+      new Object[]{"keyLiteral(`a a`,)", IllegalArgumentException.class},
+      new Object[]{"KEY(A,100,B,200,C)", IllegalArgumentException.class},
+      new Object[]{"key(A,)", IllegalArgumentException.class},
+      new Object[]{"key()", IllegalArgumentException.class}
     ).collect(Collectors.toList());
   }
 }

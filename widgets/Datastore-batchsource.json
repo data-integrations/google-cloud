@@ -41,7 +41,7 @@
         },
         {
           "widget-type": "textbox",
-          "label": "Has Ancestor",
+          "label": "Ancestor",
           "name": "ancestor",
           "widget-attributes" : {
             "placeholder": "Key literal"
