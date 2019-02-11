@@ -49,40 +49,42 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import javax.ws.rs.Path;
 
 /**
- * Cloud DLP.
+ * This class <code>SensitiveRecordInspector</code> inspects a input field to detect type of sensitive data.
  */
 @Plugin(type = Transform.PLUGIN_TYPE)
-@Name(DLPInfoDetector.NAME)
-@Description(DLPInfoDetector.DESCRIPTION)
-public final class DLPInfoDetector extends Transform<StructuredRecord, StructuredRecord> {
-  private static final Logger LOG = LoggerFactory.getLogger(DLPInfoDetector.class);
-  public static final String NAME = "DLPInfoDetector";
-  public static final String DESCRIPTION = "Cloud DLP inspects data based on configured information types.";
+@Name(SensitiveRecordInspector.NAME)
+@Description(SensitiveRecordInspector.DESCRIPTION)
+public final class SensitiveRecordInspector extends Transform<StructuredRecord, StructuredRecord> {
+  private static final Logger LOG = LoggerFactory.getLogger(SensitiveRecordInspector.class);
+  public static final String NAME = "SensitiveRecordInspector";
+  public static final String DESCRIPTION = "Cloud DLP data inspector for identifying sensitive data.";
 
   // Stores the configuration passed to this class from user.
   private final Config config;
-
+  // An instance of Dlp service client.
   private DlpServiceClient client;
+  // Holds the configuration for inspector.
   private InspectConfig inspectConfig;
-
+  // Defines the output schema.
   private static final Schema DLP_INFO_TYPE_SCHEMA =
-    Schema.recordOf("dlpinfotypes",
+    Schema.recordOf("sensitivedata",
                     Schema.Field.of("quote", Schema.nullableOf(Schema.of(Schema.Type.STRING))),
-                    Schema.Field.of("infotype", Schema.nullableOf(Schema.of(Schema.Type.STRING))),
+                    Schema.Field.of("type", Schema.nullableOf(Schema.of(Schema.Type.STRING))),
                     Schema.Field.of("likelihood", Schema.nullableOf(Schema.of(Schema.Type.STRING)))
     );
 
 
-
   @VisibleForTesting
-  public DLPInfoDetector(Config config) {
+  public SensitiveRecordInspector(Config config) {
     this.config = config;
   }
 
   /**
    * Confiigure Pipeline.
+   *
    * @param pipelineConfigurer
    * @throws IllegalArgumentException
    */
@@ -91,17 +93,22 @@ public final class DLPInfoDetector extends Transform<StructuredRecord, Structure
     super.configurePipeline(pipelineConfigurer);
     Schema inputSchema = pipelineConfigurer.getStageConfigurer().getInputSchema();
     if (!config.containsMacro(config.getFieldName()) && inputSchema.getField(config.getFieldName()) == null) {
-      throw new IllegalArgumentException("Field specified is not present in input schema");
+      throw new IllegalArgumentException("Field specified for inspection is not present in input schema");
     }
   }
 
+  /**
+   *
+   * @param context
+   * @throws Exception
+   */
   @Override
   public void prepareRun(StageSubmitterContext context) throws Exception {
     super.prepareRun(context);
     // Macros are resolved by this time, so we check before runninig if the input field specified by user
     // is present in the input schema.
     if (context.getInputSchema().getField(config.getFieldName()) == null) {
-      throw new IllegalArgumentException("Input field not present in the input schema");
+      throw new IllegalArgumentException("Field specified for inspection is not present in input schema");
     }
   }
 
@@ -114,12 +121,14 @@ public final class DLPInfoDetector extends Transform<StructuredRecord, Structure
   @Override
   public void initialize(TransformContext context) throws Exception {
     super.initialize(context);
-    client = DlpServiceClient.create(getSettings());
+    client = DlpServiceClient.create(getDlpSettings());
     inspectConfig =
       InspectConfig.newBuilder()
         .addAllInfoTypes(config.getInfoTypes())
         .setMinLikelihood(config.getMinLikelihood())
-        .setLimits(InspectConfig.FindingLimits.newBuilder().setMaxFindingsPerItem(config.getMaxFindings()).build())
+        .setLimits(InspectConfig.FindingLimits.newBuilder()
+                     .setMaxFindingsPerItem(config.getMaxFindings())
+                     .build())
         .setIncludeQuote(config.getIncludeQuote())
         .build();
   }
@@ -134,14 +143,24 @@ public final class DLPInfoDetector extends Transform<StructuredRecord, Structure
   @Override
   public void transform(StructuredRecord record, Emitter<StructuredRecord> emitter) throws Exception {
     Object object = record.get(config.getFieldName());
+
+    ByteContentItem byteContentItem = null;
     if (object instanceof String) {
-      ByteContentItem byteContentItem =
+      byteContentItem =
         ByteContentItem.newBuilder()
           .setType(ByteContentItem.BytesType.TEXT_UTF8)
           .setData(ByteString.copyFromUtf8(String.valueOf(object)))
           .build();
-      ContentItem contentItem = ContentItem.newBuilder().setByteItem(byteContentItem).build();
+    } else if (object instanceof byte[]) {
+      byteContentItem =
+        ByteContentItem.newBuilder()
+          .setType(ByteContentItem.BytesType.TEXT_UTF8)
+          .setData(ByteString.copyFrom((byte[]) object))
+          .build();
+    }
 
+    if (byteContentItem == null) {
+      ContentItem contentItem = ContentItem.newBuilder().setByteItem(byteContentItem).build();
       InspectContentRequest request =
         InspectContentRequest.newBuilder()
           .setParent(ProjectName.of(config.getProject()).toString())
@@ -157,7 +176,7 @@ public final class DLPInfoDetector extends Transform<StructuredRecord, Structure
           if (config.getIncludeQuote()) {
             outputBuilder.set("quote", finding.getQuote());
           }
-          outputBuilder.set("infotype", finding.getInfoType().getName());
+          outputBuilder.set("type", finding.getInfoType().getName());
           outputBuilder.set("likelihood", finding.getLikelihood().getValueDescriptor().getName());
           emitter.emit(outputBuilder.build());
         }
@@ -166,23 +185,41 @@ public final class DLPInfoDetector extends Transform<StructuredRecord, Structure
   }
 
   /**
-   * Destroy.
+   * Configures the <code>DlpSettings</code> to use user specified service account file or auto-detect.
+   *
+   * @return Instance of <code>DlpServiceSettings</code>
+   * @throws IOException thrown when there is issue reading service account file.
    */
-  @Override
-  public void destroy() {
-    super.destroy();
-  }
-
-  private DlpServiceSettings getSettings() throws IOException {
+  private DlpServiceSettings getDlpSettings() throws IOException {
     DlpServiceSettings.Builder builder = DlpServiceSettings.newBuilder();
     if (config.getServiceAccountFilePath() != null) {
-      builder.setCredentialsProvider(() -> GCPUtils.loadServiceAccountCredentials(config.getServiceAccountFilePath()));
+      builder.setCredentialsProvider(
+        () -> GCPUtils.loadServiceAccountCredentials(config.getServiceAccountFilePath())
+      );
     }
     return builder.build();
   }
 
   /**
-   * Configuration object.
+   * Request object from the Plugin REST call.
+   */
+  public static final class Request extends Config {
+    private Schema inputSchema;
+  }
+
+  /**
+   * This method returns the expected output schema for <code>SensitiveRecordInspector</code> plugin.
+   *
+   * @param request user specified input schema.
+   * @return Output <code>Schema</code> object.
+   */
+  @Path("getSchema")
+  public Schema getSchema(Request request) {
+    return DLP_INFO_TYPE_SCHEMA;
+  }
+
+  /**
+   * This class <code>Config</code> specifies the configuration used by <code>SensitiveRecordInspector</code>.
    */
   public static class Config extends GCPConfig {
     @Macro
