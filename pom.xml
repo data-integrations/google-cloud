@@ -61,6 +61,7 @@
     <cdap.version>6.1.0-SNAPSHOT</cdap.version>
     <cdap.plugin.version>2.3.0-SNAPSHOT</cdap.plugin.version>
     <guava.version>20.0</guava.version>
+    <dlp.version>0.80.0-beta</dlp.version>
     <hadoop.version>2.8.0</hadoop.version>
     <jackson.core.version>2.8.11.1</jackson.core.version>
     <junit.version>4.12</junit.version>
@@ -169,6 +170,11 @@
       <groupId>com.google.cloud</groupId>
       <artifactId>google-cloud-datastore</artifactId>
       <version>${google.cloud.datastore.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-dlp</artifactId>
+      <version>${dlp.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.hadoop</groupId>
