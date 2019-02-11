@@ -3,7 +3,7 @@
   "metadata": {
     "spec-version": "1.6"
   },
-  "display-name": "DLP Sensitivity Filter",
+  "display-name": "Sensitive Record Filter",
   "configuration-groups": [
     {
       "label": "Input Configuration",

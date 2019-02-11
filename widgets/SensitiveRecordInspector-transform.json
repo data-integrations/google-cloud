@@ -3,7 +3,7 @@
   "metadata": {
     "spec-version": "1.6"
   },
-  "display-name": "DLP InfoType Detector",
+  "display-name": "Sensitive Record Inspector",
   "configuration-groups": [
     {
       "label": "Input Configuration",

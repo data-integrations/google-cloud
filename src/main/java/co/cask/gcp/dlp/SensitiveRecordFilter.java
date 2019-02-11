@@ -59,12 +59,12 @@ import java.util.Map;
  * Cloud DLP.
  */
 @Plugin(type = Transform.PLUGIN_TYPE)
-@Name(DLPSensitiveFilter.NAME)
-@Description(DLPSensitiveFilter.DESCRIPTION)
-public final class DLPSensitiveFilter extends Transform<StructuredRecord, StructuredRecord> {
-  private static final Logger LOG = LoggerFactory.getLogger(DLPSensitiveFilter.class);
-  public static final String NAME = "DLPSensitiveFilter";
-  public static final String DESCRIPTION = "Filters input records based on sensitivity of a given field.";
+@Name(SensitiveRecordFilter.NAME)
+@Description(SensitiveRecordFilter.DESCRIPTION)
+public final class SensitiveRecordFilter extends Transform<StructuredRecord, StructuredRecord> {
+  private static final Logger LOG = LoggerFactory.getLogger(SensitiveRecordFilter.class);
+  public static final String NAME = "SensitiveRecordFilter";
+  public static final String DESCRIPTION = "Filters input records based that are sensitive.";
 
   // Stores the configuration passed to this class from user.
   private final Config config;
@@ -74,7 +74,7 @@ public final class DLPSensitiveFilter extends Transform<StructuredRecord, Struct
 
 
   @VisibleForTesting
-  public DLPSensitiveFilter(Config config) {
+  public SensitiveRecordFilter(Config config) {
     this.config = config;
   }
 
@@ -111,7 +111,7 @@ public final class DLPSensitiveFilter extends Transform<StructuredRecord, Struct
   @Override
   public void initialize(TransformContext context) throws Exception {
     super.initialize(context);
-    SensitivityMapping sensitivityMapping = new SensitivityMapping();
+    SensitiveDataMapping sensitivityMapping = new SensitiveDataMapping();
     List<InfoType> sensitiveInfoTypes = sensitivityMapping.getSensitiveInfoTypes(config.getSensitiveTypes());
     client = DlpServiceClient.create(getSettings());
     inspectConfig =
@@ -195,13 +195,11 @@ public final class DLPSensitiveFilter extends Transform<StructuredRecord, Struct
   }
 
   /**
-   * Destroy.
+   * Configures the <code>DlpSettings</code> to use user specified service account file or auto-detect.
+   *
+   * @return Instance of <code>DlpServiceSettings</code>
+   * @throws IOException thrown when there is issue reading service account file.
    */
-  @Override
-  public void destroy() {
-    super.destroy();
-  }
-
   private DlpServiceSettings getSettings() throws IOException {
     DlpServiceSettings.Builder builder = DlpServiceSettings.newBuilder();
     if (config.getServiceAccountFilePath() != null) {
@@ -229,15 +227,24 @@ public final class DLPSensitiveFilter extends Transform<StructuredRecord, Struct
     @Description("Information types to be matched")
     private String sensitiveTypes;
 
+    /**
+     * @return The name of field that needs to be inspected for sensitive data.
+     */
     public String getFieldName() {
       return field;
     }
 
+    /**
+     * @return Array of composite sensitive types specified by user.
+     */
     public String[] getSensitiveTypes() {
       String[] types = sensitiveTypes.split(",");
       return types;
     }
 
+    /**
+     * @return {@link InfoType} based on user filter confidence.
+     */
     public Likelihood getFilterConfidence() {
       if (filterConfidence.equalsIgnoreCase("low")) {
         return Likelihood.POSSIBLE;
