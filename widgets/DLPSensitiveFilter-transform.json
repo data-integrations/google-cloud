@@ -1,0 +1,142 @@
+
+{
+  "metadata": {
+    "spec-version": "1.6"
+  },
+  "display-name": "DLP Sensitivity Filter",
+  "configuration-groups": [
+    {
+      "label": "Input Configuration",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Field",
+          "name": "field",
+          "widget-attributes" : {
+            "placeholder" : "Input field that needs to be applied DLP"
+          }
+        }
+      ]
+    },
+    {
+      "label": "DLP Configuration",
+      "properties" : [
+        {
+          "name": "filter-confidence",
+          "label": "Filter Confidence",
+          "widget-type": "radio-group",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "high",
+            "options": [
+              {
+                "id": "low",
+                "label": "Low"
+              },
+              {
+                "id": "medium",
+                "label": "Medium"
+              },
+              {
+                "id": "high",
+                "label": "High"
+              }
+
+            ]
+          }
+        },
+        {
+          "name": "sensitive-types",
+          "widget-type": "multi-select",
+          "label": "Sensitive Types",
+          "widget-attributes": {
+            "delimiter": ",",
+            "defaultValue": [
+              "DEMOGRAPHIC",
+              "NATIONAL_ID"
+            ],
+            "options": [
+              {
+                "id": "DEMOGRAPHIC",
+                "label": "Demographics"
+              },
+              {
+                "id": "LOCATION",
+                "label": "Location"
+              },
+              {
+                "id": "TAX",
+                "label": "Tax IDs"
+              },
+              {
+                "id": "CREDIT_CARD",
+                "label" : "Credit Card Numbers"
+              },
+              {
+                "id": "PASSPORT",
+                "label": "Passport Numbers"
+              },
+              {
+                "id": "HEALTH",
+                "label": "Health IDs"
+              },
+              {
+                "id": "NATIONAL_ID",
+                "label": "National Identification"
+              },
+              {
+                "id": "DRIVER_LICENSE",
+                "label": "Driver License IDs"
+              },
+              {
+                "id": "INSURANCE",
+                "label": "Insurance Numbers"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "label" : "Credentials",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Service Account Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Project Id",
+          "name": "project",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        }
+      ]
+    }
+  ],
+  "emit-errors": true,
+  "outputs": [
+    {
+      "name": "schema",
+      "widget-type": "schema",
+      "widget-attributes": {
+        "schema-types": [
+          "boolean",
+          "int",
+          "long",
+          "float",
+          "double",
+          "bytes",
+          "string",
+          "map<string, string>"
+        ],
+        "schema-default-type": "string"
+      }
+    }
+  ]
+}
