@@ -40,6 +40,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.util.HashMap;
 import javax.annotation.Nullable;
 
 /**
@@ -54,7 +55,9 @@ public class GoogleSubscriber extends StreamingSource<StructuredRecord> {
     Schema.recordOf("event",
                     Schema.Field.of("message", Schema.of(Schema.Type.BYTES)),
                     Schema.Field.of("id", Schema.of(Schema.Type.STRING)),
-                    Schema.Field.of("timestamp", Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))
+                    Schema.Field.of("timestamp", Schema.of(Schema.LogicalType.TIMESTAMP_MICROS)),
+                    Schema.Field.of("attributes", Schema.mapOf(Schema.of(Schema.Type.STRING),
+                            Schema.of(Schema.Type.STRING)))
     );
 
   private SubscriberConfig config;
@@ -87,10 +90,18 @@ public class GoogleSubscriber extends StreamingSource<StructuredRecord> {
       PubsubUtils.createStream(streamingContext.getSparkStreamingContext(), config.getProject(), config.topic,
                                config.subscription, credentials, StorageLevel.MEMORY_ONLY());
 
-    return pubSubMessages.map(pubSubMessage -> StructuredRecord.builder(DEFAULT_SCHEMA)
-      .set("message", pubSubMessage.getData())
-      .set("id", pubSubMessage.getMessageId())
-      .setTimestamp("timestamp", getTimestamp(pubSubMessage.getPublishTime())).build());
+    return pubSubMessages.map(pubSubMessage -> {
+      // Convert to a HashMap because com.google.api.client.util.ArrayMap is not serializable.
+      HashMap<String, String> hashMap = new HashMap<>();
+      pubSubMessage.getAttributes().forEach((k, v) -> hashMap.put(k, v));
+
+      return StructuredRecord.builder(DEFAULT_SCHEMA)
+              .set("message", pubSubMessage.getData())
+              .set("id", pubSubMessage.getMessageId())
+              .setTimestamp("timestamp", getTimestamp(pubSubMessage.getPublishTime()))
+              .set("attributes", hashMap)
+              .build();
+    });
   }
 
   private ZonedDateTime getTimestamp(String publishTime) {
