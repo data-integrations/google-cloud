@@ -50,11 +50,18 @@ public class DatastoreSink extends BatchSink<StructuredRecord, NullWritable, Ful
   public static final String PLUGIN_NAME = "Datastore";
 
   private final DatastoreSinkConfig config;
-  private final DatastoreSinkTransformer datastoreSinkTransformer;
+  private final RecordToEntityTransformer recordToEntityTransformer;
 
   public DatastoreSink(DatastoreSinkConfig config) {
     this.config = config;
-    this.datastoreSinkTransformer = new DatastoreSinkTransformer(config);
+    this.recordToEntityTransformer = new RecordToEntityTransformer(config.getProject(),
+                                                                   config.getNamespace(),
+                                                                   config.getKind(),
+                                                                   config.getKeyType(),
+                                                                   config.getKeyAlias(),
+                                                                   config.getAncestor(),
+                                                                   config.getIndexStrategy(),
+                                                                   config.getIndexedProperties());
   }
 
   @Override
@@ -84,7 +91,7 @@ public class DatastoreSink extends BatchSink<StructuredRecord, NullWritable, Ful
 
   @Override
   public void transform(StructuredRecord record, Emitter<KeyValue<NullWritable, FullEntity<?>>> emitter) {
-    FullEntity<?> fullEntity = datastoreSinkTransformer.transformStructuredRecord(record);
+    FullEntity<?> fullEntity = recordToEntityTransformer.transformStructuredRecord(record);
     emitter.emit(new KeyValue<>(null, fullEntity));
   }
 }

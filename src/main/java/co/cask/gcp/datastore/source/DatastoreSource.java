@@ -28,6 +28,7 @@ import co.cask.cdap.etl.api.batch.BatchRuntimeContext;
 import co.cask.cdap.etl.api.batch.BatchSource;
 import co.cask.cdap.etl.api.batch.BatchSourceContext;
 import co.cask.gcp.datastore.exception.DatastoreExecutionException;
+import co.cask.gcp.datastore.util.DatastorePropertyUtil;
 import co.cask.gcp.datastore.util.DatastoreUtil;
 import co.cask.hydrator.common.LineageRecorder;
 import com.google.cloud.datastore.Datastore;
@@ -65,7 +66,7 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
   public static final String NAME = "Datastore";
 
   private final DatastoreSourceConfig config;
-  private DatastoreSourceTransformer datastoreSourceTransformer;
+  private EntityToRecordTransformer entityToRecordTransformer;
 
   public DatastoreSource(DatastoreSourceConfig config) {
     this.config = config;
@@ -99,13 +100,15 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
   @Override
   public void initialize(BatchRuntimeContext context) throws Exception {
     super.initialize(context);
-    datastoreSourceTransformer = new DatastoreSourceTransformer(config);
+    entityToRecordTransformer = new EntityToRecordTransformer(config.getSchema(),
+                                                              config.getKeyType(),
+                                                              config.getKeyAlias());
   }
 
   @Override
   public void transform(KeyValue<NullWritable, Entity> input, Emitter<StructuredRecord> emitter) {
     Entity entity = input.getValue();
-    StructuredRecord record = datastoreSourceTransformer.transformEntity(entity);
+    StructuredRecord record = entityToRecordTransformer.transformEntity(entity);
     emitter.emit(record);
   }
 

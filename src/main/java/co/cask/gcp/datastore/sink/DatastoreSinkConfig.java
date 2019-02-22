@@ -270,12 +270,12 @@ public class DatastoreSinkConfig extends GCPReferenceSinkConfig {
       return;
     }
     if (Strings.isNullOrEmpty(kind)) {
-      throw new InvalidConfigPropertyException("Kind can not be null or empty", DatastoreSinkConstants.PROPERTY_KIND);
+      throw new InvalidConfigPropertyException("Kind cannot be null or empty", DatastoreSinkConstants.PROPERTY_KIND);
     }
   }
 
   /**
-   * If key tpe is not auto-generated, validates if key alias column is present in the schema
+   * If key type is not auto-generated, validates if key alias column is present in the schema
    * and its type is {@link Schema.Type#STRING}, {@link Schema.Type#INT} or {@link Schema.Type#LONG}.
    *
    * @param schema CDAP schema

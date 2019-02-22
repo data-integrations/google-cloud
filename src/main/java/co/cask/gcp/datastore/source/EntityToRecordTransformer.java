@@ -32,16 +32,18 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Transforms Google Cloud Datastore {@link Entity} to {@link StructuredRecord} using {@link DatastoreSourceConfig}.
+ * Transforms Google Cloud Datastore {@link Entity} to {@link StructuredRecord}.
  */
-public class DatastoreSourceTransformer {
+public class EntityToRecordTransformer {
 
-  private final DatastoreSourceConfig config;
   private final Schema schema;
+  private final SourceKeyType keyType;
+  private final String keyAlias;
 
-  public DatastoreSourceTransformer(DatastoreSourceConfig config) {
-    this.config = config;
-    this.schema = config.getSchema();
+  public EntityToRecordTransformer(Schema schema, SourceKeyType keyType, String keyAlias) {
+    this.schema = schema;
+    this.keyType = keyType;
+    this.keyAlias = keyAlias;
   }
 
   public StructuredRecord transformEntity(Entity entity) {
@@ -50,8 +52,8 @@ public class DatastoreSourceTransformer {
     for (Schema.Field field : fields) {
       String fieldName = field.getName();
 
-      if (config.isIncludeKey() && fieldName.equals(config.getKeyAlias())) {
-        builder.set(fieldName, transformKeyToKeyString(entity.getKey(), config.getKeyType()));
+      if (SourceKeyType.NONE != keyType && fieldName.equals(keyAlias)) {
+        builder.set(fieldName, transformKeyToKeyString(entity.getKey()));
         continue;
       }
 
@@ -71,11 +73,10 @@ public class DatastoreSourceTransformer {
    * For example: partition_id+%7B%0A++project_id%3A+%22test-project%22%0A++namespace_id%3A+% ...
    *
    * @param key     Datastore key instance
-   * @param keyType key type
    * @return key string representation
    */
   @VisibleForTesting
-  String transformKeyToKeyString(Key key, SourceKeyType keyType) {
+  String transformKeyToKeyString(Key key) {
     switch (keyType) {
       case KEY_LITERAL:
         StringBuilder builder = new StringBuilder("key(");
@@ -118,7 +119,7 @@ public class DatastoreSourceTransformer {
                                      String fieldName, Schema fieldSchema) {
     if (!entity.contains(fieldName) || entity.isNull(fieldName)) {
       if (!fieldSchema.isNullable()) {
-        throw new IllegalArgumentException("Can not set null value to a non-nullable field: " + fieldName);
+        throw new IllegalArgumentException("Cannot set null value to a non-nullable field: " + fieldName);
       }
       builder.set(fieldName, null);
       return;

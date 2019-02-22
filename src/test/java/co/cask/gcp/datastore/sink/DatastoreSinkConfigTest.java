@@ -23,12 +23,8 @@ import co.cask.gcp.datastore.sink.util.SinkKeyType;
 import co.cask.gcp.datastore.util.DatastorePropertyUtil;
 import com.google.cloud.datastore.PathElement;
 import com.google.datastore.v1.client.DatastoreHelper;
-import org.hamcrest.CoreMatchers;
-import org.hamcrest.Matchers;
 import org.junit.Assert;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.mockito.Mockito;
 
 import java.util.Arrays;
@@ -41,9 +37,6 @@ import java.util.TreeSet;
  * Tests of {@link DatastoreSinkConfig} methods.
  */
 public class DatastoreSinkConfigTest {
-
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testGetNamespaceNull() {
@@ -113,11 +106,12 @@ public class DatastoreSinkConfigTest {
       .setKeyType(null)
       .build();
 
-    thrown.expect(InvalidConfigPropertyException.class);
-    thrown.expect(Matchers.hasProperty("property",
-                                       CoreMatchers.is(DatastoreSinkConstants.PROPERTY_KEY_TYPE)));
-
-    config.getKeyType();
+    try {
+      config.getKeyType();
+      Assert.fail("Invalid config should have thrown exception");
+    } catch (InvalidConfigPropertyException e) {
+      Assert.assertEquals(DatastoreSinkConstants.PROPERTY_KEY_TYPE, e.getProperty());
+    }
   }
 
   @Test
@@ -136,11 +130,12 @@ public class DatastoreSinkConfigTest {
       .setIndexStrategy(null)
       .build();
 
-    thrown.expect(InvalidConfigPropertyException.class);
-    thrown.expect(Matchers.hasProperty("property",
-                                       CoreMatchers.is(DatastoreSinkConstants.PROPERTY_INDEX_STRATEGY)));
-
-    config.getIndexStrategy();
+    try {
+      config.getIndexStrategy();
+      Assert.fail("Invalid config should have thrown exception");
+    } catch (InvalidConfigPropertyException e) {
+      Assert.assertEquals(DatastoreSinkConstants.PROPERTY_INDEX_STRATEGY, e.getProperty());
+    }
   }
 
   @Test
@@ -300,11 +295,12 @@ public class DatastoreSinkConfigTest {
 
     Mockito.doNothing().when(config).validateDatastoreConnection();
 
-    thrown.expect(InvalidConfigPropertyException.class);
-    thrown.expect(Matchers.hasProperty("property",
-                                       CoreMatchers.is(DatastoreSinkConstants.PROPERTY_INDEXED_PROPERTIES)));
-
-    config.validate(schema);
+    try {
+      config.validate(schema);
+      Assert.fail("Invalid config should have thrown exception");
+    } catch (InvalidConfigPropertyException e) {
+      Assert.assertEquals(DatastoreSinkConstants.PROPERTY_INDEXED_PROPERTIES, e.getProperty());
+    }
   }
 
   @Test
@@ -324,11 +320,12 @@ public class DatastoreSinkConfigTest {
 
     Mockito.doNothing().when(config).validateDatastoreConnection();
 
-    thrown.expect(InvalidConfigPropertyException.class);
-    thrown.expect(Matchers.hasProperty("property",
-                                       CoreMatchers.is(DatastoreSinkConstants.PROPERTY_KEY_ALIAS)));
-
-    config.validate(schema);
+    try {
+      config.validate(schema);
+      Assert.fail("Invalid config should have thrown exception");
+    } catch (InvalidConfigPropertyException e) {
+      Assert.assertEquals(DatastoreSinkConstants.PROPERTY_KEY_ALIAS, e.getProperty());
+    }
   }
 
   @Test
@@ -363,11 +360,12 @@ public class DatastoreSinkConfigTest {
 
     Mockito.doNothing().when(config).validateDatastoreConnection();
 
-    thrown.expect(InvalidConfigPropertyException.class);
-    thrown.expect(Matchers.hasProperty("property",
-                                       CoreMatchers.is(DatastoreSinkConstants.PROPERTY_BATCH_SIZE)));
-
-    config.validate(schema);
+    try {
+      config.validate(schema);
+      Assert.fail("Invalid config should have thrown exception");
+    } catch (InvalidConfigPropertyException e) {
+      Assert.assertEquals(DatastoreSinkConstants.PROPERTY_BATCH_SIZE, e.getProperty());
+    }
   }
 
   @Test
@@ -386,11 +384,12 @@ public class DatastoreSinkConfigTest {
 
     Mockito.doNothing().when(config).validateDatastoreConnection();
 
-    thrown.expect(InvalidConfigPropertyException.class);
-    thrown.expect(Matchers.hasProperty("property",
-                                       CoreMatchers.is(DatastoreSinkConstants.PROPERTY_BATCH_SIZE)));
-
-    config.validate(schema);
+    try {
+      config.validate(schema);
+      Assert.fail("Invalid config should have thrown exception");
+    } catch (InvalidConfigPropertyException e) {
+      Assert.assertEquals(DatastoreSinkConstants.PROPERTY_BATCH_SIZE, e.getProperty());
+    }
   }
 
   @Test
@@ -425,11 +424,12 @@ public class DatastoreSinkConfigTest {
 
     Mockito.doNothing().when(config).validateDatastoreConnection();
 
-    thrown.expect(InvalidConfigPropertyException.class);
-    thrown.expect(Matchers.hasProperty("property",
-                                       CoreMatchers.is(DatastoreSinkConstants.PROPERTY_BATCH_SIZE)));
-
-    config.validate(schema);
+    try {
+      config.validate(schema);
+      Assert.fail("Invalid config should have thrown exception");
+    } catch (InvalidConfigPropertyException e) {
+      Assert.assertEquals(DatastoreSinkConstants.PROPERTY_BATCH_SIZE, e.getProperty());
+    }
   }
 
 }

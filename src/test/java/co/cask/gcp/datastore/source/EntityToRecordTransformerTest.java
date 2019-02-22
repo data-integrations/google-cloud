@@ -28,29 +28,20 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.mockito.junit.MockitoJUnitRunner;
 
 import java.time.ZonedDateTime;
 
 /**
- * Tests for {@link DatastoreSourceTransformer} class.
+ * Tests for {@link EntityToRecordTransformer} class.
  */
-@RunWith(MockitoJUnitRunner.class)
-public class DatastoreSourceTransformerTest {
+public class EntityToRecordTransformerTest {
 
   @Rule
   public ExpectedException thrown = ExpectedException.none();
 
-  @Mock
-  private DatastoreSourceConfig config;
-
   @SuppressWarnings("ConstantConditions")
   @Test
   public void testTransformAllTypes() {
-    Mockito.when(config.isIncludeKey()).thenReturn(false);
 
     Schema schema = Schema.recordOf("schema",
       Schema.Field.of("string_field", Schema.nullableOf(Schema.of(Schema.Type.STRING))),
@@ -63,8 +54,6 @@ public class DatastoreSourceTransformerTest {
       Schema.Field.of("entity_field", Schema.nullableOf(Schema.recordOf("entity_field",
           Schema.Field.of("nested_string_field", Schema.nullableOf(Schema.of(Schema.Type.STRING))),
           Schema.Field.of("nested_long_field", Schema.nullableOf(Schema.of(Schema.Type.LONG)))))));
-
-    Mockito.when(config.getSchema()).thenReturn(schema);
 
     Timestamp entityTs = Timestamp.now();
     Entity entity = Entity.newBuilder(Key.newBuilder(DatastoreSourceConfigHelper.TEST_PROJECT,
@@ -86,7 +75,7 @@ public class DatastoreSourceTransformerTest {
       .set("lat_lng_field", LatLng.of(10, 5))
       .build();
 
-    DatastoreSourceTransformer transformer = new DatastoreSourceTransformer(config);
+    EntityToRecordTransformer transformer = new EntityToRecordTransformer(schema, SourceKeyType.NONE, "key");
     StructuredRecord record = transformer.transformEntity(entity);
 
     Assert.assertEquals("string_value", record.get("string_field"));
@@ -108,22 +97,16 @@ public class DatastoreSourceTransformerTest {
 
   @Test
   public void testTransformWithKeyLiteral() {
-    Mockito.when(config.isIncludeKey()).thenReturn(true);
-    Mockito.when(config.getKeyAlias()).thenReturn("key");
-    Mockito.when(config.getKeyType()).thenReturn(SourceKeyType.KEY_LITERAL);
-
     Schema schema = Schema.recordOf("schema",
       Schema.Field.of("string_field", Schema.of(Schema.Type.STRING)),
       Schema.Field.of("key", Schema.of(Schema.Type.STRING)));
-
-    Mockito.when(config.getSchema()).thenReturn(schema);
 
     Entity entity = Entity.newBuilder(Key.newBuilder(DatastoreSourceConfigHelper.TEST_PROJECT,
                                                      DatastoreSourceConfigHelper.TEST_KIND, 1).build())
       .set("string_field", "string_value")
       .build();
 
-    DatastoreSourceTransformer transformer = new DatastoreSourceTransformer(config);
+    EntityToRecordTransformer transformer = new EntityToRecordTransformer(schema, SourceKeyType.KEY_LITERAL, "key");
     StructuredRecord record = transformer.transformEntity(entity);
 
     Assert.assertEquals("string_value", record.get("string_field"));
@@ -132,15 +115,9 @@ public class DatastoreSourceTransformerTest {
 
   @Test
   public void testTransformWithUrlSafeKey() {
-    Mockito.when(config.isIncludeKey()).thenReturn(true);
-    Mockito.when(config.getKeyAlias()).thenReturn("key");
-    Mockito.when(config.getKeyType()).thenReturn(SourceKeyType.URL_SAFE_KEY);
-
     Schema schema = Schema.recordOf("schema",
       Schema.Field.of("string_field", Schema.of(Schema.Type.STRING)),
       Schema.Field.of("key", Schema.of(Schema.Type.STRING)));
-
-    Mockito.when(config.getSchema()).thenReturn(schema);
 
     Key key = Key.newBuilder(DatastoreSourceConfigHelper.TEST_PROJECT, DatastoreSourceConfigHelper.TEST_KIND, 1)
       .build();
@@ -148,7 +125,7 @@ public class DatastoreSourceTransformerTest {
       .set("string_field", "string_value")
       .build();
 
-    DatastoreSourceTransformer transformer = new DatastoreSourceTransformer(config);
+    EntityToRecordTransformer transformer = new EntityToRecordTransformer(schema, SourceKeyType.URL_SAFE_KEY, "key");
     StructuredRecord record = transformer.transformEntity(entity);
 
     Assert.assertEquals("string_value", record.get("string_field"));
@@ -157,18 +134,15 @@ public class DatastoreSourceTransformerTest {
 
   @Test
   public void testTransformWithoutKey() {
-    Mockito.when(config.isIncludeKey()).thenReturn(false);
     Schema schema = Schema.recordOf("schema",
       Schema.Field.of("string_field", Schema.of(Schema.Type.STRING)));
-
-    Mockito.when(config.getSchema()).thenReturn(schema);
 
     Entity entity = Entity.newBuilder(Key.newBuilder(DatastoreSourceConfigHelper.TEST_PROJECT,
                                                      DatastoreSourceConfigHelper.TEST_KIND, 1).build())
       .set("string_field", "string_value")
       .build();
 
-    DatastoreSourceTransformer transformer = new DatastoreSourceTransformer(config);
+    EntityToRecordTransformer transformer = new EntityToRecordTransformer(schema, SourceKeyType.NONE, "key");
     StructuredRecord record = transformer.transformEntity(entity);
 
     Assert.assertEquals("string_value", record.get("string_field"));
@@ -176,12 +150,9 @@ public class DatastoreSourceTransformerTest {
 
   @Test
   public void testTransformNullIntoNotNull() {
-    Mockito.when(config.isIncludeKey()).thenReturn(false);
     String fieldName = "string_field";
     Schema schema = Schema.recordOf("schema",
                                     Schema.Field.of(fieldName, Schema.of(Schema.Type.STRING)));
-
-    Mockito.when(config.getSchema()).thenReturn(schema);
 
     Entity entity = Entity.newBuilder(Key.newBuilder(DatastoreSourceConfigHelper.TEST_PROJECT,
                                                      DatastoreSourceConfigHelper.TEST_KIND, 1).build())
@@ -191,25 +162,22 @@ public class DatastoreSourceTransformerTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(fieldName);
 
-    DatastoreSourceTransformer transformer = new DatastoreSourceTransformer(config);
+    EntityToRecordTransformer transformer = new EntityToRecordTransformer(schema, SourceKeyType.NONE, "key");
     transformer.transformEntity(entity);
   }
 
   @Test
   public void testTransformMissingField() {
-    Mockito.when(config.isIncludeKey()).thenReturn(false);
     Schema schema = Schema.recordOf("schema",
        Schema.Field.of("string_field", Schema.of(Schema.Type.STRING)),
        Schema.Field.of("missing_field", Schema.nullableOf(Schema.of(Schema.Type.STRING))));
-
-    Mockito.when(config.getSchema()).thenReturn(schema);
 
     Entity entity = Entity.newBuilder(Key.newBuilder(DatastoreSourceConfigHelper.TEST_PROJECT,
                                                      DatastoreSourceConfigHelper.TEST_KIND, 1).build())
       .set("string_field", "string_value")
       .build();
 
-    DatastoreSourceTransformer transformer = new DatastoreSourceTransformer(config);
+    EntityToRecordTransformer transformer = new EntityToRecordTransformer(schema, SourceKeyType.NONE, "key");
     StructuredRecord record = transformer.transformEntity(entity);
 
     Assert.assertEquals("string_value", record.get("string_field"));
@@ -218,11 +186,8 @@ public class DatastoreSourceTransformerTest {
 
   @Test
   public void testTransformDifferentType() {
-    Mockito.when(config.isIncludeKey()).thenReturn(false);
     Schema schema = Schema.recordOf("schema",
       Schema.Field.of("field", Schema.of(Schema.Type.LONG)));
-
-    Mockito.when(config.getSchema()).thenReturn(schema);
 
     Entity entity = Entity.newBuilder(Key.newBuilder(DatastoreSourceConfigHelper.TEST_PROJECT,
                                                      DatastoreSourceConfigHelper.TEST_KIND, 1).build())
@@ -232,26 +197,21 @@ public class DatastoreSourceTransformerTest {
     thrown.expect(ClassCastException.class);
     thrown.expectMessage("java.lang.String cannot be cast to java.lang.Long");
 
-    DatastoreSourceTransformer transformer = new DatastoreSourceTransformer(config);
+    EntityToRecordTransformer transformer = new EntityToRecordTransformer(schema, SourceKeyType.NONE, "key");
     transformer.transformEntity(entity);
   }
 
   @Test
   public void testTransformOnlyKey() {
     String keyField = "key";
-    Mockito.when(config.isIncludeKey()).thenReturn(true);
-    Mockito.when(config.getKeyType()).thenReturn(SourceKeyType.KEY_LITERAL);
-    Mockito.when(config.getKeyAlias()).thenReturn(keyField);
     Schema schema = Schema.recordOf("schema",
       Schema.Field.of(keyField, Schema.of(Schema.Type.STRING)));
-
-    Mockito.when(config.getSchema()).thenReturn(schema);
 
     Entity entity = Entity.newBuilder(Key.newBuilder(DatastoreSourceConfigHelper.TEST_PROJECT,
                                                      DatastoreSourceConfigHelper.TEST_KIND, 1).build())
       .build();
 
-    DatastoreSourceTransformer transformer = new DatastoreSourceTransformer(config);
+    EntityToRecordTransformer transformer = new EntityToRecordTransformer(schema, SourceKeyType.KEY_LITERAL, keyField);
     StructuredRecord record = transformer.transformEntity(entity);
 
     Assert.assertEquals(String.format("key(%s, %s)", DatastoreSourceConfigHelper.TEST_KIND, 1), record.get(keyField));
@@ -265,10 +225,9 @@ public class DatastoreSourceTransformerTest {
       .addAncestor(PathElement.of("A2", "N1"))
       .build();
 
-    DatastoreSourceTransformer transformer = new DatastoreSourceTransformer(config);
+    EntityToRecordTransformer transformer = new EntityToRecordTransformer(null, SourceKeyType.KEY_LITERAL, "key");
 
-    Assert.assertEquals("key(A1, 10, A2, 'N1', key, 1)",
-                        transformer.transformKeyToKeyString(key, SourceKeyType.KEY_LITERAL));
+    Assert.assertEquals("key(A1, 10, A2, 'N1', key, 1)", transformer.transformKeyToKeyString(key));
   }
 
   @Test
@@ -279,8 +238,8 @@ public class DatastoreSourceTransformerTest {
       .addAncestor(PathElement.of("A2", "N1"))
       .build();
 
-    DatastoreSourceTransformer transformer = new DatastoreSourceTransformer(config);
-    Assert.assertEquals(key.toUrlSafe(), transformer.transformKeyToKeyString(key, SourceKeyType.URL_SAFE_KEY));
+    EntityToRecordTransformer transformer = new EntityToRecordTransformer(null, SourceKeyType.URL_SAFE_KEY, "key");
+    Assert.assertEquals(key.toUrlSafe(), transformer.transformKeyToKeyString(key));
   }
 
 }

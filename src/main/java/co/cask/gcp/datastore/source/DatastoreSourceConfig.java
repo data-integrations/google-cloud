@@ -237,7 +237,7 @@ public class DatastoreSourceConfig extends GCPReferenceSourceConfig {
     }
 
     if (Strings.isNullOrEmpty(kind)) {
-      throw new InvalidConfigPropertyException("Kind can not be null or empty", DatastoreSourceConstants.PROPERTY_KIND);
+      throw new InvalidConfigPropertyException("Kind cannot be null or empty", DatastoreSourceConstants.PROPERTY_KIND);
     }
   }
 

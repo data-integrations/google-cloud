@@ -28,8 +28,6 @@ import com.google.datastore.v1.PropertyFilter;
 import com.google.datastore.v1.Query;
 import com.google.datastore.v1.Value;
 import com.google.datastore.v1.client.DatastoreHelper;
-import org.hamcrest.CoreMatchers;
-import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -176,11 +174,12 @@ public class DatastoreSourceConfigTest {
       .setKeyType(keyType)
       .build();
 
-    thrown.expect(InvalidConfigPropertyException.class);
-    thrown.expect(Matchers.hasProperty("property",
-                                       CoreMatchers.is(DatastoreSourceConstants.PROPERTY_KEY_TYPE)));
-
-    config.getKeyType();
+    try {
+      config.getKeyType();
+      Assert.fail("Invalid config should have thrown exception");
+    } catch (InvalidConfigPropertyException e) {
+      Assert.assertEquals(DatastoreSourceConstants.PROPERTY_KEY_TYPE, e.getProperty());
+    }
   }
 
   @Test
@@ -216,10 +215,12 @@ public class DatastoreSourceConfigTest {
       .setKind(null)
       .build());
 
-    thrown.expect(Matchers.hasProperty("property",
-                                       CoreMatchers.is(DatastoreSourceConstants.PROPERTY_KIND)));
-
-    config.validate();
+    try {
+      config.validate();
+      Assert.fail("Invalid config should have thrown exception");
+    } catch (InvalidConfigPropertyException e) {
+      Assert.assertEquals(DatastoreSourceConstants.PROPERTY_KIND, e.getProperty());
+    }
   }
 
   @Test
@@ -228,10 +229,12 @@ public class DatastoreSourceConfigTest {
       .setKind("")
       .build());
 
-    thrown.expect(Matchers.hasProperty("property",
-                                       CoreMatchers.is(DatastoreSourceConstants.PROPERTY_KIND)));
-
-    config.validate();
+    try {
+      config.validate();
+      Assert.fail("Invalid config should have thrown exception");
+    } catch (InvalidConfigPropertyException e) {
+      Assert.assertEquals(DatastoreSourceConstants.PROPERTY_KIND, e.getProperty());
+    }
   }
 
   @Test
@@ -295,11 +298,12 @@ public class DatastoreSourceConfigTest {
       .setNumSplits(0)
       .build());
 
-    thrown.expect(InvalidConfigPropertyException.class);
-    thrown.expect(Matchers.hasProperty("property",
-                                       CoreMatchers.is(DatastoreSourceConstants.PROPERTY_NUM_SPLITS)));
-
-    config.validate();
+    try {
+      config.validate();
+      Assert.fail("Invalid config should have thrown exception");
+    } catch (InvalidConfigPropertyException e) {
+      Assert.assertEquals(DatastoreSourceConstants.PROPERTY_NUM_SPLITS, e.getProperty());
+    }
   }
 
   @Test
@@ -352,10 +356,12 @@ public class DatastoreSourceConfigTest {
       .setNumSplits(1)
       .build());
 
-    thrown.expect(Matchers.hasProperty("property",
-                                       CoreMatchers.is(DatastoreSourceConstants.PROPERTY_SCHEMA)));
-
-    config.validate();
+    try {
+      config.validate();
+      Assert.fail("Invalid config should have thrown exception");
+    } catch (InvalidConfigPropertyException e) {
+      Assert.assertEquals(DatastoreSourceConstants.PROPERTY_SCHEMA, e.getProperty());
+    }
   }
 
   @Test
@@ -367,10 +373,12 @@ public class DatastoreSourceConfigTest {
       .setNumSplits(1)
       .build());
 
-    thrown.expect(Matchers.hasProperty("property",
-                                       CoreMatchers.is(DatastoreSourceConstants.PROPERTY_SCHEMA)));
-
-    config.validate();
+    try {
+      config.validate();
+      Assert.fail("Invalid config should have thrown exception");
+    } catch (InvalidConfigPropertyException e) {
+      Assert.assertEquals(DatastoreSourceConstants.PROPERTY_SCHEMA, e.getProperty());
+    }
   }
 
   @Test
@@ -421,11 +429,12 @@ public class DatastoreSourceConfigTest {
       .setFilters("name|abc;type|none")
       .build());
 
-    thrown.expect(InvalidConfigPropertyException.class);
-    thrown.expect(Matchers.hasProperty("property",
-                                       CoreMatchers.is(DatastoreSourceConstants.PROPERTY_FILTERS)));
-
-    config.validate();
+    try {
+      config.validate();
+      Assert.fail("Invalid config should have thrown exception");
+    } catch (InvalidConfigPropertyException e) {
+      Assert.assertEquals(DatastoreSourceConstants.PROPERTY_FILTERS, e.getProperty());
+    }
   }
 
   @Test
@@ -484,11 +493,12 @@ public class DatastoreSourceConfigTest {
       .setNumSplits(1)
       .build());
 
-    thrown.expect(InvalidConfigPropertyException.class);
-    thrown.expect(Matchers.hasProperty("property",
-                                       CoreMatchers.is(DatastoreSourceConstants.PROPERTY_KEY_ALIAS)));
-
-    config.validate();
+    try {
+      config.validate();
+      Assert.fail("Invalid config should have thrown exception");
+    } catch (InvalidConfigPropertyException e) {
+      Assert.assertEquals(DatastoreSourceConstants.PROPERTY_KEY_ALIAS, e.getProperty());
+    }
   }
 
   @Test
@@ -503,10 +513,12 @@ public class DatastoreSourceConfigTest {
       .setNumSplits(1)
       .build());
 
-    thrown.expect(Matchers.hasProperty("property",
-                                       CoreMatchers.is(DatastoreSourceConstants.PROPERTY_KEY_ALIAS)));
-
-    config.validate();
+    try {
+      config.validate();
+      Assert.fail("Invalid config should have thrown exception");
+    } catch (InvalidConfigPropertyException e) {
+      Assert.assertEquals(DatastoreSourceConstants.PROPERTY_KEY_ALIAS, e.getProperty());
+    }
   }
 
   @Test
@@ -521,10 +533,12 @@ public class DatastoreSourceConfigTest {
       .setNumSplits(1)
       .build());
 
-    thrown.expect(Matchers.hasProperty("property",
-                                       CoreMatchers.is(DatastoreSourceConstants.PROPERTY_KEY_ALIAS)));
-
-    config.validate();
+    try {
+      config.validate();
+      Assert.fail("Invalid config should have thrown exception");
+    } catch (InvalidConfigPropertyException e) {
+      Assert.assertEquals(DatastoreSourceConstants.PROPERTY_KEY_ALIAS, e.getProperty());
+    }
   }
 
   @Test
