@@ -16,20 +16,30 @@
 package co.cask.gcp.datastore.source;
 
 import co.cask.cdap.api.data.format.StructuredRecord;
+import co.cask.cdap.api.data.format.UnexpectedFormatException;
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.gcp.datastore.source.util.SourceKeyType;
 import com.google.cloud.Timestamp;
+import com.google.cloud.datastore.BlobValue;
+import com.google.cloud.datastore.BooleanValue;
+import com.google.cloud.datastore.DoubleValue;
 import com.google.cloud.datastore.Entity;
+import com.google.cloud.datastore.EntityValue;
 import com.google.cloud.datastore.FullEntity;
 import com.google.cloud.datastore.Key;
+import com.google.cloud.datastore.ListValue;
+import com.google.cloud.datastore.LongValue;
+import com.google.cloud.datastore.NullValue;
+import com.google.cloud.datastore.StringValue;
+import com.google.cloud.datastore.TimestampValue;
+import com.google.cloud.datastore.Value;
 import com.google.common.annotations.VisibleForTesting;
 
 import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * Transforms Google Cloud Datastore {@link Entity} to {@link StructuredRecord}.
@@ -117,12 +127,15 @@ public class EntityToRecordTransformer {
 
   private void populateRecordBuilder(StructuredRecord.Builder builder, FullEntity<?> entity,
                                      String fieldName, Schema fieldSchema) {
-    if (!entity.contains(fieldName) || entity.isNull(fieldName)) {
-      if (!fieldSchema.isNullable()) {
-        throw new IllegalArgumentException("Cannot set null value to a non-nullable field: " + fieldName);
-      }
-      builder.set(fieldName, null);
-      return;
+    Object value = entity.contains(fieldName)
+      ? getValue(entity.getValue(fieldName), fieldName, fieldSchema)
+      : null;
+    builder.set(fieldName, value);
+  }
+
+  private Object getValue(Value<?> value, String fieldName, Schema fieldSchema) {
+    if (value instanceof NullValue) {
+      return null;
     }
 
     Schema.LogicalType logicalType = fieldSchema.getLogicalType();
@@ -130,11 +143,10 @@ public class EntityToRecordTransformer {
       switch (logicalType) {
         case TIMESTAMP_MICROS:
           // GC timestamp supports nano second level precision, CDAP only micro second level precision
-          Timestamp timestamp = entity.getTimestamp(fieldName);
-          Instant instant = Instant.ofEpochSecond(timestamp.getSeconds()).plusNanos(timestamp.getNanos());
-          builder.setTimestamp(fieldName,
-                               ZonedDateTime.ofInstant(instant, ZoneId.ofOffset("UTC", ZoneOffset.UTC)));
-          return;
+          Timestamp timestamp = castValue(value, fieldName, logicalType.getToken(), TimestampValue.class).get();
+          Instant zonedInstant = Instant.ofEpochSecond(timestamp.getSeconds()).plusNanos(timestamp.getNanos());
+          long micros = TimeUnit.SECONDS.toMicros(zonedInstant.getEpochSecond());
+          return Math.addExact(micros, TimeUnit.NANOSECONDS.toMicros(zonedInstant.getNano()));
         default:
           throw new IllegalStateException(
             String.format("Field '%s' is of unsupported type '%s'", fieldName, logicalType.getToken()));
@@ -144,39 +156,57 @@ public class EntityToRecordTransformer {
     Schema.Type fieldType = fieldSchema.getType();
     switch (fieldType) {
       case STRING:
-        builder.set(fieldName, entity.getString(fieldName));
-        break;
+        return castValue(value, fieldName, fieldType.toString(), StringValue.class).get();
       case DOUBLE:
-        builder.set(fieldName, entity.getDouble(fieldName));
-        break;
+        return castValue(value, fieldName, fieldType.toString(), DoubleValue.class).get();
       case BOOLEAN:
-        builder.set(fieldName, entity.getBoolean(fieldName));
-        break;
+        return castValue(value, fieldName, fieldType.toString(), BooleanValue.class).get();
       case LONG:
-        builder.set(fieldName, entity.getLong(fieldName));
-        break;
+        return castValue(value, fieldName, fieldType.toString(), LongValue.class).get();
       case BYTES:
-        builder.set(fieldName, entity.getBlob(fieldName).toByteArray());
-        break;
+        return castValue(value, fieldName, fieldType.toString(), BlobValue.class).get().toByteArray();
       case RECORD:
-        FullEntity<?> nestedEntity = entity.getEntity(fieldName);
+        FullEntity<?> nestedEntity = castValue(value, fieldName, fieldType.toString(), EntityValue.class).get();
         StructuredRecord.Builder nestedBuilder = StructuredRecord.builder(fieldSchema);
         Objects.requireNonNull(fieldSchema.getFields()).forEach(
           nestedField -> populateRecordBuilder(nestedBuilder, nestedEntity,
                                                nestedField.getName(), nestedField.getSchema()));
-        builder.set(fieldName, nestedBuilder.build());
-        break;
+        return nestedBuilder.build();
+      case ARRAY:
+        Schema componentSchema = fieldSchema.getComponentSchema();
+        List<? extends Value<?>> arrayValues = castValue(value, fieldName, fieldType.toString(), ListValue.class).get();
+        return arrayValues.stream()
+          .map(v -> getValue(v, fieldName, componentSchema))
+          .collect(Collectors.toList());
       case UNION:
         // nullable fields in CDAP are represented as UNION of NULL and FIELD_TYPE
         if (fieldSchema.isNullable()) {
-          populateRecordBuilder(builder, entity, fieldName, fieldSchema.getNonNullable());
-          break;
+          return getValue(value, fieldName, fieldSchema.getNonNullable());
+        }
+
+        List<Schema> unionSchemas = fieldSchema.getUnionSchemas();
+        for (Schema unionSchema : unionSchemas) {
+          try {
+            return getValue(value, fieldName, unionSchema);
+          } catch (UnexpectedFormatException | IllegalStateException e) {
+            // if we couldn't convert, move to the next possibility
+          }
         }
         throw new IllegalStateException(
-          String.format("Field '%s' is of unsupported type 'complex UNION'", fieldName));
+          String.format("Field '%s' is of unexpected type '%s'. Declared 'complex UNION' types: %s",
+                        fieldName, value.getType(), unionSchemas));
       default:
         throw new IllegalStateException(
           String.format("Field '%s' is of unsupported type '%s'", fieldName, fieldType));
     }
   }
+
+  private <T> T castValue(Value<?> value, String fieldName, String fieldType, Class<T> clazz) {
+    if (clazz.isAssignableFrom(value.getClass())) {
+      return clazz.cast(value);
+    }
+    throw new UnexpectedFormatException(
+      String.format("Field '%s' is not of expected type '%s'", fieldName, fieldType));
+  }
+
 }

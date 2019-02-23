@@ -32,6 +32,7 @@ import com.google.common.base.Strings;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -216,7 +217,7 @@ public class DatastoreSinkConfig extends GCPReferenceSinkConfig {
           break;
         default:
           throw new IllegalArgumentException(
-            String.format("Unsupported type '%s' for field '%s'", logicalType.getToken(), fieldName));
+            String.format("Field '%s' is of unsupported type '%s'", fieldName, logicalType.getToken()));
       }
     }
 
@@ -228,21 +229,21 @@ public class DatastoreSinkConfig extends GCPReferenceSinkConfig {
       case INT:
       case FLOAT:
       case LONG:
+      case NULL:
         return;
       case RECORD:
         validateSchema(fieldSchema);
         return;
+      case ARRAY:
+        validateSinkFieldSchema(fieldName, Objects.requireNonNull(fieldSchema.getComponentSchema(),
+          String.format("Field '%s' has no schema for array type", fieldName)));
+        return;
       case UNION:
-        // nullable fields in CDAP are represented as UNION of NULL and FIELD_TYPE
-        if (fieldSchema.isNullable()) {
-          validateSinkFieldSchema(fieldName, fieldSchema.getNonNullable());
-          return;
-        }
-        throw new IllegalArgumentException(
-          String.format("Unsupported type type 'complex UNION' for field '%s'", fieldName));
+        fieldSchema.getUnionSchemas().forEach(unionSchema -> validateSinkFieldSchema(fieldName, unionSchema));
+        return;
       default:
         throw new IllegalArgumentException(
-          String.format("Unsupported type '%s' for field '%s'", fieldSchema.getType(), fieldName));
+          String.format("Field '%s' is of unsupported type '%s'", fieldName, fieldSchema.getType()));
     }
   }
 

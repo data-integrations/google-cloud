@@ -432,4 +432,26 @@ public class DatastoreSinkConfigTest {
     }
   }
 
+  @Test
+  public void testValidateConfigArrayAndComplexUnionSchema() {
+    Schema schema = Schema.recordOf("record",
+      Schema.Field.of("array_simple",
+        Schema.nullableOf(Schema.arrayOf(Schema.nullableOf(Schema.of(Schema.Type.STRING))))),
+      Schema.Field.of("array_complex_union",
+        Schema.nullableOf(Schema.arrayOf(Schema.unionOf(Schema.of(Schema.Type.LONG), Schema.of(Schema.Type.STRING))))),
+      Schema.Field.of("complex_union",
+        Schema.unionOf(Schema.of(Schema.Type.LONG), Schema.of(Schema.Type.STRING), Schema.of(Schema.Type.NULL))));
+
+    DatastoreSinkConfig config = Mockito.spy(DatastoreSinkConfigHelper.newConfigBuilder()
+      .setKeyType(SinkKeyType.AUTO_GENERATED_KEY.getValue())
+      .setServiceFilePath(null)
+      .setBatchSize(25)
+      .setIndexStrategy(IndexStrategy.ALL.getValue())
+      .build());
+
+    Mockito.doNothing().when(config).validateDatastoreConnection();
+
+    config.validate(schema);
+  }
+
 }

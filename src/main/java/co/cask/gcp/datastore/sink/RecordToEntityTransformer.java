@@ -16,6 +16,7 @@
 package co.cask.gcp.datastore.sink;
 
 import co.cask.cdap.api.data.format.StructuredRecord;
+import co.cask.cdap.api.data.format.UnexpectedFormatException;
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.gcp.datastore.sink.util.IndexStrategy;
 import co.cask.gcp.datastore.sink.util.SinkKeyType;
@@ -30,6 +31,7 @@ import com.google.cloud.datastore.FullEntity;
 import com.google.cloud.datastore.IncompleteKey;
 import com.google.cloud.datastore.Key;
 import com.google.cloud.datastore.KeyFactory;
+import com.google.cloud.datastore.ListValue;
 import com.google.cloud.datastore.LongValue;
 import com.google.cloud.datastore.NullValue;
 import com.google.cloud.datastore.PathElement;
@@ -43,7 +45,9 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 /**
  * Transforms {@link StructuredRecord} to the Google Cloud Datastore {@link FullEntity}.
@@ -268,77 +272,107 @@ public class RecordToEntityTransformer {
         .build();
     }
 
-    Value<?> outValue;
     Schema.LogicalType logicalType = fieldSchema.getLogicalType();
     if (logicalType != null) {
       switch (logicalType) {
         case TIMESTAMP_MILLIS:
         case TIMESTAMP_MICROS:
-          ZonedDateTime ts = record.getTimestamp(fieldName);
+          ZonedDateTime ts = getValue(record::getTimestamp, fieldName, logicalType.getToken(), ZonedDateTime.class);
           Timestamp gcpTimestamp = Timestamp.ofTimeSecondsAndNanos(ts.toEpochSecond(), ts.getNano());
-          outValue = TimestampValue.newBuilder(gcpTimestamp)
+          return TimestampValue.newBuilder(gcpTimestamp)
             .setExcludeFromIndexes(excludeFromIndex)
             .build();
-          return outValue;
         default:
           throw new IllegalStateException(
             String.format("Record type '%s' is not supported for field '%s'", logicalType.getToken(), fieldName));
       }
     }
 
-    switch (fieldSchema.getType()) {
+    Schema.Type fieldType = fieldSchema.getType();
+    switch (fieldType) {
       case STRING:
-        outValue = StringValue.newBuilder(record.get(fieldName))
+        String stringValue = getValue(record::get, fieldName, fieldType.toString(), String.class);
+        return StringValue.newBuilder(stringValue)
           .setExcludeFromIndexes(excludeFromIndex)
           .build();
-        break;
       case INT:
       case LONG:
-        Number longValue = record.get(fieldName);
-        outValue = LongValue.newBuilder(longValue.longValue())
+        Number longValue = getValue(record::get, fieldName, fieldType.toString(), Number.class);
+        return LongValue.newBuilder(longValue.longValue())
           .setExcludeFromIndexes(excludeFromIndex)
           .build();
-        break;
       case FLOAT:
       case DOUBLE:
-        Number doubleValue = record.get(fieldName);
-        outValue = DoubleValue.newBuilder(doubleValue.doubleValue())
+        Number doubleValue = getValue(record::get, fieldName, fieldType.toString(), Number.class);
+        return DoubleValue.newBuilder(doubleValue.doubleValue())
           .setExcludeFromIndexes(excludeFromIndex)
           .build();
-        break;
       case BOOLEAN:
-        outValue = BooleanValue.newBuilder(record.get(fieldName))
+        Boolean booleanValue = getValue(record::get, fieldName, fieldType.toString(), Boolean.class);
+        return BooleanValue.newBuilder(booleanValue)
           .setExcludeFromIndexes(excludeFromIndex)
           .build();
-        break;
       case BYTES:
-        byte[] byteArray = record.get(fieldName);
-        outValue = BlobValue.newBuilder(Blob.copyFrom(byteArray))
+        byte[] byteArray = getValue(record::get, fieldName, fieldType.toString(), byte[].class);
+        return BlobValue.newBuilder(Blob.copyFrom(byteArray))
           .setExcludeFromIndexes(excludeFromIndex)
           .build();
-        break;
       case RECORD:
-        StructuredRecord nestedRecord = record.get(fieldName);
+        StructuredRecord nestedRecord = getValue(record::get, fieldName, fieldType.toString(), StructuredRecord.class);
         FullEntity.Builder<IncompleteKey> nestedBuilder = FullEntity.newBuilder();
         Objects.requireNonNull(fieldSchema.getFields(), "Nested Schema fields cannot be empty").forEach(
           nestedField -> nestedBuilder.set(nestedField.getName(),
                                            convertToValue(nestedField.getName(), nestedField.getSchema(),
                                                           nestedRecord, excludeFromIndex)));
-        outValue = EntityValue.newBuilder(nestedBuilder.build())
+        return EntityValue.newBuilder(nestedBuilder.build())
           .setExcludeFromIndexes(excludeFromIndex)
           .build();
-        break;
+      case ARRAY:
+        Schema elementSchema = Schema.recordOf("arrayElementSchema",
+                                               Schema.Field.of(fieldName, fieldSchema.getComponentSchema()
+                                               ));
+        List<?> arrayValues = getValue(record::get, fieldName, fieldType.toString(), List.class);
+        List<Value<?>> values = arrayValues.stream()
+          .map(value -> {
+            StructuredRecord structuredRecord = StructuredRecord.builder(elementSchema)
+              .set(fieldName, value)
+              .build();
+            return convertToValue(fieldName, elementSchema.getField(fieldName).getSchema(),
+                                  structuredRecord, false);
+          })
+          .collect(Collectors.toList());
+
+        // According to Datastore rule: list cannot be excluded from indexes
+        return ListValue.of(values);
       case UNION:
+        // simple UNION type
         if (fieldSchema.isNullable()) {
-          outValue = convertToValue(fieldName, fieldSchema.getNonNullable(), record, excludeFromIndex);
-          break;
+          return convertToValue(fieldName, fieldSchema.getNonNullable(), record, excludeFromIndex);
+        }
+        // complex UNION type
+        for (Schema unionSchema : fieldSchema.getUnionSchemas()) {
+          try {
+            return convertToValue(fieldName, unionSchema, record, excludeFromIndex);
+          } catch (UnexpectedFormatException | IllegalStateException e) {
+            // if we couldn't convert, move to the next possibility
+          }
         }
         throw new IllegalStateException(
-          String.format("Record type 'complex UNION' for field '%s'", fieldName));
+          String.format("Field '%s' is of unexpected type '%s'. Declared 'complex UNION' types: %s",
+                        fieldName, record.get(fieldName).getClass().getSimpleName(), fieldSchema.getUnionSchemas()));
       default:
         throw new IllegalStateException(
-          String.format("Record type '%s' is not supported for field '%s'", fieldSchema.getType().name(), fieldName));
+          String.format("Record type '%s' is not supported for field '%s'", fieldType.name(), fieldName));
     }
-    return outValue;
   }
+
+  private <T> T getValue(Function<String, T> valueExtractor, String fieldName, String fieldType, Class<T> clazz) {
+    T value = valueExtractor.apply(fieldName);
+    if (clazz.isAssignableFrom(value.getClass())) {
+      return clazz.cast(value);
+    }
+    throw new UnexpectedFormatException(
+      String.format("Field '%s' is not of expected type '%s'", fieldName, fieldType));
+  }
+
 }

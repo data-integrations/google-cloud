@@ -21,6 +21,8 @@ import com.google.cloud.datastore.Blob;
 import com.google.cloud.datastore.Entity;
 import com.google.cloud.datastore.Key;
 import com.google.cloud.datastore.LatLng;
+import com.google.cloud.datastore.LongValue;
+import com.google.cloud.datastore.StringValue;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -55,8 +57,8 @@ public class DatastoreSourceTest {
     List<Schema.Field> schemaWithKeyFields = schemaWithKey.getFields();
     Assert.assertNotNull(schemaWithKeyFields);
     Assert.assertEquals(2, schemaWithKeyFields.size());
-    checkSimpleField("string_field", schemaWithKey, Schema.nullableOf(Schema.of(Schema.Type.STRING)));
-    checkSimpleField("key", schemaWithKey, Schema.of(Schema.Type.STRING));
+    checkField("string_field", schemaWithKey, Schema.nullableOf(Schema.of(Schema.Type.STRING)));
+    checkField("key", schemaWithKey, Schema.of(Schema.Type.STRING));
   }
 
   @Test
@@ -84,14 +86,16 @@ public class DatastoreSourceTest {
 
     List<Schema.Field> fields = schema.getFields();
     Assert.assertNotNull(fields);
-    Assert.assertEquals(8, fields.size());
-    checkSimpleField("string_field", schema, Schema.nullableOf(Schema.of(Schema.Type.STRING)));
-    checkSimpleField("long_field", schema, Schema.nullableOf(Schema.of(Schema.Type.LONG)));
-    checkSimpleField("double_field", schema, Schema.nullableOf(Schema.of(Schema.Type.DOUBLE)));
-    checkSimpleField("boolean_field", schema, Schema.nullableOf(Schema.of(Schema.Type.BOOLEAN)));
-    checkSimpleField("timestamp_field", schema, Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS)));
-    checkSimpleField("blob_field", schema, Schema.nullableOf(Schema.of(Schema.Type.BYTES)));
-    checkSimpleField("null_field", schema, Schema.nullableOf(Schema.of(Schema.Type.STRING)));
+    Assert.assertEquals(9, fields.size());
+    checkField("string_field", schema, Schema.nullableOf(Schema.of(Schema.Type.STRING)));
+    checkField("long_field", schema, Schema.nullableOf(Schema.of(Schema.Type.LONG)));
+    checkField("double_field", schema, Schema.nullableOf(Schema.of(Schema.Type.DOUBLE)));
+    checkField("boolean_field", schema, Schema.nullableOf(Schema.of(Schema.Type.BOOLEAN)));
+    checkField("timestamp_field", schema, Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS)));
+    checkField("blob_field", schema, Schema.nullableOf(Schema.of(Schema.Type.BYTES)));
+    checkField("null_field", schema, Schema.nullableOf(Schema.of(Schema.Type.STRING)));
+    checkField("list_field", schema,
+               Schema.nullableOf(Schema.arrayOf(Schema.nullableOf(Schema.of(Schema.Type.STRING)))));
 
     Schema.Field entityField = schema.getField("entity_field");
     Assert.assertNotNull(entityField);
@@ -101,11 +105,28 @@ public class DatastoreSourceTest {
     List<Schema.Field> entityFields = entitySchema.getFields();
     Assert.assertNotNull(entityFields);
     Assert.assertEquals(2, entityFields.size());
-    checkSimpleField("nested_string_field", entitySchema, Schema.nullableOf(Schema.of(Schema.Type.STRING)));
-    checkSimpleField("nested_long_field", entitySchema, Schema.nullableOf(Schema.of(Schema.Type.LONG)));
+    checkField("nested_string_field", entitySchema, Schema.nullableOf(Schema.of(Schema.Type.STRING)));
+    checkField("nested_long_field", entitySchema, Schema.nullableOf(Schema.of(Schema.Type.LONG)));
   }
 
-  private void checkSimpleField(String name, Schema schema, Schema fieldSchema) {
+  @Test
+  public void testGetSchemaArrayWithComplexUnion() {
+    LongValue longValue1 = LongValue.of(10);
+    LongValue longValue2 = LongValue.of(20);
+    StringValue stringValue1 = StringValue.of("string_value_1");
+    StringValue stringValue2 = StringValue.of("string_value_2");
+
+    Entity entity = Entity.newBuilder(Key.newBuilder(DatastoreSourceConfigHelper.TEST_PROJECT,
+                                                     DatastoreSourceConfigHelper.TEST_KIND, 1).build())
+      .set("array_field", longValue1, longValue2, stringValue1, stringValue2)
+      .build();
+
+    Schema schema = datastoreSource.constructSchema(entity, false, "key");
+    checkField("array_field", schema, Schema.nullableOf(Schema.arrayOf(Schema.unionOf(
+      Schema.of(Schema.Type.LONG), Schema.of(Schema.Type.STRING), Schema.of(Schema.Type.NULL)))));
+  }
+
+  private void checkField(String name, Schema schema, Schema fieldSchema) {
     Schema.Field field = schema.getField(name);
     Assert.assertNotNull(field);
     Assert.assertEquals(field.getSchema(), fieldSchema);
