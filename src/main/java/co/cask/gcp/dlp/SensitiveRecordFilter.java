@@ -28,6 +28,7 @@ import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.StageSubmitterContext;
 import co.cask.cdap.etl.api.Transform;
 import co.cask.cdap.etl.api.TransformContext;
+import co.cask.cdap.format.StructuredRecordStringConverter;
 import co.cask.gcp.common.GCPConfig;
 import co.cask.gcp.common.GCPUtils;
 import com.google.cloud.dlp.v2.DlpServiceClient;
@@ -54,9 +55,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 /**
- * Cloud DLP.
+ * This class implements a Cloud DLP sensitive record filter.
+ * The class uses the streaming DLP API to analyze a field or entire record for sensitivity.
  */
 @Plugin(type = Transform.PLUGIN_TYPE)
 @Name(SensitiveRecordFilter.NAME)
@@ -69,9 +72,9 @@ public final class SensitiveRecordFilter extends Transform<StructuredRecord, Str
   // Stores the configuration passed to this class from user.
   private final Config config;
 
+  // DLP service client for managing interactions with DLP service.
   private DlpServiceClient client;
   private InspectConfig inspectConfig;
-
 
   @VisibleForTesting
   public SensitiveRecordFilter(Config config) {
@@ -79,16 +82,23 @@ public final class SensitiveRecordFilter extends Transform<StructuredRecord, Str
   }
 
   /**
-   * Confiigure Pipeline.
-   * @param pipelineConfigurer
-   * @throws IllegalArgumentException
+   * Invoked during deployment of pipeline to validate configuration of the pipeline.
+   * This method checks if the input specified is 'field' type and if it is, then checks
+   * if the field specified is present in the input schema.
+   *
+   * @param configurer A handle to the entire pipeline configuration.
+   * @throws IllegalArgumentException if there any issues with configuration of the plugin.
    */
   @Override
-  public void configurePipeline(PipelineConfigurer pipelineConfigurer) throws IllegalArgumentException {
-    super.configurePipeline(pipelineConfigurer);
-    Schema inputSchema = pipelineConfigurer.getStageConfigurer().getInputSchema();
-    if (!config.containsMacro(config.getFieldName()) && inputSchema.getField(config.getFieldName()) == null) {
-      throw new IllegalArgumentException("Field specified is not present in input schema");
+  public void configurePipeline(PipelineConfigurer configurer) throws IllegalArgumentException {
+    super.configurePipeline(configurer);
+    Schema inputSchema = configurer.getStageConfigurer().getInputSchema();
+    if (!config.containsMacro("entire-record") && !config.isEntireRecord() && config.getFieldName() == null) {
+      throw new IllegalArgumentException("Input type is specified as 'Field', " +
+                                           "but a field name has not been specified. Specify the field name.");
+    }
+    if (!config.containsMacro("field") && inputSchema.getField(config.getFieldName()) == null) {
+      throw new IllegalArgumentException("Field specified is not present in the input schema");
     }
   }
 
@@ -97,13 +107,19 @@ public final class SensitiveRecordFilter extends Transform<StructuredRecord, Str
     super.prepareRun(context);
     // Macros are resolved by this time, so we check before runninig if the input field specified by user
     // is present in the input schema.
+    if (!config.isEntireRecord() && config.getFieldName() == null) {
+      throw new IllegalArgumentException("Input type is specified as 'Field', " +
+                                           "but a field name has not been specified.");
+    }
     if (context.getInputSchema().getField(config.getFieldName()) == null) {
-      throw new IllegalArgumentException("Input field not present in the input schema");
+      throw new IllegalArgumentException("Field specified is not present in the input schema. " +
+                                           "Please specify an input field that is in the input.");
     }
   }
 
   /**
-   * Initialize.
+   * Initialize this <code>SensitiveRecordFilter</code> plugin.
+   * A instance of DLP client is creates with mapped infotypes.
    *
    * @param context
    * @throws Exception
@@ -130,39 +146,54 @@ public final class SensitiveRecordFilter extends Transform<StructuredRecord, Str
    */
   @Override
   public void transform(StructuredRecord record, Emitter<StructuredRecord> emitter) throws Exception {
-    Object object = record.get(config.getFieldName());
+    Object object = null;
+    ContentItem contentItem = null;
+
+    if (!config.isEntireRecord()) {
+      object = record.get(config.getFieldName());
+    } else {
+      object = StructuredRecordStringConverter.toDelimitedString(record, ",");
+    }
+
     if (object instanceof String) {
       ByteContentItem byteContentItem =
         ByteContentItem.newBuilder()
           .setType(ByteContentItem.BytesType.TEXT_UTF8)
           .setData(ByteString.copyFromUtf8(String.valueOf(object)))
           .build();
-      ContentItem contentItem = ContentItem.newBuilder().setByteItem(byteContentItem).build();
-
-      InspectContentRequest request =
-        InspectContentRequest.newBuilder()
-          .setParent(ProjectName.of(config.getProject()).toString())
-          .setInspectConfig(inspectConfig)
-          .setItem(contentItem)
+      contentItem = ContentItem.newBuilder().setByteItem(byteContentItem).build();
+    } else if (object instanceof byte[]) {
+      ByteContentItem byteContentItem =
+        ByteContentItem.newBuilder()
+          .setType(ByteContentItem.BytesType.TEXT_UTF8)
+          .setData(ByteString.copyFrom((byte[]) object))
           .build();
-      InspectContentResponse response = client.inspectContent(request);
-      InspectResult result = response.getResult();
+      contentItem = ContentItem.newBuilder().setByteItem(byteContentItem).build();
+    }
 
-      if (result.getFindingsCount() > 0) {
-        List<String> findingInfoTypes = new ArrayList<>();
-        for (Finding finding : result.getFindingsList()) {
-          if (canFilter(finding.getLikelihood(), config.getFilterConfidence())) {
-            findingInfoTypes.add(finding.getInfoType().getName());
-          }
-        }
-        if (findingInfoTypes.size() > 0) {
-          List<String> dedup = Lists.newArrayList(Sets.newHashSet(findingInfoTypes));
-          emitter.emitError(new InvalidEntry<>(dedup.size(), String.join(",", dedup), record));
-          return;
+    InspectContentRequest request =
+      InspectContentRequest.newBuilder()
+        .setParent(ProjectName.of(config.getProject()).toString())
+        .setInspectConfig(inspectConfig)
+        .setItem(contentItem)
+        .build();
+    InspectContentResponse response = client.inspectContent(request);
+    InspectResult result = response.getResult();
+
+    if (result.getFindingsCount() > 0) {
+      List<String> findingInfoTypes = new ArrayList<>();
+      for (Finding finding : result.getFindingsList()) {
+        if (canFilter(finding.getLikelihood(), config.getFilterConfidence())) {
+          findingInfoTypes.add(finding.getInfoType().getName());
         }
       }
-      emitter.emit(record);
+      if (findingInfoTypes.size() > 0) {
+        List<String> dedup = Lists.newArrayList(Sets.newHashSet(findingInfoTypes));
+        emitter.emitError(new InvalidEntry<>(dedup.size(), String.join(",", dedup), record));
+        return;
+      }
     }
+    emitter.emit(record);
   }
 
   /**
@@ -212,9 +243,16 @@ public final class SensitiveRecordFilter extends Transform<StructuredRecord, Str
    * Configuration object.
    */
   public static class Config extends GCPConfig {
+
+    @Macro
+    @Name("entire-record")
+    @Description("Entire record or just an individual field")
+    private boolean entireRecord;
+
     @Macro
     @Name("field")
     @Description("Name of field to be inspected")
+    @Nullable
     private String field;
 
     @Macro
@@ -252,6 +290,13 @@ public final class SensitiveRecordFilter extends Transform<StructuredRecord, Str
         return Likelihood.LIKELY;
       }
       return Likelihood.VERY_LIKELY;
+    }
+
+    /**
+     * @return true if entire record to checked for sensitive data.
+     */
+    public boolean isEntireRecord() {
+      return entireRecord;
     }
   }
 }
