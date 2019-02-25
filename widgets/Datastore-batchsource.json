@@ -1,0 +1,134 @@
+{
+  "metadata": {
+    "spec-version": "1.5"
+  },
+  "display-name": "Google Cloud Datastore",
+  "configuration-groups": [
+    {
+      "label" : "Basic",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Reference Name",
+          "name": "referenceName",
+          "widget-attributes" : {
+            "placeholder": "Name used to identify this source for lineage"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Project ID",
+          "name": "project",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Namespace",
+          "name": "namespace"
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Kind",
+          "name": "kind",
+          "plugin-function": {
+            "method": "POST",
+            "widget": "outputSchema",
+            "output-property": "schema",
+            "plugin-method": "getSchema"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Ancestor",
+          "name": "ancestor",
+          "widget-attributes" : {
+            "placeholder": "Key literal"
+          }
+        },
+        {
+          "widget-type": "keyvalue",
+          "label": "Filters",
+          "name": "filters",
+          "widget-attributes": {
+            "showDelimiter": "false",
+            "delimiter": ";",
+            "kv-delimiter": "|",
+            "key-placeholder": "Property Name",
+            "value-placeholder": "Property Value"
+          }
+        },
+        {
+          "widget-type": "number",
+          "label": "Number of Splits",
+          "name": "numSplits",
+          "widget-attributes": {
+            "default": "1",
+            "min": "1",
+            "max": "2147483647"
+          }
+        }
+      ]
+    },
+    {
+      "label": "Credentials",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        }
+      ]
+    },
+    {
+      "label": "Advanced",
+      "properties": [
+        {
+          "widget-type": "select",
+          "label": "Key Type",
+          "name": "keyType",
+          "widget-attributes": {
+            "default": "None",
+            "values": ["None", "Key literal", "URL-safe key"]
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Key Alias",
+          "name": "keyAlias",
+          "widget-attributes" : {
+            "placeholder": "Name used to identify user-friendly key name"
+          }
+        }
+      ]
+    }
+  ],
+  "outputs": [
+    {
+      "name": "schema",
+      "widget-type": "schema",
+      "widget-attributes": {
+        "schema-types": [
+          "boolean",
+          "long",
+          "double",
+          "string",
+          "timestamp",
+          "record"
+        ],
+        "schema-default-type": "string"
+      }
+    }
+  ],
+  "jump-config": {
+    "datasets": [
+      {
+        "ref-property-name": "referenceName"
+      }
+    ]
+  }
+}
