@@ -6,8 +6,27 @@
   "display-name": "Sensitive Record Filter",
   "configuration-groups": [
     {
-      "label": "Input Configuration",
+      "label": "Input",
       "properties" : [
+        {
+          "name": "entire-record",
+          "label": "Record or Field",
+          "widget-type": "radio-group",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "record",
+            "options": [
+              {
+                "id": "field",
+                "label": "Individual Field"
+              },
+              {
+                "id": "record",
+                "label": "Entire record"
+              }
+            ]
+          }
+        },
         {
           "widget-type": "textbox",
           "label": "Field",
@@ -19,7 +38,7 @@
       ]
     },
     {
-      "label": "DLP Configuration",
+      "label": "Data Loss Prevention(DLP)",
       "properties" : [
         {
           "name": "filter-confidence",
@@ -41,7 +60,6 @@
                 "id": "high",
                 "label": "High"
               }
-
             ]
           }
         },
