@@ -487,6 +487,37 @@ public class RecordToEntityTransformerTest {
   }
 
   @Test
+  public void testTransformArrayFromArray() {
+    Schema schema = Schema.recordOf("schema",
+      Schema.Field.of("array_field", Schema.arrayOf(Schema.nullableOf(Schema.of(Schema.Type.STRING)))));
+
+    String[] stringArray = new String[] {"A", "B", "C", null};
+
+    StructuredRecord inputRecord = StructuredRecord.builder(schema)
+      .set("array_field", stringArray)
+      .build();
+
+    RecordToEntityTransformer transformer = new RecordToEntityTransformer(DatastoreSinkConfigHelper.TEST_PROJECT,
+                                                                          DatastoreSinkConfigHelper.TEST_NAMESPACE,
+                                                                          DatastoreSinkConfigHelper.TEST_KIND,
+                                                                          SinkKeyType.AUTO_GENERATED_KEY,
+                                                                          "id",
+                                                                          Collections.emptyList(),
+                                                                          IndexStrategy.ALL,
+                                                                          Collections.emptySet());
+
+    FullEntity<?> outputEntity = transformer.transformStructuredRecord(inputRecord);
+
+    List<Value<String>> actual = outputEntity.getList("array_field");
+
+    List<String> actualList = actual.stream()
+      .map(Value::get)
+      .collect(Collectors.toList());
+
+    Assert.assertEquals(Arrays.asList(stringArray), actualList);
+  }
+
+  @Test
   public void testTransformComplexUnion() {
     Schema schema = Schema.recordOf("schema",
       Schema.Field.of("union_field", Schema.unionOf(

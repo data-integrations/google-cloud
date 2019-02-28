@@ -42,6 +42,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.ZonedDateTime;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -329,11 +331,15 @@ public class RecordToEntityTransformer {
           .build();
       case ARRAY:
         Schema elementSchema = Schema.recordOf("arrayElementSchema",
-                                               Schema.Field.of(fieldName, fieldSchema.getComponentSchema()
-                                               ));
-        List<?> arrayValues = getValue(record::get, fieldName, fieldType.toString(), List.class);
+                                               Schema.Field.of(fieldName, fieldSchema.getComponentSchema()));
+
+        Collection<Object> arrayValues = toCollection(fieldName, fieldType, record.get(fieldName));
         List<Value<?>> values = arrayValues.stream()
           .map(value -> {
+            // Wrap array element into record to be able to re-use convertToValue method type conversion logic
+            // because StructuredRecord has different methods to extract value based on schema type.
+            // For example: record.get(fieldName) is used for most of the values,
+            // record.getTimestamp(fieldName) is used for timestamp values.
             StructuredRecord structuredRecord = StructuredRecord.builder(elementSchema)
               .set(fieldName, value)
               .build();
@@ -373,6 +379,30 @@ public class RecordToEntityTransformer {
     }
     throw new UnexpectedFormatException(
       String.format("Field '%s' is not of expected type '%s'", fieldName, fieldType));
+  }
+
+  /**
+   * Transforms given value to {@link Collection<Object>}, fails if given value is not a collection or array.
+   *
+   * @param fieldName field name
+   * @param fieldType field type
+   * @param value value to be casted to {@link Collection<Object>}
+   * @return instance of {@link Collection<Object>}
+   * @throws UnexpectedFormatException in case if given value is not a collection or array
+   */
+  @SuppressWarnings("unchecked")
+  private Collection<Object> toCollection(String fieldName, Schema.Type fieldType, Object value) {
+    Function<String, Collection> valueExtractor = name -> {
+      throw new UnexpectedFormatException(
+        String.format("Field '%s' of type '%s' has unexpected value '%s'", name, fieldType, value));
+    };
+
+    if (value instanceof Collection) {
+      valueExtractor = name -> (Collection<?>) value;
+    } else if (value instanceof Object[]) {
+      valueExtractor = name -> Arrays.asList((Object[]) value);
+    }
+    return getValue(valueExtractor, fieldName, fieldType.toString(), Collection.class);
   }
 
 }
