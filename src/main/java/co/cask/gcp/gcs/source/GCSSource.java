@@ -21,7 +21,6 @@ import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.annotation.Plugin;
 import co.cask.cdap.api.data.schema.Schema;
-import co.cask.cdap.api.plugin.EndpointPluginContext;
 import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchSource;
 import co.cask.cdap.etl.api.batch.BatchSourceContext;
@@ -42,7 +41,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
-import javax.ws.rs.Path;
 
 /**
  * Class description here.
@@ -88,23 +86,6 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
   @Override
   protected void recordLineage(LineageRecorder lineageRecorder, List<String> outputFields) {
     lineageRecorder.recordRead("Read", "Read from Google Cloud Storage.", outputFields);
-  }
-
-  /**
-   * Endpoint method to get the output schema of a source.
-   *
-   * @param config configuration for the source
-   * @param pluginContext context to create plugins
-   * @return schema of fields
-   */
-  @Path("getSchema")
-  public Schema getSchema(GCSSourceConfig config, EndpointPluginContext pluginContext) {
-    FileFormat fileFormat = config.getFormat();
-    if (fileFormat == null) {
-      return config.getSchema();
-    }
-    Schema schema = fileFormat.getSchema(config.getPathField());
-    return schema == null ? config.getSchema() : schema;
   }
 
   /**

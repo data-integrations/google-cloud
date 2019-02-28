@@ -19,6 +19,7 @@ package co.cask.gcp.spanner.source;
 import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.data.schema.Schema;
+import co.cask.cdap.etl.api.validation.InvalidConfigPropertyException;
 import co.cask.gcp.common.GCPReferenceSourceConfig;
 import co.cask.gcp.spanner.common.SpannerUtil;
 
@@ -55,24 +56,26 @@ public class SpannerSourceConfig extends GCPReferenceSourceConfig {
 
   @Description("Schema of the Spanner table.")
   @Macro
+  @Nullable
   public String schema;
 
   public void validate() {
     super.validate();
-    if (!containsMacro("schema")) {
+    if (!containsMacro("schema") && schema != null) {
       SpannerUtil.validateSchema(getSchema());
     }
     if (!containsMacro("maxPartitions") && maxPartitions != null && maxPartitions < 1) {
-      throw new IllegalArgumentException("Max partitions should be positive");
+      throw new InvalidConfigPropertyException("Max partitions should be positive", "maxPartitions");
     }
     if (!containsMacro("partitionSizeMB") && partitionSizeMB != null && partitionSizeMB < 1) {
-      throw new IllegalArgumentException("Partition size in mega bytes should be positive");
+      throw new InvalidConfigPropertyException("Partition size in mega bytes should be positive", "partitionSizeMB");
     }
   }
 
+  @Nullable
   public Schema getSchema() {
     try {
-      return Schema.parseJson(schema);
+      return schema == null ? null : Schema.parseJson(schema);
     } catch (IOException e) {
       throw new IllegalArgumentException("Unable to parse output schema: " + e.getMessage(), e);
     }
