@@ -24,7 +24,9 @@ import co.cask.gcp.datastore.util.DatastorePropertyUtil;
 import com.google.cloud.datastore.PathElement;
 import com.google.datastore.v1.client.DatastoreHelper;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.mockito.Mockito;
 
 import java.util.Arrays;
@@ -37,6 +39,9 @@ import java.util.TreeSet;
  * Tests of {@link DatastoreSinkConfig} methods.
  */
 public class DatastoreSinkConfigTest {
+
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testGetNamespaceNull() {
@@ -450,6 +455,26 @@ public class DatastoreSinkConfigTest {
       .build());
 
     Mockito.doNothing().when(config).validateDatastoreConnection();
+
+    config.validate(schema);
+  }
+
+  @Test
+  public void testValidateConfigArrayOfArraySchema() {
+    Schema schema = Schema.recordOf("record",
+      Schema.Field.of("array_of_array",
+       Schema.nullableOf(Schema.arrayOf(Schema.arrayOf(Schema.nullableOf(Schema.of(Schema.Type.STRING)))))));
+
+    DatastoreSinkConfig config = Mockito.spy(DatastoreSinkConfigHelper.newConfigBuilder()
+      .setKeyType(SinkKeyType.AUTO_GENERATED_KEY.getValue())
+      .setServiceFilePath(null)
+      .setBatchSize(25)
+      .setIndexStrategy(IndexStrategy.ALL.getValue())
+      .build());
+
+    Mockito.doNothing().when(config).validateDatastoreConnection();
+
+    thrown.expect(IllegalArgumentException.class);
 
     config.validate(schema);
   }

@@ -21,7 +21,9 @@ import com.google.cloud.datastore.Blob;
 import com.google.cloud.datastore.Entity;
 import com.google.cloud.datastore.Key;
 import com.google.cloud.datastore.LatLng;
+import com.google.cloud.datastore.ListValue;
 import com.google.cloud.datastore.LongValue;
+import com.google.cloud.datastore.NullValue;
 import com.google.cloud.datastore.StringValue;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -93,7 +95,7 @@ public class DatastoreSourceTest {
     checkField("boolean_field", schema, Schema.nullableOf(Schema.of(Schema.Type.BOOLEAN)));
     checkField("timestamp_field", schema, Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS)));
     checkField("blob_field", schema, Schema.nullableOf(Schema.of(Schema.Type.BYTES)));
-    checkField("null_field", schema, Schema.nullableOf(Schema.of(Schema.Type.STRING)));
+    checkField("null_field", schema, Schema.of(Schema.Type.NULL));
     checkField("list_field", schema,
                Schema.nullableOf(Schema.arrayOf(Schema.nullableOf(Schema.of(Schema.Type.STRING)))));
 
@@ -119,11 +121,15 @@ public class DatastoreSourceTest {
     Entity entity = Entity.newBuilder(Key.newBuilder(DatastoreSourceConfigHelper.TEST_PROJECT,
                                                      DatastoreSourceConfigHelper.TEST_KIND, 1).build())
       .set("array_field", longValue1, longValue2, stringValue1, stringValue2)
+      .set("array_field_null", NullValue.of(), NullValue.of())
+      .set("array_field_empty", ListValue.newBuilder().build())
       .build();
 
     Schema schema = datastoreSource.constructSchema(entity, false, "key");
     checkField("array_field", schema, Schema.nullableOf(Schema.arrayOf(Schema.unionOf(
       Schema.of(Schema.Type.LONG), Schema.of(Schema.Type.STRING), Schema.of(Schema.Type.NULL)))));
+    checkField("array_field_null", schema, Schema.nullableOf(Schema.arrayOf(Schema.of(Schema.Type.NULL))));
+    checkField("array_field_empty", schema, Schema.nullableOf(Schema.arrayOf(Schema.of(Schema.Type.NULL))));
   }
 
   private void checkField(String name, Schema schema, Schema fieldSchema) {

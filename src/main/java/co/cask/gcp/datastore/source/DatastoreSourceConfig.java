@@ -301,8 +301,14 @@ public class DatastoreSourceConfig extends GCPReferenceSourceConfig {
         validateSchema(fieldSchema);
         return;
       case ARRAY:
-        validateFieldSchema(fieldName, Objects.requireNonNull(fieldSchema.getComponentSchema(),
-          String.format("Field '%s' has no schema for array type", fieldName)));
+        Schema componentSchema = Objects.requireNonNull(fieldSchema.getComponentSchema(),
+          String.format("Field '%s' has no schema for array type", fieldName));
+        if (Schema.Type.ARRAY == componentSchema.getType()) {
+          throw new IllegalArgumentException(
+            String.format("Field '%s' is of unsupported type '%s of %s'", fieldName, fieldSchema.getType(),
+                          componentSchema.getType()));
+        }
+        validateFieldSchema(fieldName, componentSchema);
         return;
       case UNION:
         fieldSchema.getUnionSchemas().forEach(unionSchema -> validateFieldSchema(fieldName, unionSchema));

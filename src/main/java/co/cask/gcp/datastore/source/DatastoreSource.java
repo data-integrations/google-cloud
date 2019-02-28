@@ -75,6 +75,7 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
     .put(ValueType.BOOLEAN, Schema.of(Schema.Type.BOOLEAN))
     .put(ValueType.TIMESTAMP, Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))
     .put(ValueType.BLOB, Schema.of(Schema.Type.BYTES))
+    .put(ValueType.NULL, Schema.of(Schema.Type.NULL))
     .build();
 
   private final DatastoreSourceConfig config;
@@ -230,12 +231,16 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
    */
   private Schema.Field transformToField(String name, Value<?> value) {
     Schema schema = createSchema(name, value);
-    return schema == null ? null : Schema.Field.of(name, Schema.nullableOf(schema));
+    if (schema == null) {
+      return null;
+    }
+    return Schema.Type.NULL == schema.getType()
+      ? Schema.Field.of(name, schema)
+      : Schema.Field.of(name, Schema.nullableOf(schema));
   }
 
   /**
-   * Creates CDAP schema based on given Datastore value and its type.
-   * For {@link ValueType#NULL} will return default {@link Schema.Type#STRING},
+   * Creates CDAP schema based on given Datastore value and its type,
    * for unsupported types will return null.
    *
    * @param name field name
@@ -250,11 +255,6 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
     }
 
     switch (value.getType()) {
-      case NULL:
-        // Datastore stores null values in Null Type unlike regular databases which have nullable type definition
-        // set default String type, instead of skipping the field
-        LOG.debug("Field '{}' is null, setting default type '{}'", name, Schema.Type.STRING);
-        return Schema.of(Schema.Type.STRING);
       case ENTITY:
         List<Schema.Field> fields = constructSchemaFields(((EntityValue) value).get());
         return Schema.recordOf(name, fields);
@@ -271,17 +271,18 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
         }
 
         if (arraySchemas.isEmpty()) {
-          LOG.debug("Field '{}' is empty array, setting default array type 'array of {}'", name, Schema.Type.STRING);
-          return Schema.arrayOf(Schema.nullableOf(Schema.of(Schema.Type.STRING)));
+          return Schema.arrayOf(Schema.of(Schema.Type.NULL));
         }
 
         if (arraySchemas.size() == 1) {
-          return Schema.arrayOf(Schema.nullableOf(arraySchemas.iterator().next()));
+          Schema componentSchema = arraySchemas.iterator().next();
+          return Schema.Type.NULL == componentSchema.getType()
+            ? Schema.arrayOf(componentSchema)
+            : Schema.arrayOf(Schema.nullableOf(componentSchema));
         }
 
         LOG.debug("Field '{}' has several schemas in array, add them as union of schemas "
-                    + "plus {} schema for null values",
-                  name, Schema.Type.NULL);
+                    + "plus {} schema for null values", name, Schema.Type.NULL);
         arraySchemas.add(Schema.of(Schema.Type.NULL));
         return Schema.arrayOf(Schema.unionOf(arraySchemas));
     }
