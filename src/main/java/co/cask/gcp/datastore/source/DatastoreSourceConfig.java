@@ -295,19 +295,24 @@ public class DatastoreSourceConfig extends GCPReferenceSourceConfig {
       case BOOLEAN:
       case BYTES:
       case LONG:
+      case NULL:
         return;
       case RECORD:
         validateSchema(fieldSchema);
         return;
-      case UNION:
-        // nullable fields in CDAP are represented as UNION of NULL and FIELD_TYPE
-        if (fieldSchema.isNullable()) {
-          validateFieldSchema(fieldName, fieldSchema.getNonNullable());
-          return;
+      case ARRAY:
+        Schema componentSchema = Objects.requireNonNull(fieldSchema.getComponentSchema(),
+          String.format("Field '%s' has no schema for array type", fieldName));
+        if (Schema.Type.ARRAY == componentSchema.getType()) {
+          throw new IllegalArgumentException(
+            String.format("Field '%s' is of unsupported type '%s of %s'", fieldName, fieldSchema.getType(),
+                          componentSchema.getType()));
         }
-        throw new InvalidConfigPropertyException(
-          String.format("Field '%s' is of unsupported type 'complex UNION'", fieldName),
-          DatastoreSourceConstants.PROPERTY_SCHEMA);
+        validateFieldSchema(fieldName, componentSchema);
+        return;
+      case UNION:
+        fieldSchema.getUnionSchemas().forEach(unionSchema -> validateFieldSchema(fieldName, unionSchema));
+        return;
       default:
         throw new InvalidConfigPropertyException(
           String.format("Field '%s' is of unsupported type '%s'", fieldName, fieldSchema.getType()),

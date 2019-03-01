@@ -16,6 +16,7 @@
 package co.cask.gcp.datastore.source;
 
 import co.cask.cdap.api.data.format.StructuredRecord;
+import co.cask.cdap.api.data.format.UnexpectedFormatException;
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.gcp.datastore.source.util.SourceKeyType;
 import com.google.cloud.Timestamp;
@@ -23,13 +24,16 @@ import com.google.cloud.datastore.Blob;
 import com.google.cloud.datastore.Entity;
 import com.google.cloud.datastore.Key;
 import com.google.cloud.datastore.LatLng;
+import com.google.cloud.datastore.LongValue;
 import com.google.cloud.datastore.PathElement;
+import com.google.cloud.datastore.StringValue;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import java.time.ZonedDateTime;
+import java.util.Arrays;
 
 /**
  * Tests for {@link EntityToRecordTransformer} class.
@@ -42,7 +46,6 @@ public class EntityToRecordTransformerTest {
   @SuppressWarnings("ConstantConditions")
   @Test
   public void testTransformAllTypes() {
-
     Schema schema = Schema.recordOf("schema",
       Schema.Field.of("string_field", Schema.nullableOf(Schema.of(Schema.Type.STRING))),
       Schema.Field.of("long_field", Schema.nullableOf(Schema.of(Schema.Type.LONG))),
@@ -53,7 +56,9 @@ public class EntityToRecordTransformerTest {
       Schema.Field.of("null_field", Schema.nullableOf(Schema.of(Schema.Type.STRING))),
       Schema.Field.of("entity_field", Schema.nullableOf(Schema.recordOf("entity_field",
           Schema.Field.of("nested_string_field", Schema.nullableOf(Schema.of(Schema.Type.STRING))),
-          Schema.Field.of("nested_long_field", Schema.nullableOf(Schema.of(Schema.Type.LONG)))))));
+          Schema.Field.of("nested_long_field", Schema.nullableOf(Schema.of(Schema.Type.LONG)))))),
+      Schema.Field.of("list_field",
+                      Schema.nullableOf(Schema.arrayOf(Schema.nullableOf(Schema.of(Schema.Type.STRING))))));
 
     Timestamp entityTs = Timestamp.now();
     Entity entity = Entity.newBuilder(Key.newBuilder(DatastoreSourceConfigHelper.TEST_PROJECT,
@@ -93,6 +98,8 @@ public class EntityToRecordTransformerTest {
     StructuredRecord entityRecord = record.get("entity_field");
     Assert.assertEquals("nested_value", entityRecord.get("nested_string_field"));
     Assert.assertEquals(20L, (long) entityRecord.get("nested_long_field"));
+
+    Assert.assertEquals(Arrays.asList("value_1", "value_2"), record.get("list_field"));
   }
 
   @Test
@@ -159,7 +166,7 @@ public class EntityToRecordTransformerTest {
       .setNull(fieldName)
       .build();
 
-    thrown.expect(IllegalArgumentException.class);
+    thrown.expect(UnexpectedFormatException.class);
     thrown.expectMessage(fieldName);
 
     EntityToRecordTransformer transformer = new EntityToRecordTransformer(schema, SourceKeyType.NONE, "key");
@@ -194,8 +201,7 @@ public class EntityToRecordTransformerTest {
       .set("field", "field_value")
       .build();
 
-    thrown.expect(ClassCastException.class);
-    thrown.expectMessage("java.lang.String cannot be cast to java.lang.Long");
+    thrown.expect(UnexpectedFormatException.class);
 
     EntityToRecordTransformer transformer = new EntityToRecordTransformer(schema, SourceKeyType.NONE, "key");
     transformer.transformEntity(entity);
@@ -240,6 +246,65 @@ public class EntityToRecordTransformerTest {
 
     EntityToRecordTransformer transformer = new EntityToRecordTransformer(null, SourceKeyType.URL_SAFE_KEY, "key");
     Assert.assertEquals(key.toUrlSafe(), transformer.transformKeyToKeyString(key));
+  }
+
+  @Test
+  public void testTransformComplexUnion() {
+    Schema schema = Schema.recordOf("schema",
+      Schema.Field.of("union_field_string",
+        Schema.unionOf(Schema.of(Schema.Type.LONG), Schema.of(Schema.Type.STRING))),
+      Schema.Field.of("union_field_long",
+        Schema.unionOf(Schema.of(Schema.Type.LONG), Schema.of(Schema.Type.STRING))),
+      Schema.Field.of("union_field_null",
+        Schema.unionOf(Schema.of(Schema.Type.LONG), Schema.of(Schema.Type.STRING), Schema.of(Schema.Type.NULL))));
+
+    Entity entity = Entity.newBuilder(Key.newBuilder(DatastoreSourceConfigHelper.TEST_PROJECT,
+                                                     DatastoreSourceConfigHelper.TEST_KIND, 1).build())
+      .set("union_field_string", "string_value")
+      .set("union_field_long", 10)
+      .setNull("union_field_null")
+      .build();
+
+    EntityToRecordTransformer transformer = new EntityToRecordTransformer(schema, SourceKeyType.NONE, "key");
+    StructuredRecord record = transformer.transformEntity(entity);
+    Assert.assertEquals("string_value", record.get("union_field_string"));
+    Assert.assertEquals(10, (long) record.get("union_field_long"));
+    Assert.assertNull(record.get("union_field_null"));
+  }
+
+  @Test
+  public void testTransformComplexUnionUndeclaredSchema() {
+    Schema schema = Schema.recordOf("schema",
+      Schema.Field.of("union_field", Schema.unionOf(Schema.of(Schema.Type.LONG), Schema.of(Schema.Type.STRING))));
+
+    Entity entity = Entity.newBuilder(Key.newBuilder(DatastoreSourceConfigHelper.TEST_PROJECT,
+                                                     DatastoreSourceConfigHelper.TEST_KIND, 1).build())
+      .set("union_field", true)
+      .build();
+
+    EntityToRecordTransformer transformer = new EntityToRecordTransformer(schema, SourceKeyType.NONE, "key");
+
+    thrown.expect(IllegalStateException.class);
+
+    transformer.transformEntity(entity);
+  }
+
+  @Test
+  public void testTransformArrayWithComplexUnion() {
+    Schema schema = Schema.recordOf("schema",
+      Schema.Field.of("array_field", Schema.nullableOf(Schema.arrayOf(
+        Schema.unionOf(Schema.of(Schema.Type.LONG), Schema.of(Schema.Type.STRING))))));
+
+    Entity entity = Entity.newBuilder(Key.newBuilder(DatastoreSourceConfigHelper.TEST_PROJECT,
+                                                     DatastoreSourceConfigHelper.TEST_KIND, 1).build())
+      .set("array_field", StringValue.of("string_value"), LongValue.of(10), LongValue.of(20))
+      .build();
+
+    EntityToRecordTransformer transformer = new EntityToRecordTransformer(schema, SourceKeyType.NONE, "key");
+    StructuredRecord record = transformer.transformEntity(entity);
+    Object fieldValue = record.get("array_field");
+    Assert.assertNotNull(fieldValue);
+    Assert.assertEquals(Arrays.asList("string_value", 10, 20).toString(), fieldValue.toString());
   }
 
 }

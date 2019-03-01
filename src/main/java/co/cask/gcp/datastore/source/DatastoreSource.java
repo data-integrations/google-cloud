@@ -28,7 +28,6 @@ import co.cask.cdap.etl.api.batch.BatchRuntimeContext;
 import co.cask.cdap.etl.api.batch.BatchSource;
 import co.cask.cdap.etl.api.batch.BatchSourceContext;
 import co.cask.gcp.datastore.exception.DatastoreExecutionException;
-import co.cask.gcp.datastore.util.DatastorePropertyUtil;
 import co.cask.gcp.datastore.util.DatastoreUtil;
 import co.cask.hydrator.common.LineageRecorder;
 import com.google.cloud.datastore.Datastore;
@@ -44,12 +43,16 @@ import com.google.cloud.datastore.StructuredQuery;
 import com.google.cloud.datastore.Value;
 import com.google.cloud.datastore.ValueType;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.io.NullWritable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import javax.ws.rs.Path;
 
@@ -64,6 +67,16 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
 
   private static final Logger LOG = LoggerFactory.getLogger(DatastoreSource.class);
   public static final String NAME = "Datastore";
+
+  private static final Map<ValueType, Schema> SUPPORTED_SIMPLE_TYPES = new ImmutableMap.Builder<ValueType, Schema>()
+    .put(ValueType.STRING, Schema.of(Schema.Type.STRING))
+    .put(ValueType.LONG, Schema.of(Schema.Type.LONG))
+    .put(ValueType.DOUBLE, Schema.of(Schema.Type.DOUBLE))
+    .put(ValueType.BOOLEAN, Schema.of(Schema.Type.BOOLEAN))
+    .put(ValueType.TIMESTAMP, Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))
+    .put(ValueType.BLOB, Schema.of(Schema.Type.BYTES))
+    .put(ValueType.NULL, Schema.of(Schema.Type.NULL))
+    .build();
 
   private final DatastoreSourceConfig config;
   private EntityToRecordTransformer entityToRecordTransformer;
@@ -209,44 +222,73 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
   }
 
   /**
-   * Since Datastore is schemaless database, returns nullable field schema for the given value type.
-   * For {@link ValueType#NULL} will return default {@link Schema.Type#STRING},
-   * for unsupported types will return null.
+   * Since Datastore is schemaless database, creates field with nullable schema for the given value
+   * based on its value type, for unsupported types returns null.
    *
    * @param name field name
-   * @param value Datastore value type
+   * @param value Datastore value
    * @return CDAP field
    */
   private Schema.Field transformToField(String name, Value<?> value) {
+    Schema schema = createSchema(name, value);
+    if (schema == null) {
+      return null;
+    }
+    return Schema.Type.NULL == schema.getType()
+      ? Schema.Field.of(name, schema)
+      : Schema.Field.of(name, Schema.nullableOf(schema));
+  }
+
+  /**
+   * Creates CDAP schema based on given Datastore value and its type,
+   * for unsupported types will return null.
+   *
+   * @param name field name
+   * @param value Datastore value
+   * @return CDAP schema
+   */
+  private Schema createSchema(String name, Value<?> value) {
+    Schema schema = SUPPORTED_SIMPLE_TYPES.get(value.getType());
+
+    if (schema != null) {
+      return schema;
+    }
+
     switch (value.getType()) {
-      case STRING:
-        return Schema.Field.of(name, Schema.nullableOf(Schema.of(Schema.Type.STRING)));
-      case LONG:
-        return Schema.Field.of(name, Schema.nullableOf(Schema.of(Schema.Type.LONG)));
-      case DOUBLE:
-        return Schema.Field.of(name, Schema.nullableOf(Schema.of(Schema.Type.DOUBLE)));
-      case BOOLEAN:
-        return Schema.Field.of(name, Schema.nullableOf(Schema.of(Schema.Type.BOOLEAN)));
-      case TIMESTAMP:
-        return Schema.Field.of(name, Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS)));
-      case BLOB:
-        return Schema.Field.of(name, Schema.nullableOf(Schema.of(Schema.Type.BYTES)));
-      case NULL:
-        // Datastore stores null values in Null Type unlike regular databases which have nullable type definition
-        // set default String type, instead of skipping the field
-        LOG.debug("Unable to determine type, setting default type '{}' for the field '{}'", Schema.Type.STRING, name);
-        return Schema.Field.of(name, Schema.nullableOf(Schema.of(Schema.Type.STRING)));
       case ENTITY:
         List<Schema.Field> fields = constructSchemaFields(((EntityValue) value).get());
-        return Schema.Field.of(name, Schema.nullableOf(Schema.recordOf(name, fields)));
+        return Schema.recordOf(name, fields);
       case LIST:
-      case KEY:
-      case LAT_LNG:
-      case RAW_VALUE:
-      default:
-        LOG.debug("Field '{}' is of unsupported type '{}', skipping field from the schema", name, value.getType());
-        return null;
+        @SuppressWarnings("unchecked")
+        List<? extends Value<?>> values = (List<? extends Value<?>>) value.get();
+        Set<Schema> arraySchemas = new HashSet<>();
+        for (Value<?> val : values) {
+          Schema valSchema = createSchema(name, val);
+          if (valSchema == null) {
+            return null;
+          }
+          arraySchemas.add(valSchema);
+        }
+
+        if (arraySchemas.isEmpty()) {
+          return Schema.arrayOf(Schema.of(Schema.Type.NULL));
+        }
+
+        if (arraySchemas.size() == 1) {
+          Schema componentSchema = arraySchemas.iterator().next();
+          return Schema.Type.NULL == componentSchema.getType()
+            ? Schema.arrayOf(componentSchema)
+            : Schema.arrayOf(Schema.nullableOf(componentSchema));
+        }
+
+        LOG.debug("Field '{}' has several schemas in array, add them as union of schemas "
+                    + "plus {} schema for null values", name, Schema.Type.NULL);
+        arraySchemas.add(Schema.of(Schema.Type.NULL));
+        return Schema.arrayOf(Schema.unionOf(arraySchemas));
     }
+
+    LOG.debug("Field '{}' is of unsupported type '{}', skipping field from the schema", name, value.getType());
+    return null;
   }
 
 }

@@ -596,6 +596,42 @@ public class DatastoreSourceConfigTest {
     Assert.assertEquals(expectedPbQuery, pbQuery);
   }
 
+  @Test
+  public void testValidateConfigArrayAndComplexUnionSchema() {
+    Schema schema = Schema.recordOf("record",
+      Schema.Field.of("array_simple",
+       Schema.nullableOf(Schema.arrayOf(Schema.nullableOf(Schema.of(Schema.Type.STRING))))),
+      Schema.Field.of("array_complex_union",
+       Schema.nullableOf(Schema.arrayOf(Schema.unionOf(Schema.of(Schema.Type.LONG), Schema.of(Schema.Type.STRING))))),
+      Schema.Field.of("complex_union",
+       Schema.unionOf(Schema.of(Schema.Type.LONG), Schema.of(Schema.Type.STRING), Schema.of(Schema.Type.NULL))));
+
+    DatastoreSourceConfig config = withDatastoreValidationMock(DatastoreSourceConfigHelper.newConfigBuilder()
+      .setSchema(schema.toString())
+      .setKeyType(SourceKeyType.NONE.getValue())
+      .setNumSplits(1)
+      .build());
+
+    config.validate();
+  }
+
+  @Test
+  public void testValidateConfigArrayOfArraySchema() {
+    Schema schema = Schema.recordOf("record",
+      Schema.Field.of("array_of_array",
+       Schema.nullableOf(Schema.arrayOf(Schema.arrayOf(Schema.nullableOf(Schema.of(Schema.Type.STRING)))))));
+
+    DatastoreSourceConfig config = withDatastoreValidationMock(DatastoreSourceConfigHelper.newConfigBuilder()
+      .setSchema(schema.toString())
+      .setKeyType(SourceKeyType.NONE.getValue())
+      .setNumSplits(1)
+      .build());
+
+    thrown.expect(IllegalArgumentException.class);
+
+    config.validate();
+  }
+
   private DatastoreSourceConfig withDatastoreValidationMock(DatastoreSourceConfig config) {
     DatastoreSourceConfig spy = Mockito.spy(config);
     Mockito.doNothing().when(spy).validateDatastoreConnection();

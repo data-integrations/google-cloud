@@ -16,6 +16,7 @@
 package co.cask.gcp.datastore.sink;
 
 import co.cask.cdap.api.data.format.StructuredRecord;
+import co.cask.cdap.api.data.format.UnexpectedFormatException;
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.gcp.datastore.sink.util.IndexStrategy;
 import co.cask.gcp.datastore.sink.util.SinkKeyType;
@@ -25,13 +26,17 @@ import com.google.cloud.datastore.IncompleteKey;
 import com.google.cloud.datastore.Key;
 import com.google.cloud.datastore.KeyFactory;
 import com.google.cloud.datastore.PathElement;
+import com.google.cloud.datastore.Value;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import java.time.ZonedDateTime;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Tests for {@link RecordToEntityTransformer} class.
@@ -58,10 +63,16 @@ public class RecordToEntityTransformerTest {
                       Schema.nullableOf(Schema.recordOf("entity_field",
                         Schema.Field.of("nested_string_field", Schema.nullableOf(Schema.of(Schema.Type.STRING))),
                         Schema.Field.of("nested_long_field", Schema.nullableOf(Schema.of(Schema.Type.LONG)))
-      )))
+      ))),
+      Schema.Field.of("array_field", Schema.arrayOf(Schema.nullableOf(Schema.of(Schema.Type.LONG)))),
+      Schema.Field.of("union_field", Schema.unionOf(
+        Schema.of(Schema.Type.LONG),
+        Schema.of(Schema.Type.STRING)
+      ))
     );
 
     ZonedDateTime dateTime = ZonedDateTime.now();
+    List<Long> longList = Arrays.asList(1L, null, 2L, null, 3L);
 
     StructuredRecord inputRecord = StructuredRecord.builder(schema)
       .set("string_field", "string_value")
@@ -77,6 +88,8 @@ public class RecordToEntityTransformerTest {
         .set("nested_string_field", "nested_value")
         .set("nested_long_field", 20L)
         .build())
+      .set("array_field", longList)
+      .set("union_field", 2019L)
       .build();
 
     RecordToEntityTransformer transformer = new RecordToEntityTransformer(DatastoreSinkConfigHelper.TEST_PROJECT,
@@ -126,6 +139,17 @@ public class RecordToEntityTransformerTest {
 
     Assert.assertEquals(20L, nestedEntity.getLong("nested_long_field"));
     Assert.assertFalse(nestedEntity.getValue("nested_long_field").excludeFromIndexes());
+
+    List<Long> actualLongList = outputEntity.getList("array_field").stream()
+      .map(Value::get)
+      .map(Long.class::cast)
+      .collect(Collectors.toList());
+
+    Assert.assertEquals(longList, actualLongList);
+    Assert.assertFalse(outputEntity.getValue("array_field").excludeFromIndexes());
+
+    Assert.assertEquals(2019L, outputEntity.getLong("union_field"));
+    Assert.assertFalse(outputEntity.getValue("union_field").excludeFromIndexes());
   }
 
   @SuppressWarnings("ConstantConditions")
@@ -144,9 +168,16 @@ public class RecordToEntityTransformerTest {
       Schema.Field.of("entity_field",
                       Schema.nullableOf(Schema.recordOf("entity_field",
                         Schema.Field.of("nested_string_field", Schema.nullableOf(Schema.of(Schema.Type.STRING))),
-                        Schema.Field.of("nested_long_field", Schema.nullableOf(Schema.of(Schema.Type.LONG)))))));
+                        Schema.Field.of("nested_long_field", Schema.nullableOf(Schema.of(Schema.Type.LONG)))))),
+      Schema.Field.of("array_field", Schema.arrayOf(Schema.nullableOf(Schema.of(Schema.Type.LONG)))),
+      Schema.Field.of("union_field", Schema.unionOf(
+        Schema.of(Schema.Type.LONG),
+        Schema.of(Schema.Type.STRING)
+      ))
+    );
 
     ZonedDateTime dateTime = ZonedDateTime.now();
+    List<Long> longList = Arrays.asList(1L, null, 2L, null, 3L);
 
     StructuredRecord inputRecord = StructuredRecord.builder(schema)
       .set("string_field", "string_value")
@@ -162,6 +193,8 @@ public class RecordToEntityTransformerTest {
         .set("nested_string_field", "nested_value")
         .set("nested_long_field", 20L)
         .build())
+      .set("array_field", longList)
+      .set("union_field", "union_string_value")
       .build();
 
     RecordToEntityTransformer transformer = new RecordToEntityTransformer(DatastoreSinkConfigHelper.TEST_PROJECT,
@@ -211,6 +244,17 @@ public class RecordToEntityTransformerTest {
 
     Assert.assertEquals(20L, nestedEntity.getLong("nested_long_field"));
     Assert.assertTrue(nestedEntity.getValue("nested_long_field").excludeFromIndexes());
+
+    List<Long> actualLongList = outputEntity.getList("array_field").stream()
+      .map(Value::get)
+      .map(Long.class::cast)
+      .collect(Collectors.toList());
+
+    Assert.assertEquals(longList, actualLongList);
+    Assert.assertFalse(outputEntity.getValue("array_field").excludeFromIndexes());
+
+    Assert.assertEquals("union_string_value", outputEntity.getString("union_field"));
+    Assert.assertTrue(outputEntity.getValue("union_field").excludeFromIndexes());
   }
 
   @Test
@@ -414,6 +458,133 @@ public class RecordToEntityTransformerTest {
   }
 
   @Test
+  public void testTransformArrayEmpty() {
+    Schema schema = Schema.recordOf("schema",
+      Schema.Field.of("array_field", Schema.arrayOf(Schema.nullableOf(Schema.of(Schema.Type.BOOLEAN)))));
+
+    StructuredRecord inputRecord = StructuredRecord.builder(schema)
+      .set("array_field", Collections.emptyList())
+      .build();
+
+    RecordToEntityTransformer transformer = new RecordToEntityTransformer(DatastoreSinkConfigHelper.TEST_PROJECT,
+                                                                          DatastoreSinkConfigHelper.TEST_NAMESPACE,
+                                                                          DatastoreSinkConfigHelper.TEST_KIND,
+                                                                          SinkKeyType.AUTO_GENERATED_KEY,
+                                                                          "id",
+                                                                          Collections.emptyList(),
+                                                                          IndexStrategy.ALL,
+                                                                          Collections.emptySet());
+
+    FullEntity<?> outputEntity = transformer.transformStructuredRecord(inputRecord);
+
+    List<Value<Boolean>> actual = outputEntity.getList("array_field");
+
+    List<Boolean> actualList = actual.stream()
+      .map(Value::get)
+      .collect(Collectors.toList());
+
+    Assert.assertEquals(Collections.emptyList(), actualList);
+  }
+
+  @Test
+  public void testTransformArrayFromArray() {
+    Schema schema = Schema.recordOf("schema",
+      Schema.Field.of("array_field", Schema.arrayOf(Schema.nullableOf(Schema.of(Schema.Type.STRING)))));
+
+    String[] stringArray = new String[] {"A", "B", "C", null};
+
+    StructuredRecord inputRecord = StructuredRecord.builder(schema)
+      .set("array_field", stringArray)
+      .build();
+
+    RecordToEntityTransformer transformer = new RecordToEntityTransformer(DatastoreSinkConfigHelper.TEST_PROJECT,
+                                                                          DatastoreSinkConfigHelper.TEST_NAMESPACE,
+                                                                          DatastoreSinkConfigHelper.TEST_KIND,
+                                                                          SinkKeyType.AUTO_GENERATED_KEY,
+                                                                          "id",
+                                                                          Collections.emptyList(),
+                                                                          IndexStrategy.ALL,
+                                                                          Collections.emptySet());
+
+    FullEntity<?> outputEntity = transformer.transformStructuredRecord(inputRecord);
+
+    List<Value<String>> actual = outputEntity.getList("array_field");
+
+    List<String> actualList = actual.stream()
+      .map(Value::get)
+      .collect(Collectors.toList());
+
+    Assert.assertEquals(Arrays.asList(stringArray), actualList);
+  }
+
+  @Test
+  public void testTransformComplexUnion() {
+    Schema schema = Schema.recordOf("schema",
+      Schema.Field.of("union_field", Schema.unionOf(
+        Schema.of(Schema.Type.STRING),
+        Schema.of(Schema.Type.BOOLEAN),
+        Schema.of(Schema.Type.NULL)
+      )));
+
+    StructuredRecord inputRecordS = StructuredRecord.builder(schema)
+      .set("union_field", "a")
+      .build();
+
+    StructuredRecord inputRecordB = StructuredRecord.builder(schema)
+      .set("union_field", true)
+      .build();
+
+    StructuredRecord inputRecordN = StructuredRecord.builder(schema)
+      .set("union_field", null)
+      .build();
+
+    RecordToEntityTransformer transformer = new RecordToEntityTransformer(DatastoreSinkConfigHelper.TEST_PROJECT,
+                                                                          DatastoreSinkConfigHelper.TEST_NAMESPACE,
+                                                                          DatastoreSinkConfigHelper.TEST_KIND,
+                                                                          SinkKeyType.AUTO_GENERATED_KEY,
+                                                                          "key",
+                                                                          Collections.emptyList(),
+                                                                          IndexStrategy.ALL,
+                                                                          Collections.emptySet());
+
+    FullEntity<?> outputEntityS = transformer.transformStructuredRecord(inputRecordS);
+    Assert.assertEquals("a", outputEntityS.getString("union_field"));
+
+    FullEntity<?> outputEntityB = transformer.transformStructuredRecord(inputRecordB);
+    Assert.assertTrue(outputEntityB.getBoolean("union_field"));
+
+    FullEntity<?> outputEntityN = transformer.transformStructuredRecord(inputRecordN);
+    Value<?> actualN = outputEntityN.getValue("union_field");
+    Assert.assertNull(actualN.get());
+  }
+
+  @Test
+  public void testTransformUndeclaredUnionValue() {
+    Schema schema = Schema.recordOf("schema",
+                                    Schema.Field.of("union_field", Schema.unionOf(
+                                      Schema.of(Schema.Type.STRING),
+                                      Schema.of(Schema.Type.BOOLEAN)
+                                    )));
+
+    StructuredRecord inputRecord = StructuredRecord.builder(schema)
+      .set("union_field", 1L)
+      .build();
+
+    RecordToEntityTransformer transformer = new RecordToEntityTransformer(DatastoreSinkConfigHelper.TEST_PROJECT,
+                                                                          DatastoreSinkConfigHelper.TEST_NAMESPACE,
+                                                                          DatastoreSinkConfigHelper.TEST_KIND,
+                                                                          SinkKeyType.AUTO_GENERATED_KEY,
+                                                                          "key",
+                                                                          Collections.emptyList(),
+                                                                          IndexStrategy.ALL,
+                                                                          Collections.emptySet());
+
+    thrown.expect(IllegalStateException.class);
+
+    transformer.transformStructuredRecord(inputRecord);
+  }
+
+  @Test
   public void testTransformDifferentType() {
     Schema schema = Schema.recordOf("schema",
                                     Schema.Field.of("field", Schema.of(Schema.Type.LONG)));
@@ -431,8 +602,7 @@ public class RecordToEntityTransformerTest {
                                                                           IndexStrategy.ALL,
                                                                           Collections.emptySet());
 
-    thrown.expect(ClassCastException.class);
-    thrown.expectMessage("java.lang.String cannot be cast to java.lang.Number");
+    thrown.expect(UnexpectedFormatException.class);
 
     transformer.transformStructuredRecord(inputRecord);
   }
