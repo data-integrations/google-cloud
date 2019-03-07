@@ -2,7 +2,7 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name" : "Google BigQuery",
+  "display-name" : "BigQuery",
   "configuration-groups": [
     {
       "label": "Basic",
