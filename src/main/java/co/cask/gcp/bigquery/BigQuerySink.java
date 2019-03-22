@@ -97,13 +97,15 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
   @Override
   public void prepareRun(BatchSinkContext context) throws Exception {
     config.validate(context.getInputSchema());
-    BigQuery bigquery = BigQueryUtils.getBigQuery(config.getServiceAccountFilePath(), config.getProject());
-    // create dataset if it does not exist
-    if (bigquery.getDataset(config.getDataset()) == null) {
-      try {
-        bigquery.create(DatasetInfo.newBuilder(config.getDataset()).build());
-      } catch (BigQueryException e) {
-        throw new RuntimeException("Exception occurred while creating dataset " + config.getDataset() + ".", e);
+    if (!context.isPreviewEnabled()) {
+      BigQuery bigquery = BigQueryUtils.getBigQuery(config.getServiceAccountFilePath(), config.getProject());
+      // create dataset if it does not exist
+      if (bigquery.getDataset(config.getDataset()) == null) {
+        try {
+          bigquery.create(DatasetInfo.newBuilder(config.getDataset()).build());
+        } catch (BigQueryException e) {
+          throw new RuntimeException("Exception occurred while creating dataset " + config.getDataset() + ".", e);
+        }
       }
     }
 
