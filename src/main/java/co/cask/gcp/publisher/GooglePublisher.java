@@ -82,20 +82,22 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, T
     String projectId = config.getProject();
     ProjectTopicName projectTopicName = ProjectTopicName.of(projectId, config.topic);
 
-    try (TopicAdminClient topicAdminClient = TopicAdminClient.create(topicAdminSettings.build())) {
-      try {
-        topicAdminClient.getTopic(projectTopicName);
-      } catch (NotFoundException e) {
+    if (!context.isPreviewEnabled()) {
+      try (TopicAdminClient topicAdminClient = TopicAdminClient.create(topicAdminSettings.build())) {
         try {
-          topicAdminClient.createTopic(projectTopicName);
-        } catch (AlreadyExistsException e1) {
-          // can happen if there is a race condition. Ignore this error since all that matters is the topic exists
-        } catch (ApiException e1) {
-          throw new IOException(
-            String.format("Could not auto-create topic '%s' in project '%s'. "
-                            + "Please ensure it is created before running the pipeline, "
-                            + "or ensure that the service account has permission to create the topic.",
-                          config.topic, projectId), e);
+          topicAdminClient.getTopic(projectTopicName);
+        } catch (NotFoundException e) {
+          try {
+            topicAdminClient.createTopic(projectTopicName);
+          } catch (AlreadyExistsException e1) {
+            // can happen if there is a race condition. Ignore this error since all that matters is the topic exists
+          } catch (ApiException e1) {
+            throw new IOException(
+              String.format("Could not auto-create topic '%s' in project '%s'. "
+                              + "Please ensure it is created before running the pipeline, "
+                              + "or ensure that the service account has permission to create the topic.",
+                            config.topic, projectId), e);
+          }
         }
       }
     }

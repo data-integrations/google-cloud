@@ -89,23 +89,25 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
   @Override
   public void prepareRun(BatchSinkContext context) {
     config.validate();
-    Spanner spanner = null;
 
-    try {
-      spanner = SpannerUtil.getSpannerService(config.getServiceAccountFilePath(), config.getProject());
-      DatabaseId db = DatabaseId.of(config.getProject(), config.getInstance(), config.getDatabase());
-      DatabaseClient dbClient = spanner.getDatabaseClient(db);
-      DatabaseAdminClient dbAdminClient = spanner.getDatabaseAdminClient();
-      // create database
-      Database database = getOrCreateDatabase(dbAdminClient);
-      // create table
-      createTableIfNotPresent(dbClient, database);
-    } catch (IOException e) {
-      throw new RuntimeException("Exception while trying to get Spanner service. ", e);
-    } finally {
-      // Close spanner to release resources.
-      if (spanner != null) {
-        spanner.close();
+    if (!context.isPreviewEnabled()) {
+      Spanner spanner = null;
+      try {
+        spanner = SpannerUtil.getSpannerService(config.getServiceAccountFilePath(), config.getProject());
+        DatabaseId db = DatabaseId.of(config.getProject(), config.getInstance(), config.getDatabase());
+        DatabaseClient dbClient = spanner.getDatabaseClient(db);
+        DatabaseAdminClient dbAdminClient = spanner.getDatabaseAdminClient();
+        // create database
+        Database database = getOrCreateDatabase(dbAdminClient);
+        // create table
+        createTableIfNotPresent(dbClient, database);
+      } catch (IOException e) {
+        throw new RuntimeException("Exception while trying to get Spanner service. ", e);
+      } finally {
+        // Close spanner to release resources.
+        if (spanner != null) {
+          spanner.close();
+        }
       }
     }
 
