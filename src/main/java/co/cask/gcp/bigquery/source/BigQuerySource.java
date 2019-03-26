@@ -14,7 +14,7 @@
  * the License.
  */
 
-package co.cask.gcp.bigquery;
+package co.cask.gcp.bigquery.source;
 
 import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Name;
@@ -30,6 +30,7 @@ import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchRuntimeContext;
 import co.cask.cdap.etl.api.batch.BatchSource;
 import co.cask.cdap.etl.api.batch.BatchSourceContext;
+import co.cask.gcp.bigquery.util.BigQueryUtil;
 import co.cask.hydrator.common.LineageRecorder;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
@@ -89,7 +90,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     validateOutputSchema();
 
     uuid = UUID.randomUUID();
-    configuration = BigQueryUtils.getBigQueryConfig(config.getServiceAccountFilePath(), config.getProject());
+    configuration = BigQueryUtil.getBigQueryConfig(config.getServiceAccountFilePath(), config.getProject());
 
     String bucket = config.getBucket();
     if (bucket == null) {
@@ -167,7 +168,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     String dataset = request.getDataset();
     String tableName = request.getTable();
     String project = request.getDatasetProject();
-    Table table = BigQueryUtils.getBigQueryTable(request.getServiceAccountFilePath(), project, dataset, tableName);
+    Table table = BigQueryUtil.getBigQueryTable(request.getServiceAccountFilePath(), project, dataset, tableName);
     if (table == null) {
       // Table does not exist
       throw new IllegalArgumentException(String.format("BigQuery table '%s:%s.%s' does not exist",
@@ -191,7 +192,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     String dataset = config.getDataset();
     String tableName = config.getTable();
     String project = config.getDatasetProject();
-    Table table = BigQueryUtils.getBigQueryTable(config.getServiceAccountFilePath(), project, dataset, tableName);
+    Table table = BigQueryUtil.getBigQueryTable(config.getServiceAccountFilePath(), project, dataset, tableName);
     if (table == null) {
       // Table does not exist
       throw new IllegalArgumentException(String.format("BigQuery table '%s:%s.%s' does not exist.",
@@ -205,7 +206,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     }
 
     // Output schema should not have more fields than BigQuery table
-    List<String> diff = BigQueryUtils.getSchemaMinusBqFields(config.getSchema().getFields(), bgSchema.getFields());
+    List<String> diff = BigQueryUtil.getSchemaMinusBqFields(config.getSchema().getFields(), bgSchema.getFields());
     if (!diff.isEmpty()) {
       throw new IllegalArgumentException(String.format("Output schema has field(s) '%s' which are not present in table"
                                                          + " '%s:%s.%s' schema.", diff, project, dataset, table));
@@ -215,13 +216,13 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     // Match output schema field type with bigquery column type
     for (Schema.Field field : config.getSchema().getFields()) {
       validateSimpleTypes(field);
-      BigQueryUtils.validateFieldSchemaMatches(fields.get(field.getName()), field, dataset, tableName);
+      BigQueryUtil.validateFieldSchemaMatches(fields.get(field.getName()), field, dataset, tableName);
     }
   }
 
   private void validateSimpleTypes(Schema.Field field) {
     String name = field.getName();
-    Schema fieldSchema = BigQueryUtils.getNonNullableSchema(field.getSchema());
+    Schema fieldSchema = BigQueryUtil.getNonNullableSchema(field.getSchema());
     Schema.Type type = fieldSchema.getType();
 
     // Complex types like arrays, maps and unions are not supported in BigQuery plugins.

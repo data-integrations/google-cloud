@@ -19,6 +19,7 @@ package co.cask.gcp.bigquery;
 import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.format.UnexpectedFormatException;
 import co.cask.cdap.api.data.schema.Schema;
+import co.cask.gcp.bigquery.source.BigQueryAvroToStructuredTransformer;
 import com.google.common.collect.ImmutableList;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;

@@ -17,6 +17,8 @@
 package co.cask.gcp.bigquery;
 
 import co.cask.cdap.api.data.schema.Schema;
+import co.cask.gcp.bigquery.sink.BigQuerySink;
+import co.cask.gcp.bigquery.sink.BigQuerySinkConfig;
 import org.junit.Test;
 
 /**

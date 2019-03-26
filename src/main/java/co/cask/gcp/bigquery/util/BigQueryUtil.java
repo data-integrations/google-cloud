@@ -14,9 +14,11 @@
  *  the License.
  */
 
-package co.cask.gcp.bigquery;
+package co.cask.gcp.bigquery.util;
 
 import co.cask.cdap.api.data.schema.Schema;
+import co.cask.gcp.bigquery.sink.BigQuerySink;
+import co.cask.gcp.bigquery.source.BigQuerySource;
 import co.cask.gcp.gcs.GCSPath;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryOptions;
@@ -45,7 +47,7 @@ import static co.cask.gcp.common.GCPUtils.loadServiceAccountCredentials;
 /**
  * Common Util class for big query plugins such as {@link BigQuerySource} and {@link BigQuerySink}
  */
-final class BigQueryUtils {
+public final class BigQueryUtil {
   private static final Map<Schema.Type, Set<LegacySQLTypeName>> TYPE_MAP = ImmutableMap.<Schema.Type,
     Set<LegacySQLTypeName>>builder()
     .put(Schema.Type.INT, ImmutableSet.of(LegacySQLTypeName.INTEGER))
@@ -70,7 +72,7 @@ final class BigQueryUtils {
    * @param schema schema to be used
    * @return non-nullable {@link Schema}
    */
-  static Schema getNonNullableSchema(Schema schema) {
+  public static Schema getNonNullableSchema(Schema schema) {
     return schema.isNullable() ? schema.getNonNullable() : schema;
   }
 
@@ -82,7 +84,8 @@ final class BigQueryUtils {
    * @return {@link Configuration} with config set for BigQuery
    * @throws IOException if not able to get credentials
    */
-  static Configuration getBigQueryConfig(@Nullable String serviceAccountFilePath, String projectId) throws IOException {
+  public static Configuration getBigQueryConfig(@Nullable String serviceAccountFilePath, String projectId)
+    throws IOException {
     Job job = Job.getInstance();
 
     // some input formats require the credentials to be present in the job. We don't know for
@@ -118,7 +121,7 @@ final class BigQueryUtils {
    * @throws IOException if not able to load credentials
    */
   @Nullable
-  static Table getBigQueryTable(@Nullable String serviceAccountFilePath, String project,
+  public static Table getBigQueryTable(@Nullable String serviceAccountFilePath, String project,
                                 String dataset, String table) throws IOException {
     BigQuery bigquery = getBigQuery(serviceAccountFilePath, project);
 
@@ -131,7 +134,7 @@ final class BigQueryUtils {
    * @param serviceAccountFilePath service account file path
    * @param project BigQuery project ID
    */
-  static BigQuery getBigQuery(@Nullable String serviceAccountFilePath, String project) throws IOException {
+  public static BigQuery getBigQuery(@Nullable String serviceAccountFilePath, String project) throws IOException {
     BigQueryOptions.Builder bigqueryBuilder = BigQueryOptions.newBuilder();
     if (serviceAccountFilePath != null) {
       bigqueryBuilder.setCredentials(loadServiceAccountCredentials(serviceAccountFilePath));
@@ -150,7 +153,7 @@ final class BigQueryUtils {
    * @param table table name
    * @throws IllegalArgumentException if schema types do not match
    */
-  static void validateFieldSchemaMatches(Field bqField, Schema.Field field, String dataset, String table) {
+  public static void validateFieldSchemaMatches(Field bqField, Schema.Field field, String dataset, String table) {
     // validate type of fields against BigQuery column type
     Schema fieldSchema = getNonNullableSchema(field.getSchema());
     Schema.Type type = fieldSchema.getType();
@@ -196,7 +199,7 @@ final class BigQueryUtils {
    * @param bqFields bigquery table fields
    * @return list of remaining field names
    */
-  static List<String> getSchemaMinusBqFields(List<Schema.Field> schemaFields, FieldList bqFields) {
+  public static List<String> getSchemaMinusBqFields(List<Schema.Field> schemaFields, FieldList bqFields) {
     List<String> diff = new ArrayList<>();
 
     for (Schema.Field field : schemaFields) {
@@ -217,7 +220,7 @@ final class BigQueryUtils {
    * @param schemaFields schema fields
    * @return list of remaining field names
    */
-  static List<String> getBqFieldsMinusSchema(FieldList bqFields, List<Schema.Field> schemaFields) {
+  public static List<String> getBqFieldsMinusSchema(FieldList bqFields, List<Schema.Field> schemaFields) {
     List<String> diff = new ArrayList<>();
 
     for (Field field : bqFields) {
@@ -230,6 +233,4 @@ final class BigQueryUtils {
     return diff;
   }
 
-  private BigQueryUtils() {
-  }
 }

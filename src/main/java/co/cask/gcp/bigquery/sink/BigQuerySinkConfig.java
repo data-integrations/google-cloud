@@ -14,11 +14,12 @@
  * the License.
  */
 
-package co.cask.gcp.bigquery;
+package co.cask.gcp.bigquery.sink;
 
 import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.data.schema.Schema;
+import co.cask.gcp.bigquery.util.BigQueryUtil;
 import co.cask.gcp.common.GCPReferenceSinkConfig;
 
 import java.io.IOException;
@@ -106,7 +107,7 @@ public final class BigQuerySinkConfig extends GCPReferenceSinkConfig {
                                                            field.getName()));
         }
 
-        Schema fieldSchema = BigQueryUtils.getNonNullableSchema(field.getSchema());
+        Schema fieldSchema = BigQueryUtil.getNonNullableSchema(field.getSchema());
 
         if (!fieldSchema.getType().isSimpleType()) {
           throw new IllegalArgumentException(String.format("Field '%s' is of unsupported type '%s'.",
