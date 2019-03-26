@@ -14,7 +14,7 @@
  * the License.
  */
 
-package co.cask.gcp.bigquery;
+package co.cask.gcp.bigquery.source;
 
 import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.format.UnexpectedFormatException;

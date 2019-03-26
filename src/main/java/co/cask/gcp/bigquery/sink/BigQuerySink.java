@@ -14,7 +14,7 @@
  * the License.
  */
 
-package co.cask.gcp.bigquery;
+package co.cask.gcp.bigquery.sink;
 
 import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Name;
@@ -29,6 +29,7 @@ import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchRuntimeContext;
 import co.cask.cdap.etl.api.batch.BatchSink;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
+import co.cask.gcp.bigquery.util.BigQueryUtil;
 import co.cask.hydrator.common.LineageRecorder;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
@@ -98,7 +99,7 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
   public void prepareRun(BatchSinkContext context) throws Exception {
     config.validate(context.getInputSchema());
     if (!context.isPreviewEnabled()) {
-      BigQuery bigquery = BigQueryUtils.getBigQuery(config.getServiceAccountFilePath(), config.getProject());
+      BigQuery bigquery = BigQueryUtil.getBigQuery(config.getServiceAccountFilePath(), config.getProject());
       // create dataset if it does not exist
       if (bigquery.getDataset(config.getDataset()) == null) {
         try {
@@ -113,11 +114,11 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
     validateSchema();
 
     uuid = UUID.randomUUID();
-    configuration = BigQueryUtils.getBigQueryConfig(config.getServiceAccountFilePath(), config.getProject());
+    configuration = BigQueryUtil.getBigQueryConfig(config.getServiceAccountFilePath(), config.getProject());
 
     List<BigQueryTableFieldSchema> fields = new ArrayList<>();
     for (Schema.Field field : config.getSchema().getFields()) {
-      String tableTypeName = getTableDataType(BigQueryUtils.getNonNullableSchema(field.getSchema())).name();
+      String tableTypeName = getTableDataType(BigQueryUtil.getNonNullableSchema(field.getSchema())).name();
       BigQueryTableFieldSchema tableFieldSchema = new BigQueryTableFieldSchema()
         .setName(field.getName())
         .setType(tableTypeName)
@@ -252,7 +253,7 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
 
   private static void decodeSimpleTypes(JsonObject json, String name, StructuredRecord input) {
     Object object = input.get(name);
-    Schema schema = BigQueryUtils.getNonNullableSchema(input.getSchema().getField(name).getSchema());
+    Schema schema = BigQueryUtil.getNonNullableSchema(input.getSchema().getField(name).getSchema());
 
     if (object == null) {
       json.add(name, JsonNull.INSTANCE);
@@ -308,8 +309,8 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
    * column types.
    */
   private void validateSchema() throws IOException {
-    Table table = BigQueryUtils.getBigQueryTable(config.getServiceAccountFilePath(), config.getProject(),
-                                                 config.getDataset(), config.getTable());
+    Table table = BigQueryUtil.getBigQueryTable(config.getServiceAccountFilePath(), config.getProject(),
+                                                config.getDataset(), config.getTable());
     if (table == null) {
       // Table does not exist, so no further validation is required.
       return;
@@ -325,7 +326,7 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
     List<Schema.Field> outputSchemaFields = config.getSchema().getFields();
 
     // Output schema should not have fields that are not present in BigQuery table.
-    List<String> diff = BigQueryUtils.getSchemaMinusBqFields(outputSchemaFields, bqFields);
+    List<String> diff = BigQueryUtil.getSchemaMinusBqFields(outputSchemaFields, bqFields);
     if (!diff.isEmpty()) {
       throw new IllegalArgumentException(
         String.format("The output schema does not match the BigQuery table schema for '%s.%s' table. " +
@@ -334,7 +335,7 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
     }
 
     // validate the missing columns in output schema are nullable fields in bigquery
-    List<String> remainingBQFields = BigQueryUtils.getBqFieldsMinusSchema(bqFields, outputSchemaFields);
+    List<String> remainingBQFields = BigQueryUtil.getBqFieldsMinusSchema(bqFields, outputSchemaFields);
     for (String field : remainingBQFields) {
       if (bqFields.get(field).getMode() != Field.Mode.NULLABLE) {
         throw new IllegalArgumentException(
@@ -346,8 +347,8 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
 
     // Match output schema field type with bigquery column type
     for (Schema.Field field : config.getSchema().getFields()) {
-      BigQueryUtils.validateFieldSchemaMatches(bqFields.get(field.getName()),
-                                               field, config.getDataset(), config.getTable());
+      BigQueryUtil.validateFieldSchemaMatches(bqFields.get(field.getName()),
+                                              field, config.getDataset(), config.getTable());
     }
   }
 }

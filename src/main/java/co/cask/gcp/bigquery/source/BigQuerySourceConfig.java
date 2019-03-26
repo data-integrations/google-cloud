@@ -14,11 +14,10 @@
  * the License.
  */
 
-package co.cask.gcp.bigquery;
+package co.cask.gcp.bigquery.source;
 
 import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Macro;
-import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.gcp.common.GCPConfig;
 import co.cask.gcp.common.GCPReferenceSourceConfig;
