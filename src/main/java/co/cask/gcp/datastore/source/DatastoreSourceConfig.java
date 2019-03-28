@@ -116,6 +116,7 @@ public class DatastoreSourceConfig extends GCPReferenceSourceConfig {
 
   @Name(DatastoreSourceConstants.PROPERTY_SCHEMA)
   @Macro
+  @Nullable
   @Description("Schema of the data to read. Can be imported or fetched by clicking the `Get Schema` button.")
   private String schema;
 
@@ -154,7 +155,7 @@ public class DatastoreSourceConfig extends GCPReferenceSourceConfig {
 
   public Schema getSchema() {
     try {
-      return Schema.parseJson(schema);
+      return schema == null ? null : Schema.parseJson(schema);
     } catch (IOException e) {
       throw new InvalidConfigPropertyException("Unable to parse output schema: " +
                                                  schema, e, DatastoreSourceConstants.PROPERTY_SCHEMA);
@@ -216,9 +217,11 @@ public class DatastoreSourceConfig extends GCPReferenceSourceConfig {
     }
 
     Schema schema = getSchema();
-    validateSchema(schema);
-    validateFilters(schema);
-    validateKeyType(schema);
+    if (schema != null) {
+      validateSchema(schema);
+      validateFilters(schema);
+      validateKeyType(schema);
+    }
   }
 
   @VisibleForTesting

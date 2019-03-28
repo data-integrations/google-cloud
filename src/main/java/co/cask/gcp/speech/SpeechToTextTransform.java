@@ -45,7 +45,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
-import javax.ws.rs.Path;
 
 /**
  * Google Cloud Speech-To-Text Transform which transcripts audio
@@ -69,7 +68,9 @@ public class SpeechToTextTransform extends Transform<StructuredRecord, Structure
   @Override
   public void configurePipeline(PipelineConfigurer configurer) throws IllegalArgumentException {
     super.configurePipeline(configurer);
-    config.validate(configurer.getStageConfigurer().getInputSchema());
+    Schema inputSchema = configurer.getStageConfigurer().getInputSchema();
+    config.validate(inputSchema);
+    configurer.getStageConfigurer().setOutputSchema(getSchema(inputSchema));
   }
 
   @Override
@@ -81,9 +82,7 @@ public class SpeechToTextTransform extends Transform<StructuredRecord, Structure
   @Override
   public void initialize(TransformContext context) throws Exception {
     super.initialize(context);
-    if (context.getInputSchema() != null) {
-      outputSchema = getSchema(context.getInputSchema(), config.getPartsField(), config.getTextField());
-    }
+    outputSchema = context.getOutputSchema();
     setRecognitionConfig();
     speech = SpeechClient.create(getSettings());
   }
@@ -103,7 +102,7 @@ public class SpeechToTextTransform extends Transform<StructuredRecord, Structure
     if (outputSchema != null) {
       currentSchema = outputSchema;
     } else {
-      currentSchema = getSchema(input.getSchema(), config.getPartsField(), config.getTextField());
+      currentSchema = getSchema(input.getSchema());
     }
 
     StructuredRecord.Builder outputBuilder = StructuredRecord.builder(currentSchema);
@@ -141,21 +140,20 @@ public class SpeechToTextTransform extends Transform<StructuredRecord, Structure
     }
   }
 
-  private Schema getSchema(Schema inputSchema, @Nullable String transcriptPartsField,
-                           @Nullable String transcriptTextField) {
+  private Schema getSchema(Schema inputSchema) {
     List<Schema.Field> fields = new ArrayList<>();
     if (inputSchema.getFields() != null) {
       fields.addAll(inputSchema.getFields());
     }
     boolean hasTranscriptField = false;
     // one of the output field in which the transcript will be specified must be specified
-    if (transcriptPartsField != null) {
-      fields.add(Schema.Field.of(transcriptPartsField, Schema.arrayOf(SPEECH)));
+    if (config.transcriptionPartsField != null) {
+      fields.add(Schema.Field.of(config.transcriptionPartsField, Schema.arrayOf(SPEECH)));
       hasTranscriptField = true;
     }
 
-    if (transcriptTextField != null) {
-      fields.add(Schema.Field.of(transcriptTextField, Schema.nullableOf(Schema.of(Schema.Type.STRING))));
+    if (config.transcriptionTextField != null) {
+      fields.add(Schema.Field.of(config.transcriptionTextField, Schema.nullableOf(Schema.of(Schema.Type.STRING))));
       hasTranscriptField = true;
     }
 
@@ -164,18 +162,6 @@ public class SpeechToTextTransform extends Transform<StructuredRecord, Structure
                                            "specified.");
     }
     return Schema.recordOf("record", fields);
-  }
-
-  /**
-   * Request object from the Plugin REST call.
-   */
-  public static final class Request extends SpeechTransformConfig {
-    private Schema inputSchema;
-  }
-
-  @Path("getSchema")
-  public Schema getSchema(Request request) {
-    return getSchema(request.inputSchema, request.getPartsField(), request.getTextField());
   }
 
   private SpeechSettings getSettings() throws IOException {

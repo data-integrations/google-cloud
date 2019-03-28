@@ -23,14 +23,16 @@ import co.cask.cdap.api.data.batch.Input;
 import co.cask.cdap.api.data.batch.InputFormatProvider;
 import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
-import co.cask.cdap.api.data.schema.UnsupportedTypeException;
 import co.cask.cdap.api.dataset.lib.KeyValue;
 import co.cask.cdap.etl.api.Emitter;
 import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchRuntimeContext;
 import co.cask.cdap.etl.api.batch.BatchSource;
 import co.cask.cdap.etl.api.batch.BatchSourceContext;
+import co.cask.cdap.etl.api.validation.InvalidConfigPropertyException;
+import co.cask.cdap.etl.api.validation.InvalidStageException;
 import co.cask.gcp.bigquery.util.BigQueryUtil;
+import co.cask.gcp.common.Schemas;
 import co.cask.hydrator.common.LineageRecorder;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
@@ -55,7 +57,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import javax.ws.rs.Path;
 
 /**
  * Class description here.
@@ -79,9 +80,24 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
   public void configurePipeline(PipelineConfigurer configurer) {
     super.configurePipeline(configurer);
     config.validate();
-    if (!config.containsMacro("schema")) {
-      outputSchema = config.getSchema();
-      configurer.getStageConfigurer().setOutputSchema(outputSchema);
+
+    if (config.containsMacro("schema")) {
+      configurer.getStageConfigurer().setOutputSchema(null);
+      return;
+    }
+
+    Schema schema = getSchema();
+    Schema configuredSchema = config.getSchema();
+    if (configuredSchema == null) {
+      configurer.getStageConfigurer().setOutputSchema(schema);
+      return;
+    }
+
+    try {
+      Schemas.validateFieldsMatch(schema, configuredSchema);
+      configurer.getStageConfigurer().setOutputSchema(configuredSchema);
+    } catch (IllegalArgumentException e) {
+      throw new InvalidConfigPropertyException(e.getMessage(), e, "schema");
     }
   }
 
@@ -123,7 +139,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
   @Override
   public void initialize(BatchRuntimeContext context) throws Exception {
     super.initialize(context);
-    outputSchema = config.getSchema();
+    outputSchema = context.getOutputSchema();
   }
 
   /**
@@ -154,31 +170,27 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     }
   }
 
-  /**
-   * This method retrieves the schema of the bigquery table and translates it into
-   * CDAP schema. The schemas type support for BigQuery and CDAP are almost the same,
-   * hence, the translation is not that complicated.
-   *
-   * @param request Received from the UI with the configuration for project, dataset, table and service account file.
-   * @return Translated schema.
-   * @throws Exception
-   */
-  @Path("getSchema")
-  public Schema getSchema(BigQuerySourceConfig request) throws Exception {
-    String dataset = request.getDataset();
-    String tableName = request.getTable();
-    String project = request.getDatasetProject();
-    Table table = BigQueryUtil.getBigQueryTable(request.getServiceAccountFilePath(), project, dataset, tableName);
+
+  public Schema getSchema() {
+    String dataset = config.getDataset();
+    String tableName = config.getTable();
+    String project = config.getDatasetProject();
+    Table table;
+    try {
+      table = BigQueryUtil.getBigQueryTable(config.getServiceAccountFilePath(), project, dataset, tableName);
+    } catch (IOException e) {
+      throw new InvalidStageException("Unable to get details about the BigQuery table: " + e.getMessage(), e);
+    }
     if (table == null) {
       // Table does not exist
-      throw new IllegalArgumentException(String.format("BigQuery table '%s:%s.%s' does not exist",
-                                                       project, dataset, tableName));
+      throw new InvalidStageException(String.format("BigQuery table '%s:%s.%s' does not exist",
+                                                    project, dataset, tableName));
     }
 
     com.google.cloud.bigquery.Schema bgSchema = table.getDefinition().getSchema();
     if (bgSchema == null) {
-      throw new IllegalArgumentException(String.format("Cannot read from table '%s:%s.%s' because it has no schema.",
-                                                       project, dataset, table));
+      throw new InvalidStageException(String.format("Cannot read from table '%s:%s.%s' because it has no schema.",
+                                                    project, dataset, table));
     }
     List<Schema.Field> fields = getSchemaFields(bgSchema);
     return Schema.recordOf("output", fields);
@@ -186,7 +198,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
 
   /**
    * Validate output schema. This is needed because its possible that output schema is set without using
-   * {@link #getSchema(BigQuerySourceConfig)} method.
+   * {@link #getSchema()} method.
    */
   private void validateOutputSchema() throws IOException {
     String dataset = config.getDataset();
@@ -243,8 +255,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     }
   }
 
-  private List<Schema.Field> getSchemaFields(com.google.cloud.bigquery.Schema bgSchema)
-    throws UnsupportedTypeException {
+  private List<Schema.Field> getSchemaFields(com.google.cloud.bigquery.Schema bgSchema) {
     List<Schema.Field> fields = new ArrayList<>();
     for (Field field : bgSchema.getFields()) {
       LegacySQLTypeName type = field.getType();
@@ -270,8 +281,8 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
         schema = Schema.of(Schema.LogicalType.TIMESTAMP_MICROS);
       } else {
         // this should never happen
-        throw new UnsupportedTypeException(String.format("BigQuery column '%s' is of unsupported type '%s'.",
-                                                         field.getName(), value));
+        throw new InvalidStageException(String.format("BigQuery column '%s' is of unsupported type '%s'.",
+                                                      field.getName(), value));
       }
 
       if (field.getMode() == null || field.getMode() == Field.Mode.NULLABLE) {
@@ -279,7 +290,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
       } else if (field.getMode() == Field.Mode.REQUIRED) {
         fields.add(Schema.Field.of(field.getName(), schema));
       } else if (field.getMode() == Field.Mode.REPEATED) {
-        throw new UnsupportedTypeException(
+        throw new InvalidStageException(
           String.format("BigQuery column '%s' is of unsupported mode 'repeated'.", field.getName()));
       }
     }

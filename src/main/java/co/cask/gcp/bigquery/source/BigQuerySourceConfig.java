@@ -19,6 +19,7 @@ package co.cask.gcp.bigquery.source;
 import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.data.schema.Schema;
+import co.cask.cdap.etl.api.validation.InvalidConfigPropertyException;
 import co.cask.gcp.common.GCPConfig;
 import co.cask.gcp.common.GCPReferenceSourceConfig;
 import com.google.cloud.ServiceOptions;
@@ -51,6 +52,7 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   private String bucket;
 
   @Macro
+  @Nullable
   @Description("The schema of the table to read.")
   private String schema;
 
@@ -83,16 +85,13 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
 
   /**
    * @return the schema of the dataset
-   * @throws IllegalArgumentException if the schema is null or invalid
    */
+  @Nullable
   public Schema getSchema() {
-    if (schema == null) {
-      throw new IllegalArgumentException("Schema must be specified.");
-    }
     try {
-      return Schema.parseJson(schema);
+      return schema == null ? null : Schema.parseJson(schema);
     } catch (IOException e) {
-      throw new IllegalArgumentException("Invalid schema: " + e.getMessage());
+      throw new InvalidConfigPropertyException("Invalid schema: " + e.getMessage(), "schema");
     }
   }
 }

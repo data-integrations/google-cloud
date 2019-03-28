@@ -27,6 +27,8 @@ import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchRuntimeContext;
 import co.cask.cdap.etl.api.batch.BatchSource;
 import co.cask.cdap.etl.api.batch.BatchSourceContext;
+import co.cask.cdap.etl.api.validation.InvalidConfigPropertyException;
+import co.cask.gcp.common.Schemas;
 import co.cask.gcp.datastore.exception.DatastoreExecutionException;
 import co.cask.gcp.datastore.util.DatastoreUtil;
 import co.cask.hydrator.common.LineageRecorder;
@@ -54,7 +56,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
-import javax.ws.rs.Path;
 
 /**
  * Batch Datastore Source Plugin reads the data from Google Cloud Datastore.
@@ -89,8 +90,23 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     LOG.debug("Validate config during `configurePipeline` stage: {}", config);
     config.validate();
-    if (!config.containsMacro("schema")) {
-      pipelineConfigurer.getStageConfigurer().setOutputSchema(config.getSchema());
+    if (config.containsMacro("schema")) {
+      pipelineConfigurer.getStageConfigurer().setOutputSchema(null);
+      return;
+    }
+
+    Schema schema = getSchema();
+    Schema configuredSchema = config.getSchema();
+    if (configuredSchema == null) {
+      pipelineConfigurer.getStageConfigurer().setOutputSchema(schema);
+      return;
+    }
+
+    try {
+      Schemas.validateFieldsMatch(schema, configuredSchema);
+      pipelineConfigurer.getStageConfigurer().setOutputSchema(configuredSchema);
+    } catch (IllegalArgumentException e) {
+      throw new InvalidConfigPropertyException(e.getMessage(), e, "schema");
     }
   }
 
@@ -101,7 +117,7 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
 
     batchSourceContext.setInput(Input.of(config.getReferenceName(), new DatastoreInputFormatProvider(config)));
 
-    Schema schema = config.getSchema();
+    Schema schema = batchSourceContext.getOutputSchema();
     LineageRecorder lineageRecorder = new LineageRecorder(batchSourceContext, config.getReferenceName());
     lineageRecorder.createExternalDataset(schema);
     lineageRecorder.recordRead("Read", "Read from Cloud Datastore.",
@@ -113,7 +129,7 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
   @Override
   public void initialize(BatchRuntimeContext context) throws Exception {
     super.initialize(context);
-    entityToRecordTransformer = new EntityToRecordTransformer(config.getSchema(),
+    entityToRecordTransformer = new EntityToRecordTransformer(context.getOutputSchema(),
                                                               config.getKeyType(),
                                                               config.getKeyAlias());
   }
@@ -125,17 +141,7 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
     emitter.emit(record);
   }
 
-  /**
-   * Validates given configuration values needed to construct query to obtain schema.
-   * Constructs query using namespace, kind and ancestors (if present), limiting query to return only one row.
-   * Will fail if query does not return any rows.
-   * Note: not including filter properties since their type depends on the schema
-   *
-   * @param config Datastore configuration
-   * @return CDAP schema
-   */
-  @Path("getSchema")
-  public Schema getSchema(DatastoreSourceConfig config) {
+  private Schema getSchema() {
     EntityQuery.Builder queryBuilder = Query.newEntityQueryBuilder()
       .setNamespace(config.getNamespace())
       .setKind(config.getKind())

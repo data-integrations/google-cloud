@@ -22,13 +22,15 @@ import co.cask.cdap.api.annotation.Plugin;
 import co.cask.cdap.api.data.batch.Input;
 import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
-import co.cask.cdap.api.data.schema.UnsupportedTypeException;
 import co.cask.cdap.api.dataset.lib.KeyValue;
 import co.cask.cdap.etl.api.Emitter;
 import co.cask.cdap.etl.api.PipelineConfigurer;
 import co.cask.cdap.etl.api.batch.BatchRuntimeContext;
 import co.cask.cdap.etl.api.batch.BatchSource;
 import co.cask.cdap.etl.api.batch.BatchSourceContext;
+import co.cask.cdap.etl.api.validation.InvalidConfigPropertyException;
+import co.cask.cdap.etl.api.validation.InvalidStageException;
+import co.cask.gcp.common.Schemas;
 import co.cask.gcp.spanner.SpannerConstants;
 import co.cask.gcp.spanner.common.SpannerUtil;
 import co.cask.hydrator.common.LineageRecorder;
@@ -66,7 +68,6 @@ import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import javax.ws.rs.Path;
 
 /**
  * Cloud Spanner batch source
@@ -95,8 +96,23 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     config.validate();
-    if (!config.containsMacro("schema")) {
-      pipelineConfigurer.getStageConfigurer().setOutputSchema(config.getSchema());
+    if (config.containsMacro("schema")) {
+      pipelineConfigurer.getStageConfigurer().setOutputSchema(null);
+      return;
+    }
+
+    Schema schema = getSchema();
+    Schema configuredSchema = config.getSchema();
+    if (configuredSchema == null) {
+      pipelineConfigurer.getStageConfigurer().setOutputSchema(schema);
+      return;
+    }
+
+    try {
+      Schemas.validateFieldsMatch(schema, configuredSchema);
+      pipelineConfigurer.getStageConfigurer().setOutputSchema(configuredSchema);
+    } catch (IllegalArgumentException e) {
+      throw new InvalidConfigPropertyException(e.getMessage(), e, "schema");
     }
   }
 
@@ -136,8 +152,9 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
     // set input format and pass configuration
     batchSourceContext.setInput(Input.of(config.referenceName,
                                          new SourceInputFormatProvider(SpannerInputFormat.class, configuration)));
-    if (config.getSchema() != null) {
-      if (config.getSchema().getFields() != null) {
+    schema = batchSourceContext.getOutputSchema();
+    if (schema != null) {
+      if (schema.getFields() != null) {
         lineageRecorder.recordRead("Read", "Read from Spanner table.",
                                    config.getSchema().getFields().stream().map(Schema.Field::getName)
                                      .collect(Collectors.toList()));
@@ -148,11 +165,11 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
   @Override
   public void initialize(BatchRuntimeContext context) throws Exception {
     super.initialize(context);
-    schema = config.getSchema();
+    schema = context.getOutputSchema();
   }
 
   @Override
-  public void transform(KeyValue<NullWritable, ResultSet> input, Emitter<StructuredRecord> emitter) throws Exception {
+  public void transform(KeyValue<NullWritable, ResultSet> input, Emitter<StructuredRecord> emitter) {
     StructuredRecord.Builder builder = StructuredRecord.builder(schema);
     List<Schema.Field> fields = schema.getFields();
     ResultSet resultSet = input.getValue();
@@ -245,19 +262,17 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
     return builder.build();
   }
 
-  /**
-   * Endpoint method to get the output schema of spanner query.
-   *
-   * @param request {@link SpannerSourceConfig} containing information required for query to execute.
-   * @return schema of fields
-   */
-  @Path("getSchema")
-  public Schema getSchema(SpannerSourceConfig request) throws Exception {
-    String projectId = request.getProject();
-    Spanner spanner = SpannerUtil.getSpannerService(request.getServiceAccountFilePath(), projectId);
+  private Schema getSchema() {
+    String projectId = config.getProject();
+    Spanner spanner;
+    try {
+      spanner = SpannerUtil.getSpannerService(config.getServiceAccountFilePath(), projectId);
+    } catch (IOException e) {
+      throw new InvalidStageException("Unable to get Spanner Client: " + e.getMessage(), e);
+    }
     DatabaseClient databaseClient =
-      spanner.getDatabaseClient(DatabaseId.of(projectId, request.instance, request.database));
-    Statement getTableSchemaStatement = SCHEMA_STATEMENT_BUILDER.bind(TABLE_NAME).to(request.table).build();
+      spanner.getDatabaseClient(DatabaseId.of(projectId, config.instance, config.database));
+    Statement getTableSchemaStatement = SCHEMA_STATEMENT_BUILDER.bind(TABLE_NAME).to(config.table).build();
     try (ResultSet resultSet = databaseClient.singleUse().executeQuery(getTableSchemaStatement)) {
       List<Schema.Field> schemaFields = new ArrayList<>();
       while (resultSet.next()) {
@@ -265,7 +280,7 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
         String spannerType = resultSet.getString("spanner_type");
         String nullable = resultSet.getString("is_nullable");
         boolean isNullable = "YES".equals(nullable);
-        Schema typeSchema = parseSchemaFromSpannerTypeString(spannerType);
+        Schema typeSchema = parseSchemaFromSpannerTypeString(columnName, spannerType);
         Schema fieldSchema = isNullable ? Schema.nullableOf(typeSchema) : typeSchema;
         schemaFields.add(Schema.Field.of(columnName, fieldSchema));
       }
@@ -274,10 +289,11 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
     }
   }
 
-  private Schema parseSchemaFromSpannerTypeString(String spannerType) throws UnsupportedTypeException {
+  private Schema parseSchemaFromSpannerTypeString(String columnName,
+                                                  String spannerType) {
     if (spannerType.startsWith("ARRAY")) {
       // Array string is of the format ARRAY<TYPE>, Array of array is not supported in spanner
-      throw new UnsupportedTypeException("Array Type is unsupported currently");
+      throw new InvalidStageException(String.format("'%s' is an array, which is not currently supported.", columnName));
     } else if (spannerType.startsWith("STRING")) {
       // STRING and BYTES also have size at the end in the format, example : STRING(1024)
       return Schema.of(Schema.Type.STRING);
@@ -297,7 +313,7 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
           return Schema.of(Schema.LogicalType.TIMESTAMP_MICROS);
         // todo CDAP-14233 - add support for array
         default:
-          throw new UnsupportedTypeException(String.format("Type : %s is unsupported currently", spannerType));
+          throw new InvalidStageException(String.format("'%s' is of unsupported type '%s'", columnName, spannerType));
       }
     }
   }
