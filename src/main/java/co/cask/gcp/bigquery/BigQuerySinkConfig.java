@@ -18,6 +18,7 @@ package co.cask.gcp.bigquery;
 
 import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Macro;
+import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.gcp.common.GCPReferenceSinkConfig;
 
@@ -49,16 +50,43 @@ public final class BigQuerySinkConfig extends GCPReferenceSinkConfig {
   private String bucket;
 
   @Macro
+  @Name("create-table-if-not-exist")
+  @Description("Creates table if table specified does not exists.")
+  private String createTableIfNotExist;
+
+  @Macro
+  @Name("create-dataset-if-not-exist")
+  @Description("Creates dataset if dataset specified does not exists.")
+  private String createDatasetIfNotExist;
+
+  @Macro
+  @Name("truncate-table")
+  @Description("Truncate destination table before writing")
+  private String truncateTable;
+
+  @Macro
+  @Name("kms-key")
+  @Description("Cloud KMS key to be used to protect destination table")
+  @Nullable
+  private String kmsKey;
+
+  @Macro
   @Description("The schema of the data to write. Must be compatible with the table schema.")
   private String schema;
 
   public BigQuerySinkConfig(String referenceName, String dataset, String table,
-                            @Nullable String bucket, String schema) {
+                            @Nullable String bucket, String createDatasetIfNotExist,
+                            String createTableIfNotExist, String truncateTable,
+                            String kmsKey, String schema) {
     this.referenceName = referenceName;
     this.dataset = dataset;
     this.table = table;
     this.bucket = bucket;
     this.schema = schema;
+    this.createDatasetIfNotExist = createDatasetIfNotExist;
+    this.createTableIfNotExist = createTableIfNotExist;
+    this.truncateTable = truncateTable;
+    this.kmsKey = kmsKey;
   }
 
   public String getDataset() {
@@ -72,6 +100,22 @@ public final class BigQuerySinkConfig extends GCPReferenceSinkConfig {
   @Nullable
   public String getBucket() {
     return bucket;
+  }
+
+  public boolean createDataset() {
+    return createDatasetIfNotExist.equalsIgnoreCase("yes");
+  }
+
+  public boolean createTable() {
+    return createDatasetIfNotExist.equalsIgnoreCase("yes");
+  }
+
+  public boolean truncateTable() {
+    return truncateTable.equalsIgnoreCase("yes");
+  }
+
+  public String getKMSKey() {
+    return kmsKey;
   }
 
   /**

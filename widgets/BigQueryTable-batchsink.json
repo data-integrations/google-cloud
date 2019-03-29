@@ -2,7 +2,7 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name" : "Google BigQuery",
+  "display-name" : "BigQuery",
   "configuration-groups": [
     {
       "label": "Basic",
@@ -32,6 +32,25 @@
           }
         },
         {
+          "name": "create-dataset-if-not-exist",
+          "widget-type": "radio-group",
+          "label": "Create Dataset",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "no",
+            "options": [
+              {
+                "id": "yes",
+                "label": "Yes"
+              },
+              {
+                "id": "no",
+                "label": "No"
+              }
+            ]
+          }
+        },
+        {
           "widget-type": "textbox",
           "label": "Table",
           "name": "table",
@@ -40,17 +59,28 @@
           }
         },
         {
-          "widget-type": "textbox",
-          "label": "Temporary Bucket Name",
-          "name": "bucket",
-          "widget-attributes" : {
-            "placeholder": "Google Cloud Storage bucket for temporary data"
+          "name": "create-table-if-not-exist",
+          "widget-type": "radio-group",
+          "label":"Create Table",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "no",
+            "options": [
+              {
+                "id": "yes",
+                "label": "Yes"
+              },
+              {
+                "id": "no",
+                "label": "No"
+              }
+            ]
           }
         }
       ]
     },
     {
-      "label" : "Credentials",
+      "label" : "Advanced",
       "properties" : [
         {
           "widget-type": "textbox",
@@ -58,6 +88,41 @@
           "name": "serviceFilePath",
           "widget-attributes" : {
             "default": "auto-detect"
+          }
+        },
+        {
+          "name": "truncate-table",
+          "widget-type": "radio-group",
+          "label": "Truncate table",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "no",
+            "options": [
+              {
+                "id": "yes",
+                "label": "Yes"
+              },
+              {
+                "id": "no",
+                "label": "No"
+              }
+            ]
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Cloud KMS key",
+          "name": "kms-key",
+          "widget-attributes" : {
+            "placeholder": "Cloud KMS key to be used to protect destination table"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Temporary Bucket Name",
+          "name": "bucket",
+          "widget-attributes" : {
+            "placeholder": "Google Cloud Storage bucket for temporary data"
           }
         }
       ]
@@ -75,6 +140,7 @@
           "long",
           "float",
           "double",
+          "timestamp",
           "bytes",
           "string"
         ],

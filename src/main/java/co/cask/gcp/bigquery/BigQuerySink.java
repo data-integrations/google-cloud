@@ -35,8 +35,13 @@ import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.DatasetInfo;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
+import com.google.cloud.bigquery.Job;
+import com.google.cloud.bigquery.JobId;
+import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.bigquery.LegacySQLTypeName;
+import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.Table;
+import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryOutputConfiguration;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
@@ -96,13 +101,41 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
   @Override
   public void prepareRun(BatchSinkContext context) throws Exception {
     config.validate(context.getInputSchema());
-    BigQuery bigquery = BigQueryUtils.getBigQuery(config.getServiceAccountFilePath(), config.getProject());
-    // create dataset if it does not exist
-    if (bigquery.getDataset(config.getDataset()) == null) {
-      try {
-        bigquery.create(DatasetInfo.newBuilder(config.getDataset()).build());
-      } catch (BigQueryException e) {
-        throw new RuntimeException("Exception occurred while creating dataset " + config.getDataset() + ".", e);
+    if (config.createDataset()) {
+      BigQuery bigquery = BigQueryUtils.getBigQuery(config.getServiceAccountFilePath(), config.getProject());
+      // create dataset if it does not exist
+      if (bigquery.getDataset(config.getDataset()) == null) {
+        try {
+          bigquery.create(DatasetInfo.newBuilder(config.getDataset()).build());
+        } catch (BigQueryException e) {
+          throw new RuntimeException("Exception occurred while creating dataset " + config.getDataset() + ".", e);
+        }
+      }
+    }
+
+    // If user has specified to truncate a table, then we would use  'DELETE' to remove all the rows from
+    // the table, there is no easy way to do this as BQ doesn't provide a way to truncate table.
+    if (config.truncateTable()) {
+      Table table = BigQueryUtils.getBigQueryTable(config.getServiceAccountFilePath(), config.getProject(),
+                                                   config.getDataset(), config.getTable());
+      String query = String.format("DELETE FROM `%s.%s` WHERE 1=1", config.getDataset(), config.getTable());
+      QueryJobConfiguration.Builder builder = QueryJobConfiguration.newBuilder(query);
+      builder.setPriority(QueryJobConfiguration.Priority.BATCH);
+      builder.setDestinationTable(TableId.of(config.getDataset(), config.getTable()));
+      QueryJobConfiguration queryConfig = builder.build();
+      // Location must match that of the dataset(s) referenced in the query.
+      JobId jobId = JobId.newBuilder().setRandomJob().build();
+
+      // API request - starts the query.
+      BigQuery bigQuery = BigQueryUtils.getBigQuery(config.getServiceAccountFilePath(), config.getProject());
+      Job startedJob = bigQuery.create(
+        JobInfo.newBuilder(queryConfig)
+          .setJobId(jobId).build()
+      );
+      LOG.info(String.format("Truncate table operation on '%s.%s'in progress."),
+               config.getDataset(), config.getTable());
+      while (!startedJob.isDone()) {
+        Thread.sleep(1000L);
       }
     }
 
@@ -142,6 +175,11 @@ public final class BigQuerySink extends BatchSink<StructuredRecord, JsonObject, 
       temporaryGcsPath,
       BigQueryFileFormat.NEWLINE_DELIMITED_JSON,
       TextOutputFormat.class);
+
+    // If KMS key is specified adds it to the configuration.
+    if (config.getKMSKey() != null) {
+      BigQueryOutputConfiguration.setKmsKeyName(configuration, config.getKMSKey());
+    }
 
     // Both emitLineage and setOutputFormat internally try to create an external dataset if it does not already exists.
     // We call emitLineage before since it creates the dataset with schema which .

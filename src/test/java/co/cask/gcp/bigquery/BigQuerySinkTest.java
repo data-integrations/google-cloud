@@ -35,7 +35,8 @@ public class BigQuerySinkTest {
                                     Schema.Field.of("timestamp",
                                                     Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))));
 
-    BigQuerySinkConfig config = new BigQuerySinkConfig("r", "ds", "tb", "bucket", schema.toString());
+    BigQuerySinkConfig config = new BigQuerySinkConfig("r", "ds", "tb", "bucket", "no", "no",
+                                                       "no", null, schema.toString());
     config.validate();
   }
 
@@ -45,7 +46,8 @@ public class BigQuerySinkTest {
                                     Schema.Field.of("id", Schema.of(Schema.Type.LONG)),
                                     Schema.Field.of("record", Schema.of(Schema.Type.RECORD)));
 
-    BigQuerySinkConfig config = new BigQuerySinkConfig("r", "ds", "tb", "bucket", invalidSchema.toString());
+    BigQuerySinkConfig config = new BigQuerySinkConfig("r", "ds", "tb", "bucket", "no", "no", "no", null,
+                                                       invalidSchema.toString());
     config.validate();
   }
 }

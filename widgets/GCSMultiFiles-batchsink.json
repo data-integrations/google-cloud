@@ -2,7 +2,7 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name": "Multi Files Google Cloud Storage",
+  "display-name": "Multifile Cloud Storage",
   "configuration-groups": [
     {
       "label": "Basic",

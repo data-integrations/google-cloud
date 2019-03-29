@@ -2,7 +2,7 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name" : "Google Cloud Storage Object Delete",
+  "display-name" : "Cloud Storage Object Delete",
   "configuration-groups": [
     {
       "label": "Basic",

@@ -3,7 +3,7 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name": "Google Cloud Storage",
+  "display-name": "Cloud Storage",
   "configuration-groups": [
     {
       "label": "Basic",
