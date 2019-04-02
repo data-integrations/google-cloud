@@ -141,5 +141,4 @@ public class MultiSinkOutputFormatProvider implements OutputFormatProvider {
       delegate.close(context);
     }
   }
-
 }

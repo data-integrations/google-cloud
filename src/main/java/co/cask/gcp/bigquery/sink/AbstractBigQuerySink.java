@@ -59,10 +59,12 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
   private static final Logger LOG = LoggerFactory.getLogger(AbstractBigQuerySink.class);
 
   private static final String gcsPathFormat = "gs://%s";
+  private static final String temporaryBucketFormat = gcsPathFormat + "/input/%s-%s";
   private static final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
   private static final DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSSSSS");
 
   // UUID for the run. Will be used as bucket name if bucket is not provided.
+  // UUID is used since GCS bucket names must be globally unique.
   private final UUID uuid = UUID.randomUUID();
   private Configuration baseConfiguration;
 
@@ -232,14 +234,16 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
    */
   private void createDataset(boolean previewEnabled) throws IOException {
     if (previewEnabled) {
-      BigQuery bigquery = BigQueryUtil.getBigQuery(getConfig().getServiceAccountFilePath(), getConfig().getProject());
-      // create dataset if it does not exist
-      if (bigquery.getDataset(getConfig().getDataset()) == null) {
-        try {
-          bigquery.create(DatasetInfo.newBuilder(getConfig().getDataset()).build());
-        } catch (BigQueryException e) {
-          throw new IllegalStateException("Exception occurred while creating dataset: " + getConfig().getDataset(), e);
-        }
+      return;
+    }
+
+    BigQuery bigquery = BigQueryUtil.getBigQuery(getConfig().getServiceAccountFilePath(), getConfig().getProject());
+    // create dataset if it does not exist
+    if (bigquery.getDataset(getConfig().getDataset()) == null) {
+      try {
+        bigquery.create(DatasetInfo.newBuilder(getConfig().getDataset()).build());
+      } catch (BigQueryException e) {
+        throw new IllegalStateException("Exception occurred while creating dataset: " + getConfig().getDataset(), e);
       }
     }
   }
@@ -252,7 +256,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
    * @return full path to temporary bucket
    */
   private String getTemporaryGcsPath(String bucket, String tableName) {
-    return String.format(gcsPathFormat + "/hadoop/input/%s-%s", bucket, tableName, uuid);
+    return String.format(temporaryBucketFormat, bucket, tableName, uuid);
   }
 
   /**
