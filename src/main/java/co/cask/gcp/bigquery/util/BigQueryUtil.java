@@ -40,6 +40,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 
 import static co.cask.gcp.common.GCPUtils.loadServiceAccountCredentials;
@@ -231,6 +233,17 @@ public final class BigQueryUtil {
       diff.remove(field.getName());
     }
     return diff;
+  }
+
+  /**
+   * Converts Hadoop configuration to map of properties.
+   *
+   * @param config Hadoop configuration
+   * @return properties map
+   */
+  public static Map<String, String> configToMap(Configuration config) {
+    return StreamSupport.stream(config.spliterator(), false)
+      .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
   }
 
 }

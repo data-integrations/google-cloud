@@ -20,7 +20,6 @@ import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.gcp.bigquery.util.BigQueryUtil;
-import co.cask.gcp.common.GCPReferenceSinkConfig;
 
 import java.io.IOException;
 import javax.annotation.Nullable;
@@ -29,25 +28,13 @@ import javax.annotation.Nullable;
  * This class <code>BigQuerySinkConfig</code> provides all the configuration required for
  * configuring the <code>BigQuerySink</code> plugin.
  */
-public final class BigQuerySinkConfig extends GCPReferenceSinkConfig {
-  @Macro
-  @Description("The dataset to write to. A dataset is contained within a specific project. "
-    + "Datasets are top-level containers that are used to organize and control access to tables and views.")
-  private String dataset;
+public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
 
   @Macro
   @Description("The table to write to. A table contains individual records organized in rows. "
     + "Each record is composed of columns (also called fields). "
     + "Every table is defined by a schema that describes the column names, data types, and other information.")
   private String table;
-
-  @Macro
-  @Nullable
-  @Description("The Google Cloud Storage bucket to store temporary data in. "
-    + "It will be automatically created if it does not exist, but will not be automatically deleted. "
-    + "Cloud Storage data will be deleted after it is loaded into BigQuery. " +
-    "If it is not provided, a unique bucket will be created and then deleted after the run finishes.")
-  private String bucket;
 
   @Macro
   @Description("The schema of the data to write. Must be compatible with the table schema.")
@@ -62,17 +49,8 @@ public final class BigQuerySinkConfig extends GCPReferenceSinkConfig {
     this.schema = schema;
   }
 
-  public String getDataset() {
-    return dataset;
-  }
-
   public String getTable() {
     return table;
-  }
-
-  @Nullable
-  public String getBucket() {
-    return bucket;
   }
 
   /**
