@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  ~ Copyright © 2016-2018 Cask Data, Inc.
+  ~ Copyright © 2016-2019 Cask Data, Inc.
   ~
   ~ Licensed under the Apache License, Version 2.0 (the "License"); you may not
   ~ use this file except in compliance with the License. You may obtain a copy of
@@ -17,13 +17,13 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>co.cask</groupId>
+  <groupId>io.cdap.plugin</groupId>
   <artifactId>google-cloud</artifactId>
   <version>0.12.0-SNAPSHOT</version>
   <name>Google Cloud Plugins</name>
   <packaging>jar</packaging>
   <description>Plugins for Google Big Query</description>
-  <url>http://github.com/cask-solutions/google-bigquery</url>
+  <url>https://github.com/data-integrations/google-cloud</url>
 
   <licenses>
     <license>
@@ -36,17 +36,17 @@
 
   <developers>
     <developer>
-      <name>Cask Data, Inc.</name>
-      <email>cask-dev@googlegroups.com</email>
-      <organization>Cask Data, Inc.</organization>
-      <organizationUrl>http://cask.co</organizationUrl>
+      <name>CDAP</name>
+      <email>cdap-dev@googlegroups.com</email>
+      <organization>CDAP</organization>
+      <organizationUrl>http://cdap.io</organizationUrl>
     </developer>
   </developers>
 
   <scm>
-    <connection>scm:git:https://github.com/cask-solutions/google-bigquery.git</connection>
-    <developerConnection>scm:git:git@github.com:cask-solutions/google-bigquery.git</developerConnection>
-    <url>https://github.com/cask-solutions/google-bigquery.git</url>
+    <connection>scm:git:https://github.com/data-integrations/google-cloud.git</connection>
+    <developerConnection>scm:git:git@github.com:data-integrations/google-cloud.git</developerConnection>
+    <url>https://github.com/data-integrations/google-cloud.git</url>
     <tag>HEAD</tag>
   </scm>
 
@@ -59,9 +59,9 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <avro.version>1.7.7</avro.version>
     <cdap.version>6.0.0-SNAPSHOT</cdap.version>
+    <cdap.plugin.version>2.2.0-SNAPSHOT</cdap.plugin.version>
     <guava.version>20.0</guava.version>
     <hadoop.version>2.8.0</hadoop.version>
-    <hydrator.version>2.1.2</hydrator.version>
     <jackson.core.version>2.8.11.1</jackson.core.version>
     <junit.version>4.12</junit.version>
     <bigquery.connector.hadoop2.version>0.13.1-hadoop2</bigquery.connector.hadoop2.version>
@@ -101,7 +101,7 @@
       <version>${avro.version}</version>
     </dependency>
     <dependency>
-      <groupId>co.cask.cdap</groupId>
+      <groupId>io.cdap.cdap</groupId>
       <artifactId>cdap-formats</artifactId>
       <version>${cdap.version}</version>
       <exclusions>
@@ -112,38 +112,38 @@
       </exclusions>
     </dependency>
     <dependency>
-      <groupId>co.cask.cdap</groupId>
+      <groupId>io.cdap.cdap</groupId>
       <artifactId>cdap-api</artifactId>
       <version>${cdap.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>co.cask.cdap</groupId>
+      <groupId>io.cdap.cdap</groupId>
       <artifactId>cdap-etl-api</artifactId>
       <version>${cdap.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>co.cask.cdap</groupId>
+      <groupId>io.cdap.cdap</groupId>
       <artifactId>cdap-etl-proto</artifactId>
       <version>${cdap.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>co.cask.cdap</groupId>
+      <groupId>io.cdap.cdap</groupId>
       <artifactId>cdap-etl-batch</artifactId>
       <version>${cdap.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>co.cask.hydrator</groupId>
+      <groupId>io.cdap.plugin</groupId>
       <artifactId>format-common</artifactId>
-      <version>${hydrator.version}</version>
+      <version>${cdap.plugin.version}</version>
     </dependency>
     <dependency>
-      <groupId>co.cask.hydrator</groupId>
+      <groupId>io.cdap.plugin</groupId>
       <artifactId>hydrator-common</artifactId>
-      <version>${hydrator.version}</version>
+      <version>${cdap.plugin.version}</version>
     </dependency>
     <dependency>
       <groupId>com.google.guava</groupId>
@@ -309,13 +309,13 @@
       <version>${slf4j.version}</version>
     </dependency>
     <dependency>
-      <groupId>co.cask.cdap</groupId>
+      <groupId>io.cdap.cdap</groupId>
       <artifactId>hydrator-test</artifactId>
       <version>${cdap.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>co.cask.cdap</groupId>
+      <groupId>io.cdap.cdap</groupId>
       <artifactId>cdap-unit-test</artifactId>
       <version>${cdap.version}</version>
       <scope>test</scope>
@@ -325,7 +325,7 @@
           <artifactId>hive-exec</artifactId>
         </exclusion>
         <exclusion>
-          <groupId>co.cask.cdap</groupId>
+          <groupId>io.cdap.cdap</groupId>
           <artifactId>cdap-explore-jdbc</artifactId>
         </exclusion>
       </exclusions>
@@ -449,41 +449,6 @@
       </plugin>
 
       <plugin>
-        <groupId>net.alchim31.maven</groupId>
-        <artifactId>scala-maven-plugin</artifactId>
-        <version>3.2.2</version>
-        <configuration>
-          <args>
-            <arg>-target:jvm-1.7</arg>
-          </args>
-        </configuration>
-        <executions>
-          <execution>
-            <id>scala-add-source</id>
-            <goals>
-              <goal>add-source</goal>
-            </goals>
-          </execution>
-          <execution>
-            <id>scala-compile</id>
-            <!-- Needs to be before the compile phase -->
-            <phase>process-resources</phase>
-            <goals>
-              <goal>compile</goal>
-            </goals>
-          </execution>
-          <execution>
-            <id>scala-test-compile</id>
-            <!-- Needs to be before the test-compile phase -->
-            <phase>process-test-resources</phase>
-            <goals>
-              <goal>testCompile</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-
-      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>2.14.1</version>
@@ -513,7 +478,7 @@
             <Embed-Directory>lib</Embed-Directory>
             <!--Only @Plugin classes in the export packages will be included as plugin-->
             <_exportcontents>
-              co.cask.gcp.*;
+              io.cdap.plugin.gcp.*;
               com.google.cloud.hadoop.*;
               org.apache.spark.streaming.pubsub*;
             </_exportcontents>
@@ -530,9 +495,9 @@
       </plugin>
 
       <plugin>
-        <groupId>co.cask</groupId>
+        <groupId>io.cdap</groupId>
         <artifactId>cdap-maven-plugin</artifactId>
-        <version>1.0.1</version>
+        <version>1.1.0</version>
         <configuration>
           <cdapArtifacts>
             <parent>system:cdap-data-pipeline[5.0.0,7.0.0-SNAPSHOT)</parent>
@@ -589,7 +554,7 @@
               </links>
               <doctitle>${project.name} ${project.version}</doctitle>
               <bottom>
-                <![CDATA[Copyright &#169; {currentYear} <a href="http://cask.co" target="_blank">Cask Data, Inc.</a> Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0" target="_blank">Apache License, Version 2.0</a>.]]>
+                <![CDATA[Copyright &#169; {currentYear} <a href="http://cdap.io" target="_blank">CDAP</a> Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0" target="_blank">Apache License, Version 2.0</a>.]]>
               </bottom>
             </configuration>
             <executions>
@@ -642,7 +607,6 @@
             <configuration>
               <nexusUrl>https://oss.sonatype.org</nexusUrl>
               <serverId>sonatype.release</serverId>
-              <stagingProfileId>655dc88dc770c3</stagingProfileId>
             </configuration>
           </plugin>
         </plugins>
