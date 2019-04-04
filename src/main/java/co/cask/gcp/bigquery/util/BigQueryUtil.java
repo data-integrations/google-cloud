@@ -105,7 +105,7 @@ public final class BigQueryUtil {
       configuration.set("google.cloud.auth.service.account.json.keyfile", serviceAccountFilePath);
     }
     configuration.set("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
-    configuration.set("fs.AbstractFileSystm.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
+    configuration.set("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
     configuration.set("fs.gs.project.id", projectId);
     configuration.set("fs.gs.working.dir", GCSPath.ROOT_DIR);
     configuration.set(BigQueryConfiguration.PROJECT_ID_KEY, projectId);
