@@ -46,6 +46,25 @@
           "widget-attributes" : {
             "placeholder": "Google Cloud Storage bucket for temporary data"
           }
+        },
+        {
+          "widget-type": "radio-group",
+          "name": "allowSchemaRelaxation",
+          "label": "Update Table Schema",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "false",
+            "options": [
+              {
+                "id": "true",
+                "label": "True"
+              },
+              {
+                "id": "false",
+                "label": "False"
+              }
+            ]
+          }
         }
       ]
     },
