@@ -22,6 +22,8 @@ import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 
 import java.io.IOException;
 import java.lang.reflect.Array;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -32,7 +34,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nullable;
 
 /**
  * Util class to convert structured record into json.
@@ -44,12 +45,25 @@ public final class BigQueryRecordToJson {
   /**
    * Writes object and writes to json writer.
    * @param writer json writer to write the object to
-   * @param name name of the field to be written. If its null, the name of the field is not included in the json writer
+   * @param name name of the field to be written
    * @param object object to be written
    * @param fieldSchema field schema to be written
    */
-  public static void write(JsonWriter writer, @Nullable String name, Object object,
-                           Schema fieldSchema) throws IOException {
+  public static void write(JsonWriter writer, String name, Object object, Schema fieldSchema) throws IOException {
+    write(writer, name, false, object, fieldSchema);
+  }
+
+  /**
+   * Writes object and writes to json writer.
+   * @param writer json writer to write the object to
+   * @param name name of the field to be written
+   * @param isArrayItem true if the method is writing array item. This means the name of the array field will not be
+   *                    added to the json writer
+   * @param object object to be written
+   * @param fieldSchema field schema to be written
+   */
+  private static void write(JsonWriter writer, String name, boolean isArrayItem, Object object,
+                            Schema fieldSchema) throws IOException {
     Schema schema = BigQueryUtil.getNonNullableSchema(fieldSchema);
     switch (schema.getType()) {
       case NULL:
@@ -60,7 +74,7 @@ public final class BigQueryRecordToJson {
       case BOOLEAN:
       case STRING:
       case BYTES:
-        writeSimpleTypes(writer, name, object, schema);
+        writeSimpleTypes(writer, name, isArrayItem, object, schema);
         break;
       case ARRAY:
         writeArray(writer, name, object, schema);
@@ -74,13 +88,15 @@ public final class BigQueryRecordToJson {
   /**
    * Writes simple types to json writer.
    * @param writer json writer
-   * @param name name of the field to be written. If its null, the name of the field is not included in the json writer
+   * @param name name of the field to be written
+   * @param isArrayItem true if the method is writing array item. This means the name of the array field will not be
+   *                    added to the json writer
    * @param object object to be written
    * @param schema field schema to be written
    */
-  private static void writeSimpleTypes(JsonWriter writer, @Nullable String name, Object object,
+  private static void writeSimpleTypes(JsonWriter writer, String name, boolean isArrayItem, Object object,
                                        Schema schema) throws IOException {
-    if (name != null) {
+    if (!isArrayItem) {
       writer.name(name);
     }
 
@@ -111,6 +127,9 @@ public final class BigQueryRecordToJson {
         case TIMESTAMP_MICROS:
           writer.value(DATETIME_FORMATTER.format(
             Objects.requireNonNull(getZonedDateTime((long) object, TimeUnit.MICROSECONDS))));
+          break;
+        case DECIMAL:
+          writer.value(Objects.requireNonNull(getDecimal(name, (byte[]) object, schema)).toPlainString());
           break;
         default:
           throw new IllegalStateException(
@@ -168,7 +187,7 @@ public final class BigQueryRecordToJson {
           throw new IllegalArgumentException(String.format("Field '%s' contains null values in its array, " +
                                                              "which is not allowed by BigQuery.", name));
         }
-        write(writer, null, element, componentSchema);
+        write(writer, name, true, element, componentSchema);
       }
     } else {
       for (int i = 0; i < Array.getLength(value); i++) {
@@ -177,7 +196,7 @@ public final class BigQueryRecordToJson {
           throw new IllegalArgumentException(String.format("Field '%s' contains null values in its array, " +
                                                              "which is not allowed by BigQuery.", name));
         }
-        write(writer, null, Array.get(value, i), componentSchema);
+        write(writer, name, true, Array.get(value, i), componentSchema);
       }
     }
     writer.endArray();
@@ -190,6 +209,18 @@ public final class BigQueryRecordToJson {
     // create an Instant with time in seconds and fraction which will be stored as nano seconds.
     Instant instant = Instant.ofEpochSecond(tsInSeconds, unit.toNanos(fraction));
     return ZonedDateTime.ofInstant(instant, ZoneId.ofOffset("UTC", ZoneOffset.UTC));
+  }
+
+  private static BigDecimal getDecimal(String name, byte[] value, Schema schema) {
+    int scale = schema.getScale();
+    BigDecimal decimal = new BigDecimal(new BigInteger(value), scale);
+    if (decimal.precision() > 38 || decimal.scale() > 9) {
+      throw new IllegalArgumentException(
+        String.format("Numeric Field '%s' has invalid precision '%s' and scale '%s'. " +
+                        "Precision must be at most 38 and scale must be at most 9.",
+                      name, decimal.precision(), decimal.scale()));
+    }
+    return decimal;
   }
 
   private BigQueryRecordToJson() {

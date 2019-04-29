@@ -67,12 +67,14 @@ public final class BigQueryUtil {
     .put(Schema.Type.BYTES, ImmutableSet.of(LegacySQLTypeName.BYTES))
     .build();
 
-  private static final Map<Schema.LogicalType, LegacySQLTypeName> LOGICAL_TYPE_MAP = ImmutableMap.of(
-    Schema.LogicalType.DATE, LegacySQLTypeName.DATE,
-    Schema.LogicalType.TIME_MILLIS, LegacySQLTypeName.TIME, Schema.LogicalType.TIME_MICROS, LegacySQLTypeName.TIME,
-    Schema.LogicalType.TIMESTAMP_MILLIS, LegacySQLTypeName.TIMESTAMP,
-    Schema.LogicalType.TIMESTAMP_MICROS, LegacySQLTypeName.TIMESTAMP
-  );
+  private static final Map<Schema.LogicalType, LegacySQLTypeName> LOGICAL_TYPE_MAP =
+    ImmutableMap.<Schema.LogicalType, LegacySQLTypeName>builder()
+    .put(Schema.LogicalType.DATE, LegacySQLTypeName.DATE)
+    .put(Schema.LogicalType.TIME_MILLIS, LegacySQLTypeName.TIME)
+    .put(Schema.LogicalType.TIME_MICROS, LegacySQLTypeName.TIME)
+    .put(Schema.LogicalType.TIMESTAMP_MILLIS, LegacySQLTypeName.TIMESTAMP)
+    .put(Schema.LogicalType.TIMESTAMP_MICROS, LegacySQLTypeName.TIMESTAMP)
+    .put(Schema.LogicalType.DECIMAL, LegacySQLTypeName.NUMERIC).build();
 
   /**
    * Gets non nullable type from provided schema.
@@ -181,6 +183,17 @@ public final class BigQueryUtil {
                         field.getName(), logicalType, bqField.getName(), dataset, table,
                         bqField.getType(), bqField.getType()));
       }
+
+      // BigQuery schema precision must be at most 38 and scale at most 9
+      if (logicalType == Schema.LogicalType.DECIMAL) {
+        if (fieldSchema.getPrecision() > 38 || fieldSchema.getScale() > 9) {
+          throw new IllegalArgumentException(
+            String.format("Numeric Field '%s' has invalid precision '%s' and scale '%s'. " +
+                            "Precision must be at most 38 and scale must be at most 9.",
+                          field.getName(), fieldSchema.getPrecision(), fieldSchema.getScale()));
+        }
+      }
+
       // Return once logical types are validated. This is because logical types are represented as primitive types
       // internally.
       return;
