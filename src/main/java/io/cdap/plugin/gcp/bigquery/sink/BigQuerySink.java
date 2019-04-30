@@ -15,7 +15,6 @@
  */
 package io.cdap.plugin.gcp.bigquery.sink;
 
-import com.google.cloud.hadoop.io.bigquery.output.IndirectBigQueryOutputFormat;
 import com.google.gson.JsonObject;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
@@ -87,7 +86,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
     return new OutputFormatProvider() {
       @Override
       public String getOutputFormatClassName() {
-        return IndirectBigQueryOutputFormat.class.getName();
+        return BigQueryOutputFormat.class.getName();
       }
 
       @Override
