@@ -75,6 +75,7 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
     String projectId = config.getProject();
     properties.put("fs.gs.project.id", projectId);
     properties.put("fs.gs.system.bucket", GCSPath.from(config.path).getBucket());
+    properties.put("fs.gs.path.encoding", "uri-path");
     properties.put("fs.gs.working.dir", GCSPath.ROOT_DIR);
     properties.put("fs.gs.impl.disable.cache", "true");
     if (config.copyHeader) {

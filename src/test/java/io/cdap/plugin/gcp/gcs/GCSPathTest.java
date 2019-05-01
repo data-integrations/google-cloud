@@ -25,23 +25,36 @@ public class GCSPathTest {
 
   @Test
   public void testGetPath() {
-    Assert.assertEquals("gs://my-bucket/part1", GCSPath.from("gs://my-bucket/part1").getUri().toString());
-    Assert.assertEquals("gs://my-bucket/part1", GCSPath.from("my-bucket/part1").getUri().toString());
-    Assert.assertEquals("gs://my-bucket/part1", GCSPath.from("/my-bucket/part1").getUri().toString());
+    GCSPath gcsPath = GCSPath.from("gs://my-bucket/part1");
+    Assert.assertEquals("gs://my-bucket/part1", "gs://" + gcsPath.getBucket() + gcsPath.getUri().getPath());
+    gcsPath = GCSPath.from("my-bucket/part1");
+    Assert.assertEquals("gs://my-bucket/part1", "gs://" + gcsPath.getBucket() + gcsPath.getUri().getPath());
+    gcsPath = GCSPath.from("/my-bucket/part1");
+    Assert.assertEquals("gs://my-bucket/part1", "gs://" + gcsPath.getBucket() + gcsPath.getUri().getPath());
 
-    Assert.assertEquals("gs://my-bucket/part1/part2", GCSPath.from("gs://my-bucket/part1/part2").getUri().toString());
-    Assert.assertEquals("gs://my-bucket/part1/part2", GCSPath.from("my-bucket/part1/part2").getUri().toString());
-    Assert.assertEquals("gs://my-bucket/part1/part2", GCSPath.from("/my-bucket/part1/part2").getUri().toString());
+    gcsPath = GCSPath.from("gs://my-bucket/part1/part2");
+    Assert.assertEquals("gs://my-bucket/part1/part2", "gs://" + gcsPath.getBucket() + gcsPath.getUri().getPath());
+    gcsPath = GCSPath.from("my-bucket/part1/part2");
+    Assert.assertEquals("gs://my-bucket/part1/part2", "gs://" + gcsPath.getBucket() + gcsPath.getUri().getPath());
+    gcsPath = GCSPath.from("/my-bucket/part1/part2");
+    Assert.assertEquals("gs://my-bucket/part1/part2", "gs://" + gcsPath.getBucket() + gcsPath.getUri().getPath());
+    gcsPath = GCSPath.from("gs://my-bucket/part1/hello world");
+    Assert.assertEquals("gs://my-bucket/part1/hello world",
+                        "gs://" + gcsPath.getBucket() + gcsPath.getUri().getPath());
+    gcsPath = GCSPath.from("gs://my-bucket/hello world 1/hello world 2");
+    Assert.assertEquals("gs://my-bucket/hello world 1/hello world 2",
+                        "gs://" + gcsPath.getBucket() + gcsPath.getUri().getPath());
 
     assertFailure(() -> GCSPath.from(""));
     assertFailure(() -> GCSPath.from("gs:/abc/"));
     assertFailure(() -> GCSPath.from("gs:///abc/"));
+    assertFailure(() -> GCSPath.from("gs://test space in bucket name/"));
     assertFailure(() -> GCSPath.from("file://abc/"));
   }
 
   @Test
   public void testGetBucket() {
-    Assert.assertEquals("my-bucket", GCSPath.from("gs://my-bucket/part1").getBucket());
+    Assert.assertEquals("my-bucket", GCSPath.from("gs://my-bucket/part1 test").getBucket());
     Assert.assertEquals("my-bucket", GCSPath.from("my-bucket/part1").getBucket());
     Assert.assertEquals("my-bucket", GCSPath.from("/my-bucket/part1").getBucket());
 
