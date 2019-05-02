@@ -267,7 +267,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
    */
   private String configureBucket() {
     String bucket = getConfig().getBucket();
-    if (getConfig().getBucket() == null) {
+    if (bucket == null) {
       bucket = uuid.toString();
       // By default, this option is false, meaning the job can not delete the bucket.
       // So enable it only when bucket name is not provided.

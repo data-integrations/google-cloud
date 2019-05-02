@@ -103,6 +103,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
 
   @Override
   public void prepareRun(BatchSourceContext context) throws Exception {
+    config.validate();
     validateOutputSchema();
 
     uuid = UUID.randomUUID();
