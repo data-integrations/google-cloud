@@ -24,6 +24,7 @@ import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
 import io.cdap.cdap.etl.api.Emitter;
+import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import org.apache.hadoop.conf.Configuration;
@@ -58,8 +59,14 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
   }
 
   @Override
+  public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
+    config.validate();
+    super.configurePipeline(pipelineConfigurer);
+  }
+
+  @Override
   protected void prepareRunValidation(BatchSinkContext context) {
-    // no-op
+    config.validate();
   }
 
   @Override
