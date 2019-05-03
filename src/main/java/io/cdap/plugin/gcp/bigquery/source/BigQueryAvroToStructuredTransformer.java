@@ -20,6 +20,7 @@ import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.format.UnexpectedFormatException;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.plugin.common.RecordConverter;
+import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import org.apache.avro.generic.GenericRecord;
 
 import java.io.IOException;
@@ -50,12 +51,12 @@ public class BigQueryAvroToStructuredTransformer extends RecordConverter<Generic
       return null;
     }
 
-    // Union schema expected to be nullable schema. Underlying non-nullable type should always be simple type
+    // Union schema expected to be nullable schema. Underlying non-nullable type should always be a supported type
     fieldSchema = fieldSchema.isNullable() ? fieldSchema.getNonNullable() : fieldSchema;
     Schema.Type fieldType = fieldSchema.getType();
 
-    // BigQuery Source only supports simple types, so throw an exception if type is any other than simple type
-    if (!fieldType.isSimpleType()) {
+    // Complex types like maps and unions are not supported in BigQuery plugins.
+    if (!BigQueryUtil.SUPPORTED_TYPES.contains(fieldType)) {
       throw new UnexpectedFormatException("Field type " + fieldType + " is not supported.");
     }
 
@@ -83,7 +84,6 @@ public class BigQueryAvroToStructuredTransformer extends RecordConverter<Generic
       throw new IOException("Field type %s has value that is too large." + fieldType);
     }
 
-    // handle only simple types.
     return super.convertField(field, fieldSchema);
   }
 }

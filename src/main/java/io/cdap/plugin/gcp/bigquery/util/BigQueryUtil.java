@@ -50,6 +50,12 @@ import static io.cdap.plugin.gcp.common.GCPUtils.loadServiceAccountCredentials;
  * Common Util class for big query plugins such as {@link BigQuerySource} and {@link BigQuerySink}
  */
 public final class BigQueryUtil {
+  public static final Set<Schema.Type> SUPPORTED_TYPES =
+    ImmutableSet.of(Schema.Type.INT, Schema.Type.LONG, Schema.Type.STRING, Schema.Type.FLOAT, Schema.Type.DOUBLE,
+                    Schema.Type.BOOLEAN, Schema.Type.BYTES, Schema.Type.ARRAY);
+  // array of arrays and map of arrays are not supported by big query
+  public static final Set<Schema.Type> UNSUPPORTED_ARRAY_TYPES = ImmutableSet.of(Schema.Type.ARRAY, Schema.Type.MAP);
+
   private static final Map<Schema.Type, Set<LegacySQLTypeName>> TYPE_MAP = ImmutableMap.<Schema.Type,
     Set<LegacySQLTypeName>>builder()
     .put(Schema.Type.INT, ImmutableSet.of(LegacySQLTypeName.INTEGER))
@@ -180,9 +186,16 @@ public final class BigQueryUtil {
       return;
     }
 
-    if (TYPE_MAP.get(type) == null) {
+    if (!SUPPORTED_TYPES.contains(type)) {
       throw new IllegalArgumentException(String.format("Field '%s' is of unsupported type '%s'",
                                                        field.getName(), type));
+    }
+
+    if (type == Schema.Type.ARRAY) {
+      validateArraySchema(field.getSchema(), field.getName());
+      if (bqField.getMode() == Field.Mode.REPEATED) {
+        type = fieldSchema.getComponentSchema().getType();
+      }
     }
 
     if (!TYPE_MAP.get(type).contains(bqField.getType())) {
@@ -246,4 +259,29 @@ public final class BigQueryUtil {
       .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
   }
 
+  /**
+   * Validates schema of type array. BigQuery does not allow nullable arrays or nullable type within array.
+   *
+   * @param arraySchema schema of array field
+   * @param name name of the array field
+   * @throws IllegalArgumentException if the schema is not a valid BigQuery schema
+   */
+  public static void validateArraySchema(Schema arraySchema, String name) {
+    if (arraySchema.isNullable()) {
+      throw new IllegalArgumentException(String.format("Field '%s' is of type array. " +
+                                                         "BigQuery does not allow nullable arrays.", name));
+    }
+
+    Schema componentSchema = arraySchema.getComponentSchema();
+    if (componentSchema.isNullable()) {
+      throw new IllegalArgumentException(String.format("Field '%s' contains null values in its array, " +
+                                                         "which is not allowed by BigQuery.", name));
+    }
+
+    if (UNSUPPORTED_ARRAY_TYPES.contains(componentSchema.getType())) {
+      throw new IllegalArgumentException(String.format("Field '%s' is of %s type within array, " +
+                                                         "which is not a valid BigQuery type.",
+                                                       name, componentSchema));
+    }
+  }
 }
