@@ -228,18 +228,18 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     FieldList fields = bgSchema.getFields();
     // Match output schema field type with bigquery column type
     for (Schema.Field field : config.getSchema().getFields()) {
-      validateSimpleTypes(field);
+      validateSupportedTypes(field);
       BigQueryUtil.validateFieldSchemaMatches(fields.get(field.getName()), field, dataset, tableName);
     }
   }
 
-  private void validateSimpleTypes(Schema.Field field) {
+  private void validateSupportedTypes(Schema.Field field) {
     String name = field.getName();
     Schema fieldSchema = BigQueryUtil.getNonNullableSchema(field.getSchema());
     Schema.Type type = fieldSchema.getType();
 
-    // Complex types like arrays, maps and unions are not supported in BigQuery plugins.
-    if (!type.isSimpleType()) {
+    // Complex types like maps and unions are not supported in BigQuery plugins.
+    if ((!type.isSimpleType() && type != Schema.Type.ARRAY)) {
       throw new IllegalArgumentException(String.format("Field '%s' is of unsupported type '%s'.", name, type));
     }
 
@@ -291,8 +291,8 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
       } else if (field.getMode() == Field.Mode.REQUIRED) {
         fields.add(Schema.Field.of(field.getName(), schema));
       } else if (field.getMode() == Field.Mode.REPEATED) {
-        throw new InvalidStageException(
-          String.format("BigQuery column '%s' is of unsupported mode 'repeated'.", field.getName()));
+        // allow array field types
+        fields.add(Schema.Field.of(field.getName(), Schema.arrayOf(schema)));
       }
     }
     return fields;
