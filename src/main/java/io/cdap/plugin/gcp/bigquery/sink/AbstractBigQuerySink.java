@@ -26,8 +26,7 @@ import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryOutputConfiguration;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableSchema;
-import com.google.gson.JsonNull;
-import com.google.gson.JsonObject;
+import com.google.gson.stream.JsonWriter;
 import io.cdap.cdap.api.data.batch.Output;
 import io.cdap.cdap.api.data.batch.OutputFormatProvider;
 import io.cdap.cdap.api.data.format.StructuredRecord;
@@ -40,21 +39,32 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.lang.reflect.Array;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 /**
  * Base class for Big Query batch sink plugins.
  */
-public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, JsonObject, NullWritable> {
+public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, Text, NullWritable> {
 
   private static final Logger LOG = LoggerFactory.getLogger(AbstractBigQuerySink.class);
 
@@ -114,7 +124,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
    * @param bucket bucket name
    */
   protected final void initOutput(BatchSinkContext context, String outputName,
-                            String tableName, Schema tableSchema, String bucket) throws IOException {
+                                  String tableName, Schema tableSchema, String bucket) throws IOException {
     LOG.debug("Init output for table '{}' with schema: {}", tableName, tableSchema);
     validateSchema(tableName, tableSchema);
     List<BigQueryTableFieldSchema> fields = getBigQueryTableFields(tableSchema);
@@ -129,18 +139,44 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
     context.addOutput(Output.of(outputName, getOutputFormatProvider(configuration, tableName, tableSchema)));
   }
 
-  protected final void decodeSimpleTypes(JsonObject json, String name, StructuredRecord input) {
-    Object object = input.get(name);
-    Schema.Field field = input.getSchema().getField(name);
+  /**
+   * Decodes object and writes to json writer.
+   * @param writer json writer to write the object to
+   * @param name name of the field to be decoded
+   * @param object object to be decoded
+   * @param fieldSchema field schema to be decoded
+   */
+  protected void decode(JsonWriter writer, @Nullable String name, Object object,
+                        Schema fieldSchema) throws IOException {
+    Schema schema = BigQueryUtil.getNonNullableSchema(fieldSchema);
+    switch (schema.getType()) {
+      case NULL:
+      case INT:
+      case LONG:
+      case FLOAT:
+      case DOUBLE:
+      case BOOLEAN:
+      case STRING:
+      case BYTES:
+        decodeSimpleTypes(writer, name, object, schema);
+        break;
+      case ARRAY:
+        decodeArray(writer, name, object, schema);
+        break;
+      default:
+        throw new IllegalStateException(
+          String.format("Field '%s' is of unsupported type '%s'", name, fieldSchema.getType()));
+    }
+  }
 
-    if (field == null) {
-      throw new IllegalStateException(String.format("Field '%s' is absent in input record", name));
+  private void decodeSimpleTypes(JsonWriter writer, @Nullable String name, Object object,
+                                 Schema schema) throws IOException {
+    if (name != null) {
+      writer.name(name);
     }
 
-    Schema schema = BigQueryUtil.getNonNullableSchema(field.getSchema());
-
     if (object == null) {
-      json.add(name, JsonNull.INSTANCE);
+      writer.nullValue();
       return;
     }
 
@@ -148,16 +184,24 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
     if (logicalType != null) {
       switch (logicalType) {
         case DATE:
-          json.addProperty(name, Objects.requireNonNull(input.getDate(name)).toString());
+          writer.value(Objects.requireNonNull(LocalDate.ofEpochDay(((Integer) object).longValue()).toString()));
           break;
         case TIME_MILLIS:
+          writer.value(timeFormatter.format(
+            Objects.requireNonNull(LocalTime.ofNanoOfDay(TimeUnit.MILLISECONDS.toNanos(((Integer) object))))));
+          break;
         case TIME_MICROS:
-          json.addProperty(name, timeFormatter.format(Objects.requireNonNull(input.getTime(name))));
+          writer.value(timeFormatter.format(
+            Objects.requireNonNull(LocalTime.ofNanoOfDay(TimeUnit.MICROSECONDS.toNanos((Long) object)))));
           break;
         case TIMESTAMP_MILLIS:
-        case TIMESTAMP_MICROS:
           //timestamp for json input should be in this format yyyy-MM-dd HH:mm:ss.SSSSSS
-          json.addProperty(name, dateTimeFormatter.format(Objects.requireNonNull(input.getTimestamp(name))));
+          writer.value(dateTimeFormatter.format(
+            Objects.requireNonNull(getZonedDateTime((long) object, TimeUnit.MILLISECONDS))));
+          break;
+        case TIMESTAMP_MICROS:
+          writer.value(dateTimeFormatter.format(
+            Objects.requireNonNull(getZonedDateTime((long) object, TimeUnit.MICROSECONDS))));
           break;
         default:
           throw new IllegalStateException(
@@ -168,24 +212,70 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
 
     switch (schema.getType()) {
       case NULL:
-        json.add(name, JsonNull.INSTANCE); // nothing much to do here.
+        writer.nullValue(); // nothing much to do here.
         break;
       case INT:
       case LONG:
       case FLOAT:
       case DOUBLE:
-        json.addProperty(name, (Number) object);
+        writer.value((Number) object);
         break;
       case BOOLEAN:
-        json.addProperty(name, (Boolean) object);
+        writer.value((Boolean) object);
         break;
       case STRING:
-        json.addProperty(name, object.toString());
+        writer.value(object.toString());
         break;
+      // TODO CDAP-15256 write byte type to json writer
       default:
-        throw new IllegalStateException(
-          String.format("Field '%s' is of unsupported type '%s'", name, schema.getType()));
+        throw new IllegalStateException(String.format("Field '%s' is of unsupported type '%s'",
+                                                      name, schema.getType()));
     }
+  }
+
+  private void decodeArray(JsonWriter writer, String name, Object value, Schema fieldSchema) throws IOException {
+    if (value == null) {
+      writer.nullValue();
+      return;
+    }
+
+    if (!(value instanceof Collection) && !value.getClass().isArray()) {
+      throw new IllegalArgumentException("The value should be of type collection or array. Got: " + value.getClass());
+    }
+
+    Schema componentSchema = BigQueryUtil.getNonNullableSchema(fieldSchema.getComponentSchema());
+    // Arrays within arrays are not allowed in big query
+    if (componentSchema.getType() == Schema.Type.ARRAY) {
+      throw new IllegalArgumentException("Nested Arrays is not a valid type in big query.");
+    }
+
+    writer.name(name);
+    writer.beginArray();
+    if (value instanceof Collection) {
+      for (Object element : (Collection) value) {
+        // big query does not allow null values in array items
+        if (element != null) {
+          decode(writer, null, element, componentSchema);
+        }
+      }
+    } else {
+      for (int i = 0; i < Array.getLength(value); i++) {
+        // big query does not allow null values in array items
+        if (Array.get(value, i) != null) {
+          decode(writer, null, Array.get(value, i), componentSchema);
+        }
+      }
+    }
+    writer.endArray();
+  }
+
+  private ZonedDateTime getZonedDateTime(long ts, TimeUnit unit) {
+    long mod = unit.convert(1, TimeUnit.SECONDS);
+    int fraction = (int) (ts % mod);
+    long tsInSeconds = unit.toSeconds(ts);
+    // create an Instant with time in seconds and fraction which will be stored as nano seconds.
+    Instant instant = Instant.ofEpochSecond(tsInSeconds, unit.toNanos(fraction));
+    return ZonedDateTime.ofInstant(instant, ZoneId.ofOffset("UTC", ZoneOffset.UTC));
   }
 
   /**
@@ -342,9 +432,18 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
     return Objects.requireNonNull(tableSchema.getFields()).stream()
       .map(field -> new BigQueryTableFieldSchema()
         .setName(field.getName())
-        .setType(getTableDataType(BigQueryUtil.getNonNullableSchema(field.getSchema())).name())
-        .setMode(Field.Mode.NULLABLE.name()))
+        .setType(getTableDataType(field.getSchema()).name())
+        .setMode(getMode(field.getSchema()).name()))
       .collect(Collectors.toList());
+  }
+
+  private Field.Mode getMode(Schema schema) {
+    if (BigQueryUtil.getNonNullableSchema(schema).getComponentSchema() != null) {
+      return Field.Mode.REPEATED;
+    } else if (schema.isNullable()) {
+      return Field.Mode.NULLABLE;
+    }
+    return Field.Mode.REQUIRED;
   }
 
   /**
@@ -384,6 +483,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
   }
 
   private LegacySQLTypeName getTableDataType(Schema schema) {
+    schema = BigQueryUtil.getNonNullableSchema(schema);
     Schema.LogicalType logicalType = schema.getLogicalType();
 
     if (logicalType != null) {
@@ -415,9 +515,10 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
         return LegacySQLTypeName.BOOLEAN;
       case BYTES:
         return LegacySQLTypeName.BYTES;
+      case ARRAY:
+        return getTableDataType(schema.getComponentSchema());
       default:
         throw new IllegalStateException("Unsupported type " + type);
     }
   }
-
 }
