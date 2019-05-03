@@ -199,7 +199,8 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Jso
       // While job is incomplete continue to poll.
       while (notDone) {
         BackOff operationBackOff = new ExponentialBackOff.Builder().build();
-        Bigquery.Jobs.Get get = bigquery.jobs().get(projectId, jobReference.getJobId());
+        Bigquery.Jobs.Get get = bigquery.jobs().get(projectId, jobReference.getJobId())
+          .setLocation(jobReference.getLocation());
 
         Job pollJob = ResilientOperation.retry(
           ResilientOperation.getGoogleRequestCallable(get),
