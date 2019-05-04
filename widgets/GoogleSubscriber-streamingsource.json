@@ -76,6 +76,14 @@
               "type": "long",
               "logicalType": "timestamp-micros"
             }
+          },
+          {
+            "name": "attributes",
+            "type": {
+              "type": "map",
+              "keys": "string",
+              "values": "string"
+            }
           }
         ]
       }

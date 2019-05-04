@@ -47,10 +47,14 @@
             "placeholder": "Table name"
           },
           "plugin-function": {
-            "method": "POST",
+            "label": "Get Schema",
             "widget": "outputSchema",
             "output-property": "schema",
-            "plugin-method": "getSchema"
+            "omit-properties": [
+              {
+                "name": "schema"
+              }
+            ]
           }
         }
       ]

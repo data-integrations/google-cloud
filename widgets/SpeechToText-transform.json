@@ -87,11 +87,8 @@
             "default" : "transcript"
           },
           "plugin-function": {
-            "method": "POST",
             "label": "Get Schema",
             "widget": "outputSchema",
-            "output-property": "schema",
-            "plugin-method": "getSchema",
             "position": "bottom",
             "multiple-inputs": false,
             "button-class": "btn-hydrator"

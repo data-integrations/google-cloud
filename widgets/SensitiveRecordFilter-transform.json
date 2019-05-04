@@ -18,7 +18,7 @@
             "options": [
               {
                 "id": "field",
-                "label": "Individual field"
+                "label": "Individual Field"
               },
               {
                 "id": "record",
