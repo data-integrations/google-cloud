@@ -50,6 +50,8 @@ import static io.cdap.plugin.gcp.common.GCPUtils.loadServiceAccountCredentials;
  * Common Util class for big query plugins such as {@link BigQuerySource} and {@link BigQuerySink}
  */
 public final class BigQueryUtil {
+  public static final Set<Schema.Type> SUPPORTED_COMPLEX_TYPES = ImmutableSet.of(Schema.Type.ARRAY);
+
   private static final Map<Schema.Type, Set<LegacySQLTypeName>> TYPE_MAP = ImmutableMap.<Schema.Type,
     Set<LegacySQLTypeName>>builder()
     .put(Schema.Type.INT, ImmutableSet.of(LegacySQLTypeName.INTEGER))
@@ -180,9 +182,13 @@ public final class BigQueryUtil {
       return;
     }
 
-    if (TYPE_MAP.get(type) == null) {
+    if (TYPE_MAP.get(type) == null && !SUPPORTED_COMPLEX_TYPES.contains(type)) {
       throw new IllegalArgumentException(String.format("Field '%s' is of unsupported type '%s'",
                                                        field.getName(), type));
+    }
+
+    if (bqField.getMode() == Field.Mode.REPEATED && type == Schema.Type.ARRAY) {
+      type = getNonNullableSchema(fieldSchema.getComponentSchema()).getType();
     }
 
     if (!TYPE_MAP.get(type).contains(bqField.getType())) {

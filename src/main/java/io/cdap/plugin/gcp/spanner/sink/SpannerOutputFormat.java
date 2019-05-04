@@ -143,15 +143,35 @@ public class SpannerOutputFormat extends OutputFormat<NullWritable, StructuredRe
           case STRING:
             builder.set(name).to(record.<String>get(name));
             break;
+          case INT:
+            Integer intValue = record.<Integer>get(name);
+            if (intValue == null) {
+              builder.set(name).to((Long) null);
+            } else {
+              builder.set(name).to(intValue.longValue());
+            }
+            break;
           case LONG:
             builder.set(name).to(record.<Long>get(name));
+            break;
+          case FLOAT:
+            Float floatValue = record.<Float>get(name);
+            if (floatValue == null) {
+              builder.set(name).to((Double) null);
+            } else {
+              builder.set(name).to(floatValue.doubleValue());
+            }
             break;
           case DOUBLE:
             builder.set(name).to(record.<Double>get(name));
             break;
           case BYTES:
             byte[] byteArray = record.get(name);
-            builder.set(name).to(ByteArray.copyFrom(byteArray));
+            if (byteArray == null) {
+              builder.set(name).to((ByteArray) null);
+            } else {
+              builder.set(name).to(ByteArray.copyFrom(byteArray));
+            }
             break;
           // todo CDAP-14233 - add support for array
           default:

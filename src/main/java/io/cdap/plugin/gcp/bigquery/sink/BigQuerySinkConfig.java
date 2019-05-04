@@ -87,7 +87,8 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
 
         Schema fieldSchema = BigQueryUtil.getNonNullableSchema(field.getSchema());
 
-        if (!fieldSchema.getType().isSimpleType()) {
+        if (!fieldSchema.getType().isSimpleType() &&
+          !BigQueryUtil.SUPPORTED_COMPLEX_TYPES.contains(fieldSchema.getType())) {
           throw new IllegalArgumentException(String.format("Field '%s' is of unsupported type '%s'.",
                                                            field.getName(), fieldSchema.getType()));
         }

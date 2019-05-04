@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.spanner.sink;
 
+import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
@@ -24,6 +25,7 @@ import io.cdap.plugin.gcp.common.GCPReferenceSinkConfig;
 import io.cdap.plugin.gcp.spanner.common.SpannerUtil;
 
 import java.io.IOException;
+import java.util.Set;
 import javax.annotation.Nullable;
 
 /**
@@ -31,6 +33,10 @@ import javax.annotation.Nullable;
  */
 public class SpannerSinkConfig extends GCPReferenceSinkConfig {
   private static final int DEFAULT_SPANNER_WRITE_BATCH_SIZE = 100;
+  // todo CDAP-14233 - add support for array
+  private static final Set<Schema.Type> SUPPORTED_TYPES =
+    ImmutableSet.of(Schema.Type.BOOLEAN, Schema.Type.STRING, Schema.Type.INT, Schema.Type.LONG,
+                    Schema.Type.FLOAT, Schema.Type.DOUBLE, Schema.Type.BYTES);
 
   @Name("table")
   @Description("Cloud Spanner table id. Uniquely identifies your table within the Cloud Spanner database")
@@ -94,7 +100,7 @@ public class SpannerSinkConfig extends GCPReferenceSinkConfig {
   public void validate() {
     super.validate();
     if (!containsMacro("schema")) {
-      SpannerUtil.validateSchema(getSchema());
+      SpannerUtil.validateSchema(getSchema(), SUPPORTED_TYPES);
     }
     if (!containsMacro("batchSize") && batchSize != null && batchSize < 1) {
       throw new IllegalArgumentException("Spanner batch size for writes should be positive");

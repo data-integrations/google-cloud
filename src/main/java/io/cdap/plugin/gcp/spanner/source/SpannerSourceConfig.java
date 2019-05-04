@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.spanner.source;
 
+import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.data.schema.Schema;
@@ -24,12 +25,16 @@ import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
 import io.cdap.plugin.gcp.spanner.common.SpannerUtil;
 
 import java.io.IOException;
+import java.util.Set;
 import javax.annotation.Nullable;
 
 /**
  * Spanner source config
  */
 public class SpannerSourceConfig extends GCPReferenceSourceConfig {
+  // todo CDAP-14233 - add support for array
+  private static final Set<Schema.Type> SUPPORTED_TYPES =
+    ImmutableSet.of(Schema.Type.BOOLEAN, Schema.Type.STRING, Schema.Type.LONG, Schema.Type.DOUBLE, Schema.Type.BYTES);
 
   @Description("Maximum number of partitions. This is only a hint. The actual number of partitions may vary")
   @Macro
@@ -62,7 +67,7 @@ public class SpannerSourceConfig extends GCPReferenceSourceConfig {
   public void validate() {
     super.validate();
     if (!containsMacro("schema") && schema != null) {
-      SpannerUtil.validateSchema(getSchema());
+      SpannerUtil.validateSchema(getSchema(), SUPPORTED_TYPES);
     }
     if (!containsMacro("maxPartitions") && maxPartitions != null && maxPartitions < 1) {
       throw new InvalidConfigPropertyException("Max partitions should be positive", "maxPartitions");

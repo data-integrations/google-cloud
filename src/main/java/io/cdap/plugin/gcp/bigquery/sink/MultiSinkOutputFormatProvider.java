@@ -15,7 +15,6 @@
  */
 package io.cdap.plugin.gcp.bigquery.sink;
 
-import com.google.cloud.hadoop.io.bigquery.output.IndirectBigQueryOutputFormat;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import io.cdap.cdap.api.data.batch.OutputFormatProvider;
@@ -64,7 +63,7 @@ public class MultiSinkOutputFormatProvider implements OutputFormatProvider {
   }
 
   /**
-   * Uses {@link IndirectBigQueryOutputFormat} as delegate and creates {@link FilterRecordWriter}
+   * Uses {@link BigQueryOutputFormat} as delegate and creates {@link FilterRecordWriter}
    * to output values based on filter and its value and schema.
    */
   public static class MultiSinkOutputFormatDelegate extends OutputFormat<JsonObject, NullWritable> {
@@ -72,7 +71,7 @@ public class MultiSinkOutputFormatProvider implements OutputFormatProvider {
     private final OutputFormat delegate;
 
     public MultiSinkOutputFormatDelegate() {
-      this.delegate = new IndirectBigQueryOutputFormat();
+      this.delegate = new BigQueryOutputFormat();
     }
 
     @Override
