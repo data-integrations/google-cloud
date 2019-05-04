@@ -3,14 +3,14 @@
   "metadata": {
     "spec-version": "1.6"
   },
-  "display-name": "Sensitive Record Filter",
+  "display-name": "PII Filter",
   "configuration-groups": [
     {
       "label": "Input",
       "properties" : [
         {
           "name": "entire-record",
-          "label": "Check",
+          "label": "Filter on",
           "widget-type": "radio-group",
           "widget-attributes": {
             "layout": "inline",
@@ -18,11 +18,11 @@
             "options": [
               {
                 "id": "field",
-                "label": "Individual Field"
+                "label": "Field (Field name below)"
               },
               {
                 "id": "record",
-                "label": "Entire record"
+                "label": "Record"
               }
             ]
           }
@@ -33,7 +33,7 @@
           "name": "field",
           "plugin-function": {
             "method": "POST",
-            "label": "Generate Schema",
+            "label": "Create output schema",
             "widget": "outputSchema",
             "output-property": "schema",
             "plugin-method": "outputSchema",
@@ -48,7 +48,7 @@
       "properties" : [
         {
           "name": "filter-confidence",
-          "label": "Filter confidence",
+          "label": "Detect confidence",
           "widget-type": "radio-group",
           "widget-attributes": {
             "layout": "inline",
@@ -123,6 +123,34 @@
       ]
     },
     {
+      "label" : "Error Handling",
+      "properties" : [
+        {
+          "name": "on-error",
+          "label": "On error",
+          "widget-type": "radio-group",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "send-to-error",
+            "options": [
+              {
+                "id": "stop-on-error",
+                "label": "Stop pipeline"
+              },
+              {
+                "id": "skip-record",
+                "label": "Skip record"
+              },
+              {
+                "id": "send-to-error",
+                "label": "Send to error"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
       "label" : "Credentials",
       "properties" : [
         {
@@ -144,5 +172,6 @@
       ]
     }
   ],
+  "emit-errors": true,
   "outputs": []
 }

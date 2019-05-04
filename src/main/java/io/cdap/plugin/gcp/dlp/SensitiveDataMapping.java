@@ -14,7 +14,7 @@
  * the License.
  */
 
-package co.cask.gcp.dlp;
+package io.cdap.plugin.gcp.dlp;
 
 import com.google.privacy.dlp.v2.InfoType;
 

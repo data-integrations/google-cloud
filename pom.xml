@@ -19,11 +19,7 @@
 
   <groupId>io.cdap.plugin</groupId>
   <artifactId>google-cloud</artifactId>
-<<<<<<< HEAD
   <version>0.12.1-SNAPSHOT</version>
-=======
-  <version>0.13.0-SNAPSHOT</version>
->>>>>>> 6a79f21a0a13d2db6ae235ac35fbd068c6662521
   <name>Google Cloud Plugins</name>
   <packaging>jar</packaging>
   <description>Plugins for Google Big Query</description>
@@ -62,8 +58,8 @@
     <jee.version>7</jee.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <avro.version>1.7.7</avro.version>
-    <cdap.version>6.1.0-SNAPSHOT</cdap.version>
-    <cdap.plugin.version>2.3.0-SNAPSHOT</cdap.plugin.version>
+    <cdap.version>6.0.0-SNAPSHOT</cdap.version>
+    <cdap.plugin.version>2.2.0-SNAPSHOT</cdap.plugin.version>
     <guava.version>20.0</guava.version>
     <dlp.version>0.80.0-beta</dlp.version>
     <hadoop.version>2.8.0</hadoop.version>
@@ -172,14 +168,11 @@
     </dependency>
     <dependency>
       <groupId>com.google.cloud</groupId>
-<<<<<<< HEAD
-=======
       <artifactId>google-cloud-datastore</artifactId>
       <version>${google.cloud.datastore.version}</version>
     </dependency>
     <dependency>
       <groupId>com.google.cloud</groupId>
->>>>>>> 6a79f21a0a13d2db6ae235ac35fbd068c6662521
       <artifactId>google-cloud-dlp</artifactId>
       <version>${dlp.version}</version>
     </dependency>
