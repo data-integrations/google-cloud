@@ -22,10 +22,10 @@ import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.annotation.Plugin;
 import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
-import co.cask.cdap.etl.api.Emitter;
-import co.cask.cdap.etl.api.InvalidEntry;
-import co.cask.cdap.etl.api.PipelineConfigurer;
-import co.cask.cdap.etl.api.StageSubmitterContext;
+import co.cask.cdap.etl.api.MultiOutputEmitter;
+import co.cask.cdap.etl.api.MultiOutputPipelineConfigurer;
+import co.cask.cdap.etl.api.MultiOutputStageConfigurer;
+import co.cask.cdap.etl.api.SplitterTransform;
 import co.cask.cdap.etl.api.Transform;
 import co.cask.cdap.etl.api.TransformContext;
 import co.cask.cdap.format.StructuredRecordStringConverter;
@@ -53,6 +53,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -64,10 +65,12 @@ import javax.annotation.Nullable;
 @Plugin(type = Transform.PLUGIN_TYPE)
 @Name(SensitiveRecordFilter.NAME)
 @Description(SensitiveRecordFilter.DESCRIPTION)
-public final class SensitiveRecordFilter extends Transform<StructuredRecord, StructuredRecord> {
+public final class SensitiveRecordFilter extends SplitterTransform<StructuredRecord, StructuredRecord> {
   private static final Logger LOG = LoggerFactory.getLogger(SensitiveRecordFilter.class);
   public static final String NAME = "SensitiveRecordFilter";
   public static final String DESCRIPTION = "Filters input records based that are sensitive.";
+  private static final String SENSITIVE_PORT = "sensitive";
+  private static final String NON_SENSITIVE_PORT = "non-sensitive";
 
   // Stores the configuration passed to this class from user.
   private final Config config;
@@ -90,9 +93,10 @@ public final class SensitiveRecordFilter extends Transform<StructuredRecord, Str
    * @throws IllegalArgumentException if there any issues with configuration of the plugin.
    */
   @Override
-  public void configurePipeline(PipelineConfigurer configurer) throws IllegalArgumentException {
+  public void configurePipeline(MultiOutputPipelineConfigurer configurer) {
     super.configurePipeline(configurer);
-    Schema inputSchema = configurer.getStageConfigurer().getInputSchema();
+    MultiOutputStageConfigurer stageConfigurer = configurer.getMultiOutputStageConfigurer();
+    Schema inputSchema = stageConfigurer.getInputSchema();
     if (!config.containsMacro("entire-record") && !config.isEntireRecord() && config.getFieldName() == null) {
       throw new IllegalArgumentException("Input type is specified as 'Field', " +
                                            "but a field name has not been specified. Specify the field name.");
@@ -100,20 +104,15 @@ public final class SensitiveRecordFilter extends Transform<StructuredRecord, Str
     if (!config.containsMacro("field") && inputSchema.getField(config.getFieldName()) == null) {
       throw new IllegalArgumentException("Field specified is not present in the input schema");
     }
-  }
 
-  @Override
-  public void prepareRun(StageSubmitterContext context) throws Exception {
-    super.prepareRun(context);
-    // Macros are resolved by this time, so we check before runninig if the input field specified by user
-    // is present in the input schema.
-    if (!config.isEntireRecord() && config.getFieldName() == null) {
-      throw new IllegalArgumentException("Input type is specified as 'Field', " +
-                                           "but a field name has not been specified.");
-    }
-    if (context.getInputSchema().getField(config.getFieldName()) == null) {
-      throw new IllegalArgumentException("Field specified is not present in the input schema. " +
-                                           "Please specify an input field that is in the input.");
+    if (inputSchema != null && !config.containsMacro("field")) {
+      Map<String, Schema> outputs = new HashMap<>();
+      if (config.isEntireRecord() && inputSchema.getField(config.getFieldName()) == null) {
+        throw new IllegalArgumentException("Field " + config.getFieldName() + " does not exist in input schema.");
+      }
+      outputs.put(SENSITIVE_PORT, inputSchema);
+      outputs.put(NON_SENSITIVE_PORT, inputSchema);
+      stageConfigurer.setOutputSchemas(outputs);
     }
   }
 
@@ -138,14 +137,14 @@ public final class SensitiveRecordFilter extends Transform<StructuredRecord, Str
   }
 
   /**
-   * Transform.
+   * Splitter Transform splits the sensitive and non-sensitive record into different ports.
    *
    * @param record
    * @param emitter
    * @throws Exception
    */
   @Override
-  public void transform(StructuredRecord record, Emitter<StructuredRecord> emitter) throws Exception {
+  public void transform(StructuredRecord record, MultiOutputEmitter<StructuredRecord> emitter) throws Exception {
     Object object = null;
     ContentItem contentItem = null;
 
@@ -155,45 +154,49 @@ public final class SensitiveRecordFilter extends Transform<StructuredRecord, Str
       object = StructuredRecordStringConverter.toDelimitedString(record, ",");
     }
 
-    if (object instanceof String) {
-      ByteContentItem byteContentItem =
-        ByteContentItem.newBuilder()
-          .setType(ByteContentItem.BytesType.TEXT_UTF8)
-          .setData(ByteString.copyFromUtf8(String.valueOf(object)))
-          .build();
-      contentItem = ContentItem.newBuilder().setByteItem(byteContentItem).build();
-    } else if (object instanceof byte[]) {
-      ByteContentItem byteContentItem =
-        ByteContentItem.newBuilder()
-          .setType(ByteContentItem.BytesType.TEXT_UTF8)
-          .setData(ByteString.copyFrom((byte[]) object))
-          .build();
-      contentItem = ContentItem.newBuilder().setByteItem(byteContentItem).build();
-    }
+    try {
+      if (object instanceof String) {
+        ByteContentItem byteContentItem =
+          ByteContentItem.newBuilder()
+            .setType(ByteContentItem.BytesType.TEXT_UTF8)
+            .setData(ByteString.copyFromUtf8(String.valueOf(object)))
+            .build();
+        contentItem = ContentItem.newBuilder().setByteItem(byteContentItem).build();
+      } else if (object instanceof byte[]) {
+        ByteContentItem byteContentItem =
+          ByteContentItem.newBuilder()
+            .setType(ByteContentItem.BytesType.TEXT_UTF8)
+            .setData(ByteString.copyFrom((byte[]) object))
+            .build();
+        contentItem = ContentItem.newBuilder().setByteItem(byteContentItem).build();
+      }
 
-    InspectContentRequest request =
-      InspectContentRequest.newBuilder()
-        .setParent(ProjectName.of(config.getProject()).toString())
-        .setInspectConfig(inspectConfig)
-        .setItem(contentItem)
-        .build();
-    InspectContentResponse response = client.inspectContent(request);
-    InspectResult result = response.getResult();
+      InspectContentRequest request =
+        InspectContentRequest.newBuilder()
+          .setParent(ProjectName.of(config.getProject()).toString())
+          .setInspectConfig(inspectConfig)
+          .setItem(contentItem)
+          .build();
+      InspectContentResponse response = client.inspectContent(request);
+      InspectResult result = response.getResult();
 
-    if (result.getFindingsCount() > 0) {
-      List<String> findingInfoTypes = new ArrayList<>();
-      for (Finding finding : result.getFindingsList()) {
-        if (canFilter(finding.getLikelihood(), config.getFilterConfidence())) {
-          findingInfoTypes.add(finding.getInfoType().getName());
+      if (result.getFindingsCount() > 0) {
+        List<String> findingInfoTypes = new ArrayList<>();
+        for (Finding finding : result.getFindingsList()) {
+          if (canFilter(finding.getLikelihood(), config.getFilterConfidence())) {
+            findingInfoTypes.add(finding.getInfoType().getName());
+          }
+        }
+        if (findingInfoTypes.size() > 0) {
+          List<String> dedup = Lists.newArrayList(Sets.newHashSet(findingInfoTypes));
+          emitter.emit(SENSITIVE_PORT, record);
+          return;
         }
       }
-      if (findingInfoTypes.size() > 0) {
-        List<String> dedup = Lists.newArrayList(Sets.newHashSet(findingInfoTypes));
-        emitter.emitError(new InvalidEntry<>(dedup.size(), String.join(",", dedup), record));
-        return;
-      }
+      emitter.emit(NON_SENSITIVE_PORT, record);
+    } catch (Exception e) {
+
     }
-    emitter.emit(record);
   }
 
   /**
@@ -239,6 +242,7 @@ public final class SensitiveRecordFilter extends Transform<StructuredRecord, Str
     return builder.build();
   }
 
+
   /**
    * Configuration object.
    */
@@ -246,7 +250,7 @@ public final class SensitiveRecordFilter extends Transform<StructuredRecord, Str
 
     @Macro
     @Name("entire-record")
-    @Description("Entire record or just an individual field")
+    @Description("Check full record or a field")
     private boolean entireRecord;
 
     @Macro
@@ -257,7 +261,7 @@ public final class SensitiveRecordFilter extends Transform<StructuredRecord, Str
 
     @Macro
     @Name("filter-confidence")
-    @Description("Confidence in types ")
+    @Description("Confidence in sensitive types detected")
     private String filterConfidence;
 
     @Macro

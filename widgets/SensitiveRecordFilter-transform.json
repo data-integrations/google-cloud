@@ -10,7 +10,7 @@
       "properties" : [
         {
           "name": "entire-record",
-          "label": "Record or Field",
+          "label": "Check",
           "widget-type": "radio-group",
           "widget-attributes": {
             "layout": "inline",
@@ -18,7 +18,7 @@
             "options": [
               {
                 "id": "field",
-                "label": "Individual Field"
+                "label": "Individual field"
               },
               {
                 "id": "record",
@@ -28,21 +28,27 @@
           }
         },
         {
-          "widget-type": "textbox",
+          "widget-type": "input-field-selector",
           "label": "Field",
           "name": "field",
-          "widget-attributes" : {
-            "placeholder" : "Input field that needs to be applied DLP"
+          "plugin-function": {
+            "method": "POST",
+            "label": "Generate Schema",
+            "widget": "outputSchema",
+            "output-property": "schema",
+            "plugin-method": "outputSchema",
+            "position": "bottom",
+            "button-class": "btn-hydrator"
           }
         }
       ]
     },
     {
-      "label": "Data Loss Prevention(DLP)",
+      "label": "Sensitive Data",
       "properties" : [
         {
           "name": "filter-confidence",
-          "label": "Filter Confidence",
+          "label": "Filter confidence",
           "widget-type": "radio-group",
           "widget-attributes": {
             "layout": "inline",
@@ -71,7 +77,8 @@
             "delimiter": ",",
             "defaultValue": [
               "DEMOGRAPHIC",
-              "NATIONAL_ID"
+              "CREDIT_CARD",
+              "DRIVER_LICENSE"
             ],
             "options": [
               {
@@ -137,24 +144,5 @@
       ]
     }
   ],
-  "emit-errors": true,
-  "outputs": [
-    {
-      "name": "schema",
-      "widget-type": "schema",
-      "widget-attributes": {
-        "schema-types": [
-          "boolean",
-          "int",
-          "long",
-          "float",
-          "double",
-          "bytes",
-          "string",
-          "map<string, string>"
-        ],
-        "schema-default-type": "string"
-      }
-    }
-  ]
+  "outputs": []
 }
