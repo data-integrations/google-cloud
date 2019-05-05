@@ -113,27 +113,24 @@ public final class SensitiveRecordFilter extends SplitterTransform<StructuredRec
                                            "but a field name has not been specified. Specify the field name.");
     }
 
-    if (!config.containsMacro("field") && inputSchema.getField(config.getFieldName()) == null) {
-      throw new IllegalArgumentException("Field specified is not present in the input schema");
-    }
 
     if (!config.isEntireRecord()) {
-      Schema.Type type = inputSchema.getField(config.getFieldName()).getSchema().getType();
-      if (!type.isSimpleType()) {
-        throw new IllegalArgumentException("Filtering on field supports only basic types " +
-                                             "(string, bool, int, long, float, double, bytes)");
+      if (!config.containsMacro("field")) {
+        if (inputSchema.getField(config.getFieldName()) == null) {
+          throw new IllegalArgumentException("Field specified is not present in the input schema");
+        }
+        Schema.Type type = inputSchema.getField(config.getFieldName()).getSchema().getType();
+        if (!type.isSimpleType()) {
+          throw new IllegalArgumentException("Filtering on field supports only basic types " +
+                                               "(string, bool, int, long, float, double, bytes)");
+        }
       }
     }
 
-    if (inputSchema != null && !config.containsMacro("field")) {
-      Map<String, Schema> outputs = new HashMap<>();
-      if (config.isEntireRecord() && inputSchema.getField(config.getFieldName()) == null) {
-        throw new IllegalArgumentException("Field " + config.getFieldName() + " does not exist in input schema.");
-      }
-      outputs.put(SENSITIVE_PORT, inputSchema);
-      outputs.put(NON_SENSITIVE_PORT, inputSchema);
-      stageConfigurer.setOutputSchemas(outputs);
-    }
+    Map<String, Schema> outputs = new HashMap<>();
+    outputs.put(SENSITIVE_PORT, inputSchema);
+    outputs.put(NON_SENSITIVE_PORT, inputSchema);
+    stageConfigurer.setOutputSchemas(outputs);
   }
 
   /**
@@ -304,7 +301,7 @@ public final class SensitiveRecordFilter extends SplitterTransform<StructuredRec
     @Macro
     @Name("entire-record")
     @Description("Check full record or a field")
-    private boolean entireRecord;
+    private String entireRecord;
 
     @Macro
     @Name("field")
@@ -358,7 +355,7 @@ public final class SensitiveRecordFilter extends SplitterTransform<StructuredRec
      * @return true if entire record to checked for sensitive data.
      */
     public boolean isEntireRecord() {
-      return entireRecord;
+      return entireRecord.equalsIgnoreCase("record") ? true : false;
     }
 
     /**
