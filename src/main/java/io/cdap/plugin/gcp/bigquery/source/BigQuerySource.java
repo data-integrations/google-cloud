@@ -239,7 +239,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     Schema.Type type = fieldSchema.getType();
 
     // Complex types like maps and unions are not supported in BigQuery plugins.
-    if ((!type.isSimpleType() && type != Schema.Type.ARRAY)) {
+    if (!type.isSimpleType() && type != Schema.Type.ARRAY) {
       throw new IllegalArgumentException(String.format("Field '%s' is of unsupported type '%s'.", name, type));
     }
 
