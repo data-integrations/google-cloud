@@ -27,6 +27,7 @@ import com.google.cloud.hadoop.io.bigquery.output.BigQueryOutputConfiguration;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableSchema;
 import com.google.gson.stream.JsonWriter;
+import io.cdap.cdap.api.common.Bytes;
 import io.cdap.cdap.api.data.batch.Output;
 import io.cdap.cdap.api.data.batch.OutputFormatProvider;
 import io.cdap.cdap.api.data.format.StructuredRecord;
@@ -46,6 +47,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.Array;
+import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -53,6 +55,7 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -163,6 +166,9 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, T
       case ARRAY:
         decodeArray(writer, name, object, schema);
         break;
+      case RECORD:
+        decodeRecord(writer, name, object, schema);
+        break;
       default:
         throw new IllegalStateException(
           String.format("Field '%s' is of unsupported type '%s'", name, fieldSchema.getType()));
@@ -226,7 +232,15 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, T
       case STRING:
         writer.value(object.toString());
         break;
-      // TODO CDAP-15256 write byte type to json writer
+      case BYTES:
+        if (object instanceof ByteBuffer) {
+          writer.value(Base64.getUrlEncoder().encodeToString(Bytes.getBytes((ByteBuffer) object)));
+        } else if (object.getClass().isArray() && object.getClass().getComponentType().equals(byte.class)) {
+          writer.value(Base64.getUrlEncoder().encodeToString((byte[]) object));
+        } else {
+          throw new IOException("Expects either ByteBuffer or byte[]. Got " + object.getClass());
+        }
+        break;
       default:
         throw new IllegalStateException(String.format("Field '%s' is of unsupported type '%s'",
                                                       name, schema.getType()));
@@ -267,6 +281,24 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, T
       }
     }
     writer.endArray();
+  }
+
+  private void decodeRecord(JsonWriter writer, @Nullable String name, Object value,
+                            Schema fieldSchema) throws IOException {
+    if (!(value instanceof StructuredRecord)) {
+      throw new IOException("Expects a record, but have " + value.getClass());
+    }
+
+    if (name != null) {
+      writer.name(name);
+    }
+    StructuredRecord record = (StructuredRecord) value;
+    writer.beginObject();
+    for (Schema.Field field : fieldSchema.getFields()) {
+      Object fieldValue = record.get(field.getName());
+      decode(writer, field.getName(), fieldValue, field.getSchema());
+    }
+    writer.endObject();
   }
 
   private ZonedDateTime getZonedDateTime(long ts, TimeUnit unit) {
@@ -517,6 +549,8 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, T
         return LegacySQLTypeName.BYTES;
       case ARRAY:
         return getTableDataType(schema.getComponentSchema());
+      case RECORD:
+        return LegacySQLTypeName.RECORD;
       default:
         throw new IllegalStateException("Unsupported type " + type);
     }

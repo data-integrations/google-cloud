@@ -50,7 +50,7 @@ import static io.cdap.plugin.gcp.common.GCPUtils.loadServiceAccountCredentials;
  * Common Util class for big query plugins such as {@link BigQuerySource} and {@link BigQuerySink}
  */
 public final class BigQueryUtil {
-  public static final Set<Schema.Type> SUPPORTED_COMPLEX_TYPES = ImmutableSet.of(Schema.Type.ARRAY);
+  public static final Set<Schema.Type> SUPPORTED_COMPLEX_TYPES = ImmutableSet.of(Schema.Type.ARRAY, Schema.Type.RECORD);
 
   private static final Map<Schema.Type, Set<LegacySQLTypeName>> TYPE_MAP = ImmutableMap.<Schema.Type,
     Set<LegacySQLTypeName>>builder()
@@ -61,6 +61,7 @@ public final class BigQueryUtil {
     .put(Schema.Type.DOUBLE, ImmutableSet.of(LegacySQLTypeName.FLOAT))
     .put(Schema.Type.BOOLEAN, ImmutableSet.of(LegacySQLTypeName.BOOLEAN))
     .put(Schema.Type.BYTES, ImmutableSet.of(LegacySQLTypeName.BYTES))
+    .put(Schema.Type.RECORD, ImmutableSet.of(LegacySQLTypeName.RECORD))
     .build();
 
   private static final Map<Schema.LogicalType, LegacySQLTypeName> LOGICAL_TYPE_MAP = ImmutableMap.of(

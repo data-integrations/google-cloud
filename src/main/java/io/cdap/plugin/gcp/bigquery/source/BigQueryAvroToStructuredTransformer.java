@@ -51,11 +51,9 @@ public class BigQueryAvroToStructuredTransformer extends RecordConverter<Generic
       return null;
     }
 
-    // Union schema expected to be nullable schema. Underlying non-nullable type should always be simple type
     fieldSchema = fieldSchema.isNullable() ? fieldSchema.getNonNullable() : fieldSchema;
     Schema.Type fieldType = fieldSchema.getType();
 
-    // BigQuery Source only supports simple types, so throw an exception if type is any other than simple type
     if (!fieldType.isSimpleType() && !BigQueryUtil.SUPPORTED_COMPLEX_TYPES.contains(fieldType)) {
       throw new UnexpectedFormatException("Field type " + fieldType + " is not supported.");
     }
