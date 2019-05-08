@@ -32,6 +32,7 @@ import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFactory;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
@@ -46,6 +47,7 @@ import com.google.cloud.hadoop.util.ResilientOperation;
 import com.google.cloud.hadoop.util.RetryDeterminer;
 import com.google.common.base.Strings;
 import com.google.gson.JsonObject;
+import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.JobContext;
@@ -59,6 +61,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import javax.annotation.Nullable;
@@ -110,9 +113,12 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Jso
       BigQueryFileFormat outputFileFormat = BigQueryOutputConfiguration.getFileFormat(conf);
       List<String> sourceUris = getOutputFileURIs();
 
+      boolean allowSchemaRelaxation = conf.getBoolean(BigQueryConstants.CONFIG_ALLOW_SCHEMA_RELAXATION, false);
+      LOG.debug("Allow schema relaxation: '{}'", allowSchemaRelaxation);
+
       try {
         importFromGcs(destProjectId, destTable, destSchema.orElse(null), kmsKeyName, outputFileFormat,
-                      writeDisposition, sourceUris);
+                      writeDisposition, sourceUris, allowSchemaRelaxation);
       } catch (InterruptedException e) {
         throw new IOException("Failed to import GCS into BigQuery", e);
       }
@@ -132,7 +138,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Jso
      */
     private void importFromGcs(String projectId, TableReference tableRef, @Nullable TableSchema schema,
                                @Nullable String kmsKeyName, BigQueryFileFormat sourceFormat, String writeDisposition,
-                               List<String> gcsPaths)
+                               List<String> gcsPaths, boolean allowSchemaRelaxation)
       throws IOException, InterruptedException {
       LOG.info("Importing into table '{}' from {} paths; path[0] is '{}'; awaitCompletion: {}",
                BigQueryStrings.toString(tableRef), gcsPaths.size(), gcsPaths.isEmpty() ? "(empty)" : gcsPaths.get(0),
@@ -147,6 +153,12 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Jso
       loadConfig.setWriteDisposition(writeDisposition);
       if (!Strings.isNullOrEmpty(kmsKeyName)) {
         loadConfig.setDestinationEncryptionConfiguration(new EncryptionConfiguration().setKmsKeyName(kmsKeyName));
+      }
+
+      if (allowSchemaRelaxation) {
+        loadConfig.setSchemaUpdateOptions(Arrays.asList(
+          JobInfo.SchemaUpdateOption.ALLOW_FIELD_ADDITION.name(),
+          JobInfo.SchemaUpdateOption.ALLOW_FIELD_RELAXATION.name()));
       }
 
       // Auto detect the schema if we're not given one, otherwise use the passed schema.

@@ -38,9 +38,13 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
   @Nullable
   @Description("The Google Cloud Storage bucket to store temporary data in. "
     + "It will be automatically created if it does not exist, but will not be automatically deleted. "
-    + "Cloud Storage data will be deleted after it is loaded into BigQuery. " +
-    "If it is not provided, a unique bucket will be created and then deleted after the run finishes.")
+    + "Cloud Storage data will be deleted after it is loaded into BigQuery. "
+    + "If it is not provided, a unique bucket will be created and then deleted after the run finishes.")
   protected String bucket;
+
+  @Macro
+  @Description("Whether to modify the BigQuery table schema if it differs from the input schema.")
+  protected boolean allowSchemaRelaxation;
 
   public String getDataset() {
     return dataset;
@@ -59,6 +63,10 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
       }
     }
     return bucket;
+  }
+
+  public boolean isAllowSchemaRelaxation() {
+    return allowSchemaRelaxation;
   }
 
   @Override

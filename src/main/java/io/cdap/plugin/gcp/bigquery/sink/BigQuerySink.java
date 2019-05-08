@@ -76,7 +76,9 @@ public final class BigQuerySink extends AbstractBigQuerySink {
 
   @Override
   protected void prepareRunInternal(BatchSinkContext context, String bucket) throws IOException {
-    initOutput(context, config.getReferenceName(), config.getTable(), config.getSchema(), bucket);
+    Schema configSchema = config.getSchema();
+    Schema schema = configSchema == null ? context.getInputSchema() : configSchema;
+    initOutput(context, config.getReferenceName(), config.getTable(), schema, bucket);
   }
 
   @Override
@@ -107,7 +109,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
     JsonObject object = new JsonObject();
     for (Schema.Field recordField : Objects.requireNonNull(input.getSchema().getFields())) {
       // From all the fields in input record, decode only those fields that are present in output schema
-      if (schema.getField(recordField.getName()) != null) {
+      if (schema == null || schema.getField(recordField.getName()) != null) {
         decodeSimpleTypes(object, recordField.getName(), input);
       }
     }

@@ -35,6 +35,7 @@ import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.plugin.common.LineageRecorder;
+import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -46,10 +47,12 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 /**
  * Base class for Big Query batch sink plugins.
@@ -81,8 +84,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
 
     createDataset(context.isPreviewEnabled());
 
-    baseConfiguration = BigQueryUtil.getBigQueryConfig(getConfig().getServiceAccountFilePath(),
-                                                       getConfig().getProject());
+    baseConfiguration = getBaseConfiguration();
     String bucket = configureBucket();
 
     prepareRunInternal(context, bucket);
@@ -114,10 +116,11 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
    * @param bucket bucket name
    */
   protected final void initOutput(BatchSinkContext context, String outputName,
-                            String tableName, Schema tableSchema, String bucket) throws IOException {
+                                  String tableName, @Nullable Schema tableSchema, String bucket) throws IOException {
     LOG.debug("Init output for table '{}' with schema: {}", tableName, tableSchema);
-    validateSchema(tableName, tableSchema);
-    List<BigQueryTableFieldSchema> fields = getBigQueryTableFields(tableSchema);
+    List<BigQueryTableFieldSchema> fields = getBigQueryTableFields(tableName,
+                                                                   tableSchema,
+                                                                   getConfig().isAllowSchemaRelaxation());
     Configuration configuration = getOutputConfiguration(bucket, tableName, fields);
 
     // Both emitLineage and setOutputFormat internally try to create an external dataset if it does not already exist.
@@ -227,6 +230,19 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
                                                                   Schema tableSchema);
 
   /**
+   * Initialized base configuration needed to load data into BigQuery table.
+   *
+   * @return base configuration
+   */
+  private Configuration getBaseConfiguration() throws IOException {
+    Configuration baseConfiguration = BigQueryUtil.getBigQueryConfig(getConfig().getServiceAccountFilePath(),
+                                                                     getConfig().getProject());
+    baseConfiguration.setBoolean(BigQueryConstants.CONFIG_ALLOW_SCHEMA_RELAXATION,
+                                 getConfig().isAllowSchemaRelaxation());
+    return baseConfiguration;
+  }
+
+  /**
    * If provided dataset name does not exists in Big Query, creates it.
    * This operation only takes place, if pipeline does not run in preview mode.
    *
@@ -282,12 +298,16 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
   /**
    * Validates output schema against Big Query table schema. It throws {@link IllegalArgumentException}
    * if the output schema has more fields than Big Query table or output schema field types does not match
-   * Big Query column types.
+   * Big Query column types unless schema relaxation policy is allowed.
    *
    * @param tableName table name
    * @param tableSchema table schema
+   * @param allowSchemaRelaxation allows schema relaxation policy
    */
-  private void validateSchema(String tableName, Schema tableSchema) throws IOException {
+  private void validateSchema(String tableName,
+                              Schema tableSchema,
+                              boolean allowSchemaRelaxation) throws IOException {
+
     Table table = BigQueryUtil.getBigQueryTable(getConfig().getServiceAccountFilePath(),
                                                 getConfig().getProject(),
                                                 getConfig().getDataset(), tableName);
@@ -305,45 +325,79 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
     FieldList bqFields = bqSchema.getFields();
     List<Schema.Field> outputSchemaFields = Objects.requireNonNull(tableSchema.getFields());
 
-    // Output schema should not have fields that are not present in Big Query table.
-    List<String> diff = BigQueryUtil.getSchemaMinusBqFields(outputSchemaFields, bqFields);
-    if (!diff.isEmpty()) {
-      throw new IllegalArgumentException(
-        String.format("The output schema does not match the BigQuery table schema for '%s.%s' table. " +
-                        "The table does not contain the '%s' column(s).",
-                      getConfig().getDataset(), table, diff));
-    }
+    List<String> missingBQFields = BigQueryUtil.getSchemaMinusBqFields(outputSchemaFields, bqFields);
 
-    // validate the missing columns in output schema are nullable fields in Big Query
-    List<String> remainingBQFields = BigQueryUtil.getBqFieldsMinusSchema(bqFields, outputSchemaFields);
-    for (String field : remainingBQFields) {
-      if (bqFields.get(field).getMode() != Field.Mode.NULLABLE) {
+    if (allowSchemaRelaxation) {
+      List<String> nonNullableFields = missingBQFields.stream()
+        .map(tableSchema::getField)
+        .filter(Objects::nonNull)
+        .filter(field -> !field.getSchema().isNullable())
+        .map(Schema.Field::getName)
+        .collect(Collectors.toList());
+
+      if (!nonNullableFields.isEmpty()) {
         throw new IllegalArgumentException(
-          String.format("The output schema does not match the BigQuery table schema for '%s.%s'. " +
-                          "The table requires column '%s', which is not in the output schema.",
-                        getConfig().getDataset(), tableName, field));
+          String.format("The output schema contains non-nullable fields '%s' " +
+                          "which are absent in the BigQuery table schema for '%s.%s' table.",
+                        nonNullableFields, getConfig().getDataset(), tableName));
+      }
+    } else {
+      // Output schema should not have fields that are not present in BigQuery table,
+      if (!missingBQFields.isEmpty()) {
+        throw new IllegalArgumentException(
+          String.format("The output schema does not match the BigQuery table schema for '%s.%s' table. " +
+                          "The table does not contain the '%s' column(s).",
+                        getConfig().getDataset(), tableName, missingBQFields));
+      }
+
+      // validate the missing columns in output schema are nullable fields in BigQuery
+      List<String> remainingBQFields = BigQueryUtil.getBqFieldsMinusSchema(bqFields, outputSchemaFields);
+      for (String field : remainingBQFields) {
+        if (bqFields.get(field).getMode() != Field.Mode.NULLABLE) {
+          throw new IllegalArgumentException(
+            String.format("The output schema does not match the BigQuery table schema for '%s.%s'. " +
+                            "The table requires column '%s', which is not in the output schema.",
+                          getConfig().getDataset(), tableName, field));
+        }
       }
     }
 
-    // Match output schema field type with Big Query column type
+    // Match output schema field type with BigQuery column type
     for (Schema.Field field : tableSchema.getFields()) {
-      BigQueryUtil.validateFieldSchemaMatches(bqFields.get(field.getName()),
-                                              field, getConfig().getDataset(), tableName);
+      String fieldName = field.getName();
+      // skip checking schema if field is missing in BigQuery
+      if (!missingBQFields.contains(fieldName)) {
+        BigQueryUtil.validateFieldSchemaMatches(bqFields.get(field.getName()),
+                                                field, getConfig().getDataset(), tableName);
+      }
     }
+
   }
 
   /**
-   * Generates Big Query field instances based on given CDAP table schema.
+   * Generates Big Query field instances based on given CDAP table schema after schema validation.
    *
+   * @param tableName table name
    * @param tableSchema table schema
+   * @param allowSchemaRelaxation if schema relaxation policy is allowed
    * @return list of Big Query fields
    */
-  private List<BigQueryTableFieldSchema> getBigQueryTableFields(Schema tableSchema) {
-    return Objects.requireNonNull(tableSchema.getFields()).stream()
+  private List<BigQueryTableFieldSchema> getBigQueryTableFields(String tableName,
+                                                                @Nullable Schema tableSchema,
+                                                                boolean allowSchemaRelaxation) throws IOException {
+    if (tableSchema == null) {
+      return Collections.emptyList();
+    }
+
+    validateSchema(tableName, tableSchema, allowSchemaRelaxation);
+
+    List<Schema.Field> inputFields = Objects.requireNonNull(tableSchema.getFields(), "Schema must have fields");
+
+    return inputFields.stream()
       .map(field -> new BigQueryTableFieldSchema()
         .setName(field.getName())
         .setType(getTableDataType(BigQueryUtil.getNonNullableSchema(field.getSchema())).name())
-        .setMode(Field.Mode.NULLABLE.name()))
+        .setMode(field.getSchema().isNullable() ? Field.Mode.NULLABLE.name() : Field.Mode.REQUIRED.name()))
       .collect(Collectors.toList());
   }
 
@@ -361,10 +415,15 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
     Configuration configuration = new Configuration(baseConfiguration);
     String temporaryGcsPath = getTemporaryGcsPath(bucket, tableName);
 
+    BigQueryTableSchema outputTableSchema = new BigQueryTableSchema();
+    if (!fields.isEmpty()) {
+      outputTableSchema.setFields(fields);
+    }
+
     BigQueryOutputConfiguration.configure(
       configuration,
       String.format("%s.%s", getConfig().getDataset(), tableName),
-      new BigQueryTableSchema().setFields(fields),
+      outputTableSchema,
       temporaryGcsPath,
       BigQueryFileFormat.NEWLINE_DELIMITED_JSON,
       TextOutputFormat.class);
