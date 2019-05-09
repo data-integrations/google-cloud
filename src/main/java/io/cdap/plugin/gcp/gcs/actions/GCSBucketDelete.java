@@ -67,6 +67,7 @@ public final class GCSBucketDelete extends Action {
     // validate project id availability
     String projectId = config.getProject();
     configuration.set("fs.gs.project.id", projectId);
+    configuration.set("fs.gs.path.encoding", "uri-path");
 
     configuration.setBoolean("fs.gs.impl.disable.cache", true);
 

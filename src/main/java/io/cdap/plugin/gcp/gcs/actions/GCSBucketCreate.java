@@ -46,6 +46,7 @@ import java.util.stream.Collectors;
 @Description("Creates objects in a Google Cloud Storage bucket.")
 public final class GCSBucketCreate extends Action {
   private static final Logger LOG = LoggerFactory.getLogger(GCSBucketCreate.class);
+  private static final String SCHEME = "gs://";
   public static final String NAME = "GCSBucketCreate";
   private Config config;
 
@@ -67,6 +68,7 @@ public final class GCSBucketCreate extends Action {
     // validate project id availability
     String projectId = config.getProject();
     configuration.set("fs.gs.project.id", projectId);
+    configuration.set("fs.gs.path.encoding", "uri-path");
 
     configuration.setBoolean("fs.gs.impl.disable.cache", true);
     configuration.setBoolean("fs.gs.metadata.cache.enable", false);
