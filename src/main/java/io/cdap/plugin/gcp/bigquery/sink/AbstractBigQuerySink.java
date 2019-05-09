@@ -26,8 +26,6 @@ import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryOutputConfiguration;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableSchema;
-import com.google.gson.JsonNull;
-import com.google.gson.JsonObject;
 import io.cdap.cdap.api.data.batch.Output;
 import io.cdap.cdap.api.data.batch.OutputFormatProvider;
 import io.cdap.cdap.api.data.format.StructuredRecord;
@@ -41,12 +39,12 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -57,14 +55,12 @@ import javax.annotation.Nullable;
 /**
  * Base class for Big Query batch sink plugins.
  */
-public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, JsonObject, NullWritable> {
+public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, Text, NullWritable> {
 
   private static final Logger LOG = LoggerFactory.getLogger(AbstractBigQuerySink.class);
 
   private static final String gcsPathFormat = "gs://%s";
   private static final String temporaryBucketFormat = gcsPathFormat + "/input/%s-%s";
-  private static final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
-  private static final DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSSSSS");
 
   // UUID for the run. Will be used as bucket name if bucket is not provided.
   // UUID is used since GCS bucket names must be globally unique.
@@ -130,65 +126,6 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
       .collect(Collectors.toList());
     recordLineage(context, outputName, tableSchema, fieldNames);
     context.addOutput(Output.of(outputName, getOutputFormatProvider(configuration, tableName, tableSchema)));
-  }
-
-  protected final void decodeSimpleTypes(JsonObject json, String name, StructuredRecord input) {
-    Object object = input.get(name);
-    Schema.Field field = input.getSchema().getField(name);
-
-    if (field == null) {
-      throw new IllegalStateException(String.format("Field '%s' is absent in input record", name));
-    }
-
-    Schema schema = BigQueryUtil.getNonNullableSchema(field.getSchema());
-
-    if (object == null) {
-      json.add(name, JsonNull.INSTANCE);
-      return;
-    }
-
-    Schema.LogicalType logicalType = schema.getLogicalType();
-    if (logicalType != null) {
-      switch (logicalType) {
-        case DATE:
-          json.addProperty(name, Objects.requireNonNull(input.getDate(name)).toString());
-          break;
-        case TIME_MILLIS:
-        case TIME_MICROS:
-          json.addProperty(name, timeFormatter.format(Objects.requireNonNull(input.getTime(name))));
-          break;
-        case TIMESTAMP_MILLIS:
-        case TIMESTAMP_MICROS:
-          //timestamp for json input should be in this format yyyy-MM-dd HH:mm:ss.SSSSSS
-          json.addProperty(name, dateTimeFormatter.format(Objects.requireNonNull(input.getTimestamp(name))));
-          break;
-        default:
-          throw new IllegalStateException(
-            String.format("Field '%s' is of unsupported type '%s'", name, logicalType.getToken()));
-      }
-      return;
-    }
-
-    switch (schema.getType()) {
-      case NULL:
-        json.add(name, JsonNull.INSTANCE); // nothing much to do here.
-        break;
-      case INT:
-      case LONG:
-      case FLOAT:
-      case DOUBLE:
-        json.addProperty(name, (Number) object);
-        break;
-      case BOOLEAN:
-        json.addProperty(name, (Boolean) object);
-        break;
-      case STRING:
-        json.addProperty(name, object.toString());
-        break;
-      default:
-        throw new IllegalStateException(
-          String.format("Field '%s' is of unsupported type '%s'", name, schema.getType()));
-    }
   }
 
   /**
@@ -396,9 +333,18 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
     return inputFields.stream()
       .map(field -> new BigQueryTableFieldSchema()
         .setName(field.getName())
-        .setType(getTableDataType(BigQueryUtil.getNonNullableSchema(field.getSchema())).name())
-        .setMode(field.getSchema().isNullable() ? Field.Mode.NULLABLE.name() : Field.Mode.REQUIRED.name()))
+        .setType(getTableDataType(field.getSchema()).name())
+        .setMode(getMode(field.getSchema()).name()))
       .collect(Collectors.toList());
+  }
+
+  private Field.Mode getMode(Schema schema) {
+    if (schema.getType() == Schema.Type.ARRAY) {
+      return Field.Mode.REPEATED;
+    } else if (schema.isNullable()) {
+      return Field.Mode.NULLABLE;
+    }
+    return Field.Mode.REQUIRED;
   }
 
   /**
@@ -443,6 +389,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
   }
 
   private LegacySQLTypeName getTableDataType(Schema schema) {
+    schema = BigQueryUtil.getNonNullableSchema(schema);
     Schema.LogicalType logicalType = schema.getLogicalType();
 
     if (logicalType != null) {
@@ -474,9 +421,10 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
         return LegacySQLTypeName.BOOLEAN;
       case BYTES:
         return LegacySQLTypeName.BYTES;
+      case ARRAY:
+        return getTableDataType(schema.getComponentSchema());
       default:
         throw new IllegalStateException("Unsupported type " + type);
     }
   }
-
 }
