@@ -24,6 +24,7 @@ import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import org.apache.avro.generic.GenericRecord;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.concurrent.TimeUnit;
@@ -76,6 +77,13 @@ public class BigQueryAvroToStructuredTransformer extends RecordConverter<Generic
           case TIMESTAMP_MILLIS:
           case TIMESTAMP_MICROS:
             return field;
+          case DECIMAL:
+            ByteBuffer value = (ByteBuffer) field;
+            byte[] bytes = new byte[value.remaining()];
+            int pos = value.position();
+            value.get(bytes);
+            value.position(pos);
+            return bytes;
           default:
             throw new UnexpectedFormatException("Field type " + fieldType + " is not supported.");
         }

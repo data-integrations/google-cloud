@@ -98,6 +98,17 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
           throw new IllegalArgumentException(String.format("Field '%s' is of unsupported type '%s'.", name, type));
         }
 
+        Schema.LogicalType logicalType = fieldSchema.getLogicalType();
+        // BigQuery schema precision must be at most 38 and scale at most 9
+        if (logicalType == Schema.LogicalType.DECIMAL) {
+          if (fieldSchema.getPrecision() > 38 || fieldSchema.getScale() > 9) {
+            throw new IllegalArgumentException(
+              String.format("Numeric Field '%s' has invalid precision '%s' and scale '%s'. " +
+                              "Precision must be at most 38 and scale must be at most 9.",
+                            field.getName(), fieldSchema.getPrecision(), fieldSchema.getScale()));
+          }
+        }
+
         if (type == Schema.Type.ARRAY) {
           BigQueryUtil.validateArraySchema(field.getSchema(), name);
         }

@@ -280,6 +280,10 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
         schema = Schema.of(Schema.LogicalType.DATE);
       } else if (value == StandardSQLTypeName.TIMESTAMP) {
         schema = Schema.of(Schema.LogicalType.TIMESTAMP_MICROS);
+      } else if (value == StandardSQLTypeName.NUMERIC) {
+        // bigquery has 38 digits of precision and 9 digits of scale.
+        // https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro#logical_types
+        schema = Schema.decimalOf(38, 9);
       } else {
         // this should never happen
         throw new InvalidStageException(String.format("BigQuery column '%s' is of unsupported type '%s'.",

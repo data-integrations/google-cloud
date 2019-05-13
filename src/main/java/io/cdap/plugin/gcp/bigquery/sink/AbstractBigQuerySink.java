@@ -402,6 +402,8 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, T
         case TIMESTAMP_MILLIS:
         case TIMESTAMP_MICROS:
           return LegacySQLTypeName.TIMESTAMP;
+        case DECIMAL:
+          return LegacySQLTypeName.NUMERIC;
         default:
           throw new IllegalStateException("Unsupported type " + logicalType.getToken());
       }
