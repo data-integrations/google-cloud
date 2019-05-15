@@ -69,87 +69,71 @@ Examples
 
 *Initial data in Cloud Datastore `Namespace: sample-ns`, `Kind: User`*
 
-    +---------------------+----------+-----------+
-    |       Name/ID       | lastName |  company  |
-    +---------------------+----------+-----------+
-    | id=4505323922522112 | Smith    | Microsoft |
-    | id=4505323922522113 | Jones    | Google    |
-    | id=4505323922522114 | Miller   | Microsoft |
-    +---------------------+----------+-----------+
+|       Name/ID       | lastName |  company  |
+| ------------------- | -------- | --------- |
+| id=4505323922522112 | Smith    | Microsoft |
+| id=4505323922522113 | Jones    | Google    |
+| id=4505323922522114 | Miller   | Microsoft |
 
 *Source Properties*
 
-    +-----------+-------------------+
-    |   Name    |       Value       |
-    +-----------+-------------------+
-    | Project   | sample-project    |
-    | Namespace | sample-ns         |
-    | Kind      | User              |
-    | Filters   | company|Microsoft |
-    | Key Type  | None              |
-    +-----------+-------------------+
+|   Name    |       Value       |
+| --------- | ----------------- |
+| Project   | sample-project    |
+| Namespace | sample-ns         |
+| Kind      | User              |
+| Filters   | company|Microsoft |
+| Key Type  | None              |
 
 *Output Schema*
 
-    +----------+--------+
-    |   Name   |  Type  |
-    +----------+--------+
-    | lastName | STRING |
-    | company  | STRING |
-    +----------+--------+
+|   Name   |  Type  |
+| -------- | ------ |
+| lastName | STRING |
+| company  | STRING |
 
 *Output dataset*
 
-    +----------+-----------+
-    | lastName |  company  |
-    +----------+-----------+
-    | Smith    | Microsoft |
-    | Miller   | Microsoft |
-    +----------+-----------+
+| lastName |  company  |
+| -------- | --------- |
+| Smith    | Microsoft |
+| Miller   | Microsoft |
 
 ***Example 2:*** Read entities by `Ancestor` with `Key Alias` and key type `Key literal` from Cloud Datastore.
 
 *Initial data in Cloud Datastore `Namespace: sample-ns`, `Kind: User`*
 
-    +---------------+---------------------+----------+-----------+
-    |    Name/ID    |       Parent        | lastName |  company  |
-    +---------------+---------------------+----------+-----------+
-    | name=user-100 | Key(Country, 'USA') | Smith    | Apple     |
-    | name=user-101 | Key(Country, 'UK')  | Jones    | Amazon    |
-    | name=user-102 | -                   | Miller   | Microsoft |
-    | name=user-103 | Key(Country, 'USA') | Wilson   | Facebook  |
-    +---------------+---------------------+----------+-----------+
+|    Name/ID    |       Parent        | lastName |  company  |
+| ------------- | ------------------- | -------- | --------- |
+| name=user-100 | Key(Country, 'USA') | Smith    | Apple     |
+| name=user-101 | Key(Country, 'UK')  | Jones    | Amazon    |
+| name=user-102 | -                   | Miller   | Microsoft |
+| name=user-103 | Key(Country, 'USA') | Wilson   | Facebook  |
 
 *Source Properties*
 
-    +-----------+---------------------+
-    |   Name    |        Value        |
-    +-----------+---------------------+
-    | Project   | sample-project      |
-    | Namespace | sample-ns           |
-    | Kind      | User                |
-    | Ancestor  | Key(Country, 'USA') |
-    | Key Type  | Key literal         |
-    | Key Alias | key                 |
-    +-----------+---------------------+
+|   Name    |        Value        |
+| --------- | ------------------- |
+| Project   | sample-project      |
+| Namespace | sample-ns           |
+| Kind      | User                |
+| Ancestor  | Key(Country, 'USA') |
+| Key Type  | Key literal         |
+| Key Alias | key                 |
 
 *Output Schema*
 
-    +----------+--------+
-    |   Name   |  Type  |
-    +----------+--------+
-    | key      | STRING |
-    | lastName | STRING |
-    | company  | STRING |
-    +----------+--------+
+|   Name   |  Type  |
+| -------- | ------ |
+| key      | STRING |
+| lastName | STRING |
+| company  | STRING |
 
 *Output dataset*
 
-    +---------------------------------------+----------+----------+
-    |                  key                  | lastName | company  |
-    +---------------------------------------+----------+----------+
-    | Key(Country, 'USA', User, 'user-100') | Smith    | Apple    |
-    | Key(Country, 'USA', User, 'user-103') | Wilson   | Facebook |
-    +---------------------------------------+----------+----------+
+|                  key                  | lastName | company  |
+| ------------------------------------- | -------- | -------- |
+| Key(Country, 'USA', User, 'user-100') | Smith    | Apple    |
+| Key(Country, 'USA', User, 'user-103') | Wilson   | Facebook |
 
     
