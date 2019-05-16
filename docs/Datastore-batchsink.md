@@ -80,43 +80,35 @@ Examples
 
 *Input Dataset*
 
-    +----------+-----------+
-    | lastName |  company  |
-    +----------+-----------+
-    | Smith    | Apple     |
-    | Jones    | Google    |
-    | Miller   | Microsoft |
-    +----------+-----------+
+| lastName |  company  |
+| -------- | --------- |
+| Smith    | Apple     |
+| Jones    | Google    |
+| Miller   | Microsoft |
 
 *Sink Properties*
 
-    +-----------+--------------------+
-    |   Name    |       Value        |
-    +-----------+--------------------+
-    | Project   | sample-project     |
-    | Namespace | sample-ns          |
-    | Kind      | User               |
-    | Key Type  | Auto-generated key |
-    +-----------+--------------------+
+|   Name    |       Value        |
+| --------- | ------------------ |
+| Project   | sample-project     |
+| Namespace | sample-ns          |
+| Kind      | User               |
+| Key Type  | Auto-generated key |
 
 *Input Schema*
 
-    +----------+--------+
-    |   Name   |  Type  |
-    +----------+--------+
-    | lastName | STRING |
-    | company  | STRING |
-    +----------+--------+
+|   Name   |  Type  |
+| -------- | ------ |
+| lastName | STRING |
+| company  | STRING |
 
 *Output in Cloud Datastore `Namespace: sample-ns`, `Kind: User`*
 
-    +---------------------+----------+-----------+
-    |       Name/ID       | lastName |  company  |
-    +---------------------+----------+-----------+
-    | id=4505323922522112 | Smith    | Apple     |
-    | id=4505323922522113 | Jones    | Google    |
-    | id=4505323922522114 | Miller   | Microsoft |
-    +---------------------+----------+-----------+
+|       Name/ID       | lastName |  company  |
+| ------------------- | -------- | --------- |
+| id=4505323922522112 | Smith    | Apple     |
+| id=4505323922522113 | Jones    | Google    |
+| id=4505323922522114 | Miller   | Microsoft |
 
 ***Example 2:*** Insert new entities with `Ancestor` and key type `Custom name` to Cloud Datastore.
 
@@ -126,150 +118,122 @@ Examples
 
 *Input Dataset*
 
-    +----------+----------+-----------+
-    |   key    | lastName |  company  |
-    +----------+----------+-----------+
-    | user-100 | Smith    | Apple     |
-    | user-101 | Jones    | Google    |
-    | user-102 | Miller   | Microsoft |
-    +----------+----------+-----------+
+|   key    | lastName |  company  |
+| -------- | -------- | --------- |
+| user-100 | Smith    | Apple     |
+| user-101 | Jones    | Google    |
+| user-102 | Miller   | Microsoft |
 
 *Sink Properties*
 
-    +-----------+---------------------+
-    |   Name    |        Value        |
-    +-----------+---------------------+
-    | Project   | sample-project      |
-    | Namespace | sample-ns           |
-    | Kind      | User                |
-    | Ancestor  | Key(Country, 'USA') |
-    | Key Type  | Custom name         |
-    | Key Alias | key                 |
-    +-----------+---------------------+
+|   Name    |        Value        |
+| --------- | ------------------- |
+| Project   | sample-project      |
+| Namespace | sample-ns           |
+| Kind      | User                |
+| Ancestor  | Key(Country, 'USA') |
+| Key Type  | Custom name         |
+| Key Alias | key                 |
 
 *Input Schema*
 
-    +----------+--------+
-    |   Name   |  Type  |
-    +----------+--------+
-    | key      | STRING |
-    | lastName | STRING |
-    | company  | STRING |
-    +----------+--------+
+|   Name   |  Type  |
+| -------- | ------ |
+| key      | STRING |
+| lastName | STRING |
+| company  | STRING |
 
 *Output in Cloud Datastore `Namespace: sample-ns`, `Kind: User`*
 
-    +---------------+---------------------+----------+-----------+
-    |    Name/ID    |       Parent        | lastName |  company  |
-    +---------------+---------------------+----------+-----------+
-    | name=user-100 | Key(Country, 'USA') | Smith    | Apple     |
-    | name=user-101 | Key(Country, 'USA') | Jones    | Google    |
-    | name=user-102 | Key(Country, 'USA') | Miller   | Microsoft |
-    +---------------+---------------------+----------+-----------+
+|    Name/ID    |       Parent        | lastName |  company  |
+| ------------- | ------------------- | -------- | --------- |
+| name=user-100 | Key(Country, 'USA') | Smith    | Apple     |
+| name=user-101 | Key(Country, 'USA') | Jones    | Google    |
+| name=user-102 | Key(Country, 'USA') | Miller   | Microsoft |
 
 ***Example 3:*** Upsert entities with new field `isContractor` and key type `Key literal` to Cloud Datastore.
 
 *Initial state for `Namespace: sample-ns`, `Kind: User`*
 
-    +---------+---------------------+----------+---------+
-    | Name/ID |       Parent        | lastName | company |
-    +---------+---------------------+----------+---------+
-    | id=1    | Key(Country, 'USA') | Smith    | Apple   |
-    | id=2    | Key(Country, 'USA') | Jones    | Google  |
-    +---------+---------------------+----------+---------+
+| Name/ID |       Parent        | lastName | company |
+| ------- | ------------------- | -------- | ------- |
+| id=1    | Key(Country, 'USA') | Smith    | Apple   |
+| id=2    | Key(Country, 'USA') | Jones    | Google  |
 
 *Input Dataset*
 
-    +------------------------------+----------+---------+--------------+
-    |             key              | lastName | company | isContractor |
-    +------------------------------+----------+---------+--------------+
-    | Key(Country, 'USA', User, 1) | Smith    | Netflix | true         |
-    | Key(User, 3)                 | Miller   | Google  | false        |
-    +------------------------------+----------+---------+--------------+
+|             key              | lastName | company | isContractor |
+| ---------------------------- | -------- | ------- | ------------ |
+| Key(Country, 'USA', User, 1) | Smith    | Netflix | true         |
+| Key(User, 3)                 | Miller   | Google  | false        |
 
 *Sink Properties*
 
-    +-----------+----------------+
-    |   Name    |     Value      |
-    +-----------+----------------+
-    | Project   | sample-project |
-    | Namespace | sample-ns      |
-    | Kind      | User           |
-    | Key Type  | Key literal    |
-    | Key Alias | key            |
-    +-----------+----------------+
+|   Name    |     Value      |
+| --------- | -------------- |
+| Project   | sample-project |
+| Namespace | sample-ns      |
+| Kind      | User           |
+| Key Type  | Key literal    |
+| Key Alias | key            |
 
 *Input Schema*
 
-    +--------------+---------+
-    |     Name     |  Type   |
-    +--------------+---------+
-    | key          | STRING  |
-    | lastName     | STRING  |
-    | company      | STRING  |
-    | isContractor | BOOLEAN |
-    +--------------+---------+
+|     Name     |  Type   |
+| ------------ | ------- |
+| key          | STRING  |
+| lastName     | STRING  |
+| company      | STRING  |
+| isContractor | BOOLEAN |
 
 *Output in Cloud Datastore `Namespace: sample-ns`, `Kind: User`*
 
-    +---------+---------------------+----------+---------+--------------+
-    | Name/ID |       Parent        | lastName | company | isContractor |
-    +---------+---------------------+----------+---------+--------------+
-    | id=1    | Key(Country, 'USA') | Smith    | Netflix | true         |
-    | id=2    | Key(Country, 'USA') | Jones    | Google  | -            |
-    | id=3    | -                   | Miller   | Google  | false        |
-    +---------+---------------------+----------+---------+--------------+
+| Name/ID |       Parent        | lastName | company | isContractor |
+| ------- | ------------------- | -------- | ------- | ------------ |
+| id=1    | Key(Country, 'USA') | Smith    | Netflix | true         |
+| id=2    | Key(Country, 'USA') | Jones    | Google  | -            |
+| id=3    | -                   | Miller   | Google  | false        |
 
 ***Example 4:*** Update entities values without `Key alias` using key type `URL-safe key` in Cloud Datastore.
 
 *Initial state for `Namespace: sample-ns`, `Kind: User`*
 
-    +---------------+----------+---------+--------------+
-    |    Name/ID    | lastName | company | isContractor |
-    +---------------+----------+---------+--------------+
-    | name=user-100 | Smith    | Netflix | true         |
-    | name=user-101 | Jones    | Google  | -            |
-    | name=user-102 | Miller   | Google  | false        |
-    +---------------+----------+---------+--------------+
+|    Name/ID    | lastName | company | isContractor |
+| ------------- | -------- | ------- | ------------ |
+| name=user-100 | Smith    | Netflix | true         |
+| name=user-101 | Jones    | Google  | -            |
+| name=user-102 | Miller   | Google  | false        |
 
 *Input Dataset*
 
-    +--------------------------------------------------------------------+----------+---------+--------------+
-    |                              __key__                               | lastName | company | isContractor |
-    +--------------------------------------------------------------------+----------+---------+--------------+
-    | partition_id+%7B%0Aproject_id%3A+%22sample-project% … user-100%22% | Smith    | Netflix | false        |
-    | partition_id+%7B%0Aproject_id%3A+%22sample-project% … user-101%22% | Jones    | Google  | false        |
-    | partition_id+%7B%0Aproject_id%3A+%22sample-project% … user-102%22% | Miller   | Apple   | true         |
-    +--------------------------------------------------------------------+----------+---------+--------------+
+|                              __key__                               | lastName | company | isContractor |
+| ------------------------------------------------------------------ | -------- | ------- | ------------ |
+| partition_id+%7B%0Aproject_id%3A+%22sample-project% … user-100%22% | Smith    | Netflix | false        |
+| partition_id+%7B%0Aproject_id%3A+%22sample-project% … user-101%22% | Jones    | Google  | false        |
+| partition_id+%7B%0Aproject_id%3A+%22sample-project% … user-102%22% | Miller   | Apple   | true         |
 
 *Sink Properties*
 
-    +-----------+----------------+
-    |   Name    |     Value      |
-    +-----------+----------------+
-    | Project   | sample-project |
-    | Namespace | sample-ns      |
-    | Kind      | User           |
-    | Key Type  | URL-safe key   |
-    +-----------+----------------+
+|   Name    |     Value      |
+| --------- | -------------- |
+| Project   | sample-project |
+| Namespace | sample-ns      |
+| Kind      | User           |
+| Key Type  | URL-safe key   |
 
 *Input Schema*
 
-    +--------------+---------+
-    |     Name     |  Type   |
-    +--------------+---------+
-    | __key__      | STRING  |
-    | lastName     | STRING  |
-    | company      | STRING  |
-    | isContractor | BOOLEAN |
-    +--------------+---------+
+|     Name     |  Type   |
+| ------------ | ------- |
+| __key__      | STRING  |
+| lastName     | STRING  |
+| company      | STRING  |
+| isContractor | BOOLEAN |
 
 *Output in Cloud Datastore `Namespace: sample-ns`, `Kind: User`*
 
-    +---------------+----------+---------+--------------+
-    |    Name/ID    | lastName | company | isContractor |
-    +---------------+----------+---------+--------------+
-    | name=user-100 | Smith    | Netflix | false        |
-    | name=user-101 | Jones    | Google  | false        |
-    | name=user-102 | Miller   | Apple   | true         |
-    +---------------+----------+---------+--------------+
+|    Name/ID    | lastName | company | isContractor |
+| ------------- | -------- | ------- | ------------ |
+| name=user-100 | Smith    | Netflix | false        |
+| name=user-101 | Jones    | Google  | false        |
+| name=user-102 | Miller   | Apple   | true         |
