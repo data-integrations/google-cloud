@@ -2,7 +2,7 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name" : "Google BigQuery",
+  "display-name" : "BigQuery",
   "configuration-groups": [
     {
       "label": "Basic",
@@ -45,6 +45,25 @@
           "name": "bucket",
           "widget-attributes" : {
             "placeholder": "Google Cloud Storage bucket for temporary data"
+          }
+        },
+        {
+          "widget-type": "radio-group",
+          "name": "allowSchemaRelaxation",
+          "label": "Update Table Schema",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "false",
+            "options": [
+              {
+                "id": "true",
+                "label": "True"
+              },
+              {
+                "id": "false",
+                "label": "False"
+              }
+            ]
           }
         }
       ]

@@ -73,6 +73,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
    */
   @SuppressWarnings("unused")
   public static class GCSBatchSinkConfig extends GCPReferenceSinkConfig implements FileSinkProperties {
+    private static final String SCHEME = "gs://";
     @Name("path")
     @Description("The path to write to. For example, gs://<bucket>/path/to/directory")
     @Macro
@@ -120,7 +121,8 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
 
     @Override
     public String getPath() {
-      return GCSPath.from(path).getUri().toString();
+      GCSPath gcsPath = GCSPath.from(path);
+      return SCHEME + gcsPath.getBucket() + gcsPath.getUri().getPath();
     }
 
     @Override

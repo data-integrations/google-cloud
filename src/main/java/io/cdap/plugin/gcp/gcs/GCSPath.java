@@ -16,9 +16,11 @@
 
 package io.cdap.plugin.gcp.gcs;
 
+import com.google.common.net.UrlEscapers;
+
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 /**
  * A path on GCS. Contains information about the bucket and blob name (if applicable).
@@ -26,11 +28,12 @@ import java.util.Objects;
  */
 public class GCSPath {
   public static final String ROOT_DIR = "/";
+  private static final String SCHEME = "gs://";
   private final URI uri;
   private final String bucket;
   private final String name;
 
-  GCSPath(URI uri, String bucket, String name) {
+  private GCSPath(URI uri, String bucket, String name) {
     this.uri = uri;
     this.bucket = bucket;
     this.name = name;
@@ -83,28 +86,31 @@ public class GCSPath {
    * @throws IllegalArgumentException if the path string is invalid
    */
   public static GCSPath from(String path) {
-    URI uri = getURI(path);
-    String bucket = uri.getAuthority();
-    String name = uri.getPath();
-    // strip preceding '/'. An empty name means it's for a bucket.
-    name = name.isEmpty() ? name : name.substring(1);
-    return new GCSPath(uri, bucket, name);
-  }
-
-  private static URI getURI(String path) {
-    try {
-      URI uri = new URI(path);
-      if (uri.getScheme() != null && (!uri.getScheme().equalsIgnoreCase("gs") || uri.getAuthority() == null)) {
-        throw new IllegalArgumentException(String.format("Invalid path '%s'. The path must be of form " +
-                                                           "'gs://<bucket-name>/path'.", path));
-      }
-      if (uri.getScheme() == null) {
-        return path.startsWith(ROOT_DIR) ? new URI("gs:/" + path) : new URI("gs://" + path);
-      }
-      return uri;
-    } catch (URISyntaxException e) {
-      throw new IllegalArgumentException(String.format("Invalid path '%s'. The path must be of form " +
-                                                         "'gs://<bucket-name>/path'.", path), e);
+    if (path.isEmpty()) {
+      throw new IllegalArgumentException("GCS path can not be empty. The path must be of form " +
+                                           "'gs://<bucket-name>/path'.");
     }
+
+    if (path.startsWith(ROOT_DIR)) {
+      path = path.substring(1);
+    } else if (path.startsWith(SCHEME)) {
+      path = path.substring(SCHEME.length());
+    }
+
+    String bucket = path;
+    int idx = path.indexOf(ROOT_DIR);
+    // if the path within bucket is provided, then only get the bucket
+    if (idx > 0) {
+      bucket = path.substring(0, idx);
+    }
+
+    if (!Pattern.matches("[a-zA-Z0-9-_.]+", bucket)) {
+      throw new IllegalArgumentException(String.format("Invalid bucket name in path '%s'. Bucket name should only " +
+                                                         "contain alphanumeric, '-'. '_' and '.'.", path));
+    }
+
+    String file = idx > 0 ? path.substring(idx).replaceAll("^/", "") : "";
+    URI uri = URI.create(SCHEME + bucket + "/" + UrlEscapers.urlFragmentEscaper().escape(file));
+    return new GCSPath(uri, bucket, file);
   }
 }

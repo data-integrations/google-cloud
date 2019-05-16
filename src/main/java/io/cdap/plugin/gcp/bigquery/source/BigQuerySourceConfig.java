@@ -25,12 +25,15 @@ import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
 
 import java.io.IOException;
+import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
 /**
  * Holds configuration required for configuring {@link BigQuerySource}.
  */
 public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
+  private static final String SCHEME = "gs://";
+
   @Macro
   @Description("The dataset the table belongs to. A dataset is contained within a specific project. "
     + "Datasets are top-level containers that are used to organize and control access to tables and views.")
@@ -73,6 +76,16 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
 
   @Nullable
   public String getBucket() {
+    if (bucket != null) {
+      bucket = bucket.trim();
+      if (bucket.isEmpty()) {
+        return null;
+      }
+      // remove the gs:// scheme from the bucket name
+      if (bucket.startsWith(SCHEME)) {
+        bucket = bucket.substring(SCHEME.length());
+      }
+    }
     return bucket;
   }
 
@@ -81,6 +94,19 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
       return ServiceOptions.getDefaultProjectId();
     }
     return datasetProject == null ? getProject() : datasetProject;
+  }
+
+  public void validate() {
+    super.validate();
+    String bucket = getBucket();
+    if (!containsMacro("bucket") && bucket != null) {
+      // Basic validation for allowed characters as per https://cloud.google.com/storage/docs/naming
+      Pattern p = Pattern.compile("[a-z0-9._-]+");
+      if (!p.matcher(bucket).matches()) {
+        throw new InvalidConfigPropertyException("Bucket names can only contain lowercase characters, numbers, " +
+                                                   "'.', '_', and '-'.", "bucket");
+      }
+    }
   }
 
   /**

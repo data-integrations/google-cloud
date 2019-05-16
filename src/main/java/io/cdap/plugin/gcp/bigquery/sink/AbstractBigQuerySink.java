@@ -26,8 +26,6 @@ import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryOutputConfiguration;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableSchema;
-import com.google.gson.JsonNull;
-import com.google.gson.JsonObject;
 import io.cdap.cdap.api.data.batch.Output;
 import io.cdap.cdap.api.data.batch.OutputFormatProvider;
 import io.cdap.cdap.api.data.format.StructuredRecord;
@@ -35,33 +33,34 @@ import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.plugin.common.LineageRecorder;
+import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.time.format.DateTimeFormatter;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 /**
  * Base class for Big Query batch sink plugins.
  */
-public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, JsonObject, NullWritable> {
+public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, Text, NullWritable> {
 
   private static final Logger LOG = LoggerFactory.getLogger(AbstractBigQuerySink.class);
 
   private static final String gcsPathFormat = "gs://%s";
   private static final String temporaryBucketFormat = gcsPathFormat + "/input/%s-%s";
-  private static final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
-  private static final DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSSSSS");
 
   // UUID for the run. Will be used as bucket name if bucket is not provided.
   // UUID is used since GCS bucket names must be globally unique.
@@ -81,8 +80,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
 
     createDataset(context.isPreviewEnabled());
 
-    baseConfiguration = BigQueryUtil.getBigQueryConfig(getConfig().getServiceAccountFilePath(),
-                                                       getConfig().getProject());
+    baseConfiguration = getBaseConfiguration();
     String bucket = configureBucket();
 
     prepareRunInternal(context, bucket);
@@ -114,10 +112,11 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
    * @param bucket bucket name
    */
   protected final void initOutput(BatchSinkContext context, String outputName,
-                            String tableName, Schema tableSchema, String bucket) throws IOException {
+                                  String tableName, @Nullable Schema tableSchema, String bucket) throws IOException {
     LOG.debug("Init output for table '{}' with schema: {}", tableName, tableSchema);
-    validateSchema(tableName, tableSchema);
-    List<BigQueryTableFieldSchema> fields = getBigQueryTableFields(tableSchema);
+    List<BigQueryTableFieldSchema> fields = getBigQueryTableFields(tableName,
+                                                                   tableSchema,
+                                                                   getConfig().isAllowSchemaRelaxation());
     Configuration configuration = getOutputConfiguration(bucket, tableName, fields);
 
     // Both emitLineage and setOutputFormat internally try to create an external dataset if it does not already exist.
@@ -127,65 +126,6 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
       .collect(Collectors.toList());
     recordLineage(context, outputName, tableSchema, fieldNames);
     context.addOutput(Output.of(outputName, getOutputFormatProvider(configuration, tableName, tableSchema)));
-  }
-
-  protected final void decodeSimpleTypes(JsonObject json, String name, StructuredRecord input) {
-    Object object = input.get(name);
-    Schema.Field field = input.getSchema().getField(name);
-
-    if (field == null) {
-      throw new IllegalStateException(String.format("Field '%s' is absent in input record", name));
-    }
-
-    Schema schema = BigQueryUtil.getNonNullableSchema(field.getSchema());
-
-    if (object == null) {
-      json.add(name, JsonNull.INSTANCE);
-      return;
-    }
-
-    Schema.LogicalType logicalType = schema.getLogicalType();
-    if (logicalType != null) {
-      switch (logicalType) {
-        case DATE:
-          json.addProperty(name, Objects.requireNonNull(input.getDate(name)).toString());
-          break;
-        case TIME_MILLIS:
-        case TIME_MICROS:
-          json.addProperty(name, timeFormatter.format(Objects.requireNonNull(input.getTime(name))));
-          break;
-        case TIMESTAMP_MILLIS:
-        case TIMESTAMP_MICROS:
-          //timestamp for json input should be in this format yyyy-MM-dd HH:mm:ss.SSSSSS
-          json.addProperty(name, dateTimeFormatter.format(Objects.requireNonNull(input.getTimestamp(name))));
-          break;
-        default:
-          throw new IllegalStateException(
-            String.format("Field '%s' is of unsupported type '%s'", name, logicalType.getToken()));
-      }
-      return;
-    }
-
-    switch (schema.getType()) {
-      case NULL:
-        json.add(name, JsonNull.INSTANCE); // nothing much to do here.
-        break;
-      case INT:
-      case LONG:
-      case FLOAT:
-      case DOUBLE:
-        json.addProperty(name, (Number) object);
-        break;
-      case BOOLEAN:
-        json.addProperty(name, (Boolean) object);
-        break;
-      case STRING:
-        json.addProperty(name, object.toString());
-        break;
-      default:
-        throw new IllegalStateException(
-          String.format("Field '%s' is of unsupported type '%s'", name, schema.getType()));
-    }
   }
 
   /**
@@ -225,6 +165,19 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
   protected abstract OutputFormatProvider getOutputFormatProvider(Configuration configuration,
                                                                   String tableName,
                                                                   Schema tableSchema);
+
+  /**
+   * Initialized base configuration needed to load data into BigQuery table.
+   *
+   * @return base configuration
+   */
+  private Configuration getBaseConfiguration() throws IOException {
+    Configuration baseConfiguration = BigQueryUtil.getBigQueryConfig(getConfig().getServiceAccountFilePath(),
+                                                                     getConfig().getProject());
+    baseConfiguration.setBoolean(BigQueryConstants.CONFIG_ALLOW_SCHEMA_RELAXATION,
+                                 getConfig().isAllowSchemaRelaxation());
+    return baseConfiguration;
+  }
 
   /**
    * If provided dataset name does not exists in Big Query, creates it.
@@ -267,7 +220,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
    */
   private String configureBucket() {
     String bucket = getConfig().getBucket();
-    if (getConfig().getBucket() == null) {
+    if (bucket == null) {
       bucket = uuid.toString();
       // By default, this option is false, meaning the job can not delete the bucket.
       // So enable it only when bucket name is not provided.
@@ -282,12 +235,16 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
   /**
    * Validates output schema against Big Query table schema. It throws {@link IllegalArgumentException}
    * if the output schema has more fields than Big Query table or output schema field types does not match
-   * Big Query column types.
+   * Big Query column types unless schema relaxation policy is allowed.
    *
    * @param tableName table name
    * @param tableSchema table schema
+   * @param allowSchemaRelaxation allows schema relaxation policy
    */
-  private void validateSchema(String tableName, Schema tableSchema) throws IOException {
+  private void validateSchema(String tableName,
+                              Schema tableSchema,
+                              boolean allowSchemaRelaxation) throws IOException {
+
     Table table = BigQueryUtil.getBigQueryTable(getConfig().getServiceAccountFilePath(),
                                                 getConfig().getProject(),
                                                 getConfig().getDataset(), tableName);
@@ -305,46 +262,89 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
     FieldList bqFields = bqSchema.getFields();
     List<Schema.Field> outputSchemaFields = Objects.requireNonNull(tableSchema.getFields());
 
-    // Output schema should not have fields that are not present in Big Query table.
-    List<String> diff = BigQueryUtil.getSchemaMinusBqFields(outputSchemaFields, bqFields);
-    if (!diff.isEmpty()) {
-      throw new IllegalArgumentException(
-        String.format("The output schema does not match the BigQuery table schema for '%s.%s' table. " +
-                        "The table does not contain the '%s' column(s).",
-                      getConfig().getDataset(), table, diff));
-    }
+    List<String> missingBQFields = BigQueryUtil.getSchemaMinusBqFields(outputSchemaFields, bqFields);
 
-    // validate the missing columns in output schema are nullable fields in Big Query
-    List<String> remainingBQFields = BigQueryUtil.getBqFieldsMinusSchema(bqFields, outputSchemaFields);
-    for (String field : remainingBQFields) {
-      if (bqFields.get(field).getMode() != Field.Mode.NULLABLE) {
+    if (allowSchemaRelaxation) {
+      List<String> nonNullableFields = missingBQFields.stream()
+        .map(tableSchema::getField)
+        .filter(Objects::nonNull)
+        .filter(field -> !field.getSchema().isNullable())
+        .map(Schema.Field::getName)
+        .collect(Collectors.toList());
+
+      if (!nonNullableFields.isEmpty()) {
         throw new IllegalArgumentException(
-          String.format("The output schema does not match the BigQuery table schema for '%s.%s'. " +
-                          "The table requires column '%s', which is not in the output schema.",
-                        getConfig().getDataset(), tableName, field));
+          String.format("The output schema contains non-nullable fields '%s' " +
+                          "which are absent in the BigQuery table schema for '%s.%s' table.",
+                        nonNullableFields, getConfig().getDataset(), tableName));
+      }
+    } else {
+      // Output schema should not have fields that are not present in BigQuery table,
+      if (!missingBQFields.isEmpty()) {
+        throw new IllegalArgumentException(
+          String.format("The output schema does not match the BigQuery table schema for '%s.%s' table. " +
+                          "The table does not contain the '%s' column(s).",
+                        getConfig().getDataset(), tableName, missingBQFields));
+      }
+
+      // validate the missing columns in output schema are nullable fields in BigQuery
+      List<String> remainingBQFields = BigQueryUtil.getBqFieldsMinusSchema(bqFields, outputSchemaFields);
+      for (String field : remainingBQFields) {
+        if (bqFields.get(field).getMode() != Field.Mode.NULLABLE) {
+          throw new IllegalArgumentException(
+            String.format("The output schema does not match the BigQuery table schema for '%s.%s'. " +
+                            "The table requires column '%s', which is not in the output schema.",
+                          getConfig().getDataset(), tableName, field));
+        }
       }
     }
 
-    // Match output schema field type with Big Query column type
+    // Match output schema field type with BigQuery column type
     for (Schema.Field field : tableSchema.getFields()) {
-      BigQueryUtil.validateFieldSchemaMatches(bqFields.get(field.getName()),
-                                              field, getConfig().getDataset(), tableName);
+      String fieldName = field.getName();
+      // skip checking schema if field is missing in BigQuery
+      if (!missingBQFields.contains(fieldName)) {
+        BigQueryUtil.validateFieldSchemaMatches(bqFields.get(field.getName()),
+                                                field, getConfig().getDataset(), tableName);
+      }
     }
+
   }
 
   /**
-   * Generates Big Query field instances based on given CDAP table schema.
+   * Generates Big Query field instances based on given CDAP table schema after schema validation.
    *
+   * @param tableName table name
    * @param tableSchema table schema
+   * @param allowSchemaRelaxation if schema relaxation policy is allowed
    * @return list of Big Query fields
    */
-  private List<BigQueryTableFieldSchema> getBigQueryTableFields(Schema tableSchema) {
-    return Objects.requireNonNull(tableSchema.getFields()).stream()
+  private List<BigQueryTableFieldSchema> getBigQueryTableFields(String tableName,
+                                                                @Nullable Schema tableSchema,
+                                                                boolean allowSchemaRelaxation) throws IOException {
+    if (tableSchema == null) {
+      return Collections.emptyList();
+    }
+
+    validateSchema(tableName, tableSchema, allowSchemaRelaxation);
+
+    List<Schema.Field> inputFields = Objects.requireNonNull(tableSchema.getFields(), "Schema must have fields");
+
+    return inputFields.stream()
       .map(field -> new BigQueryTableFieldSchema()
         .setName(field.getName())
-        .setType(getTableDataType(BigQueryUtil.getNonNullableSchema(field.getSchema())).name())
-        .setMode(Field.Mode.NULLABLE.name()))
+        .setType(getTableDataType(field.getSchema()).name())
+        .setMode(getMode(field.getSchema()).name()))
       .collect(Collectors.toList());
+  }
+
+  private Field.Mode getMode(Schema schema) {
+    if (schema.getType() == Schema.Type.ARRAY) {
+      return Field.Mode.REPEATED;
+    } else if (schema.isNullable()) {
+      return Field.Mode.NULLABLE;
+    }
+    return Field.Mode.REQUIRED;
   }
 
   /**
@@ -361,10 +361,15 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
     Configuration configuration = new Configuration(baseConfiguration);
     String temporaryGcsPath = getTemporaryGcsPath(bucket, tableName);
 
+    BigQueryTableSchema outputTableSchema = new BigQueryTableSchema();
+    if (!fields.isEmpty()) {
+      outputTableSchema.setFields(fields);
+    }
+
     BigQueryOutputConfiguration.configure(
       configuration,
       String.format("%s.%s", getConfig().getDataset(), tableName),
-      new BigQueryTableSchema().setFields(fields),
+      outputTableSchema,
       temporaryGcsPath,
       BigQueryFileFormat.NEWLINE_DELIMITED_JSON,
       TextOutputFormat.class);
@@ -384,6 +389,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
   }
 
   private LegacySQLTypeName getTableDataType(Schema schema) {
+    schema = BigQueryUtil.getNonNullableSchema(schema);
     Schema.LogicalType logicalType = schema.getLogicalType();
 
     if (logicalType != null) {
@@ -396,6 +402,8 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
         case TIMESTAMP_MILLIS:
         case TIMESTAMP_MICROS:
           return LegacySQLTypeName.TIMESTAMP;
+        case DECIMAL:
+          return LegacySQLTypeName.NUMERIC;
         default:
           throw new IllegalStateException("Unsupported type " + logicalType.getToken());
       }
@@ -415,9 +423,10 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
         return LegacySQLTypeName.BOOLEAN;
       case BYTES:
         return LegacySQLTypeName.BYTES;
+      case ARRAY:
+        return getTableDataType(schema.getComponentSchema());
       default:
         throw new IllegalStateException("Unsupported type " + type);
     }
   }
-
 }
