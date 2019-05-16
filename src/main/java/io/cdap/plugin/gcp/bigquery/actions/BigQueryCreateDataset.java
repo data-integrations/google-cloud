@@ -22,12 +22,19 @@ import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.DatasetInfo;
 import io.cdap.cdap.api.annotation.Description;
+import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.etl.api.action.Action;
 import io.cdap.cdap.etl.api.action.ActionContext;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.GCPConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.HashMap;
+import java.util.Map;
+import javax.annotation.Nullable;
 
 /**
  * This class <code>BigQueryCreateDataset</code> drops a BigQuery dataset.
@@ -39,13 +46,14 @@ import io.cdap.plugin.gcp.common.GCPConfig;
 @Name(BigQueryCreateDataset.NAME)
 @Description(BigQueryCreateDataset.DESC)
 public class BigQueryCreateDataset extends Action {
+  private static final Logger LOG = LoggerFactory.getLogger(BigQueryCreateDataset.class);
   public static final String NAME = "BigQueryCreateDataset";
   public static final String DESC = "Create a Cloud BigQuery Dataset";
   private static final String RECORDS_OUT = "records.out";
   private Config config;
 
   /**
-   * Drops a dataset.
+   * Creates a dataset.
    *
    * @param context a <code>ActionContext</code> instance during runtime.
    * @throws Exception thrown when delete of dataset fails.
@@ -57,12 +65,33 @@ public class BigQueryCreateDataset extends Action {
       Dataset dataset = bq.getDataset(config.getDatasetId());
       if (dataset == null) {
         dataset = bq.create(config.getDatasetInfo());
+        try {
+          Dataset.Builder builder = dataset.toBuilder();
+          if (config.getDescription() != null) {
+            builder.setDescription(config.getDescription());
+          }
+          if (config.getLabels().size() > 0) {
+            builder.setLabels(config.getLabels());
+          }
+          // update dataset.
+          Dataset updateDataset = builder.build();
+          updateDataset.update();
+        } catch (BigQueryException e) {
+          // we don't fail if we cannot update dataset.
+          LOG.warn(
+            String.format("Dataset '%s' was created, but failed to update metadata for dataset.",
+                          config.getDatasetName())
+          );
+        }
+        context.getMetrics().count(RECORDS_OUT, 1);
       } else {
-        throw new Exception(
-          String.format(
-            "Dataset '%s' already exists. Failing pipeline as per user configuration.", config.getDatasetName()
-          )
-        );
+        if (config.failIfExists()) {
+          throw new Exception(
+            String.format(
+              "Dataset '%s' already exists. Failing pipeline as per user request.", config.getDatasetName()
+            )
+          );
+        }
       }
     } catch (BigQueryException e) {
       throw new Exception(
@@ -79,11 +108,24 @@ public class BigQueryCreateDataset extends Action {
   private static final class Config extends GCPConfig {
     @Name("dataset")
     @Description("Dataset to be drop from the project")
+    @Macro
     private String dataset;
 
+    @Name("description")
+    @Description("Provide a description for dataset")
+    @Nullable
+    @Macro
+    private String description;
+
     @Name("fail-if-exists")
-    @Description("Fails pipeline if dataset exists.")
+    @Description("Fails pipeline if dataset already exists or skip silently")
+    @Macro
     private String failIfExists;
+
+    @Name("labels")
+    @Description("Labels to be associated with dataset")
+    @Nullable
+    private String labels;
 
     /**
      * @return a instance of <code>DatasetId</code> based on project and dataset name provided by user.
@@ -107,6 +149,13 @@ public class BigQueryCreateDataset extends Action {
     }
 
     /**
+     * @return a <code>String</code> specifying the description of a dataset.
+     */
+    public String getDescription() {
+      return description;
+    }
+
+    /**
      * @return a <code>Boolean</code> specifing true if to fail a pipeline if dataset already exists.
      */
     public boolean failIfExists() {
@@ -114,6 +163,22 @@ public class BigQueryCreateDataset extends Action {
         return true;
       }
       return false;
+    }
+
+    /**
+     * @return a <code>Map</code> specifing the key value of labels.
+     */
+    public Map<String, String> getLabels() {
+      Map<String, String> labelMap = new HashMap<>();
+      if (labels == null || labels.isEmpty()) {
+        return labelMap;
+      }
+      String[] kvPairs = labels.split(",");
+      for (String kvPair : kvPairs) {
+        String[] kv = kvPair.split(":");
+        labelMap.put(kv[0], kv[1]);
+      }
+      return labelMap;
     }
   }
 }

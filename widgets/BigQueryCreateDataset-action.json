@@ -10,12 +10,26 @@
       "properties": [
         {
           "widget-type": "textbox",
-          "label": "Dataset Name",
+          "label": "Name",
           "name": "dataset"
         },
         {
-          "name": "fail-job",
-          "label": "Fail Job",
+          "widget-type": "textbox",
+          "label": "Description",
+          "name": "description"
+        },
+        {
+          "name": "labels",
+          "label" : "Labels",
+          "widget-type": "keyvalue",
+          "widget-attributes": {
+            "delimiter": ",",
+            "kv-delimiter": ":"
+          }
+        },
+        {
+          "name": "fail-if-exists",
+          "label": "Fail if exists",
           "widget-type": "radio-group",
           "widget-attributes": {
             "layout": "inline",
@@ -23,7 +37,7 @@
             "options": [
               {
                 "id": "true",
-                "label": "If Successfu"
+                "label": "True"
               },
               {
                 "id": "false",

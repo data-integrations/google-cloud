@@ -2,19 +2,11 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name" : "Google Cloud Storage Object Delete",
+  "display-name" : "GCS Object Delete",
   "configuration-groups": [
     {
       "label": "Basic",
       "properties": [
-        {
-          "widget-type": "textbox",
-          "label": "Project ID",
-          "name": "project",
-          "widget-attributes" : {
-            "default": "auto-detect"
-          }
-        },
         {
           "name": "paths",
           "widget-type": "csv",
@@ -26,8 +18,16 @@
       ]
     },
     {
-      "label" : "Credentials",
+      "label" : "Advanced",
       "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Project ID",
+          "name": "project",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        },
         {
           "widget-type": "textbox",
           "label": "Service Account File Path",

@@ -20,6 +20,7 @@ import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.DatasetId;
 import io.cdap.cdap.api.annotation.Description;
+import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.etl.api.action.Action;
@@ -84,10 +85,12 @@ public class BigQueryDropDataset extends Action {
   private static final class Config extends GCPConfig {
     @Name("dataset")
     @Description("Dataset to be drop from the project")
+    @Macro
     private String dataset;
 
     @Name("not-found")
     @Description("Choice to fail job if BigQuery dataset is not found.")
+    @Macro
     private String failOnNotFound;
 
     /**

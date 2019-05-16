@@ -2,7 +2,7 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name": "Multi Files Google Cloud Storage",
+  "display-name": "GCS Multi File",
   "configuration-groups": [
     {
       "label": "Basic",
@@ -13,14 +13,6 @@
           "name": "referenceName",
           "widget-attributes" : {
             "placeholder": "Name used to identify this sink for lineage"
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Project ID",
-          "name": "project",
-          "widget-attributes" : {
-            "default": "auto-detect"
           }
         },
         {
@@ -67,8 +59,16 @@
       ]
     },
     {
-      "label" : "Credentials",
+      "label" : "Advanced",
       "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Project Id",
+          "name": "project",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        },
         {
           "widget-type": "textbox",
           "label": "Service Account File Path",
@@ -113,13 +113,16 @@
       "widget-type": "schema",
       "widget-attributes": {
         "schema-types": [
+          "string",
           "boolean",
           "int",
           "long",
           "float",
           "double",
+          "timestamp",
           "bytes",
-          "string"
+          "array",
+          "record"
         ],
         "schema-default-type": "string"
       }

@@ -3,7 +3,7 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name": "Google Cloud Speech-to-Text",
+  "display-name": "Speech-to-Text",
   "configuration-groups": [
     {
       "label": "Basic",
@@ -97,7 +97,7 @@
       ]
     },
     {
-      "label" : "Credentials",
+      "label" : "Advanced",
       "properties" : [
         {
           "widget-type": "textbox",

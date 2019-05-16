@@ -2,7 +2,7 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name": "Google Cloud Spanner",
+  "display-name": "Spanner",
   "configuration-groups": [
     {
       "label" : "Basic",
@@ -17,18 +17,10 @@
         },
         {
           "widget-type": "textbox",
-          "label": "Project ID",
-          "name": "project",
-          "widget-attributes" : {
-            "default": "auto-detect"
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Instance ID",
+          "label": "Instance Id",
           "name": "instance",
           "widget-attributes" : {
-            "placeholder": "Instance ID"
+            "placeholder": "Instance Id"
           }
         },
         {
@@ -59,8 +51,16 @@
       ]
     },
     {
-      "label" : "Credentials",
+      "label" : "Advanced",
       "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Project Id",
+          "name": "project",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        },
         {
           "widget-type": "textbox",
           "label": "Service Account File Path",
@@ -68,12 +68,7 @@
           "widget-attributes" : {
             "default": "auto-detect"
           }
-        }
-      ]
-    },
-    {
-      "label" : "Advanced",
-      "properties" : [
+        },
         {
           "widget-type": "textbox",
           "label": "Write Batch Size",
