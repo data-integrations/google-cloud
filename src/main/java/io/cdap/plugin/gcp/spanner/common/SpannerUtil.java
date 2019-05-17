@@ -29,11 +29,6 @@ import java.util.Set;
  * Spanner utility class to get spanner service
  */
 public class SpannerUtil {
-  // todo CDAP-14233 - add support for array
-  private static final Set<Schema.Type> SUPPORTED_TYPES =
-    ImmutableSet.of(Schema.Type.BOOLEAN, Schema.Type.STRING, Schema.Type.LONG, Schema.Type.DOUBLE,
-                    Schema.Type.BYTES);
-
   private static final Set<Schema.LogicalType> SUPPORTED_LOGICAL_TYPES =
     ImmutableSet.of(Schema.LogicalType.DATE, Schema.LogicalType.TIMESTAMP_MICROS);
 
@@ -52,21 +47,21 @@ public class SpannerUtil {
   /**
    * Validate that the schema is a supported one, compatible with Spanner.
    */
-  public static void validateSchema(Schema schema) {
+  public static void validateSchema(Schema schema, Set<Schema.Type> supportedTypes) {
     for (Schema.Field field : schema.getFields()) {
       Schema fieldSchema = field.getSchema();
       fieldSchema = fieldSchema.isNullable() ? fieldSchema.getNonNullable() : fieldSchema;
 
       Schema.LogicalType logicalType = fieldSchema.getLogicalType();
       if (logicalType != null && !SUPPORTED_LOGICAL_TYPES.contains(logicalType)) {
-        throw new IllegalArgumentException(String.format("Schema logical type %s not supported by Spanner source",
+        throw new IllegalArgumentException(String.format("Schema logical type %s not supported.",
                                                          logicalType));
       }
 
       if (logicalType == null) {
         Schema.Type type = fieldSchema.getType();
-        if (!SUPPORTED_TYPES.contains(type)) {
-          throw new IllegalArgumentException(String.format("Schema type %s not supported by Spanner source", type));
+        if (!supportedTypes.contains(type)) {
+          throw new IllegalArgumentException(String.format("Schema type %s not supported.", type));
         }
       }
     }
@@ -76,7 +71,7 @@ public class SpannerUtil {
    * Converts schema to Spanner create statement
    *
    * @param tableName table name to be created
-   * @param primaryKeys comma seperated list of primary keys
+   * @param primaryKeys comma separated list of primary keys
    * @param schema schema of the table
    * @return Create statement
    */
@@ -102,7 +97,7 @@ public class SpannerUtil {
             break;
           default:
             // this should not happen
-            throw new IllegalStateException("Logical type " + logicalType + " is not supported.");
+            throw new IllegalStateException("Logical type " + logicalType + " is not supported");
         }
         addColumn(createStmt, name, field.getSchema().isNullable(), spannerType);
         continue;
@@ -116,9 +111,11 @@ public class SpannerUtil {
         case STRING:
           spannerType = "STRING(MAX)";
           break;
+        case INT:
         case LONG:
           spannerType = "INT64";
           break;
+        case FLOAT:
         case DOUBLE:
           spannerType = "FLOAT64";
           break;

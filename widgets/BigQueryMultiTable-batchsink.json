@@ -2,7 +2,7 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name" : "Google BigQuery Multi Table",
+  "display-name" : "BigQuery Multi Table",
   "configuration-groups": [
     {
       "label": "Basic",
@@ -63,6 +63,25 @@
           "name": "splitField",
           "widget-attributes": {
             "placeholder": "Field used to determine which table to write to"
+          }
+        },
+        {
+          "widget-type": "radio-group",
+          "name": "allowSchemaRelaxation",
+          "label": "Update Table Schema",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "false",
+            "options": [
+              {
+                "id": "true",
+                "label": "True"
+              },
+              {
+                "id": "false",
+                "label": "False"
+              }
+            ]
           }
         }
       ]

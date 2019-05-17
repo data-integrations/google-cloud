@@ -2,7 +2,7 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name" : "Google Cloud Storage Object Create",
+  "display-name" : "Google Cloud Storage Create",
   "configuration-groups": [
     {
       "label": "Basic",

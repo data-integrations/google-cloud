@@ -93,7 +93,9 @@ public class GoogleSubscriber extends StreamingSource<StructuredRecord> {
     return pubSubMessages.map(pubSubMessage -> {
       // Convert to a HashMap because com.google.api.client.util.ArrayMap is not serializable.
       HashMap<String, String> hashMap = new HashMap<>();
-      pubSubMessage.getAttributes().forEach((k, v) -> hashMap.put(k, v));
+      if (pubSubMessage.getAttributes() != null) {
+        hashMap.putAll(pubSubMessage.getAttributes());
+      }
 
       return StructuredRecord.builder(DEFAULT_SCHEMA)
               .set("message", pubSubMessage.getData())

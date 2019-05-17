@@ -15,8 +15,7 @@
  */
 package io.cdap.plugin.gcp.bigquery.sink;
 
-import com.google.cloud.hadoop.io.bigquery.output.IndirectBigQueryOutputFormat;
-import com.google.gson.JsonObject;
+import com.google.gson.stream.JsonWriter;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
@@ -32,8 +31,10 @@ import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.io.Text;
 
 import java.io.IOException;
+import java.io.StringWriter;
 import java.util.Map;
 import java.util.Objects;
 
@@ -77,7 +78,9 @@ public final class BigQuerySink extends AbstractBigQuerySink {
 
   @Override
   protected void prepareRunInternal(BatchSinkContext context, String bucket) throws IOException {
-    initOutput(context, config.getReferenceName(), config.getTable(), config.getSchema(), bucket);
+    Schema configSchema = config.getSchema();
+    Schema schema = configSchema == null ? context.getInputSchema() : configSchema;
+    initOutput(context, config.getReferenceName(), config.getTable(), schema, bucket);
   }
 
   @Override
@@ -87,7 +90,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
     return new OutputFormatProvider() {
       @Override
       public String getOutputFormatClassName() {
-        return IndirectBigQueryOutputFormat.class.getName();
+        return BigQueryOutputFormat.class.getName();
       }
 
       @Override
@@ -104,15 +107,22 @@ public final class BigQuerySink extends AbstractBigQuerySink {
   }
 
   @Override
-  public void transform(StructuredRecord input, Emitter<KeyValue<JsonObject, NullWritable>> emitter) {
-    JsonObject object = new JsonObject();
-    for (Schema.Field recordField : Objects.requireNonNull(input.getSchema().getFields())) {
-      // From all the fields in input record, decode only those fields that are present in output schema
-      if (schema.getField(recordField.getName()) != null) {
-        decodeSimpleTypes(object, recordField.getName(), input);
+  public void transform(StructuredRecord input, Emitter<KeyValue<Text, NullWritable>> emitter) {
+    StringWriter strWriter = new StringWriter();
+    try (JsonWriter writer = new JsonWriter(strWriter)) {
+      writer.beginObject();
+      for (Schema.Field recordField : Objects.requireNonNull(input.getSchema().getFields())) {
+        // From all the fields in input record, write only those fields that are present in output schema
+        if (schema == null || schema.getField(recordField.getName()) != null) {
+          BigQueryRecordToJson.write(writer, recordField.getName(), input.get(recordField.getName()),
+                                     recordField.getSchema());
+        }
       }
+      writer.endObject();
+    } catch (IOException e) {
+      throw new RuntimeException("Exception while converting structured record to json.", e);
     }
-    emitter.emit(new KeyValue<>(object, NullWritable.get()));
-  }
 
+    emitter.emit(new KeyValue<>(new Text(strWriter.toString()), NullWritable.get()));
+  }
 }

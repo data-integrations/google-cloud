@@ -58,7 +58,8 @@ public class Schemas {
           String.format("Expected field '%s' to be of type '%s', but it is of type '%s'.",
                         field.getName(), providedFieldType.name(), trueFieldType.name()));
       }
-      if (isTrueFieldNullable && !isProvidedFieldNullable) {
+
+      if (!isTrueFieldNullable && isProvidedFieldNullable) {
         throw new IllegalArgumentException(String.format("Field '%s' should not be nullable.", field.getName()));
       }
     }
