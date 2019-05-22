@@ -81,7 +81,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     super.configurePipeline(configurer);
     config.validate();
 
-    if (config.containsMacro("schema")) {
+    if (config.containsMacro("schema") || config.containsMacro("dataset") || config.containsMacro("table")) {
       configurer.getStageConfigurer().setOutputSchema(null);
       return;
     }
