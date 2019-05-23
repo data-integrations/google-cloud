@@ -15,6 +15,7 @@
  */
 package io.cdap.plugin.gcp.bigquery.sink;
 
+import com.google.cloud.bigquery.BigQuery;
 import com.google.gson.stream.JsonWriter;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
@@ -77,10 +78,10 @@ public final class BigQuerySink extends AbstractBigQuerySink {
   }
 
   @Override
-  protected void prepareRunInternal(BatchSinkContext context, String bucket) throws IOException {
+  protected void prepareRunInternal(BatchSinkContext context, BigQuery bigQuery, String bucket) throws IOException {
     Schema configSchema = config.getSchema();
     Schema schema = configSchema == null ? context.getInputSchema() : configSchema;
-    initOutput(context, config.getReferenceName(), config.getTable(), schema, bucket);
+    initOutput(context, bigQuery, config.getReferenceName(), config.getTable(), schema, bucket);
   }
 
   @Override

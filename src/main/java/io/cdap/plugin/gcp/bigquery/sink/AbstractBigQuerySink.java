@@ -15,13 +15,13 @@
  */
 package io.cdap.plugin.gcp.bigquery.sink;
 
+import com.google.auth.Credentials;
 import com.google.cloud.bigquery.BigQuery;
-import com.google.cloud.bigquery.BigQueryException;
-import com.google.cloud.bigquery.DatasetInfo;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.Table;
+import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryOutputConfiguration;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
@@ -35,6 +35,7 @@ import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
+import io.cdap.plugin.gcp.common.GCPUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -70,7 +71,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, T
   /**
    * Executes main prepare run logic. Child classes cannot override this method,
    * instead they should implement two methods {@link #prepareRunValidation(BatchSinkContext)}
-   * and {@link #prepareRunInternal(BatchSinkContext, String)} in order to add custom logic.
+   * and {@link #prepareRunInternal(BatchSinkContext, BigQuery, String)} in order to add custom logic.
    *
    * @param context batch sink context
    */
@@ -78,12 +79,19 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, T
   public final void prepareRun(BatchSinkContext context) throws Exception {
     prepareRunValidation(context);
 
-    createDataset(context.isPreviewEnabled());
-
+    AbstractBigQuerySinkConfig config = getConfig();
+    String serviceAccountFilePath = config.getServiceAccountFilePath();
+    Credentials credentials = serviceAccountFilePath == null ?
+      null : GCPUtils.loadServiceAccountCredentials(serviceAccountFilePath);
+    String project = config.getProject();
+    BigQuery bigQuery = GCPUtils.getBigQuery(project, credentials);
     baseConfiguration = getBaseConfiguration();
     String bucket = configureBucket();
+    if (!context.isPreviewEnabled()) {
+      BigQueryUtil.createResources(bigQuery, GCPUtils.getStorage(project, credentials), config.getDataset(), bucket);
+    }
 
-    prepareRunInternal(context, bucket);
+    prepareRunInternal(context, bigQuery, bucket);
   }
 
   @Override
@@ -106,15 +114,16 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, T
    * Initializes output along with lineage recording for given table and its schema.
    *
    * @param context batch sink context
+   * @param bigQuery big query client for the configured project
    * @param outputName output name
    * @param tableName table name
    * @param tableSchema table schema
    * @param bucket bucket name
    */
-  protected final void initOutput(BatchSinkContext context, String outputName,
+  protected final void initOutput(BatchSinkContext context, BigQuery bigQuery, String outputName,
                                   String tableName, @Nullable Schema tableSchema, String bucket) throws IOException {
     LOG.debug("Init output for table '{}' with schema: {}", tableName, tableSchema);
-    List<BigQueryTableFieldSchema> fields = getBigQueryTableFields(tableName,
+    List<BigQueryTableFieldSchema> fields = getBigQueryTableFields(bigQuery, tableName,
                                                                    tableSchema,
                                                                    getConfig().isAllowSchemaRelaxation());
     Configuration configuration = getOutputConfiguration(bucket, tableName, fields);
@@ -150,9 +159,11 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, T
    * or for a number of tables (for Batch Multi Sink plugin).
    *
    * @param context batch sink context
+   * @param bigQuery a big query client for the configured project
    * @param bucket bucket name
    */
-  protected abstract void prepareRunInternal(BatchSinkContext context, String bucket) throws IOException;
+  protected abstract void prepareRunInternal(BatchSinkContext context, BigQuery bigQuery,
+                                             String bucket) throws IOException;
 
   /**
    * Returns output format provider instance specific to the child classes that extend this class.
@@ -177,28 +188,6 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, T
     baseConfiguration.setBoolean(BigQueryConstants.CONFIG_ALLOW_SCHEMA_RELAXATION,
                                  getConfig().isAllowSchemaRelaxation());
     return baseConfiguration;
-  }
-
-  /**
-   * If provided dataset name does not exists in Big Query, creates it.
-   * This operation only takes place, if pipeline does not run in preview mode.
-   *
-   * @param previewEnabled indicates whether the pipeline is running in preview.
-   */
-  private void createDataset(boolean previewEnabled) throws IOException {
-    if (previewEnabled) {
-      return;
-    }
-
-    BigQuery bigquery = BigQueryUtil.getBigQuery(getConfig().getServiceAccountFilePath(), getConfig().getProject());
-    // create dataset if it does not exist
-    if (bigquery.getDataset(getConfig().getDataset()) == null) {
-      try {
-        bigquery.create(DatasetInfo.newBuilder(getConfig().getDataset()).build());
-      } catch (BigQueryException e) {
-        throw new IllegalStateException("Exception occurred while creating dataset: " + getConfig().getDataset(), e);
-      }
-    }
   }
 
   /**
@@ -241,13 +230,11 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, T
    * @param tableSchema table schema
    * @param allowSchemaRelaxation allows schema relaxation policy
    */
-  private void validateSchema(String tableName,
+  private void validateSchema(BigQuery bigQuery, String tableName,
                               Schema tableSchema,
-                              boolean allowSchemaRelaxation) throws IOException {
-
-    Table table = BigQueryUtil.getBigQueryTable(getConfig().getServiceAccountFilePath(),
-                                                getConfig().getProject(),
-                                                getConfig().getDataset(), tableName);
+                              boolean allowSchemaRelaxation) {
+    TableId tableId = TableId.of(getConfig().getProject(), getConfig().getDataset(), tableName);
+    Table table = bigQuery.getTable(tableId);
     if (table == null) {
       // Table does not exist, so no further validation is required.
       return;
@@ -319,14 +306,14 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, T
    * @param allowSchemaRelaxation if schema relaxation policy is allowed
    * @return list of Big Query fields
    */
-  private List<BigQueryTableFieldSchema> getBigQueryTableFields(String tableName,
+  private List<BigQueryTableFieldSchema> getBigQueryTableFields(BigQuery bigQuery, String tableName,
                                                                 @Nullable Schema tableSchema,
-                                                                boolean allowSchemaRelaxation) throws IOException {
+                                                                boolean allowSchemaRelaxation) {
     if (tableSchema == null) {
       return Collections.emptyList();
     }
 
-    validateSchema(tableName, tableSchema, allowSchemaRelaxation);
+    validateSchema(bigQuery, tableName, tableSchema, allowSchemaRelaxation);
 
     List<Schema.Field> inputFields = Objects.requireNonNull(tableSchema.getFields(), "Schema must have fields");
 
