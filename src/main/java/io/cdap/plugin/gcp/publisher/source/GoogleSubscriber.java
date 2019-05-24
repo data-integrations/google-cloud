@@ -120,15 +120,15 @@ public class GoogleSubscriber extends StreamingSource<StructuredRecord> {
    */
   public static class SubscriberConfig extends GCPReferenceSourceConfig {
 
-    @Description("Cloud Pub/Sub subscription to read from. If the subscription does not exist it will be " +
-      "automatically created if a topic is specified. Messages published before the subscription was created will " +
-      "not be read.")
+    @Description("Cloud Pub/Sub subscription to read from. If a subscription with the specified name does not " +
+      "exist, it will be automatically created if a topic is specified. Messages published before the subscription " +
+      "was created will not be read.")
     @Macro
     private String subscription;
 
-    @Description("Cloud Pub/Sub topic to subscribe messages from. If a topic is provided and the given subscription " +
-      "does not exists it will be created. Note: If a subscription does not exists and is created only the messages " +
-      "arrived after the creation of subscription will be received.")
+    @Description("Cloud Pub/Sub topic to create a subscription on. This is only used when the specified  " +
+      "subscription does not already exist and needs to be automatically created. If the specified " +
+      "subscription already exists, this value is ignored.")
     @Macro
     @Nullable
     private String topic;
