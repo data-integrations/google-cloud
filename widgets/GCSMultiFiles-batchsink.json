@@ -2,7 +2,7 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name": "Google Cloud Storage Multi File",
+  "display-name": "GCS Multi File",
   "configuration-groups": [
     {
       "label": "Basic",
@@ -13,14 +13,6 @@
           "name": "referenceName",
           "widget-attributes" : {
             "placeholder": "Name used to identify this sink for lineage"
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Project ID",
-          "name": "project",
-          "widget-attributes" : {
-            "default": "auto-detect"
           }
         },
         {
@@ -67,19 +59,6 @@
       ]
     },
     {
-      "label" : "Credentials",
-      "properties" : [
-        {
-          "widget-type": "textbox",
-          "label": "Service Account File Path",
-          "name": "serviceFilePath",
-          "widget-attributes" : {
-            "default": "auto-detect"
-          }
-        }
-      ]
-    },
-    {
       "label": "Advanced",
       "properties": [
         {
@@ -105,6 +84,27 @@
           }
         }
       ]
+    },
+    {
+      "label" : "Project and Credentials",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Project Id",
+          "name": "project",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        }
+      ]
     }
   ],
   "outputs": [
@@ -113,13 +113,16 @@
       "widget-type": "schema",
       "widget-attributes": {
         "schema-types": [
+          "string",
           "boolean",
           "int",
           "long",
           "float",
           "double",
+          "timestamp",
           "bytes",
-          "string"
+          "array",
+          "record"
         ],
         "schema-default-type": "string"
       }

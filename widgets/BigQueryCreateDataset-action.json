@@ -1,51 +1,36 @@
+
 {
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name" : "GCS Move",
+  "display-name": "BigQuery Create Dataset",
   "configuration-groups": [
     {
       "label": "Basic",
       "properties": [
         {
-          "name": "sourcePath",
           "widget-type": "textbox",
-          "label" : "Source Path",
-          "widget-attributes": {
-            "value-placeholder": "gs://bucket/path/to/source"
-          }
+          "label": "Name",
+          "name": "dataset"
         },
         {
-          "name": "destPath",
           "widget-type": "textbox",
-          "label" : "Destination Path",
+          "label": "Description",
+          "name": "description"
+        },
+        {
+          "name": "labels",
+          "label" : "Labels",
+          "widget-type": "keyvalue",
           "widget-attributes": {
-            "value-placeholder": "gs://bucket/path/to/destination"
+            "delimiter": ",",
+            "kv-delimiter": ":"
           }
         },
         {
+          "name": "fail-if-exists",
+          "label": "Fail if exists",
           "widget-type": "radio-group",
-          "name" : "recursive",
-          "label" : "Move All Subdirectories",
-          "widget-attributes": {
-            "layout": "inline",
-            "default": "false",
-            "options": [
-              {
-                "id": "true",
-                "label": "True"
-              },
-              {
-                "id": "false",
-                "label": "False"
-              }
-            ]
-          }
-        },
-        {
-          "widget-type": "radio-group",
-          "name" : "overwrite",
-          "label" : "Overwrite Existing Files",
           "widget-attributes": {
             "layout": "inline",
             "default": "false",
@@ -85,5 +70,29 @@
       ]
     }
   ],
-  "outputs": []
+  "outputs": [
+    {
+      "name": "schema",
+      "widget-type": "schema",
+      "widget-attributes": {
+        "schema-types": [
+          "boolean",
+          "int",
+          "long",
+          "float",
+          "double",
+          "bytes",
+          "string"
+        ],
+        "schema-default-type": "string"
+      }
+    }
+  ],
+  "jump-config": {
+    "datasets": [
+      {
+        "ref-property-name": "referenceName"
+      }
+    ]
+  }
 }

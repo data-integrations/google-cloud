@@ -1,7 +1,10 @@
-# Google Cloud Storage Delete
 
-Description
------------
+#### **Description**
+
+Delete a GCS bucket.
+
+#### **Usage**
+
 This plugin deletes objects in a Google Cloud Storage bucket.
 Cloud Storage allows world-wide storage and retrieval of any amount of data at any time.
 
@@ -13,25 +16,29 @@ Objects are the individual pieces of data that are stored in Cloud Storage.
 Object names can contain any combination of Unicode characters (UTF-8 encoded) and must be less than 1024 bytes in length.
 Object names often look like file paths.
 
-Credentials
------------
-If the plugin is run on a Google Cloud Dataproc cluster, the service account key does not need to be
-provided and can be set to 'auto-detect'.
-Credentials will be automatically read from the cluster environment.
+#### **Properties**
 
-If the plugin is not run on a Dataproc cluster, the path to a service account key must be provided.
-The service account key can be found on the Dashboard in the Cloud Platform Console.
-Make sure the account key has permission to access BigQuery and Google Cloud Storage.
-The service account key file needs to be available on every node in your cluster and
-must be readable by all users running the job.
+Following are properties used to configure this plugin
 
-Properties
-----------
-**Project ID**: The Google Cloud Project ID, which uniquely identifies a project.
+* **Objects to Delete**
+
+  Comma separated list of objects to delete.
+
+#### **Project and Credentials**
+
+If the plugin is run in GCP environment, the service account file path does not need to be
+specified and can be set to 'auto-detect'. Credentials will be automatically read from the GCP environment.
+A path to a service account key must be provided when not running in GCP. The service account
+key can be found on the Dashboard in the Cloud Platform Console. Ensure that the account key has permission
+to access resource.
+
+* **Project Id**
+
+  Google Cloud Project Id, which uniquely identifies a project.
 It can be found on the Dashboard in the Google Cloud Platform Console.
 
-**Objects to Delete**: Comma separated list of objects to delete.
+* **Service Account File Path**
 
-**Service Account File Path**: Path on the local file system of the service account key used for
-authorization. Can be set to 'auto-detect' when running on a Dataproc cluster.
-When running on other clusters, the file must be present on every node in the cluster.
+  Path on the local file system of the service account key used for
+authorization. Can be set to 'auto-detect' when running in GCP. When running on outside GCP,
+the file must be present on every node were pipeline runs.

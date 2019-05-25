@@ -2,7 +2,7 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name": "Google Cloud Datastore",
+  "display-name": "Datastore",
   "configuration-groups": [
     {
       "label" : "Basic",
@@ -13,14 +13,6 @@
           "name": "referenceName",
           "widget-attributes" : {
             "placeholder": "Name used to identify this source for lineage"
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Project ID",
-          "name": "project",
-          "widget-attributes" : {
-            "default": "auto-detect"
           }
         },
         {
@@ -76,19 +68,6 @@
       ]
     },
     {
-      "label": "Credentials",
-      "properties": [
-        {
-          "widget-type": "textbox",
-          "label": "Service Account File Path",
-          "name": "serviceFilePath",
-          "widget-attributes" : {
-            "default": "auto-detect"
-          }
-        }
-      ]
-    },
-    {
       "label": "Advanced",
       "properties": [
         {
@@ -106,6 +85,27 @@
           "name": "keyAlias",
           "widget-attributes" : {
             "placeholder": "Name used to identify user-friendly key name"
+          }
+        }
+      ]
+    },
+    {
+      "label" : "Project and Credentials",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Project Id",
+          "name": "project",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "default": "auto-detect"
           }
         }
       ]

@@ -2,7 +2,7 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name": "Google Cloud Spanner",
+  "display-name": "Spanner",
   "configuration-groups": [
     {
       "label" : "Basic",
@@ -17,18 +17,10 @@
         },
         {
           "widget-type": "textbox",
-          "label": "Project ID",
-          "name": "project",
-          "widget-attributes" : {
-            "default": "auto-detect"
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Instance ID",
+          "label": "Instance Id",
           "name": "instance",
           "widget-attributes" : {
-            "placeholder": "Instance ID"
+            "placeholder": "Instance Id"
           }
         },
         {
@@ -59,19 +51,6 @@
       ]
     },
     {
-      "label" : "Credentials",
-      "properties" : [
-        {
-          "widget-type": "textbox",
-          "label": "Service Account File Path",
-          "name": "serviceFilePath",
-          "widget-attributes" : {
-            "default": "auto-detect"
-          }
-        }
-      ]
-    },
-    {
       "label" : "Advanced",
       "properties" : [
         {
@@ -80,6 +59,27 @@
           "name": "batchSize",
           "widget-attributes" : {
             "placeholder": "Maximum number of records to buffer in RecordWriter before writing to spanner table."
+          }
+        }
+      ]
+    },
+    {
+      "label" : "Project and Credentials",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Project Id",
+          "name": "project",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "default": "auto-detect"
           }
         }
       ]

@@ -17,14 +17,6 @@
         },
         {
           "widget-type": "textbox",
-          "label": "Project ID",
-          "name": "project",
-          "widget-attributes" : {
-            "default": "auto-detect"
-          }
-        },
-        {
-          "widget-type": "textbox",
           "label": "Dataset Project ID",
           "name": "datasetProject",
           "widget-attributes" : {
@@ -68,8 +60,16 @@
       ]
     },
     {
-      "label" : "Credentials",
+      "label" : "Project and Credentials",
       "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Project Id",
+          "name": "project",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        },
         {
           "widget-type": "textbox",
           "label": "Service Account File Path",
@@ -88,11 +88,14 @@
       "widget-type": "schema",
       "widget-attributes": {
         "schema-types": [
-          "boolean",
-          "long",
-          "double",
-          "bytes",
           "string",
+          "boolean",
+          "int",
+          "long",
+          "float",
+          "double",
+          "timestamp",
+          "bytes",
           "array"
         ],
         "schema-default-type": "string"

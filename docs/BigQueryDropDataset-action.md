@@ -1,43 +1,16 @@
 
 #### **Description**
 
-Publish events to Cloud Pub/Sub topic.
+Drop a BigQuery dataset.
 
 #### **Properties**
 
 Following are properties used to configure this plugin
 
-* **Reference Name**
+* **Dataset**
 
-  Name used to uniquely identify this sink for lineage, annotating metadata, etc.
-
-* **Topic**
-
-  Name of the Google Cloud PubSub topic to publish to.
-
-* **Maximum Batch Count**
-
-  Maximum number of messages to publish in a single batch.
-Messages are published in batches to improve throughput. The default value is 100.
-
-* **Maximum Batch Size**
-
-  Maximum combined size of messages in kilobytes to publish in a single batch.
-The default value is 1 KB.
-
-* **Publish Delay Threshold**
-
-  Maximum amount of time in milliseconds to wait before publishing a batch of messages.
-The default value is 1 millisecond.
-
-* **Retry Timeout**
-
-  Maximum amount of time in seconds to retry publishing failures. The default value is 30 seconds.
-
-* **Error Threshold**
-
-  Maximum number of messages that failed to publish per partition before
-the pipeline will be failed. The default value is 0.
+  Name of dataset to be dropped. Name may contain up to 1,024
+characters and can contain letters (upper or lower case), numbers, and underscores
 
 #### **Project and Credentials**
 
@@ -57,3 +30,4 @@ It can be found on the Dashboard in the Google Cloud Platform Console.
   Path on the local file system of the service account key used for
 authorization. Can be set to 'auto-detect' when running in GCP. When running on outside GCP,
 the file must be present on every node were pipeline runs.
+

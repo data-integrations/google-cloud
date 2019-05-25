@@ -2,19 +2,11 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name" : "Google Cloud Storage Copy",
+  "display-name" : "GCS Copy",
   "configuration-groups": [
     {
       "label": "Basic",
       "properties": [
-        {
-          "widget-type": "textbox",
-          "label": "Project ID",
-          "name": "project",
-          "widget-attributes" : {
-            "default": "auto-detect"
-          }
-        },
         {
           "name": "sourcePath",
           "widget-type": "textbox",
@@ -72,8 +64,16 @@
       ]
     },
     {
-      "label" : "Credentials",
+      "label" : "Project and Credentials",
       "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Project Id",
+          "name": "project",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        },
         {
           "widget-type": "textbox",
           "label": "Service Account File Path",

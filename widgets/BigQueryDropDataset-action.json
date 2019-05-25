@@ -1,18 +1,35 @@
+
 {
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name" : "GCS Object Delete",
+  "display-name": "BigQuery Drop Dataset",
   "configuration-groups": [
     {
       "label": "Basic",
       "properties": [
         {
-          "name": "paths",
-          "widget-type": "csv",
-          "label" : "Objects to Delete",
+          "widget-type": "textbox",
+          "label": "Dataset Name",
+          "name": "dataset"
+        },
+        {
+          "name": "not-found",
+          "label": "Fail if not found",
+          "widget-type": "radio-group",
           "widget-attributes": {
-            "placeholder": "Object to delete"
+            "layout": "inline",
+            "default": "false",
+            "options": [
+              {
+                "id": "true",
+                "label": "True"
+              },
+              {
+                "id": "false",
+                "label": "False"
+              }
+            ]
           }
         }
       ]
@@ -38,6 +55,5 @@
         }
       ]
     }
-  ],
-  "outputs": []
+  ]
 }

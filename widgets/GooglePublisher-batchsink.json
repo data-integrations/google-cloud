@@ -2,7 +2,7 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name": "Google Cloud PubSub",
+  "display-name": "Pub/Sub",
   "configuration-groups": [
     {
       "label" : "Basic",
@@ -17,31 +17,10 @@
         },
         {
           "widget-type": "textbox",
-          "label": "Project ID",
-          "name": "project",
-          "widget-attributes" : {
-            "default": "auto-detect"
-          }
-        },
-        {
-          "widget-type": "textbox",
           "label": "PubSub topic",
           "name": "topic",
           "widget-attributes" : {
             "placeholder": "Topic to publish to"
-          }
-        }
-      ]
-    },
-    {
-      "label" : "Credentials",
-      "properties" : [
-        {
-          "widget-type": "textbox",
-          "label": "Service Account File Path",
-          "name": "serviceFilePath",
-          "widget-attributes" : {
-            "default": "auto-detect"
           }
         }
       ]
@@ -87,6 +66,27 @@
           "name": "errorThreshold",
           "widget-attributes" : {
             "default": "0"
+          }
+        }
+      ]
+    },
+    {
+      "label" : "Project and Credentials",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Project Id",
+          "name": "project",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "default": "auto-detect"
           }
         }
       ]
