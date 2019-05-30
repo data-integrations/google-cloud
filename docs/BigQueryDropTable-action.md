@@ -18,12 +18,9 @@ must be readable by all users running the job.
 
 Properties
 ----------
-**Reference Name:** Name used to uniquely identify this source for lineage, annotating metadata, etc.
-
 **Project ID**: Google Cloud Project ID, which uniquely identifies a project.
 It can be found on the Dashboard in the Google Cloud Platform Console. This is the project
-that the BigQuery job will run in. If a temporary bucket needs to be created, the service account
-must have permission in this project to create buckets.
+that the BigQuery job will run in.
 
 **Dataset Project**: Project the dataset belongs to. This is only required if the dataset is not
 in the same project that the BigQuery job will run in. If no value is given,
@@ -32,9 +29,10 @@ it will default to the configured Project ID.
 **Dataset**: Dataset the table belongs to. A dataset is contained within a specific project.
 Datasets are top-level containers that are used to organize and control access to tables and views.
 
-**Table**: Table to read from. A table contains individual records organized in rows.
-Each record is composed of columns (also called fields).
-Every table is defined by a schema that describes the column names, data types, and other information.
+**Table**: Name of the table to be deleted.
+
+**Drop mode**: Drop table only if it exists or attempt to drop anyway. (If later is selected, pipeline execution will 
+fail if specified table doesn't exist.)
 
 **Service Account File Path**: Path on the local file system of the service account key used for
 authorization. Can be set to 'auto-detect' when running on a Dataproc cluster.
