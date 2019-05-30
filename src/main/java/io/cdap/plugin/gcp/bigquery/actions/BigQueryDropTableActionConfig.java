@@ -35,9 +35,7 @@ public class BigQueryDropTableActionConfig extends GCPConfig {
    private String dataset;
 
    @Macro
-   @Description("The table to read from. A table contains individual records organized in rows. "
-         + "Each record is composed of columns (also called fields). "
-         + "Every table is defined by a schema that describes the column names, data types, and other information.")
+   @Description("The table to be deleted.")
    private String table;
 
    @Macro
