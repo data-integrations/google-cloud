@@ -1,0 +1,99 @@
+{
+  "metadata": {
+    "spec-version": "1.5"
+  },
+  "display-name" : "Google Cloud BigQuery Drop Table",
+  "configuration-groups": [
+    {
+      "label": "Basic",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Project ID",
+          "name": "project",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        }
+      ]
+    },
+    {
+      "label" : "Credentials",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Reference Name",
+          "name": "referenceName",
+          "widget-attributes" : {
+            "placeholder": "Name used to identify this source for lineage"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Project ID",
+          "name": "project",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Dataset Project ID",
+          "name": "datasetProject",
+          "widget-attributes" : {
+            "placeholder": "Project the dataset belongs to, if different from the Project ID."
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Dataset",
+          "name": "dataset",
+          "widget-attributes" : {
+            "placeholder": "Dataset the tables belongs to"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Table",
+          "name": "table",
+          "widget-attributes" : {
+            "placeholder": "Comma-separated list of tables to drop"
+          }
+        },
+        {
+          "widget-type": "radio-group",
+          "label": "Drop mode",
+          "name": "dropOnlyIfExists",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "true",
+            "options": [
+              {
+                "id": "true",
+                "label": "Drop if exists"
+              },
+              {
+                "id": "false",
+                "label": "Drop always"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "label" : "Credentials",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        }
+      ]
+    }
+  ],
+  "outputs": []
+}
