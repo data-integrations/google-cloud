@@ -62,7 +62,7 @@
         },
         {
           "widget-type": "radio-group",
-          "label": "Drop mode",
+          "label": "Drop Mode",
           "name": "dropOnlyIfExists",
           "widget-attributes": {
             "layout": "inline",

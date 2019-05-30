@@ -31,7 +31,7 @@ Datasets are top-level containers that are used to organize and control access t
 
 **Table**: Name of the table to be deleted.
 
-**Drop mode**: Drop table only if it exists or attempt to drop anyway. (If later is selected, pipeline execution will 
+**Drop Mode**: Drop table only if it exists or attempt to drop anyway. (If later is selected, pipeline execution will 
 fail if specified table doesn't exist.)
 
 **Service Account File Path**: Path on the local file system of the service account key used for
