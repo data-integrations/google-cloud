@@ -27,7 +27,6 @@ import javax.annotation.Nullable;
  * configuring the <code>BigQueryDropTableAction</code> plugin.
  */
 public class BigQueryDropTableActionConfig extends GCPConfig {
-   private static final String SCHEME = "gs://";
 
    @Macro
    @Description("The dataset the table belongs to. A dataset is contained within a specific project. "

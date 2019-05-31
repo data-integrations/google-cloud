@@ -44,9 +44,9 @@ public class BigQueryDropTableAction extends Action {
 
       if (Objects.nonNull(table)) {
          table.delete();
-      } else if (config.getDropOnlyIfExists()) {
+      } else if (!config.getDropOnlyIfExists()) {
          // Table does not exist
-         throw new IllegalArgumentException(String.format("BigQuery table '%s:%s.%s' does not exist.",
+         throw new IllegalStateException(String.format("BigQuery table '%s:%s.%s' does not exist.",
                project, dataset, tableNames));
       }
    }
