@@ -18,8 +18,10 @@ package io.cdap.plugin.gcp.bigquery.actions;
 import com.google.cloud.ServiceOptions;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
+import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
 import io.cdap.plugin.gcp.common.GCPConfig;
 
+import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
 /**
@@ -27,43 +29,60 @@ import javax.annotation.Nullable;
  * configuring the <code>BigQueryDropTableAction</code> plugin.
  */
 public class BigQueryDropTableActionConfig extends GCPConfig {
+  private static final String BQ_NAME_REGEX = "^[_a-zA-Z0-9]{1,1024}$";
 
-   @Macro
-   @Description("The dataset the table belongs to. A dataset is contained within a specific project. "
-         + "Datasets are top-level containers that are used to organize and control access to tables and views.")
-   private String dataset;
+  @Macro
+  @Description("The dataset the table belongs to. A dataset is contained within a specific project. "
+      + "Datasets are top-level containers that are used to organize and control access to tables and views.")
+  private String dataset;
 
-   @Macro
-   @Description("The table to be deleted.")
-   private String table;
+  @Macro
+  @Description("The table to be deleted.")
+  private String table;
 
-   @Macro
-   @Nullable
-   @Description("The project the dataset belongs to. This is only required if the dataset is not "
-         + "in the same project that the BigQuery job will run in. If no value is given, it will default to the "
-         + "configured project ID.")
-   private String datasetProject;
+  @Macro
+  @Nullable
+  @Description("The project the dataset belongs to. This is only required if the dataset is not "
+      + "in the same project that the BigQuery job will run in. If no value is given, it will default to the "
+      + "configured project ID.")
+  private String datasetProject;
 
-   @Description("Drop table only if it exists or attempt to drop unconditionally (may result in pipeline "
-         + "failure if table doesn't exist).")
-   private Boolean dropOnlyIfExists;
+  @Description("Drop table only if it exists or attempt to drop unconditionally (may result in pipeline "
+      + "failure if table doesn't exist).")
+  private Boolean dropOnlyIfExists;
 
-   public String getDataset() {
-      return dataset;
-   }
+  public String getDataset() {
+    return dataset;
+  }
 
-   public String getTable() {
-      return table;
-   }
+  public String getTable() {
+    return table;
+  }
 
-   public Boolean getDropOnlyIfExists() {
-      return dropOnlyIfExists;
-   }
+  public Boolean getDropOnlyIfExists() {
+    return dropOnlyIfExists;
+  }
 
-   public String getDatasetProject() {
-      if (GCPConfig.AUTO_DETECT.equalsIgnoreCase(datasetProject)) {
-         return ServiceOptions.getDefaultProjectId();
-      }
-      return datasetProject == null ? getProject() : datasetProject;
-   }
+  public String getDatasetProject() {
+    if (GCPConfig.AUTO_DETECT.equalsIgnoreCase(datasetProject)) {
+      return ServiceOptions.getDefaultProjectId();
+    }
+    return datasetProject == null ? getProject() : datasetProject;
+  }
+
+  public void validate() {
+    String table = getTable();
+    String dataset = getDataset();
+
+    Pattern p = Pattern.compile(BQ_NAME_REGEX);
+
+    if (!p.matcher(table).matches()) {
+      throw new InvalidConfigPropertyException("Table name can only contain lowercase characters, " +
+          "numbers and underscores.", "table");
+    }
+    if (!p.matcher(dataset).matches()) {
+      throw new InvalidConfigPropertyException("Dataset name can only contain lowercase characters, " +
+          "numbers and underscores.", "dataset");
+    }
+  }
 }

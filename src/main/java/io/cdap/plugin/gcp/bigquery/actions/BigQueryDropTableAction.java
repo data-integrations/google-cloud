@@ -33,21 +33,23 @@ import java.util.Objects;
 @Name("BigQueryDropTable")
 @Description("This action drops given BigQuery table.")
 public class BigQueryDropTableAction extends Action {
-   private BigQueryDropTableActionConfig config;
+  private BigQueryDropTableActionConfig config;
 
-   @Override
-   public void run(ActionContext actionContext) throws Exception {
-      String dataset = config.getDataset();
-      String tableNames = config.getTable();
-      String project = config.getDatasetProject();
-      Table table = BigQueryUtil.getBigQueryTable(config.getServiceAccountFilePath(), project, dataset, tableNames);
+  @Override
+  public void run(ActionContext actionContext) throws Exception {
+    config.validate();
 
-      if (Objects.nonNull(table)) {
-         table.delete();
-      } else if (!config.getDropOnlyIfExists()) {
-         // Table does not exist
-         throw new IllegalStateException(String.format("BigQuery table '%s:%s.%s' does not exist.",
-               project, dataset, tableNames));
-      }
-   }
+    String dataset = config.getDataset();
+    String tableNames = config.getTable();
+    String project = config.getDatasetProject();
+    Table table = BigQueryUtil.getBigQueryTable(config.getServiceAccountFilePath(), project, dataset, tableNames);
+
+    if (Objects.nonNull(table)) {
+      table.delete();
+    } else if (!config.getDropOnlyIfExists()) {
+      // Table does not exist
+      throw new IllegalStateException(String.format("BigQuery table '%s:%s.%s' does not exist.",
+          project, dataset, tableNames));
+    }
+  }
 }
