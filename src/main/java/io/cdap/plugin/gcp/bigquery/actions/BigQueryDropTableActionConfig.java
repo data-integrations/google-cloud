@@ -77,11 +77,11 @@ public class BigQueryDropTableActionConfig extends GCPConfig {
     Pattern p = Pattern.compile(BQ_NAME_REGEX);
 
     if (!p.matcher(table).matches()) {
-      throw new InvalidConfigPropertyException("Table name can only contain lowercase characters, " +
+      throw new InvalidConfigPropertyException("Table name can only contain letters, " +
           "numbers and underscores.", "table");
     }
     if (!p.matcher(dataset).matches()) {
-      throw new InvalidConfigPropertyException("Dataset name can only contain lowercase characters, " +
+      throw new InvalidConfigPropertyException("Dataset name can only contain letters, " +
           "numbers and underscores.", "dataset");
     }
   }
