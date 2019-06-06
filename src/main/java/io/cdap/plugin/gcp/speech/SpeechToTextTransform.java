@@ -262,11 +262,12 @@ public class SpeechToTextTransform extends Transform<StructuredRecord, Structure
       "text.")
     private String transcriptionTextField;
 
+    @Macro
+    @Nullable
     @Name("serviceFilePath")
     @Description("Path on the local file system of the service account key used for authorization. Can be set to " +
       "'auto-detect' when running on a Dataproc cluster. When running on other clusters, the file must be present on " +
       "every node in the cluster.")
-    @Macro
     private String serviceAccountFilePath;
 
     @Nullable
