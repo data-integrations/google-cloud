@@ -17,11 +17,6 @@
         },
         {
           "widget-type": "textbox",
-          "label": "Namespace",
-          "name": "namespace"
-        },
-        {
-          "widget-type": "textbox",
           "label": "Kind",
           "name": "kind",
           "plugin-function": {
@@ -33,6 +28,43 @@
                 "name": "schema"
               }
             ]
+          }
+        },
+        {
+          "widget-type": "select",
+          "label": "Key Type",
+          "name": "keyType",
+          "widget-attributes": {
+            "default": "None",
+            "values": ["None", "Key literal", "URL-safe key"]
+          }
+        },
+        {
+          "widget-type": "number",
+          "label": "Number of Splits",
+          "name": "numSplits",
+          "widget-attributes": {
+            "default": "1",
+            "min": "1",
+            "max": "2147483647"
+          }
+        }
+      ]
+    },
+    {
+      "label": "Advanced",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Namespace",
+          "name": "namespace"
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Key Alias",
+          "name": "keyAlias",
+          "widget-attributes" : {
+            "placeholder": "Name used to identify user-friendly key name"
           }
         },
         {
@@ -53,38 +85,6 @@
             "kv-delimiter": "|",
             "key-placeholder": "Property Name",
             "value-placeholder": "Property Value"
-          }
-        },
-        {
-          "widget-type": "number",
-          "label": "Number of Splits",
-          "name": "numSplits",
-          "widget-attributes": {
-            "default": "1",
-            "min": "1",
-            "max": "2147483647"
-          }
-        }
-      ]
-    },
-    {
-      "label": "Advanced",
-      "properties": [
-        {
-          "widget-type": "select",
-          "label": "Key Type",
-          "name": "keyType",
-          "widget-attributes": {
-            "default": "None",
-            "values": ["None", "Key literal", "URL-safe key"]
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Key Alias",
-          "name": "keyAlias",
-          "widget-attributes" : {
-            "placeholder": "Name used to identify user-friendly key name"
           }
         }
       ]

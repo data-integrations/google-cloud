@@ -22,7 +22,12 @@
           "widget-attributes": {
             "placeholder": "gs://<bucket>/path/to/input"
           }
-        },
+        }
+      ]
+    },
+    {
+      "label": "Advanced",
+      "properties": [
         {
           "widget-type": "select",
           "label": "Format",
@@ -48,12 +53,7 @@
           "widget-attributes": {
             "placeholder": "Delimiter if the format is 'delimited'"
           }
-        }
-      ]
-    },
-    {
-      "label": "Advanced",
-      "properties": [
+        },
         {
           "widget-type": "textbox",
           "label": "Maximum Split Size",
