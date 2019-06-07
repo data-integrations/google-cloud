@@ -17,13 +17,17 @@
 package io.cdap.plugin.gcp.bigquery.util;
 
 import com.google.cloud.bigquery.BigQuery;
-import com.google.cloud.bigquery.BigQueryOptions;
+import com.google.cloud.bigquery.BigQueryException;
+import com.google.cloud.bigquery.Dataset;
+import com.google.cloud.bigquery.DatasetInfo;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.LegacySQLTypeName;
-import com.google.cloud.bigquery.Table;
-import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
+import com.google.cloud.storage.Bucket;
+import com.google.cloud.storage.BucketInfo;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageException;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.data.schema.Schema;
@@ -40,11 +44,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
-
-import static io.cdap.plugin.gcp.common.GCPUtils.loadServiceAccountCredentials;
 
 /**
  * Common Util class for big query plugins such as {@link BigQuerySource} and {@link BigQuerySink}
@@ -121,37 +124,78 @@ public final class BigQueryUtil {
   }
 
   /**
-   * Get BigQuery Table.
+   * Creates the given dataset and bucket if they do not already exist. If the dataset already exists but the
+   * bucket does not, the bucket will be created in the same location as the dataset. If the bucket already exists
+   * but the dataset does not, the dataset will attempt to be created in the same location. This may fail if the bucket
+   * is in a location that BigQuery does not yet support.
    *
-   * @param serviceAccountFilePath service account file path
-   * @param project BigQuery project ID
-   * @param dataset dataset for the BigQuery table
-   * @param table BigQuery table
-   * @return returns BigQuery table
-   * @throws IOException if not able to load credentials
+   * @param bigQuery the bigquery client for the project
+   * @param storage the storage client for the project
+   * @param datasetName the name of the dataset
+   * @param bucketName the name of the bucket
+   * @throws IOException if there was an error creating or fetching any GCP resource
    */
-  @Nullable
-  public static Table getBigQueryTable(@Nullable String serviceAccountFilePath, String project,
-                                String dataset, String table) throws IOException {
-    BigQuery bigquery = getBigQuery(serviceAccountFilePath, project);
+  public static void createResources(BigQuery bigQuery, Storage storage,
+                                     String datasetName, String bucketName) throws IOException {
+    Dataset dataset = bigQuery.getDataset(datasetName);
+    Bucket bucket = storage.get(bucketName);
 
-    TableId id = TableId.of(project, dataset, table);
-    return bigquery.getTable(id);
+    if (dataset == null && bucket == null) {
+      createBucket(storage, bucketName, null,
+                   () -> String.format("Unable to create Cloud Storage bucket '%s'", bucketName));
+      createDataset(bigQuery, datasetName, null,
+                    () -> String.format("Unable to create BigQuery dataset '%s'", datasetName));
+    } else if (bucket == null) {
+      createBucket(
+        storage, bucketName, dataset.getLocation(),
+        () -> String.format(
+          "Unable to create Cloud Storage bucket '%s' in the same location ('%s') as BigQuery dataset '%s'. "
+            + "Please use a bucket that is in the same location as the dataset.",
+          bucketName, dataset.getLocation(), datasetName));
+    } else if (dataset == null) {
+      createDataset(
+        bigQuery, datasetName, bucket.getLocation(),
+        () -> String.format(
+          "Unable to create BigQuery dataset '%s' in the same location ('%s') as Cloud Storage bucket '%s'. "
+            + "Please use a bucket that is in a supported location.",
+          datasetName, bucket.getLocation(), bucketName));
+    }
   }
 
-  /**
-   * Get BigQuery service
-   * @param serviceAccountFilePath service account file path
-   * @param project BigQuery project ID
-   */
-  public static BigQuery getBigQuery(@Nullable String serviceAccountFilePath, String project) throws IOException {
-    BigQueryOptions.Builder bigqueryBuilder = BigQueryOptions.newBuilder();
-    if (serviceAccountFilePath != null) {
-      bigqueryBuilder.setCredentials(loadServiceAccountCredentials(serviceAccountFilePath));
+  private static void createDataset(BigQuery bigQuery, String dataset, @Nullable String location,
+                                    Supplier<String> errorMessage) throws IOException {
+    DatasetInfo.Builder builder = DatasetInfo.newBuilder(dataset);
+    if (location != null) {
+      builder.setLocation(location);
     }
+    try {
+      bigQuery.create(builder.build());
+    } catch (BigQueryException e) {
+      if (e.getCode() != 409) {
+        // A conflict means the dataset already exists (https://cloud.google.com/bigquery/troubleshooting-errors)
+        // This most likely means multiple stages in the same pipeline are trying to create the same dataset.
+        // Ignore this and move on, since all that matters is that the dataset exists.
+        throw new IOException(errorMessage.get(), e);
+      }
+    }
+  }
 
-    bigqueryBuilder.setProjectId(project);
-    return bigqueryBuilder.build().getService();
+  private static void createBucket(Storage storage, String bucket, @Nullable String location,
+                                   Supplier<String> errorMessage) throws IOException {
+    BucketInfo.Builder builder = BucketInfo.newBuilder(bucket);
+    if (location != null) {
+      builder.setLocation(location);
+    }
+    try {
+      storage.create(builder.build());
+    } catch (StorageException e) {
+      if (e.getCode() != 409) {
+        // A conflict means the bucket already exists
+        // This most likely means multiple stages in the same pipeline are trying to create the same dataset.
+        // Ignore this and move on, since all that matters is that the dataset exists.
+        throw new IOException(errorMessage.get(), e);
+      }
+    }
   }
 
   /**

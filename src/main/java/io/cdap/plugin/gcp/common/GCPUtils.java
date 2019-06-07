@@ -16,7 +16,12 @@
 
 package io.cdap.plugin.gcp.common;
 
+import com.google.auth.Credentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
+import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryOptions;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageOptions;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 import io.cdap.plugin.gcp.gcs.sink.GCSBatchSink.GCSBatchSinkConfig;
 
@@ -25,6 +30,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 /**
  * GCP utility class to get service account credentials
@@ -53,5 +59,21 @@ public class GCPUtils {
     properties.put("fs.gs.working.dir", GCSPath.ROOT_DIR);
     properties.put("fs.gs.impl.disable.cache", "true");
     return properties;
+  }
+
+  public static BigQuery getBigQuery(String project, @Nullable Credentials credentials) {
+    BigQueryOptions.Builder bigqueryBuilder = BigQueryOptions.newBuilder().setProjectId(project);
+    if (credentials != null) {
+      bigqueryBuilder.setCredentials(credentials);
+    }
+    return bigqueryBuilder.build().getService();
+  }
+
+  public static Storage getStorage(String project, @Nullable Credentials credentials) {
+    StorageOptions.Builder builder = StorageOptions.newBuilder().setProjectId(project);
+    if (credentials != null) {
+      builder.setCredentials(credentials);
+    }
+    return builder.build().getService();
   }
 }
