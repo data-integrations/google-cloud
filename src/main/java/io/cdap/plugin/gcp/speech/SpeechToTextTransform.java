@@ -258,8 +258,8 @@ public class SpeechToTextTransform extends Transform<StructuredRecord, Structure
 
     @Macro
     @Nullable
-    @Description("If a field name is specified then the transcription with highest confidence score will be stored as " +
-      "text.")
+    @Description("If a field name is specified then the transcription with highest confidence score will be stored " +
+      "as text.")
     private String transcriptionTextField;
 
     @Macro
