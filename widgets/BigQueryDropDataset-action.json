@@ -1,0 +1,61 @@
+
+{
+  "metadata": {
+    "spec-version": "1.5"
+  },
+  "display-name": "BQ Drop Dataset",
+  "configuration-groups": [
+    {
+      "label": "Basic",
+      "description" : "This section of configuration allows to configure information about dataset to be dropped.",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Dataset Name",
+          "name": "dataset"
+        },
+        {
+          "name": "not-found",
+          "label": "Fail if not found",
+          "widget-type": "radio-group",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "false",
+            "options": [
+              {
+                "id": "true",
+                "label": "True"
+              },
+              {
+                "id": "false",
+                "label": "False"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "label" : "Advanced",
+      "description" : "This section of configuration allows to specify advanced configurations when running outside of GCP environment or when dataset need to be created in a project.",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Project Id",
+          "name": "project",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        }
+      ]
+    }
+  ]
+}

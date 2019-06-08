@@ -1,0 +1,75 @@
+
+{
+  "metadata": {
+    "spec-version": "1.5"
+  },
+  "display-name": "BQ Create Dataset",
+  "configuration-groups": [
+    {
+      "label": "Basic",
+      "description": "This section of configuration allows to configure information about new dataset to be created.",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Name",
+          "name": "dataset"
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Description",
+          "name": "description"
+        },
+        {
+          "name": "labels",
+          "label" : "Labels",
+          "widget-type": "keyvalue",
+          "widget-attributes": {
+            "delimiter": ",",
+            "kv-delimiter": ":"
+          }
+        },
+        {
+          "name": "fail-if-exists",
+          "label": "Fail if exists",
+          "widget-type": "radio-group",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "false",
+            "options": [
+              {
+                "id": "true",
+                "label": "True"
+              },
+              {
+                "id": "false",
+                "label": "False"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "label" : "Advanced",
+      "description": "This section of configuration allows to specify advanced configurations when running outside of GCP environment or when dataset need to be created in a project.",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Project Id",
+          "name": "project",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        }
+      ]
+    }
+  ]
+}
