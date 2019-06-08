@@ -17,13 +17,17 @@
 package io.cdap.plugin.gcp.bigquery.util;
 
 import com.google.cloud.bigquery.BigQuery;
-import com.google.cloud.bigquery.BigQueryOptions;
+import com.google.cloud.bigquery.BigQueryException;
+import com.google.cloud.bigquery.Dataset;
+import com.google.cloud.bigquery.DatasetInfo;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.LegacySQLTypeName;
-import com.google.cloud.bigquery.Table;
-import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
+import com.google.cloud.storage.Bucket;
+import com.google.cloud.storage.BucketInfo;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageException;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.data.schema.Schema;
@@ -40,17 +44,20 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
-
-import static io.cdap.plugin.gcp.common.GCPUtils.loadServiceAccountCredentials;
 
 /**
  * Common Util class for big query plugins such as {@link BigQuerySource} and {@link BigQuerySink}
  */
 public final class BigQueryUtil {
-  public static final Set<Schema.Type> SUPPORTED_COMPLEX_TYPES = ImmutableSet.of(Schema.Type.ARRAY);
+  public static final Set<Schema.Type> SUPPORTED_TYPES =
+    ImmutableSet.of(Schema.Type.INT, Schema.Type.LONG, Schema.Type.STRING, Schema.Type.FLOAT, Schema.Type.DOUBLE,
+                    Schema.Type.BOOLEAN, Schema.Type.BYTES, Schema.Type.ARRAY);
+  // array of arrays and map of arrays are not supported by big query
+  public static final Set<Schema.Type> UNSUPPORTED_ARRAY_TYPES = ImmutableSet.of(Schema.Type.ARRAY, Schema.Type.MAP);
 
   private static final Map<Schema.Type, Set<LegacySQLTypeName>> TYPE_MAP = ImmutableMap.<Schema.Type,
     Set<LegacySQLTypeName>>builder()
@@ -63,12 +70,14 @@ public final class BigQueryUtil {
     .put(Schema.Type.BYTES, ImmutableSet.of(LegacySQLTypeName.BYTES))
     .build();
 
-  private static final Map<Schema.LogicalType, LegacySQLTypeName> LOGICAL_TYPE_MAP = ImmutableMap.of(
-    Schema.LogicalType.DATE, LegacySQLTypeName.DATE,
-    Schema.LogicalType.TIME_MILLIS, LegacySQLTypeName.TIME, Schema.LogicalType.TIME_MICROS, LegacySQLTypeName.TIME,
-    Schema.LogicalType.TIMESTAMP_MILLIS, LegacySQLTypeName.TIMESTAMP,
-    Schema.LogicalType.TIMESTAMP_MICROS, LegacySQLTypeName.TIMESTAMP
-  );
+  private static final Map<Schema.LogicalType, LegacySQLTypeName> LOGICAL_TYPE_MAP =
+    ImmutableMap.<Schema.LogicalType, LegacySQLTypeName>builder()
+      .put(Schema.LogicalType.DATE, LegacySQLTypeName.DATE)
+      .put(Schema.LogicalType.TIME_MILLIS, LegacySQLTypeName.TIME)
+      .put(Schema.LogicalType.TIME_MICROS, LegacySQLTypeName.TIME)
+      .put(Schema.LogicalType.TIMESTAMP_MILLIS, LegacySQLTypeName.TIMESTAMP)
+      .put(Schema.LogicalType.TIMESTAMP_MICROS, LegacySQLTypeName.TIMESTAMP)
+      .put(Schema.LogicalType.DECIMAL, LegacySQLTypeName.NUMERIC).build();
 
   /**
    * Gets non nullable type from provided schema.
@@ -115,37 +124,78 @@ public final class BigQueryUtil {
   }
 
   /**
-   * Get BigQuery Table.
+   * Creates the given dataset and bucket if they do not already exist. If the dataset already exists but the
+   * bucket does not, the bucket will be created in the same location as the dataset. If the bucket already exists
+   * but the dataset does not, the dataset will attempt to be created in the same location. This may fail if the bucket
+   * is in a location that BigQuery does not yet support.
    *
-   * @param serviceAccountFilePath service account file path
-   * @param project BigQuery project ID
-   * @param dataset dataset for the BigQuery table
-   * @param table BigQuery table
-   * @return returns BigQuery table
-   * @throws IOException if not able to load credentials
+   * @param bigQuery the bigquery client for the project
+   * @param storage the storage client for the project
+   * @param datasetName the name of the dataset
+   * @param bucketName the name of the bucket
+   * @throws IOException if there was an error creating or fetching any GCP resource
    */
-  @Nullable
-  public static Table getBigQueryTable(@Nullable String serviceAccountFilePath, String project,
-                                String dataset, String table) throws IOException {
-    BigQuery bigquery = getBigQuery(serviceAccountFilePath, project);
+  public static void createResources(BigQuery bigQuery, Storage storage,
+                                     String datasetName, String bucketName) throws IOException {
+    Dataset dataset = bigQuery.getDataset(datasetName);
+    Bucket bucket = storage.get(bucketName);
 
-    TableId id = TableId.of(project, dataset, table);
-    return bigquery.getTable(id);
+    if (dataset == null && bucket == null) {
+      createBucket(storage, bucketName, null,
+                   () -> String.format("Unable to create Cloud Storage bucket '%s'", bucketName));
+      createDataset(bigQuery, datasetName, null,
+                    () -> String.format("Unable to create BigQuery dataset '%s'", datasetName));
+    } else if (bucket == null) {
+      createBucket(
+        storage, bucketName, dataset.getLocation(),
+        () -> String.format(
+          "Unable to create Cloud Storage bucket '%s' in the same location ('%s') as BigQuery dataset '%s'. "
+            + "Please use a bucket that is in the same location as the dataset.",
+          bucketName, dataset.getLocation(), datasetName));
+    } else if (dataset == null) {
+      createDataset(
+        bigQuery, datasetName, bucket.getLocation(),
+        () -> String.format(
+          "Unable to create BigQuery dataset '%s' in the same location ('%s') as Cloud Storage bucket '%s'. "
+            + "Please use a bucket that is in a supported location.",
+          datasetName, bucket.getLocation(), bucketName));
+    }
   }
 
-  /**
-   * Get BigQuery service
-   * @param serviceAccountFilePath service account file path
-   * @param project BigQuery project ID
-   */
-  public static BigQuery getBigQuery(@Nullable String serviceAccountFilePath, String project) throws IOException {
-    BigQueryOptions.Builder bigqueryBuilder = BigQueryOptions.newBuilder();
-    if (serviceAccountFilePath != null) {
-      bigqueryBuilder.setCredentials(loadServiceAccountCredentials(serviceAccountFilePath));
+  private static void createDataset(BigQuery bigQuery, String dataset, @Nullable String location,
+                                    Supplier<String> errorMessage) throws IOException {
+    DatasetInfo.Builder builder = DatasetInfo.newBuilder(dataset);
+    if (location != null) {
+      builder.setLocation(location);
     }
+    try {
+      bigQuery.create(builder.build());
+    } catch (BigQueryException e) {
+      if (e.getCode() != 409) {
+        // A conflict means the dataset already exists (https://cloud.google.com/bigquery/troubleshooting-errors)
+        // This most likely means multiple stages in the same pipeline are trying to create the same dataset.
+        // Ignore this and move on, since all that matters is that the dataset exists.
+        throw new IOException(errorMessage.get(), e);
+      }
+    }
+  }
 
-    bigqueryBuilder.setProjectId(project);
-    return bigqueryBuilder.build().getService();
+  private static void createBucket(Storage storage, String bucket, @Nullable String location,
+                                   Supplier<String> errorMessage) throws IOException {
+    BucketInfo.Builder builder = BucketInfo.newBuilder(bucket);
+    if (location != null) {
+      builder.setLocation(location);
+    }
+    try {
+      storage.create(builder.build());
+    } catch (StorageException e) {
+      if (e.getCode() != 409) {
+        // A conflict means the bucket already exists
+        // This most likely means multiple stages in the same pipeline are trying to create the same dataset.
+        // Ignore this and move on, since all that matters is that the dataset exists.
+        throw new IOException(errorMessage.get(), e);
+      }
+    }
   }
 
   /**
@@ -177,18 +227,32 @@ public final class BigQueryUtil {
                         field.getName(), logicalType, bqField.getName(), dataset, table,
                         bqField.getType(), bqField.getType()));
       }
+
+      // BigQuery schema precision must be at most 38 and scale at most 9
+      if (logicalType == Schema.LogicalType.DECIMAL) {
+        if (fieldSchema.getPrecision() > 38 || fieldSchema.getScale() > 9) {
+          throw new IllegalArgumentException(
+            String.format("Numeric Field '%s' has invalid precision '%s' and scale '%s'. " +
+                            "Precision must be at most 38 and scale must be at most 9.",
+                          field.getName(), fieldSchema.getPrecision(), fieldSchema.getScale()));
+        }
+      }
+
       // Return once logical types are validated. This is because logical types are represented as primitive types
       // internally.
       return;
     }
 
-    if (TYPE_MAP.get(type) == null && !SUPPORTED_COMPLEX_TYPES.contains(type)) {
+    if (!SUPPORTED_TYPES.contains(type)) {
       throw new IllegalArgumentException(String.format("Field '%s' is of unsupported type '%s'",
                                                        field.getName(), type));
     }
 
-    if (bqField.getMode() == Field.Mode.REPEATED && type == Schema.Type.ARRAY) {
-      type = getNonNullableSchema(fieldSchema.getComponentSchema()).getType();
+    if (type == Schema.Type.ARRAY) {
+      validateArraySchema(field.getSchema(), field.getName());
+      if (bqField.getMode() == Field.Mode.REPEATED) {
+        type = fieldSchema.getComponentSchema().getType();
+      }
     }
 
     if (!TYPE_MAP.get(type).contains(bqField.getType())) {
@@ -252,4 +316,29 @@ public final class BigQueryUtil {
       .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
   }
 
+  /**
+   * Validates schema of type array. BigQuery does not allow nullable arrays or nullable type within array.
+   *
+   * @param arraySchema schema of array field
+   * @param name name of the array field
+   * @throws IllegalArgumentException if the schema is not a valid BigQuery schema
+   */
+  public static void validateArraySchema(Schema arraySchema, String name) {
+    if (arraySchema.isNullable()) {
+      throw new IllegalArgumentException(String.format("Field '%s' is of type array. " +
+                                                         "BigQuery does not allow nullable arrays.", name));
+    }
+
+    Schema componentSchema = arraySchema.getComponentSchema();
+    if (componentSchema.isNullable()) {
+      throw new IllegalArgumentException(String.format("Field '%s' contains null values in its array, " +
+                                                         "which is not allowed by BigQuery.", name));
+    }
+
+    if (UNSUPPORTED_ARRAY_TYPES.contains(componentSchema.getType())) {
+      throw new IllegalArgumentException(String.format("Field '%s' is of %s type within array, " +
+                                                         "which is not a valid BigQuery type.",
+                                                       name, componentSchema));
+    }
+  }
 }

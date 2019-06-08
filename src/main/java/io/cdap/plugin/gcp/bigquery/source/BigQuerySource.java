@@ -16,11 +16,15 @@
 
 package io.cdap.plugin.gcp.bigquery.source;
 
+import com.google.auth.Credentials;
+import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.StandardSQLTypeName;
 import com.google.cloud.bigquery.Table;
+import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.AvroBigQueryInputFormat;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import io.cdap.cdap.api.annotation.Description;
@@ -40,6 +44,7 @@ import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
 import io.cdap.cdap.etl.api.validation.InvalidStageException;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
+import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.common.Schemas;
 import org.apache.avro.generic.GenericData;
 import org.apache.hadoop.conf.Configuration;
@@ -81,7 +86,8 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     super.configurePipeline(configurer);
     config.validate();
 
-    if (config.containsMacro("schema")) {
+    if (config.containsMacro("schema") || config.containsMacro("dataset") || config.containsMacro("table") ||
+      config.containsMacro("datasetProject")) {
       configurer.getStageConfigurer().setOutputSchema(null);
       return;
     }
@@ -104,7 +110,11 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
   @Override
   public void prepareRun(BatchSourceContext context) throws Exception {
     config.validate();
-    validateOutputSchema();
+    String serviceAccountPath = config.getServiceAccountFilePath();
+    Credentials credentials = serviceAccountPath == null ?
+      null : GCPUtils.loadServiceAccountCredentials(serviceAccountPath);
+    BigQuery bigQuery = GCPUtils.getBigQuery(config.getDatasetProject(), credentials);
+    validateOutputSchema(bigQuery);
 
     uuid = UUID.randomUUID();
     configuration = BigQueryUtil.getBigQueryConfig(config.getServiceAccountFilePath(), config.getProject());
@@ -115,6 +125,11 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
       // By default, this option is false, meaning the job can not delete the bucket. So enable it only when bucket name
       // is not provided.
       configuration.setBoolean("fs.gs.bucket.delete.enable", true);
+    }
+
+    if (!context.isPreviewEnabled()) {
+      BigQueryUtil.createResources(bigQuery, GCPUtils.getStorage(config.getDatasetProject(), credentials),
+                                   config.getDataset(), bucket);
     }
 
     configuration.set("fs.gs.system.bucket", bucket);
@@ -161,25 +176,38 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     org.apache.hadoop.fs.Path gcsPath = new org.apache.hadoop.fs.Path(String.format("gs://%s", uuid.toString()));
     try {
       if (config.getBucket() == null) {
-          FileSystem fs = gcsPath.getFileSystem(configuration);
-          if (fs.exists(gcsPath)) {
-            fs.delete(gcsPath, true);
-          }
+        FileSystem fs = gcsPath.getFileSystem(configuration);
+        if (fs.exists(gcsPath)) {
+          fs.delete(gcsPath, true);
+        }
       }
     } catch (IOException e) {
       LOG.warn("Failed to delete bucket " + gcsPath.toUri().getPath() + ", " + e.getMessage());
     }
   }
 
-
   public Schema getSchema() {
     String dataset = config.getDataset();
     String tableName = config.getTable();
     String project = config.getDatasetProject();
+    TableId tableId = TableId.of(project, dataset, tableName);
+
+    String serviceAccountPath = config.getServiceAccountFilePath();
+    Credentials credentials = null;
+    if (serviceAccountPath != null) {
+      try {
+        credentials = GCPUtils.loadServiceAccountCredentials(serviceAccountPath);
+      } catch (IOException e) {
+        throw new InvalidConfigPropertyException(
+          String.format("Unable to load credentials from %s", serviceAccountPath), "serviceFilePath");
+      }
+    }
+    BigQuery bigQuery = GCPUtils.getBigQuery(config.getDatasetProject(), credentials);
+
     Table table;
     try {
-      table = BigQueryUtil.getBigQueryTable(config.getServiceAccountFilePath(), project, dataset, tableName);
-    } catch (IOException e) {
+      table = bigQuery.getTable(tableId);
+    } catch (BigQueryException e) {
       throw new InvalidStageException("Unable to get details about the BigQuery table: " + e.getMessage(), e);
     }
     if (table == null) {
@@ -201,11 +229,12 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
    * Validate output schema. This is needed because its possible that output schema is set without using
    * {@link #getSchema()} method.
    */
-  private void validateOutputSchema() throws IOException {
+  private void validateOutputSchema(BigQuery bigQuery) {
     String dataset = config.getDataset();
     String tableName = config.getTable();
     String project = config.getDatasetProject();
-    Table table = BigQueryUtil.getBigQueryTable(config.getServiceAccountFilePath(), project, dataset, tableName);
+    TableId tableId = TableId.of(project, dataset, tableName);
+    Table table = bigQuery.getTable(tableId);
     if (table == null) {
       // Table does not exist
       throw new IllegalArgumentException(String.format("BigQuery table '%s:%s.%s' does not exist.",
@@ -239,7 +268,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     Schema.Type type = fieldSchema.getType();
 
     // Complex types like maps and unions are not supported in BigQuery plugins.
-    if ((!type.isSimpleType() && type != Schema.Type.ARRAY)) {
+    if (!BigQueryUtil.SUPPORTED_TYPES.contains(type)) {
       throw new IllegalArgumentException(String.format("Field '%s' is of unsupported type '%s'.", name, type));
     }
 
@@ -280,6 +309,10 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
         schema = Schema.of(Schema.LogicalType.DATE);
       } else if (value == StandardSQLTypeName.TIMESTAMP) {
         schema = Schema.of(Schema.LogicalType.TIMESTAMP_MICROS);
+      } else if (value == StandardSQLTypeName.NUMERIC) {
+        // bigquery has 38 digits of precision and 9 digits of scale.
+        // https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro#logical_types
+        schema = Schema.decimalOf(38, 9);
       } else {
         // this should never happen
         throw new InvalidStageException(String.format("BigQuery column '%s' is of unsupported type '%s'.",

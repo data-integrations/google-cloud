@@ -15,6 +15,7 @@
  */
 package io.cdap.plugin.gcp.bigquery.sink;
 
+import com.google.cloud.bigquery.BigQuery;
 import com.google.gson.stream.JsonWriter;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
@@ -72,7 +73,7 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
   }
 
   @Override
-  protected void prepareRunInternal(BatchSinkContext context, String bucket) throws IOException {
+  protected void prepareRunInternal(BatchSinkContext context, BigQuery bigQuery, String bucket) throws IOException {
     Map<String, String> arguments = new HashMap<>(context.getArguments().asMap());
     for (Map.Entry<String, String> argument : arguments.entrySet()) {
       String key = argument.getKey();
@@ -83,7 +84,7 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
       Schema tableSchema = Schema.parseJson(argument.getValue());
 
       String outputName = String.format("%s-%s", config.getReferenceName(), tableName);
-      initOutput(context, outputName, tableName, tableSchema, bucket);
+      initOutput(context, bigQuery, outputName, tableName, tableSchema, bucket);
     }
   }
 
@@ -100,7 +101,8 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
     try (JsonWriter writer = new JsonWriter(strWriter)) {
       writer.beginObject();
       for (Schema.Field recordField : Objects.requireNonNull(input.getSchema().getFields())) {
-        decode(writer, recordField.getName(), input.get(recordField.getName()), recordField.getSchema());
+        BigQueryRecordToJson.write(writer, recordField.getName(), input.get(recordField.getName()),
+                                   recordField.getSchema());
       }
       writer.endObject();
     } catch (IOException e) {

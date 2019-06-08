@@ -24,6 +24,7 @@ import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import org.apache.avro.generic.GenericRecord;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.concurrent.TimeUnit;
@@ -51,12 +52,12 @@ public class BigQueryAvroToStructuredTransformer extends RecordConverter<Generic
       return null;
     }
 
-    // Union schema expected to be nullable schema. Underlying non-nullable type should always be simple type
+    // Union schema expected to be nullable schema. Underlying non-nullable type should always be a supported type
     fieldSchema = fieldSchema.isNullable() ? fieldSchema.getNonNullable() : fieldSchema;
     Schema.Type fieldType = fieldSchema.getType();
 
-    // BigQuery Source only supports simple types, so throw an exception if type is any other than simple type
-    if (!fieldType.isSimpleType() && !BigQueryUtil.SUPPORTED_COMPLEX_TYPES.contains(fieldType)) {
+    // Complex types like maps and unions are not supported in BigQuery plugins.
+    if (!BigQueryUtil.SUPPORTED_TYPES.contains(fieldType)) {
       throw new UnexpectedFormatException("Field type " + fieldType + " is not supported.");
     }
 
@@ -76,6 +77,13 @@ public class BigQueryAvroToStructuredTransformer extends RecordConverter<Generic
           case TIMESTAMP_MILLIS:
           case TIMESTAMP_MICROS:
             return field;
+          case DECIMAL:
+            ByteBuffer value = (ByteBuffer) field;
+            byte[] bytes = new byte[value.remaining()];
+            int pos = value.position();
+            value.get(bytes);
+            value.position(pos);
+            return bytes;
           default:
             throw new UnexpectedFormatException("Field type " + fieldType + " is not supported.");
         }

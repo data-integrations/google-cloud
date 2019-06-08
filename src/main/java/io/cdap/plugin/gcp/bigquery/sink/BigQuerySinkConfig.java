@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.bigquery.sink;
 
+import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.data.schema.Schema;
@@ -37,11 +38,12 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   private String table;
 
   @Macro
-  @Description("The schema of the data to write. Must be compatible with the table schema.")
+  @Nullable
+  @Description("The schema of the data to write. If provided, must be compatible with the table schema.")
   private String schema;
 
   public BigQuerySinkConfig(String referenceName, String dataset, String table,
-                            @Nullable String bucket, String schema) {
+                            @Nullable String bucket, @Nullable String schema) {
     this.referenceName = referenceName;
     this.dataset = dataset;
     this.table = table;
@@ -55,11 +57,11 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
 
   /**
    * @return the schema of the dataset
-   * @throws IllegalArgumentException if the schema is null or invalid
    */
+  @Nullable
   public Schema getSchema() {
-    if (schema == null) {
-      throw new IllegalArgumentException("Schema must be specified.");
+    if (Strings.isNullOrEmpty(schema)) {
+      return null;
     }
     try {
       return Schema.parseJson(schema);
@@ -72,12 +74,15 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
    * Verifies if output schema only contains simple types. It also verifies if all the output schema fields are
    * present in input schema.
    *
-   * @param inputSchema input schema to bigquery sink
+   * @param inputSchema input schema to BigQuery sink
    */
   public void validate(@Nullable Schema inputSchema) {
     super.validate();
     if (!containsMacro("schema")) {
       Schema outputSchema = getSchema();
+      if (outputSchema == null) {
+        return;
+      }
       for (Schema.Field field : outputSchema.getFields()) {
         // check if the required fields are present in the input schema.
         if (!field.getSchema().isNullable() && inputSchema != null && inputSchema.getField(field.getName()) == null) {
@@ -86,11 +91,26 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
         }
 
         Schema fieldSchema = BigQueryUtil.getNonNullableSchema(field.getSchema());
+        Schema.Type type = fieldSchema.getType();
+        String name = field.getName();
 
-        if (!fieldSchema.getType().isSimpleType() &&
-          !BigQueryUtil.SUPPORTED_COMPLEX_TYPES.contains(fieldSchema.getType())) {
-          throw new IllegalArgumentException(String.format("Field '%s' is of unsupported type '%s'.",
-                                                           field.getName(), fieldSchema.getType()));
+        if (!BigQueryUtil.SUPPORTED_TYPES.contains(type)) {
+          throw new IllegalArgumentException(String.format("Field '%s' is of unsupported type '%s'.", name, type));
+        }
+
+        Schema.LogicalType logicalType = fieldSchema.getLogicalType();
+        // BigQuery schema precision must be at most 38 and scale at most 9
+        if (logicalType == Schema.LogicalType.DECIMAL) {
+          if (fieldSchema.getPrecision() > 38 || fieldSchema.getScale() > 9) {
+            throw new IllegalArgumentException(
+              String.format("Numeric Field '%s' has invalid precision '%s' and scale '%s'. " +
+                              "Precision must be at most 38 and scale must be at most 9.",
+                            field.getName(), fieldSchema.getPrecision(), fieldSchema.getScale()));
+          }
+        }
+
+        if (type == Schema.Type.ARRAY) {
+          BigQueryUtil.validateArraySchema(field.getSchema(), name);
         }
       }
     }

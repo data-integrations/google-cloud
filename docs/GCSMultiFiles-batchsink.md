@@ -72,21 +72,19 @@ Example
 
 Suppose the input records are:
 
-    +-----+----------+------------------+-----------+
-    | id  | name     | email            | tablename |
-    +-----+----------+------------------+-----------+
-    | 0   | Samuel   | sjax@example.net | accounts  |
-    | 1   | Alice    | a@example.net    | accounts  |
-    +-----+----------+------------------+-----------+
-    +--------+----------+--------+-----------+
-    | userid | item     | action | tablename |
-    +--------+----------+--------+-----------+
-    | 0      | shirt123 | view   | activity  |
-    | 0      | carxyz   | view   | activity  |
-    | 0      | shirt123 | buy    | activity  |
-    | 0      | coffee   | view   | activity  |
-    | 1      | cola     | buy    | activity  |
-    +--------+----------+--------+-----------+
+| id  | name     | email            | tablename |
+| --- | -------- | ---------------- | --------- |
+| 0   | Samuel   | sjax@example.net | accounts  |
+| 1   | Alice    | a@example.net    | accounts  |
+
+
+| userid | item     | action | tablename |
+| ------ | -------- | ------ | --------- |
+| 0      | shirt123 | view   | activity  |
+| 0      | carxyz   | view   | activity  |
+| 0      | shirt123 | buy    | activity  |
+| 0      | coffee   | view   | activity  |
+| 1      | cola     | buy    | activity  |
 
 The plugin will expect two pipeline arguments to tell it to write the first two records to an 'accounts' directory and
 the last records to an 'activity' directory.
