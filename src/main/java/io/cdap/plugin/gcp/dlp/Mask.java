@@ -9,6 +9,9 @@ import io.cdap.cdap.etl.api.Transform;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Mask class.
+ */
 @Plugin(type = Transform.PLUGIN_TYPE)
 @Name(Mask.NAME)
 @Description(Mask.DESCRIPTION)
