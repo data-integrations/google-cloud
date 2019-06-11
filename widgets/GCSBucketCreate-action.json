@@ -2,7 +2,7 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name" : "GCS Create Bucket",
+  "display-name" : "GCS Create",
   "configuration-groups": [
     {
       "label": "Basic",
