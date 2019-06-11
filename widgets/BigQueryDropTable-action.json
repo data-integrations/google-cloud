@@ -2,14 +2,14 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name" : "Google Cloud BigQuery Drop Table",
+  "display-name" : "Google Cloud BQ Drop Table",
   "configuration-groups": [
     {
       "label": "Basic",
       "properties": [
         {
           "widget-type": "textbox",
-          "label": "Project ID",
+          "label": "Project Id",
           "name": "project",
           "widget-attributes" : {
             "default": "auto-detect"
@@ -18,30 +18,14 @@
       ]
     },
     {
-      "label" : "Credentials",
+      "label" : "Advanced",
       "properties" : [
         {
           "widget-type": "textbox",
-          "label": "Reference Name",
-          "name": "referenceName",
-          "widget-attributes" : {
-            "placeholder": "Name used to identify this source for lineage"
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Project ID",
-          "name": "project",
-          "widget-attributes" : {
-            "default": "auto-detect"
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Dataset Project ID",
+          "label": "Dataset Project Id",
           "name": "datasetProject",
           "widget-attributes" : {
-            "placeholder": "Project the dataset belongs to, if different from the Project ID."
+            "placeholder": "Project the dataset belongs to, if different from the Project Id."
           }
         },
         {
@@ -78,12 +62,7 @@
               }
             ]
           }
-        }
-      ]
-    },
-    {
-      "label" : "Credentials",
-      "properties" : [
+        },
         {
           "widget-type": "textbox",
           "label": "Service Account File Path",

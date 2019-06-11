@@ -40,16 +40,16 @@ public class BigQueryDropTableAction extends Action {
     config.validate();
 
     String dataset = config.getDataset();
-    String tableNames = config.getTable();
+    String tableName = config.getTable();
     String project = config.getDatasetProject();
-    Table table = BigQueryUtil.getBigQueryTable(config.getServiceAccountFilePath(), project, dataset, tableNames);
+    Table table = BigQueryUtil.getBigQueryTable(config.getServiceAccountFilePath(), project, dataset, tableName);
 
     if (Objects.nonNull(table)) {
       table.delete();
     } else if (!config.getDropOnlyIfExists()) {
       // Table does not exist
       throw new IllegalStateException(String.format("BigQuery table '%s:%s.%s' does not exist.",
-          project, dataset, tableNames));
+          project, dataset, tableName));
     }
   }
 }
