@@ -2,7 +2,7 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name": "Google Cloud Datastore",
+  "display-name": "Datastore",
   "configuration-groups": [
     {
       "label" : "Basic",

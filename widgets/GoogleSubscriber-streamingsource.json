@@ -2,7 +2,7 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name": "Google Cloud PubSub",
+  "display-name": "Pub/Sub",
   "configuration-groups": [
     {
       "label": "Basic",

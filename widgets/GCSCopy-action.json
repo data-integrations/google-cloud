@@ -2,7 +2,7 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name" : "Google Cloud Storage Copy",
+  "display-name" : "GCS Copy",
   "configuration-groups": [
     {
       "label": "Basic",
