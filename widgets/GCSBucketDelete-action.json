@@ -2,7 +2,7 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name" : "GCS Delete Bucket",
+  "display-name" : "GCS Delete",
   "configuration-groups": [
     {
       "label": "Basic",
