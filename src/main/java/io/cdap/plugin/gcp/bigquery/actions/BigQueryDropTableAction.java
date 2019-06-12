@@ -22,6 +22,8 @@ import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.etl.api.action.Action;
 import io.cdap.cdap.etl.api.action.ActionContext;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Objects;
 
@@ -33,6 +35,8 @@ import java.util.Objects;
 @Name("BigQueryDropTable")
 @Description("This action drops given BigQuery table.")
 public class BigQueryDropTableAction extends Action {
+  private static final Logger LOG = LoggerFactory.getLogger(BigQueryDropTableAction.class);
+
   private BigQueryDropTableActionConfig config;
 
   @Override
@@ -45,7 +49,11 @@ public class BigQueryDropTableAction extends Action {
     Table table = BigQueryUtil.getBigQueryTable(config.getServiceAccountFilePath(), project, dataset, tableName);
 
     if (Objects.nonNull(table)) {
-      table.delete();
+      try {
+        table.delete();
+      } catch (Exception e) {
+        LOG.error("Unable to delete BigQuery table", e);
+      }
     } else if (!config.getDropOnlyIfExists()) {
       // Table does not exist
       throw new IllegalStateException(String.format("BigQuery table '%s:%s.%s' does not exist.",
