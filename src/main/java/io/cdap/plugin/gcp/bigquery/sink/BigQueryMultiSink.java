@@ -81,6 +81,11 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
         continue;
       }
       String tableName = key.substring(TABLE_PREFIX.length());
+      // remove the database prefix, as BigQuery doesn't allow dots
+      String[] split = tableName.split("\\.");
+      if (split.length == 2) {
+        tableName = split[1];
+      }
       Schema tableSchema = Schema.parseJson(argument.getValue());
 
       String outputName = String.format("%s-%s", config.getReferenceName(), tableName);
