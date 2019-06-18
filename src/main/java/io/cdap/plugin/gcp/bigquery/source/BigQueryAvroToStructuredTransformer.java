@@ -27,6 +27,8 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
@@ -91,7 +93,14 @@ public class BigQueryAvroToStructuredTransformer extends RecordConverter<Generic
     } catch (ArithmeticException e) {
       throw new IOException("Field type %s has value that is too large." + fieldType);
     }
-
+    if (fieldSchema.getType() == Schema.Type.RECORD && field instanceof List) {
+      List<Object> valuesList = (List<Object>) field;
+      List<Object> resultList = new ArrayList<>(valuesList.size());
+      for (Object value : valuesList) {
+        resultList.add(super.convertField(value, fieldSchema));
+      }
+      return resultList;
+    }
     return super.convertField(field, fieldSchema);
   }
 }

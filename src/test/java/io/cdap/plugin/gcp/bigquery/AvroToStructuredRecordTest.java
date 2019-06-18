@@ -34,45 +34,6 @@ import java.time.LocalTime;
  */
 public class AvroToStructuredRecordTest {
 
-  @Test(expected = UnexpectedFormatException.class)
-  public void testAvroToStructuredRecordUnsupportedType() throws Exception {
-
-    BigQueryAvroToStructuredTransformer avroToStructuredTransformer = new BigQueryAvroToStructuredTransformer();
-
-    Schema innerNestedSchema = Schema.recordOf("innerNested",
-                                               Schema.Field.of("int", Schema.of(Schema.Type.INT)));
-    Schema innerSchema = Schema.recordOf(
-      "inner",
-      Schema.Field.of("int", Schema.of(Schema.Type.INT)),
-      Schema.Field.of("double", Schema.of(Schema.Type.DOUBLE)),
-      Schema.Field.of("array", Schema.arrayOf(Schema.of(Schema.Type.FLOAT)))
-    );
-
-    Schema schema = Schema.recordOf(
-      "record",
-      Schema.Field.of("int", Schema.of(Schema.Type.INT)),
-      Schema.Field.of("record", innerSchema));
-
-    org.apache.avro.Schema avroInnerSchema = convertSchema(innerSchema);
-    org.apache.avro.Schema avroSchema = convertSchema(schema);
-    org.apache.avro.Schema avroInnerNestedSchema = convertSchema(innerNestedSchema);
-
-    GenericRecord inner = new GenericRecordBuilder(avroInnerNestedSchema)
-      .set("int", 0)
-      .build();
-    GenericRecord record = new GenericRecordBuilder(avroSchema)
-      .set("int", Integer.MAX_VALUE)
-      .set("record",
-           new GenericRecordBuilder(avroInnerSchema)
-             .set("int", 5)
-             .set("double", 3.14159)
-             .set("array", ImmutableList.of(1.0f, 2.0f))
-             .build())
-      .build();
-
-    StructuredRecord result = avroToStructuredTransformer.transform(record, schema);
-  }
-
   @Test
   public void testAvroToStructuredRecord() throws Exception {
     Schema schema = Schema.recordOf("record",
@@ -124,6 +85,93 @@ public class AvroToStructuredRecordTest {
       .setDate("dt", LocalDate.of(2018, 11, 11))
       .setTime("time", LocalTime.of(11, 11, 11))
       .set("timestamp", null).build();
+
+    Assert.assertEquals(expected, actual);
+
+    Schema innerSchema = Schema.recordOf(
+      "inner",
+      Schema.Field.of("int", Schema.of(Schema.Type.INT)),
+      Schema.Field.of("double", Schema.of(Schema.Type.DOUBLE)),
+      Schema.Field.of("array", Schema.arrayOf(Schema.of(Schema.Type.FLOAT)))
+    );
+
+    schema = Schema.recordOf(
+      "record",
+      Schema.Field.of("int", Schema.of(Schema.Type.INT)),
+      Schema.Field.of("record", innerSchema));
+
+    org.apache.avro.Schema avroInnerSchema = convertSchema(innerSchema);
+    avroSchema = convertSchema(schema);
+    record = new GenericRecordBuilder(avroSchema)
+      .set("int", Integer.MAX_VALUE)
+      .set("record",
+           new GenericRecordBuilder(avroInnerSchema)
+             .set("int", 5)
+             .set("double", 3.14159)
+             .set("array", ImmutableList.of(1.0f, 2.0f))
+             .build())
+      .build();
+
+    actual = transformer.transform(record, schema);
+    expected = StructuredRecord.builder(schema)
+      .set("int", Integer.MAX_VALUE)
+      .set("record", StructuredRecord.builder(innerSchema)
+        .set("int", 5)
+        .set("double", 3.14159)
+        .set("array", ImmutableList.of(1.0f, 2.0f))
+        .build())
+      .build();
+
+    Assert.assertEquals(expected, actual);
+
+    Schema innerNestedSchema = Schema.recordOf(
+      "innerNested",
+      Schema.Field.of("int", Schema.of(Schema.Type.INT)),
+      Schema.Field.of("string", Schema.of(Schema.Type.STRING))
+    );
+    innerSchema = Schema.recordOf(
+      "inner",
+      Schema.Field.of("int", Schema.of(Schema.Type.INT)),
+      Schema.Field.of("double", Schema.of(Schema.Type.DOUBLE)),
+      Schema.Field.of("array", Schema.arrayOf(Schema.of(Schema.Type.FLOAT))),
+      Schema.Field.of("innerRecord", innerNestedSchema)
+    );
+    schema = Schema.recordOf(
+      "record",
+      Schema.Field.of("int", Schema.of(Schema.Type.INT)),
+      Schema.Field.of("record", innerSchema));
+
+    org.apache.avro.Schema avroInnerNestedSchema = convertSchema(innerNestedSchema);
+    avroInnerSchema = convertSchema(innerSchema);
+    avroSchema = convertSchema(schema);
+    record = new GenericRecordBuilder(avroSchema)
+      .set("int", Integer.MAX_VALUE)
+      .set("record",
+           new GenericRecordBuilder(avroInnerSchema)
+             .set("int", 5)
+             .set("double", 3.14159)
+             .set("array", ImmutableList.of(1.0f, 2.0f))
+             .set("innerRecord",
+                  new GenericRecordBuilder(avroInnerNestedSchema)
+                    .set("int", 10)
+                    .set("string", "test")
+                    .build())
+             .build())
+      .build();
+
+    actual = transformer.transform(record, schema);
+    expected = StructuredRecord.builder(schema)
+      .set("int", Integer.MAX_VALUE)
+      .set("record", StructuredRecord.builder(innerSchema)
+        .set("int", 5)
+        .set("double", 3.14159)
+        .set("array", ImmutableList.of(1.0f, 2.0f))
+        .set("innerRecord", StructuredRecord.builder(innerNestedSchema)
+          .set("int", 10)
+          .set("string", "test")
+          .build())
+        .build())
+      .build();
 
     Assert.assertEquals(expected, actual);
   }
