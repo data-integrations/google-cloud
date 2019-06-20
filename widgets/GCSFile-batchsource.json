@@ -21,6 +21,13 @@
           "name": "project",
           "widget-attributes": {
             "default": "auto-detect"
+          },
+          "plugin-function": {
+            "label": "Browse",
+            "widget": "connection-browser",
+            "widget-attributes": {
+              "connectionType": "GCS"
+            }
           }
         },
         {
