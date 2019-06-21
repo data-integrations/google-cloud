@@ -122,7 +122,16 @@ public class MultiSinkOutputFormatProvider implements OutputFormatProvider {
     @Override
     public void write(JsonObject key, NullWritable value) throws IOException, InterruptedException {
       JsonElement jsonElement = key.get(filterField);
-      if (jsonElement == null || !filterValue.equalsIgnoreCase(jsonElement.getAsString())) {
+      if (jsonElement == null) {
+        return;
+      }
+      String name = jsonElement.getAsString();
+      // remove the database prefix, as BigQuery doesn't allow dots
+      String[] split = name.split("\\.");
+      if (split.length == 2) {
+        name = split[1];
+      }
+      if (!filterValue.equalsIgnoreCase(name)) {
         return;
       }
 
