@@ -318,18 +318,38 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
     List<Schema.Field> inputFields = Objects.requireNonNull(tableSchema.getFields(), "Schema must have fields");
 
     return inputFields.stream()
-      .map(field -> new BigQueryTableFieldSchema()
-        .setName(field.getName())
-        .setType(getTableDataType(field.getSchema()).name())
-        .setMode(getMode(field.getSchema()).name()))
+      .map(this::generateTableFieldSchema)
       .collect(Collectors.toList());
   }
 
+  private BigQueryTableFieldSchema generateTableFieldSchema(Schema.Field field) {
+    BigQueryTableFieldSchema fieldSchema = new BigQueryTableFieldSchema();
+    fieldSchema.setName(field.getName());
+    fieldSchema.setMode(getMode(field.getSchema()).name());
+    LegacySQLTypeName type = getTableDataType(field.getSchema());
+    fieldSchema.setType(type.name());
+    if (type == LegacySQLTypeName.RECORD) {
+      List<Schema.Field> schemaFields;
+      if (Schema.Type.ARRAY == field.getSchema().getType()) {
+        schemaFields = Objects.requireNonNull(field.getSchema().getComponentSchema()).getFields();
+      } else {
+        schemaFields = field.getSchema().isNullable()
+          ? field.getSchema().getNonNullable().getFields()
+          : field.getSchema().getFields();
+      }
+      fieldSchema.setFields(Objects.requireNonNull(schemaFields).stream()
+                              .map(this::generateTableFieldSchema)
+                              .collect(Collectors.toList()));
+
+    }
+    return fieldSchema;
+  }
+
   private Field.Mode getMode(Schema schema) {
-    if (schema.getType() == Schema.Type.ARRAY) {
-      return Field.Mode.REPEATED;
-    } else if (schema.isNullable()) {
+    if (schema.isNullable()) {
       return Field.Mode.NULLABLE;
+    } else if (schema.getType() == Schema.Type.ARRAY) {
+      return Field.Mode.REPEATED;
     }
     return Field.Mode.REQUIRED;
   }
@@ -412,6 +432,8 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
         return LegacySQLTypeName.BYTES;
       case ARRAY:
         return getTableDataType(schema.getComponentSchema());
+      case RECORD:
+        return LegacySQLTypeName.RECORD;
       default:
         throw new IllegalStateException("Unsupported type " + type);
     }
