@@ -16,7 +16,8 @@
 package io.cdap.plugin.gcp.bigquery.sink;
 
 import com.google.cloud.bigquery.BigQuery;
-import com.google.gson.stream.JsonWriter;
+import com.google.gson.JsonObject;
+import com.google.gson.internal.bind.JsonTreeWriter;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
@@ -32,10 +33,8 @@ import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
-import org.apache.hadoop.io.Text;
 
 import java.io.IOException;
-import java.io.StringWriter;
 import java.util.Map;
 import java.util.Objects;
 
@@ -108,9 +107,8 @@ public final class BigQuerySink extends AbstractBigQuerySink {
   }
 
   @Override
-  public void transform(StructuredRecord input, Emitter<KeyValue<Text, NullWritable>> emitter) {
-    StringWriter strWriter = new StringWriter();
-    try (JsonWriter writer = new JsonWriter(strWriter)) {
+  public void transform(StructuredRecord input, Emitter<KeyValue<JsonObject, NullWritable>> emitter) {
+    try (JsonTreeWriter writer = new JsonTreeWriter()) {
       writer.beginObject();
       for (Schema.Field recordField : Objects.requireNonNull(input.getSchema().getFields())) {
         // From all the fields in input record, write only those fields that are present in output schema
@@ -120,10 +118,9 @@ public final class BigQuerySink extends AbstractBigQuerySink {
         }
       }
       writer.endObject();
+      emitter.emit(new KeyValue<>(writer.get().getAsJsonObject(), NullWritable.get()));
     } catch (IOException e) {
       throw new RuntimeException("Exception while converting structured record to json.", e);
     }
-
-    emitter.emit(new KeyValue<>(new Text(strWriter.toString()), NullWritable.get()));
   }
 }
