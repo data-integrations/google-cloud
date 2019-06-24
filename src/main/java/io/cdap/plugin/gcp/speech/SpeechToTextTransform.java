@@ -258,15 +258,16 @@ public class SpeechToTextTransform extends Transform<StructuredRecord, Structure
 
     @Macro
     @Nullable
-    @Description("If a field name is specified then the transcription with highest confidence score will be stored as" +
-      "text.")
+    @Description("If a field name is specified then the transcription with highest confidence score will be stored " +
+      "as text.")
     private String transcriptionTextField;
 
+    @Macro
+    @Nullable
     @Name("serviceFilePath")
     @Description("Path on the local file system of the service account key used for authorization. Can be set to " +
       "'auto-detect' when running on a Dataproc cluster. When running on other clusters, the file must be present on " +
       "every node in the cluster.")
-    @Macro
     private String serviceAccountFilePath;
 
     @Nullable
