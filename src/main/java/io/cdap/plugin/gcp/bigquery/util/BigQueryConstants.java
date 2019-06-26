@@ -20,5 +20,8 @@ package io.cdap.plugin.gcp.bigquery.util;
  */
 public interface BigQueryConstants {
 
-  String CONFIG_ALLOW_SCHEMA_RELAXATION = "mapred.bg.sink.allow_schema_relaxation";
+  String CONFIG_ALLOW_SCHEMA_RELAXATION = "cdap.bq.sink.allow.schema.relaxation";
+  String CONFIG_CREATE_PARTITIONED_TABLE = "cdap.bq.sink.create.partitioned.table";
+  String CONFIG_PARTITION_BY_FIELD = "cdap.bq.sink.partition.by.field";
+  String CONFIG_REQUIRE_PARTITION_FILTER = "cdap.bq.sink.require.partition.filter";
 }

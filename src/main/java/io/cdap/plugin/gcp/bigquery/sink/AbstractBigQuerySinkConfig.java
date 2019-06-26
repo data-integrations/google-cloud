@@ -17,6 +17,7 @@ package io.cdap.plugin.gcp.bigquery.sink;
 
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
+import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
 import io.cdap.plugin.gcp.common.GCPReferenceSinkConfig;
 
@@ -46,6 +47,25 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
   @Description("Whether to modify the BigQuery table schema if it differs from the input schema.")
   protected boolean allowSchemaRelaxation;
 
+  @Macro
+  @Nullable
+  @Description("Whether to create the BigQuery table with time partitioning. This value is ignored if the table " +
+    "already exists.")
+  protected Boolean createPartitionedTable;
+
+  @Name("partitionByField")
+  @Macro
+  @Nullable
+  @Description("Partitioning column for the BigQuery table. This should be left empty if the BigQuery table is an " +
+    "ingestion-time partitioned table.")
+  protected String partitionByField;
+
+  @Macro
+  @Nullable
+  @Description("Whether to create a table that requires a partition filter. This value is ignored if the table " +
+    "already exists.")
+  protected Boolean partitionFilterRequired;
+
   public String getDataset() {
     return dataset;
   }
@@ -67,6 +87,19 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
 
   public boolean isAllowSchemaRelaxation() {
     return allowSchemaRelaxation;
+  }
+
+  public boolean shouldCreatePartitionedTable() {
+    return createPartitionedTable == null ? false : createPartitionedTable;
+  }
+
+  @Nullable
+  public String getPartitionByField() {
+    return partitionByField;
+  }
+
+  public boolean isPartitionFilterRequired() {
+    return partitionFilterRequired == null ? false : partitionFilterRequired;
   }
 
   @Override

@@ -40,6 +40,19 @@ It will be automatically created if it does not exist, but will not be automatic
 Temporary data will be deleted after it is loaded into BigQuery. If it is not provided, a unique
 bucket will be created and then deleted after the run finishes.
 
+**Create Partitioned Table**: Whether to create the BigQuery table with time partitioning. This value 
+is ignored if the table already exists.
+* When this is set to true, table will be created with time partitioning. 
+* When this is set to false, table will be created without time partitioning.
+
+**Partition Field**: Partitioning column for the BigQuery table. This should be left empty if the 
+BigQuery table is an ingestion-time partitioned table.
+
+**Require Partition Filter**: Whether to create a table that requires a partition filter. This value 
+is ignored if the table already exists.
+* When this is set to true, table will be created with required partition filter. 
+* When this is set to false, table will be created without required partition filter.
+
 **Update Table Schema**: Whether the BigQuery table schema should be modified 
 when it does not match the schema expected by the pipeline. 
 * When this is set to false, any mismatches between the schema expected by the pipeline 

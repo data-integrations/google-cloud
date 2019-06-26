@@ -187,6 +187,13 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
                                                                      getConfig().getProject());
     baseConfiguration.setBoolean(BigQueryConstants.CONFIG_ALLOW_SCHEMA_RELAXATION,
                                  getConfig().isAllowSchemaRelaxation());
+    baseConfiguration.setBoolean(BigQueryConstants.CONFIG_CREATE_PARTITIONED_TABLE,
+                                 getConfig().shouldCreatePartitionedTable());
+    if (getConfig().getPartitionByField() != null) {
+      baseConfiguration.set(BigQueryConstants.CONFIG_PARTITION_BY_FIELD, getConfig().getPartitionByField());
+    }
+    baseConfiguration.setBoolean(BigQueryConstants.CONFIG_REQUIRE_PARTITION_FILTER,
+                                 getConfig().isPartitionFilterRequired());
     return baseConfiguration;
   }
 

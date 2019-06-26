@@ -32,6 +32,7 @@ import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFactory;
@@ -115,10 +116,17 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Jso
 
       boolean allowSchemaRelaxation = conf.getBoolean(BigQueryConstants.CONFIG_ALLOW_SCHEMA_RELAXATION, false);
       LOG.debug("Allow schema relaxation: '{}'", allowSchemaRelaxation);
+      boolean createPartitionedTable = conf.getBoolean(BigQueryConstants.CONFIG_CREATE_PARTITIONED_TABLE, false);
+      LOG.debug("Create Partitioned Table: '{}'", createPartitionedTable);
+      String partitionByField = conf.get(BigQueryConstants.CONFIG_PARTITION_BY_FIELD, null);
+      LOG.debug("Partition Field: '{}'", partitionByField);
+      boolean requirePartitionFilter = conf.getBoolean(BigQueryConstants.CONFIG_REQUIRE_PARTITION_FILTER, false);
+      LOG.debug("Require partition filter: '{}'", requirePartitionFilter);
 
       try {
         importFromGcs(destProjectId, destTable, destSchema.orElse(null), kmsKeyName, outputFileFormat,
-                      writeDisposition, sourceUris, allowSchemaRelaxation);
+                      writeDisposition, sourceUris, allowSchemaRelaxation, createPartitionedTable, partitionByField,
+                      requirePartitionFilter);
       } catch (InterruptedException e) {
         throw new IOException("Failed to import GCS into BigQuery", e);
       }
@@ -138,7 +146,8 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Jso
      */
     private void importFromGcs(String projectId, TableReference tableRef, @Nullable TableSchema schema,
                                @Nullable String kmsKeyName, BigQueryFileFormat sourceFormat, String writeDisposition,
-                               List<String> gcsPaths, boolean allowSchemaRelaxation)
+                               List<String> gcsPaths, boolean allowSchemaRelaxation, boolean createPartitionedTable,
+                               @Nullable String partitionByField, boolean requirePartitionFilter)
       throws IOException, InterruptedException {
       LOG.info("Importing into table '{}' from {} paths; path[0] is '{}'; awaitCompletion: {}",
                BigQueryStrings.toString(tableRef), gcsPaths.size(), gcsPaths.isEmpty() ? "(empty)" : gcsPaths.get(0),
@@ -151,6 +160,16 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Jso
       loadConfig.setSourceUris(gcsPaths);
       loadConfig.setDestinationTable(tableRef);
       loadConfig.setWriteDisposition(writeDisposition);
+      if (createPartitionedTable) {
+        TimePartitioning timePartitioning = new TimePartitioning();
+        timePartitioning.setType("DAY");
+        if (partitionByField != null) {
+          timePartitioning.setField(partitionByField);
+        }
+        timePartitioning.setRequirePartitionFilter(requirePartitionFilter);
+        loadConfig.setTimePartitioning(timePartitioning);
+      }
+
       if (!Strings.isNullOrEmpty(kmsKeyName)) {
         loadConfig.setDestinationEncryptionConfiguration(new EncryptionConfiguration().setKmsKeyName(kmsKeyName));
       }
