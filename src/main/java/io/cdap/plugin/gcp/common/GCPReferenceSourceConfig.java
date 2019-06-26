@@ -19,13 +19,14 @@ package io.cdap.plugin.gcp.common;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
+import io.cdap.plugin.common.Constants;
 import io.cdap.plugin.common.IdUtils;
 
 /**
  * Reference config extending GCPConfig for sources.
  */
 public class GCPReferenceSourceConfig extends GCPConfig {
-  @Name("referenceName")
+  @Name(Constants.Reference.REFERENCE_NAME)
   @Description("This will be used to uniquely identify this source for lineage, annotating metadata, etc.")
   @Macro
   public String referenceName;

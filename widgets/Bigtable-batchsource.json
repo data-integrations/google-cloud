@@ -1,0 +1,149 @@
+{
+  "metadata": {
+    "spec-version": "1.5"
+  },
+  "display-name" : "Bigtable",
+  "configuration-groups": [
+    {
+      "label": "Basic",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Reference Name",
+          "name": "referenceName",
+          "widget-attributes" : {
+            "placeholder": "Name used to identify this source for lineage"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Project ID",
+          "name": "project",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Instance ID",
+          "name": "instance",
+          "widget-attributes" : {
+            "placeholder": "Bigtable instance id"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Table",
+          "name": "table",
+          "widget-attributes" : {
+            "placeholder": "Table to read from"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Key Alias",
+          "name": "keyAlias",
+          "widget-attributes" : {
+            "placeholder": "Key alias",
+            "default": "__key__"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Scan Start Row",
+          "name": "scanRowStart",
+          "widget-attributes" : {
+            "placeholder": "Scan start row"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Scan Stop Row",
+          "name": "scanRowStop",
+          "widget-attributes" : {
+            "placeholder": "Scan stop row"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Scan Time Range Start",
+          "name": "scanTimeRangeStart",
+          "widget-attributes" : {
+            "placeholder": "Starting timestamp used to filter columns"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Scan Time Range Stop",
+          "name": "scanTimeRangeStop",
+          "widget-attributes" : {
+            "placeholder": "Ending timestamp used to filter columns"
+          }
+        }
+      ]
+    },
+    {
+      "label" : "Credentials",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        }
+      ]
+    },
+    {
+      "label" : "Error Handling",
+      "properties" : [
+        {
+          "name": "on-error",
+          "label": "On Record Error",
+          "widget-type": "radio-group",
+          "widget-attributes": {
+            "layout": "block",
+            "default": "skip-error",
+            "options": [
+              {
+                "id": "skip-error",
+                "label": "Skip error"
+              },
+              {
+                "id": "fail-pipeline",
+                "label": "Fail pipeline"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "outputs": [
+    {
+      "name": "schema",
+      "label": "schema",
+      "widget-type": "schema",
+      "widget-attributes": {
+        "schema-types": [
+          "boolean",
+          "int",
+          "long",
+          "float",
+          "double",
+          "bytes",
+          "string"
+        ],
+        "schema-default-type": "string"
+      }
+    }
+  ],
+  "jump-config": {
+    "datasets": [
+      {
+        "ref-property-name": "referenceName"
+      }
+    ]
+  }
+}

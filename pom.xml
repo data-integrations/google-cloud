@@ -14,7 +14,8 @@
   ~ License for the specific language governing permissions and limitations under
   ~ the License.
   -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>io.cdap.plugin</groupId>
@@ -60,11 +61,15 @@
     <avro.version>1.7.7</avro.version>
     <cdap.version>6.1.0-SNAPSHOT</cdap.version>
     <cdap.plugin.version>2.3.0-SNAPSHOT</cdap.plugin.version>
+    <dropwizard.metrics-core.version>3.2.6</dropwizard.metrics-core.version>
     <guava.version>20.0</guava.version>
     <hadoop.version>2.8.0</hadoop.version>
+    <hbase-shaded-server.version>1.4.10</hbase-shaded-server.version>
     <jackson.core.version>2.8.11.1</jackson.core.version>
     <junit.version>4.12</junit.version>
+    <hbase-mapreduce-version>2.2.0</hbase-mapreduce-version>
     <bigquery.connector.hadoop2.version>0.13.1-hadoop2</bigquery.connector.hadoop2.version>
+    <google.cloud.bigtable.version>1.11.0</google.cloud.bigtable.version>
     <google.cloud.bigquery.version>1.36.0</google.cloud.bigquery.version>
     <google.cloud.pubsub.version>1.36.0</google.cloud.pubsub.version>
     <google.cloud.spanner.version>0.53.0-beta</google.cloud.spanner.version>
@@ -154,6 +159,32 @@
       <groupId>com.google.cloud.bigdataoss</groupId>
       <artifactId>bigquery-connector</artifactId>
       <version>${bigquery.connector.hadoop2.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.cloud.bigtable</groupId>
+      <artifactId>bigtable-hbase-1.x-mapreduce</artifactId>
+      <version>${google.cloud.bigtable.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.hbase</groupId>
+          <artifactId>hbase-server</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <!--
+        Required by bigtable-hbase-1.x-mapreduce instead of excluded non-shaded version.
+        Shaded library is used to avoid dependency conflicts with Datastore module on profobuf-java dependency.
+        Bigtable requires version 2.x and Datastore module requires 3.x protocol.
+      -->
+      <groupId>org.apache.hbase</groupId>
+      <artifactId>hbase-shaded-server</artifactId>
+      <version>${hbase-shaded-server.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.dropwizard.metrics</groupId>
+      <artifactId>metrics-core</artifactId>
+      <version>${dropwizard.metrics-core.version}</version>
     </dependency>
     <dependency>
       <groupId>com.google.cloud</groupId>
@@ -481,6 +512,7 @@
               io.cdap.plugin.gcp.*;
               com.google.cloud.hadoop.*;
               org.apache.spark.streaming.pubsub*;
+              org.apache.hadoop.hbase.mapreduce.*;
             </_exportcontents>
           </instructions>
         </configuration>
