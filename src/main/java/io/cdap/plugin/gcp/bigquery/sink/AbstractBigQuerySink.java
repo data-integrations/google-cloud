@@ -26,7 +26,6 @@ import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryOutputConfiguration;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableSchema;
-import com.google.gson.JsonObject;
 import io.cdap.cdap.api.data.batch.Output;
 import io.cdap.cdap.api.data.batch.OutputFormatProvider;
 import io.cdap.cdap.api.data.format.StructuredRecord;
@@ -37,11 +36,12 @@ import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.mapreduce.AvroKeyValueOutputFormat;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
-import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,7 +56,7 @@ import javax.annotation.Nullable;
 /**
  * Base class for Big Query batch sink plugins.
  */
-public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, JsonObject, NullWritable> {
+public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, GenericRecord, NullWritable> {
 
   private static final Logger LOG = LoggerFactory.getLogger(AbstractBigQuerySink.class);
 
@@ -120,8 +120,8 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
    * @param tableSchema table schema
    * @param bucket bucket name
    */
-  protected final void initOutput(BatchSinkContext context, BigQuery bigQuery, String outputName,
-                                  String tableName, @Nullable Schema tableSchema, String bucket) throws IOException {
+  final void initOutput(BatchSinkContext context, BigQuery bigQuery, String outputName,
+                        String tableName, @Nullable Schema tableSchema, String bucket) throws IOException {
     LOG.debug("Init output for table '{}' with schema: {}", tableName, tableSchema);
     List<BigQueryTableFieldSchema> fields = getBigQueryTableFields(bigQuery, tableName,
                                                                    tableSchema,
@@ -358,8 +358,8 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
       String.format("%s.%s", getConfig().getDataset(), tableName),
       outputTableSchema,
       temporaryGcsPath,
-      BigQueryFileFormat.NEWLINE_DELIMITED_JSON,
-      TextOutputFormat.class);
+      BigQueryFileFormat.AVRO,
+      AvroKeyValueOutputFormat.class);
 
     return configuration;
   }

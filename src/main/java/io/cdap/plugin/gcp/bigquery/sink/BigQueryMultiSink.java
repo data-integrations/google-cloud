@@ -16,8 +16,6 @@
 package io.cdap.plugin.gcp.bigquery.sink;
 
 import com.google.cloud.bigquery.BigQuery;
-import com.google.gson.JsonObject;
-import com.google.gson.internal.bind.JsonTreeWriter;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
@@ -29,13 +27,14 @@ import io.cdap.cdap.etl.api.Emitter;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
+import io.cdap.plugin.format.avro.StructuredToAvroTransformer;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * This plugin allows users to write {@link StructuredRecord} entries to multiple Google Big Query tables.
@@ -100,17 +99,9 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
   }
 
   @Override
-  public void transform(StructuredRecord input, Emitter<KeyValue<JsonObject, NullWritable>> emitter) {
-    try (JsonTreeWriter writer = new JsonTreeWriter()) {
-      writer.beginObject();
-      for (Schema.Field recordField : Objects.requireNonNull(input.getSchema().getFields())) {
-        BigQueryRecordToJson.write(writer, recordField.getName(), input.get(recordField.getName()),
-                                   recordField.getSchema());
-      }
-      writer.endObject();
-      emitter.emit(new KeyValue<>(writer.get().getAsJsonObject(), NullWritable.get()));
-    } catch (IOException e) {
-      throw new RuntimeException("Exception while converting structured record to json.", e);
-    }
+  public void transform(StructuredRecord input, Emitter<KeyValue<GenericRecord,
+                        NullWritable>> emitter) throws IOException {
+    StructuredToAvroTransformer transformer = new StructuredToAvroTransformer(input.getSchema());
+    emitter.emit(new KeyValue<>(transformer.transform(input), NullWritable.get()));
   }
 }
