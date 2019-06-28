@@ -486,6 +486,10 @@
               io.cdap.plugin.gcp.*;
               com.google.cloud.hadoop.*;
               org.apache.spark.streaming.pubsub*;
+              org.apache.avro.mapred.*;
+              org.apache.avro.mapreduce;
+              parquet.avro.*;
+              parquet.hadoop.*;
             </_exportcontents>
           </instructions>
         </configuration>

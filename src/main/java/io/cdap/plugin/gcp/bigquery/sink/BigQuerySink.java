@@ -31,8 +31,10 @@ import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.plugin.format.avro.StructuredToAvroTransformer;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.mapred.AvroKey;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.mapred.JobContext;
 
 import java.io.IOException;
 import java.util.Map;
@@ -54,6 +56,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
 
   private final BigQuerySinkConfig config;
   private Schema schema;
+  private static org.apache.avro.Schema avroSchema;
 
   public BigQuerySink(BigQuerySinkConfig config) {
     this.config = config;
@@ -79,6 +82,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
   protected void prepareRunInternal(BatchSinkContext context, BigQuery bigQuery, String bucket) throws IOException {
     Schema configSchema = config.getSchema();
     Schema schema = configSchema == null ? context.getInputSchema() : configSchema;
+    avroSchema = new org.apache.avro.Schema.Parser().parse(schema.toString());
     initOutput(context, bigQuery, config.getReferenceName(), config.getTable(), schema, bucket);
   }
 
@@ -94,7 +98,10 @@ public final class BigQuerySink extends AbstractBigQuerySink {
 
       @Override
       public Map<String, String> getOutputFormatConfiguration() {
-        return BigQueryUtil.configToMap(configuration);
+        Map<String, String> map = BigQueryUtil.configToMap(configuration);
+        map.put(JobContext.OUTPUT_KEY_CLASS, AvroKey.class.getName());
+        map.put("avro.schema.output.key", avroSchema.toString());
+        return map;
       }
     };
   }
@@ -106,9 +113,9 @@ public final class BigQuerySink extends AbstractBigQuerySink {
   }
 
   @Override
-  public void transform(StructuredRecord input, Emitter<KeyValue<GenericRecord,
+  public void transform(StructuredRecord input, Emitter<KeyValue<AvroKey<GenericRecord>,
                         NullWritable>> emitter) throws IOException {
     StructuredToAvroTransformer transformer = new StructuredToAvroTransformer(input.getSchema());
-    emitter.emit(new KeyValue<>(transformer.transform(input), NullWritable.get()));
+    emitter.emit(new KeyValue<>(new AvroKey<>(transformer.transform(input)), NullWritable.get()));
   }
 }

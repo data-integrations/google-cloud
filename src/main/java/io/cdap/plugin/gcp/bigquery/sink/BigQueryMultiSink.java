@@ -29,6 +29,7 @@ import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.plugin.format.avro.StructuredToAvroTransformer;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.mapred.AvroKey;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 
@@ -99,9 +100,9 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
   }
 
   @Override
-  public void transform(StructuredRecord input, Emitter<KeyValue<GenericRecord,
+  public void transform(StructuredRecord input, Emitter<KeyValue<AvroKey<GenericRecord>,
                         NullWritable>> emitter) throws IOException {
     StructuredToAvroTransformer transformer = new StructuredToAvroTransformer(input.getSchema());
-    emitter.emit(new KeyValue<>(transformer.transform(input), NullWritable.get()));
+    emitter.emit(new KeyValue<>(new AvroKey<>(transformer.transform(input)), NullWritable.get()));
   }
 }

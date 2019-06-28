@@ -46,8 +46,9 @@ import com.google.cloud.hadoop.util.ConfigurationUtil;
 import com.google.cloud.hadoop.util.ResilientOperation;
 import com.google.cloud.hadoop.util.RetryDeterminer;
 import com.google.common.base.Strings;
-import com.google.gson.JsonObject;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.mapred.AvroKey;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.JobContext;
@@ -71,7 +72,7 @@ import javax.annotation.Nullable;
  * This is added to override BigQueryUtils.waitForJobCompletion error message with more useful error message.
  * See CDAP-15289 for more information.
  */
-public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<JsonObject, NullWritable> {
+public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<AvroKey<GenericRecord>, NullWritable> {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryOutputFormat.class);
 
   @Override

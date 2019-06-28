@@ -37,7 +37,8 @@ import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.mapreduce.AvroKeyValueOutputFormat;
+import org.apache.avro.mapred.AvroKey;
+import org.apache.avro.mapreduce.AvroKeyOutputFormat;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -56,7 +57,7 @@ import javax.annotation.Nullable;
 /**
  * Base class for Big Query batch sink plugins.
  */
-public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, GenericRecord, NullWritable> {
+public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, AvroKey<GenericRecord>, NullWritable> {
 
   private static final Logger LOG = LoggerFactory.getLogger(AbstractBigQuerySink.class);
 
@@ -67,6 +68,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, G
   // UUID is used since GCS bucket names must be globally unique.
   private final UUID uuid = UUID.randomUUID();
   private Configuration baseConfiguration;
+
 
   /**
    * Executes main prepare run logic. Child classes cannot override this method,
@@ -359,7 +361,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, G
       outputTableSchema,
       temporaryGcsPath,
       BigQueryFileFormat.AVRO,
-      AvroKeyValueOutputFormat.class);
+      AvroKeyOutputFormat.class);
 
     return configuration;
   }
