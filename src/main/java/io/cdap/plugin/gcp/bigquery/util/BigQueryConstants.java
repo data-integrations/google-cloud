@@ -24,4 +24,8 @@ public interface BigQueryConstants {
   String CONFIG_CREATE_PARTITIONED_TABLE = "cdap.bq.sink.create.partitioned.table";
   String CONFIG_PARTITION_BY_FIELD = "cdap.bq.sink.partition.by.field";
   String CONFIG_REQUIRE_PARTITION_FILTER = "cdap.bq.sink.require.partition.filter";
+  String CONFIG_PARTITION_FROM_DATE = "cdap.bq.source.partition.from.date";
+  String CONFIG_PARTITION_TO_DATE = "cdap.bq.source.partition.to.date";
+  String CONFIG_SERVICE_ACCOUNT_FILE_PATH = "cdap.bq.service.account.file.path";
+  String CONFIG_TEMPORARY_TABLE_NAME = "cdap.bq.source.temporary.table.name";
 }

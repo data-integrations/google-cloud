@@ -19,6 +19,7 @@ package io.cdap.plugin.gcp.bigquery.source;
 import com.google.cloud.ServiceOptions;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
+import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
 import io.cdap.plugin.gcp.common.GCPConfig;
@@ -33,6 +34,8 @@ import javax.annotation.Nullable;
  */
 public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   private static final String SCHEME = "gs://";
+  public static final String PARTITION_FROM = "partitionFrom";
+  public static final String PARTITION_TO = "partitionTo";
 
   @Macro
   @Description("The dataset the table belongs to. A dataset is contained within a specific project. "
@@ -65,6 +68,20 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
     + "in the same project that the BigQuery job will run in. If no value is given, it will default to the configured "
     + "project ID.")
   private String datasetProject;
+
+  @Name(PARTITION_FROM)
+  @Macro
+  @Nullable
+  @Description("It's inclusive partition start date. It should be a String with format \"yyyy-MM-dd\". " +
+    "This value is ignored if the table does not support partitioning.")
+  private String partitionFrom;
+
+  @Name(PARTITION_TO)
+  @Macro
+  @Nullable
+  @Description("It's inclusive partition end date. It should be a String with format \"yyyy-MM-dd\". " +
+    "This value is ignored if the table does not support partitioning.")
+  private String partitionTo;
 
   public String getDataset() {
     return dataset;
@@ -120,4 +137,15 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
       throw new InvalidConfigPropertyException("Invalid schema: " + e.getMessage(), "schema");
     }
   }
+
+  @Nullable
+  public String getPartitionFrom() {
+    return partitionFrom;
+  }
+
+  @Nullable
+  public String getPartitionTo() {
+    return partitionTo;
+  }
+
 }

@@ -23,9 +23,10 @@ import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.StandardSQLTypeName;
+import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
-import com.google.cloud.hadoop.io.bigquery.AvroBigQueryInputFormat;
+import com.google.cloud.bigquery.TimePartitioning;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
@@ -43,6 +44,7 @@ import io.cdap.cdap.etl.api.batch.BatchSourceContext;
 import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
 import io.cdap.cdap.etl.api.validation.InvalidStageException;
 import io.cdap.plugin.common.LineageRecorder;
+import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.common.Schemas;
@@ -56,9 +58,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.time.DateTimeException;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -114,6 +119,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
       null : GCPUtils.loadServiceAccountCredentials(serviceAccountPath);
     BigQuery bigQuery = GCPUtils.getBigQuery(config.getDatasetProject(), credentials);
     validateOutputSchema(bigQuery);
+    validatePartitionProperties();
 
     uuid = UUID.randomUUID();
     configuration = BigQueryUtil.getBigQueryConfig(config.getServiceAccountFilePath(), config.getProject());
@@ -126,18 +132,26 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
       configuration.setBoolean("fs.gs.bucket.delete.enable", true);
     }
 
-    if (!context.isPreviewEnabled()) {
-      BigQueryUtil.createResources(bigQuery, GCPUtils.getStorage(config.getDatasetProject(), credentials),
-                                   config.getDataset(), bucket);
-    }
+    BigQueryUtil.createResources(bigQuery, GCPUtils.getStorage(config.getDatasetProject(), credentials),
+                                 config.getDataset(), bucket);
 
     configuration.set("fs.gs.system.bucket", bucket);
     configuration.setBoolean("fs.gs.impl.disable.cache", true);
     configuration.setBoolean("fs.gs.metadata.cache.enable", false);
 
+    if (config.getServiceAccountFilePath() != null) {
+      configuration.set(BigQueryConstants.CONFIG_SERVICE_ACCOUNT_FILE_PATH, config.getServiceAccountFilePath());
+    }
+    if (config.getPartitionFrom() != null) {
+      configuration.set(BigQueryConstants.CONFIG_PARTITION_FROM_DATE, config.getPartitionFrom());
+    }
+    if (config.getPartitionTo() != null) {
+      configuration.set(BigQueryConstants.CONFIG_PARTITION_TO_DATE, config.getPartitionTo());
+    }
+
     String temporaryGcsPath = String.format("gs://%s/hadoop/input/%s", bucket, uuid);
-    AvroBigQueryInputFormat.setTemporaryCloudStorageDirectory(configuration, temporaryGcsPath);
-    AvroBigQueryInputFormat.setEnableShardedExport(configuration, false);
+    PartitionedBigQueryInputFormat.setTemporaryCloudStorageDirectory(configuration, temporaryGcsPath);
+    PartitionedBigQueryInputFormat.setEnableShardedExport(configuration, false);
     BigQueryConfiguration.configureBigQueryInput(configuration, config.getDatasetProject(),
                                                  config.getDataset(), config.getTable());
 
@@ -343,11 +357,51 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     return schema;
   }
 
+  private void validatePartitionProperties() {
+
+    Table sourceTable = BigQueryUtil.getBigQueryTable(config.getDatasetProject(), config.getDataset(),
+                                                      config.getTable(), config.getServiceAccountFilePath());
+    TimePartitioning timePartitioning = ((StandardTableDefinition) Objects.requireNonNull(sourceTable).getDefinition())
+      .getTimePartitioning();
+    if (timePartitioning == null) {
+      return;
+    }
+    String partitionFromDate = config.getPartitionFrom();
+    String partitionToDate = config.getPartitionTo();
+
+    if (partitionFromDate == null && partitionToDate == null) {
+      return;
+    }
+    LocalDate fromDate = null;
+    if (partitionFromDate != null) {
+      try {
+        fromDate = LocalDate.parse(partitionFromDate);
+      } catch (DateTimeException ex) {
+        throw new InvalidConfigPropertyException("Invalid Partition From Date format. Partition From Date should be " +
+                                                   "in format yyyy-MM-dd", ex, BigQuerySourceConfig.PARTITION_FROM);
+      }
+    }
+    LocalDate toDate = null;
+    if (partitionToDate != null) {
+      try {
+        toDate = LocalDate.parse(partitionToDate);
+      } catch (DateTimeException ex) {
+        throw new InvalidConfigPropertyException("Invalid Partition To Date format. Partition To Date should be " +
+                                                   "in format yyyy-MM-dd", ex, BigQuerySourceConfig.PARTITION_TO);
+      }
+    }
+
+    if (fromDate != null && toDate != null && fromDate.isAfter(toDate) && !fromDate.isEqual(toDate)) {
+      throw new InvalidStageException("Partition From Date should be before or equal Partition To Date");
+    }
+
+  }
+
   private void setInputFormat(BatchSourceContext context) {
     context.setInput(Input.of(config.referenceName, new InputFormatProvider() {
       @Override
       public String getInputFormatClassName() {
-        return AvroBigQueryInputFormat.class.getName();
+        return PartitionedBigQueryInputFormat.class.getName();
       }
 
       @Override
