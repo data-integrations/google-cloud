@@ -38,7 +38,6 @@ import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.mapred.AvroKey;
-import org.apache.avro.mapreduce.AvroKeyOutputFormat;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -361,7 +360,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
       outputTableSchema,
       temporaryGcsPath,
       BigQueryFileFormat.AVRO,
-      AvroKeyOutputFormat.class);
+      AvroOutputFormat.class);
 
     return configuration;
   }

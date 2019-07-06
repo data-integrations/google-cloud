@@ -42,7 +42,7 @@ public class MultiSinkOutputFormatProvider implements OutputFormatProvider {
 
   private final Configuration config;
 
-  public MultiSinkOutputFormatProvider(Configuration config,
+  public  MultiSinkOutputFormatProvider(Configuration config,
                                        String tableName,
                                        Schema tableSchema,
                                        String filterField) {

@@ -146,12 +146,13 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
                true);
 
       // Create load conf with minimal requirements.
-      JobConfigurationLoad loadConfig = new JobConfigurationLoad();
+      JobConfigurationLoad  loadConfig = new JobConfigurationLoad();
       loadConfig.setSchema(schema);
       loadConfig.setSourceFormat(sourceFormat.getFormatIdentifier());
       loadConfig.setSourceUris(gcsPaths);
       loadConfig.setDestinationTable(tableRef);
       loadConfig.setWriteDisposition(writeDisposition);
+      loadConfig.setUseAvroLogicalTypes(true);
       if (!Strings.isNullOrEmpty(kmsKeyName)) {
         loadConfig.setDestinationEncryptionConfiguration(new EncryptionConfiguration().setKmsKeyName(kmsKeyName));
       }

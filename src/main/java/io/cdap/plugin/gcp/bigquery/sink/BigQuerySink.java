@@ -82,7 +82,6 @@ public final class BigQuerySink extends AbstractBigQuerySink {
   protected void prepareRunInternal(BatchSinkContext context, BigQuery bigQuery, String bucket) throws IOException {
     Schema configSchema = config.getSchema();
     Schema schema = configSchema == null ? context.getInputSchema() : configSchema;
-    avroSchema = new org.apache.avro.Schema.Parser().parse(schema.toString());
     initOutput(context, bigQuery, config.getReferenceName(), config.getTable(), schema, bucket);
   }
 
@@ -100,7 +99,6 @@ public final class BigQuerySink extends AbstractBigQuerySink {
       public Map<String, String> getOutputFormatConfiguration() {
         Map<String, String> map = BigQueryUtil.configToMap(configuration);
         map.put(JobContext.OUTPUT_KEY_CLASS, AvroKey.class.getName());
-        map.put("avro.schema.output.key", avroSchema.toString());
         return map;
       }
     };
