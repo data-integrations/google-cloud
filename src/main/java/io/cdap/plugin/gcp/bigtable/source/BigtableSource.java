@@ -34,6 +34,7 @@ import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
 import io.cdap.cdap.etl.api.validation.InvalidStageException;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.common.SourceInputFormatProvider;
+import io.cdap.plugin.gcp.bigtable.common.HBaseColumn;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;

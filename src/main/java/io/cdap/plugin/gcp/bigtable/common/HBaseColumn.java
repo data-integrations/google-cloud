@@ -14,7 +14,7 @@
  * the License.
  */
 
-package io.cdap.plugin.gcp.bigtable.source;
+package io.cdap.plugin.gcp.bigtable.common;
 
 /**
  * This class represents a reference to HBase column

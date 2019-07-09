@@ -18,6 +18,7 @@ package io.cdap.plugin.gcp.bigtable.source;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.format.UnexpectedFormatException;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.plugin.gcp.bigtable.common.HBaseColumn;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
 

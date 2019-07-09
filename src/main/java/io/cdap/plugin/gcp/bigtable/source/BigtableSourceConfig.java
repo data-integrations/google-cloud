@@ -23,6 +23,7 @@ import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
+import io.cdap.plugin.gcp.bigtable.common.HBaseColumn;
 import io.cdap.plugin.gcp.common.ErrorHandling;
 import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
 

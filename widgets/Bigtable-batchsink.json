@@ -1,0 +1,83 @@
+{
+  "metadata": {
+    "spec-version": "1.5"
+  },
+  "display-name" : "Bigtable",
+  "configuration-groups": [
+    {
+      "label": "Basic",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Reference Name",
+          "name": "referenceName",
+          "widget-attributes" : {
+            "placeholder": "Name used to identify this source for lineage"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Project ID",
+          "name": "project",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Instance ID",
+          "name": "instance",
+          "widget-attributes" : {
+            "placeholder": "Bigtable instance id"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Table",
+          "name": "table",
+          "widget-attributes" : {
+            "placeholder": "Table to read from"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Key Alias",
+          "name": "keyAlias",
+          "widget-attributes" : {
+            "placeholder": "Key alias",
+            "default": "__key__"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Column Family",
+          "name": "columnFamily",
+          "widget-attributes" : {
+            "placeholder": "Column family to use for all inserted rows."
+          }
+        }
+      ]
+    },
+    {
+      "label" : "Credentials",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        }
+      ]
+    }
+  ],
+  "outputs": [],
+  "jump-config": {
+    "datasets": [
+      {
+        "ref-property-name": "referenceName"
+      }
+    ]
+  }
+}
