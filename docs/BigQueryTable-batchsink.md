@@ -53,6 +53,11 @@ is ignored if the table already exists.
 * When this is set to true, table will be created with required partition filter. 
 * When this is set to false, table will be created without required partition filter.
 
+**Clustering Order**: List of fields that determines the sort order of the data. Fields must be of type 
+INT, LONG, STRING, DATE, TIMESTAMP, BOOLEAN or DECIMAL. Tables cannot be clustered on more than 4 fields.
+ This value is only used when the BigQuery table is automatically created and ignored if the table 
+ already exists.
+
 **Update Table Schema**: Whether the BigQuery table schema should be modified 
 when it does not match the schema expected by the pipeline. 
 * When this is set to false, any mismatches between the schema expected by the pipeline 

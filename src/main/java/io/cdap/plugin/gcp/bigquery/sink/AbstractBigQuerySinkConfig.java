@@ -30,6 +30,9 @@ import javax.annotation.Nullable;
 public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig {
   private static final String SCHEME = "gs://";
 
+  public static final String NAME_PARTITION_BY_FIELD = "partitionByField";
+  public static final String NAME_CLUSTERING_ORDER = "clusteringOrder";
+
   @Macro
   @Description("The dataset to write to. A dataset is contained within a specific project. "
     + "Datasets are top-level containers that are used to organize and control access to tables and views.")
@@ -53,7 +56,7 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
     "already exists.")
   protected Boolean createPartitionedTable;
 
-  @Name("partitionByField")
+  @Name(NAME_PARTITION_BY_FIELD)
   @Macro
   @Nullable
   @Description("Partitioning column for the BigQuery table. This should be left empty if the BigQuery table is an " +
@@ -65,6 +68,19 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
   @Description("Whether to create a table that requires a partition filter. This value is ignored if the table " +
     "already exists.")
   protected Boolean partitionFilterRequired;
+
+  @Name(NAME_CLUSTERING_ORDER)
+  @Macro
+  @Nullable
+  @Description("List of fields that determines the sort order of the data. Fields must be of type INT, LONG, " +
+    "STRING, DATE, TIMESTAMP, BOOLEAN or DECIMAL. Tables cannot be clustered on more than 4 fields. This value is " +
+    "only used when the BigQuery table is automatically created and ignored if the table already exists.")
+  protected String clusteringOrder;
+
+  @Nullable
+  protected String getTable() {
+    return null;
+  }
 
   public String getDataset() {
     return dataset;
@@ -100,6 +116,11 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
 
   public boolean isPartitionFilterRequired() {
     return partitionFilterRequired == null ? false : partitionFilterRequired;
+  }
+
+  @Nullable
+  public String getClusteringOrder() {
+    return clusteringOrder;
   }
 
   @Override

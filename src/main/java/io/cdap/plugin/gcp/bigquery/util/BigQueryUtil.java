@@ -86,6 +86,9 @@ public final class BigQueryUtil {
       .put(Schema.LogicalType.DECIMAL, LegacySQLTypeName.NUMERIC)
       .build();
 
+  public static final Set<Schema.Type> SUPPORTED_CLUSTERING_TYPES =
+    ImmutableSet.of(Schema.Type.INT, Schema.Type.LONG, Schema.Type.STRING, Schema.Type.BOOLEAN, Schema.Type.BYTES);
+
   /**
    * Gets non nullable type from provided schema.
    *

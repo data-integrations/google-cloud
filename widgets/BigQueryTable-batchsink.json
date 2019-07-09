@@ -88,6 +88,12 @@
           }
         },
         {
+          "name": "clusteringOrder",
+          "widget-type": "csv",
+          "label": "Clustering Order",
+          "widget-attributes" : {}
+        },
+        {
           "name": "allowSchemaRelaxation",
           "widget-type": "toggle",
           "label": "Update Table Schema",
