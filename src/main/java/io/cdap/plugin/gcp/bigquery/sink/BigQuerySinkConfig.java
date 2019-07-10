@@ -16,11 +16,18 @@
 
 package io.cdap.plugin.gcp.bigquery.sink;
 
+import com.google.cloud.bigquery.StandardTableDefinition;
+import com.google.cloud.bigquery.Table;
+import com.google.cloud.bigquery.TimePartitioning;
 import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
+import io.cdap.cdap.etl.api.validation.InvalidStageException;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import javax.annotation.Nullable;
@@ -30,6 +37,7 @@ import javax.annotation.Nullable;
  * configuring the <code>BigQuerySink</code> plugin.
  */
 public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
+  private static final Logger LOG = LoggerFactory.getLogger(BigQuerySinkConfig.class);
 
   @Macro
   @Description("The table to write to. A table contains individual records organized in rows. "
@@ -80,6 +88,8 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     super.validate();
     if (!containsMacro("schema")) {
       Schema outputSchema = getSchema();
+      Schema schema = outputSchema != null ? outputSchema : inputSchema;
+      validatePartitionProperties(schema);
       if (outputSchema == null) {
         return;
       }
@@ -113,6 +123,53 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
           BigQueryUtil.validateArraySchema(field.getSchema(), name);
         }
       }
+    }
+  }
+
+  private void validatePartitionProperties(@Nullable Schema schema) {
+    Table table = BigQueryUtil.getBigQueryTable(getProject(), getDataset(), getTable(), getServiceAccountFilePath());
+    if (table != null) {
+      StandardTableDefinition tableDefinition = table.getDefinition();
+      TimePartitioning timePartitioning = tableDefinition.getTimePartitioning();
+      if (timePartitioning == null && createPartitionedTable != null && createPartitionedTable) {
+        LOG.warn(String.format("The plugin is configured to auto-create a partitioned table, but table '%s' already " +
+                                 "exists without partitioning. Please verify the partitioning configuration.",
+                               table.getTableId().getTable()));
+      }
+      if (timePartitioning != null && timePartitioning.getField() != null
+        && !timePartitioning.getField().equals(partitionByField)) {
+        throw new InvalidConfigPropertyException(String.format("Destination table '%s' is partitioned by column '%s'." +
+                                                                 " Please set the partition field to '%s'.",
+                                                               table.getTableId().getTable(),
+                                                               timePartitioning.getField(),
+                                                               timePartitioning.getField()), "partitionByField");
+      }
+      validateColumnForPartition(partitionByField, schema);
+    }
+    if (createPartitionedTable == null || !createPartitionedTable) {
+      return;
+    }
+    validateColumnForPartition(partitionByField, schema);
+  }
+
+  private void validateColumnForPartition(@Nullable String columnName, @Nullable Schema schema) {
+    if (columnName == null || schema == null) {
+      return;
+    }
+    Schema.Field field = schema.getField(columnName);
+    if (field == null) {
+      throw new InvalidConfigPropertyException(
+        String.format("Partition column '%s' is missing from the table schema", columnName), "Partition Field");
+    }
+    Schema fieldSchema = field.getSchema();
+    fieldSchema = fieldSchema.isNullable() ? fieldSchema.getNonNullable() : fieldSchema;
+    Schema.LogicalType logicalType = fieldSchema.getLogicalType();
+    if (logicalType != Schema.LogicalType.DATE && logicalType != Schema.LogicalType.TIMESTAMP_MICROS
+      && logicalType != Schema.LogicalType.TIMESTAMP_MILLIS) {
+      String type = logicalType != null ? logicalType.getToken() : fieldSchema.getType().name();
+      throw new InvalidStageException(String.format("Partition column '%s' is of invalid type '%s'. " +
+                                                      "Please change it to a date or timestamp.",
+                                                    columnName, type));
     }
   }
 }

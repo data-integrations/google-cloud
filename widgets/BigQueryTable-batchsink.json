@@ -48,22 +48,59 @@
           }
         },
         {
-          "widget-type": "radio-group",
+          "name": "createPartitionedTable",
+          "widget-type": "toggle",
+          "label": "Create Partitioned Table",
+          "widget-attributes": {
+            "on": {
+              "value": "true",
+              "label": "True"
+            },
+            "off": {
+              "value": "false",
+              "label": "False"
+            },
+            "default": "false"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Partition Field",
+          "name": "partitionByField",
+          "widget-attributes" : {
+            "placeholder": "Table field for partitioning"
+          }
+        },
+        {
+          "name": "partitionFilterRequired",
+          "widget-type": "toggle",
+          "label": "Require Partition Filter",
+          "widget-attributes": {
+            "on": {
+              "value": "true",
+              "label": "True"
+            },
+            "off": {
+              "value": "false",
+              "label": "False"
+            },
+            "default": "false"
+          }
+        },
+        {
           "name": "allowSchemaRelaxation",
+          "widget-type": "toggle",
           "label": "Update Table Schema",
           "widget-attributes": {
-            "layout": "inline",
-            "default": "false",
-            "options": [
-              {
-                "id": "true",
-                "label": "True"
-              },
-              {
-                "id": "false",
-                "label": "False"
-              }
-            ]
+            "on": {
+              "value": "true",
+              "label": "True"
+            },
+            "off": {
+              "value": "false",
+              "label": "False"
+            },
+            "default": "false"
           }
         }
       ]
