@@ -60,7 +60,7 @@ import javax.annotation.Nullable;
 public final class BigQueryUtil {
   public static final Set<Schema.Type> SUPPORTED_TYPES =
     ImmutableSet.of(Schema.Type.INT, Schema.Type.LONG, Schema.Type.STRING, Schema.Type.FLOAT, Schema.Type.DOUBLE,
-                    Schema.Type.BOOLEAN, Schema.Type.BYTES, Schema.Type.ARRAY);
+                    Schema.Type.BOOLEAN, Schema.Type.BYTES, Schema.Type.ARRAY, Schema.Type.RECORD);
   // array of arrays and map of arrays are not supported by big query
   public static final Set<Schema.Type> UNSUPPORTED_ARRAY_TYPES = ImmutableSet.of(Schema.Type.ARRAY, Schema.Type.MAP);
 
@@ -73,16 +73,18 @@ public final class BigQueryUtil {
     .put(Schema.Type.DOUBLE, ImmutableSet.of(LegacySQLTypeName.FLOAT))
     .put(Schema.Type.BOOLEAN, ImmutableSet.of(LegacySQLTypeName.BOOLEAN))
     .put(Schema.Type.BYTES, ImmutableSet.of(LegacySQLTypeName.BYTES))
+    .put(Schema.Type.RECORD, ImmutableSet.of(LegacySQLTypeName.RECORD))
     .build();
 
   private static final Map<Schema.LogicalType, LegacySQLTypeName> LOGICAL_TYPE_MAP =
     ImmutableMap.<Schema.LogicalType, LegacySQLTypeName>builder()
-    .put(Schema.LogicalType.DATE, LegacySQLTypeName.DATE)
-    .put(Schema.LogicalType.TIME_MILLIS, LegacySQLTypeName.TIME)
-    .put(Schema.LogicalType.TIME_MICROS, LegacySQLTypeName.TIME)
-    .put(Schema.LogicalType.TIMESTAMP_MILLIS, LegacySQLTypeName.TIMESTAMP)
-    .put(Schema.LogicalType.TIMESTAMP_MICROS, LegacySQLTypeName.TIMESTAMP)
-    .put(Schema.LogicalType.DECIMAL, LegacySQLTypeName.NUMERIC).build();
+      .put(Schema.LogicalType.DATE, LegacySQLTypeName.DATE)
+      .put(Schema.LogicalType.TIME_MILLIS, LegacySQLTypeName.TIME)
+      .put(Schema.LogicalType.TIME_MICROS, LegacySQLTypeName.TIME)
+      .put(Schema.LogicalType.TIMESTAMP_MILLIS, LegacySQLTypeName.TIMESTAMP)
+      .put(Schema.LogicalType.TIMESTAMP_MICROS, LegacySQLTypeName.TIMESTAMP)
+      .put(Schema.LogicalType.DECIMAL, LegacySQLTypeName.NUMERIC)
+      .build();
 
   /**
    * Gets non nullable type from provided schema.

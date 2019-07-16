@@ -56,7 +56,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -176,10 +175,10 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     org.apache.hadoop.fs.Path gcsPath = new org.apache.hadoop.fs.Path(String.format("gs://%s", uuid.toString()));
     try {
       if (config.getBucket() == null) {
-          FileSystem fs = gcsPath.getFileSystem(configuration);
-          if (fs.exists(gcsPath)) {
-            fs.delete(gcsPath, true);
-          }
+        FileSystem fs = gcsPath.getFileSystem(configuration);
+        if (fs.exists(gcsPath)) {
+          fs.delete(gcsPath, true);
+        }
       }
     } catch (IOException e) {
       LOG.warn("Failed to delete bucket " + gcsPath.toUri().getPath() + ", " + e.getMessage());
@@ -221,7 +220,10 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
       throw new InvalidStageException(String.format("Cannot read from table '%s:%s.%s' because it has no schema.",
                                                     project, dataset, table));
     }
-    List<Schema.Field> fields = getSchemaFields(bgSchema);
+
+    List<Schema.Field> fields = bgSchema.getFields().stream()
+      .map(this::getSchemaField)
+      .collect(Collectors.toList());
     return Schema.recordOf("output", fields);
   }
 
@@ -285,50 +287,60 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     }
   }
 
-  private List<Schema.Field> getSchemaFields(com.google.cloud.bigquery.Schema bgSchema) {
-    List<Schema.Field> fields = new ArrayList<>();
-    for (Field field : bgSchema.getFields()) {
-      LegacySQLTypeName type = field.getType();
-      Schema schema;
-      StandardSQLTypeName value = type.getStandardType();
-      if (value == StandardSQLTypeName.FLOAT64) {
-        // float is a float64, so corresponding type becomes double
-        schema = Schema.of(Schema.Type.DOUBLE);
-      } else if (value == StandardSQLTypeName.BOOL) {
-        schema = Schema.of(Schema.Type.BOOLEAN);
-      } else if (value == StandardSQLTypeName.INT64) {
-        // int is a int64, so corresponding type becomes long
-        schema = Schema.of(Schema.Type.LONG);
-      } else if (value == StandardSQLTypeName.STRING || value == StandardSQLTypeName.DATETIME) {
-        schema = Schema.of(Schema.Type.STRING);
-      } else if (value == StandardSQLTypeName.BYTES) {
-        schema = Schema.of(Schema.Type.BYTES);
-      } else if (value == StandardSQLTypeName.TIME) {
-        schema = Schema.of(Schema.LogicalType.TIME_MICROS);
-      } else if (value == StandardSQLTypeName.DATE) {
-        schema = Schema.of(Schema.LogicalType.DATE);
-      } else if (value == StandardSQLTypeName.TIMESTAMP) {
-        schema = Schema.of(Schema.LogicalType.TIMESTAMP_MICROS);
-      } else if (value == StandardSQLTypeName.NUMERIC) {
-        // bigquery has 38 digits of precision and 9 digits of scale.
-        // https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro#logical_types
-        schema = Schema.decimalOf(38, 9);
-      } else {
-        // this should never happen
-        throw new InvalidStageException(String.format("BigQuery column '%s' is of unsupported type '%s'.",
-                                                      field.getName(), value));
-      }
+  private Schema.Field getSchemaField(Field field) {
+    Schema schema = convertFieldType(field);
 
-      if (field.getMode() == null || field.getMode() == Field.Mode.NULLABLE) {
-        fields.add(Schema.Field.of(field.getName(), Schema.nullableOf(schema)));
-      } else if (field.getMode() == Field.Mode.REQUIRED) {
-        fields.add(Schema.Field.of(field.getName(), schema));
-      } else if (field.getMode() == Field.Mode.REPEATED) {
-        // allow array field types
-        fields.add(Schema.Field.of(field.getName(), Schema.arrayOf(schema)));
-      }
+    Field.Mode mode = field.getMode() == null ? Field.Mode.NULLABLE : field.getMode();
+    switch (mode) {
+      case NULLABLE:
+        return Schema.Field.of(field.getName(), Schema.nullableOf(schema));
+      case REQUIRED:
+        return Schema.Field.of(field.getName(), schema);
+      case REPEATED:
+        return Schema.Field.of(field.getName(), Schema.arrayOf(schema));
+      default:
+        throw new IllegalArgumentException(
+          String.format("Field '%s' is of unexpected mode '%s'", field.getName(), mode));
     }
-    return fields;
+  }
+
+  private Schema convertFieldType(Field field) {
+    LegacySQLTypeName type = field.getType();
+    Schema schema;
+    StandardSQLTypeName value = type.getStandardType();
+    if (value == StandardSQLTypeName.FLOAT64) {
+      // float is a float64, so corresponding type becomes double
+      schema = Schema.of(Schema.Type.DOUBLE);
+    } else if (value == StandardSQLTypeName.BOOL) {
+      schema = Schema.of(Schema.Type.BOOLEAN);
+    } else if (value == StandardSQLTypeName.INT64) {
+      // int is a int64, so corresponding type becomes long
+      schema = Schema.of(Schema.Type.LONG);
+    } else if (value == StandardSQLTypeName.STRING || value == StandardSQLTypeName.DATETIME) {
+      schema = Schema.of(Schema.Type.STRING);
+    } else if (value == StandardSQLTypeName.BYTES) {
+      schema = Schema.of(Schema.Type.BYTES);
+    } else if (value == StandardSQLTypeName.TIME) {
+      schema = Schema.of(Schema.LogicalType.TIME_MICROS);
+    } else if (value == StandardSQLTypeName.DATE) {
+      schema = Schema.of(Schema.LogicalType.DATE);
+    } else if (value == StandardSQLTypeName.TIMESTAMP) {
+      schema = Schema.of(Schema.LogicalType.TIMESTAMP_MICROS);
+    } else if (value == StandardSQLTypeName.NUMERIC) {
+      // bigquery has 38 digits of precision and 9 digits of scale.
+      // https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro#logical_types
+      schema = Schema.decimalOf(38, 9);
+    } else if (value == StandardSQLTypeName.STRUCT) {
+      List<Schema.Field> fields = field.getSubFields().stream()
+        .map(this::getSchemaField)
+        .collect(Collectors.toList());
+      schema = Schema.recordOf(field.getName(), fields);
+    } else {
+      // this should never happen
+      throw new InvalidStageException(String.format("BigQuery column '%s' is of unsupported type '%s'.",
+                                                    field.getName(), value));
+    }
+    return schema;
   }
 
   private void setInputFormat(BatchSourceContext context) {
