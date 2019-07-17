@@ -30,6 +30,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 /**
@@ -38,6 +41,8 @@ import javax.annotation.Nullable;
  */
 public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   private static final Logger LOG = LoggerFactory.getLogger(BigQuerySinkConfig.class);
+
+  public static final int MAX_NUMBER_OF_COLUMNS = 4;
 
   @Macro
   @Description("The table to write to. A table contains individual records organized in rows. "
@@ -90,6 +95,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
       Schema outputSchema = getSchema();
       Schema schema = outputSchema != null ? outputSchema : inputSchema;
       validatePartitionProperties(schema);
+      validateClusteringOrder(schema);
       if (outputSchema == null) {
         return;
       }
@@ -159,7 +165,8 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     Schema.Field field = schema.getField(columnName);
     if (field == null) {
       throw new InvalidConfigPropertyException(
-        String.format("Partition column '%s' is missing from the table schema", columnName), "Partition Field");
+        String.format("Partition column '%s' is missing from the table schema", columnName),
+        NAME_PARTITION_BY_FIELD);
     }
     Schema fieldSchema = field.getSchema();
     fieldSchema = fieldSchema.isNullable() ? fieldSchema.getNonNullable() : fieldSchema;
@@ -170,6 +177,45 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
       throw new InvalidStageException(String.format("Partition column '%s' is of invalid type '%s'. " +
                                                       "Please change it to a date or timestamp.",
                                                     columnName, type));
+    }
+  }
+
+  private void validateClusteringOrder(@Nullable Schema schema) {
+    if (!shouldCreatePartitionedTable() || Strings.isNullOrEmpty(clusteringOrder) || schema == null) {
+      return;
+    }
+    List<String> columnsNames = Arrays.stream(clusteringOrder.split(",")).map(String::trim)
+      .collect(Collectors.toList());
+    if (columnsNames.size() > MAX_NUMBER_OF_COLUMNS) {
+      throw new InvalidConfigPropertyException(
+        String.format("Expected no more than '%d' clustering fields, found '%d'.", MAX_NUMBER_OF_COLUMNS,
+                      columnsNames.size()), NAME_CLUSTERING_ORDER);
+    }
+    for (String column : columnsNames) {
+      Schema.Field field = schema.getField(column);
+      if (field == null) {
+        throw new InvalidConfigPropertyException(
+          String.format("Clustering column '%s' is missing from the table schema", column),
+          NAME_CLUSTERING_ORDER);
+      }
+      Schema.Type type = field.getSchema().isNullable()
+        ? field.getSchema().getNonNullable().getType()
+        : field.getSchema().getType();
+      Schema.LogicalType logicalType = field.getSchema().isNullable()
+        ? field.getSchema().getNonNullable().getLogicalType()
+        : field.getSchema().getLogicalType();
+      if (!BigQueryUtil.SUPPORTED_CLUSTERING_TYPES.contains(type)) {
+        throw new InvalidConfigPropertyException(
+          String.format("Field '%s' has type '%s', which is not supported for clustering.", column, type),
+          NAME_CLUSTERING_ORDER);
+      }
+      if (logicalType != Schema.LogicalType.DATE && logicalType != Schema.LogicalType.TIMESTAMP_MICROS
+        && logicalType != Schema.LogicalType.TIMESTAMP_MILLIS && logicalType != Schema.LogicalType.DECIMAL) {
+        throw new InvalidConfigPropertyException(
+          String.format("Field '%s' has type '%s', which is not supported for clustering.", column,
+                        logicalType.getToken()),
+          NAME_CLUSTERING_ORDER);
+      }
     }
   }
 }
