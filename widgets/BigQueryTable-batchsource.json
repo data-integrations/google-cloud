@@ -66,6 +66,22 @@
         },
         {
           "widget-type": "textbox",
+          "label": "Partition Start Date",
+          "name": "partitionFrom",
+          "widget-attributes" : {
+            "placeholder": "Partition start date in format yyyy-MM-dd"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Partition End Date",
+          "name": "partitionTo",
+          "widget-attributes" : {
+            "placeholder": "Partition end date in format yyyy-MM-dd"
+          }
+        },
+        {
+          "widget-type": "textbox",
           "label": "Temporary Bucket Name",
           "name": "bucket",
           "widget-attributes" : {

@@ -39,6 +39,12 @@ Datasets are top-level containers that are used to organize and control access t
 Each record is composed of columns (also called fields).
 Every table is defined by a schema that describes the column names, data types, and other information.
 
+**Partition Start Date**: Inclusive partition start date, specified as 'yyyy-MM-dd'. For example, '2019-01-01'. 
+If no value is given, all partitions up to the partition end date will be read.
+
+**Partition End Date**: Exclusive partition end date, specified as 'yyyy-MM-dd'. For example, '2019-01-01'. 
+If no value is given, all partitions up from the partition start date will be read.
+
 **Temporary Bucket Name**: Google Cloud Storage bucket to store temporary data in.
 It will be automatically created if it does not exist, but will not be automatically deleted.
 Temporary data will be deleted after it has been read. If it is not provided, a unique bucket will be
