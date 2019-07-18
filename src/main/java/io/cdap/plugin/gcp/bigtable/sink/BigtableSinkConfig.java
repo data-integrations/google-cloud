@@ -21,9 +21,12 @@ import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
+import io.cdap.plugin.gcp.common.ConfigUtil;
 import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
 
 import java.io.File;
+import java.util.Map;
+import javax.annotation.Nullable;
 
 /**
  * Holds configuration required for configuring {@link BigtableSink}.
@@ -32,7 +35,7 @@ public final class BigtableSinkConfig extends GCPReferenceSourceConfig {
   public static final String TABLE = "table";
   public static final String INSTANCE = "instance";
   public static final String KEY_ALIAS = "keyAlias";
-  public static final String COLUMN_FAMILY = "columnFamily";
+  public static final String COLUMN_MAPPINGS = "columnMappings";
 
   @Name(TABLE)
   @Macro
@@ -52,19 +55,19 @@ public final class BigtableSinkConfig extends GCPReferenceSourceConfig {
   @Macro
   final String keyAlias;
 
-  @Name(COLUMN_FAMILY)
-  @Description("Column family to use for all inserted rows.")
+  @Name(COLUMN_MAPPINGS)
+  @Description("Mappings from record field to Bigtable column name. Column name format: <family>:<qualifier>.")
   @Macro
-  final String columnFamily;
+  final String columnMappings;
 
   public BigtableSinkConfig(String table,
                             String instance,
                             String keyAlias,
-                            String columnFamily) {
+                            String columnMappings) {
     this.table = table;
     this.instance = instance;
     this.keyAlias = keyAlias;
-    this.columnFamily = columnFamily;
+    this.columnMappings = columnMappings;
   }
 
   public void validate() {
@@ -84,6 +87,11 @@ public final class BigtableSinkConfig extends GCPReferenceSourceConfig {
                                                  SERVICE_ACCOUNT_FILE_PATH);
       }
     }
+  }
+
+  @Nullable
+  public Map<String, String> getColumnMappings() {
+    return columnMappings == null ? null : ConfigUtil.parseKeyValueConfig(columnMappings, ",", "=");
   }
 
   public boolean connectionParamsConfigured() {

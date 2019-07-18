@@ -18,12 +18,14 @@ package io.cdap.plugin.gcp.bigtable.sink;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.format.UnexpectedFormatException;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.plugin.gcp.bigtable.common.HBaseColumn;
 import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nullable;
 
@@ -33,11 +35,11 @@ import javax.annotation.Nullable;
 public class RecordToHBaseMutationTransformer {
 
   private final String keyAlias;
-  private final String columnFamily;
+  private final Map<String, String> columnMappings;
 
-  public RecordToHBaseMutationTransformer(String keyAlias, String columnFamily) {
+  public RecordToHBaseMutationTransformer(String keyAlias, Map<String, String> columnMappings) {
     this.keyAlias = keyAlias;
-    this.columnFamily = columnFamily;
+    this.columnMappings = columnMappings;
   }
 
   public Mutation transform(StructuredRecord record) {
@@ -53,11 +55,14 @@ public class RecordToHBaseMutationTransformer {
                                                         keyAlias));
     }
     Put put = new Put(rowKeyBytes);
-    byte[] columnFamilyBytes = Bytes.toBytes(columnFamily);
     for (Schema.Field field : fields) {
       String fieldName = field.getName();
+      if (fieldName.equals(keyAlias)) {
+        continue;
+      }
+      HBaseColumn column = HBaseColumn.fromFullName(columnMappings.get(fieldName));
       byte[] valueBytes = convertFieldValueToBytes(record.get(fieldName), field);
-      put.addColumn(columnFamilyBytes, Bytes.toBytes(fieldName), valueBytes);
+      put.addColumn(Bytes.toBytes(column.getFamily()), Bytes.toBytes(column.getQualifier()), valueBytes);
     }
     return put;
   }

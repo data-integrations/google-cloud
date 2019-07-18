@@ -18,19 +18,22 @@ package io.cdap.plugin.gcp.bigtable.source;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Sets;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
 import io.cdap.plugin.gcp.bigtable.common.HBaseColumn;
+import io.cdap.plugin.gcp.common.ConfigUtil;
 import io.cdap.plugin.gcp.common.ErrorHandling;
 import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -43,6 +46,7 @@ public final class BigtableSourceConfig extends GCPReferenceSourceConfig {
   public static final String TABLE = "table";
   public static final String INSTANCE = "instance";
   public static final String KEY_ALIAS = "keyAlias";
+  public static final String COLUMN_MAPPINGS = "columnMappings";
   public static final String SCAN_ROW_START = "scanRowStart";
   public static final String SCAN_ROW_STOP = "scanRowStop";
   public static final String SCAN_TIME_RANGE_START = "scanTimeRangeStart";
@@ -78,6 +82,12 @@ public final class BigtableSourceConfig extends GCPReferenceSourceConfig {
   @Macro
   @Nullable
   final String keyAlias;
+
+  @Name(COLUMN_MAPPINGS)
+  @Description("Mappings from Bigtable column name to record field. Column name format: <family>:<qualifier>.")
+  @Macro
+  @Nullable
+  final String columnMappings;
 
   @Name(SCAN_ROW_START)
   @Description("Scan start row.")
@@ -115,12 +125,14 @@ public final class BigtableSourceConfig extends GCPReferenceSourceConfig {
   final String schema;
 
   public BigtableSourceConfig(String table, String instance, @Nullable String project,
-                              @Nullable String serviceFilePath, @Nullable String keyAlias,
+                              @Nullable String serviceFilePath,
+                              @Nullable String keyAlias, @Nullable String columnMappings,
                               @Nullable String scanRowStart, @Nullable String scanRowStop,
                               @Nullable Long scanTimeRangeStart, @Nullable Long scanTimeRangeStop,
                               String onError, String schema) {
     this.table = table;
     this.instance = instance;
+    this.columnMappings = columnMappings;
     this.project = project;
     this.serviceFilePath = serviceFilePath;
     this.keyAlias = keyAlias;
@@ -134,7 +146,7 @@ public final class BigtableSourceConfig extends GCPReferenceSourceConfig {
 
   public void validate() {
     super.validate();
-    if (!containsMacro(PROJECT) && null == tryGetProject()) {
+    if (!containsMacro(PROJECT) && tryGetProject() == null) {
       throw new InvalidConfigPropertyException("Could not detect Google Cloud project id from the environment. " +
                                                  "Please specify a project id.", PROJECT);
     }
@@ -142,7 +154,7 @@ public final class BigtableSourceConfig extends GCPReferenceSourceConfig {
       throw new InvalidConfigPropertyException("Instance ID must be specified", INSTANCE);
     }
     String serviceAccountFilePath = getServiceAccountFilePath();
-    if (!containsMacro(SERVICE_ACCOUNT_FILE_PATH) && null != serviceAccountFilePath) {
+    if (!containsMacro(SERVICE_ACCOUNT_FILE_PATH) && serviceAccountFilePath != null) {
       File serviceAccountFile = new File(serviceAccountFilePath);
       if (!serviceAccountFile.exists()) {
         throw new InvalidConfigPropertyException(
@@ -151,17 +163,31 @@ public final class BigtableSourceConfig extends GCPReferenceSourceConfig {
         );
       }
     }
-    if (!containsMacro(ON_ERROR) && null != onError) {
+    if (!containsMacro(ON_ERROR)) {
       if (Strings.isNullOrEmpty(onError)) {
         throw new InvalidConfigPropertyException("Error handling must be specified", ON_ERROR);
       }
-      if (null == ErrorHandling.fromDisplayName(onError)) {
+      if (ErrorHandling.fromDisplayName(onError) == null) {
         throw new InvalidConfigPropertyException("Invalid record error handling strategy name", ON_ERROR);
       }
     }
+    Map<String, String> columnMappings = getColumnMappings();
+    if (!containsMacro(COLUMN_MAPPINGS)) {
+      if (columnMappings == null || columnMappings.isEmpty()) {
+        throw new InvalidConfigPropertyException("Column mappings must be specified", COLUMN_MAPPINGS);
+      }
+      columnMappings.forEach((columnName, fieldName) -> {
+        try {
+          HBaseColumn.fromFullName(columnName);
+        } catch (IllegalArgumentException e) {
+          String errorMessage = String.format("Invalid column in mapping '%s'. Reason: %s", columnName, e.getMessage());
+          throw new InvalidConfigPropertyException(errorMessage, COLUMN_MAPPINGS);
+        }
+      });
+    }
     if (!containsMacro(SCHEMA)) {
       Schema parsedSchema = getSchema();
-      if (null == parsedSchema) {
+      if (parsedSchema == null) {
         throw new InvalidConfigPropertyException("Schema must be specified", SCHEMA);
       }
       if (Schema.Type.RECORD != parsedSchema.getType()) {
@@ -172,6 +198,27 @@ public final class BigtableSourceConfig extends GCPReferenceSourceConfig {
       List<Schema.Field> fields = parsedSchema.getFields();
       if (null == fields || fields.isEmpty()) {
         throw new InvalidConfigPropertyException("Schema should contain fields to map", SCHEMA);
+      }
+      if (columnMappings != null) {
+        Set<String> mappedFieldNames = Sets.newHashSet(columnMappings.values());
+        Set<String> schemaFieldNames = fields.stream()
+          .map(Schema.Field::getName)
+          .filter(name -> !name.equals(keyAlias))
+          .collect(Collectors.toSet());
+        Sets.SetView<String> nonDescribedFields = Sets.difference(schemaFieldNames, mappedFieldNames);
+        if (!nonDescribedFields.isEmpty()) {
+          String nonDescribedFieldsString = String.join(", ", nonDescribedFields);
+          String errorMessage = String.format("Some mapped columns are not described in schema: %s. ",
+                                              nonDescribedFieldsString);
+          throw new InvalidConfigPropertyException(errorMessage, SCHEMA);
+        }
+        Sets.SetView<String> nonMappedColumns = Sets.difference(mappedFieldNames, schemaFieldNames);
+        if (!nonMappedColumns.isEmpty()) {
+          String nonMappedColumnsString = String.join(", ", nonDescribedFields);
+          String errorMessage = String.format("Some schema fields do not have corresponding column mappings: %s. ",
+                                              nonMappedColumnsString);
+          throw new InvalidConfigPropertyException(errorMessage, COLUMN_MAPPINGS);
+        }
       }
       for (Schema.Field field : fields) {
         Schema.Type fieldType = field.getSchema().isNullable() ?
@@ -185,17 +232,6 @@ public final class BigtableSourceConfig extends GCPReferenceSourceConfig {
                                               field.getName(), fieldType, supportedTypes);
           throw new InvalidConfigPropertyException(errorMessage, SCHEMA);
         }
-        if (field.getName().equals(keyAlias)) {
-          // key should be defined in schema but will not be retrieved from column families.
-          continue;
-        }
-        try {
-          HBaseColumn.fromFullName(field.getName());
-        } catch (IllegalArgumentException e) {
-          String errorMessage = String.format("Field '%s' has invalid name. Reason: %s",
-                                              field.getName(), e.getMessage());
-          throw new InvalidConfigPropertyException(errorMessage, SCHEMA);
-        }
       }
     }
   }
@@ -206,10 +242,15 @@ public final class BigtableSourceConfig extends GCPReferenceSourceConfig {
   @Nullable
   public Schema getSchema() {
     try {
-      return null == schema ? null : Schema.parseJson(schema);
+      return schema == null ? null : Schema.parseJson(schema);
     } catch (IOException e) {
       throw new InvalidConfigPropertyException("Invalid schema: " + e.getMessage(), SCHEMA);
     }
+  }
+
+  @Nullable
+  public Map<String, String> getColumnMappings() {
+    return columnMappings == null ? null : ConfigUtil.parseKeyValueConfig(columnMappings, ",", "=");
   }
 
   public ErrorHandling getErrorHandling() {
@@ -224,18 +265,14 @@ public final class BigtableSourceConfig extends GCPReferenceSourceConfig {
   }
 
   public List<HBaseColumn> getRequestedColumns() {
-    List<HBaseColumn> families = new ArrayList<>();
-    Schema parsedSchema = getSchema();
-    if (null != parsedSchema) {
-      for (Schema.Field field : parsedSchema.getFields()) {
-        if (field.getName().equals(keyAlias)) {
-          // key should be defined in schema but will not be retrieved from column families.
-          continue;
-        }
-        HBaseColumn hBaseColumn = HBaseColumn.fromFullName(field.getName());
-        families.add(hBaseColumn);
-      }
+    Map<String, String> mappings = getColumnMappings();
+    if (mappings == null) {
+      return Collections.emptyList();
     }
-    return families;
+    return mappings
+      .keySet()
+      .stream()
+      .map(HBaseColumn::fromFullName)
+      .collect(Collectors.toList());
   }
 }
