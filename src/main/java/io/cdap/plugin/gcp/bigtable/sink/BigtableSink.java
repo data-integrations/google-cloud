@@ -17,7 +17,6 @@
 package io.cdap.plugin.gcp.bigtable.sink;
 
 import com.google.cloud.bigtable.hbase.BigtableConfiguration;
-import com.google.cloud.bigtable.hbase.BigtableOptionsFactory;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import io.cdap.cdap.api.annotation.Description;
@@ -147,8 +146,8 @@ public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableByt
   private Configuration getConfiguration() {
     Configuration conf = HBaseConfiguration.create();
     BigtableConfiguration.configure(conf, config.getProject(), config.instance);
-    conf.set(BigtableOptionsFactory.BIGTABLE_RPC_TIMEOUT_MS_KEY, "60000");
     conf.set(TableOutputFormat.OUTPUT_TABLE, config.table);
+    config.getBigtableOptions().forEach(conf::set);
     return conf;
   }
 
@@ -183,8 +182,6 @@ public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableByt
       HTableDescriptor tableDescriptor = new HTableDescriptor(tableName);
       config.getColumnMappings()
         .values()
-        .stream()
-        .map(HBaseColumn::fromFullName)
         .forEach(column -> tableDescriptor.addFamily(new HColumnDescriptor(column.getFamily())));
       admin.createTable(tableDescriptor);
     } catch (IOException e) {
@@ -197,7 +194,6 @@ public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableByt
       Set<String> requiredFamilies = config.getColumnMappings()
         .values()
         .stream()
-        .map(HBaseColumn::fromFullName)
         .map(HBaseColumn::getFamily)
         .collect(Collectors.toSet());
       Set<String> existingFamilies = table.getTableDescriptor()

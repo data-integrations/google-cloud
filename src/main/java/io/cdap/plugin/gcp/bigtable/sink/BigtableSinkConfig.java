@@ -21,10 +21,13 @@ import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
+import io.cdap.plugin.gcp.bigtable.common.HBaseColumn;
 import io.cdap.plugin.gcp.common.ConfigUtil;
 import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
 
 import java.io.File;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
 
@@ -36,6 +39,7 @@ public final class BigtableSinkConfig extends GCPReferenceSourceConfig {
   public static final String INSTANCE = "instance";
   public static final String KEY_ALIAS = "keyAlias";
   public static final String COLUMN_MAPPINGS = "columnMappings";
+  public static final String BIGTABLE_OPTIONS = "bigtableOptions";
 
   @Name(TABLE)
   @Macro
@@ -56,22 +60,32 @@ public final class BigtableSinkConfig extends GCPReferenceSourceConfig {
   final String keyAlias;
 
   @Name(COLUMN_MAPPINGS)
-  @Description("Mappings from record field to Bigtable column name. Column name format: <family>:<qualifier>.")
+  @Description("Mappings from record field to Bigtable column name. " +
+    "Column names must be formatted as <family>:<qualifier>.")
   @Macro
-  final String columnMappings;
+  private final String columnMappings;
 
-  public BigtableSinkConfig(String table,
-                            String instance,
-                            String keyAlias,
-                            String columnMappings) {
+  @Name(BIGTABLE_OPTIONS)
+  @Description("Additional connection properties for Bigtable")
+  @Macro
+  @Nullable
+  private final String bigtableOptions;
+
+  public BigtableSinkConfig(String referenceName, String table, String instance, String keyAlias, String columnMappings,
+                            @Nullable String bigtableOptions) {
+    this.referenceName = referenceName;
     this.table = table;
     this.instance = instance;
     this.keyAlias = keyAlias;
     this.columnMappings = columnMappings;
+    this.bigtableOptions = bigtableOptions;
   }
 
   public void validate() {
     super.validate();
+    if (!containsMacro(TABLE) && Strings.isNullOrEmpty(table)) {
+      throw new InvalidConfigPropertyException("Table must be specified", TABLE);
+    }
     if (!containsMacro(PROJECT) && tryGetProject() == null) {
       throw new InvalidConfigPropertyException("Could not detect Google Cloud project id from the environment. " +
                                                  "Please specify a project id.", PROJECT);
@@ -89,9 +103,16 @@ public final class BigtableSinkConfig extends GCPReferenceSourceConfig {
     }
   }
 
-  @Nullable
-  public Map<String, String> getColumnMappings() {
-    return columnMappings == null ? null : ConfigUtil.parseKeyValueConfig(columnMappings, ",", "=");
+  public Map<String, HBaseColumn> getColumnMappings() {
+    Map<String, String> specifiedMappings = columnMappings == null ?
+      Collections.emptyMap() : ConfigUtil.parseKeyValueConfig(columnMappings, ",", "=");
+    Map<String, HBaseColumn> mappings = new HashMap<>(specifiedMappings.size());
+    specifiedMappings.forEach((field, column) -> mappings.put(field, HBaseColumn.fromFullName(column)));
+    return mappings;
+  }
+
+  public Map<String, String> getBigtableOptions() {
+    return bigtableOptions == null ? Collections.emptyMap() : ConfigUtil.parseKeyValueConfig(bigtableOptions, ",", "=");
   }
 
   public boolean connectionParamsConfigured() {

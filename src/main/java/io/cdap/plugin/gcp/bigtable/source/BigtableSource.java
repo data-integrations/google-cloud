@@ -17,7 +17,6 @@
 package io.cdap.plugin.gcp.bigtable.source;
 
 import com.google.cloud.bigtable.hbase.BigtableConfiguration;
-import com.google.cloud.bigtable.hbase.BigtableOptionsFactory;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
@@ -88,7 +87,6 @@ public final class BigtableSource extends BatchSource<ImmutableBytesWritable, Re
 
   @Override
   public void prepareRun(BatchSourceContext context) {
-    LOG.warn("Mappings: {}", config.columnMappings);
     config.validate();
     Configuration conf = getConfiguration();
     validateOutputSchema(conf);
@@ -137,9 +135,9 @@ public final class BigtableSource extends BatchSource<ImmutableBytesWritable, Re
     try {
       Configuration conf = HBaseConfiguration.create();
       BigtableConfiguration.configure(conf, config.getProject(), config.instance);
-      conf.set(BigtableOptionsFactory.BIGTABLE_RPC_TIMEOUT_MS_KEY, "60000");
       conf.setBoolean(TableInputFormat.SHUFFLE_MAPS, true);
       conf.set(TableInputFormat.INPUT_TABLE, config.table);
+      config.getBigtableOptions().forEach(conf::set);
       Scan scan = getConfiguredScanForJob();
       conf.set(TableInputFormat.SCAN, TableMapReduceUtil.convertScanToString(scan));
       return conf;

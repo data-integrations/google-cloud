@@ -31,7 +31,10 @@ It can be found on the Dashboard in the Google Cloud Platform Console.
 
 **Key Alias**: Name of the field for row key.
 
-**Column Mappings**: Mappings from record field to Bigtable column name. Column name format: <family>:<qualifier>.
+**Column Mappings**: Mappings from record field to Bigtable column name. 
+Column names must be formatted as <family>:<qualifier>.
+
+**Bigtable Options**: Additional connection properties for Bigtable.
 
 **Service Account File Path**: Path on the local file system of the service account key used for
 authorization. Can be set to 'auto-detect' when running on a Dataproc cluster.

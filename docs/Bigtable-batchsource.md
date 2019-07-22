@@ -31,7 +31,10 @@ It can be found on the Dashboard in the Google Cloud Platform Console.
 
 **Key Alias**: Name of the field for row key.
 
-**Column Mappings**: Mappings from Bigtable column name to record field. Column name format: <family>:<qualifier>.
+**Column Mappings**: Mappings from Bigtable column name to record field. 
+Column names must be formatted as <family>:<qualifier>.
+
+**Bigtable Options**: Additional connection properties for Bigtable.
 
 **Scan Row Start**: Scan start row.
 

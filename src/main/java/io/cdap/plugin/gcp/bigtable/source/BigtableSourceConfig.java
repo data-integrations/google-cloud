@@ -51,6 +51,7 @@ public final class BigtableSourceConfig extends GCPReferenceSourceConfig {
   public static final String SCAN_ROW_STOP = "scanRowStop";
   public static final String SCAN_TIME_RANGE_START = "scanTimeRangeStart";
   public static final String SCAN_TIME_RANGE_STOP = "scanTimeRangeStop";
+  public static final String BIGTABLE_OPTIONS = "bigtableOptions";
   public static final String SCHEMA = "schema";
   public static final String ON_ERROR = "on-error";
 
@@ -84,7 +85,8 @@ public final class BigtableSourceConfig extends GCPReferenceSourceConfig {
   final String keyAlias;
 
   @Name(COLUMN_MAPPINGS)
-  @Description("Mappings from Bigtable column name to record field. Column name format: <family>:<qualifier>.")
+  @Description("Mappings from Bigtable column name to record field. " +
+    "Column names must be formatted as <family>:<qualifier>.")
   @Macro
   @Nullable
   final String columnMappings;
@@ -113,6 +115,12 @@ public final class BigtableSourceConfig extends GCPReferenceSourceConfig {
   @Nullable
   final Long scanTimeRangeStop;
 
+  @Name(BIGTABLE_OPTIONS)
+  @Description("Additional connection properties for Bigtable")
+  @Macro
+  @Nullable
+  private final String bigtableOptions;
+
   @Name(ON_ERROR)
   @Description("How to handle error in record processing. " +
     "Error will be thrown if failed to parse value according to provided schema.")
@@ -124,15 +132,17 @@ public final class BigtableSourceConfig extends GCPReferenceSourceConfig {
   @Description("The schema of the table to read.")
   final String schema;
 
-  public BigtableSourceConfig(String table, String instance, @Nullable String project,
+  public BigtableSourceConfig(String referenceName, String table, String instance, @Nullable String project,
                               @Nullable String serviceFilePath,
                               @Nullable String keyAlias, @Nullable String columnMappings,
                               @Nullable String scanRowStart, @Nullable String scanRowStop,
                               @Nullable Long scanTimeRangeStart, @Nullable Long scanTimeRangeStop,
-                              String onError, String schema) {
+                              @Nullable String bigtableOptions, String onError, String schema) {
+    this.referenceName = referenceName;
     this.table = table;
     this.instance = instance;
     this.columnMappings = columnMappings;
+    this.bigtableOptions = bigtableOptions;
     this.project = project;
     this.serviceFilePath = serviceFilePath;
     this.keyAlias = keyAlias;
@@ -146,6 +156,9 @@ public final class BigtableSourceConfig extends GCPReferenceSourceConfig {
 
   public void validate() {
     super.validate();
+    if (!containsMacro(TABLE) && Strings.isNullOrEmpty(table)) {
+      throw new InvalidConfigPropertyException("Table must be specified", TABLE);
+    }
     if (!containsMacro(PROJECT) && tryGetProject() == null) {
       throw new InvalidConfigPropertyException("Could not detect Google Cloud project id from the environment. " +
                                                  "Please specify a project id.", PROJECT);
@@ -173,7 +186,7 @@ public final class BigtableSourceConfig extends GCPReferenceSourceConfig {
     }
     Map<String, String> columnMappings = getColumnMappings();
     if (!containsMacro(COLUMN_MAPPINGS)) {
-      if (columnMappings == null || columnMappings.isEmpty()) {
+      if (columnMappings.isEmpty()) {
         throw new InvalidConfigPropertyException("Column mappings must be specified", COLUMN_MAPPINGS);
       }
       columnMappings.forEach((columnName, fieldName) -> {
@@ -205,14 +218,14 @@ public final class BigtableSourceConfig extends GCPReferenceSourceConfig {
           .map(Schema.Field::getName)
           .filter(name -> !name.equals(keyAlias))
           .collect(Collectors.toSet());
-        Sets.SetView<String> nonDescribedFields = Sets.difference(schemaFieldNames, mappedFieldNames);
+        Sets.SetView<String> nonDescribedFields = Sets.difference(mappedFieldNames, schemaFieldNames);
         if (!nonDescribedFields.isEmpty()) {
           String nonDescribedFieldsString = String.join(", ", nonDescribedFields);
           String errorMessage = String.format("Some mapped columns are not described in schema: %s. ",
                                               nonDescribedFieldsString);
           throw new InvalidConfigPropertyException(errorMessage, SCHEMA);
         }
-        Sets.SetView<String> nonMappedColumns = Sets.difference(mappedFieldNames, schemaFieldNames);
+        Sets.SetView<String> nonMappedColumns = Sets.difference(schemaFieldNames, mappedFieldNames);
         if (!nonMappedColumns.isEmpty()) {
           String nonMappedColumnsString = String.join(", ", nonDescribedFields);
           String errorMessage = String.format("Some schema fields do not have corresponding column mappings: %s. ",
@@ -248,9 +261,12 @@ public final class BigtableSourceConfig extends GCPReferenceSourceConfig {
     }
   }
 
-  @Nullable
   public Map<String, String> getColumnMappings() {
-    return columnMappings == null ? null : ConfigUtil.parseKeyValueConfig(columnMappings, ",", "=");
+    return columnMappings == null ? Collections.emptyMap() : ConfigUtil.parseKeyValueConfig(columnMappings, ",", "=");
+  }
+
+  public Map<String, String> getBigtableOptions() {
+    return bigtableOptions == null ? Collections.emptyMap() : ConfigUtil.parseKeyValueConfig(bigtableOptions, ",", "=");
   }
 
   public ErrorHandling getErrorHandling() {
@@ -265,11 +281,7 @@ public final class BigtableSourceConfig extends GCPReferenceSourceConfig {
   }
 
   public List<HBaseColumn> getRequestedColumns() {
-    Map<String, String> mappings = getColumnMappings();
-    if (mappings == null) {
-      return Collections.emptyList();
-    }
-    return mappings
+    return getColumnMappings()
       .keySet()
       .stream()
       .map(HBaseColumn::fromFullName)
