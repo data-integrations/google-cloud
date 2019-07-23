@@ -29,6 +29,10 @@ public class HBaseColumn {
     this.qualifier = qualifier;
   }
 
+  public static HBaseColumn fromFamilyAndQualifier(String family, String qualifier) {
+    return new HBaseColumn(family, qualifier);
+  }
+
   public static HBaseColumn fromFullName(String fullName) {
     if (!fullName.contains(FAMILY_QUALIFIER_DELIMITER)) {
       throw new IllegalArgumentException("Wrong name format. Expected format is 'family:qualifier'");
