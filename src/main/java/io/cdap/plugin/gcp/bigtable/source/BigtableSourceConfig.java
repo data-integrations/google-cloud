@@ -218,16 +218,9 @@ public final class BigtableSourceConfig extends GCPReferenceSourceConfig {
           .map(Schema.Field::getName)
           .filter(name -> !name.equals(keyAlias))
           .collect(Collectors.toSet());
-        Sets.SetView<String> nonDescribedFields = Sets.difference(mappedFieldNames, schemaFieldNames);
-        if (!nonDescribedFields.isEmpty()) {
-          String nonDescribedFieldsString = String.join(", ", nonDescribedFields);
-          String errorMessage = String.format("Some mapped columns are not described in schema: %s. ",
-                                              nonDescribedFieldsString);
-          throw new InvalidConfigPropertyException(errorMessage, SCHEMA);
-        }
         Sets.SetView<String> nonMappedColumns = Sets.difference(schemaFieldNames, mappedFieldNames);
         if (!nonMappedColumns.isEmpty()) {
-          String nonMappedColumnsString = String.join(", ", nonDescribedFields);
+          String nonMappedColumnsString = String.join(", ", nonMappedColumns);
           String errorMessage = String.format("Some schema fields do not have corresponding column mappings: %s. ",
                                               nonMappedColumnsString);
           throw new InvalidConfigPropertyException(errorMessage, COLUMN_MAPPINGS);

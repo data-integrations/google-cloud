@@ -71,11 +71,14 @@ public final class BigtableSinkConfig extends GCPReferenceSourceConfig {
   @Nullable
   private final String bigtableOptions;
 
-  public BigtableSinkConfig(String referenceName, String table, String instance, String keyAlias, String columnMappings,
+  public BigtableSinkConfig(String referenceName, String table, String instance, @Nullable String project,
+                            @Nullable String serviceFilePath, String keyAlias, String columnMappings,
                             @Nullable String bigtableOptions) {
     this.referenceName = referenceName;
     this.table = table;
     this.instance = instance;
+    this.project = project;
+    this.serviceFilePath = serviceFilePath;
     this.keyAlias = keyAlias;
     this.columnMappings = columnMappings;
     this.bigtableOptions = bigtableOptions;
