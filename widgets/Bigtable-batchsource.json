@@ -49,6 +49,26 @@
           }
         },
         {
+          "widget-type": "keyvalue",
+          "label": "Column Mappings",
+          "name": "columnMappings",
+          "widget-attributes" : {
+            "placeholder": "Mappings from Bigtable column name to record field. Column names must be formatted as <family>:<qualifier>.",
+            "delimiter": ",",
+            "kv-delimiter": "="
+          }
+        },
+        {
+          "widget-type": "keyvalue",
+          "label": "Bigtable Options",
+          "name": "bigtableOptions",
+          "widget-attributes" : {
+            "placeholder": "Additional connection properties for Bigtable.",
+            "delimiter": ",",
+            "kv-delimiter": "="
+          }
+        },
+        {
           "widget-type": "textbox",
           "label": "Scan Start Row",
           "name": "scanRowStart",

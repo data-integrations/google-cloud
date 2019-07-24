@@ -49,11 +49,23 @@
           }
         },
         {
-          "widget-type": "textbox",
-          "label": "Column Family",
-          "name": "columnFamily",
+          "widget-type": "keyvalue",
+          "label": "Column Mappings",
+          "name": "columnMappings",
           "widget-attributes" : {
-            "placeholder": "Column family to use for all inserted rows."
+            "placeholder": "Mappings from record field to Bigtable column name. Column names must be formatted as <family>:<qualifier>.",
+            "delimiter": ",",
+            "kv-delimiter": "="
+          }
+        },
+        {
+          "widget-type": "keyvalue",
+          "label": "Bigtable Options",
+          "name": "bigtableOptions",
+          "widget-attributes" : {
+            "placeholder": "Additional connection properties for Bigtable.",
+            "delimiter": ",",
+            "kv-delimiter": "="
           }
         }
       ]

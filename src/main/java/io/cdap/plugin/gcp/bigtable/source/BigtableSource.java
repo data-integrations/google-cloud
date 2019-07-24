@@ -17,7 +17,6 @@
 package io.cdap.plugin.gcp.bigtable.source;
 
 import com.google.cloud.bigtable.hbase.BigtableConfiguration;
-import com.google.cloud.bigtable.hbase.BigtableOptionsFactory;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
@@ -78,7 +77,7 @@ public final class BigtableSource extends BatchSource<ImmutableBytesWritable, Re
     super.configurePipeline(configurer);
     config.validate();
     Schema configuredSchema = config.getSchema();
-    if (null != configuredSchema && config.connectionParamsConfigured()) {
+    if (configuredSchema != null && config.connectionParamsConfigured()) {
       Configuration conf = getConfiguration();
       validateOutputSchema(conf);
     }
@@ -98,25 +97,11 @@ public final class BigtableSource extends BatchSource<ImmutableBytesWritable, Re
     context.setInput(Input.of(config.referenceName, new SourceInputFormatProvider(TableInputFormat.class, conf)));
   }
 
-  private Configuration getConfiguration() {
-    try {
-      Configuration conf = HBaseConfiguration.create();
-      BigtableConfiguration.configure(conf, config.getProject(), config.instance);
-      conf.set(BigtableOptionsFactory.BIGTABLE_RPC_TIMEOUT_MS_KEY, "60000");
-      conf.setBoolean(TableInputFormat.SHUFFLE_MAPS, true);
-      conf.set(TableInputFormat.INPUT_TABLE, config.table);
-      Scan scan = getConfiguredScanForJob();
-      conf.set(TableInputFormat.SCAN, TableMapReduceUtil.convertScanToString(scan));
-      return conf;
-    } catch (IOException e) {
-      throw new InvalidStageException("Failed to prepare configuration for job", e);
-    }
-  }
-
   @Override
   public void initialize(BatchRuntimeContext context) throws Exception {
     super.initialize(context);
-    resultToRecordTransformer = new HBaseResultToRecordTransformer(context.getOutputSchema(), config.keyAlias);
+    resultToRecordTransformer =
+      new HBaseResultToRecordTransformer(context.getOutputSchema(), config.keyAlias, config.getColumnMappings());
   }
 
   /**
@@ -143,6 +128,21 @@ public final class BigtableSource extends BatchSource<ImmutableBytesWritable, Re
           throw new IllegalStateException(String.format("Unknown error handling strategy '%s'",
                                                         config.getErrorHandling()));
       }
+    }
+  }
+
+  private Configuration getConfiguration() {
+    try {
+      Configuration conf = HBaseConfiguration.create();
+      BigtableConfiguration.configure(conf, config.getProject(), config.instance);
+      conf.setBoolean(TableInputFormat.SHUFFLE_MAPS, true);
+      conf.set(TableInputFormat.INPUT_TABLE, config.table);
+      config.getBigtableOptions().forEach(conf::set);
+      Scan scan = getConfiguredScanForJob();
+      conf.set(TableInputFormat.SCAN, TableMapReduceUtil.convertScanToString(scan));
+      return conf;
+    } catch (IOException e) {
+      throw new InvalidStageException("Failed to prepare configuration for job", e);
     }
   }
 
@@ -173,7 +173,7 @@ public final class BigtableSource extends BatchSource<ImmutableBytesWritable, Re
     lineageRecorder.createExternalDataset(config.getSchema());
 
     List<Schema.Field> fields = Objects.requireNonNull(config.getSchema()).getFields();
-    if (null != fields) {
+    if (fields != null) {
       List<String> fieldNames = fields.stream()
         .map(Schema.Field::getName)
         .collect(Collectors.toList());
@@ -185,16 +185,16 @@ public final class BigtableSource extends BatchSource<ImmutableBytesWritable, Re
 
   private Scan getConfiguredScanForJob() throws IOException {
     Scan s = new Scan();
-    if (null != config.scanTimeRangeStart || null != config.scanTimeRangeStop) {
+    if (config.scanTimeRangeStart != null || config.scanTimeRangeStop != null) {
       long scanTimeRangeStart = ObjectUtils.defaultIfNull(config.scanTimeRangeStart, 0L);
       long scanTimeRangeStop = ObjectUtils.defaultIfNull(config.scanTimeRangeStop, Long.MAX_VALUE);
       s.setTimeRange(scanTimeRangeStart, scanTimeRangeStop);
     }
     s.setCacheBlocks(false);
-    if (null != config.scanRowStart) {
+    if (config.scanRowStart != null) {
       s.withStartRow(Bytes.toBytes(config.scanRowStart));
     }
-    if (null != config.scanRowStop) {
+    if (config.scanRowStop != null) {
       s.withStopRow(Bytes.toBytes(config.scanRowStop));
     }
     for (HBaseColumn hBaseColumn : config.getRequestedColumns()) {

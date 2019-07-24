@@ -31,6 +31,12 @@ It can be found on the Dashboard in the Google Cloud Platform Console.
 
 **Key Alias**: Name of the field for row key.
 
+**Column Mappings**: Mappings from Bigtable column name to record field. 
+Column names must be formatted as 'family:qualifier'.
+
+**Bigtable Options**: Additional connection properties for Bigtable. 
+Full list of allowed properties: https://cloud.google.com/bigtable/docs/hbase-client/javadoc/constant-values.
+
 **Scan Row Start**: Scan start row.
 
 **Scan Row Stop**: Scan stop row.
@@ -44,8 +50,7 @@ authorization. Can be set to 'auto-detect' when running on a Dataproc cluster.
 When running on other clusters, the file must be present on every node in the cluster.
 
 **Schema**: Specifies the schema that has to be output. 
-Only columns defined in schema will be included into output record. Field name should be in form 
-"<family>__<column>".
+Only columns defined in schema will be included into output record.
 
 **onError**: Strategy used to handle errors during transformation of a text entry to record. Possible values are:
 - **Skip error** - Ignores erroneous records.

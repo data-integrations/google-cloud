@@ -19,6 +19,7 @@ package io.cdap.plugin.gcp.common;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
+import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
 import io.cdap.plugin.common.Constants;
 import io.cdap.plugin.common.IdUtils;
 
@@ -35,6 +36,10 @@ public class GCPReferenceSourceConfig extends GCPConfig {
    * Validates the given referenceName to consists of characters allowed to represent a dataset.
    */
   public void validate() {
-    IdUtils.validateId(referenceName);
+    try {
+      IdUtils.validateId(referenceName);
+    } catch (IllegalArgumentException e) {
+      throw new InvalidConfigPropertyException(e.getMessage(), Constants.Reference.REFERENCE_NAME);
+    }
   }
 }

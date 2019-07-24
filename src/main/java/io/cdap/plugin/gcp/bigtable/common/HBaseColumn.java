@@ -20,7 +20,7 @@ package io.cdap.plugin.gcp.bigtable.common;
  * This class represents a reference to HBase column
  */
 public class HBaseColumn {
-  private static final String FAMILY_QUALIFIER_DELIMITER = "__";
+  private static final String FAMILY_QUALIFIER_DELIMITER = ":";
   private final String family;
   private final String qualifier;
 
@@ -29,9 +29,13 @@ public class HBaseColumn {
     this.qualifier = qualifier;
   }
 
+  public static HBaseColumn fromFamilyAndQualifier(String family, String qualifier) {
+    return new HBaseColumn(family, qualifier);
+  }
+
   public static HBaseColumn fromFullName(String fullName) {
     if (!fullName.contains(FAMILY_QUALIFIER_DELIMITER)) {
-      throw new IllegalArgumentException("Wrong name format. Expected format is '<family>__<column>'");
+      throw new IllegalArgumentException("Wrong name format. Expected format is 'family:qualifier'");
     }
     int delimiterIndex = fullName.indexOf(FAMILY_QUALIFIER_DELIMITER);
     String family = fullName.substring(0, delimiterIndex);

@@ -17,8 +17,8 @@
 package io.cdap.plugin.gcp.bigtable.sink;
 
 import com.google.cloud.bigtable.hbase.BigtableConfiguration;
-import com.google.cloud.bigtable.hbase.BigtableOptionsFactory;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Sets;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
@@ -34,6 +34,7 @@ import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
 import io.cdap.cdap.etl.api.validation.InvalidStageException;
 import io.cdap.plugin.common.LineageRecorder;
+import io.cdap.plugin.gcp.bigtable.common.HBaseColumn;
 import io.cdap.plugin.gcp.common.SourceOutputFormatProvider;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
@@ -133,7 +134,7 @@ public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableByt
   @Override
   public void initialize(BatchRuntimeContext context) throws Exception {
     super.initialize(context);
-    transformer = new RecordToHBaseMutationTransformer(config.keyAlias, config.columnFamily);
+    transformer = new RecordToHBaseMutationTransformer(config.keyAlias, config.getColumnMappings());
   }
 
   @Override
@@ -145,8 +146,8 @@ public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableByt
   private Configuration getConfiguration() {
     Configuration conf = HBaseConfiguration.create();
     BigtableConfiguration.configure(conf, config.getProject(), config.instance);
-    conf.set(BigtableOptionsFactory.BIGTABLE_RPC_TIMEOUT_MS_KEY, "60000");
     conf.set(TableOutputFormat.OUTPUT_TABLE, config.table);
+    config.getBigtableOptions().forEach(conf::set);
     return conf;
   }
 
@@ -179,7 +180,9 @@ public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableByt
   private void createTable(Connection connection, TableName tableName) {
     try (Admin admin = connection.getAdmin()) {
       HTableDescriptor tableDescriptor = new HTableDescriptor(tableName);
-      tableDescriptor.addFamily(new HColumnDescriptor(config.columnFamily));
+      config.getColumnMappings()
+        .values()
+        .forEach(column -> tableDescriptor.addFamily(new HColumnDescriptor(column.getFamily())));
       admin.createTable(tableDescriptor);
     } catch (IOException e) {
       throw new InvalidStageException(String.format("Failed to create table '%s' in Bigtable", tableName), e);
@@ -188,10 +191,22 @@ public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableByt
 
   private void validateExistingTable(Connection connection, TableName tableName) {
     try (Table table = connection.getTable(tableName)) {
-      if (!table.getTableDescriptor().hasFamily(Bytes.toBytes(config.columnFamily))) {
+      Set<String> requiredFamilies = config.getColumnMappings()
+        .values()
+        .stream()
+        .map(HBaseColumn::getFamily)
+        .collect(Collectors.toSet());
+      Set<String> existingFamilies = table.getTableDescriptor()
+        .getFamiliesKeys()
+        .stream()
+        .map(Bytes::toString)
+        .collect(Collectors.toSet());
+      Sets.SetView<String> nonExistingFamilies = Sets.difference(requiredFamilies, existingFamilies);
+      if (!nonExistingFamilies.isEmpty()) {
+        String nonExistingFamiliesString = String.join(", ", nonExistingFamilies);
         throw new InvalidConfigPropertyException(
-          String.format("Column family '%s' does not exist", config.columnFamily),
-          BigtableSinkConfig.COLUMN_FAMILY
+          String.format("Some column families are absent in target table: %s", nonExistingFamiliesString),
+          BigtableSinkConfig.COLUMN_MAPPINGS
         );
       }
     } catch (IOException e) {
