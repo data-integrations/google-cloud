@@ -131,7 +131,7 @@ public final class GCSBucketCreate extends Action {
   /**
    * Config for the plugin.
    */
-  public final class Config extends GCPConfig {
+  public static final class Config extends GCPConfig {
     @Name("paths")
     @Description("Comma separated list of objects to be created.")
     @Macro
@@ -151,11 +151,10 @@ public final class GCSBucketCreate extends Action {
     }
 
     void validate() {
-      if (containsMacro("paths")) {
-        return;
-      }
-      for (String path : config.getPaths()) {
-        GCSPath.from(path);
+      if (!containsMacro("paths")) {
+        for (String path : getPaths()) {
+          GCSPath.from(path);
+        }
       }
     }
   }
