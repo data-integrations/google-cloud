@@ -48,6 +48,35 @@
           }
         },
         {
+          "widget-type": "radio-group",
+          "name" : "operation",
+          "label" : "Operation",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "insert",
+            "options": [
+              {
+                "id": "insert",
+                "label": "Insert"
+              },
+              {
+                "id": "update",
+                "label": "Update"
+              },
+              {
+                "id": "upsert",
+                "label": "Upsert"
+              }
+            ]
+          }
+        },
+        {
+          "name": "relationTableKey",
+          "widget-type": "csv",
+          "label": "Table Key",
+          "widget-attributes" : {}
+        },
+        {
           "name": "createPartitionedTable",
           "widget-type": "toggle",
           "label": "Create Partitioned Table",

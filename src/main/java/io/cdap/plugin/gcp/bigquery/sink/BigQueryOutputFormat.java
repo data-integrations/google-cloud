@@ -30,11 +30,20 @@ import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
+import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
+import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryOptions;
+import com.google.cloud.bigquery.Field;
+import com.google.cloud.bigquery.FieldList;
+import com.google.cloud.bigquery.JobId;
 import com.google.cloud.bigquery.JobInfo;
+import com.google.cloud.bigquery.QueryJobConfiguration;
+import com.google.cloud.bigquery.Schema;
+import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFactory;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
@@ -57,15 +66,19 @@ import org.apache.hadoop.mapreduce.JobStatus;
 import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.util.Progressable;
+import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.math.BigInteger;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
@@ -76,6 +89,10 @@ import javax.annotation.Nullable;
  */
 public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<JsonObject, NullWritable> {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryOutputFormat.class);
+
+  private static final String UPDATE_QUERY = "UPDATE %s T SET %s FROM %s S WHERE %s";
+  private static final String UPSERT_QUERY = "MERGE %s T USING %s S ON %s WHEN MATCHED THEN UPDATE SET %s " +
+    "WHEN NOT MATCHED THEN INSERT (%s) VALUES(%s)";
 
   @Override
   public OutputCommitter createCommitter(TaskAttemptContext context) throws IOException {
@@ -89,6 +106,13 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Jso
    */
   public static class BigQueryOutputCommitter extends ForwardingBigQueryFileOutputCommitter {
     private BigQueryHelper bigQueryHelper;
+
+    private Operation operation;
+    private TableReference temporaryTableReference;
+    private List<String> tableKeyList;
+    private List<String> tableFieldsList;
+
+    private boolean allowSchemaRelaxation;
 
     BigQueryOutputCommitter(TaskAttemptContext context, OutputCommitter delegate) throws IOException {
       super(context, delegate);
@@ -116,7 +140,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Jso
       BigQueryFileFormat outputFileFormat = BigQueryOutputConfiguration.getFileFormat(conf);
       List<String> sourceUris = getOutputFileURIs();
 
-      boolean allowSchemaRelaxation = conf.getBoolean(BigQueryConstants.CONFIG_ALLOW_SCHEMA_RELAXATION, false);
+      allowSchemaRelaxation = conf.getBoolean(BigQueryConstants.CONFIG_ALLOW_SCHEMA_RELAXATION, false);
       LOG.debug("Allow schema relaxation: '{}'", allowSchemaRelaxation);
       boolean createPartitionedTable = conf.getBoolean(BigQueryConstants.CONFIG_CREATE_PARTITIONED_TABLE, false);
       LOG.debug("Create Partitioned Table: '{}'", createPartitionedTable);
@@ -124,16 +148,26 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Jso
       LOG.debug("Partition Field: '{}'", partitionByField);
       boolean requirePartitionFilter = conf.getBoolean(BigQueryConstants.CONFIG_REQUIRE_PARTITION_FILTER, false);
       LOG.debug("Require partition filter: '{}'", requirePartitionFilter);
+      operation = Operation.valueOf(conf.get(BigQueryConstants.CONFIG_OPERATION));
       String clusteringOrder = conf.get(BigQueryConstants.CONFIG_CLUSTERING_ORDER, null);
       List<String> clusteringOrderList = Arrays.stream(
         clusteringOrder != null ? clusteringOrder.split(",") : new String[0]).map(String::trim)
         .collect(Collectors.toList());
+      String tableKey = conf.get(BigQueryConstants.CONFIG_TABLE_KEY, null);
+      tableKeyList = Arrays.stream(tableKey != null ? tableKey.split(",") : new String[0]).map(String::trim)
+        .collect(Collectors.toList());
+      String tableFields = conf.get(BigQueryConstants.CONFIG_TABLE_FIELDS, null);
+      tableFieldsList = Arrays.stream(tableFields != null ? tableFields.split(",") : new String[0])
+        .map(String::trim).collect(Collectors.toList());
       boolean tableExists = conf.getBoolean(BigQueryConstants.CONFIG_DESTINATION_TABLE_EXISTS, false);
 
       try {
         importFromGcs(destProjectId, destTable, destSchema.orElse(null), kmsKeyName, outputFileFormat,
-                      writeDisposition, sourceUris, allowSchemaRelaxation, createPartitionedTable, partitionByField,
+                      writeDisposition, sourceUris, createPartitionedTable, partitionByField,
                       requirePartitionFilter, clusteringOrderList, tableExists);
+        if (temporaryTableReference != null) {
+          operationAction(destTable);
+        }
       } catch (InterruptedException e) {
         throw new IOException("Failed to import GCS into BigQuery", e);
       }
@@ -153,7 +187,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Jso
      */
     private void importFromGcs(String projectId, TableReference tableRef, @Nullable TableSchema schema,
                                @Nullable String kmsKeyName, BigQueryFileFormat sourceFormat, String writeDisposition,
-                               List<String> gcsPaths, boolean allowSchemaRelaxation, boolean createPartitionedTable,
+                               List<String> gcsPaths, boolean createPartitionedTable,
                                @Nullable String partitionByField, boolean requirePartitionFilter,
                                List<String> clusteringOrderList, boolean tableExists)
       throws IOException, InterruptedException {
@@ -166,7 +200,6 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Jso
       loadConfig.setSchema(schema);
       loadConfig.setSourceFormat(sourceFormat.getFormatIdentifier());
       loadConfig.setSourceUris(gcsPaths);
-      loadConfig.setDestinationTable(tableRef);
       loadConfig.setWriteDisposition(writeDisposition);
       if (!tableExists && createPartitionedTable) {
         TimePartitioning timePartitioning = new TimePartitioning();
@@ -183,14 +216,26 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Jso
         }
       }
 
-      if (!Strings.isNullOrEmpty(kmsKeyName)) {
-        loadConfig.setDestinationEncryptionConfiguration(new EncryptionConfiguration().setKmsKeyName(kmsKeyName));
+      temporaryTableReference = null;
+      if (tableExists && !isTableEmpty(tableRef) && !Operation.INSERT.equals(operation)) {
+        String temporaryTableName = UUID.randomUUID().toString().replaceAll("-", "_");
+        temporaryTableReference = new TableReference()
+          .setDatasetId(tableRef.getDatasetId())
+          .setProjectId(tableRef.getProjectId())
+          .setTableId(temporaryTableName);
+        loadConfig.setDestinationTable(temporaryTableReference);
+      } else {
+        loadConfig.setDestinationTable(tableRef);
+
+        if (allowSchemaRelaxation) {
+          loadConfig.setSchemaUpdateOptions(Arrays.asList(
+            JobInfo.SchemaUpdateOption.ALLOW_FIELD_ADDITION.name(),
+            JobInfo.SchemaUpdateOption.ALLOW_FIELD_RELAXATION.name()));
+        }
       }
 
-      if (allowSchemaRelaxation) {
-        loadConfig.setSchemaUpdateOptions(Arrays.asList(
-          JobInfo.SchemaUpdateOption.ALLOW_FIELD_ADDITION.name(),
-          JobInfo.SchemaUpdateOption.ALLOW_FIELD_RELAXATION.name()));
+      if (!Strings.isNullOrEmpty(kmsKeyName)) {
+        loadConfig.setDestinationEncryptionConfiguration(new EncryptionConfiguration().setKmsKeyName(kmsKeyName));
       }
 
       // Auto detect the schema if we're not given one, otherwise use the passed schema.
@@ -219,6 +264,14 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Jso
 
       // Poll until job is complete.
       waitForJobCompletion(bigQueryHelper.getRawBigquery(), projectId, jobReference);
+
+      if (temporaryTableReference != null && bigQueryHelper.tableExists(temporaryTableReference)) {
+        long expirationMillis = DateTime.now().plusDays(1).getMillis();
+        Table table = bigQueryHelper.getTable(temporaryTableReference).setExpirationTime(expirationMillis);
+        bigQueryHelper.getRawBigquery().tables().update(temporaryTableReference.getProjectId(),
+                                                        temporaryTableReference.getDatasetId(),
+                                                        temporaryTableReference.getTableId(), table).execute();
+      }
     }
 
     /**
@@ -325,11 +378,83 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Jso
       return Optional.empty();
     }
 
+    private void operationAction(TableReference tableRef) throws InterruptedException {
+      if (allowSchemaRelaxation) {
+        updateTableSchema(tableRef);
+      }
+      String query = generateQuery(tableRef);
+      LOG.debug("Update/Upsert query: " + query);
+
+      BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
+      QueryJobConfiguration queryConfig = QueryJobConfiguration.newBuilder(query).setUseLegacySql(false).build();
+
+      JobId jobId = JobId.of(UUID.randomUUID().toString());
+      com.google.cloud.bigquery.Job queryJob = bigquery.create(JobInfo.newBuilder(queryConfig).setJobId(jobId).build());
+
+      // Wait for the query to complete.
+      queryJob.waitFor();
+    }
+
+    private void updateTableSchema(TableReference tableRef) {
+      LOG.debug("Update/Upsert table schema update");
+      BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
+
+      TableId sourceTableId = TableId.of(temporaryTableReference.getDatasetId(), temporaryTableReference.getTableId());
+      TableId destinationTableId = TableId.of(tableRef.getDatasetId(), tableRef.getTableId());
+
+      com.google.cloud.bigquery.Table sourceTable = bigquery.getTable(sourceTableId);
+      com.google.cloud.bigquery.Table destinationTable = bigquery.getTable(destinationTableId);
+
+      FieldList sourceFields = sourceTable.getDefinition().getSchema().getFields();
+      tableFieldsList = sourceFields.stream().map(Field::getName).collect(Collectors.toList());
+      FieldList destinationFields = destinationTable.getDefinition().getSchema().getFields();
+      Map<String, Field> sourceFieldMap = sourceFields.stream()
+        .collect(Collectors.toMap(Field::getName, x -> x));
+
+      List<Field> resultFieldsList = destinationFields.stream()
+        .filter(field -> !sourceFieldMap.containsKey(field.getName()))
+        .collect(Collectors.toList());
+      resultFieldsList.addAll(sourceFields);
+
+      Schema newSchema = Schema.of(resultFieldsList);
+      bigquery.update(
+        destinationTable.toBuilder().setDefinition(
+          destinationTable.getDefinition().toBuilder().setSchema(newSchema).build()
+        ).build()
+      );
+    }
+
+    private String generateQuery(TableReference tableRef) {
+      String criteriaTemplate = "T.%s = S.%s";
+      String sourceTable = temporaryTableReference.getDatasetId() + "." + temporaryTableReference.getTableId();
+      String destinationTable = tableRef.getDatasetId() + "." + tableRef.getTableId();
+      String criteria = tableKeyList.stream().map(s -> String.format(criteriaTemplate, s, s))
+        .collect(Collectors.joining(" AND "));
+      String fieldsForUpdate = tableFieldsList.stream().filter(s -> !tableKeyList.contains(s))
+        .map(s -> String.format(criteriaTemplate, s, s)).collect(Collectors.joining(", "));
+      switch (operation) {
+        case UPDATE:
+          return String.format(UPDATE_QUERY, destinationTable, fieldsForUpdate, sourceTable, criteria);
+        case UPSERT:
+          String insertFields = String.join(", ", tableFieldsList);
+          return String.format(UPSERT_QUERY, destinationTable, sourceTable, criteria, fieldsForUpdate,
+                                insertFields, insertFields);
+        default:
+          return "";
+      }
+    }
+
     private static TableSchema createTableSchemaFromFields(String fieldsJson) throws IOException {
       List<TableFieldSchema> fields = new ArrayList<>();
       JsonParser parser = JacksonFactory.getDefaultInstance().createJsonParser(fieldsJson);
       parser.parseArrayAndClose(fields, TableFieldSchema.class);
       return new TableSchema().setFields(fields);
+    }
+
+    private boolean isTableEmpty(TableReference tableRef) throws IOException {
+      Table table = bigQueryHelper.getTable(tableRef);
+      return table.getNumRows().compareTo(BigInteger.ZERO) <= 0 && table.getNumBytes() == 0
+        && table.getNumLongTermBytes() == 0;
     }
   }
 }
