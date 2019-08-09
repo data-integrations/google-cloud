@@ -106,7 +106,7 @@ public class SpannerUtil {
       Schema.Type type = fieldSchema.getType();
       switch (type) {
         case BOOLEAN:
-          spannerType = "BOOLEAN";
+          spannerType = "BOOL";
           break;
         case STRING:
           spannerType = "STRING(MAX)";

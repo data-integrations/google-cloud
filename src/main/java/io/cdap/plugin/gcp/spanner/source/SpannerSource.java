@@ -156,7 +156,7 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
     if (schema != null) {
       if (schema.getFields() != null) {
         lineageRecorder.recordRead("Read", "Read from Spanner table.",
-                                   config.getSchema().getFields().stream().map(Schema.Field::getName)
+                                   schema.getFields().stream().map(Schema.Field::getName)
                                      .collect(Collectors.toList()));
       }
     }
