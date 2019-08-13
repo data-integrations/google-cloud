@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
@@ -96,6 +97,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
       Schema schema = outputSchema != null ? outputSchema : inputSchema;
       validatePartitionProperties(schema);
       validateClusteringOrder(schema);
+      validateOperationProperties(schema);
       if (outputSchema == null) {
         return;
       }
@@ -216,6 +218,37 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
                         logicalType.getToken()),
           NAME_CLUSTERING_ORDER);
       }
+    }
+  }
+
+  private void validateOperationProperties(@Nullable Schema schema) {
+    if (Arrays.stream(Operation.values()).map(Enum::name).noneMatch(operation.toUpperCase()::equals)) {
+      throw new InvalidConfigPropertyException(String.format("'%s' is incorrect value for field 'Operation'. " +
+                                                               "This field should contain one of the next values: " +
+                                                               "'Insert', 'Update' or 'Upsert'.", operation),
+                                               NAME_OPERATION);
+    }
+    if (Operation.INSERT.equals(getOperation())) {
+      return;
+    }
+    if ((Operation.UPDATE.equals(getOperation()) || Operation.UPSERT.equals(getOperation()))
+      && getRelationTableKey() == null) {
+      throw new InvalidConfigPropertyException(
+        "Table key must be set if the operation is 'Update' or 'Upsert'.", NAME_TABLE_KEY);
+    }
+    if (schema == null) {
+      return;
+    }
+    List<String> fields = Objects.requireNonNull(schema.getFields()).stream().map(Schema.Field::getName)
+      .collect(Collectors.toList());
+    List<String> keyFields = Arrays.stream(Objects.requireNonNull(getRelationTableKey()).split(","))
+      .map(String::trim).collect(Collectors.toList());
+
+    String result = keyFields.stream().filter(s -> !fields.contains(s)).map(s -> String.format("'%s'", s))
+      .collect(Collectors.joining(", "));
+    if (!result.isEmpty()) {
+      throw new InvalidConfigPropertyException(String.format(
+        "Fields %s are in the table key, but not in the input schema.", result), NAME_TABLE_KEY);
     }
   }
 }

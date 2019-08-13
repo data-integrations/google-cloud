@@ -28,6 +28,8 @@ public interface BigQueryConstants {
   String CONFIG_PARTITION_FROM_DATE = "cdap.bq.source.partition.from.date";
   String CONFIG_PARTITION_TO_DATE = "cdap.bq.source.partition.to.date";
   String CONFIG_SERVICE_ACCOUNT_FILE_PATH = "cdap.bq.service.account.file.path";
-  String CONFIG_TEMPORARY_TABLE_NAME = "cdap.bq.source.temporary.table.name";
   String CONFIG_CLUSTERING_ORDER = "cdap.bq.sink.clustering.order";
+  String CONFIG_OPERATION = "cdap.bq.sink.operation";
+  String CONFIG_TABLE_KEY = "cdap.bq.sink.table.key";
+  String CONFIG_TABLE_FIELDS = "cdap.bq.sink.table.fields";
 }

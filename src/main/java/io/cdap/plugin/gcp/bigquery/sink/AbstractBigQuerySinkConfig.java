@@ -32,6 +32,8 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
 
   public static final String NAME_PARTITION_BY_FIELD = "partitionByField";
   public static final String NAME_CLUSTERING_ORDER = "clusteringOrder";
+  public static final String NAME_OPERATION = "operation";
+  public static final String NAME_TABLE_KEY = "relationTableKey";
 
   @Macro
   @Description("The dataset to write to. A dataset is contained within a specific project. "
@@ -62,6 +64,17 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
   @Description("Partitioning column for the BigQuery table. This should be left empty if the BigQuery table is an " +
     "ingestion-time partitioned table.")
   protected String partitionByField;
+
+  @Name(NAME_OPERATION)
+  @Macro
+  @Description("Type of write operation to perform. This can be set to Insert, Update or Upsert.")
+  protected String operation;
+
+  @Name(NAME_TABLE_KEY)
+  @Macro
+  @Nullable
+  @Description("List of fields that determines relation between tables during Update and Upsert operations.")
+  protected String relationTableKey;
 
   @Macro
   @Nullable
@@ -121,6 +134,15 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
   @Nullable
   public String getClusteringOrder() {
     return clusteringOrder;
+  }
+
+  public Operation getOperation() {
+    return Operation.valueOf(operation.toUpperCase());
+  }
+
+  @Nullable
+  public String getRelationTableKey() {
+    return relationTableKey;
   }
 
   @Override

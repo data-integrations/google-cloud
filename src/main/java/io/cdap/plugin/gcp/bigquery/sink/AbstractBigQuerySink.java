@@ -198,6 +198,10 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
     if (getConfig().getClusteringOrder() != null) {
       baseConfiguration.set(BigQueryConstants.CONFIG_CLUSTERING_ORDER, getConfig().getClusteringOrder());
     }
+    baseConfiguration.setStrings(BigQueryConstants.CONFIG_OPERATION, getConfig().getOperation().name());
+    if (getConfig().getRelationTableKey() != null) {
+      baseConfiguration.set(BigQueryConstants.CONFIG_TABLE_KEY, getConfig().getRelationTableKey());
+    }
     return baseConfiguration;
   }
 
@@ -238,6 +242,11 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
                                                 config.getTable(),
                                                 config.getServiceAccountFilePath());
     baseConfiguration.setBoolean(BigQueryConstants.CONFIG_DESTINATION_TABLE_EXISTS, table != null);
+    if (table != null) {
+      List<String> tableFieldsNames = Objects.requireNonNull(table.getDefinition().getSchema()).getFields().stream()
+        .map(Field::getName).collect(Collectors.toList());
+      baseConfiguration.set(BigQueryConstants.CONFIG_TABLE_FIELDS, String.join(",", tableFieldsNames));
+    }
   }
 
   /**

@@ -40,6 +40,10 @@ It will be automatically created if it does not exist, but will not be automatic
 Temporary data will be deleted after it is loaded into BigQuery. If it is not provided, a unique
 bucket will be created and then deleted after the run finishes.
 
+**Operation**: Type of write operation to perform. This can be set to Insert, Update or Upsert.
+
+**Table Key**: List of fields that determines relation between tables during Update and Upsert operations.
+
 **Create Partitioned Table**: Whether to create the BigQuery table with time partitioning. This value 
 is ignored if the table already exists.
 * When this is set to true, table will be created with time partitioning. 
@@ -63,7 +67,7 @@ when it does not match the schema expected by the pipeline.
 * When this is set to false, any mismatches between the schema expected by the pipeline 
 and the schema in BigQuery will result in pipeline failure. 
 * When this is set to true, the schema in BigQuery will be updated to match the schema 
-expected by the pipeline, assuming the schemas are compatible. 
+expected by the pipeline, assuming the schemas are compatible.
 
 Compatible changes fall under the following categories:                
 * the pipeline schema contains nullable fields that do not exist in the BigQuery schema. 
