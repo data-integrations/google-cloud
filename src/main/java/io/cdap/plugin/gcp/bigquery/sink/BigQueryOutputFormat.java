@@ -218,7 +218,8 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Jso
 
       temporaryTableReference = null;
       if (tableExists && !isTableEmpty(tableRef) && !Operation.INSERT.equals(operation)) {
-        String temporaryTableName = UUID.randomUUID().toString().replaceAll("-", "_");
+        String temporaryTableName = tableRef.getTableId() + "_"
+          + UUID.randomUUID().toString().replaceAll("-", "_");
         temporaryTableReference = new TableReference()
           .setDatasetId(tableRef.getDatasetId())
           .setProjectId(tableRef.getProjectId())
