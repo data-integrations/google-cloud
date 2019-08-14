@@ -1,0 +1,104 @@
+{
+  "metadata": {
+    "spec-version": "1.5"
+  },
+  "display-name" : "BQ Merge Action",
+  "configuration-groups": [
+    {
+      "label": "Base",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Project ID",
+          "name": "project",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        }
+      ]
+    },
+    {
+      "label": "Source table",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Source Dataset",
+          "name": "sourceDataset",
+          "widget-attributes" : {
+            "placeholder": "Source dataset the table belongs to"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Source Table",
+          "name": "sourceTable",
+          "widget-attributes" : {
+            "placeholder": "Table to read from"
+          }
+        }
+      ]
+    },
+    {
+      "label": "Destination table",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Destination Dataset",
+          "name": "destinationDataset",
+          "widget-attributes" : {
+            "placeholder": "Destination dataset the table belongs to"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Destination Table",
+          "name": "destinationTable",
+          "widget-attributes" : {
+            "placeholder": "Table to write to"
+          }
+        }
+      ]
+    },
+    {
+      "label" : "Advanced",
+      "properties" : [
+        {
+          "name": "relationTableKey",
+          "widget-type": "csv",
+          "label": "Table Key",
+          "widget-attributes" : {}
+        },
+        {
+          "name": "allowSchemaRelaxation",
+          "widget-type": "toggle",
+          "label": "Update Table Schema",
+          "widget-attributes": {
+            "on": {
+              "value": "true",
+              "label": "True"
+            },
+            "off": {
+              "value": "false",
+              "label": "False"
+            },
+            "default": "false"
+          }
+        }
+      ]
+    },
+    {
+      "label" : "Credentials",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        }
+      ]
+    }
+  ],
+  "outputs": []
+}
