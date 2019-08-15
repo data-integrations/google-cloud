@@ -98,7 +98,7 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
         .setProjectId(inputProjectId)
         .setTableId(tableName);
       String location = bigQueryHelper.getTable(sourceTable).getLocation();
-      String temporaryTableName = UUID.randomUUID().toString().replaceAll("-", "_");
+      String temporaryTableName = tableName + "_" + UUID.randomUUID().toString().replaceAll("-", "_");
       TableReference exportTableReference = new TableReference()
         .setDatasetId(datasetId)
         .setProjectId(inputProjectId)

@@ -41,6 +41,10 @@ Temporary data will be deleted after it is loaded into BigQuery. If it is not pr
 bucket will be created and then deleted after the run finishes.
 
 **Operation**: Type of write operation to perform. This can be set to Insert, Update or Upsert.
+* Insert - all records will be inserted in destination table.
+* Update - records that match on Table Key will be updated in the table. Records that do not match 
+will be dropped.
+* Upsert - records that match on Table Key will be updated. Records that do not match will be inserted.
 
 **Table Key**: List of fields that determines relation between tables during Update and Upsert operations.
 
