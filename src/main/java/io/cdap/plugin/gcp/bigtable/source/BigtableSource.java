@@ -36,7 +36,6 @@ import io.cdap.plugin.common.SourceInputFormatProvider;
 import io.cdap.plugin.gcp.bigtable.common.HBaseColumn;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.Result;
@@ -133,7 +132,7 @@ public final class BigtableSource extends BatchSource<ImmutableBytesWritable, Re
 
   private Configuration getConfiguration() {
     try {
-      Configuration conf = HBaseConfiguration.create();
+      Configuration conf = new Configuration();
       BigtableConfiguration.configure(conf, config.getProject(), config.instance);
       conf.setBoolean(TableInputFormat.SHUFFLE_MAPS, true);
       conf.set(TableInputFormat.INPUT_TABLE, config.table);

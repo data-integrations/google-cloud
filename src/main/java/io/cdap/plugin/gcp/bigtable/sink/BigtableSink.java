@@ -37,7 +37,6 @@ import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.gcp.bigtable.common.HBaseColumn;
 import io.cdap.plugin.gcp.common.SourceOutputFormatProvider;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
@@ -144,7 +143,7 @@ public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableByt
   }
 
   private Configuration getConfiguration() {
-    Configuration conf = HBaseConfiguration.create();
+    Configuration conf = new Configuration();
     BigtableConfiguration.configure(conf, config.getProject(), config.instance);
     conf.set(TableOutputFormat.OUTPUT_TABLE, config.table);
     config.getBigtableOptions().forEach(conf::set);
@@ -182,7 +181,11 @@ public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableByt
       HTableDescriptor tableDescriptor = new HTableDescriptor(tableName);
       config.getColumnMappings()
         .values()
-        .forEach(column -> tableDescriptor.addFamily(new HColumnDescriptor(column.getFamily())));
+        .stream()
+        .map(HBaseColumn::getFamily)
+        .distinct()
+        .map(HColumnDescriptor::new)
+        .forEach(tableDescriptor::addFamily);
       admin.createTable(tableDescriptor);
     } catch (IOException e) {
       throw new InvalidStageException(String.format("Failed to create table '%s' in Bigtable", tableName), e);
