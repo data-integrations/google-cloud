@@ -18,14 +18,12 @@ package io.cdap.plugin.gcp.bigquery.source;
 
 import com.google.auth.Credentials;
 import com.google.cloud.bigquery.BigQuery;
-import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.StandardSQLTypeName;
 import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.Table;
-import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TimePartitioning;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import io.cdap.cdap.api.annotation.Description;
@@ -37,17 +35,16 @@ import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
 import io.cdap.cdap.etl.api.Emitter;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
+import io.cdap.cdap.etl.api.StageConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
-import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
-import io.cdap.cdap.etl.api.validation.InvalidStageException;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
-import io.cdap.plugin.gcp.common.Schemas;
 import org.apache.avro.generic.GenericData;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -60,12 +57,13 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.time.DateTimeException;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 /**
  * Class description here.
@@ -88,38 +86,40 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
   @Override
   public void configurePipeline(PipelineConfigurer configurer) {
     super.configurePipeline(configurer);
-    config.validate();
+    StageConfigurer stageConfigurer = configurer.getStageConfigurer();
+    FailureCollector collector = stageConfigurer.getFailureCollector();
+    config.validate(collector);
 
     if (config.containsMacro("schema") || config.containsMacro("dataset") || config.containsMacro("table") ||
       config.containsMacro("datasetProject")) {
-      configurer.getStageConfigurer().setOutputSchema(null);
+      stageConfigurer.setOutputSchema(null);
       return;
     }
 
-    Schema schema = getSchema();
-    Schema configuredSchema = config.getSchema();
+    Schema configuredSchema = config.getSchema(collector);
+    Schema schema = getSchema(collector);
+    validatePartitionProperties(collector);
+
     if (configuredSchema == null) {
-      configurer.getStageConfigurer().setOutputSchema(schema);
+      stageConfigurer.setOutputSchema(schema);
       return;
     }
 
-    try {
-      Schemas.validateFieldsMatch(schema, configuredSchema);
-      configurer.getStageConfigurer().setOutputSchema(configuredSchema);
-    } catch (IllegalArgumentException e) {
-      throw new InvalidConfigPropertyException(e.getMessage(), e, "schema");
-    }
+    validateConfiguredSchema(configuredSchema, collector);
+    stageConfigurer.setOutputSchema(configuredSchema);
   }
 
   @Override
   public void prepareRun(BatchSourceContext context) throws Exception {
-    config.validate();
+    FailureCollector collector = context.getFailureCollector();
+    config.validate(collector);
+    validatePartitionProperties(collector);
+    validateConfiguredSchema(context.getOutputSchema(), collector);
+
     String serviceAccountPath = config.getServiceAccountFilePath();
     Credentials credentials = serviceAccountPath == null ?
       null : GCPUtils.loadServiceAccountCredentials(serviceAccountPath);
     BigQuery bigQuery = GCPUtils.getBigQuery(config.getDatasetProject(), credentials);
-    validateOutputSchema(bigQuery);
-    validatePartitionProperties();
 
     uuid = UUID.randomUUID();
     configuration = BigQueryUtil.getBigQueryConfig(config.getServiceAccountFilePath(), config.getProject());
@@ -160,7 +160,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     job.setOutputKeyClass(Text.class);
 
     // Both emitLineage and setOutputFormat internally try to create an external dataset if it does not already exists.
-    // We call emitLineage before since it creates the dataset with schema which .
+    // We call emitLineage before since it creates the dataset with schema.
     emitLineage(context);
     setInputFormat(context);
   }
@@ -199,110 +199,105 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     }
   }
 
-  public Schema getSchema() {
-    String dataset = config.getDataset();
-    String tableName = config.getTable();
-    String project = config.getDatasetProject();
-    TableId tableId = TableId.of(project, dataset, tableName);
+  public Schema getSchema(FailureCollector collector) {
+    com.google.cloud.bigquery.Schema bqSchema = getBQSchema(collector);
+    FieldList fields = bqSchema.getFields();
+    List<Schema.Field> schemafields = new ArrayList<>();
 
-    String serviceAccountPath = config.getServiceAccountFilePath();
-    Credentials credentials = null;
-    if (serviceAccountPath != null) {
-      try {
-        credentials = GCPUtils.loadServiceAccountCredentials(serviceAccountPath);
-      } catch (IOException e) {
-        throw new InvalidConfigPropertyException(
-          String.format("Unable to load credentials from %s", serviceAccountPath), "serviceFilePath");
+    for (Field field : fields) {
+      Schema.Field schemaField = getSchemaField(field, collector);
+      // if schema field is null, that means that there was a validation error. We will still continue in order to
+      // collect more errors
+      if (schemaField == null) {
+        continue;
       }
+      schemafields.add(schemaField);
     }
-    BigQuery bigQuery = GCPUtils.getBigQuery(config.getDatasetProject(), credentials);
-
-    Table table;
-    try {
-      table = bigQuery.getTable(tableId);
-    } catch (BigQueryException e) {
-      throw new InvalidStageException("Unable to get details about the BigQuery table: " + e.getMessage(), e);
+    if (schemafields.isEmpty() && !collector.getValidationFailures().isEmpty()) {
+      // throw if there was validation failure(s) added to the collector
+      collector.getOrThrowException();
     }
-    if (table == null) {
-      // Table does not exist
-      throw new InvalidStageException(String.format("BigQuery table '%s:%s.%s' does not exist",
-                                                    project, dataset, tableName));
-    }
-
-    com.google.cloud.bigquery.Schema bgSchema = table.getDefinition().getSchema();
-    if (bgSchema == null) {
-      throw new InvalidStageException(String.format("Cannot read from table '%s:%s.%s' because it has no schema.",
-                                                    project, dataset, table));
-    }
-
-    List<Schema.Field> fields = bgSchema.getFields().stream()
-      .map(this::getSchemaField)
-      .collect(Collectors.toList());
-    return Schema.recordOf("output", fields);
+    return Schema.recordOf("output", schemafields);
   }
 
   /**
    * Validate output schema. This is needed because its possible that output schema is set without using
-   * {@link #getSchema()} method.
+   * {@link #getSchema} method.
    */
-  private void validateOutputSchema(BigQuery bigQuery) {
+  private void validateConfiguredSchema(Schema configuredSchema, FailureCollector collector) {
     String dataset = config.getDataset();
     String tableName = config.getTable();
     String project = config.getDatasetProject();
-    TableId tableId = TableId.of(project, dataset, tableName);
-    Table table = bigQuery.getTable(tableId);
-    if (table == null) {
-      // Table does not exist
-      throw new IllegalArgumentException(String.format("BigQuery table '%s:%s.%s' does not exist.",
-                                                       project, dataset, tableName));
-    }
+    com.google.cloud.bigquery.Schema bqSchema = getBQSchema(collector);
 
-    com.google.cloud.bigquery.Schema bgSchema = table.getDefinition().getSchema();
-    if (bgSchema == null) {
-      throw new IllegalArgumentException(String.format("Cannot read from table '%s:%s.%s' because it has no schema.",
-                                                       project, dataset, table));
-    }
-
-    // Output schema should not have more fields than BigQuery table
-    List<String> diff = BigQueryUtil.getSchemaMinusBqFields(config.getSchema().getFields(), bgSchema.getFields());
-    if (!diff.isEmpty()) {
-      throw new IllegalArgumentException(String.format("Output schema has field(s) '%s' which are not present in table"
-                                                         + " '%s:%s.%s' schema.", diff, project, dataset, table));
-    }
-
-    FieldList fields = bgSchema.getFields();
+    FieldList fields = bqSchema.getFields();
     // Match output schema field type with bigquery column type
-    for (Schema.Field field : config.getSchema().getFields()) {
-      validateSupportedTypes(field);
-      BigQueryUtil.validateFieldSchemaMatches(fields.get(field.getName()), field, dataset, tableName);
+    for (Schema.Field field : configuredSchema.getFields()) {
+      try {
+        Field bqField = fields.get(field.getName());
+        validateSupportedTypes(field, collector);
+        BigQueryUtil.validateFieldSchemaMatches(bqField, field, dataset, tableName, collector);
+      } catch (IllegalArgumentException e) {
+        // this means that the field is not present in BigQuery table.
+        collector.addFailure(
+          String.format("Field '%s' is not present in table '%s:%s.%s' schema.",
+                        field, project, dataset, tableName),
+          "The fields provided in output schema must match the fields in the underlying table.")
+          .withOutputSchemaField(field.getName(), null);
+      }
     }
+    collector.getOrThrowException();
   }
 
-  private void validateSupportedTypes(Schema.Field field) {
+  private com.google.cloud.bigquery.Schema getBQSchema(FailureCollector collector) {
+    String serviceAccountPath = config.getServiceAccountFilePath();
+    String dataset = config.getDataset();
+    String tableName = config.getTable();
+    String project = config.getDatasetProject();
+
+    Table table = BigQueryUtil.getBigQueryTable(project, dataset, tableName, serviceAccountPath, collector);
+    if (table == null) {
+      // Table does not exist
+      collector.addFailure(String.format("BigQuery table '%s:%s.%s' must exist.",
+                                         project, dataset, tableName), null)
+        .withConfigProperty("table");
+      collector.getOrThrowException();
+    }
+
+    com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
+    if (bqSchema == null) {
+      collector.addFailure(String.format("Cannot read from table '%s:%s.%s' because it has no schema.",
+                                         project, dataset, table), "Provided table must have schema.")
+        .withConfigProperty("table");
+      collector.getOrThrowException();
+    }
+    return bqSchema;
+  }
+
+  private void validateSupportedTypes(Schema.Field field, FailureCollector collector) {
     String name = field.getName();
     Schema fieldSchema = BigQueryUtil.getNonNullableSchema(field.getSchema());
     Schema.Type type = fieldSchema.getType();
 
-    // Complex types like maps and unions are not supported in BigQuery plugins.
-    if (!BigQueryUtil.SUPPORTED_TYPES.contains(type)) {
-      throw new IllegalArgumentException(String.format("Field '%s' is of unsupported type '%s'.", name, type));
-    }
-
     // bigquery does not support int types
     if (fieldSchema.getLogicalType() == null && type == Schema.Type.INT) {
-      throw new IllegalArgumentException(String.format("Field '%s' is of unsupported type 'int'." +
-                                                         " It should be 'long'", name));
+      collector.addFailure(String.format("Field '%s' is of unsupported type 'int'.", name), "It should be 'long'.")
+        .withOutputSchemaField(name, null);
     }
 
     // bigquery does not support float types
     if (fieldSchema.getLogicalType() == null && type == Schema.Type.FLOAT) {
-      throw new IllegalArgumentException(String.format("Field '%s' is of unsupported type 'float'." +
-                                                         " It should be 'double'", name));
+      collector.addFailure(String.format("Field '%s' is of unsupported type 'float'.", name), "It should be 'double'.")
+        .withOutputSchemaField(name, null);
     }
   }
 
-  private Schema.Field getSchemaField(Field field) {
-    Schema schema = convertFieldType(field);
+  @Nullable
+  private Schema.Field getSchemaField(Field field, FailureCollector collector) {
+    Schema schema = convertFieldType(field, collector);
+    if (schema == null) {
+      return null;
+    }
 
     Field.Mode mode = field.getMode() == null ? Field.Mode.NULLABLE : field.getMode();
     switch (mode) {
@@ -313,14 +308,17 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
       case REPEATED:
         return Schema.Field.of(field.getName(), Schema.arrayOf(schema));
       default:
-        throw new IllegalArgumentException(
-          String.format("Field '%s' is of unexpected mode '%s'", field.getName(), mode));
+        // this should not happen, unless newer bigquery versions introduces new mode that is not supported by this
+        // plugin.
+        collector.addFailure(String.format("Field '%s' has unsupported mode '%s'.", field.getName(), mode), null);
     }
+    return null;
   }
 
-  private Schema convertFieldType(Field field) {
+  @Nullable
+  private Schema convertFieldType(Field field, FailureCollector collector) {
     LegacySQLTypeName type = field.getType();
-    Schema schema;
+    Schema schema = null;
     StandardSQLTypeName value = type.getStandardType();
     if (value == StandardSQLTypeName.FLOAT64) {
       // float is a float64, so corresponding type becomes double
@@ -345,23 +343,44 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
       // https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro#logical_types
       schema = Schema.decimalOf(38, 9);
     } else if (value == StandardSQLTypeName.STRUCT) {
-      List<Schema.Field> fields = field.getSubFields().stream()
-        .map(this::getSchemaField)
-        .collect(Collectors.toList());
-      schema = Schema.recordOf(field.getName(), fields);
+      FieldList fields = field.getSubFields();
+      List<Schema.Field> schemafields = new ArrayList<>();
+      for (Field f : fields) {
+        Schema.Field schemaField = getSchemaField(f, collector);
+        // if schema field is null, that means that there was a validation error. We will still continue in order to
+        // collect more errors
+        if (schemaField == null) {
+          continue;
+        }
+        schemafields.add(schemaField);
+      }
+      // do not return schema for the struct field if none of the nested fields are of supported types
+      if (!schemafields.isEmpty()) {
+        schema = Schema.recordOf(field.getName(), schemafields);
+      }
     } else {
-      // this should never happen
-      throw new InvalidStageException(String.format("BigQuery column '%s' is of unsupported type '%s'.",
-                                                    field.getName(), value));
+      collector.addFailure(String.format("BigQuery column '%s' is of unsupported type '%s'.", field.getName(), value),
+                           "Supported types are: " +
+                             "INT64, NUMERIC, FLOAT64, STRING, BOOLEAN, BYTES, ARRAY, TIMESTAMP, DATE, " +
+                             "TIME or STRUCT.");
     }
     return schema;
   }
 
-  private void validatePartitionProperties() {
+  private void validatePartitionProperties(FailureCollector collector) {
+    String project = config.getDatasetProject();
+    String dataset = config.getDataset();
+    String tableName = config.getTable();
+    Table sourceTable = BigQueryUtil.getBigQueryTable(project, dataset, tableName,
+                                                      config.getServiceAccountFilePath(), collector);
+    if (sourceTable == null) {
+      // Table does not exist
+      collector.addFailure(String.format("BigQuery table '%s:%s.%s' must exist.", project, dataset, tableName), null)
+        .withConfigProperty("table");
+      collector.getOrThrowException();
+    }
 
-    Table sourceTable = BigQueryUtil.getBigQueryTable(config.getDatasetProject(), config.getDataset(),
-                                                      config.getTable(), config.getServiceAccountFilePath());
-    TimePartitioning timePartitioning = ((StandardTableDefinition) Objects.requireNonNull(sourceTable).getDefinition())
+    TimePartitioning timePartitioning = ((StandardTableDefinition) (sourceTable).getDefinition())
       .getTimePartitioning();
     if (timePartitioning == null) {
       return;
@@ -377,8 +396,8 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
       try {
         fromDate = LocalDate.parse(partitionFromDate);
       } catch (DateTimeException ex) {
-        throw new InvalidConfigPropertyException("Invalid Partition From Date format. Partition From Date should be " +
-                                                   "in format yyyy-MM-dd", ex, BigQuerySourceConfig.PARTITION_FROM);
+        collector.addFailure("Invalid Partition From Date format.", "Partition From Date must be in format yyyy-MM-dd.")
+          .withConfigProperty(BigQuerySourceConfig.PARTITION_FROM);
       }
     }
     LocalDate toDate = null;
@@ -386,15 +405,16 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
       try {
         toDate = LocalDate.parse(partitionToDate);
       } catch (DateTimeException ex) {
-        throw new InvalidConfigPropertyException("Invalid Partition To Date format. Partition To Date should be " +
-                                                   "in format yyyy-MM-dd", ex, BigQuerySourceConfig.PARTITION_TO);
+        collector.addFailure("Invalid Partition To Date format.", "Partition To Date should be in format yyyy-MM-dd.")
+          .withConfigProperty(BigQuerySourceConfig.PARTITION_TO);
       }
     }
 
     if (fromDate != null && toDate != null && fromDate.isAfter(toDate) && !fromDate.isEqual(toDate)) {
-      throw new InvalidStageException("Partition From Date should be before or equal Partition To Date");
+      collector.addFailure("Partition From Date must be before or equal Partition To Date.", null)
+        .withConfigProperty(BigQuerySourceConfig.PARTITION_FROM)
+        .withConfigProperty(BigQuerySourceConfig.PARTITION_TO);
     }
-
   }
 
   private void setInputFormat(BatchSourceContext context) {
@@ -416,12 +436,13 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
   }
 
   private void emitLineage(BatchSourceContext context) {
+    FailureCollector collector = context.getFailureCollector();
     LineageRecorder lineageRecorder = new LineageRecorder(context, config.referenceName);
-    lineageRecorder.createExternalDataset(config.getSchema());
+    lineageRecorder.createExternalDataset(config.getSchema(collector));
 
-    if (config.getSchema().getFields() != null) {
+    if (config.getSchema(collector).getFields() != null) {
       lineageRecorder.recordRead("Read", "Read from BigQuery table.",
-                                 config.getSchema().getFields().stream()
+                                 config.getSchema(collector).getFields().stream()
                                    .map(Schema.Field::getName).collect(Collectors.toList()));
     }
   }

@@ -97,7 +97,8 @@ public class SpannerSinkConfig extends GCPReferenceSinkConfig {
   }
 
   public void validate() {
-    super.validate();
+    // TODO: (vinisha) use failure collector
+    super.validate(null);
     if (!containsMacro("schema")) {
       SpannerUtil.validateSchema(getSchema(), SUPPORTED_TYPES);
     }

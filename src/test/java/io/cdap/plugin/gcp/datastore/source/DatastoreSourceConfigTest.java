@@ -25,6 +25,7 @@ import com.google.datastore.v1.Value;
 import com.google.datastore.v1.client.DatastoreHelper;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
+import io.cdap.cdap.etl.mock.validation.MockFailureCollector;
 import io.cdap.plugin.gcp.datastore.source.util.DatastoreSourceConstants;
 import io.cdap.plugin.gcp.datastore.source.util.SourceKeyType;
 import io.cdap.plugin.gcp.datastore.util.DatastorePropertyUtil;
@@ -216,7 +217,7 @@ public class DatastoreSourceConfigTest {
       .build());
 
     try {
-      config.validate();
+      config.validate(new MockFailureCollector("stage"));
       Assert.fail("Invalid config should have thrown exception");
     } catch (InvalidConfigPropertyException e) {
       Assert.assertEquals(DatastoreSourceConstants.PROPERTY_KIND, e.getProperty());
@@ -230,7 +231,7 @@ public class DatastoreSourceConfigTest {
       .build());
 
     try {
-      config.validate();
+      config.validate(new MockFailureCollector("stage"));
       Assert.fail("Invalid config should have thrown exception");
     } catch (InvalidConfigPropertyException e) {
       Assert.assertEquals(DatastoreSourceConstants.PROPERTY_KIND, e.getProperty());
@@ -246,7 +247,7 @@ public class DatastoreSourceConfigTest {
       .setKind(DatastoreSourceConfigHelper.TEST_KIND)
       .build());
 
-    config.validate();
+    config.validate(new MockFailureCollector("stage"));
   }
 
   @Test
@@ -258,7 +259,7 @@ public class DatastoreSourceConfigTest {
       .setAncestor(null)
       .build());
 
-    config.validate();
+    config.validate(new MockFailureCollector("stage"));
   }
 
   @Test
@@ -270,7 +271,7 @@ public class DatastoreSourceConfigTest {
       .setAncestor("")
       .build());
 
-    config.validate();
+    config.validate(new MockFailureCollector("stage"));
   }
 
   @Test
@@ -283,7 +284,7 @@ public class DatastoreSourceConfigTest {
       .setAncestor(ancestor)
       .build());
 
-    config.validate();
+    config.validate(new MockFailureCollector("stage"));
   }
 
   @Test
@@ -299,7 +300,7 @@ public class DatastoreSourceConfigTest {
       .build());
 
     try {
-      config.validate();
+      config.validate(new MockFailureCollector("stage"));
       Assert.fail("Invalid config should have thrown exception");
     } catch (InvalidConfigPropertyException e) {
       Assert.assertEquals(DatastoreSourceConstants.PROPERTY_NUM_SPLITS, e.getProperty());
@@ -318,7 +319,7 @@ public class DatastoreSourceConfigTest {
       .setNumSplits(1)
       .build());
 
-    config.validate();
+    config.validate(new MockFailureCollector("stage"));
   }
 
   @Test
@@ -341,7 +342,7 @@ public class DatastoreSourceConfigTest {
       .setNumSplits(1)
       .build());
 
-    config.validate();
+    config.validate(new MockFailureCollector("stage"));
   }
 
   @Test
@@ -357,7 +358,7 @@ public class DatastoreSourceConfigTest {
       .build());
 
     try {
-      config.validate();
+      config.validate(new MockFailureCollector("stage"));
       Assert.fail("Invalid config should have thrown exception");
     } catch (InvalidConfigPropertyException e) {
       Assert.assertEquals(DatastoreSourceConstants.PROPERTY_SCHEMA, e.getProperty());
@@ -374,7 +375,7 @@ public class DatastoreSourceConfigTest {
       .build());
 
     try {
-      config.validate();
+      config.validate(new MockFailureCollector("stage"));
       Assert.fail("Invalid config should have thrown exception");
     } catch (InvalidConfigPropertyException e) {
       Assert.assertEquals(DatastoreSourceConstants.PROPERTY_SCHEMA, e.getProperty());
@@ -394,7 +395,7 @@ public class DatastoreSourceConfigTest {
       .setFilters("name|abc")
       .build());
 
-    config.validate();
+    config.validate(new MockFailureCollector("stage"));
   }
 
   @Test
@@ -413,7 +414,7 @@ public class DatastoreSourceConfigTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Invalid syntax for key-value pair in list");
 
-    config.validate();
+    config.validate(new MockFailureCollector("stage"));
   }
 
   @Test
@@ -430,7 +431,7 @@ public class DatastoreSourceConfigTest {
       .build());
 
     try {
-      config.validate();
+      config.validate(new MockFailureCollector("stage"));
       Assert.fail("Invalid config should have thrown exception");
     } catch (InvalidConfigPropertyException e) {
       Assert.assertEquals(DatastoreSourceConstants.PROPERTY_FILTERS, e.getProperty());
@@ -449,7 +450,7 @@ public class DatastoreSourceConfigTest {
       .setNumSplits(1)
       .build());
 
-    config.validate();
+    config.validate(new MockFailureCollector("stage"));
   }
 
   @Test
@@ -464,7 +465,7 @@ public class DatastoreSourceConfigTest {
       .setNumSplits(1)
       .build());
 
-    config.validate();
+    config.validate(new MockFailureCollector("stage"));
   }
 
   @Test
@@ -479,7 +480,7 @@ public class DatastoreSourceConfigTest {
       .setNumSplits(1)
       .build());
 
-    config.validate();
+    config.validate(new MockFailureCollector("stage"));
   }
 
   @Test
@@ -494,7 +495,7 @@ public class DatastoreSourceConfigTest {
       .build());
 
     try {
-      config.validate();
+      config.validate(new MockFailureCollector("stage"));
       Assert.fail("Invalid config should have thrown exception");
     } catch (InvalidConfigPropertyException e) {
       Assert.assertEquals(DatastoreSourceConstants.PROPERTY_KEY_ALIAS, e.getProperty());
@@ -514,7 +515,7 @@ public class DatastoreSourceConfigTest {
       .build());
 
     try {
-      config.validate();
+      config.validate(new MockFailureCollector("stage"));
       Assert.fail("Invalid config should have thrown exception");
     } catch (InvalidConfigPropertyException e) {
       Assert.assertEquals(DatastoreSourceConstants.PROPERTY_KEY_ALIAS, e.getProperty());
@@ -534,7 +535,7 @@ public class DatastoreSourceConfigTest {
       .build());
 
     try {
-      config.validate();
+      config.validate(new MockFailureCollector("stage"));
       Assert.fail("Invalid config should have thrown exception");
     } catch (InvalidConfigPropertyException e) {
       Assert.assertEquals(DatastoreSourceConstants.PROPERTY_KEY_ALIAS, e.getProperty());
@@ -555,7 +556,7 @@ public class DatastoreSourceConfigTest {
       .setNumSplits(1)
       .build());
 
-    config.validate();
+    config.validate(new MockFailureCollector("stage"));
   }
 
   @Test
@@ -612,7 +613,7 @@ public class DatastoreSourceConfigTest {
       .setNumSplits(1)
       .build());
 
-    config.validate();
+    config.validate(new MockFailureCollector("stage"));
   }
 
   @Test
@@ -629,7 +630,7 @@ public class DatastoreSourceConfigTest {
 
     thrown.expect(IllegalArgumentException.class);
 
-    config.validate();
+    config.validate(new MockFailureCollector("stage"));
   }
 
   private DatastoreSourceConfig withDatastoreValidationMock(DatastoreSourceConfig config) {

@@ -29,6 +29,7 @@ import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
 import io.cdap.plugin.common.KeyValueListParser;
 import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
@@ -155,7 +156,7 @@ public class DatastoreSourceConfig extends GCPReferenceSourceConfig {
 
   public Schema getSchema() {
     try {
-      return schema == null ? null : Schema.parseJson(schema);
+      return Strings.isNullOrEmpty(schema) ? null : Schema.parseJson(schema);
     } catch (IOException e) {
       throw new InvalidConfigPropertyException("Unable to parse output schema: " +
                                                  schema, e, DatastoreSourceConstants.PROPERTY_SCHEMA);
@@ -205,8 +206,8 @@ public class DatastoreSourceConfig extends GCPReferenceSourceConfig {
   }
 
   @Override
-  public void validate() {
-    super.validate();
+  public void validate(FailureCollector collector) {
+    super.validate(collector);
     validateDatastoreConnection();
     validateKind();
     validateAncestor();

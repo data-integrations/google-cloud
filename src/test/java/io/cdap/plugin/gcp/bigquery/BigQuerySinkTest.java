@@ -17,9 +17,14 @@
 package io.cdap.plugin.gcp.bigquery;
 
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.etl.api.validation.ValidationFailure;
+import io.cdap.cdap.etl.mock.validation.MockFailureCollector;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySink;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkConfig;
+import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.List;
 
 /**
  * Tests for {@link BigQuerySink}.
@@ -37,17 +42,21 @@ public class BigQuerySinkTest {
                                     Schema.Field.of("timestamp",
                                                     Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))));
 
-    BigQuerySinkConfig config = new BigQuerySinkConfig("r", "ds", "tb", "bucket", schema.toString());
-    config.validate();
+    BigQuerySinkConfig config = new BigQuerySinkConfig("44", "ds", "tb", "bucket", schema.toString());
+    MockFailureCollector collector = new MockFailureCollector("bqsink");
+    config.validate(collector);
+    Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
-  @Test(expected = IllegalArgumentException.class)
+  @Test
   public void testBigQuerySinkInvalidConfig() {
     Schema invalidSchema = Schema.recordOf("record",
-                                    Schema.Field.of("id", Schema.of(Schema.Type.LONG)),
-                                    Schema.Field.of("record", Schema.of(Schema.Type.RECORD)));
+                                           Schema.Field.of("id", Schema.of(Schema.Type.LONG)));
 
-    BigQuerySinkConfig config = new BigQuerySinkConfig("r", "ds", "tb", "bucket", invalidSchema.toString());
-    config.validate();
+    BigQuerySinkConfig config = new BigQuerySinkConfig("reference!!", "ds", "tb", "buck3t$$", invalidSchema.toString());
+    MockFailureCollector collector = new MockFailureCollector("bqsink");
+    config.validate(collector);
+    List<ValidationFailure> failures = collector.getValidationFailures();
+    Assert.assertEquals(2, failures.size());
   }
 }

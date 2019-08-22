@@ -16,10 +16,12 @@
 
 package io.cdap.plugin.gcp.spanner.source;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
 import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
 import io.cdap.plugin.gcp.spanner.common.SpannerUtil;
@@ -64,8 +66,8 @@ public class SpannerSourceConfig extends GCPReferenceSourceConfig {
   @Nullable
   public String schema;
 
-  public void validate() {
-    super.validate();
+  public void validate(FailureCollector collector) {
+    super.validate(collector);
     if (!containsMacro("schema") && schema != null) {
       SpannerUtil.validateSchema(getSchema(), SUPPORTED_TYPES);
     }
@@ -80,7 +82,7 @@ public class SpannerSourceConfig extends GCPReferenceSourceConfig {
   @Nullable
   public Schema getSchema() {
     try {
-      return schema == null ? null : Schema.parseJson(schema);
+      return Strings.isNullOrEmpty(schema) ? null : Schema.parseJson(schema);
     } catch (IOException e) {
       throw new IllegalArgumentException("Unable to parse output schema: " + e.getMessage(), e);
     }

@@ -19,7 +19,7 @@ import com.google.cloud.bigquery.JobInfo;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
-import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.gcp.common.GCPReferenceSinkConfig;
 
 import java.util.regex.Pattern;
@@ -95,15 +95,15 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
   }
 
   @Override
-  public void validate() {
-    super.validate();
+  public void validate(FailureCollector collector) {
+    super.validate(collector);
     String bucket = getBucket();
     if (!containsMacro("bucket") && bucket != null) {
       // Basic validation for allowed characters as per https://cloud.google.com/storage/docs/naming
       Pattern p = Pattern.compile("[a-z0-9._-]+");
       if (!p.matcher(bucket).matches()) {
-        throw new InvalidConfigPropertyException("Bucket names can only contain lowercase characters, numbers, " +
-                                                   "'.', '_', and '-'.", "bucket");
+        collector.addFailure("Bucket must only contain lowercase characters, numbers,'.', '_', and '-'", null)
+          .withConfigProperty("bucket");
       }
     }
   }

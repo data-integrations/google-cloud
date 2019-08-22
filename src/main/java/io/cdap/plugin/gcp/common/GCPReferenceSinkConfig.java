@@ -19,6 +19,8 @@ package io.cdap.plugin.gcp.common;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
+import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.plugin.common.Constants;
 import io.cdap.plugin.common.IdUtils;
 
 /**
@@ -33,8 +35,15 @@ public class GCPReferenceSinkConfig extends GCPConfig {
   /**
    * Validates the given referenceName to consists of characters allowed to represent a dataset.
    */
-  public void validate() {
-    IdUtils.validateId(referenceName);
+  public void validate(FailureCollector collector) {
+    try {
+      IdUtils.validateId(referenceName);
+    } catch (IllegalArgumentException e) {
+      collector.addFailure(e.getMessage(),
+                           String.format("Provided %s must use characters that are letters, numbers, " +
+                                           "and _, -, ., or $.", Constants.Reference.REFERENCE_NAME))
+        .withConfigProperty(Constants.Reference.REFERENCE_NAME);
+    }
   }
 
   public String getReferenceName() {

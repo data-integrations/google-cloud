@@ -23,6 +23,7 @@ import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
 import io.cdap.plugin.gcp.bigtable.common.HBaseColumn;
 import io.cdap.plugin.gcp.common.ConfigUtil;
@@ -154,8 +155,8 @@ public final class BigtableSourceConfig extends GCPReferenceSourceConfig {
     this.schema = schema;
   }
 
-  public void validate() {
-    super.validate();
+  public void validate(FailureCollector collector) {
+    super.validate(collector);
     if (!containsMacro(TABLE) && Strings.isNullOrEmpty(table)) {
       throw new InvalidConfigPropertyException("Table must be specified", TABLE);
     }
@@ -248,7 +249,7 @@ public final class BigtableSourceConfig extends GCPReferenceSourceConfig {
   @Nullable
   public Schema getSchema() {
     try {
-      return schema == null ? null : Schema.parseJson(schema);
+      return Strings.isNullOrEmpty(schema) ? null : Schema.parseJson(schema);
     } catch (IOException e) {
       throw new InvalidConfigPropertyException("Invalid schema: " + e.getMessage(), SCHEMA);
     }

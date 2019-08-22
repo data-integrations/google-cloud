@@ -26,7 +26,9 @@ import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
 import io.cdap.cdap.etl.api.Emitter;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
+import io.cdap.cdap.etl.api.StageConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
@@ -69,8 +71,19 @@ public final class BigQuerySink extends AbstractBigQuerySink {
 
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
-    config.validate(pipelineConfigurer.getStageConfigurer().getInputSchema());
     super.configurePipeline(pipelineConfigurer);
+    StageConfigurer configurer = pipelineConfigurer.getStageConfigurer();
+    FailureCollector collector = configurer.getFailureCollector();
+    config.validate(configurer.getInputSchema(), collector);
+    Schema configuredSchema = config.getSchema(collector);
+
+    if (config.containsMacro("dataset") || config.containsMacro("table") ||
+      config.containsMacro("serviceFilePath") || config.containsMacro("project")) {
+      return;
+    }
+
+    // validate configured schema
+    validateConfiguredSchema(configuredSchema, collector);
   }
 
   @Override
@@ -80,16 +93,16 @@ public final class BigQuerySink extends AbstractBigQuerySink {
 
   @Override
   protected void prepareRunValidation(BatchSinkContext context) {
-    config.validate(context.getInputSchema());
+    config.validate(context.getInputSchema(), context.getFailureCollector());
   }
 
   @Override
   protected void prepareRunInternal(BatchSinkContext context, BigQuery bigQuery, String bucket) throws IOException {
-    Schema configSchema = config.getSchema();
+    FailureCollector collector = context.getFailureCollector();
+    Schema configSchema = config.getSchema(collector);
     Schema schema = configSchema == null ? context.getInputSchema() : configSchema;
     configureTable();
-    configureBigQuerySink();
-    initOutput(context, bigQuery, config.getReferenceName(), config.getTable(), schema, bucket);
+    initOutput(context, bigQuery, config.getReferenceName(), config.getTable(), schema, bucket, collector);
   }
 
   @Override
@@ -114,7 +127,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
   @Override
   public void initialize(BatchRuntimeContext context) throws Exception {
     super.initialize(context);
-    this.schema = config.getSchema();
+    this.schema = context.getOutputSchema();
   }
 
   @Override
@@ -150,13 +163,23 @@ public final class BigQuerySink extends AbstractBigQuerySink {
   private void configureTable() {
     AbstractBigQuerySinkConfig config = getConfig();
     Table table = BigQueryUtil.getBigQueryTable(config.getProject(), config.getDataset(),
-        config.getTable(),
-        config.getServiceAccountFilePath());
+                                                config.getTable(),
+                                                config.getServiceAccountFilePath());
     baseConfiguration.setBoolean(BigQueryConstants.CONFIG_DESTINATION_TABLE_EXISTS, table != null);
     if (table != null) {
       List<String> tableFieldsNames = Objects.requireNonNull(table.getDefinition().getSchema()).getFields().stream()
-          .map(Field::getName).collect(Collectors.toList());
+        .map(Field::getName).collect(Collectors.toList());
       baseConfiguration.set(BigQueryConstants.CONFIG_TABLE_FIELDS, String.join(",", tableFieldsNames));
+    }
+  }
+
+  private void validateConfiguredSchema(Schema configuredSchema, FailureCollector collector) {
+    if (configuredSchema != null) {
+      Table table = BigQueryUtil.getBigQueryTable(config.getProject(), config.getDataset(), config.getTable(),
+                                                  config.getServiceAccountFilePath(), collector);
+      if (table != null) {
+        validateSchema(table, configuredSchema, config.allowSchemaRelaxation, collector);
+      }
     }
   }
 }

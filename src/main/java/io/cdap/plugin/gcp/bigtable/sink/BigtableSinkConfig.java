@@ -20,6 +20,7 @@ import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
 import io.cdap.plugin.gcp.bigtable.common.HBaseColumn;
 import io.cdap.plugin.gcp.common.ConfigUtil;
@@ -84,8 +85,8 @@ public final class BigtableSinkConfig extends GCPReferenceSourceConfig {
     this.bigtableOptions = bigtableOptions;
   }
 
-  public void validate() {
-    super.validate();
+  public void validate(FailureCollector collector) {
+    super.validate(collector);
     if (!containsMacro(TABLE) && Strings.isNullOrEmpty(table)) {
       throw new InvalidConfigPropertyException("Table must be specified", TABLE);
     }

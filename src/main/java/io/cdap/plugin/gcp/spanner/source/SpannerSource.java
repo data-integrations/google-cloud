@@ -38,6 +38,7 @@ import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
 import io.cdap.cdap.etl.api.Emitter;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
+import io.cdap.cdap.etl.api.StageConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
@@ -90,9 +91,10 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
 
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
-    config.validate();
+    StageConfigurer stageConfigurer = pipelineConfigurer.getStageConfigurer();
+    config.validate(stageConfigurer.getFailureCollector());
     if (config.containsMacro("schema")) {
-      pipelineConfigurer.getStageConfigurer().setOutputSchema(null);
+      stageConfigurer.setOutputSchema(null);
       return;
     }
 
@@ -104,7 +106,7 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
     }
 
     try {
-      Schemas.validateFieldsMatch(schema, configuredSchema);
+      Schemas.validateFieldsMatch(schema, configuredSchema, stageConfigurer.getFailureCollector());
       pipelineConfigurer.getStageConfigurer().setOutputSchema(configuredSchema);
     } catch (IllegalArgumentException e) {
       throw new InvalidConfigPropertyException(e.getMessage(), e, "schema");
@@ -113,7 +115,7 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
 
   @Override
   public void prepareRun(BatchSourceContext batchSourceContext) throws Exception {
-    config.validate();
+    config.validate(batchSourceContext.getFailureCollector());
     String projectId = config.getProject();
     Configuration configuration = new Configuration();
     initializeConfig(configuration, projectId);

@@ -175,7 +175,8 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, T
     }
 
     public void validate() {
-      super.validate();
+      // TODO: (vinisha) add failure collector
+      super.validate(null);
       if (!containsMacro("messageCountBatchSize") && messageCountBatchSize != null && messageCountBatchSize < 1) {
         throw new IllegalArgumentException("Maximum count of messages in a batch should be positive for Pub/Sub");
       }
