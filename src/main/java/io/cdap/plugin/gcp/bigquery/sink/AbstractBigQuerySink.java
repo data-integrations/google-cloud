@@ -67,7 +67,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
   // UUID for the run. Will be used as bucket name if bucket is not provided.
   // UUID is used since GCS bucket names must be globally unique.
   private final UUID uuid = UUID.randomUUID();
-  private Configuration baseConfiguration;
+  protected Configuration baseConfiguration;
 
   /**
    * Executes main prepare run logic. Child classes cannot override this method,
@@ -88,7 +88,6 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
     BigQuery bigQuery = GCPUtils.getBigQuery(project, credentials);
     baseConfiguration = getBaseConfiguration();
     String bucket = configureBucket();
-    configureTable();
     if (!context.isPreviewEnabled()) {
       BigQueryUtil.createResources(bigQuery, GCPUtils.getStorage(project, credentials), config.getDataset(), bucket);
     }
@@ -237,19 +236,6 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
     baseConfiguration.setBoolean("fs.gs.impl.disable.cache", true);
     baseConfiguration.setBoolean("fs.gs.metadata.cache.enable", false);
     return bucket;
-  }
-
-  private void configureTable() {
-    AbstractBigQuerySinkConfig config = getConfig();
-    Table table = BigQueryUtil.getBigQueryTable(config.getProject(), config.getDataset(),
-                                                config.getTable(),
-                                                config.getServiceAccountFilePath());
-    baseConfiguration.setBoolean(BigQueryConstants.CONFIG_DESTINATION_TABLE_EXISTS, table != null);
-    if (table != null) {
-      List<String> tableFieldsNames = Objects.requireNonNull(table.getDefinition().getSchema()).getFields().stream()
-        .map(Field::getName).collect(Collectors.toList());
-      baseConfiguration.set(BigQueryConstants.CONFIG_TABLE_FIELDS, String.join(",", tableFieldsNames));
-    }
   }
 
   /**
