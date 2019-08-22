@@ -15,6 +15,7 @@
  */
 package io.cdap.plugin.gcp.bigquery.sink;
 
+import com.google.cloud.bigquery.JobInfo.WriteDisposition;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
@@ -33,6 +34,7 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
   public static final String NAME_PARTITION_BY_FIELD = "partitionByField";
   public static final String NAME_CLUSTERING_ORDER = "clusteringOrder";
   public static final String NAME_OPERATION = "operation";
+  public static final String NAME_WRITE_DISPOSITION = "writeDisposition";
   public static final String NAME_TABLE_KEY = "relationTableKey";
 
   @Macro
@@ -69,6 +71,11 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
   @Macro
   @Description("Type of write operation to perform. This can be set to Insert, Update or Upsert.")
   protected String operation;
+
+  @Name(NAME_WRITE_DISPOSITION)
+  @Macro
+  @Description("Type of write disposition to use. This can be set to Empty, Truncate, or Append.")
+  protected String writeDisposition;
 
   @Name(NAME_TABLE_KEY)
   @Macro
@@ -138,6 +145,10 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
 
   public Operation getOperation() {
     return Operation.valueOf(operation.toUpperCase());
+  }
+
+  public WriteDisposition getWriteDisposition() {
+    return WriteDisposition.valueOf(writeDisposition.toUpperCase());
   }
 
   @Nullable

@@ -36,6 +36,11 @@ It will be automatically created if it does not exist, but will not be automatic
 Temporary data will be deleted after it is loaded into BigQuery. If it is not provided, a unique
 bucket will be created and then deleted after the run finishes.
 
+**WriteDisposition**: Type of write disposition to use. This can be set to Empty, Truncate, or Append.
+* Empty - Job should only write to empty tables, otherwise an error is thrown.
+* Truncate - Job will truncate an existing table before writing to it.
+* Append - Job will append to an existing table.
+
 **Split Field:** The name of the field that will be used to determine which table to write to.
 
 **Update Table Schema**: Whether the BigQuery table schema should be modified 

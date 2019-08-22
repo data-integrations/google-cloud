@@ -71,6 +71,29 @@
           }
         },
         {
+          "widget-type": "radio-group",
+          "name" : "writeDisposition",
+          "label" : "Write Disposition",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "WRITE_APPEND",
+            "options": [
+              {
+                "id": "WRITE_APPEND",
+                "label": "Append"
+              },
+              {
+                "id": "WRITE_EMPTY",
+                "label": "Empty"
+              },
+              {
+                "id": "WRITE_TRUNCATE",
+                "label": "Truncate"
+              }
+            ]
+          }
+        },
+        {
           "name": "relationTableKey",
           "widget-type": "csv",
           "label": "Table Key",
