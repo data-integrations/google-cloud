@@ -18,8 +18,6 @@ package io.cdap.plugin.gcp.bigquery.sink;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.Table;
-import com.google.gson.JsonObject;
-import com.google.gson.internal.bind.JsonTreeWriter;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
@@ -32,10 +30,14 @@ import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
+import io.cdap.plugin.format.avro.StructuredToAvroTransformer;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.mapred.AvroKey;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.mapred.JobContext;
 
 import java.io.IOException;
 import java.util.List;
@@ -83,9 +85,10 @@ public final class BigQuerySink extends AbstractBigQuerySink {
 
   @Override
   protected void prepareRunInternal(BatchSinkContext context, BigQuery bigQuery, String bucket) throws IOException {
-    configureTable();
     Schema configSchema = config.getSchema();
     Schema schema = configSchema == null ? context.getInputSchema() : configSchema;
+    configureTable();
+    configureBigQuerySink();
     initOutput(context, bigQuery, config.getReferenceName(), config.getTable(), schema, bucket);
   }
 
@@ -101,7 +104,9 @@ public final class BigQuerySink extends AbstractBigQuerySink {
 
       @Override
       public Map<String, String> getOutputFormatConfiguration() {
-        return BigQueryUtil.configToMap(configuration);
+        Map<String, String> map = BigQueryUtil.configToMap(configuration);
+        map.put(JobContext.OUTPUT_KEY_CLASS, AvroKey.class.getName());
+        return map;
       }
     };
   }
@@ -113,20 +118,29 @@ public final class BigQuerySink extends AbstractBigQuerySink {
   }
 
   @Override
-  public void transform(StructuredRecord input, Emitter<KeyValue<JsonObject, NullWritable>> emitter) {
-    try (JsonTreeWriter writer = new JsonTreeWriter()) {
-      writer.beginObject();
-      for (Schema.Field recordField : Objects.requireNonNull(input.getSchema().getFields())) {
-        // From all the fields in input record, write only those fields that are present in output schema
-        if (schema == null || schema.getField(recordField.getName()) != null) {
-          BigQueryRecordToJson.write(writer, recordField.getName(), input.get(recordField.getName()),
-                                     recordField.getSchema());
-        }
-      }
-      writer.endObject();
-      emitter.emit(new KeyValue<>(writer.get().getAsJsonObject(), NullWritable.get()));
-    } catch (IOException e) {
-      throw new RuntimeException("Exception while converting structured record to json.", e);
+  public void transform(StructuredRecord input,
+                        Emitter<KeyValue<AvroKey<GenericRecord>, NullWritable>> emitter) throws IOException {
+    StructuredToAvroTransformer transformer = new StructuredToAvroTransformer(input.getSchema());
+    emitter.emit(new KeyValue<>(new AvroKey<>(transformer.transform(input)), NullWritable.get()));
+  }
+
+  /**
+   * Sets addition configuration for the AbstractBigQuerySink's Hadoop configuration
+   */
+  private void configureBigQuerySink() {
+    baseConfiguration.setBoolean(BigQueryConstants.CONFIG_CREATE_PARTITIONED_TABLE,
+                                 getConfig().shouldCreatePartitionedTable());
+    if (config.getPartitionByField() != null) {
+      baseConfiguration.set(BigQueryConstants.CONFIG_PARTITION_BY_FIELD, getConfig().getPartitionByField());
+    }
+    baseConfiguration.setBoolean(BigQueryConstants.CONFIG_REQUIRE_PARTITION_FILTER,
+                                 getConfig().isPartitionFilterRequired());
+    if (config.getClusteringOrder() != null) {
+      baseConfiguration.set(BigQueryConstants.CONFIG_CLUSTERING_ORDER, getConfig().getClusteringOrder());
+    }
+    baseConfiguration.set(BigQueryConstants.CONFIG_OPERATION, getConfig().getOperation().name());
+    if (config.getRelationTableKey() != null) {
+      baseConfiguration.set(BigQueryConstants.CONFIG_TABLE_KEY, getConfig().getRelationTableKey());
     }
   }
 

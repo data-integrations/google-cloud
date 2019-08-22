@@ -16,12 +16,14 @@
 
 package io.cdap.plugin.gcp.bigquery.sink;
 
+import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TimePartitioning;
 import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
+import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
 import io.cdap.cdap.etl.api.validation.InvalidStageException;
@@ -56,6 +58,45 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   @Description("The schema of the data to write. If provided, must be compatible with the table schema.")
   private String schema;
 
+  @Macro
+  @Nullable
+  @Description("Whether to create the BigQuery table with time partitioning. This value is ignored if the table " +
+    "already exists.")
+  protected Boolean createPartitionedTable;
+
+  @Name(NAME_PARTITION_BY_FIELD)
+  @Macro
+  @Nullable
+  @Description("Partitioning column for the BigQuery table. This should be left empty if the BigQuery table is an " +
+    "ingestion-time partitioned table.")
+  protected String partitionByField;
+
+  @Name(NAME_OPERATION)
+  @Macro
+  @Nullable
+  @Description("Type of write operation to perform. This can be set to Insert, Update or Upsert.")
+  protected String operation;
+
+  @Name(NAME_TABLE_KEY)
+  @Macro
+  @Nullable
+  @Description("List of fields that determines relation between tables during Update and Upsert operations.")
+  protected String relationTableKey;
+
+  @Macro
+  @Nullable
+  @Description("Whether to create a table that requires a partition filter. This value is ignored if the table " +
+    "already exists.")
+  protected Boolean partitionFilterRequired;
+
+  @Name(NAME_CLUSTERING_ORDER)
+  @Macro
+  @Nullable
+  @Description("List of fields that determines the sort order of the data. Fields must be of type INT, LONG, " +
+    "STRING, DATE, TIMESTAMP, BOOLEAN or DECIMAL. Tables cannot be clustered on more than 4 fields. This value is " +
+    "only used when the BigQuery table is automatically created and ignored if the table already exists.")
+  protected String clusteringOrder;
+
   public BigQuerySinkConfig(String referenceName, String dataset, String table,
                             @Nullable String bucket, @Nullable String schema) {
     this.referenceName = referenceName;
@@ -67,6 +108,33 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
 
   public String getTable() {
     return table;
+  }
+
+  public boolean shouldCreatePartitionedTable() {
+    return createPartitionedTable == null ? false : createPartitionedTable;
+  }
+
+  @Nullable
+  public String getPartitionByField() {
+    return partitionByField;
+  }
+
+  public boolean isPartitionFilterRequired() {
+    return partitionFilterRequired == null ? false : partitionFilterRequired;
+  }
+
+  @Nullable
+  public String getClusteringOrder() {
+    return clusteringOrder;
+  }
+
+  public Operation getOperation() {
+    return operation == null ? Operation.INSERT : Operation.valueOf(operation.toUpperCase());
+  }
+
+  @Nullable
+  public String getRelationTableKey() {
+    return relationTableKey;
   }
 
   /**
@@ -84,6 +152,15 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     }
   }
 
+  @Override
+  public void validate() {
+    super.validate();
+    if (getWriteDisposition().equals(JobInfo.WriteDisposition.WRITE_TRUNCATE)
+      && !getOperation().equals(Operation.INSERT)) {
+      throw new InvalidConfigPropertyException("Truncate may only be used with operation Insert", NAME_TRUNCATE_TABLE);
+    }
+  }
+
   /**
    * Verifies if output schema only contains simple types. It also verifies if all the output schema fields are
    * present in input schema.
@@ -91,7 +168,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
    * @param inputSchema input schema to BigQuery sink
    */
   public void validate(@Nullable Schema inputSchema) {
-    super.validate();
+    validate();
     if (!containsMacro("schema")) {
       Schema outputSchema = getSchema();
       Schema schema = outputSchema != null ? outputSchema : inputSchema;

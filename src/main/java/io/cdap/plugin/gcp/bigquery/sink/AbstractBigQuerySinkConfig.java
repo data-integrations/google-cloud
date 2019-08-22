@@ -15,7 +15,7 @@
  */
 package io.cdap.plugin.gcp.bigquery.sink;
 
-import com.google.cloud.bigquery.JobInfo.WriteDisposition;
+import com.google.cloud.bigquery.JobInfo;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
@@ -54,50 +54,12 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
   @Description("Whether to modify the BigQuery table schema if it differs from the input schema.")
   protected boolean allowSchemaRelaxation;
 
-  @Macro
-  @Nullable
-  @Description("Whether to create the BigQuery table with time partitioning. This value is ignored if the table " +
-    "already exists.")
-  protected Boolean createPartitionedTable;
-
-  @Name(NAME_PARTITION_BY_FIELD)
-  @Macro
-  @Nullable
-  @Description("Partitioning column for the BigQuery table. This should be left empty if the BigQuery table is an " +
-    "ingestion-time partitioned table.")
-  protected String partitionByField;
-
-  @Name(NAME_OPERATION)
-  @Macro
-  @Description("Type of write operation to perform. This can be set to Insert, Update or Upsert.")
-  protected String operation;
-
   @Name(NAME_TRUNCATE_TABLE)
   @Macro
   @Nullable
   @Description("Whether or not to truncate the table before writing to it. "
     + "Should only be used with the Insert operation.")
   protected Boolean truncateTable;
-
-  @Name(NAME_TABLE_KEY)
-  @Macro
-  @Nullable
-  @Description("List of fields that determines relation between tables during Update and Upsert operations.")
-  protected String relationTableKey;
-
-  @Macro
-  @Nullable
-  @Description("Whether to create a table that requires a partition filter. This value is ignored if the table " +
-    "already exists.")
-  protected Boolean partitionFilterRequired;
-
-  @Name(NAME_CLUSTERING_ORDER)
-  @Macro
-  @Nullable
-  @Description("List of fields that determines the sort order of the data. Fields must be of type INT, LONG, " +
-    "STRING, DATE, TIMESTAMP, BOOLEAN or DECIMAL. Tables cannot be clustered on more than 4 fields. This value is " +
-    "only used when the BigQuery table is automatically created and ignored if the table already exists.")
-  protected String clusteringOrder;
 
   @Nullable
   protected String getTable() {
@@ -127,35 +89,9 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
     return allowSchemaRelaxation;
   }
 
-  public boolean shouldCreatePartitionedTable() {
-    return createPartitionedTable == null ? false : createPartitionedTable;
-  }
-
-  @Nullable
-  public String getPartitionByField() {
-    return partitionByField;
-  }
-
-  public boolean isPartitionFilterRequired() {
-    return partitionFilterRequired == null ? false : partitionFilterRequired;
-  }
-
-  @Nullable
-  public String getClusteringOrder() {
-    return clusteringOrder;
-  }
-
-  public Operation getOperation() {
-    return Operation.valueOf(operation.toUpperCase());
-  }
-
-  public WriteDisposition getWriteDisposition() {
-    return truncateTable != null && truncateTable ? WriteDisposition.WRITE_TRUNCATE : WriteDisposition.WRITE_APPEND;
-  }
-
-  @Nullable
-  public String getRelationTableKey() {
-    return relationTableKey;
+  public JobInfo.WriteDisposition getWriteDisposition() {
+    return truncateTable != null && truncateTable ? JobInfo.WriteDisposition.WRITE_TRUNCATE
+      : JobInfo.WriteDisposition.WRITE_APPEND;
   }
 
   @Override
@@ -169,10 +105,6 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
         throw new InvalidConfigPropertyException("Bucket names can only contain lowercase characters, numbers, " +
                                                    "'.', '_', and '-'.", "bucket");
       }
-    }
-
-    if (getWriteDisposition().equals(WriteDisposition.WRITE_TRUNCATE) && !getOperation().equals(Operation.INSERT)) {
-      throw new InvalidConfigPropertyException("Truncate may only be used with operation Insert", NAME_TRUNCATE_TABLE);
     }
   }
 }
