@@ -132,7 +132,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
       configuration.setBoolean("fs.gs.bucket.delete.enable", true);
     }
 
-    BigQueryUtil.createResources(bigQuery, GCPUtils.getStorage(config.getDatasetProject(), credentials),
+    BigQueryUtil.createResources(bigQuery, GCPUtils.getStorage(config.getProject(), credentials),
                                  config.getDataset(), bucket);
 
     configuration.set("fs.gs.system.bucket", bucket);
