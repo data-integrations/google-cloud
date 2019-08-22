@@ -17,12 +17,18 @@
 package io.cdap.plugin.gcp.spanner;
 
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.etl.api.validation.CauseAttributes;
+import io.cdap.cdap.etl.api.validation.ValidationFailure;
+import io.cdap.cdap.etl.mock.validation.MockFailureCollector;
 import io.cdap.plugin.gcp.spanner.sink.SpannerSinkConfig;
+import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.List;
 
 public class SpannerSinkConfigTest {
 
-  @Test(expected = IllegalArgumentException.class)
+  @Test
   public void testInvalidPrimarykeys() {
     Schema schema = Schema.recordOf("record",
                                     Schema.Field.of("id", Schema.of(Schema.Type.LONG)),
@@ -33,8 +39,23 @@ public class SpannerSinkConfigTest {
                                     Schema.Field.of("timestamp",
                                                     Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))));
 
-    SpannerSinkConfig config = new SpannerSinkConfig("r", null, null, null, null, "zip, name", schema.toString());
-    config.validate();
+    SpannerSinkConfig config = new SpannerSinkConfig("r", null, -1, null, null, "zip, name", schema.toString());
+    MockFailureCollector collector = new MockFailureCollector();
+    config.validate(collector);
+
+    Assert.assertEquals(2, collector.getValidationFailures().size());
+
+    // first failure will be related to negative batchsize
+    ValidationFailure failure = collector.getValidationFailures().get(0);
+    List<ValidationFailure.Cause> causes = failure.getCauses();
+    Assert.assertEquals(1, causes.size());
+    Assert.assertEquals("batchSize", causes.get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
+
+    // second failure will be related to config element not present in the output schema
+    failure = collector.getValidationFailures().get(1);
+    causes = failure.getCauses();
+    Assert.assertEquals("keys", causes.get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
+    Assert.assertEquals("zip", causes.get(0).getAttribute(CauseAttributes.CONFIG_ELEMENT));
   }
 
   @Test
@@ -49,6 +70,8 @@ public class SpannerSinkConfigTest {
                                                     Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))));
 
     SpannerSinkConfig config = new SpannerSinkConfig("r", null, null, null, null, "id, name", schema.toString());
-    config.validate();
+    MockFailureCollector collector = new MockFailureCollector();
+    config.validate(collector);
+    Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 }

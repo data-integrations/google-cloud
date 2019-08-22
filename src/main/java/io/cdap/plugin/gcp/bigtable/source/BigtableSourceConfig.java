@@ -23,6 +23,7 @@ import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
 import io.cdap.plugin.gcp.bigtable.common.HBaseColumn;
 import io.cdap.plugin.gcp.common.ConfigUtil;
@@ -154,25 +155,25 @@ public final class BigtableSourceConfig extends GCPReferenceSourceConfig {
     this.schema = schema;
   }
 
-  public void validate() {
-    super.validate();
+  public void validate(FailureCollector collector) {
+    super.validate(collector);
     if (!containsMacro(TABLE) && Strings.isNullOrEmpty(table)) {
       throw new InvalidConfigPropertyException("Table must be specified", TABLE);
     }
-    if (!containsMacro(PROJECT) && tryGetProject() == null) {
+    if (!containsMacro(NAME_PROJECT) && tryGetProject() == null) {
       throw new InvalidConfigPropertyException("Could not detect Google Cloud project id from the environment. " +
-                                                 "Please specify a project id.", PROJECT);
+                                                 "Please specify a project id.", NAME_PROJECT);
     }
     if (!containsMacro(INSTANCE) && Strings.isNullOrEmpty(instance)) {
       throw new InvalidConfigPropertyException("Instance ID must be specified", INSTANCE);
     }
     String serviceAccountFilePath = getServiceAccountFilePath();
-    if (!containsMacro(SERVICE_ACCOUNT_FILE_PATH) && serviceAccountFilePath != null) {
+    if (!containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH) && serviceAccountFilePath != null) {
       File serviceAccountFile = new File(serviceAccountFilePath);
       if (!serviceAccountFile.exists()) {
         throw new InvalidConfigPropertyException(
           String.format("Service account file '%s' does not exist", serviceAccountFilePath),
-          SERVICE_ACCOUNT_FILE_PATH
+          NAME_SERVICE_ACCOUNT_FILE_PATH
         );
       }
     }
@@ -248,7 +249,7 @@ public final class BigtableSourceConfig extends GCPReferenceSourceConfig {
   @Nullable
   public Schema getSchema() {
     try {
-      return schema == null ? null : Schema.parseJson(schema);
+      return Strings.isNullOrEmpty(schema) ? null : Schema.parseJson(schema);
     } catch (IOException e) {
       throw new InvalidConfigPropertyException("Invalid schema: " + e.getMessage(), SCHEMA);
     }
@@ -268,9 +269,9 @@ public final class BigtableSourceConfig extends GCPReferenceSourceConfig {
 
   public boolean connectionParamsConfigured() {
     return !containsMacro(INSTANCE) && Strings.isNullOrEmpty(instance)
-      && !containsMacro(PROJECT) && Strings.isNullOrEmpty(project)
+      && !containsMacro(NAME_PROJECT) && Strings.isNullOrEmpty(project)
       && !containsMacro(TABLE) && Strings.isNullOrEmpty(table)
-      && !containsMacro(SERVICE_ACCOUNT_FILE_PATH);
+      && !containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH);
   }
 
   public List<HBaseColumn> getRequestedColumns() {

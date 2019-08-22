@@ -17,15 +17,18 @@
 package io.cdap.plugin.gcp.bigquery.source;
 
 import com.google.cloud.ServiceOptions;
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.data.schema.Schema;
-import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
 
 import java.io.IOException;
+import java.util.Set;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
@@ -34,20 +37,32 @@ import javax.annotation.Nullable;
  */
 public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   private static final String SCHEME = "gs://";
-  public static final String PARTITION_FROM = "partitionFrom";
-  public static final String PARTITION_TO = "partitionTo";
+  public static final Set<Schema.Type> SUPPORTED_TYPES =
+    ImmutableSet.of(Schema.Type.LONG, Schema.Type.STRING, Schema.Type.DOUBLE, Schema.Type.BOOLEAN, Schema.Type.BYTES,
+                    Schema.Type.ARRAY, Schema.Type.RECORD);
 
+  public static final String NAME_DATASET = "dataset";
+  public static final String NAME_TABLE = "table";
+  public static final String NAME_BUCKET = "bucket";
+  public static final String NAME_SCHEMA = "schema";
+  public static final String NAME_DATASET_PROJECT = "datasetProject";
+  public static final String NAME_PARTITION_FROM = "partitionFrom";
+  public static final String NAME_PARTITION_TO = "partitionTo";
+
+  @Name(NAME_DATASET)
   @Macro
   @Description("The dataset the table belongs to. A dataset is contained within a specific project. "
     + "Datasets are top-level containers that are used to organize and control access to tables and views.")
   private String dataset;
 
+  @Name(NAME_TABLE)
   @Macro
   @Description("The table to read from. A table contains individual records organized in rows. "
     + "Each record is composed of columns (also called fields). "
     + "Every table is defined by a schema that describes the column names, data types, and other information.")
   private String table;
 
+  @Name(NAME_BUCKET)
   @Macro
   @Nullable
   @Description("The Google Cloud Storage bucket to store temporary data in. "
@@ -57,11 +72,13 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
     + "The service account must have permission to create buckets in the configured project.")
   private String bucket;
 
+  @Name(NAME_SCHEMA)
   @Macro
   @Nullable
   @Description("The schema of the table to read.")
   private String schema;
 
+  @Name(NAME_DATASET_PROJECT)
   @Macro
   @Nullable
   @Description("The project the dataset belongs to. This is only required if the dataset is not "
@@ -69,14 +86,14 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
     + "project ID.")
   private String datasetProject;
 
-  @Name(PARTITION_FROM)
+  @Name(NAME_PARTITION_FROM)
   @Macro
   @Nullable
   @Description("It's inclusive partition start date. It should be a String with format \"yyyy-MM-dd\". " +
     "This value is ignored if the table does not support partitioning.")
   private String partitionFrom;
 
-  @Name(PARTITION_TO)
+  @Name(NAME_PARTITION_TO)
   @Macro
   @Nullable
   @Description("It's inclusive partition end date. It should be a String with format \"yyyy-MM-dd\". " +
@@ -110,18 +127,19 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
     if (GCPConfig.AUTO_DETECT.equalsIgnoreCase(datasetProject)) {
       return ServiceOptions.getDefaultProjectId();
     }
-    return datasetProject == null ? getProject() : datasetProject;
+    return Strings.isNullOrEmpty(datasetProject) ? getProject() : datasetProject;
   }
 
-  public void validate() {
-    super.validate();
+  public void validate(FailureCollector collector) {
+    super.validate(collector);
     String bucket = getBucket();
     if (!containsMacro("bucket") && bucket != null) {
       // Basic validation for allowed characters as per https://cloud.google.com/storage/docs/naming
       Pattern p = Pattern.compile("[a-z0-9._-]+");
       if (!p.matcher(bucket).matches()) {
-        throw new InvalidConfigPropertyException("Bucket names can only contain lowercase characters, numbers, " +
-                                                   "'.', '_', and '-'.", "bucket");
+        collector.addFailure("Bucket contains characters other than lowercase characters, numbers,'.', '_', and '-'.",
+                             null)
+          .withConfigProperty(NAME_BUCKET);
       }
     }
   }
@@ -130,22 +148,32 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
    * @return the schema of the dataset
    */
   @Nullable
-  public Schema getSchema() {
+  public Schema getSchema(FailureCollector collector) {
     try {
-      return schema == null ? null : Schema.parseJson(schema);
+      return Strings.isNullOrEmpty(schema) ? null : Schema.parseJson(schema);
     } catch (IOException e) {
-      throw new InvalidConfigPropertyException("Invalid schema: " + e.getMessage(), "schema");
+      collector.addFailure("Invalid schema: " + e.getMessage(), null).withConfigProperty(NAME_SCHEMA);
     }
+    // if there was an error that was added, it will throw an exception, otherwise, this statement will not be executed
+    throw collector.getOrThrowException();
   }
 
   @Nullable
   public String getPartitionFrom() {
-    return partitionFrom;
+    return Strings.isNullOrEmpty(partitionFrom) ? null : partitionFrom;
   }
 
   @Nullable
   public String getPartitionTo() {
-    return partitionTo;
+    return Strings.isNullOrEmpty(partitionTo) ? null : partitionTo;
   }
 
+  /**
+   * Returns true if bigquery table can be connected and schema is not a macro.
+   */
+  public boolean canConnect() {
+    return !containsMacro(NAME_SCHEMA) && !containsMacro(NAME_DATASET) && !containsMacro(NAME_TABLE) &&
+      !containsMacro(NAME_DATASET_PROJECT) && !containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH) &&
+      !containsMacro(NAME_PROJECT);
+  }
 }

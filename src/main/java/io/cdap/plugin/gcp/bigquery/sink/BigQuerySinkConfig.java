@@ -21,12 +21,13 @@ import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TimePartitioning;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.data.schema.Schema;
-import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
-import io.cdap.cdap.etl.api.validation.InvalidStageException;
+import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +36,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
@@ -44,15 +46,26 @@ import javax.annotation.Nullable;
  */
 public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   private static final Logger LOG = LoggerFactory.getLogger(BigQuerySinkConfig.class);
+  public static final Set<Schema.Type> SUPPORTED_CLUSTERING_TYPES =
+    ImmutableSet.of(Schema.Type.INT, Schema.Type.LONG, Schema.Type.STRING, Schema.Type.BOOLEAN, Schema.Type.BYTES);
+
+  public static final String NAME_TABLE = "table";
+  public static final String NAME_SCHEMA = "schema";
+  public static final String NAME_TABLE_KEY = "relationTableKey";
+  public static final String NAME_PARTITION_BY_FIELD = "partitionByField";
+  public static final String NAME_CLUSTERING_ORDER = "clusteringOrder";
+  public static final String NAME_OPERATION = "operation";
 
   public static final int MAX_NUMBER_OF_COLUMNS = 4;
 
+  @Name(NAME_TABLE)
   @Macro
   @Description("The table to write to. A table contains individual records organized in rows. "
     + "Each record is composed of columns (also called fields). "
     + "Every table is defined by a schema that describes the column names, data types, and other information.")
   private String table;
 
+  @Name(NAME_SCHEMA)
   @Macro
   @Nullable
   @Description("The schema of the data to write. If provided, must be compatible with the table schema.")
@@ -116,7 +129,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
 
   @Nullable
   public String getPartitionByField() {
-    return partitionByField;
+    return Strings.isNullOrEmpty(partitionByField) ? null : partitionByField;
   }
 
   public boolean isPartitionFilterRequired() {
@@ -125,39 +138,43 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
 
   @Nullable
   public String getClusteringOrder() {
-    return clusteringOrder;
+    return Strings.isNullOrEmpty(clusteringOrder) ? null : clusteringOrder;
   }
 
   public Operation getOperation() {
-    return operation == null ? Operation.INSERT : Operation.valueOf(operation.toUpperCase());
+    return Strings.isNullOrEmpty(operation) ? Operation.INSERT : Operation.valueOf(operation.toUpperCase());
   }
 
   @Nullable
   public String getRelationTableKey() {
-    return relationTableKey;
+    return Strings.isNullOrEmpty(relationTableKey) ? null : relationTableKey;
   }
 
   /**
    * @return the schema of the dataset
    */
   @Nullable
-  public Schema getSchema() {
+  public Schema getSchema(FailureCollector collector) {
     if (Strings.isNullOrEmpty(schema)) {
       return null;
     }
     try {
       return Schema.parseJson(schema);
     } catch (IOException e) {
-      throw new IllegalArgumentException("Invalid schema: " + e.getMessage());
+      collector.addFailure("Invalid schema: " + e.getMessage(), null).withConfigProperty(NAME_SCHEMA);
     }
+    // if there was an error that was added, it will throw an exception, otherwise, this statement will not be executed
+    throw collector.getOrThrowException();
   }
 
   @Override
-  public void validate() {
-    super.validate();
+  public void validate(FailureCollector collector) {
+    super.validate(collector);
     if (getWriteDisposition().equals(JobInfo.WriteDisposition.WRITE_TRUNCATE)
       && !getOperation().equals(Operation.INSERT)) {
-      throw new InvalidConfigPropertyException("Truncate may only be used with operation Insert", NAME_TRUNCATE_TABLE);
+      collector.addFailure("Truncate must only be used with operation 'Insert'.",
+                           "Set Truncate to false, or change the Operation to 'Insert'.")
+        .withConfigProperty(NAME_TRUNCATE_TABLE).withConfigProperty(NAME_OPERATION);
     }
   }
 
@@ -166,53 +183,45 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
    * present in input schema.
    *
    * @param inputSchema input schema to BigQuery sink
+   * @param outputSchema output schema to BigQuery sink
+   * @param collector failure collector
    */
-  public void validate(@Nullable Schema inputSchema) {
-    validate();
-    if (!containsMacro("schema")) {
-      Schema outputSchema = getSchema();
-      Schema schema = outputSchema != null ? outputSchema : inputSchema;
-      validatePartitionProperties(schema);
-      validateClusteringOrder(schema);
-      validateOperationProperties(schema);
+  public void validate(@Nullable Schema inputSchema, @Nullable Schema outputSchema, FailureCollector collector) {
+    super.validate(collector);
+    if (!containsMacro(NAME_SCHEMA)) {
+      Schema schema = outputSchema == null ? inputSchema : outputSchema;
+      validatePartitionProperties(schema, collector);
+      validateClusteringOrder(schema, collector);
+      validateOperationProperties(schema, collector);
       if (outputSchema == null) {
         return;
       }
-      for (Schema.Field field : outputSchema.getFields()) {
-        // check if the required fields are present in the input schema.
-        if (!field.getSchema().isNullable() && inputSchema != null && inputSchema.getField(field.getName()) == null) {
-          throw new IllegalArgumentException(String.format("Required output field '%s' is not present in input schema.",
-                                                           field.getName()));
-        }
 
-        Schema fieldSchema = BigQueryUtil.getNonNullableSchema(field.getSchema());
-        Schema.Type type = fieldSchema.getType();
+      for (Schema.Field field : outputSchema.getFields()) {
         String name = field.getName();
 
-        if (!BigQueryUtil.SUPPORTED_TYPES.contains(type)) {
-          throw new IllegalArgumentException(String.format("Field '%s' is of unsupported type '%s'.", name, type));
-        }
-
-        Schema.LogicalType logicalType = fieldSchema.getLogicalType();
-        // BigQuery schema precision must be at most 38 and scale at most 9
-        if (logicalType == Schema.LogicalType.DECIMAL) {
-          if (fieldSchema.getPrecision() > 38 || fieldSchema.getScale() > 9) {
-            throw new IllegalArgumentException(
-              String.format("Numeric Field '%s' has invalid precision '%s' and scale '%s'. " +
-                              "Precision must be at most 38 and scale must be at most 9.",
-                            field.getName(), fieldSchema.getPrecision(), fieldSchema.getScale()));
-          }
-        }
-
-        if (type == Schema.Type.ARRAY) {
-          BigQueryUtil.validateArraySchema(field.getSchema(), name);
+        // check if the required fields are present in the input schema.
+        if (!field.getSchema().isNullable() && inputSchema != null && inputSchema.getField(field.getName()) == null) {
+          collector.addFailure(
+            String.format("Required output field '%s' must be present in input schema.", field.getName()),
+            "Change the field to be nullable.")
+            .withOutputSchemaField(name);
         }
       }
     }
   }
 
-  private void validatePartitionProperties(@Nullable Schema schema) {
-    Table table = BigQueryUtil.getBigQueryTable(getProject(), getDataset(), getTable(), getServiceAccountFilePath());
+  private void validatePartitionProperties(@Nullable Schema schema, FailureCollector collector) {
+    String project = getProject();
+    String dataset = getDataset();
+    String tableName = getTable();
+    String serviceAccountPath = getServiceAccountFilePath();
+
+    if (project == null || dataset == null || tableName == null || serviceAccountPath == null) {
+      return;
+    }
+
+    Table table = BigQueryUtil.getBigQueryTable(project, dataset, tableName, serviceAccountPath, collector);
     if (table != null) {
       StandardTableDefinition tableDefinition = table.getDefinition();
       TimePartitioning timePartitioning = tableDefinition.getTimePartitioning();
@@ -223,96 +232,99 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
       }
       if (timePartitioning != null && timePartitioning.getField() != null
         && !timePartitioning.getField().equals(partitionByField)) {
-        throw new InvalidConfigPropertyException(String.format("Destination table '%s' is partitioned by column '%s'." +
-                                                                 " Please set the partition field to '%s'.",
-                                                               table.getTableId().getTable(),
-                                                               timePartitioning.getField(),
-                                                               timePartitioning.getField()), "partitionByField");
+        collector.addFailure(String.format("Destination table '%s' is partitioned by column '%s'.",
+                                           table.getTableId().getTable(),
+                                           timePartitioning.getField()),
+                             String.format("Set the partition field to '%s'.", timePartitioning.getField()))
+          .withConfigProperty(NAME_PARTITION_BY_FIELD);
       }
-      validateColumnForPartition(partitionByField, schema);
+      validateColumnForPartition(partitionByField, schema, collector);
+      return;
     }
     if (createPartitionedTable == null || !createPartitionedTable) {
       return;
     }
-    validateColumnForPartition(partitionByField, schema);
+    validateColumnForPartition(partitionByField, schema, collector);
   }
 
-  private void validateColumnForPartition(@Nullable String columnName, @Nullable Schema schema) {
+  private void validateColumnForPartition(@Nullable String columnName, @Nullable Schema schema,
+                                          FailureCollector collector) {
     if (columnName == null || schema == null) {
       return;
     }
     Schema.Field field = schema.getField(columnName);
     if (field == null) {
-      throw new InvalidConfigPropertyException(
-        String.format("Partition column '%s' is missing from the table schema", columnName),
-        NAME_PARTITION_BY_FIELD);
+      collector.addFailure(String.format("Partition column '%s' must be present in the schema.", columnName),
+                           "Change the Partition column to be one of the schema fields.")
+        .withConfigProperty(NAME_PARTITION_BY_FIELD);
+      return;
     }
     Schema fieldSchema = field.getSchema();
     fieldSchema = fieldSchema.isNullable() ? fieldSchema.getNonNullable() : fieldSchema;
     Schema.LogicalType logicalType = fieldSchema.getLogicalType();
     if (logicalType != Schema.LogicalType.DATE && logicalType != Schema.LogicalType.TIMESTAMP_MICROS
       && logicalType != Schema.LogicalType.TIMESTAMP_MILLIS) {
-      String type = logicalType != null ? logicalType.getToken() : fieldSchema.getType().name();
-      throw new InvalidStageException(String.format("Partition column '%s' is of invalid type '%s'. " +
-                                                      "Please change it to a date or timestamp.",
-                                                    columnName, type));
+      collector.addFailure(
+        String.format("Partition column '%s' is of invalid type '%s'.", columnName, fieldSchema.getDisplayName()),
+        "Partition column must be a date or timestamp.").withConfigProperty(NAME_PARTITION_BY_FIELD)
+        .withOutputSchemaField(columnName).withInputSchemaField(columnName);
     }
   }
 
-  private void validateClusteringOrder(@Nullable Schema schema) {
+  private void validateClusteringOrder(@Nullable Schema schema, FailureCollector collector) {
     if (!shouldCreatePartitionedTable() || Strings.isNullOrEmpty(clusteringOrder) || schema == null) {
       return;
     }
     List<String> columnsNames = Arrays.stream(clusteringOrder.split(",")).map(String::trim)
       .collect(Collectors.toList());
     if (columnsNames.size() > MAX_NUMBER_OF_COLUMNS) {
-      throw new InvalidConfigPropertyException(
-        String.format("Expected no more than '%d' clustering fields, found '%d'.", MAX_NUMBER_OF_COLUMNS,
-                      columnsNames.size()), NAME_CLUSTERING_ORDER);
+      collector.addFailure(String.format("Found '%d' number of clustering fields.", columnsNames.size()),
+                           String.format("Expected at most '%d' clustering fields.", MAX_NUMBER_OF_COLUMNS))
+        .withConfigProperty(NAME_CLUSTERING_ORDER);
+      return;
     }
+
     for (String column : columnsNames) {
       Schema.Field field = schema.getField(column);
       if (field == null) {
-        throw new InvalidConfigPropertyException(
-          String.format("Clustering column '%s' is missing from the table schema", column),
-          NAME_CLUSTERING_ORDER);
+        collector.addFailure(String.format("Clustering field '%s' does not exist in the schema.", column),
+                             "Ensure all clustering fields exist in the schema.")
+          .withConfigElement(NAME_CLUSTERING_ORDER, column);
+        continue;
       }
-      Schema.Type type = field.getSchema().isNullable()
-        ? field.getSchema().getNonNullable().getType()
-        : field.getSchema().getType();
-      Schema.LogicalType logicalType = field.getSchema().isNullable()
-        ? field.getSchema().getNonNullable().getLogicalType()
-        : field.getSchema().getLogicalType();
-      if (!BigQueryUtil.SUPPORTED_CLUSTERING_TYPES.contains(type)) {
-        throw new InvalidConfigPropertyException(
-          String.format("Field '%s' has type '%s', which is not supported for clustering.", column, type),
-          NAME_CLUSTERING_ORDER);
-      }
-      if (logicalType != Schema.LogicalType.DATE && logicalType != Schema.LogicalType.TIMESTAMP_MICROS
-        && logicalType != Schema.LogicalType.TIMESTAMP_MILLIS && logicalType != Schema.LogicalType.DECIMAL) {
-        throw new InvalidConfigPropertyException(
-          String.format("Field '%s' has type '%s', which is not supported for clustering.", column,
-                        logicalType.getToken()),
-          NAME_CLUSTERING_ORDER);
+      Schema nonNullSchema = BigQueryUtil.getNonNullableSchema(field.getSchema());
+
+      Schema.Type type = nonNullSchema.getType();
+      Schema.LogicalType logicalType = nonNullSchema.getLogicalType();
+
+      if ((!SUPPORTED_CLUSTERING_TYPES.contains(type)) || !isSupportedLogicalType(logicalType)) {
+        collector.addFailure(
+          String.format("Field '%s' is of unsupported type '%s'.", column, nonNullSchema.getDisplayName()),
+          "Supported types are : string, bytes, int, long, boolean, date, timestamp and decimal.")
+          .withConfigElement(NAME_CLUSTERING_ORDER, column).withInputSchemaField(column).withOutputSchemaField(column);
       }
     }
   }
 
-  private void validateOperationProperties(@Nullable Schema schema) {
+  private void validateOperationProperties(@Nullable Schema schema, FailureCollector collector) {
     if (Arrays.stream(Operation.values()).map(Enum::name).noneMatch(operation.toUpperCase()::equals)) {
-      throw new InvalidConfigPropertyException(String.format("'%s' is incorrect value for field 'Operation'. " +
-                                                               "This field should contain one of the next values: " +
-                                                               "'Insert', 'Update' or 'Upsert'.", operation),
-                                               NAME_OPERATION);
+      collector.addFailure(
+        String.format("Operation has incorrect value '%s'.", operation),
+        "Set the operation to 'Insert', 'Update', or 'Upsert'.")
+        .withConfigElement(NAME_OPERATION, operation);
+      return;
     }
     if (Operation.INSERT.equals(getOperation())) {
       return;
     }
     if ((Operation.UPDATE.equals(getOperation()) || Operation.UPSERT.equals(getOperation()))
       && getRelationTableKey() == null) {
-      throw new InvalidConfigPropertyException(
-        "Table key must be set if the operation is 'Update' or 'Upsert'.", NAME_TABLE_KEY);
+      collector.addFailure(
+        "Table key must be set if the operation is 'Update' or 'Upsert'.", null)
+        .withConfigProperty(NAME_TABLE_KEY).withConfigProperty(NAME_OPERATION);
+      return;
     }
+
     if (schema == null) {
       return;
     }
@@ -321,11 +333,30 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     List<String> keyFields = Arrays.stream(Objects.requireNonNull(getRelationTableKey()).split(","))
       .map(String::trim).collect(Collectors.toList());
 
-    String result = keyFields.stream().filter(s -> !fields.contains(s)).map(s -> String.format("'%s'", s))
-      .collect(Collectors.joining(", "));
-    if (!result.isEmpty()) {
-      throw new InvalidConfigPropertyException(String.format(
-        "Fields %s are in the table key, but not in the input schema.", result), NAME_TABLE_KEY);
+    for (String keyField : keyFields) {
+      if (!fields.contains(keyField)) {
+        collector.addFailure(
+          String.format("Table key field '%s' does not exist in the schema.", keyField),
+          "Ensure all table key fields exist in the schema.")
+          .withConfigElement(NAME_TABLE_KEY, keyField);
+      }
     }
+  }
+
+  private boolean isSupportedLogicalType(Schema.LogicalType logicalType) {
+    if (logicalType != null) {
+      return logicalType == Schema.LogicalType.DATE || logicalType == Schema.LogicalType.TIMESTAMP_MICROS ||
+        logicalType == Schema.LogicalType.TIMESTAMP_MILLIS || logicalType == Schema.LogicalType.DECIMAL;
+    }
+    return false;
+  }
+
+  /**
+   * Returns true if bigquery table can be connected to or schema is not a macro.
+   */
+  public boolean shouldConnect() {
+    return !containsMacro(BigQuerySinkConfig.NAME_DATASET) && !containsMacro(BigQuerySinkConfig.NAME_TABLE) &&
+      !containsMacro(BigQuerySinkConfig.NAME_SERVICE_ACCOUNT_FILE_PATH) &&
+      !containsMacro(BigQuerySinkConfig.NAME_PROJECT) && !containsMacro(BigQuerySinkConfig.NAME_SCHEMA);
   }
 }

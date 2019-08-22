@@ -26,7 +26,9 @@ import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
 import io.cdap.cdap.etl.api.Emitter;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
+import io.cdap.cdap.etl.api.StageConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
@@ -44,6 +46,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 /**
  * This class <code>BigQuerySink</code> is a plugin that would allow users
@@ -69,8 +72,16 @@ public final class BigQuerySink extends AbstractBigQuerySink {
 
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
-    config.validate(pipelineConfigurer.getStageConfigurer().getInputSchema());
     super.configurePipeline(pipelineConfigurer);
+    StageConfigurer configurer = pipelineConfigurer.getStageConfigurer();
+    FailureCollector collector = configurer.getFailureCollector();
+    Schema inputSchema = configurer.getInputSchema();
+    Schema configuredSchema = config.getSchema(collector);
+
+    config.validate(inputSchema, configuredSchema, collector);
+    // validate schema with underlying table
+    Schema schema = configuredSchema == null ? inputSchema : configuredSchema;
+    validateConfiguredSchema(schema, collector);
   }
 
   @Override
@@ -80,16 +91,18 @@ public final class BigQuerySink extends AbstractBigQuerySink {
 
   @Override
   protected void prepareRunValidation(BatchSinkContext context) {
-    config.validate(context.getInputSchema());
+    FailureCollector collector = context.getFailureCollector();
+    config.validate(context.getInputSchema(), config.getSchema(collector), collector);
   }
 
   @Override
   protected void prepareRunInternal(BatchSinkContext context, BigQuery bigQuery, String bucket) throws IOException {
-    Schema configSchema = config.getSchema();
-    Schema schema = configSchema == null ? context.getInputSchema() : configSchema;
+    FailureCollector collector = context.getFailureCollector();
+    Schema configSchema = config.getSchema(collector);
     configureTable();
     configureBigQuerySink();
-    initOutput(context, bigQuery, config.getReferenceName(), config.getTable(), schema, bucket);
+    Schema schema = configSchema == null ? context.getInputSchema() : configSchema;
+    initOutput(context, bigQuery, config.getReferenceName(), config.getTable(), schema, bucket, collector);
   }
 
   @Override
@@ -114,7 +127,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
   @Override
   public void initialize(BatchRuntimeContext context) throws Exception {
     super.initialize(context);
-    this.schema = config.getSchema();
+    this.schema = context.getOutputSchema();
   }
 
   @Override
@@ -150,13 +163,27 @@ public final class BigQuerySink extends AbstractBigQuerySink {
   private void configureTable() {
     AbstractBigQuerySinkConfig config = getConfig();
     Table table = BigQueryUtil.getBigQueryTable(config.getProject(), config.getDataset(),
-        config.getTable(),
-        config.getServiceAccountFilePath());
+                                                config.getTable(),
+                                                config.getServiceAccountFilePath());
     baseConfiguration.setBoolean(BigQueryConstants.CONFIG_DESTINATION_TABLE_EXISTS, table != null);
     if (table != null) {
       List<String> tableFieldsNames = Objects.requireNonNull(table.getDefinition().getSchema()).getFields().stream()
-          .map(Field::getName).collect(Collectors.toList());
+        .map(Field::getName).collect(Collectors.toList());
       baseConfiguration.set(BigQueryConstants.CONFIG_TABLE_FIELDS, String.join(",", tableFieldsNames));
+    }
+  }
+
+  private void validateConfiguredSchema(Schema schema, FailureCollector collector) {
+    if (!config.shouldConnect()) {
+      return;
+    }
+
+    Table table = BigQueryUtil.getBigQueryTable(config.getProject(), config.getDataset(), config.getTable(),
+                                                config.getServiceAccountFilePath(), collector);
+    if (table != null) {
+      // if table already exists, validate schema against underlying bigquery table
+
+      validateSchema(table, schema, config.allowSchemaRelaxation, collector);
     }
   }
 }

@@ -33,10 +33,14 @@ import com.google.cloud.storage.StorageException;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
 import io.cdap.cdap.etl.api.validation.InvalidStageException;
+import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySink;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySource;
+import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceConfig;
+import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 import org.apache.hadoop.conf.Configuration;
@@ -58,11 +62,23 @@ import javax.annotation.Nullable;
  * Common Util class for big query plugins such as {@link BigQuerySource} and {@link BigQuerySink}
  */
 public final class BigQueryUtil {
-  public static final Set<Schema.Type> SUPPORTED_TYPES =
-    ImmutableSet.of(Schema.Type.INT, Schema.Type.LONG, Schema.Type.STRING, Schema.Type.FLOAT, Schema.Type.DOUBLE,
-                    Schema.Type.BOOLEAN, Schema.Type.BYTES, Schema.Type.ARRAY, Schema.Type.RECORD);
   // array of arrays and map of arrays are not supported by big query
   public static final Set<Schema.Type> UNSUPPORTED_ARRAY_TYPES = ImmutableSet.of(Schema.Type.ARRAY, Schema.Type.MAP);
+
+  // bigquery types to cdap schema types mapping
+  public static final Map<LegacySQLTypeName, String> BQ_TYPE_MAP = ImmutableMap.<LegacySQLTypeName, String>builder()
+    .put(LegacySQLTypeName.INTEGER, "long")
+    .put(LegacySQLTypeName.FLOAT, "double")
+    .put(LegacySQLTypeName.BOOLEAN, "boolean")
+    .put(LegacySQLTypeName.BYTES, "bytes")
+    .put(LegacySQLTypeName.RECORD, "record")
+    .put(LegacySQLTypeName.STRING, "string")
+    .put(LegacySQLTypeName.DATETIME, "string")
+    .put(LegacySQLTypeName.DATE, "date")
+    .put(LegacySQLTypeName.TIME, "time")
+    .put(LegacySQLTypeName.TIMESTAMP, "timestamp")
+    .put(LegacySQLTypeName.NUMERIC, "decimal")
+    .build();
 
   private static final Map<Schema.Type, Set<LegacySQLTypeName>> TYPE_MAP = ImmutableMap.<Schema.Type,
     Set<LegacySQLTypeName>>builder()
@@ -85,9 +101,6 @@ public final class BigQueryUtil {
       .put(Schema.LogicalType.TIMESTAMP_MICROS, LegacySQLTypeName.TIMESTAMP)
       .put(Schema.LogicalType.DECIMAL, LegacySQLTypeName.NUMERIC)
       .build();
-
-  public static final Set<Schema.Type> SUPPORTED_CLUSTERING_TYPES =
-    ImmutableSet.of(Schema.Type.INT, Schema.Type.LONG, Schema.Type.STRING, Schema.Type.BOOLEAN, Schema.Type.BYTES);
 
   /**
    * Gets non nullable type from provided schema.
@@ -215,62 +228,77 @@ public final class BigQueryUtil {
    * @param field schema field
    * @param dataset dataset name
    * @param table table name
-   * @throws IllegalArgumentException if schema types do not match
+   * @param supportedTypes types supported
+   * @param collector failure collector
+   * @return returns validation failure
    */
-  public static void validateFieldSchemaMatches(Field bqField, Schema.Field field, String dataset, String table) {
+  @Nullable
+  public static ValidationFailure validateFieldSchemaMatches(Field bqField, Schema.Field field, String dataset,
+                                                             String table, Set<Schema.Type> supportedTypes,
+                                                             FailureCollector collector) {
     // validate type of fields against BigQuery column type
+    String name = field.getName();
     Schema fieldSchema = getNonNullableSchema(field.getSchema());
     Schema.Type type = fieldSchema.getType();
-
     Schema.LogicalType logicalType = fieldSchema.getLogicalType();
 
     // validate logical types
     if (logicalType != null) {
       if (LOGICAL_TYPE_MAP.get(logicalType) == null) {
-        throw new IllegalArgumentException(String.format("Field '%s' is of unsupported type '%s'",
-                                                         field.getName(), logicalType));
+        return collector.addFailure(
+          String.format("Field '%s' is of unsupported type '%s'.", field.getName(), fieldSchema.getDisplayName()),
+          String.format("Supported types are: %s, date, time, timestamp and decimal.",
+                        supportedTypes.stream().map(t -> t.name().toLowerCase()).collect(Collectors.joining(", "))));
       }
+
       if (LOGICAL_TYPE_MAP.get(logicalType) != bqField.getType()) {
-        throw new IllegalArgumentException(
-          String.format("Field '%s' of type '%s' is not compatible with column '%s' in BigQuery table" +
-                          " '%s.%s' of type '%s'. It must be of type '%s'.",
-                        field.getName(), logicalType, bqField.getName(), dataset, table,
-                        bqField.getType(), bqField.getType()));
+        return collector.addFailure(
+          String.format("Field '%s' of type '%s' has incompatible type with column '%s' in BigQuery table '%s.%s'.",
+                        name, fieldSchema.getDisplayName(), bqField.getName(), dataset, table),
+          String.format("Modify the input so that it is of type '%s'.", BQ_TYPE_MAP.get(bqField.getType())));
       }
 
       // BigQuery schema precision must be at most 38 and scale at most 9
       if (logicalType == Schema.LogicalType.DECIMAL) {
         if (fieldSchema.getPrecision() > 38 || fieldSchema.getScale() > 9) {
-          throw new IllegalArgumentException(
-            String.format("Numeric Field '%s' has invalid precision '%s' and scale '%s'. " +
-                            "Precision must be at most 38 and scale must be at most 9.",
-                          field.getName(), fieldSchema.getPrecision(), fieldSchema.getScale()));
+          return collector.addFailure(String.format("Decimal Field '%s' has invalid precision '%s' and scale '%s'. ",
+                                                    name, fieldSchema.getPrecision(), fieldSchema.getScale()),
+                                      "Precision must be at most 38 and scale must be at most 9.");
         }
       }
 
       // Return once logical types are validated. This is because logical types are represented as primitive types
       // internally.
-      return;
+      return null;
     }
 
-    if (!SUPPORTED_TYPES.contains(type)) {
-      throw new IllegalArgumentException(String.format("Field '%s' is of unsupported type '%s'",
-                                                       field.getName(), type));
+    // Complex types like maps and unions are not supported in BigQuery plugins.
+    if (!supportedTypes.contains(type)) {
+      return collector.addFailure(
+        String.format("Field '%s' is of unsupported type '%s'.", name, type.name().toLowerCase()),
+        String.format("Supported types are: %s, date, time, timestamp and decimal.",
+                      supportedTypes.stream().map(t -> t.name().toLowerCase()).collect(Collectors.joining(", "))));
     }
 
     if (type == Schema.Type.ARRAY) {
-      validateArraySchema(field.getSchema(), field.getName());
+      ValidationFailure failure = validateArraySchema(field.getSchema(), field.getName(), collector);
+      if (failure != null) {
+        return failure;
+      }
       if (bqField.getMode() == Field.Mode.REPEATED) {
-        type = fieldSchema.getComponentSchema().getType();
+        fieldSchema = fieldSchema.getComponentSchema();
+        type = fieldSchema.getType();
       }
     }
 
-    if (!TYPE_MAP.get(type).contains(bqField.getType())) {
-      throw new IllegalArgumentException(
-        String.format("Field '%s' of type '%s' is not compatible with column '%s' in BigQuery table" +
-                        " '%s.%s' of type '%s'. It must be of type '%s'.",
-                      field.getName(), type, bqField.getName(), dataset, table, bqField.getType(), bqField.getType()));
+    if (TYPE_MAP.get(type) != null && !TYPE_MAP.get(type).contains(bqField.getType())) {
+      return collector.addFailure(
+        String.format("Field '%s' of type '%s' is incompatible with column '%s' of type '%s' " +
+                        "in BigQuery table '%s.%s'.", field.getName(), fieldSchema.getDisplayName(), bqField.getName(),
+                      BQ_TYPE_MAP.get(bqField.getType()), dataset, table),
+        String.format("It must be of type '%s'.", BQ_TYPE_MAP.get(bqField.getType())));
     }
+    return null;
   }
 
   /**
@@ -331,25 +359,29 @@ public final class BigQueryUtil {
    *
    * @param arraySchema schema of array field
    * @param name name of the array field
-   * @throws IllegalArgumentException if the schema is not a valid BigQuery schema
+   * @param collector failure collector
+   * @return returns validation failure if invalid array schema, otherwise returns null
    */
-  public static void validateArraySchema(Schema arraySchema, String name) {
+  @Nullable
+  public static ValidationFailure validateArraySchema(Schema arraySchema, String name, FailureCollector collector) {
     if (arraySchema.isNullable()) {
-      throw new IllegalArgumentException(String.format("Field '%s' is of type array. " +
-                                                         "BigQuery does not allow nullable arrays.", name));
+      return collector.addFailure(String.format("Field '%s' is of type array.", name),
+                                  "Change the field to be non-nullable.");
     }
 
     Schema componentSchema = arraySchema.getComponentSchema();
     if (componentSchema.isNullable()) {
-      throw new IllegalArgumentException(String.format("Field '%s' contains null values in its array, " +
-                                                         "which is not allowed by BigQuery.", name));
+      return collector.addFailure(String.format("Field '%s' contains null values in its array.", name),
+                                  "Change the array component type to be non-nullable.");
     }
 
     if (UNSUPPORTED_ARRAY_TYPES.contains(componentSchema.getType())) {
-      throw new IllegalArgumentException(String.format("Field '%s' is of %s type within array, " +
-                                                         "which is not a valid BigQuery type.",
-                                                       name, componentSchema));
+      return collector.addFailure(String.format("Field '%s' is an array of unsupported type '%s'.",
+                                                name, componentSchema.getDisplayName()),
+                                  "Change the array component type to be a valid type.");
     }
+
+    return null;
   }
 
   /**
@@ -387,4 +419,42 @@ public final class BigQueryUtil {
     return table;
   }
 
+  /**
+   * Get BigQuery table.
+   *
+   * @param projectId BigQuery project ID
+   * @param datasetId BigQuery dataset ID
+   * @param tableName BigQuery table name
+   * @param serviceAccountPath service account file path
+   * @param collector failure collector
+   * @return BigQuery table
+   */
+  @Nullable
+  public static Table getBigQueryTable(String projectId, String datasetId, String tableName,
+                                       @Nullable String serviceAccountPath, FailureCollector collector) {
+    TableId tableId = TableId.of(projectId, datasetId, tableName);
+    com.google.auth.Credentials credentials = null;
+    if (serviceAccountPath != null) {
+      try {
+        credentials = GCPUtils.loadServiceAccountCredentials(serviceAccountPath);
+      } catch (IOException e) {
+        collector.addFailure(String.format("Unable to load credentials from %s.", serviceAccountPath),
+                             "Ensure the service account file is available on the local filesystem.")
+          .withConfigProperty(GCPConfig.NAME_SERVICE_ACCOUNT_FILE_PATH);
+        throw collector.getOrThrowException();
+      }
+    }
+    BigQuery bigQuery = GCPUtils.getBigQuery(projectId, credentials);
+
+    Table table = null;
+    try {
+      table = bigQuery.getTable(tableId);
+    } catch (BigQueryException e) {
+      collector.addFailure("Unable to get details about the BigQuery table: " + e.getMessage(), null)
+        .withConfigProperty(BigQuerySourceConfig.NAME_TABLE);
+      throw collector.getOrThrowException();
+    }
+
+    return table;
+  }
 }

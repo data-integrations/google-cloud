@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.gcs.source;
 
+import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import io.cdap.cdap.api.annotation.Description;
@@ -23,6 +24,7 @@ import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
@@ -166,13 +168,18 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
       this.copyHeader = false;
     }
 
-    public void validate() {
-      super.validate();
+    public void validate(FailureCollector collector) {
+      super.validate(collector);
       // validate that path is valid
       if (!containsMacro("path")) {
         GCSPath.from(path);
       }
       getFileSystemProperties();
+    }
+
+    @Override
+    public void validate() {
+      // TODO (vinisha) this is just for compilation. Remove after adding failure collector to format plugins
     }
 
     @Override
@@ -230,7 +237,7 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
     @Override
     public Schema getSchema() {
       try {
-        return schema == null ? null : Schema.parseJson(schema);
+        return Strings.isNullOrEmpty(schema) ? null : Schema.parseJson(schema);
       } catch (Exception e) {
         throw new IllegalArgumentException("Unable to parse schema with error: " + e.getMessage(), e);
       }

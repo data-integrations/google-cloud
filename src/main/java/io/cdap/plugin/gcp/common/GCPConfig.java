@@ -13,18 +13,18 @@ import javax.annotation.Nullable;
  * Contains config properties common to all GCP plugins, like project id and service account key.
  */
 public class GCPConfig extends PluginConfig {
-  public static final String PROJECT = "project";
-  public static final String SERVICE_ACCOUNT_FILE_PATH = "serviceFilePath";
+  public static final String NAME_PROJECT = "project";
+  public static final String NAME_SERVICE_ACCOUNT_FILE_PATH = "serviceFilePath";
   public static final String AUTO_DETECT = "auto-detect";
 
-  @Name(PROJECT)
+  @Name(NAME_PROJECT)
   @Description("Google Cloud Project ID, which uniquely identifies a project. "
     + "It can be found on the Dashboard in the Google Cloud Platform Console.")
   @Macro
   @Nullable
   protected String project;
 
-  @Name(SERVICE_ACCOUNT_FILE_PATH)
+  @Name(NAME_SERVICE_ACCOUNT_FILE_PATH)
   @Description("Path on the local file system of the service account key used "
     + "for authorization. Can be set to 'auto-detect' when running on a Dataproc cluster. "
     + "When running on other clusters, the file must be present on every node in the cluster.")
@@ -35,6 +35,7 @@ public class GCPConfig extends PluginConfig {
   public String getProject() {
     String projectId = tryGetProject();
     if (projectId == null) {
+      // TODO (vinisha) use failure collector
       throw new IllegalArgumentException(
         "Could not detect Google Cloud project id from the environment. Please specify a project id.");
     }
@@ -43,7 +44,7 @@ public class GCPConfig extends PluginConfig {
 
   @Nullable
   public String tryGetProject() {
-    if (containsMacro(PROJECT) && Strings.isNullOrEmpty(project)) {
+    if (containsMacro(NAME_PROJECT) && Strings.isNullOrEmpty(project)) {
       return null;
     }
     String projectId = project;
@@ -55,7 +56,7 @@ public class GCPConfig extends PluginConfig {
 
   @Nullable
   public String getServiceAccountFilePath() {
-    if (containsMacro(SERVICE_ACCOUNT_FILE_PATH) || serviceFilePath == null ||
+    if (containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH) || serviceFilePath == null ||
       serviceFilePath.isEmpty() || AUTO_DETECT.equals(serviceFilePath)) {
       return null;
     }

@@ -24,6 +24,7 @@ import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
 import io.cdap.cdap.etl.api.Emitter;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
@@ -63,19 +64,22 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
 
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
-    config.validate();
+    config.validate(pipelineConfigurer.getStageConfigurer().getFailureCollector());
     super.configurePipeline(pipelineConfigurer);
   }
 
   @Override
   protected void prepareRunValidation(BatchSinkContext context) {
-    config.validate();
+    FailureCollector collector = context.getFailureCollector();
+    config.validate(collector);
+    collector.getOrThrowException();
   }
 
   @Override
   protected void prepareRunInternal(BatchSinkContext context, BigQuery bigQuery, String bucket) throws IOException {
     baseConfiguration.set(BigQueryConstants.CONFIG_OPERATION, Operation.INSERT.name());
     Map<String, String> arguments = new HashMap<>(context.getArguments().asMap());
+    FailureCollector collector = context.getFailureCollector();
     for (Map.Entry<String, String> argument : arguments.entrySet()) {
       String key = argument.getKey();
       if (!key.startsWith(TABLE_PREFIX)) {
@@ -87,11 +91,16 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
       if (split.length == 2) {
         tableName = split[1];
       }
-      Schema tableSchema = Schema.parseJson(argument.getValue());
 
-      String outputName = String.format("%s-%s", config.getReferenceName(), tableName);
-      initOutput(context, bigQuery, outputName, tableName, tableSchema, bucket);
+      try {
+        Schema tableSchema = Schema.parseJson(argument.getValue());
+        String outputName = String.format("%s-%s", config.getReferenceName(), tableName);
+        initOutput(context, bigQuery, outputName, tableName, tableSchema, bucket, context.getFailureCollector());
+      } catch (IOException e) {
+        collector.addFailure("Invalid schema: " + e.getMessage(), null);
+      }
     }
+    collector.getOrThrowException();
   }
 
   @Override

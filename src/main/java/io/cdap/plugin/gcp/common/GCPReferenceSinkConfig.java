@@ -17,8 +17,8 @@
 package io.cdap.plugin.gcp.common;
 
 import io.cdap.cdap.api.annotation.Description;
-import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.common.IdUtils;
 
 /**
@@ -27,14 +27,13 @@ import io.cdap.plugin.common.IdUtils;
 public class GCPReferenceSinkConfig extends GCPConfig {
   @Name("referenceName")
   @Description("This will be used to uniquely identify this sink for lineage, annotating metadata, etc.")
-  @Macro
   protected String referenceName;
 
   /**
    * Validates the given referenceName to consists of characters allowed to represent a dataset.
    */
-  public void validate() {
-    IdUtils.validateId(referenceName);
+  public void validate(FailureCollector collector) {
+    IdUtils.validateReferenceName(referenceName, collector);
   }
 
   public String getReferenceName() {

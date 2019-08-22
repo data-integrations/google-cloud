@@ -38,12 +38,11 @@ import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
 import io.cdap.cdap.etl.api.Emitter;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
+import io.cdap.cdap.etl.api.StageConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
-import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
 import io.cdap.plugin.common.LineageRecorder;
-import io.cdap.plugin.gcp.common.Schemas;
 import io.cdap.plugin.gcp.datastore.exception.DatastoreExecutionException;
 import io.cdap.plugin.gcp.datastore.util.DatastoreUtil;
 import org.apache.hadoop.io.NullWritable;
@@ -89,16 +88,17 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     LOG.debug("Validate config during `configurePipeline` stage: {}", config);
-    config.validate();
+    StageConfigurer stageConfigurer = pipelineConfigurer.getStageConfigurer();
+    config.validate(stageConfigurer.getFailureCollector());
     if (config.containsMacro("schema")) {
-      pipelineConfigurer.getStageConfigurer().setOutputSchema(null);
+      stageConfigurer.setOutputSchema(null);
       return;
     }
 
     Schema schema = getSchema();
     Schema configuredSchema = config.getSchema();
     if (configuredSchema == null) {
-      pipelineConfigurer.getStageConfigurer().setOutputSchema(schema);
+      stageConfigurer.setOutputSchema(schema);
       return;
     }
 
@@ -108,7 +108,7 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
   @Override
   public void prepareRun(BatchSourceContext batchSourceContext) {
     LOG.debug("Validate config during `prepareRun` stage: {}", config);
-    config.validate();
+    config.validate(batchSourceContext.getFailureCollector());
 
     batchSourceContext.setInput(Input.of(config.getReferenceName(), new DatastoreInputFormatProvider(config)));
 
