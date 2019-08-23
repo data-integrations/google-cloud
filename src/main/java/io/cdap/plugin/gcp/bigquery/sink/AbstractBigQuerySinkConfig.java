@@ -74,9 +74,10 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
 
   @Name(NAME_TRUNCATE_TABLE)
   @Macro
+  @Nullable
   @Description("Whether or not to truncate the table before writing to it. "
     + "Should only be used with the Insert operation.")
-  protected boolean truncateTable;
+  protected Boolean truncateTable;
 
   @Name(NAME_TABLE_KEY)
   @Macro
@@ -149,7 +150,7 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
   }
 
   public WriteDisposition getWriteDisposition() {
-    return truncateTable ? WriteDisposition.WRITE_TRUNCATE : WriteDisposition.WRITE_APPEND;
+    return truncateTable != null && truncateTable ? WriteDisposition.WRITE_TRUNCATE : WriteDisposition.WRITE_APPEND;
   }
 
   @Nullable
