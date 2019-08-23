@@ -74,7 +74,7 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
 
   @Name(NAME_TRUNCATE_TABLE)
   @Macro
-  @Description("Whether or not to truncate the table before writing to it."
+  @Description("Whether or not to truncate the table before writing to it. "
     + "Should only be used with the Insert operation.")
   protected boolean truncateTable;
 
