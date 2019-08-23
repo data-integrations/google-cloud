@@ -16,7 +16,6 @@
 
 package io.cdap.plugin.gcp.bigquery.sink;
 
-import com.google.cloud.bigquery.JobInfo.WriteDisposition;
 import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TimePartitioning;
@@ -99,7 +98,6 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
       validatePartitionProperties(schema);
       validateClusteringOrder(schema);
       validateOperationProperties(schema);
-      validateWriteDisposition();
       if (outputSchema == null) {
         return;
       }
@@ -251,16 +249,6 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     if (!result.isEmpty()) {
       throw new InvalidConfigPropertyException(String.format(
         "Fields %s are in the table key, but not in the input schema.", result), NAME_TABLE_KEY);
-    }
-  }
-
-  private void validateWriteDisposition() {
-    if (Arrays.stream(WriteDisposition.values()).map(Enum::name).noneMatch(writeDisposition.toUpperCase()::equals)) {
-      throw new InvalidConfigPropertyException(
-          String.format("'%s' is incorrect value for field 'WriteDisposition'. " +
-              "This field should contain one of the next values: " +
-              "'WRITE_APPEND', 'WRITE_EMPTY' or 'WRITE_TRUNCATE'.", writeDisposition),
-          NAME_OPERATION);
     }
   }
 }

@@ -36,9 +36,8 @@ It will be automatically created if it does not exist, but will not be automatic
 Temporary data will be deleted after it is loaded into BigQuery. If it is not provided, a unique
 bucket will be created and then deleted after the run finishes.
 
-**Truncate Table**: Whether to truncate the output table before writing to it.
-* True - Will delete all rows in the table before writing to it.
-* False - Will append the new rows to the table.
+**Truncate Table:** Whether or not to truncate the table before writing to it.
+Should only be used with the Insert operation.
 
 **Split Field:** The name of the field that will be used to determine which table to write to.
 

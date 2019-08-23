@@ -46,9 +46,8 @@ bucket will be created and then deleted after the run finishes.
 will be dropped.
 * Upsert - records that match on Table Key will be updated. Records that do not match will be inserted.
 
-**Truncate Table**: Whether to truncate the output table before writing to it.
-* True - Will delete all rows in the table before writing to it.
-* False - Will append the new rows to the table.
+**Truncate Table**: Whether or not to truncate the table before writing to it.
+Should only be used with the Insert operation.
 
 **Table Key**: List of fields that determines relation between tables during Update and Upsert operations.
 

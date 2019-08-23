@@ -71,22 +71,19 @@
           }
         },
         {
-          "widget-type": "radio-group",
+          "widget-type": "toggle",
           "name": "truncateTable",
           "label": "Truncate Table",
           "widget-attributes": {
-            "layout": "inline",
-            "default": "WRITE_APPEND",
-            "options": [
-              {
-                "id": "WRITE_TRUNCATE",
-                "label": "True"
-              },
-              {
-                "id": "WRITE_APPEND",
-                "label": "False"
-              }
-            ]
+            "default": "false",
+            "on": {
+              "value": "true",
+              "label": "True"
+            },
+            "off": {
+              "value": "false",
+              "label": "False"
+            }
           }
         },
         {

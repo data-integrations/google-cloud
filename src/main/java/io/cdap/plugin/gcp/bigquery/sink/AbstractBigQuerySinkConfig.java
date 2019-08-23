@@ -34,7 +34,7 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
   public static final String NAME_PARTITION_BY_FIELD = "partitionByField";
   public static final String NAME_CLUSTERING_ORDER = "clusteringOrder";
   public static final String NAME_OPERATION = "operation";
-  public static final String NAME_WRITE_DISPOSITION = "writeDisposition";
+  public static final String NAME_TRUNCATE_TABLE = "truncateTable";
   public static final String NAME_TABLE_KEY = "relationTableKey";
 
   @Macro
@@ -72,10 +72,11 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
   @Description("Type of write operation to perform. This can be set to Insert, Update or Upsert.")
   protected String operation;
 
-  @Name(NAME_WRITE_DISPOSITION)
+  @Name(NAME_TRUNCATE_TABLE)
   @Macro
-  @Description("Type of write disposition to use. This can be set to Empty, Truncate, or Append.")
-  protected String writeDisposition;
+  @Description("Whether or not to truncate the table before writing to it."
+      + "Should only be used with the Insert operation.")
+  protected boolean truncateTable;
 
   @Name(NAME_TABLE_KEY)
   @Macro
@@ -148,7 +149,7 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
   }
 
   public WriteDisposition getWriteDisposition() {
-    return WriteDisposition.valueOf(writeDisposition.toUpperCase());
+    return truncateTable ? WriteDisposition.WRITE_TRUNCATE : WriteDisposition.WRITE_APPEND;
   }
 
   @Nullable
@@ -167,6 +168,10 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
         throw new InvalidConfigPropertyException("Bucket names can only contain lowercase characters, numbers, " +
                                                    "'.', '_', and '-'.", "bucket");
       }
+    }
+
+    if (getWriteDisposition().equals(WriteDisposition.WRITE_TRUNCATE) && !getOperation().equals(Operation.INSERT)) {
+      throw new InvalidConfigPropertyException("Truncate may only be used with operation Insert", NAME_TRUNCATE_TABLE);
     }
   }
 }
