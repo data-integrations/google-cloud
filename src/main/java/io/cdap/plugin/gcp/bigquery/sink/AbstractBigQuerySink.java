@@ -200,7 +200,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, J
     }
     baseConfiguration.setStrings(BigQueryConstants.CONFIG_OPERATION, getConfig().getOperation().name());
     baseConfiguration.setStrings(BigQueryConfiguration.OUTPUT_TABLE_WRITE_DISPOSITION_KEY,
-        getConfig().getWriteDisposition().name());
+      getConfig().getWriteDisposition().name());
     if (getConfig().getRelationTableKey() != null) {
       baseConfiguration.set(BigQueryConstants.CONFIG_TABLE_KEY, getConfig().getRelationTableKey());
     }
