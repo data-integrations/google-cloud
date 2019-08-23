@@ -30,6 +30,22 @@
           "widget-attributes" : {
             "placeholder": "Dataset the tables belong to"
           }
+        },
+        {
+          "widget-type": "toggle",
+          "name": "truncateTable",
+          "label": "Truncate Table",
+          "widget-attributes": {
+            "default": "false",
+            "on": {
+              "value": "true",
+              "label": "True"
+            },
+            "off": {
+              "value": "false",
+              "label": "False"
+            }
+          }
         }
       ]
     },

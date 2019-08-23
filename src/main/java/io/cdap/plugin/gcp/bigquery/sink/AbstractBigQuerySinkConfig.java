@@ -15,6 +15,7 @@
  */
 package io.cdap.plugin.gcp.bigquery.sink;
 
+import com.google.cloud.bigquery.JobInfo.WriteDisposition;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
@@ -33,6 +34,7 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
   public static final String NAME_PARTITION_BY_FIELD = "partitionByField";
   public static final String NAME_CLUSTERING_ORDER = "clusteringOrder";
   public static final String NAME_OPERATION = "operation";
+  public static final String NAME_TRUNCATE_TABLE = "truncateTable";
   public static final String NAME_TABLE_KEY = "relationTableKey";
 
   @Macro
@@ -69,6 +71,13 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
   @Macro
   @Description("Type of write operation to perform. This can be set to Insert, Update or Upsert.")
   protected String operation;
+
+  @Name(NAME_TRUNCATE_TABLE)
+  @Macro
+  @Nullable
+  @Description("Whether or not to truncate the table before writing to it. "
+    + "Should only be used with the Insert operation.")
+  protected Boolean truncateTable;
 
   @Name(NAME_TABLE_KEY)
   @Macro
@@ -140,6 +149,10 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
     return Operation.valueOf(operation.toUpperCase());
   }
 
+  public WriteDisposition getWriteDisposition() {
+    return truncateTable != null && truncateTable ? WriteDisposition.WRITE_TRUNCATE : WriteDisposition.WRITE_APPEND;
+  }
+
   @Nullable
   public String getRelationTableKey() {
     return relationTableKey;
@@ -156,6 +169,10 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
         throw new InvalidConfigPropertyException("Bucket names can only contain lowercase characters, numbers, " +
                                                    "'.', '_', and '-'.", "bucket");
       }
+    }
+
+    if (getWriteDisposition().equals(WriteDisposition.WRITE_TRUNCATE) && !getOperation().equals(Operation.INSERT)) {
+      throw new InvalidConfigPropertyException("Truncate may only be used with operation Insert", NAME_TRUNCATE_TABLE);
     }
   }
 }

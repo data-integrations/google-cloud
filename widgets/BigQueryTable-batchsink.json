@@ -71,6 +71,22 @@
           }
         },
         {
+          "widget-type": "toggle",
+          "name": "truncateTable",
+          "label": "Truncate Table",
+          "widget-attributes": {
+            "default": "false",
+            "on": {
+              "value": "true",
+              "label": "True"
+            },
+            "off": {
+              "value": "false",
+              "label": "False"
+            }
+          }
+        },
+        {
           "name": "relationTableKey",
           "widget-type": "csv",
           "label": "Table Key",

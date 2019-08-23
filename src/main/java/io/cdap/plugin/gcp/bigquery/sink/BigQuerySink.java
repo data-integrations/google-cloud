@@ -16,6 +16,8 @@
 package io.cdap.plugin.gcp.bigquery.sink;
 
 import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.Field;
+import com.google.cloud.bigquery.Table;
 import com.google.gson.JsonObject;
 import com.google.gson.internal.bind.JsonTreeWriter;
 import io.cdap.cdap.api.annotation.Description;
@@ -30,13 +32,16 @@ import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
+import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * This class <code>BigQuerySink</code> is a plugin that would allow users
@@ -78,6 +83,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
 
   @Override
   protected void prepareRunInternal(BatchSinkContext context, BigQuery bigQuery, String bucket) throws IOException {
+    configureTable();
     Schema configSchema = config.getSchema();
     Schema schema = configSchema == null ? context.getInputSchema() : configSchema;
     initOutput(context, bigQuery, config.getReferenceName(), config.getTable(), schema, bucket);
@@ -121,6 +127,22 @@ public final class BigQuerySink extends AbstractBigQuerySink {
       emitter.emit(new KeyValue<>(writer.get().getAsJsonObject(), NullWritable.get()));
     } catch (IOException e) {
       throw new RuntimeException("Exception while converting structured record to json.", e);
+    }
+  }
+
+  /**
+   * Sets the output table for the AbstractBigQuerySink's Hadoop configuration
+   */
+  private void configureTable() {
+    AbstractBigQuerySinkConfig config = getConfig();
+    Table table = BigQueryUtil.getBigQueryTable(config.getProject(), config.getDataset(),
+        config.getTable(),
+        config.getServiceAccountFilePath());
+    baseConfiguration.setBoolean(BigQueryConstants.CONFIG_DESTINATION_TABLE_EXISTS, table != null);
+    if (table != null) {
+      List<String> tableFieldsNames = Objects.requireNonNull(table.getDefinition().getSchema()).getFields().stream()
+          .map(Field::getName).collect(Collectors.toList());
+      baseConfiguration.set(BigQueryConstants.CONFIG_TABLE_FIELDS, String.join(",", tableFieldsNames));
     }
   }
 }
