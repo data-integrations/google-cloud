@@ -97,7 +97,7 @@ public class SpannerUtil {
             break;
           default:
             // this should not happen
-            throw new IllegalStateException("Logical type " + logicalType + " is not supported");
+            throw new IllegalStateException("Logical type '" + logicalType + "' is not supported");
         }
         addColumn(createStmt, name, field.getSchema().isNullable(), spannerType);
         continue;
@@ -122,6 +122,13 @@ public class SpannerUtil {
         case BYTES:
           spannerType = "BYTES(MAX)";
           break;
+        case ARRAY:
+          Schema componentSchema = fieldSchema.getComponentSchema();
+          if (componentSchema == null) {
+            throw new IllegalStateException("Component schema of field '" + name + "' is null");
+          }
+          spannerType = getArrayType(componentSchema);
+          break;
         default:
           throw new IllegalStateException(type.name() + " : Type currently not supported.");
       }
@@ -136,6 +143,42 @@ public class SpannerUtil {
     createStmt.append(" PRIMARY KEY (").append(primaryKeys).append(")");
 
     return createStmt.toString();
+  }
+
+  private static String getArrayType(Schema schema) {
+    Schema componentSchema = schema.isNullable() ? schema.getNonNullable() : schema;
+    Schema.LogicalType logicalType = componentSchema.getLogicalType();
+
+    if (logicalType != null) {
+      switch (logicalType) {
+        case DATE:
+          return "ARRAY<DATE>";
+        case TIMESTAMP_MILLIS:
+        case TIMESTAMP_MICROS:
+          return "ARRAY<TIMESTAMP>";
+        default:
+          // this should not happen
+          throw new IllegalStateException("Array of '" + logicalType + "' logical type currently not supported.");
+      }
+    }
+
+    Schema.Type type = componentSchema.getType();
+    switch (type) {
+      case BOOLEAN:
+        return "ARRAY<BOOL>";
+      case STRING:
+        return "ARRAY<STRING(MAX)>";
+      case INT:
+      case LONG:
+        return "ARRAY<INT64>";
+      case FLOAT:
+      case DOUBLE:
+        return "ARRAY<FLOAT64>";
+      case BYTES:
+        return "ARRAY<BYTES(MAX)>";
+      default:
+        throw new IllegalStateException("Array of '" + type.name() + "' type currently not supported.");
+    }
   }
 
   /**

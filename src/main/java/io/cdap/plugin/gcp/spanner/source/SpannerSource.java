@@ -16,8 +16,6 @@
 
 package io.cdap.plugin.gcp.spanner.source;
 
-import com.google.cloud.ByteArray;
-import com.google.cloud.Date;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.BatchClient;
 import com.google.cloud.spanner.BatchReadOnlyTransaction;
@@ -48,6 +46,7 @@ import io.cdap.cdap.etl.api.validation.InvalidStageException;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.common.SourceInputFormatProvider;
 import io.cdap.plugin.gcp.common.Schemas;
+import io.cdap.plugin.gcp.spanner.SpannerArrayConstants;
 import io.cdap.plugin.gcp.spanner.SpannerConstants;
 import io.cdap.plugin.gcp.spanner.common.SpannerUtil;
 import org.apache.hadoop.conf.Configuration;
@@ -58,11 +57,6 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -81,13 +75,14 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
   private static final Logger LOG = LoggerFactory.getLogger(SpannerSource.class);
   private static final String TABLE_NAME = "TableName";
   // listing table's schema documented at https://cloud.google.com/spanner/docs/information-schema
-  private static final Statement.Builder SCHEMA_STATEMENT_BUILDER =  Statement.newBuilder(
+  private static final Statement.Builder SCHEMA_STATEMENT_BUILDER = Statement.newBuilder(
     String.format("SELECT  t.column_name,t.spanner_type, t.is_nullable FROM information_schema.columns AS t WHERE " +
                     "  t.table_catalog = ''  AND  t.table_schema = '' AND t.table_name = @%s", TABLE_NAME));
   public static final String NAME = "Spanner";
   private final SpannerSourceConfig config;
   private Schema schema;
   private Spanner spanner;
+  private ResultSetToRecordTransformer transformer;
 
   public SpannerSource(SpannerSourceConfig config) {
     this.config = config;
@@ -166,53 +161,12 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
   public void initialize(BatchRuntimeContext context) throws Exception {
     super.initialize(context);
     schema = context.getOutputSchema();
+    transformer = new ResultSetToRecordTransformer(schema);
   }
 
   @Override
   public void transform(KeyValue<NullWritable, ResultSet> input, Emitter<StructuredRecord> emitter) {
-    StructuredRecord.Builder builder = StructuredRecord.builder(schema);
-    List<Schema.Field> fields = schema.getFields();
-    ResultSet resultSet = input.getValue();
-    for (Schema.Field field : fields) {
-      String fieldName = field.getName();
-      Type columnType = resultSet.getColumnType(fieldName);
-      if (columnType == null || resultSet.isNull(fieldName)) {
-        continue;
-      }
-      switch (columnType.getCode()) {
-        // todo CDAP-14233 - add support for array
-        case BOOL:
-          builder.set(fieldName, resultSet.getBoolean(fieldName));
-          break;
-        case INT64:
-          builder.set(fieldName, resultSet.getLong(fieldName));
-          break;
-        case FLOAT64:
-          builder.set(fieldName, resultSet.getDouble(fieldName));
-          break;
-        case STRING:
-          builder.set(fieldName, resultSet.getString(fieldName));
-          break;
-        case BYTES:
-          ByteArray byteArray = resultSet.getBytes(fieldName);
-          builder.set(fieldName, byteArray.toByteArray());
-          break;
-        case DATE:
-          // spanner DATE is a date without time zone. so create LocalDate from spanner DATE
-          Date spannerDate = resultSet.getDate(fieldName);
-          builder.setDate(fieldName, LocalDate.of(spannerDate.getYear(), spannerDate.getMonth(),
-                                                  spannerDate.getDayOfMonth()));
-          break;
-        case TIMESTAMP:
-          Timestamp spannerTs = resultSet.getTimestamp(fieldName);
-          // Spanner TIMESTAMP supports nano second level precision, however, cdap schema only supports
-          // microsecond level precision.
-          Instant instant = Instant.ofEpochSecond(spannerTs.getSeconds()).plusNanos(spannerTs.getNanos());
-          builder.setTimestamp(fieldName, ZonedDateTime.ofInstant(instant, ZoneId.ofOffset("UTC", ZoneOffset.UTC)));
-          break;
-      }
-    }
-    emitter.emit(builder.build());
+    emitter.emit(transformer.transform(input.getValue()));
   }
 
   @Override
@@ -240,6 +194,7 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
 
   /**
    * Serialize the object into bytes and encode the bytes into string using Base64 encoder.
+   *
    * @throws IOException
    */
   private String getSerializedObjectString(Object object) throws IOException {
@@ -292,8 +247,29 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
   private Schema parseSchemaFromSpannerTypeString(String columnName,
                                                   String spannerType) {
     if (spannerType.startsWith("ARRAY")) {
-      // Array string is of the format ARRAY<TYPE>, Array of array is not supported in spanner
-      throw new InvalidStageException(String.format("'%s' is an array, which is not currently supported.", columnName));
+      if (spannerType.startsWith(SpannerArrayConstants.ARRAY_STRING_PREFIX)) {
+        return Schema.arrayOf(Schema.of(Schema.Type.STRING));
+      }
+
+      if (spannerType.startsWith(SpannerArrayConstants.ARRAY_BYTES_PREFIX)) {
+        return Schema.arrayOf(Schema.of(Schema.Type.BYTES));
+      }
+
+      switch (spannerType) {
+        case SpannerArrayConstants.ARRAY_BOOL:
+          return Schema.arrayOf(Schema.of(Schema.Type.BOOLEAN));
+        case SpannerArrayConstants.ARRAY_INT64:
+          return Schema.arrayOf(Schema.of(Schema.Type.LONG));
+        case SpannerArrayConstants.ARRAY_FLOAT64:
+          return Schema.arrayOf(Schema.of(Schema.Type.DOUBLE));
+        case SpannerArrayConstants.ARRAY_DATE:
+          return Schema.arrayOf(Schema.of(Schema.LogicalType.DATE));
+        case SpannerArrayConstants.ARRAY_TIMESTAMP:
+          return Schema.arrayOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS));
+        default:
+          throw new InvalidStageException(String.format("'%s' is an array, which is not currently supported.",
+                                                        columnName));
+      }
     } else if (spannerType.startsWith("STRING")) {
       // STRING and BYTES also have size at the end in the format, example : STRING(1024)
       return Schema.of(Schema.Type.STRING);
@@ -311,7 +287,6 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
           return Schema.of(Schema.LogicalType.DATE);
         case TIMESTAMP:
           return Schema.of(Schema.LogicalType.TIMESTAMP_MICROS);
-        // todo CDAP-14233 - add support for array
         default:
           throw new InvalidStageException(String.format("'%s' is of unsupported type '%s'", columnName, spannerType));
       }

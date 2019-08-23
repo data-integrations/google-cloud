@@ -32,9 +32,9 @@ import javax.annotation.Nullable;
  * Spanner source config
  */
 public class SpannerSourceConfig extends GCPReferenceSourceConfig {
-  // todo CDAP-14233 - add support for array
-  private static final Set<Schema.Type> SUPPORTED_TYPES =
-    ImmutableSet.of(Schema.Type.BOOLEAN, Schema.Type.STRING, Schema.Type.LONG, Schema.Type.DOUBLE, Schema.Type.BYTES);
+  private static final Set<Schema.Type> SUPPORTED_TYPES = ImmutableSet.of(Schema.Type.BOOLEAN, Schema.Type.STRING,
+                                                                          Schema.Type.LONG, Schema.Type.DOUBLE,
+                                                                          Schema.Type.BYTES, Schema.Type.ARRAY);
 
   @Description("Maximum number of partitions. This is only a hint. The actual number of partitions may vary")
   @Macro
