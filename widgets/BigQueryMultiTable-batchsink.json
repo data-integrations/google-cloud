@@ -33,23 +33,19 @@
         },
         {
           "widget-type": "radio-group",
-          "name": "writeDisposition",
-          "label": "Write Disposition",
+          "name": "truncateTable",
+          "label": "Truncate Table",
           "widget-attributes": {
             "layout": "inline",
             "default": "WRITE_APPEND",
             "options": [
               {
-                "id": "WRITE_APPEND",
-                "label": "Append"
-              },
-              {
-                "id": "WRITE_EMPTY",
-                "label": "Empty"
-              },
-              {
                 "id": "WRITE_TRUNCATE",
-                "label": "Truncate"
+                "label": "True"
+              },
+              {
+                "id": "WRITE_APPEND",
+                "label": "False"
               }
             ]
           }

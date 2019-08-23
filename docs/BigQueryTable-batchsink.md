@@ -46,10 +46,9 @@ bucket will be created and then deleted after the run finishes.
 will be dropped.
 * Upsert - records that match on Table Key will be updated. Records that do not match will be inserted.
 
-**WriteDisposition**: Type of write disposition to use. This can be set to Empty, Truncate, or Append.
-* Empty - Job should only write to empty tables, otherwise an error is thrown.
-* Truncate - Job will truncate an existing table before writing to it.
-* Append - Job will append to an existing table.
+**Truncate Table**: Whether to truncate the output table before writing to it.
+* True - Will delete all rows in the table before writing to it.
+* False - Will append the new rows to the table.
 
 **Table Key**: List of fields that determines relation between tables during Update and Upsert operations.
 
