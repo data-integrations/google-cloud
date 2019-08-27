@@ -79,7 +79,7 @@
     <jackson.core.version>2.8.11.1</jackson.core.version>
     <junit.version>4.12</junit.version>
     <slf4j.version>1.7.5</slf4j.version>
-    <spark.version>1.6.1</spark.version>
+    <spark.version>2.3.1</spark.version>
     <commons.codec.version>1.4</commons.codec.version>
     <flogger.system.backend.version>0.3.1</flogger.system.backend.version>
     <httpclient.version>4.5.6</httpclient.version>
@@ -401,12 +401,13 @@
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
-      <artifactId>spark-streaming_2.10</artifactId>
+      <artifactId>spark-streaming_2.11</artifactId>
       <version>${spark.version}</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
-      <artifactId>spark-core_2.10</artifactId>
+      <artifactId>spark-core_2.11</artifactId>
       <version>${spark.version}</version>
       <scope>provided</scope>
       <exclusions>
