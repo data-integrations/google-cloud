@@ -41,7 +41,9 @@ import io.cdap.plugin.gcp.datastore.util.DatastorePropertyUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Array;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -336,6 +338,7 @@ public class RecordToEntityTransformer {
         Collection<Object> arrayValues = toCollection(fieldName, fieldType, record.get(fieldName));
         List<Value<?>> values = arrayValues.stream()
           .map(value -> {
+            // TODO CDAP-15727 - remove wrap into record
             // Wrap array element into record to be able to re-use convertToValue method type conversion logic
             // because StructuredRecord has different methods to extract value based on schema type.
             // For example: record.get(fieldName) is used for most of the values,
@@ -399,10 +402,23 @@ public class RecordToEntityTransformer {
 
     if (value instanceof Collection) {
       valueExtractor = name -> (Collection<?>) value;
-    } else if (value instanceof Object[]) {
-      valueExtractor = name -> Arrays.asList((Object[]) value);
+    } else if (value.getClass().isArray()) {
+      valueExtractor = name -> convertToObjectCollection(value);
     }
     return getValue(valueExtractor, fieldName, fieldType.toString(), Collection.class);
   }
 
+  private Collection<Object> convertToObjectCollection(Object array) {
+    Class ofArray = array.getClass().getComponentType();
+    if (ofArray.isPrimitive()) {
+      List<Object> list = new ArrayList<>();
+      int length = Array.getLength(array);
+      for (int i = 0; i < length; i++) {
+        list.add(Array.get(array, i));
+      }
+      return list;
+    } else {
+      return Arrays.asList((Object[]) array);
+    }
+  }
 }

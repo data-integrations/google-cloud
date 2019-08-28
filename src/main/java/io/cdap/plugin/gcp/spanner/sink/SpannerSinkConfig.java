@@ -33,10 +33,9 @@ import javax.annotation.Nullable;
  */
 public class SpannerSinkConfig extends GCPReferenceSinkConfig {
   private static final int DEFAULT_SPANNER_WRITE_BATCH_SIZE = 100;
-  // todo CDAP-14233 - add support for array
   private static final Set<Schema.Type> SUPPORTED_TYPES =
     ImmutableSet.of(Schema.Type.BOOLEAN, Schema.Type.STRING, Schema.Type.INT, Schema.Type.LONG,
-                    Schema.Type.FLOAT, Schema.Type.DOUBLE, Schema.Type.BYTES);
+                    Schema.Type.FLOAT, Schema.Type.DOUBLE, Schema.Type.BYTES, Schema.Type.ARRAY);
 
   @Name("table")
   @Description("Cloud Spanner table id. Uniquely identifies your table within the Cloud Spanner database")

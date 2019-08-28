@@ -21,6 +21,7 @@ import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.ErrorCode;
+import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Operation;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Spanner;
@@ -70,11 +71,12 @@ import javax.annotation.Nullable;
 @Description("Batch sink to write to Cloud Spanner. Cloud Spanner is a fully managed, mission-critical, " +
   "relational database service that offers transactional consistency at global scale, schemas, " +
   "SQL (ANSI 2011 with extensions), and automatic, synchronous replication for high availability.")
-public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable, StructuredRecord> {
+public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable, Mutation> {
   private static final Logger LOG = LoggerFactory.getLogger(SpannerSink.class);
   public static final String NAME = "Spanner";
   private static final String TABLE_NAME = "tablename";
   private final SpannerSinkConfig config;
+  private RecordToMutationTransformer transformer;
 
   public SpannerSink(SpannerSinkConfig config) {
     this.config = config;
@@ -204,11 +206,13 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
   public void initialize(BatchRuntimeContext context) throws Exception {
     super.initialize(context);
     config.validate();
+    transformer = new RecordToMutationTransformer(config.getTable(), config.getSchema());
   }
 
   @Override
-  public void transform(StructuredRecord input, Emitter<KeyValue<NullWritable, StructuredRecord>> emitter) {
-    emitter.emit(new KeyValue<>(null, input));
+  public void transform(StructuredRecord input, Emitter<KeyValue<NullWritable, Mutation>> emitter) {
+    Mutation mutation = transformer.transform(input);
+    emitter.emit(new KeyValue<>(null, mutation));
   }
 
   @Override
