@@ -16,18 +16,19 @@
           }
         },
         {
+          "widget-type": "connection-browser",
+          "widget-category": "plugin",
+          "widget-attributes": {
+            "connectionType": "BIGQUERY",
+            "label": "Browse"
+          }
+        },
+        {
           "widget-type": "textbox",
           "label": "Project ID",
           "name": "project",
           "widget-attributes" : {
             "default": "auto-detect"
-          },
-          "plugin-function": {
-            "label": "Browse",
-            "widget": "connection-browser",
-            "widget-attributes": {
-              "connectionType": "BIGQUERY"
-            }
           }
         },
         {
