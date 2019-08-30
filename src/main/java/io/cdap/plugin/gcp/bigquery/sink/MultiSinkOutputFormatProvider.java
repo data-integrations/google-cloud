@@ -15,11 +15,12 @@
  */
 package io.cdap.plugin.gcp.bigquery.sink;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 import io.cdap.cdap.api.data.batch.OutputFormatProvider;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.generic.GenericRecordBuilder;
+import org.apache.avro.mapred.AvroKey;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.JobContext;
@@ -59,14 +60,16 @@ public class MultiSinkOutputFormatProvider implements OutputFormatProvider {
 
   @Override
   public Map<String, String> getOutputFormatConfiguration() {
-    return BigQueryUtil.configToMap(config);
+    Map<String, String> map = BigQueryUtil.configToMap(config);
+    map.put(org.apache.hadoop.mapred.JobContext.OUTPUT_KEY_CLASS, AvroKey.class.getName());
+    return map;
   }
 
   /**
    * Uses {@link BigQueryOutputFormat} as delegate and creates {@link FilterRecordWriter}
    * to output values based on filter and its value and schema.
    */
-  public static class MultiSinkOutputFormatDelegate extends OutputFormat<JsonObject, NullWritable> {
+  public static class MultiSinkOutputFormatDelegate extends OutputFormat<AvroKey<GenericRecord>, NullWritable> {
 
     private final OutputFormat delegate;
 
@@ -75,14 +78,14 @@ public class MultiSinkOutputFormatProvider implements OutputFormatProvider {
     }
 
     @Override
-    public RecordWriter<JsonObject, NullWritable> getRecordWriter(TaskAttemptContext taskAttemptContext)
+    public RecordWriter<AvroKey<GenericRecord>, NullWritable> getRecordWriter(TaskAttemptContext taskAttemptContext)
       throws IOException, InterruptedException {
       Configuration conf = taskAttemptContext.getConfiguration();
       String filterField = conf.get(FILTER_FIELD);
       String filterValue = conf.get(FILTER_VALUE);
       Schema schema = Schema.parseJson(conf.get(SCHEMA));
       @SuppressWarnings("unchecked")
-      RecordWriter<JsonObject, NullWritable> recordWriter = delegate.getRecordWriter(taskAttemptContext);
+      RecordWriter<AvroKey<GenericRecord>, NullWritable> recordWriter = delegate.getRecordWriter(taskAttemptContext);
       return new FilterRecordWriter(filterField, filterValue, schema, recordWriter);
     }
 
@@ -101,18 +104,18 @@ public class MultiSinkOutputFormatProvider implements OutputFormatProvider {
   /**
    * Filters records before writing them out using a delegate based on filter and its value and given schema.
    */
-  public static class FilterRecordWriter extends RecordWriter<JsonObject, NullWritable> {
+  public static class FilterRecordWriter extends RecordWriter<AvroKey<GenericRecord>, NullWritable> {
 
     private final String filterField;
     private final String filterValue;
     private final Schema schema;
-    private final RecordWriter<JsonObject, NullWritable> delegate;
+    private final RecordWriter<AvroKey<GenericRecord>, NullWritable> delegate;
 
 
     public FilterRecordWriter(String filterField,
                               String filterValue,
                               Schema schema,
-                              RecordWriter<JsonObject, NullWritable> delegate) {
+                              RecordWriter<AvroKey<GenericRecord>, NullWritable> delegate) {
       this.filterField = filterField;
       this.filterValue = filterValue;
       this.schema = schema;
@@ -120,13 +123,12 @@ public class MultiSinkOutputFormatProvider implements OutputFormatProvider {
     }
 
     @Override
-    public void write(JsonObject key, NullWritable value) throws IOException, InterruptedException {
-      JsonElement jsonElement = key.get(filterField);
-      if (jsonElement == null) {
+    public void write(AvroKey<GenericRecord> key, NullWritable value) throws IOException, InterruptedException {
+      Object objectValue = key.datum().get(filterField);
+      if (objectValue == null) {
         return;
       }
-      String name = jsonElement.getAsString();
-      // remove the database prefix, as BigQuery doesn't allow dots
+      String name = (String) objectValue;
       String[] split = name.split("\\.");
       if (split.length == 2) {
         name = split[1];
@@ -135,13 +137,20 @@ public class MultiSinkOutputFormatProvider implements OutputFormatProvider {
         return;
       }
 
-      JsonObject object = new JsonObject();
-      key.entrySet().stream()
-        .filter(entry -> !filterField.equals(entry.getKey())) // exclude filter field
-        .filter(entry -> schema.getField(entry.getKey()) != null) // exclude fields which are not in schema
-        .forEach(entry -> object.add(entry.getKey(), entry.getValue()));
+      org.apache.avro.Schema avroSchema = getAvroSchema(schema);
+      GenericRecordBuilder recordBuilder = new GenericRecordBuilder(avroSchema);
 
+      key.datum().getSchema().getFields().stream()
+        .filter(entry -> !filterField.equals(entry.name()))
+        .filter(entry -> schema.getField(entry.name()) != null)
+        .forEach(entry -> recordBuilder.set(entry.name(), key.datum().get(entry.name())));
+
+      AvroKey<GenericRecord> object = new AvroKey<>(recordBuilder.build());
       delegate.write(object, value);
+    }
+
+    private org.apache.avro.Schema getAvroSchema(Schema cdapSchema) {
+      return new org.apache.avro.Schema.Parser().parse(cdapSchema.toString());
     }
 
     @Override

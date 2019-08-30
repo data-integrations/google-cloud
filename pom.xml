@@ -58,7 +58,7 @@
   <properties>
     <jee.version>7</jee.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <avro.version>1.7.7</avro.version>
+    <avro.version>1.8.2</avro.version>
     <bigquery.connector.hadoop2.version>hadoop2-0.13.17</bigquery.connector.hadoop2.version>
     <cdap.version>6.1.0-SNAPSHOT</cdap.version>
     <cdap.plugin.version>2.3.0-SNAPSHOT</cdap.plugin.version>
@@ -147,6 +147,11 @@
     <dependency>
       <groupId>io.cdap.plugin</groupId>
       <artifactId>format-common</artifactId>
+      <version>${cdap.plugin.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.cdap.plugin</groupId>
+      <artifactId>format-avro</artifactId>
       <version>${cdap.plugin.version}</version>
     </dependency>
     <dependency>
