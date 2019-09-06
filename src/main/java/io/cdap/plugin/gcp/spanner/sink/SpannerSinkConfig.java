@@ -21,6 +21,7 @@ import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.gcp.common.GCPReferenceSinkConfig;
 import io.cdap.plugin.gcp.spanner.common.SpannerUtil;
 
@@ -96,28 +97,38 @@ public class SpannerSinkConfig extends GCPReferenceSinkConfig {
     return keys;
   }
 
-  public void validate() {
-    // TODO: (vinisha) use failure collector
-    super.validate(null);
+  public void validate(FailureCollector collector) {
+    super.validate(collector);
     if (!containsMacro("schema")) {
-      SpannerUtil.validateSchema(getSchema(), SUPPORTED_TYPES);
+      SpannerUtil.validateSchema(getSchema(), SUPPORTED_TYPES, collector);
     }
     if (!containsMacro("batchSize") && batchSize != null && batchSize < 1) {
-      throw new IllegalArgumentException("Spanner batch size for writes should be positive");
+      collector.addFailure("Spanner batch size for writes must be a positive number > 0", null)
+        .withConfigProperty("batchSize");
     }
     if (!containsMacro("keys") && keys != null && !containsMacro("schema")) {
-      Schema schema = getSchema();
-      String[] splitted = keys.split(",");
+      try {
+        Schema schema = getSchema();
+        String[] splitted = keys.split(",");
 
-      for (String key : splitted) {
-        if (schema.getField(key.trim()) == null) {
-          throw new IllegalArgumentException(
-            String.format("Spanner primary key '%s' must be present in output schema", key));
+        for (String key : splitted) {
+          if (schema.getField(key.trim()) == null) {
+            collector.addFailure(String.format("Spanner primary key '%s' must be present in output schema.", key), null)
+              .withConfigElement("keys", key);
+          }
         }
+      } catch (IllegalArgumentException e) {
+        collector.addFailure("Invalid schema: " + e.getMessage(),
+                             "Provided schema can be parsed correctly.").withConfigProperty("schema");
       }
     }
   }
 
+  /**
+   * Returns schema object.
+   *
+   * @throws IllegalArgumentException if schema string can not be parsed.
+   */
   public Schema getSchema() {
     try {
       return Schema.parseJson(schema);

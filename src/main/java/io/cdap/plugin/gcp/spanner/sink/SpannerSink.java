@@ -38,6 +38,7 @@ import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
 import io.cdap.cdap.etl.api.Emitter;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSink;
@@ -85,12 +86,15 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     super.configurePipeline(pipelineConfigurer);
-    config.validate();
+    FailureCollector collector = pipelineConfigurer.getStageConfigurer().getFailureCollector();
+    config.validate(collector);
   }
 
   @Override
   public void prepareRun(BatchSinkContext context) {
-    config.validate();
+    FailureCollector collector = context.getFailureCollector();
+    config.validate(collector);
+    collector.getOrThrowException();
 
     if (!context.isPreviewEnabled()) {
       Spanner spanner = null;
@@ -205,7 +209,9 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
   @Override
   public void initialize(BatchRuntimeContext context) throws Exception {
     super.initialize(context);
-    config.validate();
+    FailureCollector collector = context.getFailureCollector();
+    config.validate(collector);
+    collector.getOrThrowException();
     transformer = new RecordToMutationTransformer(config.getTable(), config.getSchema());
   }
 

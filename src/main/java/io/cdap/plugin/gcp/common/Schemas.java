@@ -36,7 +36,6 @@ public class Schemas {
    * @param trueSchema the true schema
    * @param providedSchema the provided schema to check compatibility
    * @param failureCollector the failure collector to collect validation failures
-   * @throws IllegalArgumentException if the schemas are not type compatible
    */
   public static void validateFieldsMatch(Schema trueSchema, Schema providedSchema, FailureCollector failureCollector) {
     for (Schema.Field field : providedSchema.getFields()) {

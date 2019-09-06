@@ -39,9 +39,7 @@ public class GCPReferenceSourceConfig extends GCPConfig {
     try {
       IdUtils.validateId(referenceName);
     } catch (IllegalArgumentException e) {
-      collector.addFailure(e.getMessage(),
-                           String.format("Provided %s must use characters that are letters, numbers, " +
-                                           "and _, -, ., or $.", Constants.Reference.REFERENCE_NAME))
+      collector.addFailure(e.getMessage(), "Supported characters are: letters, numbers, and _, -, ., or $.")
         .withConfigProperty(Constants.Reference.REFERENCE_NAME);
     }
   }

@@ -22,7 +22,6 @@ import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
-import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
 import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
 import io.cdap.plugin.gcp.spanner.common.SpannerUtil;
 
@@ -69,22 +68,26 @@ public class SpannerSourceConfig extends GCPReferenceSourceConfig {
   public void validate(FailureCollector collector) {
     super.validate(collector);
     if (!containsMacro("schema") && schema != null) {
-      SpannerUtil.validateSchema(getSchema(), SUPPORTED_TYPES);
+      SpannerUtil.validateSchema(getSchema(collector), SUPPORTED_TYPES, collector);
     }
     if (!containsMacro("maxPartitions") && maxPartitions != null && maxPartitions < 1) {
-      throw new InvalidConfigPropertyException("Max partitions should be positive", "maxPartitions");
+      collector.addFailure("Max partitions must be a positive number > 0", null).withConfigProperty("maxPartitions");
     }
     if (!containsMacro("partitionSizeMB") && partitionSizeMB != null && partitionSizeMB < 1) {
-      throw new InvalidConfigPropertyException("Partition size in mega bytes should be positive", "partitionSizeMB");
+      collector.addFailure("Partition size in mega bytes must be a positive number > 0", null)
+        .withConfigProperty("partitionSizeMB");
     }
   }
 
   @Nullable
-  public Schema getSchema() {
+  public Schema getSchema(FailureCollector collector) {
     try {
       return Strings.isNullOrEmpty(schema) ? null : Schema.parseJson(schema);
     } catch (IOException e) {
-      throw new IllegalArgumentException("Unable to parse output schema: " + e.getMessage(), e);
+      collector.addFailure("Invalid schema: " + e.getMessage(),
+                           "Provided schema can be parsed correctly.").withConfigProperty("schema");
     }
+    // if there was an error that was added, it will throw an exception, otherwise, this statement will not be executed
+    throw collector.getOrThrowException();
   }
 }
