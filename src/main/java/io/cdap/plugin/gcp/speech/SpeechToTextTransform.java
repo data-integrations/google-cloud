@@ -32,6 +32,7 @@ import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.plugin.PluginConfig;
 import io.cdap.cdap.etl.api.Emitter;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.StageSubmitterContext;
 import io.cdap.cdap.etl.api.Transform;
@@ -69,14 +70,15 @@ public class SpeechToTextTransform extends Transform<StructuredRecord, Structure
   public void configurePipeline(PipelineConfigurer configurer) throws IllegalArgumentException {
     super.configurePipeline(configurer);
     Schema inputSchema = configurer.getStageConfigurer().getInputSchema();
-    config.validate(inputSchema);
+    FailureCollector collector = configurer.getStageConfigurer().getFailureCollector();
+    config.validate(inputSchema, collector);
     configurer.getStageConfigurer().setOutputSchema(getSchema(inputSchema));
   }
 
   @Override
   public void prepareRun(StageSubmitterContext context) throws Exception {
     super.prepareRun(context);
-    config.validate(context.getInputSchema());
+    config.validate(context.getInputSchema(), context.getFailureCollector());
   }
 
   @Override
@@ -140,7 +142,11 @@ public class SpeechToTextTransform extends Transform<StructuredRecord, Structure
     }
   }
 
-  private Schema getSchema(Schema inputSchema) {
+  @Nullable
+  private Schema getSchema(@Nullable Schema inputSchema) {
+    if (inputSchema == null) {
+      return null;
+    }
     List<Schema.Field> fields = new ArrayList<>();
     if (inputSchema.getFields() != null) {
       fields.addAll(inputSchema.getFields());
@@ -220,6 +226,11 @@ public class SpeechToTextTransform extends Transform<StructuredRecord, Structure
   }
 
   private static class SpeechTransformConfig extends PluginConfig {
+    private static final String NAME_AUDIOFIELD = "audiofield";
+    private static final String NAME_TRANS_PART = "transcriptionPartsField";
+    private static final String NAME_TRANS_TEXT = "transcriptionTextField";
+    private static final String NAME_RATE = "sampleRate";
+
     @Macro
     @Name("audiofield")
     @Description("Name of field containing binary audio file data")
@@ -313,50 +324,74 @@ public class SpeechToTextTransform extends Transform<StructuredRecord, Structure
       return language == null ? "en-US" : language;
     }
 
+    /**
+     * Returns sample rate as an integer.
+     *
+     * @throws IllegalArgumentException if sample rate is an invalid number
+     */
     @Nullable
     public Integer getSampleRate() {
       if (containsMacro("sampleRate")) {
         return null;
       }
+      try {
+        Integer.parseInt(sampleRate);
+      } catch (NumberFormatException e) {
+        throw new IllegalArgumentException("Sample rate should be a valid number");
+      }
       return Integer.parseInt(sampleRate);
     }
 
-    private void validate(@Nullable Schema inputSchema) {
+    private void validate(@Nullable Schema inputSchema, FailureCollector collector) {
       if (inputSchema != null) {
         // If a inputSchema and audioField is available then verify that the schema does contain the given audioField
         // and that the type is byte array. This will allow to fail fast i.e. during deployment time.
         String audioFieldName = getAudioField();
-        if (audioFieldName != null && inputSchema.getField(audioFieldName) == null) {
-          throw new IllegalArgumentException(String.format("Field %s does not exists in the input schema.",
-                                                           audioFieldName));
-        }
         Schema.Field field = inputSchema.getField(audioFieldName);
-        Schema fieldSchema = field.getSchema();
-        Schema.Type fieldType =
-          fieldSchema.isNullable() ? fieldSchema.getNonNullable().getType() : fieldSchema.getType();
-        if (fieldType != Schema.Type.BYTES) {
-          throw new IllegalArgumentException(String.format("Field '%s' must be of type 'bytes' but is of type " +
-                                                             "'%s'.", field.getName(), fieldType));
+        if (audioFieldName != null && field == null) {
+          collector.addFailure(String.format("Field '%s' must exist in the input schema.", audioFieldName), null)
+            .withConfigProperty(NAME_AUDIOFIELD);
+        } else {
+          Schema fieldSchema = field.getSchema();
+          fieldSchema = fieldSchema.isNullable() ? fieldSchema.getNonNullable() : fieldSchema;
+          if (fieldSchema.getLogicalType() != null || fieldSchema.getType() != Schema.Type.BYTES) {
+            collector.addFailure(
+              String.format("Field '%s' is of unsupported type '%s'.", audioFieldName, fieldSchema.getDisplayName()),
+              "It must be of type 'bytes'.")
+              .withConfigProperty(NAME_AUDIOFIELD).withInputSchemaField(audioFieldName, null);
+          }
         }
+
         if (getTextField() == null && getPartsField() == null) {
-          throw new IllegalArgumentException("At least one of 'Transcript Parts Field' or 'Transcript Text Field' " +
-                                               "must be specified.");
+          collector.addFailure(
+            "'Transcript Parts Field' or 'Transcript Text Field' must be provided.", null)
+            .withConfigProperty(NAME_TRANS_PART).withConfigProperty(NAME_TRANS_TEXT);
         }
         Set<String> fields = inputSchema.getFields().stream().map(Schema.Field::getName).collect(Collectors.toSet());
         if (getTextField() != null && fields.contains(getTextField())) {
-          throw new IllegalArgumentException(String.format("Input schema contains given Transcription Text Field " +
-                                                             "'%s'. Please provide a different name.", getTextField()));
+          collector.addFailure(
+            String.format("Transcription Text Field '%s' must not exist in the input schema.", getTextField()), null)
+            .withConfigProperty(NAME_TRANS_TEXT).withInputSchemaField(getTextField(), null);
         }
         if (getPartsField() != null && fields.contains(getPartsField())) {
-          throw new IllegalArgumentException(String.format("Input schema contains given Transcription Parts Field " +
-                                                             "'%s'. Please provide a different name.",
-                                                           getPartsField()));
+          collector.addFailure(
+            String.format("Transcription Parts Field '%s' must not exist in the input schema.", getPartsField()), null)
+            .withConfigProperty(NAME_TRANS_PART).withInputSchemaField(getPartsField(), null);
         }
       }
 
-      if (getSampleRate() != null && (getSampleRate() < 8000 || getSampleRate() > 48000)) {
-        throw new IllegalArgumentException("Sample Rate value must be between 8000 to 48000");
+      try {
+        Integer sampleRate = getSampleRate();
+        if (sampleRate != null && (sampleRate < 8000 || sampleRate > 48000)) {
+          collector.addFailure("Invalid Sample Rate.", "Sample Rate value must be between 8000 and 48000.")
+            .withConfigProperty(NAME_RATE);
+        }
+      } catch (IllegalArgumentException e) {
+        collector.addFailure("Invalid Sample Rate.", "Sample Rate value must be between 8000 and 48000.")
+          .withConfigProperty(NAME_RATE);
       }
+
+      collector.getOrThrowException();
     }
   }
 }
