@@ -102,12 +102,7 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
       return;
     }
 
-    try {
-      Schemas.validateFieldsMatch(schema, configuredSchema);
-      pipelineConfigurer.getStageConfigurer().setOutputSchema(configuredSchema);
-    } catch (IllegalArgumentException e) {
-      throw new InvalidConfigPropertyException(e.getMessage(), e, "schema");
-    }
+    pipelineConfigurer.getStageConfigurer().setOutputSchema(configuredSchema);
   }
 
   @Override
