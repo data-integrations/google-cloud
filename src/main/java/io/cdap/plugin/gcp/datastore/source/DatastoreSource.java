@@ -43,7 +43,6 @@ import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
 import io.cdap.plugin.common.LineageRecorder;
-import io.cdap.plugin.gcp.common.Schemas;
 import io.cdap.plugin.gcp.datastore.exception.DatastoreExecutionException;
 import io.cdap.plugin.gcp.datastore.util.DatastoreUtil;
 import org.apache.hadoop.io.NullWritable;

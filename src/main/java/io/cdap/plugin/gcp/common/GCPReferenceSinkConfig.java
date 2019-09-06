@@ -29,7 +29,6 @@ import io.cdap.plugin.common.IdUtils;
 public class GCPReferenceSinkConfig extends GCPConfig {
   @Name("referenceName")
   @Description("This will be used to uniquely identify this sink for lineage, annotating metadata, etc.")
-  @Macro
   protected String referenceName;
 
   /**

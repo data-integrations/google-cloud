@@ -31,6 +31,7 @@ import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
 import io.cdap.cdap.etl.api.Emitter;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
@@ -67,12 +68,14 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, T
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     super.configurePipeline(pipelineConfigurer);
-    config.validate();
+    FailureCollector collector = pipelineConfigurer.getStageConfigurer().getFailureCollector();
+    config.validate(collector);
   }
 
   @Override
   public void prepareRun(BatchSinkContext context) throws IOException {
-    config.validate();
+    FailureCollector collector = context.getFailureCollector();
+    config.validate(collector);
 
     TopicAdminSettings.Builder topicAdminSettings = TopicAdminSettings.newBuilder();
     String serviceAccountPath = config.getServiceAccountFilePath();
@@ -174,26 +177,31 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, T
       this.retryTimeoutSeconds = retryTimeoutSeconds;
     }
 
-    public void validate() {
-      // TODO: (vinisha) add failure collector
-      super.validate(null);
+    public void validate(FailureCollector collector) {
+      super.validate(collector);
       if (!containsMacro("messageCountBatchSize") && messageCountBatchSize != null && messageCountBatchSize < 1) {
-        throw new IllegalArgumentException("Maximum count of messages in a batch should be positive for Pub/Sub");
+        collector.addFailure("Maximum count of messages in a batch must be a positive number greater than zero.", null)
+          .withConfigProperty("messageCountBatchSize");
       }
       if (!containsMacro("requestThresholdKB") && requestThresholdKB != null && requestThresholdKB < 1) {
-        throw new IllegalArgumentException("Maximum size of a batch (KB) should be positive for Pub/Sub");
+        collector.addFailure("Maximum size of a batch (KB) must be a positive number >0 for Pub/Sub.", null)
+          .withConfigProperty("requestThresholdKB");
       }
       if (!containsMacro("publishDelayThresholdMillis") &&
         publishDelayThresholdMillis != null && publishDelayThresholdMillis < 1) {
-        throw new IllegalArgumentException("Delay threshold for publishing a batch should be positive for Pub/Sub");
+        collector.addFailure("Delay threshold for publishing a batch must be a positive number greater than zero.",
+                             null).withConfigProperty("publishDelayThresholdMillis");
       }
       if (!containsMacro("errorThreshold") && errorThreshold != null && errorThreshold < 0) {
-        throw new IllegalArgumentException("Error threshold for publishing should be zero or more for Pub/Sub");
+        collector.addFailure("Error threshold for publishing must be zero or more.", null)
+          .withConfigProperty("errorThreshold");
       }
       if (!containsMacro("retryTimeoutSeconds") && retryTimeoutSeconds != null && retryTimeoutSeconds < 1) {
-        throw new IllegalArgumentException("Max retry timeout for retrying failed publish " +
-                                             "should be positive for Pub/Sub");
+        collector.addFailure("Max retry timeout for retrying failed publish must be a positive number " +
+                               "greater than zero.", null)
+          .withConfigProperty("retryTimeoutSeconds");
       }
+      collector.getOrThrowException();
     }
 
     public long getRequestBytesThreshold() {

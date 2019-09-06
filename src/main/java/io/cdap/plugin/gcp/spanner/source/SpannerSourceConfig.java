@@ -71,10 +71,11 @@ public class SpannerSourceConfig extends GCPReferenceSourceConfig {
       SpannerUtil.validateSchema(getSchema(collector), SUPPORTED_TYPES, collector);
     }
     if (!containsMacro("maxPartitions") && maxPartitions != null && maxPartitions < 1) {
-      collector.addFailure("Max partitions must be a positive number > 0", null).withConfigProperty("maxPartitions");
+      collector.addFailure("Max partitions must be a positive number greater than zero.", null)
+        .withConfigProperty("maxPartitions");
     }
     if (!containsMacro("partitionSizeMB") && partitionSizeMB != null && partitionSizeMB < 1) {
-      collector.addFailure("Partition size in mega bytes must be a positive number > 0", null)
+      collector.addFailure("Partition size in mega bytes must be a positive number greater than zero.", null)
         .withConfigProperty("partitionSizeMB");
     }
   }

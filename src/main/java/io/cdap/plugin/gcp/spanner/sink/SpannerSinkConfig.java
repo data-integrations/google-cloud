@@ -103,7 +103,7 @@ public class SpannerSinkConfig extends GCPReferenceSinkConfig {
       SpannerUtil.validateSchema(getSchema(), SUPPORTED_TYPES, collector);
     }
     if (!containsMacro("batchSize") && batchSize != null && batchSize < 1) {
-      collector.addFailure("Spanner batch size for writes must be a positive number > 0", null)
+      collector.addFailure("Spanner batch size for writes must be a positive number greater than zero.", null)
         .withConfigProperty("batchSize");
     }
     if (!containsMacro("keys") && keys != null && !containsMacro("schema")) {
