@@ -132,6 +132,11 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, T
    * PubSub Publisher config
    */
   public static class Config extends GCPReferenceSinkConfig {
+    public static final String MESSAGE_COUNT_BATCH_SIZE = "messageCountBatchSize";
+    public static final String REQUEST_THRESHOLD_KB = "requestThresholdKB";
+    public static final String PUBLISH_DELAY_THRESHOLD_MILLIS = "publishDelayThresholdMillis";
+    public static final String ERROR_THRESHOLD = "errorThreshold";
+    public static final String RETRY_TIMEOUT_SECONDS = "retryTimeoutSeconds";
     @Description("Cloud Pub/Sub topic to publish records to")
     @Macro
     private String topic;
@@ -179,27 +184,26 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, T
 
     public void validate(FailureCollector collector) {
       super.validate(collector);
-      if (!containsMacro("messageCountBatchSize") && messageCountBatchSize != null && messageCountBatchSize < 1) {
-        collector.addFailure("Maximum count of messages in a batch must be a positive number greater than zero.", null)
-          .withConfigProperty("messageCountBatchSize");
+      if (!containsMacro(MESSAGE_COUNT_BATCH_SIZE) && messageCountBatchSize != null && messageCountBatchSize < 1) {
+        collector.addFailure("Maximum count of messages in a batch must be a positive number.", null)
+          .withConfigProperty(MESSAGE_COUNT_BATCH_SIZE);
       }
-      if (!containsMacro("requestThresholdKB") && requestThresholdKB != null && requestThresholdKB < 1) {
-        collector.addFailure("Maximum size of a batch (KB) must be a positive number >0 for Pub/Sub.", null)
-          .withConfigProperty("requestThresholdKB");
+      if (!containsMacro(REQUEST_THRESHOLD_KB) && requestThresholdKB != null && requestThresholdKB < 1) {
+        collector.addFailure("Maximum batch size must be a positive number.", null)
+          .withConfigProperty(REQUEST_THRESHOLD_KB);
       }
-      if (!containsMacro("publishDelayThresholdMillis") &&
+      if (!containsMacro(PUBLISH_DELAY_THRESHOLD_MILLIS) &&
         publishDelayThresholdMillis != null && publishDelayThresholdMillis < 1) {
-        collector.addFailure("Delay threshold for publishing a batch must be a positive number greater than zero.",
-                             null).withConfigProperty("publishDelayThresholdMillis");
+        collector.addFailure("Delay threshold for publishing a batch must be a positive number.",
+                             null).withConfigProperty(PUBLISH_DELAY_THRESHOLD_MILLIS);
       }
-      if (!containsMacro("errorThreshold") && errorThreshold != null && errorThreshold < 0) {
+      if (!containsMacro(ERROR_THRESHOLD) && errorThreshold != null && errorThreshold < 0) {
         collector.addFailure("Error threshold for publishing must be zero or more.", null)
-          .withConfigProperty("errorThreshold");
+          .withConfigProperty(ERROR_THRESHOLD);
       }
-      if (!containsMacro("retryTimeoutSeconds") && retryTimeoutSeconds != null && retryTimeoutSeconds < 1) {
-        collector.addFailure("Max retry timeout for retrying failed publish must be a positive number " +
-                               "greater than zero.", null)
-          .withConfigProperty("retryTimeoutSeconds");
+      if (!containsMacro(RETRY_TIMEOUT_SECONDS) && retryTimeoutSeconds != null && retryTimeoutSeconds < 1) {
+        collector.addFailure("Max retry timeout for retrying failed publish must be a positive number.", null)
+          .withConfigProperty(RETRY_TIMEOUT_SECONDS);
       }
       collector.getOrThrowException();
     }
