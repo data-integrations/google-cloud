@@ -106,7 +106,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
 
     @Override
     public void validate() {
-      // TODO: (vinisha) add failure collector
+      // TODO: CDAP-15900 add failure collector
       super.validate(null);
       // validate that path is valid
       if (!containsMacro("path")) {

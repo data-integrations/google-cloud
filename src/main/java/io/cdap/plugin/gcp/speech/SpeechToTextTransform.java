@@ -350,7 +350,7 @@ public class SpeechToTextTransform extends Transform<StructuredRecord, Structure
         Schema.Field field = inputSchema.getField(audioFieldName);
         if (audioFieldName != null && field == null) {
           collector.addFailure(String.format("Field '%s' does not exist in the input schema.", audioFieldName),
-                               "The field must exist in the input schema.")
+                               "Change audio field to be one of the schema fields.")
             .withConfigProperty(NAME_AUDIOFIELD);
         } else {
           Schema fieldSchema = field.getSchema();

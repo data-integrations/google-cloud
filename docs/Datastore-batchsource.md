@@ -2,7 +2,7 @@
 
 Description
 -----------
-This source reads data from Google Cloud Datastore.
+This source reads data from Google Cloud Datastore (Datastore mode).
 Datastore is a NoSQL document database built for automatic scaling and high performance.
 
 Credentials

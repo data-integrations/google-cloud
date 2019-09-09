@@ -90,7 +90,7 @@ public class HBaseResultToRecordTransformer {
       case BOOLEAN:
         return Bytes.toBoolean(bytes);
       default:
-        throw new UnexpectedFormatException("Field type '" + fieldSchema.getType() + "' is not supported");
+        throw new UnexpectedFormatException("Field type '" + fieldSchema.getDisplayName() + "' is not supported");
     }
   }
 }

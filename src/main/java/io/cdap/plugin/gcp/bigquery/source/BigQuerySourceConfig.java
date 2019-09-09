@@ -137,7 +137,7 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
       // Basic validation for allowed characters as per https://cloud.google.com/storage/docs/naming
       Pattern p = Pattern.compile("[a-z0-9._-]+");
       if (!p.matcher(bucket).matches()) {
-        collector.addFailure("Bucket contains characters other than lowercase characters, numbers,'.', '_', and '-'.",
+        collector.addFailure("Bucket contains characters other than lowercase characters, numbers, '.', '_', and '-'.",
                              null)
           .withConfigProperty(NAME_BUCKET);
       }

@@ -104,12 +104,12 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
   public void validate(FailureCollector collector) {
     super.validate(collector);
     String bucket = getBucket();
-    if (!containsMacro("bucket") && bucket != null) {
+    if (!containsMacro(NAME_BUCKET) && bucket != null) {
       // Basic validation for allowed characters as per https://cloud.google.com/storage/docs/naming
       Pattern p = Pattern.compile("[a-z0-9._-]+");
       if (!p.matcher(bucket).matches()) {
-        collector.addFailure("Bucket must only contain lowercase characters, numbers,'.', '_', and '-'", null)
-          .withConfigProperty("bucket");
+        collector.addFailure("Bucket must only contain lowercase characters, numbers, '.', '_', and '-'", null)
+          .withConfigProperty(NAME_BUCKET);
       }
     }
   }

@@ -104,9 +104,9 @@ public class RecordToHBaseMutationTransformerTest {
       transformer.transform(inputRecord);
       Assert.fail(String.format("Expected to throw %s", UnexpectedFormatException.class.getName()));
     } catch (UnexpectedFormatException e) {
-      String errorMessage = "Expected fail while attempting to transform value of type 'NULL'";
+      String errorMessage = "Expected fail while attempting to transform value of type 'null'";
       Assert.assertEquals(errorMessage, e.getMessage(), "Failed to transform value for field 'null_field'. " +
-        "Reason: Field type 'NULL' is not supported");
+        "Reason: Field type 'null' is not supported");
     }
   }
 }

@@ -13,7 +13,7 @@ public enum ErrorHandling {
   SKIP("skip-error"),
   FAIL_PIPELINE("fail-pipeline");
 
-  private static final Map<String, ErrorHandling> byDisplayName = Arrays.stream(values())
+  private static final Map<String, ErrorHandling> BY_DISPLAY_NAME = Arrays.stream(values())
     .collect(Collectors.toMap(ErrorHandling::getDisplayName, Function.identity()));
 
   private final String displayName;
@@ -24,10 +24,14 @@ public enum ErrorHandling {
 
   @Nullable
   public static ErrorHandling fromDisplayName(String displayName) {
-    return byDisplayName.get(displayName);
+    return BY_DISPLAY_NAME.get(displayName);
   }
 
   public String getDisplayName() {
     return displayName;
+  }
+
+  public static String getSupportedErrorHandling() {
+    return Arrays.stream(ErrorHandling.values()).map(ErrorHandling::getDisplayName).collect(Collectors.joining(", "));
   }
 }

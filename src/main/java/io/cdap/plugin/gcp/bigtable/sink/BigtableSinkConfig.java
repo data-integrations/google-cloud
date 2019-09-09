@@ -21,7 +21,6 @@ import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.etl.api.FailureCollector;
-import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
 import io.cdap.plugin.gcp.bigtable.common.HBaseColumn;
 import io.cdap.plugin.gcp.common.ConfigUtil;
 import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
@@ -88,35 +87,49 @@ public final class BigtableSinkConfig extends GCPReferenceSourceConfig {
   public void validate(FailureCollector collector) {
     super.validate(collector);
     if (!containsMacro(TABLE) && Strings.isNullOrEmpty(table)) {
-      throw new InvalidConfigPropertyException("Table must be specified", TABLE);
+      collector.addFailure("Table name must be specified.", null).withConfigProperty(TABLE);
     }
     if (!containsMacro(NAME_PROJECT) && tryGetProject() == null) {
-      throw new InvalidConfigPropertyException("Could not detect Google Cloud project id from the environment. " +
-                                                 "Please specify a project id.", NAME_PROJECT);
+      collector.addFailure("Could not detect Google Cloud project id from the environment.",
+                           "Specify project id.").withConfigProperty(NAME_PROJECT);
     }
     if (!containsMacro(INSTANCE) && Strings.isNullOrEmpty(instance)) {
-      throw new InvalidConfigPropertyException("Instance ID must be specified", INSTANCE);
+      collector.addFailure("Instance ID must be specified.", null).withConfigProperty(INSTANCE);
     }
     String serviceAccountFilePath = getServiceAccountFilePath();
     if (!containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH) && serviceAccountFilePath != null) {
       File serviceAccountFile = new File(serviceAccountFilePath);
       if (!serviceAccountFile.exists()) {
-        throw new InvalidConfigPropertyException(String.format("File '%s' does not exist", serviceAccountFilePath),
-                                                 NAME_SERVICE_ACCOUNT_FILE_PATH);
+        collector.addFailure(String.format("Service account file '%s' does not exist.", serviceAccountFilePath),
+                             "Ensure the service account file is available on the local filesystem.")
+          .withConfigProperty(NAME_SERVICE_ACCOUNT_FILE_PATH);
       }
     }
   }
 
-  public Map<String, HBaseColumn> getColumnMappings() {
-    Map<String, String> specifiedMappings = columnMappings == null ?
+  public Map<String, HBaseColumn> getColumnMappings(FailureCollector collector) {
+    Map<String, String> specifiedMappings = Strings.isNullOrEmpty(columnMappings) ?
       Collections.emptyMap() : ConfigUtil.parseKeyValueConfig(columnMappings, ",", "=");
     Map<String, HBaseColumn> mappings = new HashMap<>(specifiedMappings.size());
-    specifiedMappings.forEach((field, column) -> mappings.put(field, HBaseColumn.fromFullName(column)));
+
+    for (Map.Entry<String, String> entry : specifiedMappings.entrySet()) {
+      try {
+        String field = entry.getKey();
+        HBaseColumn column = HBaseColumn.fromFullName(entry.getValue());
+        mappings.put(field, column);
+      } catch (IllegalArgumentException e) {
+        String errorMessage = String.format("Invalid column in mapping '%s'. Reason: %s",
+                                            entry.getKey(), e.getMessage());
+        collector.addFailure(errorMessage, "Specify valid column mappings.")
+          .withConfigElement(COLUMN_MAPPINGS, ConfigUtil.getKVPair(entry.getKey(), entry.getValue(), "="));
+      }
+    }
     return mappings;
   }
 
   public Map<String, String> getBigtableOptions() {
-    return bigtableOptions == null ? Collections.emptyMap() : ConfigUtil.parseKeyValueConfig(bigtableOptions, ",", "=");
+    return Strings.isNullOrEmpty(bigtableOptions) ? Collections.emptyMap() :
+      ConfigUtil.parseKeyValueConfig(bigtableOptions, ",", "=");
   }
 
   public boolean connectionParamsConfigured() {

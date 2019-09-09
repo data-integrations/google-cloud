@@ -34,4 +34,8 @@ public class ConfigUtil {
     }
     return map;
   }
+
+  public static String getKVPair(String key, String value, String keyValueDelimiter) {
+    return String.format("%s%s%s", key, keyValueDelimiter, value);
+  }
 }

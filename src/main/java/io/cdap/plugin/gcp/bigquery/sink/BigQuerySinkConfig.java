@@ -27,7 +27,6 @@ import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
-import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -337,7 +336,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
       if (!fields.contains(keyField)) {
         collector.addFailure(
           String.format("Table key field '%s' does not exist in the schema.", keyField),
-          "Ensure all table key fields exist in the schema.")
+          "Change the Table key field to be one of the schema fields.")
           .withConfigElement(NAME_TABLE_KEY, keyField);
       }
     }

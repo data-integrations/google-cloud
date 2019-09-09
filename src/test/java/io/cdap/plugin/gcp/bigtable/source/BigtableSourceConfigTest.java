@@ -18,12 +18,14 @@ package io.cdap.plugin.gcp.bigtable.source;
 
 import com.google.bigtable.repackaged.com.google.cloud.ServiceOptions;
 import io.cdap.cdap.api.data.schema.Schema;
-import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
+import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.cdap.etl.api.validation.CauseAttributes;
+import io.cdap.cdap.etl.api.validation.ValidationException;
+import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.cdap.etl.mock.validation.MockFailureCollector;
 import io.cdap.plugin.common.Constants;
 import org.junit.Assert;
 import org.junit.Assume;
-import org.junit.Ignore;
 import org.junit.Test;
 
 public class BigtableSourceConfigTest {
@@ -49,17 +51,17 @@ public class BigtableSourceConfigTest {
     BigtableSourceConfig config = getBuilder()
       .build();
 
-    config.validate(null);
+    MockFailureCollector collector = new MockFailureCollector();
+    config.validate(collector);
+    Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
   @Test
-  @Ignore
   public void testValidateReference() {
     BigtableSourceConfig config = getBuilder()
       .setReferenceName("")
       .build();
 
-    // TODO: (vinisha) validate failure instead of stage config once this method is migrated to new api
     validateConfigValidationFail(config, Constants.Reference.REFERENCE_NAME);
   }
 
@@ -134,7 +136,7 @@ public class BigtableSourceConfigTest {
       .setSchema(Schema.recordOf("record", Schema.Field.of("my_id", Schema.of(Schema.Type.LONG))).toString())
       .build();
 
-    validateConfigValidationFail(config, BigtableSourceConfig.COLUMN_MAPPINGS);
+    validateOutputValidationFail(config, "my_id");
   }
 
   @Test
@@ -143,7 +145,7 @@ public class BigtableSourceConfigTest {
       .setColumnMappings("test-family:id=my_id") // no mapping for 'id' column
       .build();
 
-    validateConfigValidationFail(config, BigtableSourceConfig.COLUMN_MAPPINGS);
+    validateOutputValidationFail(config, "id");
   }
 
   @Test
@@ -157,7 +159,7 @@ public class BigtableSourceConfigTest {
         ).toString())
       .build();
 
-    validateConfigValidationFail(config, BigtableSourceConfig.COLUMN_MAPPINGS);
+    validateOutputValidationFail(config, "age");
   }
 
   private static BigtableSourceConfigBuilder getBuilder() {
@@ -178,12 +180,32 @@ public class BigtableSourceConfigTest {
       .setBigtableOptions(VALID_BIGTABLE_OPTIONS);
   }
 
-  private static void validateConfigValidationFail(BigtableSourceConfig config, String propertyValue) {
+  private static void validateConfigValidationFail(BigtableSourceConfig config, String propertyValue,
+                                                   String outputField) {
+    FailureCollector collector = new MockFailureCollector();
+    ValidationFailure failure;
     try {
-      config.validate(new MockFailureCollector("stage"));
-      Assert.fail(String.format("Expected to throw %s", InvalidConfigPropertyException.class.getName()));
-    } catch (InvalidConfigPropertyException e) {
-      Assert.assertEquals(propertyValue, e.getProperty());
+      config.validate(collector);
+      Assert.assertEquals(1, collector.getValidationFailures().size());
+      failure = collector.getValidationFailures().get(0);
+    } catch (ValidationException e) {
+      // it is possible that validation exception was thrown during validation. so catch the exception
+      Assert.assertEquals(1, e.getFailures().size());
+      failure = e.getFailures().get(0);
     }
+
+    if (outputField != null) {
+      Assert.assertEquals(outputField, failure.getCauses().get(0).getAttribute(CauseAttributes.OUTPUT_SCHEMA_FIELD));
+    } else {
+      Assert.assertEquals(propertyValue, failure.getCauses().get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
+    }
+  }
+
+  private static void validateConfigValidationFail(BigtableSourceConfig config, String propertyValue) {
+    validateConfigValidationFail(config, propertyValue, null);
+  }
+
+  private static void validateOutputValidationFail(BigtableSourceConfig config, String outputField) {
+    validateConfigValidationFail(config, null, outputField);
   }
 }

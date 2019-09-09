@@ -102,7 +102,7 @@ public class RecordToHBaseMutationTransformer {
       case BOOLEAN:
         return Bytes.toBytes((boolean) value);
       default:
-        throw new UnexpectedFormatException("Field type '" + fieldSchema.getType() + "' is not supported");
+        throw new UnexpectedFormatException("Field type '" + fieldSchema.getDisplayName() + "' is not supported");
     }
   }
 }

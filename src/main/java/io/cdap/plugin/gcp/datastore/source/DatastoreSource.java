@@ -37,13 +37,14 @@ import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
 import io.cdap.cdap.etl.api.Emitter;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.StageConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
 import io.cdap.plugin.common.LineageRecorder;
-import io.cdap.plugin.gcp.datastore.exception.DatastoreExecutionException;
+import io.cdap.plugin.gcp.datastore.source.util.DatastoreSourceConstants;
 import io.cdap.plugin.gcp.datastore.util.DatastoreUtil;
 import org.apache.hadoop.io.NullWritable;
 import org.slf4j.Logger;
@@ -55,6 +56,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 /**
  * Batch Datastore Source Plugin reads the data from Google Cloud Datastore.
@@ -89,14 +91,19 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     LOG.debug("Validate config during `configurePipeline` stage: {}", config);
     StageConfigurer stageConfigurer = pipelineConfigurer.getStageConfigurer();
-    config.validate(stageConfigurer.getFailureCollector());
-    if (config.containsMacro("schema")) {
-      stageConfigurer.setOutputSchema(null);
+    FailureCollector collector = stageConfigurer.getFailureCollector();
+    config.validate(collector);
+    // Since we have validated all the properties, throw an exception if there are any errors in the collector. This is
+    // to avoid adding same validation errors again in getSchema method call
+    collector.getOrThrowException();
+
+    Schema configuredSchema = config.getSchema(collector);
+    if (!config.shouldConnect()) {
+      stageConfigurer.setOutputSchema(configuredSchema);
       return;
     }
 
-    Schema schema = getSchema();
-    Schema configuredSchema = config.getSchema();
+    Schema schema = getSchema(collector);
     if (configuredSchema == null) {
       stageConfigurer.setOutputSchema(schema);
       return;
@@ -108,24 +115,35 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
   @Override
   public void prepareRun(BatchSourceContext batchSourceContext) {
     LOG.debug("Validate config during `prepareRun` stage: {}", config);
-    config.validate(batchSourceContext.getFailureCollector());
+    FailureCollector collector = batchSourceContext.getFailureCollector();
+    config.validate(collector);
+    collector.getOrThrowException();
 
-    batchSourceContext.setInput(Input.of(config.getReferenceName(), new DatastoreInputFormatProvider(config)));
+    String project = config.getProject();
+    String serviceAccountFile = config.getServiceAccountFilePath();
+    String namespace = config.getNamespace();
+    String kind = config.getKind();
+    String pbQuery = config.constructPbQuery(collector).toString();
+    String splits = String.valueOf(config.getNumSplits());
+
+    batchSourceContext.setInput(
+      Input.of(config.getReferenceName(),
+               new DatastoreInputFormatProvider(project, serviceAccountFile, namespace, kind, pbQuery, splits)));
 
     Schema schema = batchSourceContext.getOutputSchema();
     LineageRecorder lineageRecorder = new LineageRecorder(batchSourceContext, config.getReferenceName());
     lineageRecorder.createExternalDataset(schema);
     lineageRecorder.recordRead("Read", "Read from Cloud Datastore.",
-       Objects.requireNonNull(schema.getFields()).stream()
-         .map(Schema.Field::getName)
-         .collect(Collectors.toList()));
+                               Objects.requireNonNull(schema.getFields()).stream()
+                                 .map(Schema.Field::getName)
+                                 .collect(Collectors.toList()));
   }
 
   @Override
   public void initialize(BatchRuntimeContext context) throws Exception {
     super.initialize(context);
     entityToRecordTransformer = new EntityToRecordTransformer(context.getOutputSchema(),
-                                                              config.getKeyType(),
+                                                              config.getKeyType(context.getFailureCollector()),
                                                               config.getKeyAlias());
   }
 
@@ -136,13 +154,13 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
     emitter.emit(record);
   }
 
-  private Schema getSchema() {
+  private Schema getSchema(FailureCollector collector) {
     EntityQuery.Builder queryBuilder = Query.newEntityQueryBuilder()
       .setNamespace(config.getNamespace())
       .setKind(config.getKind())
       .setLimit(1);
 
-    Key ancestorKey = constructAncestorKey(config);
+    Key ancestorKey = constructAncestorKey(config, collector);
     if (ancestorKey != null) {
       queryBuilder.setFilter(StructuredQuery.PropertyFilter.hasAncestor(ancestorKey));
     }
@@ -154,20 +172,28 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
 
     if (results.hasNext()) {
       Entity entity = results.next();
-      return constructSchema(entity, config.isIncludeKey(), config.getKeyAlias());
+      return constructSchema(entity, config.isIncludeKey(collector), config.getKeyAlias());
     }
-    throw new DatastoreExecutionException("Cloud Datastore query did not return any results. "
-                                            + "Please check Namespace, Kind and Ancestor properties.");
+
+    collector.addFailure("Cloud Datastore query did not return any results. ",
+                         "Ensure Namespace, Kind and Ancestor properties are correct.")
+      .withConfigProperty(DatastoreSourceConstants.PROPERTY_NAMESPACE)
+      .withConfigProperty(DatastoreSourceConstants.PROPERTY_KIND)
+      .withConfigProperty(DatastoreSourceConstants.PROPERTY_ANCESTOR);
+
+    throw collector.getOrThrowException();
   }
 
   /**
    * Constructs ancestor key using using given Datastore configuration.
    *
    * @param config Datastore configuration
+   * @param collector failure collector
    * @return Datastore key instance
    */
-  private Key constructAncestorKey(DatastoreSourceConfig config) {
-    List<PathElement> ancestor = config.getAncestor();
+  @Nullable
+  private Key constructAncestorKey(DatastoreSourceConfig config, FailureCollector collector) {
+    List<PathElement> ancestor = config.getAncestor(collector);
 
     if (ancestor.isEmpty()) {
       return null;

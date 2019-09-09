@@ -105,7 +105,7 @@ public class HBaseResultToRecordTransformerTest {
       Assert.fail(String.format("Expected to throw %s", UnexpectedFormatException.class.getName()));
     } catch (UnexpectedFormatException e) {
       String errorMessage = "Expected fail while attempting to transform field 'null_column'";
-      Assert.assertEquals(errorMessage, "Failed to transform field 'null_column'. Reason: Field type 'NULL' " +
+      Assert.assertEquals(errorMessage, "Failed to transform field 'null_column'. Reason: Field type 'null' " +
         "is not supported", e.getMessage());
     }
   }

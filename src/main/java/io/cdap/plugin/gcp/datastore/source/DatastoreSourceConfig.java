@@ -30,9 +30,9 @@ import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
 import io.cdap.cdap.etl.api.FailureCollector;
-import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
 import io.cdap.plugin.common.KeyValueListParser;
 import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
+import io.cdap.plugin.gcp.datastore.exception.DatastoreInitializationException;
 import io.cdap.plugin.gcp.datastore.source.util.DatastoreSourceConstants;
 import io.cdap.plugin.gcp.datastore.source.util.SourceKeyType;
 import io.cdap.plugin.gcp.datastore.util.DatastorePropertyUtil;
@@ -44,6 +44,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -54,7 +55,6 @@ import javax.annotation.Nullable;
  * configuring the {@link DatastoreSource} plugin.
  */
 public class DatastoreSourceConfig extends GCPReferenceSourceConfig {
-
   private static final KeyValueListParser KV_PARSER = new KeyValueListParser(";", "\\|");
 
   @Name(DatastoreSourceConstants.PROPERTY_NAMESPACE)
@@ -154,13 +154,18 @@ public class DatastoreSourceConfig extends GCPReferenceSourceConfig {
     return referenceName;
   }
 
-  public Schema getSchema() {
-    try {
-      return Strings.isNullOrEmpty(schema) ? null : Schema.parseJson(schema);
-    } catch (IOException e) {
-      throw new InvalidConfigPropertyException("Unable to parse output schema: " +
-                                                 schema, e, DatastoreSourceConstants.PROPERTY_SCHEMA);
+  public Schema getSchema(FailureCollector collector) {
+    if (Strings.isNullOrEmpty(schema)) {
+      return null;
     }
+    try {
+      return Schema.parseJson(schema);
+    } catch (IOException e) {
+      collector.addFailure("Invalid schema: " + e.getMessage(), null)
+        .withConfigProperty(DatastoreSourceConstants.PROPERTY_SCHEMA);
+    }
+    // if there was an error that was added, it will throw an exception, otherwise, this statement will not be executed
+    throw collector.getOrThrowException();
   }
 
   public String getNamespace() {
@@ -171,10 +176,20 @@ public class DatastoreSourceConfig extends GCPReferenceSourceConfig {
     return kind;
   }
 
-  public List<PathElement> getAncestor() {
-    return DatastorePropertyUtil.parseKeyLiteral(ancestor);
+  public List<PathElement> getAncestor(FailureCollector collector) {
+    try {
+      return DatastorePropertyUtil.parseKeyLiteral(ancestor);
+    } catch (IllegalArgumentException e) {
+      collector.addFailure(e.getMessage(), null).withConfigProperty(DatastoreSourceConstants.PROPERTY_ANCESTOR);
+    }
+    // if there was an error that was added, it will throw an exception, otherwise, this statement will not be executed
+    throw collector.getOrThrowException();
   }
 
+  /**
+   * Returns a map of filters.
+   * @throws IllegalArgumentException if kv parse can not parse the filter property
+   */
   public Map<String, String> getFilters() {
     if (Strings.isNullOrEmpty(filters)) {
       return Collections.emptyMap();
@@ -191,14 +206,19 @@ public class DatastoreSourceConfig extends GCPReferenceSourceConfig {
     return numSplits;
   }
 
-  public SourceKeyType getKeyType() {
-    return SourceKeyType.fromValue(keyType)
-      .orElseThrow(() -> new InvalidConfigPropertyException("Unsupported key type value: " + keyType,
-                                                            DatastoreSourceConstants.PROPERTY_KEY_TYPE));
+  public SourceKeyType getKeyType(FailureCollector collector) {
+    Optional<SourceKeyType> sourceKeyType = SourceKeyType.fromValue(keyType);
+    if (sourceKeyType.isPresent()) {
+      return sourceKeyType.get();
+    }
+    collector.addFailure("Unsupported key type value: " + keyType,
+                         String.format("Supported key types are: %s", SourceKeyType.getSupportedTypes()))
+      .withConfigProperty(DatastoreSourceConstants.PROPERTY_KEY_TYPE);
+    throw collector.getOrThrowException();
   }
 
-  public boolean isIncludeKey() {
-    return SourceKeyType.NONE != getKeyType();
+  public boolean isIncludeKey(FailureCollector collector) {
+    return SourceKeyType.NONE != getKeyType(collector);
   }
 
   public String getKeyAlias() {
@@ -208,88 +228,95 @@ public class DatastoreSourceConfig extends GCPReferenceSourceConfig {
   @Override
   public void validate(FailureCollector collector) {
     super.validate(collector);
-    validateDatastoreConnection();
-    validateKind();
-    validateAncestor();
-    validateNumSplits();
+    validateDatastoreConnection(collector);
+    validateKind(collector);
+    validateAncestor(collector);
+    validateNumSplits(collector);
 
     if (containsMacro(DatastoreSourceConstants.PROPERTY_SCHEMA)) {
       return;
     }
 
-    Schema schema = getSchema();
+    Schema schema = getSchema(collector);
     if (schema != null) {
-      validateSchema(schema);
-      validateFilters(schema);
-      validateKeyType(schema);
+      validateSchema(schema, collector);
+      validateFilters(schema, collector);
+      validateKeyType(schema, collector);
     }
   }
 
   @VisibleForTesting
-  void validateDatastoreConnection() {
+  void validateDatastoreConnection(FailureCollector collector) {
     if (containsMacro(DatastoreSourceConstants.PROPERTY_SERVICE_FILE_PATH)
       || containsMacro(DatastoreSourceConstants.PROPERTY_PROJECT)) {
       return;
     }
-    DatastoreUtil.getDatastore(getServiceAccountFilePath(), getProject());
-    DatastoreUtil.getDatastoreV1(getServiceAccountFilePath(), getProject());
+    try {
+      DatastoreUtil.getDatastore(getServiceAccountFilePath(), getProject());
+      DatastoreUtil.getDatastoreV1(getServiceAccountFilePath(), getProject());
+    } catch (DatastoreInitializationException e) {
+      collector.addFailure(e.getMessage(), "Ensure properties like project, service account file path are correct.")
+        .withConfigProperty(DatastoreSourceConstants.PROPERTY_SERVICE_FILE_PATH)
+        .withConfigProperty(DatastoreSourceConstants.PROPERTY_PROJECT);
+    }
   }
 
-  private void validateKind() {
+  private void validateKind(FailureCollector collector) {
     if (containsMacro(DatastoreSourceConstants.PROPERTY_KIND)) {
       return;
     }
 
     if (Strings.isNullOrEmpty(kind)) {
-      throw new InvalidConfigPropertyException("Kind cannot be null or empty", DatastoreSourceConstants.PROPERTY_KIND);
+      collector.addFailure("Kind must be specified.", null)
+        .withConfigProperty(DatastoreSourceConstants.PROPERTY_KIND);
     }
   }
 
-  private void validateAncestor() {
+  private void validateAncestor(FailureCollector collector) {
     if (!containsMacro(DatastoreSourceConstants.PROPERTY_ANCESTOR)) {
-      getAncestor();
+      getAncestor(collector);
     }
   }
 
-  private void validateNumSplits() {
+  private void validateNumSplits(FailureCollector collector) {
     if (containsMacro(DatastoreSourceConstants.PROPERTY_NUM_SPLITS)) {
       return;
     }
 
     if (numSplits < 1) {
-      throw new InvalidConfigPropertyException("Number of splits must be greater than 0",
-                                               DatastoreSourceConstants.PROPERTY_NUM_SPLITS);
+      collector.addFailure("Number of splits must be greater than 0", null)
+        .withConfigProperty(DatastoreSourceConstants.PROPERTY_NUM_SPLITS);
     }
   }
 
-  private void validateSchema(Schema schema) {
+  private void validateSchema(Schema schema, FailureCollector collector) {
     List<Schema.Field> fields = schema.getFields();
     if (fields == null || fields.isEmpty()) {
-      throw new InvalidConfigPropertyException("Source schema must contain at least one field",
-                                               DatastoreSourceConstants.PROPERTY_SCHEMA);
+      collector.addFailure("Source schema must contain at least one field", null)
+        .withConfigProperty(DatastoreSourceConstants.PROPERTY_SCHEMA);
+    } else {
+      fields.forEach(f -> validateFieldSchema(f.getName(), f.getSchema(), collector));
     }
-
-    fields.forEach(f -> validateFieldSchema(f.getName(), f.getSchema()));
   }
 
   /**
    * Validates given field schema to be compliant with Datastore types.
-   * Will throw {@link InvalidConfigPropertyException} if schema contains unsupported type.
    *
    * @param fieldName field name
    * @param fieldSchema schema for CDAP field
+   * @param collector failure collector to collect failures if schema contains unsupported type.
    */
-  private void validateFieldSchema(String fieldName, Schema fieldSchema) {
+  private void validateFieldSchema(String fieldName, Schema fieldSchema, FailureCollector collector) {
     Schema.LogicalType logicalType = fieldSchema.getLogicalType();
     if (logicalType != null) {
-      switch (logicalType) {
-        // timestamps in CDAP are represented as LONG with TIMESTAMP_MICROS logical type
-        case TIMESTAMP_MICROS:
-          break;
-        default:
-          throw new InvalidConfigPropertyException(
-            String.format("Field '%s' is of unsupported type '%s'", fieldName, logicalType.getToken()),
-            DatastoreSourceConstants.PROPERTY_SCHEMA);
+      // timestamps in CDAP are represented as LONG with TIMESTAMP_MICROS logical type
+      if (logicalType != Schema.LogicalType.TIMESTAMP_MICROS) {
+        collector.addFailure(String.format("Field '%s' is of unsupported type '%s'",
+                                           fieldName, fieldSchema.getDisplayName()),
+                             "Supported types are: string, double, boolean, bytes, long, record, " +
+                               "array, union and timestamp.")
+          .withOutputSchemaField(fieldName);
+        return;
       }
     }
 
@@ -302,40 +329,59 @@ public class DatastoreSourceConfig extends GCPReferenceSourceConfig {
       case NULL:
         return;
       case RECORD:
-        validateSchema(fieldSchema);
+        validateSchema(fieldSchema, collector);
         return;
       case ARRAY:
-        Schema componentSchema = Objects.requireNonNull(fieldSchema.getComponentSchema(),
-          String.format("Field '%s' has no schema for array type", fieldName));
-        if (Schema.Type.ARRAY == componentSchema.getType()) {
-          throw new IllegalArgumentException(
-            String.format("Field '%s' is of unsupported type '%s of %s'", fieldName, fieldSchema.getType(),
-                          componentSchema.getType()));
+        if (fieldSchema.getComponentSchema() == null) {
+          collector.addFailure(String.format("Field '%s' has no schema for array type", fieldName),
+                               "Ensure array component has schema.").withOutputSchemaField(fieldName);
+          return;
         }
-        validateFieldSchema(fieldName, componentSchema);
+
+        Schema componentSchema = fieldSchema.getComponentSchema();
+        if (Schema.Type.ARRAY == componentSchema.getType()) {
+          collector.addFailure(String.format("Field '%s' is of unsupported type array of array.", fieldName),
+                               "Ensure the field has valid type.")
+            .withOutputSchemaField(fieldName);
+          return;
+        }
+        validateFieldSchema(fieldName, componentSchema, collector);
+
         return;
       case UNION:
-        fieldSchema.getUnionSchemas().forEach(unionSchema -> validateFieldSchema(fieldName, unionSchema));
+        fieldSchema.getUnionSchemas().forEach(unionSchema ->
+                                                validateFieldSchema(fieldName, unionSchema, collector));
         return;
       default:
-        throw new InvalidConfigPropertyException(
-          String.format("Field '%s' is of unsupported type '%s'", fieldName, fieldSchema.getType()),
-          DatastoreSourceConstants.PROPERTY_SCHEMA);
+        collector.addFailure(String.format("Field '%s' is of unsupported type '%s'",
+                                           fieldName, fieldSchema.getDisplayName()),
+                             "Supported types are: string, double, boolean, bytes, long, record, " +
+                               "array, union and timestamp.")
+          .withOutputSchemaField(fieldName);
     }
   }
 
-  private void validateFilters(Schema schema) {
+  private void validateFilters(Schema schema, FailureCollector collector) {
     if (containsMacro(DatastoreSourceConstants.PROPERTY_FILTERS)) {
       return;
     }
 
-    List<String> missingProperties = getFilters().keySet().stream()
-      .filter(k -> schema.getField(k) == null)
-      .collect(Collectors.toList());
+    try {
+      Map<String, String> filters = getFilters();
+      List<String> missingProperties = filters.keySet().stream()
+        .filter(k -> schema.getField(k) == null)
+        .collect(Collectors.toList());
 
-    if (!missingProperties.isEmpty()) {
-      throw new InvalidConfigPropertyException("The following properties are missing in the schema: "
-                                                 + missingProperties, DatastoreSourceConstants.PROPERTY_FILTERS);
+      for (String missingProperty : missingProperties) {
+        collector.addFailure(String.format("Property '%s' does not exist in the schema.", missingProperty),
+                             "Change Property to be one of the schema fields.")
+          .withConfigElement(DatastoreSourceConstants.PROPERTY_FILTERS,
+                             missingProperty + "|" + filters.get(missingProperty));
+      }
+    } catch (IllegalArgumentException e) {
+      // IllegalArgumentException is thrown from getFilters method.
+      collector.addFailure(e.getMessage(), null)
+        .withConfigProperty(DatastoreSourceConstants.PROPERTY_FILTERS);
     }
   }
 
@@ -344,30 +390,31 @@ public class DatastoreSourceConfig extends GCPReferenceSourceConfig {
    *
    * @param schema CDAP schema
    */
-  private void validateKeyType(Schema schema) {
+  private void validateKeyType(Schema schema, FailureCollector collector) {
     if (containsMacro(DatastoreSourceConstants.PROPERTY_KEY_TYPE)
       || containsMacro(DatastoreSourceConstants.PROPERTY_KEY_ALIAS)) {
       return;
     }
 
-    if (isIncludeKey()) {
+    if (isIncludeKey(collector)) {
       String key = getKeyAlias();
       Schema.Field field = schema.getField(key);
       if (field == null) {
-        throw new InvalidConfigPropertyException(
-          String.format("Key field '%s' must exist in the schema", key),
-          DatastoreSourceConstants.PROPERTY_KEY_ALIAS);
+        collector.addFailure(String.format("Key field '%s' does not exist in the schema.", key),
+                             "Change the Key field to be one of the schema fields.")
+          .withConfigProperty(DatastoreSourceConstants.PROPERTY_KEY_ALIAS);
+        return;
       }
 
       Schema fieldSchema = field.getSchema();
       Schema.Type type = fieldSchema.getType();
       if (Schema.Type.STRING != type) {
-        String foundType = fieldSchema.isNullable()
-          ? "nullable " + fieldSchema.getNonNullable().getType().name()
-          : type.name();
-        throw new InvalidConfigPropertyException(
-          String.format("Key field '%s' type must be non-nullable STRING, not '%s'", key, foundType),
-          DatastoreSourceConstants.PROPERTY_KEY_ALIAS);
+        fieldSchema = fieldSchema.isNullable() ? fieldSchema.getNonNullable() : fieldSchema;
+
+        collector.addFailure(String.format("Key field '%s' is of unsupported type '%s'", key,
+                                           fieldSchema.getDisplayName()),
+                             "Ensure the type is non-nullable String.")
+          .withConfigProperty(DatastoreSourceConstants.PROPERTY_KEY_ALIAS).withOutputSchemaField(field.getName());
       }
     }
   }
@@ -376,20 +423,21 @@ public class DatastoreSourceConfig extends GCPReferenceSourceConfig {
    * Constructs protobuf query instance which will be used for query splitting.
    * Adds ancestor and property filters if present in the given configuration.
    *
+   * @param collector failure collector
    * @return protobuf query instance
    */
-  public com.google.datastore.v1.Query constructPbQuery() {
+  public com.google.datastore.v1.Query constructPbQuery(FailureCollector collector) {
     com.google.datastore.v1.Query.Builder builder = com.google.datastore.v1.Query.newBuilder()
       .addKind(KindExpression.newBuilder()
                  .setName(getKind()));
 
     List<Filter> filters = getFilters().entrySet().stream()
       .map(e -> DatastoreHelper.makeFilter(e.getKey(), PropertyFilter.Operator.EQUAL,
-                                           constructFilterValue(e.getKey(), e.getValue(), getSchema()))
+                                           constructFilterValue(e.getKey(), e.getValue(), getSchema(collector)))
         .build())
       .collect(Collectors.toList());
 
-    List<PathElement> ancestors = getAncestor();
+    List<PathElement> ancestors = getAncestor(collector);
     if (!ancestors.isEmpty()) {
       filters.add(DatastoreHelper.makeAncestorFilter(constructKey(ancestors, getProject(), getNamespace())).build());
     }
@@ -506,5 +554,14 @@ public class DatastoreSourceConfig extends GCPReferenceSourceConfig {
       ", keyAlias='" + keyAlias + '\'' +
       ", schema='" + schema + '\'' +
       "} ";
+  }
+
+  /**
+   * Returns true if datastore can be connected to or schema is not a macro.
+   */
+  public boolean shouldConnect() {
+    return !containsMacro(DatastoreSourceConstants.PROPERTY_SCHEMA) &&
+      !containsMacro(DatastoreSourceConfig.NAME_SERVICE_ACCOUNT_FILE_PATH) &&
+      !containsMacro(DatastoreSourceConfig.NAME_PROJECT);
   }
 }

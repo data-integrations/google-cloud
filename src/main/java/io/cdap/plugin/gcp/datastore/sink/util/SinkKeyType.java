@@ -15,7 +15,9 @@
  */
 package io.cdap.plugin.gcp.datastore.sink.util;
 
+import java.util.Arrays;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -64,5 +66,9 @@ public enum SinkKeyType {
     return Stream.of(values())
       .filter(keyType -> keyType.value.equalsIgnoreCase(stringValue))
       .findAny();
+  }
+
+  public static String getSupportedTypes() {
+    return Arrays.stream(SinkKeyType.values()).map(SinkKeyType::getValue).collect(Collectors.joining(", "));
   }
 }

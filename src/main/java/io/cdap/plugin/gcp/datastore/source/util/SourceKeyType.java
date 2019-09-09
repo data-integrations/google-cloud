@@ -15,7 +15,9 @@
  */
 package io.cdap.plugin.gcp.datastore.source.util;
 
+import java.util.Arrays;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -61,4 +63,7 @@ public enum SourceKeyType {
       .findAny();
   }
 
+  public static String getSupportedTypes() {
+    return Arrays.stream(SourceKeyType.values()).map(SourceKeyType::getValue).collect(Collectors.joining(", "));
+  }
 }
