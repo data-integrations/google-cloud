@@ -239,7 +239,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
    * @param collector failure collector
    */
   protected void validateSchema(Table table, Schema tableSchema,
-                              boolean allowSchemaRelaxation, FailureCollector collector) {
+                                boolean allowSchemaRelaxation, FailureCollector collector) {
     String tableName = table.getTableId().getTable();
     com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
     if (bqSchema == null) {
@@ -262,8 +262,8 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
 
       for (String nonNullableField : nonNullableFields) {
         collector.addFailure(
-          String.format("Required field '%s' must be provided in the schema of BigQuery table '%s.%s'.",
-                        nonNullableFields, getConfig().getDataset(), tableName), null)
+          String.format("Required field '%s' does not exist in BigQuery table '%s.%s'",
+                        nonNullableField, getConfig().getDataset(), tableName), "Required field '%s' must be provided.")
           .withOutputSchemaField(nonNullableField, null);
       }
     } else {
