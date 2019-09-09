@@ -24,7 +24,6 @@ import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
-import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
 import io.cdap.plugin.gcp.bigtable.common.HBaseColumn;
 import io.cdap.plugin.gcp.common.ConfigUtil;
 import io.cdap.plugin.gcp.common.ErrorHandling;
@@ -158,86 +157,99 @@ public final class BigtableSourceConfig extends GCPReferenceSourceConfig {
   public void validate(FailureCollector collector) {
     super.validate(collector);
     if (!containsMacro(TABLE) && Strings.isNullOrEmpty(table)) {
-      throw new InvalidConfigPropertyException("Table must be specified", TABLE);
+      collector.addFailure("Table name is missing.", "Specify table name.").withConfigProperty(TABLE);
     }
     if (!containsMacro(PROJECT) && tryGetProject() == null) {
-      throw new InvalidConfigPropertyException("Could not detect Google Cloud project id from the environment. " +
-                                                 "Please specify a project id.", PROJECT);
+      collector.addFailure("Could not detect Google Cloud project id from the environment.",
+                           "Specify project id.").withConfigProperty(PROJECT);
     }
     if (!containsMacro(INSTANCE) && Strings.isNullOrEmpty(instance)) {
-      throw new InvalidConfigPropertyException("Instance ID must be specified", INSTANCE);
+      collector.addFailure("Instance ID is missing.", "Specify instance id.").withConfigProperty(INSTANCE);
     }
     String serviceAccountFilePath = getServiceAccountFilePath();
     if (!containsMacro(SERVICE_ACCOUNT_FILE_PATH) && serviceAccountFilePath != null) {
       File serviceAccountFile = new File(serviceAccountFilePath);
       if (!serviceAccountFile.exists()) {
-        throw new InvalidConfigPropertyException(
-          String.format("Service account file '%s' does not exist", serviceAccountFilePath),
-          SERVICE_ACCOUNT_FILE_PATH
-        );
+        collector.addFailure(String.format("Service account file '%s' does not exist.", serviceAccountFilePath),
+                             "Specify existing service account file path.")
+          .withConfigProperty(SERVICE_ACCOUNT_FILE_PATH);
       }
     }
     if (!containsMacro(ON_ERROR)) {
       if (Strings.isNullOrEmpty(onError)) {
-        throw new InvalidConfigPropertyException("Error handling must be specified", ON_ERROR);
+        collector.addFailure("Error handling is missing.",
+                             "Specify error handling.").withConfigProperty(ON_ERROR);
       }
-      if (ErrorHandling.fromDisplayName(onError) == null) {
-        throw new InvalidConfigPropertyException("Invalid record error handling strategy name", ON_ERROR);
+      if (!Strings.isNullOrEmpty(onError) && ErrorHandling.fromDisplayName(onError) == null) {
+        collector.addFailure(String.format("Invalid record error handling strategy name '%s'.", onError),
+                             String.format("Supported error handling strategies are: %s.",
+                                           ErrorHandling.getSupportedErrorHandling())).withConfigProperty(ON_ERROR);
       }
     }
     Map<String, String> columnMappings = getColumnMappings();
     if (!containsMacro(COLUMN_MAPPINGS)) {
       if (columnMappings.isEmpty()) {
-        throw new InvalidConfigPropertyException("Column mappings must be specified", COLUMN_MAPPINGS);
+        collector.addFailure("Column mappings are missing.",
+                             "Specify column mappings.").withConfigProperty(COLUMN_MAPPINGS);
       }
       columnMappings.forEach((columnName, fieldName) -> {
         try {
           HBaseColumn.fromFullName(columnName);
         } catch (IllegalArgumentException e) {
           String errorMessage = String.format("Invalid column in mapping '%s'. Reason: %s", columnName, e.getMessage());
-          throw new InvalidConfigPropertyException(errorMessage, COLUMN_MAPPINGS);
+          collector.addFailure(errorMessage,
+                               "Specify valid column mappings.")
+            .withConfigElement(COLUMN_MAPPINGS, ConfigUtil.getKVPair(columnName, columnMappings.get(columnName), "="));
         }
       });
     }
     if (!containsMacro(SCHEMA)) {
-      Schema parsedSchema = getSchema();
+      Schema parsedSchema = getSchema(collector);
       if (parsedSchema == null) {
-        throw new InvalidConfigPropertyException("Schema must be specified", SCHEMA);
+        collector.addFailure("Output schema is missing.",
+                             "Specify output schema.").withConfigProperty(SCHEMA);
+        throw collector.getOrThrowException();
       }
       if (Schema.Type.RECORD != parsedSchema.getType()) {
-        String message = String.format("Schema is of invalid type '%s'. The schema must be a record.",
-                                       parsedSchema.getType());
-        throw new InvalidConfigPropertyException(message, SCHEMA);
+        String message = String.format("Schema is of invalid type '%s'.", parsedSchema.getType());
+        collector.addFailure(message, "The schema must be a record.").withConfigProperty(SCHEMA);
+        throw collector.getOrThrowException();
       }
       List<Schema.Field> fields = parsedSchema.getFields();
       if (null == fields || fields.isEmpty()) {
-        throw new InvalidConfigPropertyException("Schema should contain fields to map", SCHEMA);
-      }
-      if (columnMappings != null) {
-        Set<String> mappedFieldNames = Sets.newHashSet(columnMappings.values());
-        Set<String> schemaFieldNames = fields.stream()
-          .map(Schema.Field::getName)
-          .filter(name -> !name.equals(keyAlias))
-          .collect(Collectors.toSet());
-        Sets.SetView<String> nonMappedColumns = Sets.difference(schemaFieldNames, mappedFieldNames);
-        if (!nonMappedColumns.isEmpty()) {
-          String nonMappedColumnsString = String.join(", ", nonMappedColumns);
-          String errorMessage = String.format("Some schema fields do not have corresponding column mappings: %s. ",
-                                              nonMappedColumnsString);
-          throw new InvalidConfigPropertyException(errorMessage, COLUMN_MAPPINGS);
+        collector.addFailure("Schema does not contain any fields.",
+                             "Schema must contain fields map.").withConfigProperty(SCHEMA);
+      } else {
+        if (!columnMappings.isEmpty()) {
+          Set<String> mappedFieldNames = Sets.newHashSet(columnMappings.values());
+          Set<String> schemaFieldNames = fields.stream()
+            .map(Schema.Field::getName)
+            .filter(name -> !name.equals(keyAlias))
+            .collect(Collectors.toSet());
+          Sets.SetView<String> nonMappedColumns = Sets.difference(schemaFieldNames, mappedFieldNames);
+          for (String nonMappedColumn : nonMappedColumns) {
+            collector.addFailure(
+              String.format("Field '%s' does not have corresponding column mapping.", nonMappedColumn),
+              String.format("Add column mapping for field '%s'.", nonMappedColumn))
+              .withOutputSchemaField(nonMappedColumn);
+          }
         }
-      }
-      for (Schema.Field field : fields) {
-        Schema.Type fieldType = field.getSchema().isNullable() ?
-          field.getSchema().getNonNullable().getType() : field.getSchema().getType();
-        if (!SUPPORTED_FIELD_TYPES.contains(fieldType)) {
-          String supportedTypes = SUPPORTED_FIELD_TYPES.stream()
-            .map(Enum::name)
-            .map(String::toLowerCase)
-            .collect(Collectors.joining(", "));
-          String errorMessage = String.format("Field '%s' is of unsupported type '%s'. Supported types are: %s. ",
-                                              field.getName(), fieldType, supportedTypes);
-          throw new InvalidConfigPropertyException(errorMessage, SCHEMA);
+
+        for (Schema.Field field : fields) {
+          Schema nonNullableSchema = field.getSchema().isNullable() ?
+            field.getSchema().getNonNullable() : field.getSchema();
+
+          if (!SUPPORTED_FIELD_TYPES.contains(nonNullableSchema.getType()) ||
+            nonNullableSchema.getLogicalType() != null) {
+            String supportedTypes = SUPPORTED_FIELD_TYPES.stream()
+              .map(Enum::name)
+              .map(String::toLowerCase)
+              .collect(Collectors.joining(", "));
+            String errorMessage = String.format("Field '%s' is of unsupported type '%s'.",
+                                                field.getName(), nonNullableSchema.getDisplayName());
+            collector.addFailure(errorMessage, String.format("Supported types are: %s.", supportedTypes))
+              .withOutputSchemaField(field.getName());
+          }
         }
       }
     }
@@ -247,12 +259,14 @@ public final class BigtableSourceConfig extends GCPReferenceSourceConfig {
    * @return the schema of the dataset
    */
   @Nullable
-  public Schema getSchema() {
+  public Schema getSchema(FailureCollector collector) {
     try {
       return Strings.isNullOrEmpty(schema) ? null : Schema.parseJson(schema);
     } catch (IOException e) {
-      throw new InvalidConfigPropertyException("Invalid schema: " + e.getMessage(), SCHEMA);
+      collector.addFailure("Invalid schema: " + e.getMessage(), null).withConfigProperty("schema");
     }
+    // if there was an error that was added, it will throw an exception, otherwise, this statement will not be executed
+    throw collector.getOrThrowException();
   }
 
   public Map<String, String> getColumnMappings() {

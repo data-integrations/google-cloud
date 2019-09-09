@@ -21,7 +21,6 @@ import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.etl.api.FailureCollector;
-import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
 import io.cdap.plugin.gcp.bigtable.common.HBaseColumn;
 import io.cdap.plugin.gcp.common.ConfigUtil;
 import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
@@ -88,21 +87,22 @@ public final class BigtableSinkConfig extends GCPReferenceSourceConfig {
   public void validate(FailureCollector collector) {
     super.validate(collector);
     if (!containsMacro(TABLE) && Strings.isNullOrEmpty(table)) {
-      throw new InvalidConfigPropertyException("Table must be specified", TABLE);
+      collector.addFailure("Table name is missing.", "Specify table name.").withConfigProperty(TABLE);
     }
     if (!containsMacro(PROJECT) && tryGetProject() == null) {
-      throw new InvalidConfigPropertyException("Could not detect Google Cloud project id from the environment. " +
-                                                 "Please specify a project id.", PROJECT);
+      collector.addFailure("Could not detect Google Cloud project id from the environment.",
+                           "Specify project id.").withConfigProperty(PROJECT);
     }
     if (!containsMacro(INSTANCE) && Strings.isNullOrEmpty(instance)) {
-      throw new InvalidConfigPropertyException("Instance ID must be specified", INSTANCE);
+      collector.addFailure("Instance ID is missing.", "Specify instance id.").withConfigProperty(INSTANCE);
     }
     String serviceAccountFilePath = getServiceAccountFilePath();
     if (!containsMacro(SERVICE_ACCOUNT_FILE_PATH) && serviceAccountFilePath != null) {
       File serviceAccountFile = new File(serviceAccountFilePath);
       if (!serviceAccountFile.exists()) {
-        throw new InvalidConfigPropertyException(String.format("File '%s' does not exist", serviceAccountFilePath),
-                                                 SERVICE_ACCOUNT_FILE_PATH);
+        collector.addFailure(String.format("Service account file '%s' does not exist.", serviceAccountFilePath),
+                             "Specify existing service account file path.")
+          .withConfigProperty(SERVICE_ACCOUNT_FILE_PATH);
       }
     }
   }

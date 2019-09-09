@@ -50,4 +50,8 @@ public class HBaseColumn {
   public String getQualifier() {
     return qualifier;
   }
+
+  public String getQualifiedName() {
+    return String.format("%s%s%s", family, FAMILY_QUALIFIER_DELIMITER, qualifier);
+  }
 }
