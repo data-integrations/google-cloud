@@ -26,6 +26,7 @@ import com.google.cloud.spanner.Partition;
 import com.google.cloud.spanner.PartitionOptions;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Spanner;
+import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.TimestampBound;
 import com.google.cloud.spanner.Type;
@@ -37,14 +38,15 @@ import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
 import io.cdap.cdap.etl.api.Emitter;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
+import io.cdap.cdap.etl.api.StageConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
-import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
-import io.cdap.cdap.etl.api.validation.InvalidStageException;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.common.SourceInputFormatProvider;
+import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.common.Schemas;
 import io.cdap.plugin.gcp.spanner.SpannerArrayConstants;
 import io.cdap.plugin.gcp.spanner.SpannerConstants;
@@ -62,9 +64,10 @@ import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 /**
- * Cloud Spanner batch source
+ * Cloud Spanner batch source.
  */
 @Plugin(type = BatchSource.PLUGIN_TYPE)
 @Name(SpannerSource.NAME)
@@ -90,30 +93,45 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
 
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
-    config.validate();
-    if (config.containsMacro("schema")) {
-      pipelineConfigurer.getStageConfigurer().setOutputSchema(null);
-      return;
-    }
+    StageConfigurer stageConfigurer = pipelineConfigurer.getStageConfigurer();
+    FailureCollector collector = stageConfigurer.getFailureCollector();
+    config.validate(collector);
+    Schema configuredSchema = config.getSchema(collector);
 
-    Schema schema = getSchema();
-    Schema configuredSchema = config.getSchema();
-    if (configuredSchema == null) {
-      pipelineConfigurer.getStageConfigurer().setOutputSchema(schema);
+    if (!config.shouldConnect()) {
+      stageConfigurer.setOutputSchema(configuredSchema);
       return;
     }
 
     try {
-      Schemas.validateFieldsMatch(schema, configuredSchema);
-      pipelineConfigurer.getStageConfigurer().setOutputSchema(configuredSchema);
-    } catch (IllegalArgumentException e) {
-      throw new InvalidConfigPropertyException(e.getMessage(), e, "schema");
+      Schema schema = getSchema(collector);
+      if (configuredSchema == null) {
+        stageConfigurer.setOutputSchema(schema);
+        return;
+      }
+
+      Schemas.validateFieldsMatch(schema, configuredSchema, collector);
+      stageConfigurer.setOutputSchema(configuredSchema);
+    } catch (SpannerException e) {
+      // this is because spanner exception error message is not very user friendly. It contains class names and new
+      // lines in the error message.
+      collector.addFailure("Unable to connect to spanner instance.",
+                           "Verify spanner configurations such as instance, database, table, project, etc.")
+        .withStacktrace(e.getStackTrace());
     }
   }
 
   @Override
   public void prepareRun(BatchSourceContext batchSourceContext) throws Exception {
-    config.validate();
+    FailureCollector collector = batchSourceContext.getFailureCollector();
+    config.validate(collector);
+    Schema actualSchema = getSchema(collector);
+    Schema configuredSchema = config.getSchema(collector);
+    if (configuredSchema != null) {
+      Schemas.validateFieldsMatch(actualSchema, configuredSchema, collector);
+    }
+    // throw a validation exception if any failures were added to the collector.
+    collector.getOrThrowException();
     String projectId = config.getProject();
     Configuration configuration = new Configuration();
     initializeConfig(configuration, projectId);
@@ -142,7 +160,7 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
     configuration.set(SpannerConstants.PARTITIONS_LIST, getSerializedObjectString(partitions));
 
     LineageRecorder lineageRecorder = new LineageRecorder(batchSourceContext, config.referenceName);
-    lineageRecorder.createExternalDataset(config.getSchema());
+    lineageRecorder.createExternalDataset(configuredSchema);
 
     // set input format and pass configuration
     batchSourceContext.setInput(Input.of(config.referenceName,
@@ -217,13 +235,16 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
     return builder.build();
   }
 
-  private Schema getSchema() {
+  private Schema getSchema(FailureCollector collector) {
     String projectId = config.getProject();
     Spanner spanner;
     try {
       spanner = SpannerUtil.getSpannerService(config.getServiceAccountFilePath(), projectId);
     } catch (IOException e) {
-      throw new InvalidStageException("Unable to get Spanner Client: " + e.getMessage(), e);
+      collector.addFailure("Unable to get Spanner Client: " + e.getMessage(), null)
+        .withConfigProperty(GCPConfig.NAME_SERVICE_ACCOUNT_FILE_PATH);
+      // if there was an error that was added, it will throw an exception.
+      throw collector.getOrThrowException();
     }
     DatabaseClient databaseClient =
       spanner.getDatabaseClient(DatabaseId.of(projectId, config.instance, config.database));
@@ -235,17 +256,25 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
         String spannerType = resultSet.getString("spanner_type");
         String nullable = resultSet.getString("is_nullable");
         boolean isNullable = "YES".equals(nullable);
-        Schema typeSchema = parseSchemaFromSpannerTypeString(columnName, spannerType);
+        Schema typeSchema = parseSchemaFromSpannerTypeString(columnName, spannerType, collector);
+        if (typeSchema == null) {
+          // this means there were failures added to failure collector. Continue to collect more failures
+          continue;
+        }
         Schema fieldSchema = isNullable ? Schema.nullableOf(typeSchema) : typeSchema;
         schemaFields.add(Schema.Field.of(columnName, fieldSchema));
       }
       spanner.close();
+      if (schemaFields.isEmpty() && !collector.getValidationFailures().isEmpty()) {
+        collector.getOrThrowException();
+      }
       return Schema.recordOf("outputSchema", schemaFields);
     }
   }
 
+  @Nullable
   private Schema parseSchemaFromSpannerTypeString(String columnName,
-                                                  String spannerType) {
+                                                  String spannerType, FailureCollector collector) {
     if (spannerType.startsWith("ARRAY")) {
       if (spannerType.startsWith(SpannerArrayConstants.ARRAY_STRING_PREFIX)) {
         return Schema.arrayOf(Schema.of(Schema.Type.STRING));
@@ -267,8 +296,7 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
         case SpannerArrayConstants.ARRAY_TIMESTAMP:
           return Schema.arrayOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS));
         default:
-          throw new InvalidStageException(String.format("'%s' is an array, which is not currently supported.",
-                                                        columnName));
+          collector.addFailure(String.format("Column '%s' is of unsupported type 'array'.", columnName), null);
       }
     } else if (spannerType.startsWith("STRING")) {
       // STRING and BYTES also have size at the end in the format, example : STRING(1024)
@@ -288,8 +316,9 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
         case TIMESTAMP:
           return Schema.of(Schema.LogicalType.TIMESTAMP_MICROS);
         default:
-          throw new InvalidStageException(String.format("'%s' is of unsupported type '%s'", columnName, spannerType));
+          collector.addFailure(String.format("Column '%s' has unsupported type '%s'.", columnName, spannerType), null);
       }
     }
+    return null;
   }
 }

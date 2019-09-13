@@ -16,11 +16,12 @@
 
 package io.cdap.plugin.gcp.spanner.source;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.data.schema.Schema;
-import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
 import io.cdap.plugin.gcp.spanner.common.SpannerUtil;
 
@@ -35,6 +36,13 @@ public class SpannerSourceConfig extends GCPReferenceSourceConfig {
   private static final Set<Schema.Type> SUPPORTED_TYPES = ImmutableSet.of(Schema.Type.BOOLEAN, Schema.Type.STRING,
                                                                           Schema.Type.LONG, Schema.Type.DOUBLE,
                                                                           Schema.Type.BYTES, Schema.Type.ARRAY);
+
+  public static final String NAME_MAX_PARTITIONS = "maxPartitions";
+  public static final String NAME_PARTITION_SIZE_MB = "partitionSizeMB";
+  public static final String NAME_INSTANCE = "instance";
+  public static final String NAME_DATABASE = "database";
+  public static final String NAME_TABLE = "table";
+  public static final String NAME_SCHEMA = "schema";
 
   @Description("Maximum number of partitions. This is only a hint. The actual number of partitions may vary")
   @Macro
@@ -64,25 +72,40 @@ public class SpannerSourceConfig extends GCPReferenceSourceConfig {
   @Nullable
   public String schema;
 
-  public void validate() {
-    super.validate();
-    if (!containsMacro("schema") && schema != null) {
-      SpannerUtil.validateSchema(getSchema(), SUPPORTED_TYPES);
+  public void validate(FailureCollector collector) {
+    super.validate(collector);
+    Schema schema = getSchema(collector);
+    if (!containsMacro(NAME_SCHEMA) && schema != null) {
+      SpannerUtil.validateSchema(schema, SUPPORTED_TYPES, collector);
     }
-    if (!containsMacro("maxPartitions") && maxPartitions != null && maxPartitions < 1) {
-      throw new InvalidConfigPropertyException("Max partitions should be positive", "maxPartitions");
+    if (!containsMacro(NAME_MAX_PARTITIONS) && maxPartitions != null && maxPartitions < 1) {
+      collector.addFailure("Invalid max partitions.", "Ensure the value is a positive number.")
+        .withConfigProperty(NAME_MAX_PARTITIONS);
     }
-    if (!containsMacro("partitionSizeMB") && partitionSizeMB != null && partitionSizeMB < 1) {
-      throw new InvalidConfigPropertyException("Partition size in mega bytes should be positive", "partitionSizeMB");
+    if (!containsMacro(NAME_PARTITION_SIZE_MB) && partitionSizeMB != null && partitionSizeMB < 1) {
+      collector.addFailure("Invalid partition size in mega bytes.", "Ensure the value is a positive number.")
+        .withConfigProperty(NAME_PARTITION_SIZE_MB);
     }
   }
 
   @Nullable
-  public Schema getSchema() {
+  public Schema getSchema(FailureCollector collector) {
     try {
-      return schema == null ? null : Schema.parseJson(schema);
+      return Strings.isNullOrEmpty(schema) ? null : Schema.parseJson(schema);
     } catch (IOException e) {
-      throw new IllegalArgumentException("Unable to parse output schema: " + e.getMessage(), e);
+      collector.addFailure("Invalid schema: " + e.getMessage(), null).withConfigProperty(NAME_SCHEMA);
     }
+    // if there was an error that was added, it will throw an exception, otherwise, this statement will not be executed
+    throw collector.getOrThrowException();
+  }
+
+  /**
+   * Returns true if spanner table can be connected to or schema is not a macro.
+   */
+  public boolean shouldConnect() {
+    return !containsMacro(SpannerSourceConfig.NAME_SCHEMA) && !containsMacro(SpannerSourceConfig.NAME_DATABASE) &&
+      !containsMacro(SpannerSourceConfig.NAME_TABLE) && !containsMacro(SpannerSourceConfig.NAME_INSTANCE) &&
+      !containsMacro(SpannerSourceConfig.NAME_SERVICE_ACCOUNT_FILE_PATH) &&
+      !containsMacro(SpannerSourceConfig.NAME_PROJECT);
   }
 }

@@ -16,12 +16,15 @@
 package io.cdap.plugin.gcp.bigquery.sink;
 
 import com.google.cloud.bigquery.JobInfo;
+import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
-import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
+import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.gcp.common.GCPReferenceSinkConfig;
 
+import java.util.Set;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
@@ -30,18 +33,21 @@ import javax.annotation.Nullable;
  */
 public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig {
   private static final String SCHEME = "gs://";
+  public static final Set<Schema.Type> SUPPORTED_TYPES =
+    ImmutableSet.of(Schema.Type.INT, Schema.Type.LONG, Schema.Type.STRING, Schema.Type.FLOAT, Schema.Type.DOUBLE,
+                    Schema.Type.BOOLEAN, Schema.Type.BYTES, Schema.Type.ARRAY, Schema.Type.RECORD);
 
-  public static final String NAME_PARTITION_BY_FIELD = "partitionByField";
-  public static final String NAME_CLUSTERING_ORDER = "clusteringOrder";
-  public static final String NAME_OPERATION = "operation";
+  public static final String NAME_DATASET = "dataset";
+  public static final String NAME_BUCKET = "bucket";
   public static final String NAME_TRUNCATE_TABLE = "truncateTable";
-  public static final String NAME_TABLE_KEY = "relationTableKey";
 
+  @Name(NAME_DATASET)
   @Macro
   @Description("The dataset to write to. A dataset is contained within a specific project. "
     + "Datasets are top-level containers that are used to organize and control access to tables and views.")
   protected String dataset;
 
+  @Name(NAME_BUCKET)
   @Macro
   @Nullable
   @Description("The Google Cloud Storage bucket to store temporary data in. "
@@ -95,15 +101,15 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
   }
 
   @Override
-  public void validate() {
-    super.validate();
+  public void validate(FailureCollector collector) {
+    super.validate(collector);
     String bucket = getBucket();
     if (!containsMacro("bucket") && bucket != null) {
       // Basic validation for allowed characters as per https://cloud.google.com/storage/docs/naming
       Pattern p = Pattern.compile("[a-z0-9._-]+");
       if (!p.matcher(bucket).matches()) {
-        throw new InvalidConfigPropertyException("Bucket names can only contain lowercase characters, numbers, " +
-                                                   "'.', '_', and '-'.", "bucket");
+        collector.addFailure("Bucket must only contain lowercase characters, numbers,'.', '_', and '-'", null)
+          .withConfigProperty("bucket");
       }
     }
   }

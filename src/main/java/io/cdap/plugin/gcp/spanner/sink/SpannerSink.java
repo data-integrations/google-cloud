@@ -38,6 +38,7 @@ import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
 import io.cdap.cdap.etl.api.Emitter;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSink;
@@ -85,13 +86,19 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     super.configurePipeline(pipelineConfigurer);
-    config.validate();
+    FailureCollector collector = pipelineConfigurer.getStageConfigurer().getFailureCollector();
+    // TODO CDAP-15898 add validation to validate against input schema and underlying spanner table if it exists
+    config.validate(collector);
   }
 
   @Override
   public void prepareRun(BatchSinkContext context) {
-    config.validate();
+    FailureCollector collector = context.getFailureCollector();
+    config.validate(collector);
+    // throw a validation exception if any failures were added to the collector.
+    collector.getOrThrowException();
 
+    Schema schema = config.getSchema(collector);
     if (!context.isPreviewEnabled()) {
       Spanner spanner = null;
       try {
@@ -102,7 +109,7 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
         // create database
         Database database = getOrCreateDatabase(dbAdminClient);
         // create table
-        createTableIfNotPresent(dbClient, database);
+        createTableIfNotPresent(dbClient, database, schema);
       } catch (IOException e) {
         throw new RuntimeException("Exception while trying to get Spanner service. ", e);
       } finally {
@@ -116,13 +123,13 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
     Configuration configuration = new Configuration();
 
     LineageRecorder lineageRecorder = new LineageRecorder(context, config.getReferenceName());
-    lineageRecorder.createExternalDataset(config.getSchema());
+    lineageRecorder.createExternalDataset(schema);
 
-    SpannerOutputFormat.configure(configuration, config);
+    SpannerOutputFormat.configure(configuration, config, schema);
     context.addOutput(Output.of(config.getReferenceName(),
                                 new SinkOutputFormatProvider(SpannerOutputFormat.class, configuration)));
 
-    List<Schema.Field> fields = config.getSchema().getFields();
+    List<Schema.Field> fields = schema.getFields();
     if (fields != null && !fields.isEmpty()) {
       // Record the field level WriteOperation
       lineageRecorder.recordWrite("Write", "Wrote to Spanner table.",
@@ -130,7 +137,7 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
     }
   }
 
-  private void createTableIfNotPresent(DatabaseClient dbClient, Database database) {
+  private void createTableIfNotPresent(DatabaseClient dbClient, Database database, Schema schema) {
     boolean tableExists = isTablePresent(dbClient);
     if (!tableExists) {
       if (Strings.isNullOrEmpty(config.getKeys())) {
@@ -139,7 +146,7 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
                                                          config.getTable()));
       }
       String createStmt = SpannerUtil.convertSchemaToCreateStatement(config.getTable(),
-                                                                     config.getKeys(), config.getSchema());
+                                                                     config.getKeys(), schema);
       LOG.debug("Creating table with create statement: {} in database {} of instance {}", createStmt,
                 config.getDatabase(), config.getInstance());
       // In Spanner table creation is an update ddl operation on the database.
@@ -205,8 +212,11 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
   @Override
   public void initialize(BatchRuntimeContext context) throws Exception {
     super.initialize(context);
-    config.validate();
-    transformer = new RecordToMutationTransformer(config.getTable(), config.getSchema());
+    FailureCollector collector = context.getFailureCollector();
+    config.validate(collector);
+    Schema schema = config.getSchema(collector);
+    collector.getOrThrowException();
+    transformer = new RecordToMutationTransformer(config.getTable(), schema);
   }
 
   @Override

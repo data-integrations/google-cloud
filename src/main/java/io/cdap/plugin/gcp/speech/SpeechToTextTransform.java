@@ -229,10 +229,10 @@ public class SpeechToTextTransform extends Transform<StructuredRecord, Structure
     private static final String NAME_AUDIOFIELD = "audiofield";
     private static final String NAME_TRANS_PART = "transcriptionPartsField";
     private static final String NAME_TRANS_TEXT = "transcriptionTextField";
-    private static final String NAME_RATE = "sampleRate";
+    private static final String NAME_RATE = "samplerate";
 
     @Macro
-    @Name("audiofield")
+    @Name(NAME_AUDIOFIELD)
     @Description("Name of field containing binary audio file data")
     private String audioField;
 
@@ -244,7 +244,7 @@ public class SpeechToTextTransform extends Transform<StructuredRecord, Structure
     private String encoding;
 
     @Macro
-    @Name("samplerate")
+    @Name(NAME_RATE)
     @Description("Sample rate in Hertz of the audio data sent in all `RecognitionAudio` messages. Valid values are: " +
       "8000-48000. 16000 is optimal. For best results, set the sampling rate of the audio source to 16000 Hz. If " +
       "that's not possible, use the native sample rate of the audio source (instead of re-sampling).")
@@ -331,7 +331,7 @@ public class SpeechToTextTransform extends Transform<StructuredRecord, Structure
      */
     @Nullable
     public Integer getSampleRate() {
-      if (containsMacro("sampleRate")) {
+      if (containsMacro(NAME_RATE)) {
         return null;
       }
       try {
@@ -349,45 +349,49 @@ public class SpeechToTextTransform extends Transform<StructuredRecord, Structure
         String audioFieldName = getAudioField();
         Schema.Field field = inputSchema.getField(audioFieldName);
         if (audioFieldName != null && field == null) {
-          collector.addFailure(String.format("Field '%s' must exist in the input schema.", audioFieldName), null)
+          collector.addFailure(String.format("Field '%s' does not exist in the input schema.", audioFieldName),
+                               "The field must exist in the input schema.")
             .withConfigProperty(NAME_AUDIOFIELD);
         } else {
           Schema fieldSchema = field.getSchema();
           fieldSchema = fieldSchema.isNullable() ? fieldSchema.getNonNullable() : fieldSchema;
           if (fieldSchema.getLogicalType() != null || fieldSchema.getType() != Schema.Type.BYTES) {
             collector.addFailure(
-              String.format("Field '%s' is of unsupported type '%s'.", audioFieldName, fieldSchema.getDisplayName()),
-              "It must be of type 'bytes'.")
-              .withConfigProperty(NAME_AUDIOFIELD).withInputSchemaField(audioFieldName, null);
+              String.format("Field '%s' is of unsupported type '%s'.",
+                            audioFieldName, fieldSchema.getDisplayName()), "Ensure it is of type 'bytes'.")
+              .withConfigProperty(NAME_AUDIOFIELD).withInputSchemaField(audioFieldName);
           }
         }
 
         if (getTextField() == null && getPartsField() == null) {
           collector.addFailure(
-            "'Transcript Parts Field' or 'Transcript Text Field' must be provided.", null)
+            "'Transcript Parts Field' or 'Transcript Text Field' are not provided.",
+            "Provide atleast one of them.")
             .withConfigProperty(NAME_TRANS_PART).withConfigProperty(NAME_TRANS_TEXT);
         }
         Set<String> fields = inputSchema.getFields().stream().map(Schema.Field::getName).collect(Collectors.toSet());
         if (getTextField() != null && fields.contains(getTextField())) {
           collector.addFailure(
-            String.format("Transcription Text Field '%s' must not exist in the input schema.", getTextField()), null)
-            .withConfigProperty(NAME_TRANS_TEXT).withInputSchemaField(getTextField(), null);
+            String.format("Transcript text field '%s' already exists in the input schema.", getTextField()),
+            "Change the field name.")
+            .withConfigProperty(NAME_TRANS_TEXT).withInputSchemaField(getTextField());
         }
         if (getPartsField() != null && fields.contains(getPartsField())) {
           collector.addFailure(
-            String.format("Transcription Parts Field '%s' must not exist in the input schema.", getPartsField()), null)
-            .withConfigProperty(NAME_TRANS_PART).withInputSchemaField(getPartsField(), null);
+            String.format("Transcript parts field '%s' already exists in the input schema.", getPartsField()),
+            "Change the field name.")
+            .withConfigProperty(NAME_TRANS_PART).withInputSchemaField(getPartsField());
         }
       }
 
       try {
         Integer sampleRate = getSampleRate();
         if (sampleRate != null && (sampleRate < 8000 || sampleRate > 48000)) {
-          collector.addFailure("Invalid Sample Rate.", "Sample Rate value must be between 8000 and 48000.")
+          collector.addFailure("Invalid sample rate.", "Ensure the value is between 8000 and 48000.")
             .withConfigProperty(NAME_RATE);
         }
       } catch (IllegalArgumentException e) {
-        collector.addFailure("Invalid Sample Rate.", "Sample Rate value must be between 8000 and 48000.")
+        collector.addFailure("Invalid sample rate.", "Ensure the value is between 8000 and 48000.")
           .withConfigProperty(NAME_RATE);
       }
 

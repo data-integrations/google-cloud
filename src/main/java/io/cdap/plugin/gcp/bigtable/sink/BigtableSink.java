@@ -28,6 +28,7 @@ import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
 import io.cdap.cdap.etl.api.Emitter;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
+import io.cdap.cdap.etl.api.StageConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
@@ -89,8 +90,9 @@ public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableByt
   @Override
   public void configurePipeline(PipelineConfigurer configurer) {
     super.configurePipeline(configurer);
-    config.validate();
-    Schema inputSchema = configurer.getStageConfigurer().getInputSchema();
+    StageConfigurer stageConfigurer = configurer.getStageConfigurer();
+    config.validate(stageConfigurer.getFailureCollector());
+    Schema inputSchema = stageConfigurer.getInputSchema();
     if (inputSchema != null) {
       validateInputSchema(inputSchema);
     }
@@ -110,7 +112,7 @@ public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableByt
 
   @Override
   public void prepareRun(BatchSinkContext context) {
-    config.validate();
+    config.validate(context.getFailureCollector());
     Configuration conf = getConfiguration();
     try (Connection connection = BigtableConfiguration.connect(conf);
          Admin admin = connection.getAdmin()) {

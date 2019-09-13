@@ -90,23 +90,23 @@ public class AvroToStructuredRecordTest {
 
     Schema innerSchema = Schema.recordOf(
       "inner",
-      Schema.Field.of("int", Schema.of(Schema.Type.INT)),
+      Schema.Field.of("long", Schema.of(Schema.Type.LONG)),
       Schema.Field.of("double", Schema.of(Schema.Type.DOUBLE)),
-      Schema.Field.of("array", Schema.arrayOf(Schema.of(Schema.Type.FLOAT)))
+      Schema.Field.of("array", Schema.arrayOf(Schema.of(Schema.Type.DOUBLE)))
     );
 
     schema = Schema.recordOf(
       "record",
-      Schema.Field.of("int", Schema.of(Schema.Type.INT)),
+      Schema.Field.of("long", Schema.of(Schema.Type.LONG)),
       Schema.Field.of("record", innerSchema));
 
     org.apache.avro.Schema avroInnerSchema = convertSchema(innerSchema);
     avroSchema = convertSchema(schema);
     record = new GenericRecordBuilder(avroSchema)
-      .set("int", Integer.MAX_VALUE)
+      .set("long", Long.MAX_VALUE)
       .set("record",
            new GenericRecordBuilder(avroInnerSchema)
-             .set("int", 5)
+             .set("long", 5L)
              .set("double", 3.14159)
              .set("array", ImmutableList.of(1.0f, 2.0f))
              .build())
@@ -114,9 +114,9 @@ public class AvroToStructuredRecordTest {
 
     actual = transformer.transform(record, schema);
     expected = StructuredRecord.builder(schema)
-      .set("int", Integer.MAX_VALUE)
+      .set("long", Long.MAX_VALUE)
       .set("record", StructuredRecord.builder(innerSchema)
-        .set("int", 5)
+        .set("long", 5L)
         .set("double", 3.14159)
         .set("array", ImmutableList.of(1.0f, 2.0f))
         .build())
@@ -126,34 +126,34 @@ public class AvroToStructuredRecordTest {
 
     Schema innerNestedSchema = Schema.recordOf(
       "innerNested",
-      Schema.Field.of("int", Schema.of(Schema.Type.INT)),
+      Schema.Field.of("long", Schema.of(Schema.Type.LONG)),
       Schema.Field.of("string", Schema.of(Schema.Type.STRING))
     );
     innerSchema = Schema.recordOf(
       "inner",
-      Schema.Field.of("int", Schema.of(Schema.Type.INT)),
+      Schema.Field.of("long", Schema.of(Schema.Type.LONG)),
       Schema.Field.of("double", Schema.of(Schema.Type.DOUBLE)),
-      Schema.Field.of("array", Schema.arrayOf(Schema.of(Schema.Type.FLOAT))),
+      Schema.Field.of("array", Schema.arrayOf(Schema.of(Schema.Type.DOUBLE))),
       Schema.Field.of("innerRecord", innerNestedSchema)
     );
     schema = Schema.recordOf(
       "record",
-      Schema.Field.of("int", Schema.of(Schema.Type.INT)),
+      Schema.Field.of("long", Schema.of(Schema.Type.LONG)),
       Schema.Field.of("record", innerSchema));
 
     org.apache.avro.Schema avroInnerNestedSchema = convertSchema(innerNestedSchema);
     avroInnerSchema = convertSchema(innerSchema);
     avroSchema = convertSchema(schema);
     record = new GenericRecordBuilder(avroSchema)
-      .set("int", Integer.MAX_VALUE)
+      .set("long", Long.MAX_VALUE)
       .set("record",
            new GenericRecordBuilder(avroInnerSchema)
-             .set("int", 5)
+             .set("long", 5L)
              .set("double", 3.14159)
              .set("array", ImmutableList.of(1.0f, 2.0f))
              .set("innerRecord",
                   new GenericRecordBuilder(avroInnerNestedSchema)
-                    .set("int", 10)
+                    .set("long", 10L)
                     .set("string", "test")
                     .build())
              .build())
@@ -161,13 +161,13 @@ public class AvroToStructuredRecordTest {
 
     actual = transformer.transform(record, schema);
     expected = StructuredRecord.builder(schema)
-      .set("int", Integer.MAX_VALUE)
+      .set("long", Long.MAX_VALUE)
       .set("record", StructuredRecord.builder(innerSchema)
-        .set("int", 5)
+        .set("long", 5L)
         .set("double", 3.14159)
         .set("array", ImmutableList.of(1.0f, 2.0f))
         .set("innerRecord", StructuredRecord.builder(innerNestedSchema)
-          .set("int", 10)
+          .set("long", 10L)
           .set("string", "test")
           .build())
         .build())

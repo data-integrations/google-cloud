@@ -31,6 +31,7 @@ import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
 import io.cdap.cdap.etl.api.Emitter;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
@@ -67,12 +68,14 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, T
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     super.configurePipeline(pipelineConfigurer);
-    config.validate();
+    FailureCollector collector = pipelineConfigurer.getStageConfigurer().getFailureCollector();
+    config.validate(collector);
   }
 
   @Override
   public void prepareRun(BatchSinkContext context) throws IOException {
-    config.validate();
+    FailureCollector collector = context.getFailureCollector();
+    config.validate(collector);
 
     TopicAdminSettings.Builder topicAdminSettings = TopicAdminSettings.newBuilder();
     String serviceAccountPath = config.getServiceAccountFilePath();
@@ -129,6 +132,12 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, T
    * PubSub Publisher config
    */
   public static class Config extends GCPReferenceSinkConfig {
+    public static final String NAME_MESSAGE_COUNT_BATCH_SIZE = "messageCountBatchSize";
+    public static final String NAME_REQUEST_THRESHOLD_KB = "requestThresholdKB";
+    public static final String NAME_PUBLISH_DELAY_THRESHOLD_MILLIS = "publishDelayThresholdMillis";
+    public static final String NAME_ERROR_THRESHOLD = "errorThreshold";
+    public static final String NAME_RETRY_TIMEOUT_SECONDS = "retryTimeoutSeconds";
+
     @Description("Cloud Pub/Sub topic to publish records to")
     @Macro
     private String topic;
@@ -174,25 +183,32 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, T
       this.retryTimeoutSeconds = retryTimeoutSeconds;
     }
 
-    public void validate() {
-      super.validate();
-      if (!containsMacro("messageCountBatchSize") && messageCountBatchSize != null && messageCountBatchSize < 1) {
-        throw new IllegalArgumentException("Maximum count of messages in a batch should be positive for Pub/Sub");
+    public void validate(FailureCollector collector) {
+      super.validate(collector);
+      if (!containsMacro(NAME_MESSAGE_COUNT_BATCH_SIZE) && messageCountBatchSize != null && messageCountBatchSize < 1) {
+        collector.addFailure("Invalid maximum count of messages in a batch.", "Ensure the value is a positive number.")
+          .withConfigProperty(NAME_MESSAGE_COUNT_BATCH_SIZE);
       }
-      if (!containsMacro("requestThresholdKB") && requestThresholdKB != null && requestThresholdKB < 1) {
-        throw new IllegalArgumentException("Maximum size of a batch (KB) should be positive for Pub/Sub");
+      if (!containsMacro(NAME_REQUEST_THRESHOLD_KB) && requestThresholdKB != null && requestThresholdKB < 1) {
+        collector.addFailure("Invalid maximum batch size.", "Ensure the value is a positive number.")
+          .withConfigProperty(NAME_REQUEST_THRESHOLD_KB);
       }
-      if (!containsMacro("publishDelayThresholdMillis") &&
+      if (!containsMacro(NAME_PUBLISH_DELAY_THRESHOLD_MILLIS) &&
         publishDelayThresholdMillis != null && publishDelayThresholdMillis < 1) {
-        throw new IllegalArgumentException("Delay threshold for publishing a batch should be positive for Pub/Sub");
+        collector.addFailure("Invalid delay threshold for publishing a batch.",
+                             "Ensure the value is a positive number.")
+          .withConfigProperty(NAME_PUBLISH_DELAY_THRESHOLD_MILLIS);
       }
-      if (!containsMacro("errorThreshold") && errorThreshold != null && errorThreshold < 0) {
-        throw new IllegalArgumentException("Error threshold for publishing should be zero or more for Pub/Sub");
+      if (!containsMacro(NAME_ERROR_THRESHOLD) && errorThreshold != null && errorThreshold < 0) {
+        collector.addFailure("Invalid error threshold for publishing.", "Ensure the value is a positive number.")
+          .withConfigProperty(NAME_ERROR_THRESHOLD);
       }
-      if (!containsMacro("retryTimeoutSeconds") && retryTimeoutSeconds != null && retryTimeoutSeconds < 1) {
-        throw new IllegalArgumentException("Max retry timeout for retrying failed publish " +
-                                             "should be positive for Pub/Sub");
+      if (!containsMacro(NAME_RETRY_TIMEOUT_SECONDS) && retryTimeoutSeconds != null && retryTimeoutSeconds < 1) {
+        collector.addFailure("Invalid max retry timeout for retrying failed publish.",
+                             "Ensure the value is a positive number.")
+          .withConfigProperty(NAME_RETRY_TIMEOUT_SECONDS);
       }
+      collector.getOrThrowException();
     }
 
     public long getRequestBytesThreshold() {

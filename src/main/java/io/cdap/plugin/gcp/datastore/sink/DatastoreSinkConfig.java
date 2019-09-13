@@ -179,7 +179,8 @@ public class DatastoreSinkConfig extends GCPReferenceSinkConfig {
   }
 
   public void validate(@Nullable Schema schema) {
-    super.validate();
+    // TODO: (vinisha) add failure collector
+    super.validate(null);
     validateKind();
     validateAncestors();
     validateBatchSize();

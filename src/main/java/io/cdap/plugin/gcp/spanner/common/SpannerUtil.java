@@ -20,10 +20,12 @@ import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.gcp.common.GCPUtils;
 
 import java.io.IOException;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Spanner utility class to get spanner service
@@ -47,21 +49,26 @@ public class SpannerUtil {
   /**
    * Validate that the schema is a supported one, compatible with Spanner.
    */
-  public static void validateSchema(Schema schema, Set<Schema.Type> supportedTypes) {
+  public static void validateSchema(Schema schema, Set<Schema.Type> supportedTypes, FailureCollector collector) {
     for (Schema.Field field : schema.getFields()) {
       Schema fieldSchema = field.getSchema();
       fieldSchema = fieldSchema.isNullable() ? fieldSchema.getNonNullable() : fieldSchema;
 
       Schema.LogicalType logicalType = fieldSchema.getLogicalType();
       if (logicalType != null && !SUPPORTED_LOGICAL_TYPES.contains(logicalType)) {
-        throw new IllegalArgumentException(String.format("Schema logical type %s not supported.",
-                                                         logicalType));
+        collector.addFailure(
+          String.format("Field '%s' is of unsupported type '%s'.", field.getName(), fieldSchema.getDisplayName()),
+          "Change the type to be a date or timestamp.").withOutputSchemaField(field.getName());
       }
 
       if (logicalType == null) {
         Schema.Type type = fieldSchema.getType();
         if (!supportedTypes.contains(type)) {
-          throw new IllegalArgumentException(String.format("Schema type %s not supported.", type));
+          collector.addFailure(
+            String.format("Field '%s' is of unsupported type '%s'.", field.getName(), fieldSchema.getDisplayName()),
+            String.format("Supported types are: %s, date and timestamp.",
+                          supportedTypes.stream().map(t -> t.name().toLowerCase()).collect(Collectors.joining(", "))))
+            .withOutputSchemaField(field.getName());
         }
       }
     }

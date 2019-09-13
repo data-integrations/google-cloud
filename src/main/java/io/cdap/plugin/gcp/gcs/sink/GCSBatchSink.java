@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.gcs.sink;
 
+import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
@@ -105,7 +106,8 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
 
     @Override
     public void validate() {
-      super.validate();
+      // TODO: (vinisha) add failure collector
+      super.validate(null);
       // validate that path is valid
       if (!containsMacro("path")) {
         GCSPath.from(path);
@@ -132,7 +134,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
 
     @Nullable
     public Schema getSchema() {
-      if (containsMacro("schema") || schema == null) {
+      if (containsMacro("schema") || Strings.isNullOrEmpty(schema)) {
         return null;
       }
       try {

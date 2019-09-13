@@ -20,7 +20,6 @@ import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.format.UnexpectedFormatException;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.plugin.common.RecordConverter;
-import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import org.apache.avro.generic.GenericRecord;
 
 import java.io.IOException;
@@ -57,13 +56,8 @@ public class BigQueryAvroToStructuredTransformer extends RecordConverter<Generic
     // Union schema expected to be nullable schema. Underlying non-nullable type should always be a supported type
     fieldSchema = fieldSchema.isNullable() ? fieldSchema.getNonNullable() : fieldSchema;
     Schema.Type fieldType = fieldSchema.getType();
-
-    // Complex types like maps and unions are not supported in BigQuery plugins.
-    if (!BigQueryUtil.SUPPORTED_TYPES.contains(fieldType)) {
-      throw new UnexpectedFormatException("Field type " + fieldType + " is not supported.");
-    }
-
     Schema.LogicalType logicalType = fieldSchema.getLogicalType();
+
     try {
       if (logicalType != null) {
         switch (logicalType) {
@@ -87,12 +81,18 @@ public class BigQueryAvroToStructuredTransformer extends RecordConverter<Generic
             value.position(pos);
             return bytes;
           default:
-            throw new UnexpectedFormatException("Field type " + fieldType + " is not supported.");
+            throw new UnexpectedFormatException("Field type '" + fieldSchema.getDisplayName() + "' is not supported.");
         }
       }
     } catch (ArithmeticException e) {
       throw new IOException("Field type %s has value that is too large." + fieldType);
     }
+
+    // Complex types like maps and unions are not supported in BigQuery plugins.
+    if (!BigQuerySourceConfig.SUPPORTED_TYPES.contains(fieldType)) {
+      throw new UnexpectedFormatException("Field type " + fieldType + " is not supported.");
+    }
+
     if (fieldSchema.getType() == Schema.Type.RECORD && field instanceof List) {
       List<Object> valuesList = (List<Object>) field;
       List<Object> resultList = new ArrayList<>(valuesList.size());

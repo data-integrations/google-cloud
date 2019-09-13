@@ -20,6 +20,7 @@ import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Spanner;
+import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.plugin.gcp.spanner.SpannerConstants;
 import io.cdap.plugin.gcp.spanner.common.SpannerUtil;
 import org.apache.hadoop.conf.Configuration;
@@ -44,8 +45,9 @@ public class SpannerOutputFormat extends OutputFormat<NullWritable, Mutation> {
    *
    * @param configuration the Hadoop configuration to set the properties in
    * @param config        the spanner configuration
+   * @param schema        schema for spanner table
    */
-  public static void configure(Configuration configuration, SpannerSinkConfig config) {
+  public static void configure(Configuration configuration, SpannerSinkConfig config, Schema schema) {
     String projectId = config.getProject();
     configuration.set(SpannerConstants.PROJECT_ID, projectId);
     String serviceAccountFilePath = config.getServiceAccountFilePath();
@@ -56,7 +58,7 @@ public class SpannerOutputFormat extends OutputFormat<NullWritable, Mutation> {
     configuration.set(SpannerConstants.DATABASE, config.getDatabase());
     configuration.set(SpannerConstants.TABLE_NAME, config.getTable());
     configuration.set(SpannerConstants.SPANNER_WRITE_BATCH_SIZE, String.valueOf(config.getBatchSize()));
-    configuration.set(SpannerConstants.SCHEMA, config.getSchema().toString());
+    configuration.set(SpannerConstants.SCHEMA, schema.toString());
   }
 
   @Override

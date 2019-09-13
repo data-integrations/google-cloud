@@ -26,6 +26,7 @@ import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
 import io.cdap.cdap.etl.api.Emitter;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
+import io.cdap.cdap.etl.api.StageConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
@@ -74,7 +75,8 @@ public final class BigtableSource extends BatchSource<ImmutableBytesWritable, Re
   @Override
   public void configurePipeline(PipelineConfigurer configurer) {
     super.configurePipeline(configurer);
-    config.validate();
+    StageConfigurer stageConfigurer = configurer.getStageConfigurer();
+    config.validate(stageConfigurer.getFailureCollector());
     Schema configuredSchema = config.getSchema();
     if (configuredSchema != null && config.connectionParamsConfigured()) {
       Configuration conf = getConfiguration();
@@ -86,7 +88,7 @@ public final class BigtableSource extends BatchSource<ImmutableBytesWritable, Re
 
   @Override
   public void prepareRun(BatchSourceContext context) {
-    config.validate();
+    config.validate(context.getFailureCollector());
     Configuration conf = getConfiguration();
     validateOutputSchema(conf);
 
