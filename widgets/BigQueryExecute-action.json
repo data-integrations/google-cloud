@@ -1,0 +1,143 @@
+{
+  "metadata": {
+    "spec-version": "1.5"
+  },
+  "display-name": "BigQuery Execute",
+  "configuration-groups": [
+    {
+      "label": "Basic",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Project ID",
+          "name": "project",
+          "widget-attributes": {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "widget-type": "textarea",
+          "label": "SQL",
+          "name": "sql",
+          "widget-attributes": {
+            "placeholder": "SELECT * from [dataset].[table]"
+          }
+        }
+      ]
+    },
+    {
+      "label": "Advanced",
+      "properties": [
+        {
+          "name": "dialect",
+          "label": "Dialect",
+          "widget-type": "radio-group",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "standard",
+            "options": [
+              {
+                "id": "legacy",
+                "label": "Legacy"
+              },
+              {
+                "id": "standard",
+                "label": "Standard"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mode",
+          "label": "Mode",
+          "widget-type": "radio-group",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "batch",
+            "options": [
+              {
+                "id": "batch",
+                "label": "Batch"
+              },
+              {
+                "id": "interactive",
+                "label": "Interactive"
+              }
+            ]
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Dataset Name",
+          "name": "dataset",
+          "widget-attributes": {
+            "placeholder": "Name of dataset to store the results."
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Table Name",
+          "name": "table",
+          "widget-attributes": {
+            "placeholder": "Name of table to store the results."
+          }
+        },
+        {
+          "name": "useCache",
+          "label": "Use Cache",
+          "widget-type": "toggle",
+          "widget-attributes": {
+            "default": "false",
+            "on": {
+              "value": "true",
+              "label": "True"
+            },
+            "off": {
+              "value": "false",
+              "label": "False"
+            }
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Job Location",
+          "name": "location",
+          "widget-attributes": {
+            "placeholder": "Location of the job.",
+            "default": "US"
+          }
+        },
+        {
+          "name": "rowAsArguments",
+          "label": "Row As Arguments",
+          "widget-type": "toggle",
+          "widget-attributes": {
+            "default": "false",
+            "on": {
+              "value": "true",
+              "label": "True"
+            },
+            "off": {
+              "value": "false",
+              "label": "False"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "Credentials",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes": {
+            "default": "auto-detect"
+          }
+        }
+      ]
+    }
+  ],
+  "outputs": []
+}
