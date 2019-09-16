@@ -80,8 +80,8 @@ public class DatastorePropertyUtil {
       return resultList;
     } catch (Exception e) {
       throw new IllegalArgumentException(
-        String.format("Datastore key literal '%s' parsing exception: '%s'. Expected format: '%s'",
-                      keyLiteral, e.getMessage(), "key(kind, identifier, kind, identifier, [...])"), e);
+        String.format("Invalid Datastore key literal '%s'. Expected format: '%s'",
+                      keyLiteral, "key(kind, identifier, kind, identifier, [...])"), e);
     }
   }
 

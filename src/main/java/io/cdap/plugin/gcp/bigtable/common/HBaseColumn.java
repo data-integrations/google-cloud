@@ -33,6 +33,13 @@ public class HBaseColumn {
     return new HBaseColumn(family, qualifier);
   }
 
+  /**
+   * Parses the provided full name and returns hbase column with family and qualifier.
+   *
+   * @param fullName full name
+   * @return hbase column with family and qualifier
+   * @throws IllegalArgumentException if provided full name does not comply with 'family:qualifier' format
+   */
   public static HBaseColumn fromFullName(String fullName) {
     if (!fullName.contains(FAMILY_QUALIFIER_DELIMITER)) {
       throw new IllegalArgumentException("Wrong name format. Expected format is 'family:qualifier'");
@@ -49,5 +56,9 @@ public class HBaseColumn {
 
   public String getQualifier() {
     return qualifier;
+  }
+
+  public String getQualifiedName() {
+    return String.format("%s%s%s", family, FAMILY_QUALIFIER_DELIMITER, qualifier);
   }
 }

@@ -2,7 +2,7 @@
 
 Description
 -----------
-This sink writes data to Google Cloud Datastore.
+This sink writes data to Google Cloud Datastore (Datastore mode).
 Datastore is a NoSQL document database built for automatic scaling and high performance.
 
 Credentials

@@ -15,7 +15,9 @@
  */
 package io.cdap.plugin.gcp.datastore.sink.util;
 
+import java.util.Arrays;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -58,5 +60,9 @@ public enum IndexStrategy {
     return Stream.of(values())
       .filter(indexStrategy -> indexStrategy.value.equalsIgnoreCase(stringValue))
       .findAny();
+  }
+
+  public static String getSupportedStrategies() {
+    return Arrays.stream(IndexStrategy.values()).map(IndexStrategy::getValue).collect(Collectors.joining(", "));
   }
 }

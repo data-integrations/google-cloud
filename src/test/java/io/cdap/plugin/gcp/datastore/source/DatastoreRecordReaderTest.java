@@ -21,6 +21,7 @@ import com.google.cloud.datastore.PathElement;
 import com.google.cloud.datastore.StructuredQuery;
 import com.google.datastore.v1.Query;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.etl.mock.validation.MockFailureCollector;
 import io.cdap.plugin.gcp.datastore.source.util.DatastoreSourceConstants;
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Assert;
@@ -43,7 +44,9 @@ public class DatastoreRecordReaderTest {
       .setFilters("id|10;name|test;type|")
       .build();
 
-    Query pbQuery = config.constructPbQuery();
+    MockFailureCollector collector = new MockFailureCollector();
+    Query pbQuery = config.constructPbQuery(collector);
+    Assert.assertEquals(0, collector.getValidationFailures().size());
 
     com.google.cloud.datastore.Query<Entity> expectedQuery = com.google.cloud.datastore.Query.newEntityQueryBuilder()
       .setNamespace(DatastoreSourceConfigHelper.TEST_NAMESPACE)

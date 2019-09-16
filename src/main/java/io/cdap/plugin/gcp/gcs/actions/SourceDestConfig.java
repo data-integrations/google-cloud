@@ -18,6 +18,8 @@ package io.cdap.plugin.gcp.gcs.actions;
 
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
+import io.cdap.cdap.api.annotation.Name;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 
@@ -27,10 +29,15 @@ import javax.annotation.Nullable;
  * Contains common properties for copy/move.
  */
 public class SourceDestConfig extends GCPConfig {
+  public static final String NAME_SOURCE_PATH = "sourcePath";
+  public static final String NAME_DEST_PATH = "destPath";
+
+  @Name(NAME_SOURCE_PATH)
   @Macro
   @Description("Path to a source object or directory.")
   private String sourcePath;
 
+  @Name(NAME_DEST_PATH)
   @Macro
   @Description("Path to the destination. The bucket must already exist.")
   private String destPath;
@@ -57,12 +64,21 @@ public class SourceDestConfig extends GCPConfig {
     return overwrite;
   }
 
-  public void validate() {
+  public void validate(FailureCollector collector) {
     if (!containsMacro("sourcePath")) {
-      getSourcePath();
+      try {
+        getSourcePath();
+      } catch (IllegalArgumentException e) {
+        collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_SOURCE_PATH);
+      }
     }
     if (!containsMacro("destPath")) {
-      getDestPath();
+      try {
+        getDestPath();
+      } catch (IllegalArgumentException e) {
+        collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_DEST_PATH);
+      }
     }
+    collector.getOrThrowException();
   }
 }

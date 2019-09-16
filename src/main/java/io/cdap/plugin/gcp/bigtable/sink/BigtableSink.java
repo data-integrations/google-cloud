@@ -18,7 +18,6 @@ package io.cdap.plugin.gcp.bigtable.sink;
 
 import com.google.cloud.bigtable.hbase.BigtableConfiguration;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Sets;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
@@ -27,15 +26,15 @@ import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
 import io.cdap.cdap.etl.api.Emitter;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.StageConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
-import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
-import io.cdap.cdap.etl.api.validation.InvalidStageException;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.gcp.bigtable.common.HBaseColumn;
+import io.cdap.plugin.gcp.common.ConfigUtil;
 import io.cdap.plugin.gcp.common.SourceOutputFormatProvider;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HColumnDescriptor;
@@ -49,11 +48,10 @@ import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.mapreduce.TableOutputFormat;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -68,7 +66,6 @@ import java.util.stream.Collectors;
   "Cloud Bigtable is Google's NoSQL Big Data database service.")
 public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableBytesWritable, Mutation> {
   public static final String NAME = "Bigtable";
-  private static final Logger LOG = LoggerFactory.getLogger(BigtableSink.class);
 
   private static final Set<Schema.Type> SUPPORTED_FIELD_TYPES = ImmutableSet.of(
     Schema.Type.BOOLEAN,
@@ -91,10 +88,11 @@ public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableByt
   public void configurePipeline(PipelineConfigurer configurer) {
     super.configurePipeline(configurer);
     StageConfigurer stageConfigurer = configurer.getStageConfigurer();
-    config.validate(stageConfigurer.getFailureCollector());
+    FailureCollector collector = stageConfigurer.getFailureCollector();
+    config.validate(collector);
     Schema inputSchema = stageConfigurer.getInputSchema();
     if (inputSchema != null) {
-      validateInputSchema(inputSchema);
+      validateInputSchema(inputSchema, collector);
     }
     if (config.connectionParamsConfigured()) {
       Configuration conf = getConfiguration();
@@ -102,29 +100,37 @@ public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableByt
            Admin admin = connection.getAdmin()) {
         TableName tableName = TableName.valueOf(config.table);
         if (admin.tableExists(tableName)) {
-          validateExistingTable(connection, tableName);
+          validateExistingTable(connection, tableName, collector);
         }
       } catch (IOException e) {
-        throw new InvalidStageException("Failed to connect to Bigtable", e);
+        collector.addFailure(
+          String.format("Failed to connect to BigTable : %s", e.getMessage()), null)
+          .withConfigProperty(BigtableSinkConfig.BIGTABLE_OPTIONS)
+          .withStacktrace(e.getStackTrace());
       }
     }
   }
 
   @Override
   public void prepareRun(BatchSinkContext context) {
-    config.validate(context.getFailureCollector());
+    FailureCollector collector = context.getFailureCollector();
+    config.validate(collector);
     Configuration conf = getConfiguration();
     try (Connection connection = BigtableConfiguration.connect(conf);
          Admin admin = connection.getAdmin()) {
       TableName tableName = TableName.valueOf(config.table);
       if (admin.tableExists(tableName)) {
-        validateExistingTable(connection, tableName);
+        validateExistingTable(connection, tableName, collector);
       } else {
-        createTable(connection, tableName);
+        createTable(connection, tableName, collector);
       }
     } catch (IOException e) {
-      throw new InvalidStageException("Failed to connect to Bigtable", e);
+      collector.addFailure(
+        String.format("Failed to connect to Bigtable : %s", e.getMessage()), null)
+        .withConfigProperty(BigtableSinkConfig.BIGTABLE_OPTIONS)
+        .withStacktrace(e.getStackTrace());
     }
+    collector.getOrThrowException();
 
     // Both emitLineage and setOutputFormat internally try to create an external dataset if it does not already exists.
     // We call emitLineage before since it creates the dataset with schema.
@@ -135,7 +141,9 @@ public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableByt
   @Override
   public void initialize(BatchRuntimeContext context) throws Exception {
     super.initialize(context);
-    transformer = new RecordToHBaseMutationTransformer(config.keyAlias, config.getColumnMappings());
+    FailureCollector collector = context.getFailureCollector();
+    Map<String, HBaseColumn> columnMappings = config.getColumnMappings(collector);
+    transformer = new RecordToHBaseMutationTransformer(config.keyAlias, columnMappings);
   }
 
   @Override
@@ -152,36 +160,40 @@ public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableByt
     return conf;
   }
 
-  private void validateInputSchema(Schema inputSchema) {
+  private void validateInputSchema(Schema inputSchema, FailureCollector collector) {
     if (inputSchema.getField(config.keyAlias) == null) {
-      throw new InvalidConfigPropertyException(
+      collector.addFailure(
         String.format("Field '%s' declared as key alias does not exist in input schema", config.keyAlias),
-        BigtableSinkConfig.KEY_ALIAS
-      );
+        "Specify input field name as key alias.").withConfigProperty(BigtableSinkConfig.KEY_ALIAS);
     }
     List<Schema.Field> fields = inputSchema.getFields();
     if (fields == null || fields.isEmpty()) {
-      throw new InvalidStageException("Input schema should contain fields");
+      collector.addFailure("Input schema must contain fields.", null);
+      throw collector.getOrThrowException();
     }
     for (Schema.Field field : fields) {
-      Schema.Type fieldType = field.getSchema().isNullable() ?
-        field.getSchema().getNonNullable().getType() : field.getSchema().getType();
-      if (!SUPPORTED_FIELD_TYPES.contains(field.getSchema().getType())) {
+      Schema nonNullableSchema = field.getSchema().isNullable() ?
+        field.getSchema().getNonNullable() : field.getSchema();
+      if (!SUPPORTED_FIELD_TYPES.contains(nonNullableSchema.getType()) ||
+        nonNullableSchema.getLogicalType() != null) {
+
         String supportedTypes = SUPPORTED_FIELD_TYPES.stream()
           .map(Enum::name)
           .map(String::toLowerCase)
           .collect(Collectors.joining(", "));
-        String errorMessage = String.format("Field '%s' is of unsupported type '%s'. Supported types are: %s.",
-                                            field.getName(), fieldType, supportedTypes);
-        throw new InvalidStageException(errorMessage);
+
+        String errorMessage = String.format("Field '%s' is of unsupported type '%s'.",
+                                            field.getName(), nonNullableSchema.getDisplayName());
+        collector.addFailure(errorMessage, String.format("Supported types are: %s.", supportedTypes))
+          .withInputSchemaField(field.getName());
       }
     }
   }
 
-  private void createTable(Connection connection, TableName tableName) {
+  private void createTable(Connection connection, TableName tableName, FailureCollector collector) {
     try (Admin admin = connection.getAdmin()) {
       HTableDescriptor tableDescriptor = new HTableDescriptor(tableName);
-      config.getColumnMappings()
+      config.getColumnMappings(collector)
         .values()
         .stream()
         .map(HBaseColumn::getFamily)
@@ -190,32 +202,34 @@ public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableByt
         .forEach(tableDescriptor::addFamily);
       admin.createTable(tableDescriptor);
     } catch (IOException e) {
-      throw new InvalidStageException(String.format("Failed to create table '%s' in Bigtable", tableName), e);
+      collector.addFailure(
+        String.format("Failed to create table '%s' in Bigtable : %s", tableName, e.getMessage()), null)
+        .withConfigProperty(BigtableSinkConfig.TABLE)
+        .withStacktrace(e.getStackTrace());
     }
   }
 
-  private void validateExistingTable(Connection connection, TableName tableName) {
+  private void validateExistingTable(Connection connection, TableName tableName, FailureCollector collector) {
     try (Table table = connection.getTable(tableName)) {
-      Set<String> requiredFamilies = config.getColumnMappings()
-        .values()
-        .stream()
-        .map(HBaseColumn::getFamily)
-        .collect(Collectors.toSet());
       Set<String> existingFamilies = table.getTableDescriptor()
         .getFamiliesKeys()
         .stream()
         .map(Bytes::toString)
         .collect(Collectors.toSet());
-      Sets.SetView<String> nonExistingFamilies = Sets.difference(requiredFamilies, existingFamilies);
-      if (!nonExistingFamilies.isEmpty()) {
-        String nonExistingFamiliesString = String.join(", ", nonExistingFamilies);
-        throw new InvalidConfigPropertyException(
-          String.format("Some column families are absent in target table: %s", nonExistingFamiliesString),
-          BigtableSinkConfig.COLUMN_MAPPINGS
-        );
+
+      for (Map.Entry<String, HBaseColumn> entry : config.getColumnMappings(collector).entrySet()) {
+        String family = entry.getValue().getFamily();
+        if (!existingFamilies.contains(family)) {
+          collector.addFailure(
+            String.format("Column family '%s' does not exist in target table '%s'.", family, config.table),
+            String.format("Remove column family %s.", family))
+            .withConfigElement(BigtableSinkConfig.COLUMN_MAPPINGS,
+                               ConfigUtil.getKVPair(entry.getKey(), entry.getValue().getQualifiedName(), "="));
+        }
       }
     } catch (IOException e) {
-      throw new InvalidStageException("Failed to connect to Bigtable", e);
+      collector.addFailure(String.format("Failed to connect to Bigtable : %s", e.getMessage()), null)
+        .withStacktrace(e.getStackTrace());
     }
   }
 

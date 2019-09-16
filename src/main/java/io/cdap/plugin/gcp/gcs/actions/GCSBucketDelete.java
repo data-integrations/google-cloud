@@ -20,6 +20,7 @@ import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.action.Action;
 import io.cdap.cdap.etl.api.action.ActionContext;
@@ -51,12 +52,13 @@ public final class GCSBucketDelete extends Action {
 
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
-    config.validate();
+    config.validate(pipelineConfigurer.getStageConfigurer().getFailureCollector());
   }
 
   @Override
   public void run(ActionContext context) throws Exception {
-    config.validate();
+    config.validate(context.getFailureCollector());
+
     Configuration configuration = new Configuration();
     String serviceAccountFilePath = config.getServiceAccountFilePath();
     if (serviceAccountFilePath != null) {
@@ -102,7 +104,9 @@ public final class GCSBucketDelete extends Action {
    * Config for the plugin.
    */
   public static final class Config extends GCPConfig {
-    @Name("paths")
+    public static final String NAME_PATHS = "paths";
+
+    @Name(NAME_PATHS)
     @Description("Comma separated list of objects to be deleted.")
     @Macro
     private String paths;
@@ -111,11 +115,16 @@ public final class GCSBucketDelete extends Action {
       return Arrays.stream(paths.split(",")).map(String::trim).collect(Collectors.toList());
     }
 
-    void validate() {
-      if (!containsMacro("paths")) {
+    void validate(FailureCollector collector) {
+      if (!containsMacro(NAME_PATHS)) {
         for (String path : getPaths()) {
-          GCSPath.from(path);
+          try {
+            GCSPath.from(path);
+          } catch (IllegalArgumentException e) {
+            collector.addFailure(e.getMessage(), null).withConfigElement(NAME_PATHS, path);
+          }
         }
+        collector.getOrThrowException();
       }
     }
   }

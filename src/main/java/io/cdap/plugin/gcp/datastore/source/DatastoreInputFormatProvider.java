@@ -29,15 +29,16 @@ public class DatastoreInputFormatProvider implements InputFormatProvider {
 
   private final Map<String, String> configMap;
 
-  public DatastoreInputFormatProvider(DatastoreSourceConfig config) {
+  public DatastoreInputFormatProvider(String project, String serviceAccountPath, String namespace, String kind,
+                                      String query, String spits) {
     ImmutableMap.Builder<String, String> builder = new ImmutableMap.Builder<String, String>()
-      .put(DatastoreSourceConstants.CONFIG_PROJECT, config.getProject())
-      .put(DatastoreSourceConstants.CONFIG_NAMESPACE, config.getNamespace())
-      .put(DatastoreSourceConstants.CONFIG_KIND, config.getKind())
-      .put(DatastoreSourceConstants.CONFIG_QUERY, config.constructPbQuery().toString())
-      .put(DatastoreSourceConstants.CONFIG_NUM_SPLITS, String.valueOf(config.getNumSplits()));
-    if (Objects.nonNull(config.getServiceAccountFilePath())) {
-      builder.put(DatastoreSourceConstants.CONFIG_SERVICE_ACCOUNT_FILE_PATH, config.getServiceAccountFilePath());
+      .put(DatastoreSourceConstants.CONFIG_PROJECT, project)
+      .put(DatastoreSourceConstants.CONFIG_NAMESPACE, namespace)
+      .put(DatastoreSourceConstants.CONFIG_KIND, kind)
+      .put(DatastoreSourceConstants.CONFIG_QUERY, query)
+      .put(DatastoreSourceConstants.CONFIG_NUM_SPLITS, spits);
+    if (Objects.nonNull(serviceAccountPath)) {
+      builder.put(DatastoreSourceConstants.CONFIG_SERVICE_ACCOUNT_FILE_PATH, serviceAccountPath);
     }
     this.configMap = builder.build();
   }

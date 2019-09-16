@@ -62,7 +62,8 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     super.configurePipeline(pipelineConfigurer);
-    config.validate();
+    FailureCollector collector = pipelineConfigurer.getStageConfigurer().getFailureCollector();
+    config.validate(collector);
   }
 
   @Override
@@ -179,7 +180,7 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
 
     @Override
     public void validate() {
-      // TODO (vinisha) this is just for compilation. Remove after adding failure collector to format plugins
+      // TODO: CDAP-15900 this is just for compilation. Remove after adding failure collector to format plugins
     }
 
     @Override

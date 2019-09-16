@@ -126,7 +126,7 @@ public class SpannerSinkConfig extends GCPReferenceSinkConfig {
       for (String key : splitted) {
         if (schema.getField(key.trim()) == null) {
           collector.addFailure(String.format("Primary key field '%s' does not exist in the schema.", key),
-                               "Change the primary key field to be one of the schema fields.")
+                               "Change the Primary key field to be one of the schema fields.")
             .withConfigElement(NAME_KEYS, key);
         }
       }

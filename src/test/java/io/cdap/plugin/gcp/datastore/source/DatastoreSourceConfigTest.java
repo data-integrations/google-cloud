@@ -24,7 +24,9 @@ import com.google.datastore.v1.Query;
 import com.google.datastore.v1.Value;
 import com.google.datastore.v1.client.DatastoreHelper;
 import io.cdap.cdap.api.data.schema.Schema;
-import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
+import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.cdap.etl.api.validation.CauseAttributes;
+import io.cdap.cdap.etl.api.validation.ValidationException;
 import io.cdap.cdap.etl.mock.validation.MockFailureCollector;
 import io.cdap.plugin.gcp.datastore.source.util.DatastoreSourceConstants;
 import io.cdap.plugin.gcp.datastore.source.util.SourceKeyType;
@@ -83,7 +85,9 @@ public class DatastoreSourceConfigTest {
       .setAncestor(null)
       .build();
 
-    Assert.assertEquals(Collections.emptyList(), config.getAncestor());
+    MockFailureCollector collector = new MockFailureCollector();
+    Assert.assertEquals(Collections.emptyList(), config.getAncestor(collector));
+    Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
   @Test
@@ -92,7 +96,9 @@ public class DatastoreSourceConfigTest {
       .setAncestor("")
       .build();
 
-    Assert.assertEquals(Collections.emptyList(), config.getAncestor());
+    MockFailureCollector collector = new MockFailureCollector();
+    Assert.assertEquals(Collections.emptyList(), config.getAncestor(collector));
+    Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
   @Test
@@ -106,7 +112,9 @@ public class DatastoreSourceConfigTest {
                                                        PathElement.of("B", "bId"),
                                                        PathElement.of("C C C", 123));
 
-    Assert.assertEquals(expectedAncestor, config.getAncestor());
+    MockFailureCollector collector = new MockFailureCollector();
+    Assert.assertEquals(expectedAncestor, config.getAncestor(collector));
+    Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
   @Test
@@ -147,7 +155,9 @@ public class DatastoreSourceConfigTest {
       .setKeyType(SourceKeyType.NONE.getValue())
       .build();
 
-    Assert.assertEquals(SourceKeyType.NONE, config.getKeyType());
+    MockFailureCollector collector = new MockFailureCollector();
+    Assert.assertEquals(SourceKeyType.NONE, config.getKeyType(collector));
+    Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
   @Test
@@ -156,7 +166,9 @@ public class DatastoreSourceConfigTest {
       .setKeyType(SourceKeyType.KEY_LITERAL.getValue())
       .build();
 
-    Assert.assertEquals(SourceKeyType.KEY_LITERAL, config.getKeyType());
+    MockFailureCollector collector = new MockFailureCollector();
+    Assert.assertEquals(SourceKeyType.KEY_LITERAL, config.getKeyType(collector));
+    Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
   @Test
@@ -165,7 +177,9 @@ public class DatastoreSourceConfigTest {
       .setKeyType(SourceKeyType.URL_SAFE_KEY.getValue())
       .build();
 
-    Assert.assertEquals(SourceKeyType.URL_SAFE_KEY, config.getKeyType());
+    MockFailureCollector collector = new MockFailureCollector();
+    Assert.assertEquals(SourceKeyType.URL_SAFE_KEY, config.getKeyType(collector));
+    Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
   @Test
@@ -175,11 +189,13 @@ public class DatastoreSourceConfigTest {
       .setKeyType(keyType)
       .build();
 
+    MockFailureCollector collector = new MockFailureCollector();
     try {
-      config.getKeyType();
-      Assert.fail("Invalid config should have thrown exception");
-    } catch (InvalidConfigPropertyException e) {
-      Assert.assertEquals(DatastoreSourceConstants.PROPERTY_KEY_TYPE, e.getProperty());
+      config.getKeyType(collector);
+    } catch (ValidationException e) {
+      Assert.assertEquals(1, e.getFailures().size());
+      Assert.assertEquals(DatastoreSourceConstants.PROPERTY_KEY_TYPE, e.getFailures().get(0)
+        .getCauses().get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
     }
   }
 
@@ -189,7 +205,9 @@ public class DatastoreSourceConfigTest {
       .setKeyType(SourceKeyType.NONE.getValue())
       .build();
 
-    Assert.assertFalse(config.isIncludeKey());
+    MockFailureCollector collector = new MockFailureCollector();
+    Assert.assertFalse(config.isIncludeKey(collector));
+    Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
   @Test
@@ -198,7 +216,9 @@ public class DatastoreSourceConfigTest {
       .setKeyType(SourceKeyType.KEY_LITERAL.getValue())
       .build();
 
-    Assert.assertTrue(config.isIncludeKey());
+    MockFailureCollector collector = new MockFailureCollector();
+    Assert.assertTrue(config.isIncludeKey(collector));
+    Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
   @Test
@@ -207,71 +227,77 @@ public class DatastoreSourceConfigTest {
       .setKeyType(SourceKeyType.URL_SAFE_KEY.getValue())
       .build();
 
-    Assert.assertTrue(config.isIncludeKey());
+    MockFailureCollector collector = new MockFailureCollector();
+    Assert.assertTrue(config.isIncludeKey(collector));
+    Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
   @Test
   public void testValidateKindNull() {
+    MockFailureCollector collector = new MockFailureCollector();
     DatastoreSourceConfig config = withDatastoreValidationMock(DatastoreSourceConfigHelper.newConfigBuilder()
       .setKind(null)
-      .build());
+      .build(), collector);
 
-    try {
-      config.validate(new MockFailureCollector("stage"));
-      Assert.fail("Invalid config should have thrown exception");
-    } catch (InvalidConfigPropertyException e) {
-      Assert.assertEquals(DatastoreSourceConstants.PROPERTY_KIND, e.getProperty());
-    }
+    config.validate(collector);
+    Assert.assertEquals(1, collector.getValidationFailures().size());
+    Assert.assertEquals(DatastoreSourceConstants.PROPERTY_KIND, collector.getValidationFailures().get(0)
+      .getCauses().get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
   }
 
   @Test
   public void testValidateKindEmpty() {
+    MockFailureCollector collector = new MockFailureCollector();
     DatastoreSourceConfig config = withDatastoreValidationMock(DatastoreSourceConfigHelper.newConfigBuilder()
       .setKind("")
-      .build());
+      .build(), collector);
 
-    try {
-      config.validate(new MockFailureCollector("stage"));
-      Assert.fail("Invalid config should have thrown exception");
-    } catch (InvalidConfigPropertyException e) {
-      Assert.assertEquals(DatastoreSourceConstants.PROPERTY_KIND, e.getProperty());
-    }
+    config.validate(collector);
+    Assert.assertEquals(1, collector.getValidationFailures().size());
+    Assert.assertEquals(DatastoreSourceConstants.PROPERTY_KIND, collector.getValidationFailures().get(0)
+      .getCauses().get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
   }
 
   @Test
   public void testValidateKindNotEmpty() {
     Schema schema = Schema.recordOf("record", Schema.Field.of("id", Schema.of(Schema.Type.LONG)));
 
+    MockFailureCollector collector = new MockFailureCollector();
     DatastoreSourceConfig config = withDatastoreValidationMock(DatastoreSourceConfigHelper.newConfigBuilder()
       .setSchema(schema.toString())
       .setKind(DatastoreSourceConfigHelper.TEST_KIND)
-      .build());
+      .build(), collector);
 
-    config.validate(new MockFailureCollector("stage"));
+    config.validate(collector);
+    Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
   @Test
   public void testValidateAncestorNull() {
     Schema schema = Schema.recordOf("record", Schema.Field.of("id", Schema.of(Schema.Type.LONG)));
 
+    MockFailureCollector collector = new MockFailureCollector();
     DatastoreSourceConfig config = withDatastoreValidationMock(DatastoreSourceConfigHelper.newConfigBuilder()
       .setSchema(schema.toString())
       .setAncestor(null)
-      .build());
+      .build(), collector);
 
-    config.validate(new MockFailureCollector("stage"));
+    config.validate(collector);
+    Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
   @Test
   public void testValidateAncestorEmpty() {
     Schema schema = Schema.recordOf("record", Schema.Field.of("id", Schema.of(Schema.Type.LONG)));
 
+    MockFailureCollector collector = new MockFailureCollector();
     DatastoreSourceConfig config = withDatastoreValidationMock(DatastoreSourceConfigHelper.newConfigBuilder()
       .setSchema(schema.toString())
       .setAncestor("")
-      .build());
+      .build(), collector);
 
-    config.validate(new MockFailureCollector("stage"));
+    config.validate(collector);
+    Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
   @Test
@@ -279,12 +305,14 @@ public class DatastoreSourceConfigTest {
     Schema schema = Schema.recordOf("record", Schema.Field.of("id", Schema.of(Schema.Type.LONG)));
     String ancestor = "Key(A,100,B,'bId',`C C C`, 123)";
 
+    MockFailureCollector collector = new MockFailureCollector();
     DatastoreSourceConfig config = withDatastoreValidationMock(DatastoreSourceConfigHelper.newConfigBuilder()
       .setSchema(schema.toString())
       .setAncestor(ancestor)
-      .build());
+      .build(), collector);
 
-    config.validate(new MockFailureCollector("stage"));
+    config.validate(collector);
+    Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
   @Test
@@ -293,18 +321,17 @@ public class DatastoreSourceConfigTest {
       Schema.Field.of("id", Schema.of(Schema.Type.LONG)),
       Schema.Field.of("name", Schema.of(Schema.Type.STRING)));
 
+    MockFailureCollector collector = new MockFailureCollector();
     DatastoreSourceConfig config = withDatastoreValidationMock(DatastoreSourceConfigHelper.newConfigBuilder()
       .setSchema(schema.toString())
       .setKeyType(SourceKeyType.NONE.getValue())
       .setNumSplits(0)
-      .build());
+      .build(), collector);
 
-    try {
-      config.validate(new MockFailureCollector("stage"));
-      Assert.fail("Invalid config should have thrown exception");
-    } catch (InvalidConfigPropertyException e) {
-      Assert.assertEquals(DatastoreSourceConstants.PROPERTY_NUM_SPLITS, e.getProperty());
-    }
+    config.validate(collector);
+    Assert.assertEquals(1, collector.getValidationFailures().size());
+    Assert.assertEquals(DatastoreSourceConstants.PROPERTY_NUM_SPLITS, collector.getValidationFailures().get(0)
+      .getCauses().get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
   }
 
   @Test
@@ -313,13 +340,15 @@ public class DatastoreSourceConfigTest {
       Schema.Field.of("id", Schema.of(Schema.Type.LONG)),
       Schema.Field.of("name", Schema.of(Schema.Type.STRING)));
 
+    MockFailureCollector collector = new MockFailureCollector();
     DatastoreSourceConfig config = withDatastoreValidationMock(DatastoreSourceConfigHelper.newConfigBuilder()
       .setSchema(schema.toString())
       .setKeyType(SourceKeyType.NONE.getValue())
       .setNumSplits(1)
-      .build());
+      .build(), collector);
 
-    config.validate(new MockFailureCollector("stage"));
+    config.validate(collector);
+    Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
   @Test
@@ -336,49 +365,52 @@ public class DatastoreSourceConfigTest {
         Schema.Field.of("record_string_field", Schema.nullableOf(Schema.of(Schema.Type.STRING))),
         Schema.Field.of("record_long_field", Schema.of(Schema.Type.LONG))))
     );
+    MockFailureCollector collector = new MockFailureCollector();
     DatastoreSourceConfig config = withDatastoreValidationMock(DatastoreSourceConfigHelper.newConfigBuilder()
       .setSchema(schema.toString())
       .setKeyType(SourceKeyType.NONE.getValue())
       .setNumSplits(1)
-      .build());
+      .build(), collector);
 
-    config.validate(new MockFailureCollector("stage"));
+    config.validate(collector);
+    Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
   @Test
   public void testValidateConfigSchemaInvalidType() {
     Schema schema = Schema.recordOf("record",
-      Schema.Field.of("id", Schema.of(Schema.Type.INT)),
-      Schema.Field.of("name", Schema.of(Schema.Type.STRING)));
+                                    Schema.Field.of("id", Schema.of(Schema.Type.INT)),
+                                    Schema.Field.of("name", Schema.of(Schema.Type.STRING)));
 
+    MockFailureCollector collector = new MockFailureCollector();
     DatastoreSourceConfig config = withDatastoreValidationMock(DatastoreSourceConfigHelper.newConfigBuilder()
-      .setSchema(schema.toString())
-      .setKeyType(SourceKeyType.NONE.getValue())
-      .setNumSplits(1)
-      .build());
+                                                                 .setSchema(schema.toString())
+                                                                 .setKeyType(SourceKeyType.NONE.getValue())
+                                                                 .setNumSplits(1)
+                                                                 .build(), collector);
 
-    try {
-      config.validate(new MockFailureCollector("stage"));
-      Assert.fail("Invalid config should have thrown exception");
-    } catch (InvalidConfigPropertyException e) {
-      Assert.assertEquals(DatastoreSourceConstants.PROPERTY_SCHEMA, e.getProperty());
-    }
+    config.validate(collector);
+    Assert.assertEquals(1, collector.getValidationFailures().size());
+    Assert.assertEquals("id", collector.getValidationFailures().get(0).getCauses().get(0)
+      .getAttribute(CauseAttributes.OUTPUT_SCHEMA_FIELD));
   }
 
   @Test
   public void testValidateConfigSchemaInvalidJson() {
     String schema = "{type: int}";
+    MockFailureCollector collector = new MockFailureCollector();
     DatastoreSourceConfig config = withDatastoreValidationMock(DatastoreSourceConfigHelper.newConfigBuilder()
-      .setSchema(schema)
-      .setKeyType(SourceKeyType.NONE.getValue())
-      .setNumSplits(1)
-      .build());
+                                                                 .setSchema(schema)
+                                                                 .setKeyType(SourceKeyType.NONE.getValue())
+                                                                 .setNumSplits(1)
+                                                                 .build(), collector);
 
     try {
-      config.validate(new MockFailureCollector("stage"));
-      Assert.fail("Invalid config should have thrown exception");
-    } catch (InvalidConfigPropertyException e) {
-      Assert.assertEquals(DatastoreSourceConstants.PROPERTY_SCHEMA, e.getProperty());
+      config.validate(collector);
+    } catch (ValidationException e) {
+      Assert.assertEquals(1, e.getFailures().size());
+      Assert.assertEquals(DatastoreSourceConstants.PROPERTY_SCHEMA, e.getFailures().get(0).getCauses().get(0)
+        .getAttribute(CauseAttributes.STAGE_CONFIG));
     }
   }
 
@@ -388,33 +420,36 @@ public class DatastoreSourceConfigTest {
       Schema.Field.of("id", Schema.of(Schema.Type.LONG)),
       Schema.Field.of("name", Schema.of(Schema.Type.STRING)));
 
+    MockFailureCollector collector = new MockFailureCollector();
     DatastoreSourceConfig config = withDatastoreValidationMock(DatastoreSourceConfigHelper.newConfigBuilder()
       .setSchema(schema.toString())
       .setKeyType(SourceKeyType.NONE.getValue())
       .setNumSplits(1)
       .setFilters("name|abc")
-      .build());
+      .build(), collector);
 
-    config.validate(new MockFailureCollector("stage"));
+    config.validate(collector);
+    Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
   @Test
   public void testValidateConfigFiltersInvalidString() {
     Schema schema = Schema.recordOf("record",
-      Schema.Field.of("id", Schema.of(Schema.Type.LONG)),
-      Schema.Field.of("name", Schema.of(Schema.Type.STRING)));
+                                    Schema.Field.of("id", Schema.of(Schema.Type.LONG)),
+                                    Schema.Field.of("name", Schema.of(Schema.Type.STRING)));
 
+    MockFailureCollector collector = new MockFailureCollector();
     DatastoreSourceConfig config = withDatastoreValidationMock(DatastoreSourceConfigHelper.newConfigBuilder()
-      .setSchema(schema.toString())
-      .setKeyType(SourceKeyType.NONE.getValue())
-      .setNumSplits(1)
-      .setFilters("name:abc;id:1")
-      .build());
+                                                                 .setSchema(schema.toString())
+                                                                 .setKeyType(SourceKeyType.NONE.getValue())
+                                                                 .setNumSplits(1)
+                                                                 .setFilters("name:abc;id:1")
+                                                                 .build(), collector);
 
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Invalid syntax for key-value pair in list");
-
-    config.validate(new MockFailureCollector("stage"));
+    config.validate(collector);
+    Assert.assertEquals(1, collector.getValidationFailures().size());
+    Assert.assertEquals(DatastoreSourceConstants.PROPERTY_FILTERS, collector.getValidationFailures().get(0)
+      .getCauses().get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
   }
 
   @Test
@@ -423,19 +458,18 @@ public class DatastoreSourceConfigTest {
       Schema.Field.of("id", Schema.of(Schema.Type.LONG)),
       Schema.Field.of("name", Schema.of(Schema.Type.STRING)));
 
+    MockFailureCollector collector = new MockFailureCollector();
     DatastoreSourceConfig config = withDatastoreValidationMock(DatastoreSourceConfigHelper.newConfigBuilder()
       .setSchema(schema.toString())
       .setKeyType(SourceKeyType.NONE.getValue())
       .setNumSplits(1)
       .setFilters("name|abc;type|none")
-      .build());
+      .build(), collector);
 
-    try {
-      config.validate(new MockFailureCollector("stage"));
-      Assert.fail("Invalid config should have thrown exception");
-    } catch (InvalidConfigPropertyException e) {
-      Assert.assertEquals(DatastoreSourceConstants.PROPERTY_FILTERS, e.getProperty());
-    }
+    config.validate(collector);
+    Assert.assertEquals(1, collector.getValidationFailures().size());
+    Assert.assertEquals(DatastoreSourceConstants.PROPERTY_FILTERS, collector.getValidationFailures().get(0)
+      .getCauses().get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
   }
 
   @Test
@@ -444,13 +478,15 @@ public class DatastoreSourceConfigTest {
        Schema.Field.of("id", Schema.of(Schema.Type.LONG)),
        Schema.Field.of("name", Schema.of(Schema.Type.STRING)));
 
+    MockFailureCollector collector = new MockFailureCollector();
     DatastoreSourceConfig config = withDatastoreValidationMock(DatastoreSourceConfigHelper.newConfigBuilder()
       .setSchema(schema.toString())
       .setKeyType(SourceKeyType.NONE.getValue())
       .setNumSplits(1)
-      .build());
+      .build(), collector);
 
-    config.validate(new MockFailureCollector("stage"));
+    config.validate(collector);
+    Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
   @Test
@@ -459,13 +495,15 @@ public class DatastoreSourceConfigTest {
       Schema.Field.of("name", Schema.of(Schema.Type.STRING)),
       Schema.Field.of(DatastoreHelper.KEY_PROPERTY_NAME, Schema.of(Schema.Type.STRING)));
 
+    MockFailureCollector collector = new MockFailureCollector();
     DatastoreSourceConfig config = withDatastoreValidationMock(DatastoreSourceConfigHelper.newConfigBuilder()
       .setSchema(schema.toString())
       .setKeyType(SourceKeyType.KEY_LITERAL.getValue())
       .setNumSplits(1)
-      .build());
+      .build(), collector);
 
-    config.validate(new MockFailureCollector("stage"));
+    config.validate(collector);
+    Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
   @Test
@@ -474,13 +512,15 @@ public class DatastoreSourceConfigTest {
       Schema.Field.of("name", Schema.of(Schema.Type.STRING)),
       Schema.Field.of(DatastoreHelper.KEY_PROPERTY_NAME, Schema.of(Schema.Type.STRING)));
 
+    MockFailureCollector collector = new MockFailureCollector();
     DatastoreSourceConfig config = withDatastoreValidationMock(DatastoreSourceConfigHelper.newConfigBuilder()
       .setSchema(schema.toString())
       .setKeyType(SourceKeyType.URL_SAFE_KEY.getValue())
       .setNumSplits(1)
-      .build());
+      .build(), collector);
 
-    config.validate(new MockFailureCollector("stage"));
+    config.validate(collector);
+    Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
   @Test
@@ -488,38 +528,36 @@ public class DatastoreSourceConfigTest {
     Schema schema = Schema.recordOf("record",
       Schema.Field.of("name", Schema.of(Schema.Type.STRING)));
 
+    MockFailureCollector collector = new MockFailureCollector();
     DatastoreSourceConfig config = withDatastoreValidationMock(DatastoreSourceConfigHelper.newConfigBuilder()
       .setSchema(schema.toString())
       .setKeyType(SourceKeyType.KEY_LITERAL.getValue())
       .setNumSplits(1)
-      .build());
+      .build(), collector);
 
-    try {
-      config.validate(new MockFailureCollector("stage"));
-      Assert.fail("Invalid config should have thrown exception");
-    } catch (InvalidConfigPropertyException e) {
-      Assert.assertEquals(DatastoreSourceConstants.PROPERTY_KEY_ALIAS, e.getProperty());
-    }
+    config.validate(collector);
+    Assert.assertEquals(1, collector.getValidationFailures().size());
+    Assert.assertEquals(DatastoreSourceConstants.PROPERTY_KEY_ALIAS, collector.getValidationFailures().get(0)
+      .getCauses().get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
   }
 
   @Test
   public void testValidateConfigKeyInvalidType() {
     Schema schema = Schema.recordOf("record",
-      Schema.Field.of("name", Schema.of(Schema.Type.STRING)),
-      Schema.Field.of(DatastoreHelper.KEY_PROPERTY_NAME, Schema.of(Schema.Type.LONG)));
+                                    Schema.Field.of("name", Schema.of(Schema.Type.STRING)),
+                                    Schema.Field.of(DatastoreHelper.KEY_PROPERTY_NAME, Schema.of(Schema.Type.LONG)));
 
+    MockFailureCollector collector = new MockFailureCollector();
     DatastoreSourceConfig config = withDatastoreValidationMock(DatastoreSourceConfigHelper.newConfigBuilder()
-      .setSchema(schema.toString())
-      .setKeyType(SourceKeyType.KEY_LITERAL.getValue())
-      .setNumSplits(1)
-      .build());
+                                                                 .setSchema(schema.toString())
+                                                                 .setKeyType(SourceKeyType.KEY_LITERAL.getValue())
+                                                                 .setNumSplits(1)
+                                                                 .build(), collector);
 
-    try {
-      config.validate(new MockFailureCollector("stage"));
-      Assert.fail("Invalid config should have thrown exception");
-    } catch (InvalidConfigPropertyException e) {
-      Assert.assertEquals(DatastoreSourceConstants.PROPERTY_KEY_ALIAS, e.getProperty());
-    }
+    config.validate(collector);
+    Assert.assertEquals(1, collector.getValidationFailures().size());
+    Assert.assertEquals(DatastoreSourceConstants.PROPERTY_KEY_ALIAS, collector.getValidationFailures().get(0)
+      .getCauses().get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
   }
 
   @Test
@@ -528,35 +566,36 @@ public class DatastoreSourceConfigTest {
       Schema.Field.of("name", Schema.of(Schema.Type.STRING)),
       Schema.Field.of(DatastoreHelper.KEY_PROPERTY_NAME, Schema.nullableOf(Schema.of(Schema.Type.STRING))));
 
+    MockFailureCollector collector = new MockFailureCollector();
     DatastoreSourceConfig config = withDatastoreValidationMock(DatastoreSourceConfigHelper.newConfigBuilder()
       .setSchema(schema.toString())
       .setKeyType(SourceKeyType.KEY_LITERAL.getValue())
       .setNumSplits(1)
-      .build());
+      .build(), collector);
 
-    try {
-      config.validate(new MockFailureCollector("stage"));
-      Assert.fail("Invalid config should have thrown exception");
-    } catch (InvalidConfigPropertyException e) {
-      Assert.assertEquals(DatastoreSourceConstants.PROPERTY_KEY_ALIAS, e.getProperty());
-    }
+    config.validate(collector);
+    Assert.assertEquals(1, collector.getValidationFailures().size());
+    Assert.assertEquals(DatastoreSourceConstants.PROPERTY_KEY_ALIAS, collector.getValidationFailures().get(0)
+      .getCauses().get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
   }
 
   @Test
   public void testValidateConfigValidKeyAlias() {
     String keyAlias = "key_alias";
     Schema schema = Schema.recordOf("record",
-      Schema.Field.of("name", Schema.of(Schema.Type.STRING)),
-      Schema.Field.of(keyAlias, Schema.of(Schema.Type.STRING)));
+                                    Schema.Field.of("name", Schema.of(Schema.Type.STRING)),
+                                    Schema.Field.of(keyAlias, Schema.of(Schema.Type.STRING)));
 
+    MockFailureCollector collector = new MockFailureCollector();
     DatastoreSourceConfig config = withDatastoreValidationMock(DatastoreSourceConfigHelper.newConfigBuilder()
-      .setSchema(schema.toString())
-      .setKeyType(SourceKeyType.KEY_LITERAL.getValue())
-      .setKeyAlias(keyAlias)
-      .setNumSplits(1)
-      .build());
+                                                                 .setSchema(schema.toString())
+                                                                 .setKeyType(SourceKeyType.KEY_LITERAL.getValue())
+                                                                 .setKeyAlias(keyAlias)
+                                                                 .setNumSplits(1)
+                                                                 .build(), collector);
 
-    config.validate(new MockFailureCollector("stage"));
+    config.validate(collector);
+    Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
   @Test
@@ -593,8 +632,10 @@ public class DatastoreSourceConfigTest {
       .setFilter(DatastoreHelper.makeAndFilter(idFilter, nameFilter, nullFilter, ancestorFilter))
       .build();
 
-    Query pbQuery = config.constructPbQuery();
+    MockFailureCollector collector = new MockFailureCollector();
+    Query pbQuery = config.constructPbQuery(collector);
     Assert.assertEquals(expectedPbQuery, pbQuery);
+    Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
   @Test
@@ -607,13 +648,15 @@ public class DatastoreSourceConfigTest {
       Schema.Field.of("complex_union",
        Schema.unionOf(Schema.of(Schema.Type.LONG), Schema.of(Schema.Type.STRING), Schema.of(Schema.Type.NULL))));
 
+    MockFailureCollector collector = new MockFailureCollector();
     DatastoreSourceConfig config = withDatastoreValidationMock(DatastoreSourceConfigHelper.newConfigBuilder()
       .setSchema(schema.toString())
       .setKeyType(SourceKeyType.NONE.getValue())
       .setNumSplits(1)
-      .build());
+      .build(), collector);
 
-    config.validate(new MockFailureCollector("stage"));
+    config.validate(collector);
+    Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
   @Test
@@ -622,21 +665,20 @@ public class DatastoreSourceConfigTest {
       Schema.Field.of("array_of_array",
        Schema.nullableOf(Schema.arrayOf(Schema.arrayOf(Schema.nullableOf(Schema.of(Schema.Type.STRING)))))));
 
+    MockFailureCollector collector = new MockFailureCollector();
     DatastoreSourceConfig config = withDatastoreValidationMock(DatastoreSourceConfigHelper.newConfigBuilder()
       .setSchema(schema.toString())
       .setKeyType(SourceKeyType.NONE.getValue())
       .setNumSplits(1)
-      .build());
+      .build(), collector);
 
-    thrown.expect(IllegalArgumentException.class);
-
-    config.validate(new MockFailureCollector("stage"));
+    config.validate(collector);
+    Assert.assertEquals(1, collector.getValidationFailures().size());
   }
 
-  private DatastoreSourceConfig withDatastoreValidationMock(DatastoreSourceConfig config) {
+  private DatastoreSourceConfig withDatastoreValidationMock(DatastoreSourceConfig config, FailureCollector collector) {
     DatastoreSourceConfig spy = Mockito.spy(config);
-    Mockito.doNothing().when(spy).validateDatastoreConnection();
+    Mockito.doNothing().when(spy).validateDatastoreConnection(collector);
     return spy;
   }
-
 }

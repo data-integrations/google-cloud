@@ -41,12 +41,13 @@ public class GCSCopy extends Action {
 
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
-    config.validate();
+    config.validate(pipelineConfigurer.getStageConfigurer().getFailureCollector());
   }
 
   @Override
   public void run(ActionContext context) throws IOException {
-    config.validate();
+    config.validate(context.getFailureCollector());
+
     StorageClient storageClient = StorageClient.create(config.getProject(), config.getServiceAccountFilePath());
     //noinspection ConstantConditions
     storageClient.copy(config.getSourcePath(), config.getDestPath(), config.recursive, config.shouldOverwrite());
