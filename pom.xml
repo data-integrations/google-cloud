@@ -20,7 +20,7 @@
 
   <groupId>io.cdap.plugin</groupId>
   <artifactId>google-cloud</artifactId>
-  <version>0.13.0-SNAPSHOT</version>
+  <version>0.14.0-SNAPSHOT</version>
   <name>Google Cloud Plugins</name>
   <packaging>jar</packaging>
   <description>Plugins for Google Big Query</description>
@@ -71,8 +71,8 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <avro.version>1.8.2</avro.version>
     <bigquery.connector.hadoop2.version>hadoop2-0.13.17</bigquery.connector.hadoop2.version>
-    <cdap.version>6.1.0-SNAPSHOT</cdap.version>
-    <cdap.plugin.version>2.3.0-SNAPSHOT</cdap.plugin.version>
+    <cdap.version>6.2.0-SNAPSHOT</cdap.version>
+    <cdap.plugin.version>2.4.0-SNAPSHOT</cdap.plugin.version>
     <dropwizard.metrics-core.version>3.2.6</dropwizard.metrics-core.version>
     <google.cloud.bigtable.version>1.11.0</google.cloud.bigtable.version>
     <google.cloud.bigquery.version>1.36.0</google.cloud.bigquery.version>
