@@ -22,6 +22,7 @@ import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
@@ -56,7 +57,6 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     super.configurePipeline(pipelineConfigurer);
-    config.validate();
   }
 
   @Override
@@ -74,8 +74,13 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
    */
   @SuppressWarnings("unused")
   public static class GCSBatchSinkConfig extends GCPReferenceSinkConfig implements FileSinkProperties {
+    private static final String NAME_PATH = "path";
+    private static final String NAME_SUFFIX = "suffix";
+    private static final String NAME_FORMAT = "format";
+    private static final String NAME_SCHEMA = "schema";
+
     private static final String SCHEME = "gs://";
-    @Name("path")
+    @Name(NAME_PATH)
     @Description("The path to write to. For example, gs://<bucket>/path/to/directory")
     @Macro
     private String path;
@@ -106,19 +111,41 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
 
     @Override
     public void validate() {
-      // TODO: CDAP-15900 add failure collector
-      super.validate(null);
+      // no-op
+    }
+
+    @Override
+    public void validate(FailureCollector collector) {
+      super.validate(collector);
       // validate that path is valid
-      if (!containsMacro("path")) {
-        GCSPath.from(path);
+      if (!containsMacro(NAME_PATH)) {
+        try {
+          GCSPath.from(path);
+        } catch (IllegalArgumentException e) {
+          collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_PATH).withStacktrace(e.getStackTrace());
+        }
       }
-      if (suffix != null && !containsMacro("suffix")) {
-        new SimpleDateFormat(suffix);
+      if (suffix != null && !containsMacro(NAME_SUFFIX)) {
+        try {
+          new SimpleDateFormat(suffix);
+        } catch (IllegalArgumentException e) {
+          collector.addFailure(String.format("Invalid suffix: %s", e.getMessage()), "Ensure provided suffix is valid.")
+            .withConfigProperty(NAME_SUFFIX).withStacktrace(e.getStackTrace());
+        }
       }
-      if (!containsMacro("format")) {
-        getFormat();
+      if (!containsMacro(NAME_FORMAT)) {
+        try {
+          getFormat();
+        } catch (IllegalArgumentException e) {
+          collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_FORMAT).withStacktrace(e.getStackTrace());
+        }
       }
-      getSchema();
+
+      try {
+        getSchema();
+      } catch (IllegalArgumentException e) {
+        collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_SCHEMA).withStacktrace(e.getStackTrace());
+      }
     }
 
     @Override
@@ -140,7 +167,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
       try {
         return Schema.parseJson(schema);
       } catch (IOException e) {
-        throw new IllegalArgumentException("Unable to parse schema: " + e.getMessage(), e);
+        throw new IllegalArgumentException("Invalid schema: " + e.getMessage(), e);
       }
     }
 

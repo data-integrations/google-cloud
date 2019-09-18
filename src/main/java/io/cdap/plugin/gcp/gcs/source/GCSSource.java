@@ -62,8 +62,6 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     super.configurePipeline(pipelineConfigurer);
-    FailureCollector collector = pipelineConfigurer.getStageConfigurer().getFailureCollector();
-    config.validate(collector);
   }
 
   @Override
@@ -97,6 +95,10 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
    */
   @SuppressWarnings("ConstantConditions")
   public static class GCSSourceConfig extends GCPReferenceSourceConfig implements FileSourceProperties {
+    private static final String NAME_PATH = "path";
+    private static final String NAME_FILE_SYSTEM_PROPERTIES = "fileSystemProperties";
+    private static final String NAME_FILE_REGEX = "fileRegex";
+
     private static final Gson GSON = new Gson();
     private static final Type MAP_STRING_STRING_TYPE = new TypeToken<Map<String, String>>() { }.getType();
 
@@ -169,18 +171,33 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
       this.copyHeader = false;
     }
 
+    @Override
+    public void validate() {
+      // no-op
+    }
+
     public void validate(FailureCollector collector) {
       super.validate(collector);
       // validate that path is valid
-      if (!containsMacro("path")) {
-        GCSPath.from(path);
+      if (!containsMacro(NAME_PATH)) {
+        try {
+          GCSPath.from(path);
+        } catch (IllegalArgumentException e) {
+          collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_PATH).withStacktrace(e.getStackTrace());
+        }
       }
-      getFileSystemProperties();
-    }
-
-    @Override
-    public void validate() {
-      // TODO: CDAP-15900 this is just for compilation. Remove after adding failure collector to format plugins
+      try {
+        getFileSystemProperties();
+      } catch (Exception e) {
+        collector.addFailure(e.getMessage(), "Ensure file properties are provided as valid json.")
+          .withConfigProperty(NAME_FILE_SYSTEM_PROPERTIES).withStacktrace(e.getStackTrace());
+      }
+      try {
+        getFilePattern();
+      } catch (IllegalArgumentException e) {
+        collector.addFailure(e.getMessage(), "Ensure regular expression is valid.")
+          .withConfigProperty(NAME_FILE_REGEX).withStacktrace(e.getStackTrace());
+      }
     }
 
     @Override
