@@ -79,6 +79,10 @@ public final class BigQuerySink extends AbstractBigQuerySink {
     Schema configuredSchema = config.getSchema(collector);
 
     config.validate(inputSchema, configuredSchema, collector);
+
+    if (config.tryGetProject() == null || config.autoServiceAccountUnavailable()) {
+      return;
+    }
     // validate schema with underlying table
     Schema schema = configuredSchema == null ? inputSchema : configuredSchema;
     validateConfiguredSchema(schema, collector);
