@@ -39,6 +39,7 @@ import io.cdap.cdap.etl.api.Transform;
 import io.cdap.cdap.etl.api.TransformContext;
 import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
+import scala.annotation.meta.field;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -347,23 +348,26 @@ public class SpeechToTextTransform extends Transform<StructuredRecord, Structure
         // If a inputSchema and audioField is available then verify that the schema does contain the given audioField
         // and that the type is byte array. This will allow to fail fast i.e. during deployment time.
         String audioFieldName = getAudioField();
-        Schema.Field field = inputSchema.getField(audioFieldName);
-        if (audioFieldName != null && field == null) {
-          collector.addFailure(String.format("Field '%s' does not exist in the input schema.", audioFieldName),
-                               "Change audio field to be one of the schema fields.")
-            .withConfigProperty(NAME_AUDIOFIELD);
-        } else {
-          Schema fieldSchema = field.getSchema();
-          fieldSchema = fieldSchema.isNullable() ? fieldSchema.getNonNullable() : fieldSchema;
-          if (fieldSchema.getLogicalType() != null || fieldSchema.getType() != Schema.Type.BYTES) {
-            collector.addFailure(
-              String.format("Field '%s' is of unsupported type '%s'.",
-                            audioFieldName, fieldSchema.getDisplayName()), "Ensure it is of type 'bytes'.")
-              .withConfigProperty(NAME_AUDIOFIELD).withInputSchemaField(audioFieldName);
+        if (audioFieldName != null) {
+          Schema.Field field = inputSchema.getField(audioFieldName);
+          if (field == null) {
+            collector.addFailure(String.format("Field '%s' does not exist in the input schema.", audioFieldName),
+                                 "Change audio field to be one of the schema fields.")
+              .withConfigProperty(NAME_AUDIOFIELD);
+          } else {
+            Schema fieldSchema = field.getSchema();
+            fieldSchema = fieldSchema.isNullable() ? fieldSchema.getNonNullable() : fieldSchema;
+            if (fieldSchema.getLogicalType() != null || fieldSchema.getType() != Schema.Type.BYTES) {
+              collector.addFailure(
+                String.format("Field '%s' is of unsupported type '%s'.",
+                              audioFieldName, fieldSchema.getDisplayName()), "Ensure it is of type 'bytes'.")
+                .withConfigProperty(NAME_AUDIOFIELD).withInputSchemaField(audioFieldName);
+            }
           }
         }
 
-        if (getTextField() == null && getPartsField() == null) {
+        if ((!containsMacro(NAME_TRANS_TEXT) && getTextField() == null) &&
+          (!containsMacro(NAME_TRANS_PART) && getPartsField() == null)) {
           collector.addFailure(
             "'Transcript Parts Field' or 'Transcript Text Field' are not provided.",
             "Provide atleast one of them.")
