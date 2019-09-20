@@ -92,7 +92,10 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     config.validate(collector);
     Schema configuredSchema = config.getSchema(collector);
 
-    if (!config.canConnect()) {
+    // if any of the require properties have macros or the service account can't be auto-detected
+    // or the dataset project isn't set and the project can't be auto-detected
+    if (!config.canConnect() || config.autoServiceAccountUnavailable() ||
+      (config.tryGetProject() == null && config.getDatasetProject() == null)) {
       stageConfigurer.setOutputSchema(configuredSchema);
       return;
     }

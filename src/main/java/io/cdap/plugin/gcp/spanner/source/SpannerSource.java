@@ -98,7 +98,7 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
     config.validate(collector);
     Schema configuredSchema = config.getSchema(collector);
 
-    if (!config.shouldConnect()) {
+    if (!config.shouldConnect() || config.tryGetProject() == null || config.autoServiceAccountUnavailable()) {
       stageConfigurer.setOutputSchema(configuredSchema);
       return;
     }
