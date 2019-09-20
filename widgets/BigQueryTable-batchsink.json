@@ -46,7 +46,25 @@
           "widget-attributes" : {
             "placeholder": "Google Cloud Storage bucket for temporary data"
           }
-        },
+        }
+      ]
+    },
+    {
+      "label" : "Credentials",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        }
+      ]
+    },
+    {
+      "label": "Advanced",
+      "properties": [
         {
           "widget-type": "radio-group",
           "name" : "operation",
@@ -71,6 +89,12 @@
           }
         },
         {
+          "name": "relationTableKey",
+          "widget-type": "csv",
+          "label": "Table Key",
+          "widget-attributes" : {}
+        },
+        {
           "widget-type": "toggle",
           "name": "truncateTable",
           "label": "Truncate Table",
@@ -87,11 +111,26 @@
           }
         },
         {
-          "name": "relationTableKey",
-          "widget-type": "csv",
-          "label": "Table Key",
-          "widget-attributes" : {}
-        },
+          "name": "allowSchemaRelaxation",
+          "widget-type": "toggle",
+          "label": "Update Table Schema",
+          "widget-attributes": {
+            "on": {
+              "value": "true",
+              "label": "True"
+            },
+            "off": {
+              "value": "false",
+              "label": "False"
+            },
+            "default": "false"
+          }
+        }
+      ]
+    },
+    {
+      "label": "Auto Create",
+      "properties": [
         {
           "name": "createPartitionedTable",
           "widget-type": "toggle",
@@ -137,35 +176,6 @@
           "widget-type": "csv",
           "label": "Clustering Order",
           "widget-attributes" : {}
-        },
-        {
-          "name": "allowSchemaRelaxation",
-          "widget-type": "toggle",
-          "label": "Update Table Schema",
-          "widget-attributes": {
-            "on": {
-              "value": "true",
-              "label": "True"
-            },
-            "off": {
-              "value": "false",
-              "label": "False"
-            },
-            "default": "false"
-          }
-        }
-      ]
-    },
-    {
-      "label" : "Credentials",
-      "properties" : [
-        {
-          "widget-type": "textbox",
-          "label": "Service Account File Path",
-          "name": "serviceFilePath",
-          "widget-attributes" : {
-            "default": "auto-detect"
-          }
         }
       ]
     }
