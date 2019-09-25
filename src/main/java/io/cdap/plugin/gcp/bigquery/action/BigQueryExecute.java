@@ -18,6 +18,7 @@ package io.cdap.plugin.gcp.bigquery.action;
 
 import com.google.auth.Credentials;
 import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.EncryptionConfiguration;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldValueList;
 import com.google.cloud.bigquery.Job;
@@ -70,6 +71,12 @@ public final class BigQueryExecute extends Action {
       builder.setPriority(QueryJobConfiguration.Priority.BATCH);
     } else {
       builder.setPriority(QueryJobConfiguration.Priority.INTERACTIVE);
+    }
+
+    String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
+    if (cmekKey != null) {
+      builder.setDestinationEncryptionConfiguration(
+        EncryptionConfiguration.newBuilder().setKmsKeyName(cmekKey).build());
     }
 
     // Save the results of the query to a permanent table.

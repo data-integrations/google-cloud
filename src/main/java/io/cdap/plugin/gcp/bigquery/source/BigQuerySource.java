@@ -127,7 +127,8 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     BigQuery bigQuery = GCPUtils.getBigQuery(config.getDatasetProject(), credentials);
 
     uuid = UUID.randomUUID();
-    configuration = BigQueryUtil.getBigQueryConfig(config.getServiceAccountFilePath(), config.getProject());
+    String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
+    configuration = BigQueryUtil.getBigQueryConfig(config.getServiceAccountFilePath(), config.getProject(), cmekKey);
 
     String bucket = config.getBucket();
     if (bucket == null) {
@@ -138,7 +139,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     }
 
     BigQueryUtil.createResources(bigQuery, GCPUtils.getStorage(config.getProject(), credentials),
-                                 config.getDataset(), bucket);
+                                 config.getDataset(), bucket, cmekKey);
 
     configuration.set("fs.gs.system.bucket", bucket);
     configuration.setBoolean("fs.gs.impl.disable.cache", true);
@@ -156,7 +157,6 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
 
     String temporaryGcsPath = String.format("gs://%s/hadoop/input/%s", bucket, uuid);
     PartitionedBigQueryInputFormat.setTemporaryCloudStorageDirectory(configuration, temporaryGcsPath);
-    PartitionedBigQueryInputFormat.setEnableShardedExport(configuration, false);
     BigQueryConfiguration.configureBigQueryInput(configuration, config.getDatasetProject(),
                                                  config.getDataset(), config.getTable());
 

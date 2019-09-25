@@ -89,10 +89,12 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
       null : GCPUtils.loadServiceAccountCredentials(serviceAccountFilePath);
     String project = config.getProject();
     BigQuery bigQuery = GCPUtils.getBigQuery(project, credentials);
-    baseConfiguration = getBaseConfiguration();
+    String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
+    baseConfiguration = getBaseConfiguration(cmekKey);
     String bucket = configureBucket();
     if (!context.isPreviewEnabled()) {
-      BigQueryUtil.createResources(bigQuery, GCPUtils.getStorage(project, credentials), config.getDataset(), bucket);
+      BigQueryUtil.createResources(bigQuery, GCPUtils.getStorage(project, credentials), config.getDataset(), bucket,
+                                   cmekKey);
     }
 
     prepareRunInternal(context, bigQuery, bucket);
@@ -187,9 +189,9 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
    *
    * @return base configuration
    */
-  private Configuration getBaseConfiguration() throws IOException {
+  private Configuration getBaseConfiguration(@Nullable String cmekKey) throws IOException {
     Configuration baseConfiguration = BigQueryUtil.getBigQueryConfig(getConfig().getServiceAccountFilePath(),
-                                                                     getConfig().getProject());
+                                                                     getConfig().getProject(), cmekKey);
     baseConfiguration.setBoolean(BigQueryConstants.CONFIG_ALLOW_SCHEMA_RELAXATION,
                                  getConfig().isAllowSchemaRelaxation());
     baseConfiguration.setStrings(BigQueryConfiguration.OUTPUT_TABLE_WRITE_DISPOSITION_KEY,

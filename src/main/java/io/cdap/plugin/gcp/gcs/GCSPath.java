@@ -28,7 +28,7 @@ import java.util.regex.Pattern;
  */
 public class GCSPath {
   public static final String ROOT_DIR = "/";
-  private static final String SCHEME = "gs://";
+  public static final String SCHEME = "gs://";
   private final URI uri;
   private final String bucket;
   private final String name;

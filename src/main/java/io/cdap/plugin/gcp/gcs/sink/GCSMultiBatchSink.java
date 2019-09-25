@@ -16,6 +16,8 @@
 
 package io.cdap.plugin.gcp.gcs.sink;
 
+import com.google.auth.Credentials;
+import com.google.cloud.storage.Storage;
 import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
@@ -83,6 +85,15 @@ public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable,
     Map<String, String> baseProperties = new HashMap<>(GCPUtils.getFileSystemProperties(config));
 
     Map<String, String> argumentCopy = new HashMap<>(context.getArguments().asMap());
+
+    String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
+    Credentials credentials = config.getServiceAccountFilePath() == null ?
+                                null : GCPUtils.loadServiceAccountCredentials(config.getServiceAccountFilePath());
+    Storage storage = GCPUtils.getStorage(config.getProject(), credentials);
+    if (storage.get(config.getBucket()) == null) {
+      GCPUtils.createBucket(storage, config.getBucket(), null, cmekKey);
+    }
+
     for (Map.Entry<String, String> argument : argumentCopy.entrySet()) {
       String key = argument.getKey();
       if (!key.startsWith(TABLE_PREFIX)) {

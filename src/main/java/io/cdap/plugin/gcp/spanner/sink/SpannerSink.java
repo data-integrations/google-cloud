@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.spanner.sink;
 
+import com.google.api.gax.longrunning.OperationFuture;
 import com.google.cloud.spanner.Database;
 import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.DatabaseClient;
@@ -55,6 +56,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
@@ -92,7 +94,7 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
   }
 
   @Override
-  public void prepareRun(BatchSinkContext context) {
+  public void prepareRun(BatchSinkContext context) throws Exception {
     FailureCollector collector = context.getFailureCollector();
     config.validate(collector);
     // throw a validation exception if any failures were added to the collector.
@@ -137,7 +139,8 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
     }
   }
 
-  private void createTableIfNotPresent(DatabaseClient dbClient, Database database, Schema schema) {
+  private void createTableIfNotPresent(DatabaseClient dbClient, Database database,
+                                       Schema schema) throws ExecutionException, InterruptedException {
     boolean tableExists = isTablePresent(dbClient);
     if (!tableExists) {
       if (Strings.isNullOrEmpty(config.getKeys())) {
@@ -150,9 +153,10 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
       LOG.debug("Creating table with create statement: {} in database {} of instance {}", createStmt,
                 config.getDatabase(), config.getInstance());
       // In Spanner table creation is an update ddl operation on the database.
-      Operation<Void, UpdateDatabaseDdlMetadata> op = database.updateDdl(Collections.singletonList(createStmt), null);
+      OperationFuture<Void, UpdateDatabaseDdlMetadata> op =
+        database.updateDdl(Collections.singletonList(createStmt), null);
       // Table creation is an async operation. So wait until table is created.
-      op.waitFor().getResult();
+      op.get();
     }
   }
 
@@ -180,16 +184,17 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
     return tableExists;
   }
 
-  private Database getOrCreateDatabase(DatabaseAdminClient dbAdminClient) {
+  private Database getOrCreateDatabase(
+    DatabaseAdminClient dbAdminClient) throws ExecutionException, InterruptedException {
     Database database = getDatabaseIfPresent(dbAdminClient);
 
     if (database == null) {
       LOG.debug("Database not found. Creating database {} in instance {}.", config.getDatabase(), config.getInstance());
       // Create database
-      Operation<Database, CreateDatabaseMetadata> op =
+      OperationFuture<Database, CreateDatabaseMetadata> op =
         dbAdminClient.createDatabase(config.getInstance(), config.getDatabase(), Collections.emptyList());
       // database creation is an async operation. Wait until database creation operation is complete.
-      database = op.waitFor().getResult();
+      database = op.get();
     }
 
     return database;
