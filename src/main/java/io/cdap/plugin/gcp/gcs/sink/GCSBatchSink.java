@@ -16,6 +16,8 @@
 
 package io.cdap.plugin.gcp.gcs.sink;
 
+import com.google.auth.Credentials;
+import com.google.cloud.storage.Storage;
 import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
@@ -57,6 +59,18 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     super.configurePipeline(pipelineConfigurer);
+  }
+
+  @Override
+  public void prepareRun(BatchSinkContext context) throws Exception {
+    super.prepareRun(context);
+    String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
+    Credentials credentials = config.getServiceAccountFilePath() == null ?
+                                null : GCPUtils.loadServiceAccountCredentials(config.getServiceAccountFilePath());
+    Storage storage = GCPUtils.getStorage(config.getProject(), credentials);
+    if (storage.get(config.getBucket()) == null) {
+      GCPUtils.createBucket(storage, config.getBucket(), null, cmekKey);
+    }
   }
 
   @Override
@@ -143,6 +157,10 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
       } catch (IllegalArgumentException e) {
         collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_SCHEMA).withStacktrace(e.getStackTrace());
       }
+    }
+
+    public String getBucket() {
+      return GCSPath.from(path).getBucket();
     }
 
     @Override

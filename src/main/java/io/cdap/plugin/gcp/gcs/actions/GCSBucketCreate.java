@@ -16,6 +16,8 @@
 
 package io.cdap.plugin.gcp.gcs.actions;
 
+import com.google.auth.Credentials;
+import com.google.cloud.storage.Storage;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
@@ -25,6 +27,7 @@ import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.action.Action;
 import io.cdap.cdap.etl.api.action.ActionContext;
 import io.cdap.plugin.gcp.common.GCPConfig;
+import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -47,7 +50,6 @@ import java.util.stream.Collectors;
 @Description("Creates objects in a Google Cloud Storage bucket.")
 public final class GCSBucketCreate extends Action {
   private static final Logger LOG = LoggerFactory.getLogger(GCSBucketCreate.class);
-  private static final String SCHEME = "gs://";
   public static final String NAME = "GCSBucketCreate";
   private Config config;
 
@@ -61,7 +63,11 @@ public final class GCSBucketCreate extends Action {
     config.validate(context.getFailureCollector());
 
     Configuration configuration = new Configuration();
+
     String serviceAccountFilePath = config.getServiceAccountFilePath();
+    Credentials credentials = serviceAccountFilePath == null ?
+                                null : GCPUtils.loadServiceAccountCredentials(serviceAccountFilePath);
+
     if (serviceAccountFilePath != null) {
       configuration.set("google.cloud.auth.service.account.json.keyfile", serviceAccountFilePath);
     }
@@ -75,19 +81,37 @@ public final class GCSBucketCreate extends Action {
     configuration.setBoolean("fs.gs.impl.disable.cache", true);
     configuration.setBoolean("fs.gs.metadata.cache.enable", false);
 
-    List<Path> gcsPaths = new ArrayList<>();
-    for (String path : config.getPaths()) {
-      gcsPaths.add(new Path(GCSPath.from(path).getUri()));
-    }
-
     FileSystem fs;
 
     List<Path> undo = new ArrayList<>();
+    List<GCSPath> undoBucket = new ArrayList<>();
+    List<Path> gcsPaths = new ArrayList<>();
+    Storage storage = GCPUtils.getStorage(config.getProject(), credentials);
     boolean rollback = false;
     try {
+      for (String path : config.getPaths()) {
+        GCSPath gcsPath = GCSPath.from(path);
+        GCSPath bucketPath = GCSPath.from(GCSPath.SCHEME + gcsPath.getBucket());
+
+        // only add it to gcspaths if the path has directories after bucket
+        if (!gcsPath.equals(bucketPath)) {
+          gcsPaths.add(new Path(gcsPath.getUri()));
+        }
+
+        // create the gcs buckets if not exist
+        if (storage.get(gcsPath.getBucket()) == null) {
+          GCPUtils.createBucket(storage, gcsPath.getBucket(), null, context.getArguments().get(GCPUtils.CMEK_KEY));
+          undoBucket.add(bucketPath);
+        } else if (gcsPath.equals(bucketPath) && config.failIfExists()) {
+          // if the gcs path is just a bucket, and it exists, fail the pipeline
+          rollback = true;
+          throw new Exception(String.format("Path %s already exists", gcsPath));
+        }
+      }
+
       for (Path gcsPath : gcsPaths) {
         try {
-          fs = gcsPaths.get(0).getFileSystem(configuration);
+          fs = gcsPath.getFileSystem(configuration);
         } catch (IOException e) {
           rollback = true;
           throw new Exception("Unable to get GCS filesystem handler. " + e.getMessage(), e);
@@ -98,31 +122,33 @@ public final class GCSBucketCreate extends Action {
             undo.add(gcsPath);
             LOG.info(String.format("Created GCS directory '%s''", gcsPath.toUri().getPath()));
           } catch (IOException e) {
-            LOG.warn(
-              String.format("Failed to create path '%s'", gcsPath)
-            );
+            LOG.warn(String.format("Failed to create path '%s'", gcsPath));
             rollback = true;
             throw e;
           }
         } else {
-          if (config.getFailIfExists()) {
+          if (config.failIfExists()) {
             rollback = true;
-            throw new Exception(
-              String.format("Object %s already exists", gcsPath)
-            );
+            throw new Exception(String.format("Path %s already exists", gcsPath));
           }
         }
       }
     } finally {
       if (rollback) {
         context.getMetrics().gauge("gc.file.create.error", 1);
+        // this delete can only delete directories, bucket cannot be deleted this way
         for (Path path : undo) {
           try {
-            fs = gcsPaths.get(0).getFileSystem(configuration);
+            fs = path.getFileSystem(configuration);
             fs.delete(path, true);
           } catch (IOException e) {
             // No-op
           }
+        }
+
+        // delete buckets
+        for (GCSPath bucket : undoBucket) {
+          storage.delete(bucket.getBucket());
         }
       } else {
         context.getMetrics().gauge("gc.file.create.count", gcsPaths.size());
@@ -150,7 +176,7 @@ public final class GCSBucketCreate extends Action {
       return Arrays.stream(paths.split(",")).map(String::trim).collect(Collectors.toList());
     }
 
-    public boolean getFailIfExists() {
+    public boolean failIfExists() {
       return failIfExists;
     }
 

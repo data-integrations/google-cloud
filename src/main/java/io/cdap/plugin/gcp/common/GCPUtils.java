@@ -20,7 +20,9 @@ import com.google.auth.Credentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryOptions;
+import com.google.cloud.storage.BucketInfo;
 import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 import io.cdap.plugin.gcp.gcs.sink.GCSBatchSink.GCSBatchSinkConfig;
@@ -36,6 +38,7 @@ import javax.annotation.Nullable;
  * GCP utility class to get service account credentials
  */
 public class GCPUtils {
+  public static final String CMEK_KEY = "gcp.cmek.key.name";
 
   public static ServiceAccountCredentials loadServiceAccountCredentials(String path) throws IOException {
     File credentialsPath = new File(path);
@@ -75,5 +78,17 @@ public class GCPUtils {
       builder.setCredentials(credentials);
     }
     return builder.build().getService();
+  }
+
+  public static void createBucket(Storage storage, String bucket, @Nullable String location,
+                                  @Nullable String cmekKey) throws StorageException {
+    BucketInfo.Builder builder = BucketInfo.newBuilder(bucket);
+    if (location != null) {
+      builder.setLocation(location);
+    }
+    if (cmekKey != null) {
+      builder.setDefaultKmsKeyName(cmekKey);
+    }
+    storage.create(builder.build());
   }
 }
