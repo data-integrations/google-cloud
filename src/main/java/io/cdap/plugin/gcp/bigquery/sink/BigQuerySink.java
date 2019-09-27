@@ -39,14 +39,12 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
-import org.apache.hadoop.mapred.JobContext;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 
 /**
  * This class <code>BigQuerySink</code> is a plugin that would allow users
@@ -121,9 +119,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
 
       @Override
       public Map<String, String> getOutputFormatConfiguration() {
-        Map<String, String> map = BigQueryUtil.configToMap(configuration);
-        map.put(JobContext.OUTPUT_KEY_CLASS, AvroKey.class.getName());
-        return map;
+        return BigQueryUtil.configToMap(configuration);
       }
     };
   }
