@@ -23,7 +23,6 @@ import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.Mutation;
-import com.google.cloud.spanner.Operation;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerException;
@@ -102,9 +101,7 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
 
     Schema schema = config.getSchema(collector);
     if (!context.isPreviewEnabled()) {
-      Spanner spanner = null;
-      try {
-        spanner = SpannerUtil.getSpannerService(config.getServiceAccountFilePath(), config.getProject());
+      try (Spanner spanner = SpannerUtil.getSpannerService(config.getServiceAccountFilePath(), config.getProject())) {
         DatabaseId db = DatabaseId.of(config.getProject(), config.getInstance(), config.getDatabase());
         DatabaseClient dbClient = spanner.getDatabaseClient(db);
         DatabaseAdminClient dbAdminClient = spanner.getDatabaseAdminClient();
@@ -114,11 +111,6 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
         createTableIfNotPresent(dbClient, database, schema);
       } catch (IOException e) {
         throw new RuntimeException("Exception while trying to get Spanner service. ", e);
-      } finally {
-        // Close spanner to release resources.
-        if (spanner != null) {
-          spanner.close();
-        }
       }
     }
 
