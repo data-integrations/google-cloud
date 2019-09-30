@@ -30,7 +30,6 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.hadoop.util.Progressable;
-import org.joda.time.DateTime;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -38,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 /**
  * BigQuery input format, splits query from the configuration into list of queries
@@ -196,7 +196,7 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
     BigQueryUtils.waitForJobCompletion(
       bigQueryHelper.getRawBigquery(), projectId, jobReference, progressable);
     if (bigQueryHelper.tableExists(tableRef)) {
-      long expirationMillis = DateTime.now().plusDays(1).getMillis();
+      long expirationMillis = System.currentTimeMillis() + TimeUnit.DAYS.toMillis(1);
       Table table = bigQueryHelper.getTable(tableRef).setExpirationTime(expirationMillis);
       bigQueryHelper.getRawBigquery().tables().update(tableRef.getProjectId(), tableRef.getDatasetId(),
                                                       tableRef.getTableId(), table).execute();

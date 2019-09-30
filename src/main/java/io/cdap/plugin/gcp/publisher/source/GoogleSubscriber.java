@@ -31,7 +31,6 @@ import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaReceiverInputDStream;
 import org.apache.spark.streaming.pubsub.PubsubUtils;
 import org.apache.spark.streaming.pubsub.SparkGCPCredentials;
-import org.apache.spark.streaming.pubsub.SparkGCPCredentials.Builder;
 import org.apache.spark.streaming.pubsub.SparkPubsubMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,16 +74,7 @@ public class GoogleSubscriber extends StreamingSource<StructuredRecord> {
   @Override
   public JavaDStream<StructuredRecord> getStream(StreamingContext streamingContext) {
     String serviceAccountFilePath = config.getServiceAccountFilePath();
-    SparkGCPCredentials credentials;
-    if (serviceAccountFilePath != null) {
-      // if credential file is provided then use it to build SparkGCPCredentials
-      LOG.debug("Building credentials from specified service account file.");
-      credentials = new Builder().jsonServiceAccount(serviceAccountFilePath).build();
-    } else {
-      // this will use the application default credential which is available when running on google cloud
-      LOG.debug("No service account file specified. Building credentials using Application Default Credentials.");
-      credentials = new Builder().build();
-    }
+    SparkGCPCredentials credentials = new GCPCredentialsProvider(serviceAccountFilePath);
 
     JavaReceiverInputDStream<SparkPubsubMessage> pubSubMessages =
       PubsubUtils.createStream(streamingContext.getSparkStreamingContext(), config.getProject(), config.topic,

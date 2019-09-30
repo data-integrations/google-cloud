@@ -211,6 +211,9 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   }
 
   private void validatePartitionProperties(@Nullable Schema schema, FailureCollector collector) {
+    if (tryGetProject() == null) {
+      return;
+    }
     String project = getProject();
     String dataset = getDataset();
     String tableName = getTable();

@@ -67,7 +67,6 @@ import org.apache.hadoop.mapreduce.JobStatus;
 import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.util.Progressable;
-import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,6 +79,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
@@ -167,7 +167,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
                       writeDisposition, sourceUris, createPartitionedTable, partitionByField,
                       requirePartitionFilter, clusteringOrderList, tableExists);
         if (temporaryTableReference != null) {
-          operationAction(destTable);
+          operationAction(destTable, kmsKeyName);
         }
       } catch (InterruptedException e) {
         throw new IOException("Failed to import GCS into BigQuery", e);
@@ -269,7 +269,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       waitForJobCompletion(bigQueryHelper.getRawBigquery(), projectId, jobReference);
 
       if (temporaryTableReference != null && bigQueryHelper.tableExists(temporaryTableReference)) {
-        long expirationMillis = DateTime.now().plusDays(1).getMillis();
+        long expirationMillis = System.currentTimeMillis() + TimeUnit.DAYS.toMillis(1);
         Table table = bigQueryHelper.getTable(temporaryTableReference).setExpirationTime(expirationMillis);
         bigQueryHelper.getRawBigquery().tables().update(temporaryTableReference.getProjectId(),
                                                         temporaryTableReference.getDatasetId(),
@@ -381,7 +381,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       return Optional.empty();
     }
 
-    private void operationAction(TableReference tableRef) throws InterruptedException {
+    private void operationAction(TableReference tableRef, @Nullable String cmekKey) throws InterruptedException {
       if (allowSchemaRelaxation) {
         updateTableSchema(tableRef);
       }
@@ -389,7 +389,12 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       LOG.debug("Update/Upsert query: " + query);
 
       BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
-      QueryJobConfiguration queryConfig = QueryJobConfiguration.newBuilder(query).setUseLegacySql(false).build();
+      QueryJobConfiguration queryConfig =
+        QueryJobConfiguration.newBuilder(query)
+          .setUseLegacySql(false)
+          .setDestinationEncryptionConfiguration(
+            com.google.cloud.bigquery.EncryptionConfiguration.newBuilder().setKmsKeyName(cmekKey).build())
+          .build();
 
       JobId jobId = JobId.of(UUID.randomUUID().toString());
       com.google.cloud.bigquery.Job queryJob = bigquery.create(JobInfo.newBuilder(queryConfig).setJobId(jobId).build());

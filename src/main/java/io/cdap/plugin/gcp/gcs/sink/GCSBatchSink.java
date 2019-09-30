@@ -16,12 +16,15 @@
 
 package io.cdap.plugin.gcp.gcs.sink;
 
+import com.google.auth.Credentials;
+import com.google.cloud.storage.Storage;
 import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
@@ -56,7 +59,18 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     super.configurePipeline(pipelineConfigurer);
-    config.validate();
+  }
+
+  @Override
+  public void prepareRun(BatchSinkContext context) throws Exception {
+    super.prepareRun(context);
+    String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
+    Credentials credentials = config.getServiceAccountFilePath() == null ?
+                                null : GCPUtils.loadServiceAccountCredentials(config.getServiceAccountFilePath());
+    Storage storage = GCPUtils.getStorage(config.getProject(), credentials);
+    if (storage.get(config.getBucket()) == null) {
+      GCPUtils.createBucket(storage, config.getBucket(), null, cmekKey);
+    }
   }
 
   @Override
@@ -74,8 +88,13 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
    */
   @SuppressWarnings("unused")
   public static class GCSBatchSinkConfig extends GCPReferenceSinkConfig implements FileSinkProperties {
+    private static final String NAME_PATH = "path";
+    private static final String NAME_SUFFIX = "suffix";
+    private static final String NAME_FORMAT = "format";
+    private static final String NAME_SCHEMA = "schema";
+
     private static final String SCHEME = "gs://";
-    @Name("path")
+    @Name(NAME_PATH)
     @Description("The path to write to. For example, gs://<bucket>/path/to/directory")
     @Macro
     private String path;
@@ -89,7 +108,6 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
 
     @Description("The format to write in. The format must be one of 'json', 'avro', 'parquet', 'csv', 'tsv', "
       + "or 'delimited'.")
-    @Macro
     protected String format;
 
     @Description("The delimiter to use if the format is 'delimited'. The delimiter will be ignored if the format "
@@ -106,19 +124,43 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
 
     @Override
     public void validate() {
-      // TODO: CDAP-15900 add failure collector
-      super.validate(null);
+      // no-op
+    }
+
+    @Override
+    public void validate(FailureCollector collector) {
+      super.validate(collector);
       // validate that path is valid
-      if (!containsMacro("path")) {
-        GCSPath.from(path);
+      if (!containsMacro(NAME_PATH)) {
+        try {
+          GCSPath.from(path);
+        } catch (IllegalArgumentException e) {
+          collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_PATH).withStacktrace(e.getStackTrace());
+        }
       }
-      if (suffix != null && !containsMacro("suffix")) {
-        new SimpleDateFormat(suffix);
+      if (suffix != null && !containsMacro(NAME_SUFFIX)) {
+        try {
+          new SimpleDateFormat(suffix);
+        } catch (IllegalArgumentException e) {
+          collector.addFailure("Invalid suffix : " + e.getMessage(), null)
+            .withConfigProperty(NAME_SUFFIX).withStacktrace(e.getStackTrace());
+        }
       }
-      if (!containsMacro("format")) {
+      try {
         getFormat();
+      } catch (IllegalArgumentException e) {
+        collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_FORMAT).withStacktrace(e.getStackTrace());
       }
-      getSchema();
+
+      try {
+        getSchema();
+      } catch (IllegalArgumentException e) {
+        collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_SCHEMA).withStacktrace(e.getStackTrace());
+      }
+    }
+
+    public String getBucket() {
+      return GCSPath.from(path).getBucket();
     }
 
     @Override
@@ -140,7 +182,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
       try {
         return Schema.parseJson(schema);
       } catch (IOException e) {
-        throw new IllegalArgumentException("Unable to parse schema: " + e.getMessage(), e);
+        throw new IllegalArgumentException("Invalid schema: " + e.getMessage(), e);
       }
     }
 

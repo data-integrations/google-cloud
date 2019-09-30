@@ -16,6 +16,8 @@
 
 package io.cdap.plugin.gcp.gcs.sink;
 
+import com.google.auth.Credentials;
+import com.google.cloud.storage.Storage;
 import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
@@ -27,6 +29,7 @@ import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
 import io.cdap.cdap.api.plugin.PluginProperties;
 import io.cdap.cdap.etl.api.Emitter;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
@@ -62,27 +65,44 @@ public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable,
 
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
-    config.validate();
+    FailureCollector collector = pipelineConfigurer.getStageConfigurer().getFailureCollector();
+    config.validate(collector);
+    collector.getOrThrowException();
+
     FileFormat format = config.getFormat();
     // add schema as a macro since we don't know it until runtime
     PluginProperties formatProperties = PluginProperties.builder()
       .addAll(config.getProperties().getProperties())
       .add("schema", String.format("${%s}", SCHEMA_MACRO)).build();
+
     OutputFormatProvider outputFormatProvider =
       pipelineConfigurer.usePlugin(BatchSink.FORMAT_PLUGIN_TYPE, format.name().toLowerCase(),
                                    FORMAT_PLUGIN_ID, formatProperties);
     if (outputFormatProvider == null) {
-      throw new IllegalArgumentException(String.format("Could not find the '%s' output format plugin.",
-                                                       format.name().toLowerCase()));
+      collector.addFailure(
+        String.format("Could not find the '%s' output format plugin.", format.name().toLowerCase()), null)
+        .withPluginNotFound(FORMAT_PLUGIN_ID, format.name().toLowerCase(), "outputformat");
     }
   }
 
   @Override
   public void prepareRun(BatchSinkContext context) throws IOException, InstantiationException {
-    config.validate();
+    FailureCollector collector = context.getFailureCollector();
+    config.validate(collector);
+    collector.getOrThrowException();
+
     Map<String, String> baseProperties = new HashMap<>(GCPUtils.getFileSystemProperties(config));
 
     Map<String, String> argumentCopy = new HashMap<>(context.getArguments().asMap());
+
+    String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
+    Credentials credentials = config.getServiceAccountFilePath() == null ?
+                                null : GCPUtils.loadServiceAccountCredentials(config.getServiceAccountFilePath());
+    Storage storage = GCPUtils.getStorage(config.getProject(), credentials);
+    if (storage.get(config.getBucket()) == null) {
+      GCPUtils.createBucket(storage, config.getBucket(), null, cmekKey);
+    }
+
     for (Map.Entry<String, String> argument : argumentCopy.entrySet()) {
       String key = argument.getKey();
       if (!key.startsWith(TABLE_PREFIX)) {
@@ -132,6 +152,5 @@ public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable,
       String timeSuffix = suffixOk ? new SimpleDateFormat(getSuffix()).format(logicalStartTime) : "";
       return String.format("%s/%s/%s", getPath(), context, timeSuffix);
     }
-
   }
 }

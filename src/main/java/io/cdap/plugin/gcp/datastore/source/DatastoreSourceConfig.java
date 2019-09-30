@@ -247,8 +247,7 @@ public class DatastoreSourceConfig extends GCPReferenceSourceConfig {
 
   @VisibleForTesting
   void validateDatastoreConnection(FailureCollector collector) {
-    if (containsMacro(DatastoreSourceConstants.PROPERTY_SERVICE_FILE_PATH)
-      || containsMacro(DatastoreSourceConstants.PROPERTY_PROJECT)) {
+    if (!shouldConnect()) {
       return;
     }
     try {
@@ -562,6 +561,8 @@ public class DatastoreSourceConfig extends GCPReferenceSourceConfig {
   public boolean shouldConnect() {
     return !containsMacro(DatastoreSourceConstants.PROPERTY_SCHEMA) &&
       !containsMacro(DatastoreSourceConfig.NAME_SERVICE_ACCOUNT_FILE_PATH) &&
-      !containsMacro(DatastoreSourceConfig.NAME_PROJECT);
+      !containsMacro(DatastoreSourceConfig.NAME_PROJECT) &&
+      tryGetProject() != null &&
+      !autoServiceAccountUnavailable();
   }
 }
