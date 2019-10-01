@@ -28,6 +28,7 @@ import io.cdap.plugin.gcp.datastore.exception.DatastoreInitializationException;
 import io.cdap.plugin.gcp.datastore.sink.util.DatastoreSinkConstants;
 import io.cdap.plugin.gcp.datastore.sink.util.IndexStrategy;
 import io.cdap.plugin.gcp.datastore.sink.util.SinkKeyType;
+import io.cdap.plugin.gcp.datastore.source.DatastoreSourceConfig;
 import io.cdap.plugin.gcp.datastore.util.DatastorePropertyUtil;
 import io.cdap.plugin.gcp.datastore.util.DatastoreUtil;
 
@@ -297,8 +298,7 @@ public class DatastoreSinkConfig extends GCPReferenceSinkConfig {
 
   @VisibleForTesting
   void validateDatastoreConnection(FailureCollector collector) {
-    if (containsMacro(DatastoreSinkConstants.PROPERTY_SERVICE_FILE_PATH)
-      || containsMacro(DatastoreSinkConstants.PROPERTY_PROJECT)) {
+    if (!shouldConnect()) {
       return;
     }
     try {
@@ -394,5 +394,15 @@ public class DatastoreSinkConfig extends GCPReferenceSinkConfig {
                                          DatastoreSinkConstants.MAX_BATCH_SIZE))
         .withConfigProperty(DatastoreSinkConstants.PROPERTY_BATCH_SIZE);
     }
+  }
+
+  /**
+   * Returns true if datastore can be connected to
+   */
+  public boolean shouldConnect() {
+    return !containsMacro(DatastoreSourceConfig.NAME_SERVICE_ACCOUNT_FILE_PATH) &&
+      !containsMacro(DatastoreSourceConfig.NAME_PROJECT) &&
+      tryGetProject() != null &&
+      !autoServiceAccountUnavailable();
   }
 }

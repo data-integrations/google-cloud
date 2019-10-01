@@ -1,5 +1,6 @@
 package io.cdap.plugin.gcp.common;
 
+import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.ServiceOptions;
 import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
@@ -7,6 +8,7 @@ import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.plugin.PluginConfig;
 
+import java.io.IOException;
 import javax.annotation.Nullable;
 
 /**
@@ -35,7 +37,6 @@ public class GCPConfig extends PluginConfig {
   public String getProject() {
     String projectId = tryGetProject();
     if (projectId == null) {
-      // TODO CDAP-15896 use failure collector
       throw new IllegalArgumentException(
         "Could not detect Google Cloud project id from the environment. Please specify a project id.");
     }
@@ -61,5 +62,23 @@ public class GCPConfig extends PluginConfig {
       return null;
     }
     return serviceFilePath;
+  }
+
+  /**
+   * Return true if the service account is set to auto-detect but it can't be fetched from the environment.
+   * This shouldn't result in a deployment failure, as the credential could be detected at runtime if the pipeline
+   * runs on dataproc. This should primarily be used to check whether certain validation logic should be skipped.
+   *
+   * @return true if the service account is set to auto-detect but it can't be fetched from the environment.
+   */
+  public boolean autoServiceAccountUnavailable() {
+    if (getServiceAccountFilePath() == null) {
+      try {
+        ServiceAccountCredentials.getApplicationDefault();
+      } catch (IOException e) {
+        return true;
+      }
+    }
+    return false;
   }
 }

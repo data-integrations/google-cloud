@@ -16,6 +16,7 @@
 package io.cdap.plugin.gcp.datastore.source;
 
 import com.google.cloud.datastore.Datastore;
+import com.google.cloud.datastore.DatastoreException;
 import com.google.cloud.datastore.Entity;
 import com.google.cloud.datastore.EntityQuery;
 import com.google.cloud.datastore.EntityValue;
@@ -168,7 +169,14 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
     LOG.debug("Executing query for `Get Schema`: {}", query);
 
     Datastore datastore = DatastoreUtil.getDatastore(config.getServiceAccountFilePath(), config.getProject());
-    QueryResults<Entity> results = datastore.run(query);
+    QueryResults<Entity> results;
+    try {
+      results = datastore.run(query);
+    } catch (DatastoreException e) {
+      collector.addFailure("Unable to fetch data from Datastore: " + e.getMessage(), null)
+        .withStacktrace(e.getStackTrace());
+      throw collector.getOrThrowException();
+    }
 
     if (results.hasNext()) {
       Entity entity = results.next();

@@ -62,8 +62,6 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     super.configurePipeline(pipelineConfigurer);
-    FailureCollector collector = pipelineConfigurer.getStageConfigurer().getFailureCollector();
-    config.validate(collector);
   }
 
   @Override
@@ -97,6 +95,11 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
    */
   @SuppressWarnings("ConstantConditions")
   public static class GCSSourceConfig extends GCPReferenceSourceConfig implements FileSourceProperties {
+    private static final String NAME_PATH = "path";
+    private static final String NAME_FILE_SYSTEM_PROPERTIES = "fileSystemProperties";
+    private static final String NAME_FILE_REGEX = "fileRegex";
+    private static final String NAME_FORMAT = "format";
+
     private static final Gson GSON = new Gson();
     private static final Type MAP_STRING_STRING_TYPE = new TypeToken<Map<String, String>>() { }.getType();
 
@@ -121,8 +124,6 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
       + "If specified, the field must exist in the output schema as a string.")
     private String pathField;
 
-    @Macro
-    @Nullable
     @Description("Format of the data to read. Supported formats are 'avro', 'blob', 'csv', 'delimited', 'json', "
       + "'parquet', 'text', and 'tsv'.")
     private String format;
@@ -169,18 +170,42 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
       this.copyHeader = false;
     }
 
+    @Override
+    public void validate() {
+      // no-op
+    }
+
     public void validate(FailureCollector collector) {
       super.validate(collector);
       // validate that path is valid
-      if (!containsMacro("path")) {
-        GCSPath.from(path);
+      if (!containsMacro(NAME_PATH)) {
+        try {
+          GCSPath.from(path);
+        } catch (IllegalArgumentException e) {
+          collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_PATH).withStacktrace(e.getStackTrace());
+        }
       }
-      getFileSystemProperties();
-    }
-
-    @Override
-    public void validate() {
-      // TODO: CDAP-15900 this is just for compilation. Remove after adding failure collector to format plugins
+      if (!containsMacro(NAME_FILE_SYSTEM_PROPERTIES)) {
+        try {
+          getFileSystemProperties();
+        } catch (Exception e) {
+          collector.addFailure("File system properties must be a valid json.", null)
+            .withConfigProperty(NAME_FILE_SYSTEM_PROPERTIES).withStacktrace(e.getStackTrace());
+        }
+      }
+      if (!containsMacro(NAME_FILE_REGEX)) {
+        try {
+          getFilePattern();
+        } catch (IllegalArgumentException e) {
+          collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_FILE_REGEX)
+            .withStacktrace(e.getStackTrace());
+        }
+      }
+      try {
+        getFormat();
+      } catch (IllegalArgumentException e) {
+        collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_FORMAT).withStacktrace(e.getStackTrace());
+      }
     }
 
     @Override
@@ -204,7 +229,7 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
       try {
         return fileRegex == null ? null : Pattern.compile(fileRegex);
       } catch (RuntimeException e) {
-        throw new IllegalArgumentException("Invalid file regular expression: " + e.getMessage(), e);
+        throw new IllegalArgumentException("Invalid file regular expression." + e.getMessage(), e);
       }
     }
 

@@ -103,11 +103,14 @@ public class SpannerOutputFormat extends OutputFormat<NullWritable, Mutation> {
 
     @Override
     public void close(TaskAttemptContext taskAttemptContext) {
-      if (mutations.size() > 0) {
-        databaseClient.write(mutations);
-        mutations.clear();
+      try {
+        if (mutations.size() > 0) {
+          databaseClient.write(mutations);
+          mutations.clear();
+        }
+      } finally {
+        spanner.close();
       }
-      spanner.close();
     }
   }
 

@@ -22,6 +22,7 @@ import com.google.api.gax.rpc.NotFoundException;
 import com.google.cloud.pubsub.v1.TopicAdminClient;
 import com.google.cloud.pubsub.v1.TopicAdminSettings;
 import com.google.pubsub.v1.ProjectTopicName;
+import com.google.pubsub.v1.Topic;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
@@ -91,7 +92,12 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, T
           topicAdminClient.getTopic(projectTopicName);
         } catch (NotFoundException e) {
           try {
-            topicAdminClient.createTopic(projectTopicName);
+            Topic.Builder request = Topic.newBuilder().setName(projectTopicName.toString());
+            String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
+            if (cmekKey != null) {
+              request.setKmsKeyName(cmekKey);
+            }
+            topicAdminClient.createTopic(request.build());
           } catch (AlreadyExistsException e1) {
             // can happen if there is a race condition. Ignore this error since all that matters is the topic exists
           } catch (ApiException e1) {

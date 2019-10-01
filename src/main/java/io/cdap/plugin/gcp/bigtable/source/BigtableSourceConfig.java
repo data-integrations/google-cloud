@@ -160,10 +160,6 @@ public final class BigtableSourceConfig extends GCPReferenceSourceConfig {
     if (!containsMacro(TABLE) && Strings.isNullOrEmpty(table)) {
       collector.addFailure("Table name must be specified.", null).withConfigProperty(TABLE);
     }
-    if (!containsMacro(NAME_PROJECT) && tryGetProject() == null) {
-      collector.addFailure("Could not detect Google Cloud project id from the environment.",
-                           "Specify project id.").withConfigProperty(NAME_PROJECT);
-    }
     if (!containsMacro(INSTANCE) && Strings.isNullOrEmpty(instance)) {
       collector.addFailure("Instance ID must be specified.", null).withConfigProperty(INSTANCE);
     }

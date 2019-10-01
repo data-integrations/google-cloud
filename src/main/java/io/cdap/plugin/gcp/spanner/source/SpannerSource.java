@@ -84,7 +84,6 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
   public static final String NAME = "Spanner";
   private final SpannerSourceConfig config;
   private Schema schema;
-  private Spanner spanner;
   private ResultSetToRecordTransformer transformer;
 
   public SpannerSource(SpannerSourceConfig config) {
@@ -98,7 +97,7 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
     config.validate(collector);
     Schema configuredSchema = config.getSchema(collector);
 
-    if (!config.shouldConnect()) {
+    if (!config.shouldConnect() || config.tryGetProject() == null || config.autoServiceAccountUnavailable()) {
       stageConfigurer.setOutputSchema(configuredSchema);
       return;
     }
@@ -137,27 +136,28 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
     initializeConfig(configuration, projectId);
 
     // initialize spanner
-    spanner = SpannerUtil.getSpannerService(config.getServiceAccountFilePath(), projectId);
-    BatchClient batchClient =
-      spanner.getBatchClient(DatabaseId.of(projectId, config.instance, config.database));
-    Timestamp logicalStartTimeMicros =
-      Timestamp.ofTimeMicroseconds(TimeUnit.MILLISECONDS.toMicros(batchSourceContext.getLogicalStartTime()));
+    try (Spanner spanner = SpannerUtil.getSpannerService(config.getServiceAccountFilePath(), projectId)) {
+      BatchClient batchClient =
+        spanner.getBatchClient(DatabaseId.of(projectId, config.instance, config.database));
+      Timestamp logicalStartTimeMicros =
+        Timestamp.ofTimeMicroseconds(TimeUnit.MILLISECONDS.toMicros(batchSourceContext.getLogicalStartTime()));
 
-    // create batch transaction id
-    BatchReadOnlyTransaction batchReadOnlyTransaction =
-      batchClient.batchReadOnlyTransaction(TimestampBound.ofReadTimestamp(logicalStartTimeMicros));
-    BatchTransactionId batchTransactionId = batchReadOnlyTransaction.getBatchTransactionId();
+      // create batch transaction id
+      BatchReadOnlyTransaction batchReadOnlyTransaction =
+        batchClient.batchReadOnlyTransaction(TimestampBound.ofReadTimestamp(logicalStartTimeMicros));
+      BatchTransactionId batchTransactionId = batchReadOnlyTransaction.getBatchTransactionId();
 
-    // partitionQuery returns ImmutableList which doesn't implement java Serializable interface,
-    // we add to array list, which implements java Serializable
-    List<Partition> partitions =
-      new ArrayList<>(
-        batchReadOnlyTransaction.partitionQuery(getPartitionOptions(),
-                                                Statement.of(String.format("Select * from %s;", config.table))));
+      // partitionQuery returns ImmutableList which doesn't implement java Serializable interface,
+      // we add to array list, which implements java Serializable
+      List<Partition> partitions =
+        new ArrayList<>(
+          batchReadOnlyTransaction.partitionQuery(getPartitionOptions(),
+                                                  Statement.of(String.format("Select * from %s;", config.table))));
 
-    // serialize batch transaction-id and partitions
-    configuration.set(SpannerConstants.SPANNER_BATCH_TRANSACTION_ID, getSerializedObjectString(batchTransactionId));
-    configuration.set(SpannerConstants.PARTITIONS_LIST, getSerializedObjectString(partitions));
+      // serialize batch transaction-id and partitions
+      configuration.set(SpannerConstants.SPANNER_BATCH_TRANSACTION_ID, getSerializedObjectString(batchTransactionId));
+      configuration.set(SpannerConstants.PARTITIONS_LIST, getSerializedObjectString(partitions));
+    }
 
     LineageRecorder lineageRecorder = new LineageRecorder(batchSourceContext, config.referenceName);
     lineageRecorder.createExternalDataset(configuredSchema);
@@ -185,15 +185,6 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
   @Override
   public void transform(KeyValue<NullWritable, ResultSet> input, Emitter<StructuredRecord> emitter) {
     emitter.emit(transformer.transform(input.getValue()));
-  }
-
-  @Override
-  public void onRunFinish(boolean succeeded, BatchSourceContext context) {
-    LOG.info("Run finished, closing spanner client");
-    // free up spanner resources
-    if (spanner != null) {
-      spanner.close();
-    }
   }
 
   private void initializeConfig(Configuration configuration, String projectId) {
@@ -237,39 +228,38 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
 
   private Schema getSchema(FailureCollector collector) {
     String projectId = config.getProject();
-    Spanner spanner;
-    try {
-      spanner = SpannerUtil.getSpannerService(config.getServiceAccountFilePath(), projectId);
+
+    try (Spanner spanner = SpannerUtil.getSpannerService(config.getServiceAccountFilePath(), projectId)) {
+      DatabaseClient databaseClient =
+        spanner.getDatabaseClient(DatabaseId.of(projectId, config.instance, config.database));
+      Statement getTableSchemaStatement = SCHEMA_STATEMENT_BUILDER.bind(TABLE_NAME).to(config.table).build();
+      try (ResultSet resultSet = databaseClient.singleUse().executeQuery(getTableSchemaStatement)) {
+        List<Schema.Field> schemaFields = new ArrayList<>();
+        while (resultSet.next()) {
+          String columnName = resultSet.getString("column_name");
+          String spannerType = resultSet.getString("spanner_type");
+          String nullable = resultSet.getString("is_nullable");
+          boolean isNullable = "YES".equals(nullable);
+          Schema typeSchema = parseSchemaFromSpannerTypeString(columnName, spannerType, collector);
+          if (typeSchema == null) {
+            // this means there were failures added to failure collector. Continue to collect more failures
+            continue;
+          }
+          Schema fieldSchema = isNullable ? Schema.nullableOf(typeSchema) : typeSchema;
+          schemaFields.add(Schema.Field.of(columnName, fieldSchema));
+        }
+        if (schemaFields.isEmpty() && !collector.getValidationFailures().isEmpty()) {
+          collector.getOrThrowException();
+        }
+        return Schema.recordOf("outputSchema", schemaFields);
+      }
     } catch (IOException e) {
       collector.addFailure("Unable to get Spanner Client: " + e.getMessage(), null)
         .withConfigProperty(GCPConfig.NAME_SERVICE_ACCOUNT_FILE_PATH);
       // if there was an error that was added, it will throw an exception.
       throw collector.getOrThrowException();
     }
-    DatabaseClient databaseClient =
-      spanner.getDatabaseClient(DatabaseId.of(projectId, config.instance, config.database));
-    Statement getTableSchemaStatement = SCHEMA_STATEMENT_BUILDER.bind(TABLE_NAME).to(config.table).build();
-    try (ResultSet resultSet = databaseClient.singleUse().executeQuery(getTableSchemaStatement)) {
-      List<Schema.Field> schemaFields = new ArrayList<>();
-      while (resultSet.next()) {
-        String columnName = resultSet.getString("column_name");
-        String spannerType = resultSet.getString("spanner_type");
-        String nullable = resultSet.getString("is_nullable");
-        boolean isNullable = "YES".equals(nullable);
-        Schema typeSchema = parseSchemaFromSpannerTypeString(columnName, spannerType, collector);
-        if (typeSchema == null) {
-          // this means there were failures added to failure collector. Continue to collect more failures
-          continue;
-        }
-        Schema fieldSchema = isNullable ? Schema.nullableOf(typeSchema) : typeSchema;
-        schemaFields.add(Schema.Field.of(columnName, fieldSchema));
-      }
-      spanner.close();
-      if (schemaFields.isEmpty() && !collector.getValidationFailures().isEmpty()) {
-        collector.getOrThrowException();
-      }
-      return Schema.recordOf("outputSchema", schemaFields);
-    }
+
   }
 
   @Nullable

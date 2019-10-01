@@ -27,7 +27,6 @@ import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.storage.Bucket;
-import com.google.cloud.storage.BucketInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
 import com.google.common.collect.ImmutableMap;
@@ -117,10 +116,12 @@ public final class BigQueryUtil {
    *
    * @param serviceAccountFilePath service account file path
    * @param projectId BigQuery project ID
+   * @param cmekKey the name of the cmek key
    * @return {@link Configuration} with config set for BigQuery
    * @throws IOException if not able to get credentials
    */
-  public static Configuration getBigQueryConfig(@Nullable String serviceAccountFilePath, String projectId)
+  public static Configuration getBigQueryConfig(@Nullable String serviceAccountFilePath, String projectId,
+                                                @Nullable String cmekKey)
     throws IOException {
     Job job = Job.getInstance();
 
@@ -143,6 +144,9 @@ public final class BigQueryUtil {
     configuration.set("fs.gs.project.id", projectId);
     configuration.set("fs.gs.working.dir", GCSPath.ROOT_DIR);
     configuration.set(BigQueryConfiguration.PROJECT_ID_KEY, projectId);
+    if (cmekKey != null) {
+      configuration.set(BigQueryConfiguration.OUTPUT_TABLE_KMS_KEY_NAME_KEY, cmekKey);
+    }
     return configuration;
   }
 
@@ -156,21 +160,23 @@ public final class BigQueryUtil {
    * @param storage the storage client for the project
    * @param datasetName the name of the dataset
    * @param bucketName the name of the bucket
+   * @param cmekKey the name of the cmek key
    * @throws IOException if there was an error creating or fetching any GCP resource
    */
   public static void createResources(BigQuery bigQuery, Storage storage,
-                                     String datasetName, String bucketName) throws IOException {
+                                     String datasetName, String bucketName,
+                                     @Nullable String cmekKey) throws IOException {
     Dataset dataset = bigQuery.getDataset(datasetName);
     Bucket bucket = storage.get(bucketName);
 
     if (dataset == null && bucket == null) {
-      createBucket(storage, bucketName, null,
+      createBucket(storage, bucketName, null, cmekKey,
                    () -> String.format("Unable to create Cloud Storage bucket '%s'", bucketName));
       createDataset(bigQuery, datasetName, null,
                     () -> String.format("Unable to create BigQuery dataset '%s'", datasetName));
     } else if (bucket == null) {
       createBucket(
-        storage, bucketName, dataset.getLocation(),
+        storage, bucketName, dataset.getLocation(), cmekKey,
         () -> String.format(
           "Unable to create Cloud Storage bucket '%s' in the same location ('%s') as BigQuery dataset '%s'. "
             + "Please use a bucket that is in the same location as the dataset.",
@@ -204,13 +210,9 @@ public final class BigQueryUtil {
   }
 
   private static void createBucket(Storage storage, String bucket, @Nullable String location,
-                                   Supplier<String> errorMessage) throws IOException {
-    BucketInfo.Builder builder = BucketInfo.newBuilder(bucket);
-    if (location != null) {
-      builder.setLocation(location);
-    }
+                                   @Nullable String cmekKey, Supplier<String> errorMessage) throws IOException {
     try {
-      storage.create(builder.build());
+      GCPUtils.createBucket(storage, bucket, location, cmekKey);
     } catch (StorageException e) {
       if (e.getCode() != 409) {
         // A conflict means the bucket already exists
