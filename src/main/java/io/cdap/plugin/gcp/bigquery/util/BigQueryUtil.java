@@ -29,6 +29,7 @@ import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.data.schema.Schema;
@@ -53,6 +54,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
@@ -61,6 +63,10 @@ import javax.annotation.Nullable;
  * Common Util class for big query plugins such as {@link BigQuerySource} and {@link BigQuerySink}
  */
 public final class BigQueryUtil {
+  public static final String BUCKET_PATTERN = "[a-z0-9._-]+";
+  public static final String DATASET_PATTERN = "[A-Za-z0-9_]+";
+  public static final String TABLE_PATTERN = "[A-Za-z0-9_]+";
+
   // array of arrays and map of arrays are not supported by big query
   public static final Set<Schema.Type> UNSUPPORTED_ARRAY_TYPES = ImmutableSet.of(Schema.Type.ARRAY, Schema.Type.MAP);
 
@@ -458,5 +464,64 @@ public final class BigQueryUtil {
     }
 
     return table;
+  }
+
+  /**
+   * Validates allowed characters for bucket name.
+   *
+   * @param bucket bucket name
+   * @param bucketPropertyName bucket name property
+   * @param collector failure collector
+   */
+  public static void validateBucket(String bucket, String bucketPropertyName, FailureCollector collector) {
+    // Allowed character validation for bucket name as per https://cloud.google.com/storage/docs/naming
+    String errorMessage = "Bucket name can only contain lowercase letters, numbers, '.', '_', and '-'.";
+    match(bucket, bucketPropertyName, BUCKET_PATTERN, collector, errorMessage);
+  }
+
+  /**
+   * Validates allowed characters for dataset name.
+   *
+   * @param dataset dataset name
+   * @param datasetPropertyName dataset name property
+   * @param collector failure collector
+   */
+  public static void validateDataset(String dataset, String datasetPropertyName, FailureCollector collector) {
+    // Allowed character validation for dataset name as per https://cloud.google.com/bigquery/docs/datasets
+    String errorMessage = "Dataset name can only contain letters (lower or uppercase), numbers and '_'.";
+    match(dataset, datasetPropertyName, DATASET_PATTERN, collector, errorMessage);
+  }
+
+  /**
+   * Validates allowed characters for table name.
+   *
+   * @param table table name
+   * @param tablePropertyName table name property
+   * @param collector failure collector
+   */
+  public static void validateTable(String table, String tablePropertyName, FailureCollector collector) {
+    // Allowed character validation for table name as per https://cloud.google.com/bigquery/docs/tables
+    String errorMessage = "Table name can only contain letters (lower or uppercase), numbers and '_'.";
+    match(table, tablePropertyName, TABLE_PATTERN, collector, errorMessage);
+  }
+
+  /**
+   * Matches text with provided pattern. If the text does not match the pattern, the method adds a new failure to
+   * failure collector.
+   *
+   * @param text text to be matched
+   * @param propertyName property name
+   * @param pattern pattern
+   * @param collector failure collector
+   * @param errorMessage error message
+   */
+  private static void match(String text, String propertyName, String pattern,
+                            FailureCollector collector, String errorMessage) {
+    if (!Strings.isNullOrEmpty(text)) {
+      Pattern p = Pattern.compile(pattern);
+      if (!p.matcher(text).matches()) {
+        collector.addFailure(errorMessage, null).withConfigProperty(propertyName);
+      }
+    }
   }
 }
