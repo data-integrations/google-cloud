@@ -169,6 +169,11 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   @Override
   public void validate(FailureCollector collector) {
     super.validate(collector);
+
+    if (!containsMacro(table)) {
+      BigQueryUtil.validateTable(table, NAME_TABLE, collector);
+    }
+
     if (getWriteDisposition().equals(JobInfo.WriteDisposition.WRITE_TRUNCATE)
       && !getOperation().equals(Operation.INSERT)) {
       collector.addFailure("Truncate must only be used with operation 'Insert'.",
@@ -186,7 +191,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
    * @param collector failure collector
    */
   public void validate(@Nullable Schema inputSchema, @Nullable Schema outputSchema, FailureCollector collector) {
-    super.validate(collector);
+    validate(collector);
     if (!containsMacro(NAME_SCHEMA)) {
       Schema schema = outputSchema == null ? inputSchema : outputSchema;
       validatePartitionProperties(schema, collector);
