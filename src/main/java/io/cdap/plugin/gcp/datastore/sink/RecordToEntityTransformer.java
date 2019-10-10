@@ -163,19 +163,16 @@ public class RecordToEntityTransformer {
       }
       case INT:
       case LONG: {
-        switch (keyType) {
-          case CUSTOM_NAME: {
-            if (!ancestors.isEmpty()) {
-              keyFactory.addAncestors(ancestors);
-            }
-            Number numValue = record.get(field.getName());
-            return keyFactory.newKey(numValue.longValue());
+        if (keyType == SinkKeyType.CUSTOM_NAME) {
+          if (!ancestors.isEmpty()) {
+            keyFactory.addAncestors(ancestors);
           }
-          default:
-            throw new IllegalStateException(
-              String.format("Key field '%s' of type '%s' is not supported for record type: '%s'",
-                            field.getName(), keyType.getValue(), schemaType));
+          Number numValue = record.get(field.getName());
+          return keyFactory.newKey(numValue.longValue());
         }
+        throw new IllegalStateException(
+          String.format("Key field '%s' of type '%s' is not supported for record type: '%s'",
+                        field.getName(), keyType.getValue(), schemaType));
       }
       default:
         String foundType = field.getSchema().isNullable()

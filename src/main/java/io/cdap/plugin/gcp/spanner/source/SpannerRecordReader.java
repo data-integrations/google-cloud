@@ -66,10 +66,7 @@ public class SpannerRecordReader extends RecordReader<NullWritable, ResultSet> {
 
   @Override
   public boolean nextKeyValue() throws IOException, InterruptedException {
-    if (resultSet != null && resultSet.next()) {
-      return true;
-    }
-    return false;
+    return resultSet != null && resultSet.next();
   }
 
   @Override

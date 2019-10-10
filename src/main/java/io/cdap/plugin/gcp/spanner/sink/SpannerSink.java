@@ -166,13 +166,10 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
 
     ResultSet resultSet = dbClient.singleUse().executeQuery(statement);
 
-    boolean tableExists = false;
-    while (resultSet.next()) {
-      tableExists = true;
-      break;
-    }
+    boolean tableExists = resultSet.next();
     // close result set to free up resources.
     resultSet.close();
+
     return tableExists;
   }
 
