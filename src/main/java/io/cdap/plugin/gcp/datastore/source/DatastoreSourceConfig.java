@@ -23,6 +23,7 @@ import com.google.datastore.v1.Filter;
 import com.google.datastore.v1.KindExpression;
 import com.google.datastore.v1.PartitionId;
 import com.google.datastore.v1.PropertyFilter;
+import com.google.datastore.v1.Value;
 import com.google.datastore.v1.client.DatastoreHelper;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
@@ -504,16 +505,14 @@ public class DatastoreSourceConfig extends GCPReferenceSourceConfig {
   private com.google.datastore.v1.Value constructFilterValue(String name, Schema schema, String value) {
     Schema.LogicalType logicalType = schema.getLogicalType();
     if (logicalType != null) {
-      switch (logicalType) {
-        case TIMESTAMP_MICROS:
-          Timestamp timestamp = Timestamp.parseTimestamp(value);
-          return com.google.datastore.v1.Value.newBuilder()
-            .setTimestampValue(timestamp.toProto())
-            .build();
-        default:
-          throw new IllegalStateException(
-            String.format("Filter field '%s' is of unsupported type '%s'", name, logicalType.getToken()));
+      if (logicalType == Schema.LogicalType.TIMESTAMP_MICROS) {
+        Timestamp timestamp = Timestamp.parseTimestamp(value);
+        return Value.newBuilder()
+          .setTimestampValue(timestamp.toProto())
+          .build();
       }
+      throw new IllegalStateException(
+        String.format("Filter field '%s' is of unsupported type '%s'", name, logicalType.getToken()));
     }
 
     switch (schema.getType()) {
@@ -558,7 +557,7 @@ public class DatastoreSourceConfig extends GCPReferenceSourceConfig {
   /**
    * Returns true if datastore can be connected to or schema is not a macro.
    */
-  public boolean shouldConnect() {
+  boolean shouldConnect() {
     return !containsMacro(DatastoreSourceConstants.PROPERTY_SCHEMA) &&
       !containsMacro(DatastoreSourceConfig.NAME_SERVICE_ACCOUNT_FILE_PATH) &&
       !containsMacro(DatastoreSourceConfig.NAME_PROJECT) &&

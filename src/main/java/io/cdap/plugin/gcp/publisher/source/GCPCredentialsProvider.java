@@ -26,7 +26,6 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Collections;
 import javax.annotation.Nullable;
 
 /**
@@ -45,7 +44,7 @@ public class GCPCredentialsProvider implements SparkGCPCredentials {
   public Credential provider() {
     if (credential == null) {
       if (serviceAccountFilePath != null) {
-        loadFromFile();
+        loadFromFile(serviceAccountFilePath);
       } else {
         try {
           credential = GoogleCredential.getApplicationDefault();
@@ -57,7 +56,7 @@ public class GCPCredentialsProvider implements SparkGCPCredentials {
     return credential;
   }
 
-  private void loadFromFile() {
+  private void loadFromFile(String serviceAccountFilePath) {
     try (InputStream is = new FileInputStream(new File(serviceAccountFilePath))) {
       credential = GoogleCredential.fromStream(is)
         .createScoped(PubsubScopes.all());
@@ -83,5 +82,4 @@ public class GCPCredentialsProvider implements SparkGCPCredentials {
       return new GCPCredentialsProvider(serviceAccountFilePath);
     }
   }
-
 }
