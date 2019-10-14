@@ -170,7 +170,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   public void validate(FailureCollector collector) {
     super.validate(collector);
 
-    if (!containsMacro(table)) {
+    if (!containsMacro(NAME_TABLE)) {
       BigQueryUtil.validateTable(table, NAME_TABLE, collector);
     }
 

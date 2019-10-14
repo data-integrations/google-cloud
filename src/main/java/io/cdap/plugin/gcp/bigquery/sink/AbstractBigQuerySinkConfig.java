@@ -104,11 +104,11 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
   public void validate(FailureCollector collector) {
     super.validate(collector);
     String bucket = getBucket();
-    if (!containsMacro(bucket)) {
+    if (!containsMacro(NAME_BUCKET)) {
       BigQueryUtil.validateBucket(bucket, NAME_BUCKET, collector);
     }
 
-    if (!containsMacro(dataset)) {
+    if (!containsMacro(NAME_DATASET)) {
       BigQueryUtil.validateDataset(dataset, NAME_DATASET, collector);
     }
   }

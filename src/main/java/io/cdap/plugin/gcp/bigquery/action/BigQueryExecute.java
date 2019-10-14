@@ -264,11 +264,11 @@ public final class BigQueryExecute extends Action {
           .withConfigProperty(TABLE).withConfigProperty(DATASET);
       }
 
-      if (!containsMacro(dataset)) {
+      if (!containsMacro(DATASET)) {
         BigQueryUtil.validateDataset(dataset, DATASET, failureCollector);
       }
 
-      if (!containsMacro(table)) {
+      if (!containsMacro(TABLE)) {
         BigQueryUtil.validateTable(table, TABLE, failureCollector);
       }
 
