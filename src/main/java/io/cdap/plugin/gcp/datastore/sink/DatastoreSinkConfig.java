@@ -287,7 +287,7 @@ public class DatastoreSinkConfig extends GCPReferenceSinkConfig {
   }
 
   private void validateIndexStrategy(Schema schema, FailureCollector collector) {
-    if (containsMacro(indexStrategy)) {
+    if (containsMacro(DatastoreSinkConstants.PROPERTY_INDEX_STRATEGY)) {
       return;
     }
 
