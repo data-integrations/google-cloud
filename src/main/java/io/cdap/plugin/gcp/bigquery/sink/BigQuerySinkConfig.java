@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -51,6 +52,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   public static final String NAME_TABLE = "table";
   public static final String NAME_SCHEMA = "schema";
   public static final String NAME_TABLE_KEY = "relationTableKey";
+  public static final String NAME_DEDUPE_BY = "dedupeBy";
   public static final String NAME_PARTITION_BY_FIELD = "partitionByField";
   public static final String NAME_CLUSTERING_ORDER = "clusteringOrder";
   public static final String NAME_OPERATION = "operation";
@@ -94,6 +96,14 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   @Nullable
   @Description("List of fields that determines relation between tables during Update and Upsert operations.")
   protected String relationTableKey;
+
+  @Name(NAME_DEDUPE_BY)
+  @Macro
+  @Nullable
+  @Description("Column names and sort order used to choose which input record to update/upsert when there are " +
+    "multiple input records with the same key. For example, if this is set to 'updated_time desc', then if there are " +
+    "multiple input records with the same key, the one with the largest value for 'updated_time' will be applied.")
+  protected String dedupeBy;
 
   @Macro
   @Nullable
@@ -147,6 +157,11 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   @Nullable
   public String getRelationTableKey() {
     return Strings.isNullOrEmpty(relationTableKey) ? null : relationTableKey;
+  }
+
+  @Nullable
+  public String getDedupeBy() {
+    return Strings.isNullOrEmpty(dedupeBy) ? null : dedupeBy;
   }
 
   /**
@@ -343,6 +358,47 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
           .withConfigElement(NAME_TABLE_KEY, keyField);
       }
     }
+
+    Map<String, Integer> keyMap = calculateDuplicates(keyFields);
+    keyMap.keySet().stream()
+      .filter(key -> keyMap.get(key) != 1)
+      .forEach(key -> collector.addFailure(
+        String.format("Table key field '%s' is duplicated.", key),
+        String.format("Remove duplicates of Table key field '%s'.", key))
+        .withConfigElement(NAME_TABLE_KEY, key)
+      );
+
+    if ((Operation.UPDATE.equals(getOperation()) || Operation.UPSERT.equals(getOperation()))
+      && getDedupeBy() != null) {
+      List<String> dedupeByList = Arrays.stream(Objects.requireNonNull(getDedupeBy()).split(","))
+        .collect(Collectors.toList());
+
+      dedupeByList.stream()
+        .filter(v -> !fields.contains(v.split(" ")[0]))
+        .forEach(v -> collector.addFailure(
+        String.format("Dedupe by field '%s' does not exist in the schema.", v.split(" ")[0]),
+        "Change the Dedupe by field to be one of the schema fields.")
+        .withConfigElement(NAME_DEDUPE_BY, v));
+
+      Map<String, Integer> orderedByFieldMap = calculateDuplicates(dedupeByList);
+      Map<String, String> orderedByFieldValueMap = dedupeByList.stream()
+        .collect(Collectors.toMap(p -> p.split(" ")[0], p -> p, (x, y) -> y));
+
+      orderedByFieldMap.keySet().stream()
+        .filter(key -> orderedByFieldMap.get(key) != 1)
+        .forEach(key -> collector.addFailure(
+          String.format("Dedupe by field '%s' is duplicated.", key),
+          String.format("Remove duplicates of Dedupe by field '%s'.", key))
+          .withConfigElement(NAME_DEDUPE_BY, orderedByFieldValueMap.get(key))
+        );
+
+    }
+  }
+
+  private Map<String, Integer> calculateDuplicates(List<String> values) {
+    return values.stream()
+      .map(v -> v.split(" ")[0])
+      .collect(Collectors.toMap(p -> p, p -> 1, (x, y) -> x + y));
   }
 
   private boolean isSupportedLogicalType(Schema.LogicalType logicalType) {

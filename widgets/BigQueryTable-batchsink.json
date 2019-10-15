@@ -95,6 +95,16 @@
           "widget-attributes" : {}
         },
         {
+          "name": "dedupeBy",
+          "label": "Dedupe By",
+          "widget-type": "keyvalue-dropdown",
+          "widget-attributes": {
+            "delimiter": ",",
+            "kv-delimiter": " ",
+            "dropdownOptions": [ "ASC", "DESC"]
+          }
+        },
+        {
           "widget-type": "toggle",
           "name": "truncateTable",
           "label": "Truncate Table",

@@ -31,5 +31,6 @@ public interface BigQueryConstants {
   String CONFIG_CLUSTERING_ORDER = "cdap.bq.sink.clustering.order";
   String CONFIG_OPERATION = "cdap.bq.sink.operation";
   String CONFIG_TABLE_KEY = "cdap.bq.sink.table.key";
+  String CONFIG_DEDUPE_BY = "cdap.bq.sink.dedupe.by";
   String CONFIG_TABLE_FIELDS = "cdap.bq.sink.table.fields";
 }

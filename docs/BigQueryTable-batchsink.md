@@ -51,6 +51,10 @@ Should only be used with the Insert operation.
 
 **Table Key**: List of fields that determines relation between tables during Update and Upsert operations.
 
+**Dedupe By**: Column names and sort order used to choose which input record to update/upsert when there are 
+multiple input records with the same key. For example, if this is set to 'updated_time desc', then if there are 
+multiple input records with the same key, the one with the largest value for 'updated_time' will be applied.              
+
 **Create Partitioned Table**: Whether to create the BigQuery table with time partitioning. This value 
 is ignored if the table already exists.
 * When this is set to true, table will be created with time partitioning. 
