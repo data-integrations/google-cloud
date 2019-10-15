@@ -69,7 +69,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
                                 null : GCPUtils.loadServiceAccountCredentials(config.getServiceAccountFilePath());
     Storage storage = GCPUtils.getStorage(config.getProject(), credentials);
     if (storage.get(config.getBucket()) == null) {
-      GCPUtils.createBucket(storage, config.getBucket(), null, cmekKey);
+      GCPUtils.createBucket(storage, config.getBucket(), config.getLocation(), cmekKey);
     }
   }
 
@@ -92,6 +92,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     private static final String NAME_SUFFIX = "suffix";
     private static final String NAME_FORMAT = "format";
     private static final String NAME_SCHEMA = "schema";
+    private static final String NAME_LOCATION = "location";
 
     private static final String SCHEME = "gs://";
     @Name(NAME_PATH)
@@ -121,6 +122,13 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     @Macro
     @Nullable
     private String schema;
+
+    @Name(NAME_LOCATION)
+    @Macro
+    @Nullable
+    @Description("The location where the gcs bucket will get created. " +
+                   "This value is ignored if the bucket already exists")
+    protected String location;
 
     @Override
     public void validate() {
@@ -195,6 +203,11 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     @Nullable
     public String getDelimiter() {
       return delimiter;
+    }
+
+    @Nullable
+    public String getLocation() {
+      return location;
     }
   }
 }

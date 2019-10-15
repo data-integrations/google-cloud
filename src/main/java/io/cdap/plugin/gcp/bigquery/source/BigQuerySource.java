@@ -18,6 +18,7 @@ package io.cdap.plugin.gcp.bigquery.source;
 
 import com.google.auth.Credentials;
 import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.LegacySQLTypeName;
@@ -136,10 +137,12 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
       // By default, this option is false, meaning the job can not delete the bucket. So enable it only when bucket name
       // is not provided.
       configuration.setBoolean("fs.gs.bucket.delete.enable", true);
-    }
 
-    BigQueryUtil.createResources(bigQuery, GCPUtils.getStorage(config.getProject(), credentials),
-                                 config.getDataset(), bucket, cmekKey);
+      // the dataset existence is validated before, so this cannot be null
+      Dataset dataset = bigQuery.getDataset(config.getDataset());
+      GCPUtils.createBucket(GCPUtils.getStorage(config.getProject(), credentials), bucket, dataset.getLocation(),
+                            cmekKey);
+    }
 
     configuration.set("fs.gs.system.bucket", bucket);
     configuration.setBoolean("fs.gs.impl.disable.cache", true);

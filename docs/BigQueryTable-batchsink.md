@@ -51,6 +51,9 @@ Should only be used with the Insert operation.
 
 **Table Key**: List of fields that determines relation between tables during Update and Upsert operations.
 
+**Location:** The location where the big query dataset will get created. This value is ignored
+if the dataset or temporary bucket already exist.
+
 **Create Partitioned Table**: Whether to create the BigQuery table with time partitioning. This value 
 is ignored if the table already exists.
 * When this is set to true, table will be created with time partitioning. 

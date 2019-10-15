@@ -23,7 +23,7 @@ import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.gcp.bigtable.common.HBaseColumn;
 import io.cdap.plugin.gcp.common.ConfigUtil;
-import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
+import io.cdap.plugin.gcp.common.GCPReferenceSinkConfig;
 
 import java.io.File;
 import java.util.Collections;
@@ -34,7 +34,7 @@ import javax.annotation.Nullable;
 /**
  * Holds configuration required for configuring {@link BigtableSink}.
  */
-public final class BigtableSinkConfig extends GCPReferenceSourceConfig {
+public final class BigtableSinkConfig extends GCPReferenceSinkConfig {
   public static final String TABLE = "table";
   public static final String INSTANCE = "instance";
   public static final String KEY_ALIAS = "keyAlias";

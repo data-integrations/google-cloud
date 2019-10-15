@@ -135,7 +135,8 @@ public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableByt
     // Both emitLineage and setOutputFormat internally try to create an external dataset if it does not already exists.
     // We call emitLineage before since it creates the dataset with schema.
     emitLineage(context);
-    context.addOutput(Output.of(config.referenceName, new SourceOutputFormatProvider(TableOutputFormat.class, conf)));
+    context.addOutput(Output.of(config.getReferenceName(),
+                                new SourceOutputFormatProvider(TableOutputFormat.class, conf)));
   }
 
   @Override
@@ -235,7 +236,7 @@ public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableByt
 
   private void emitLineage(BatchSinkContext context) {
     Schema inputSchema = context.getInputSchema();
-    LineageRecorder lineageRecorder = new LineageRecorder(context, config.referenceName);
+    LineageRecorder lineageRecorder = new LineageRecorder(context, config.getReferenceName());
     lineageRecorder.createExternalDataset(inputSchema);
 
     if (inputSchema != null) {
