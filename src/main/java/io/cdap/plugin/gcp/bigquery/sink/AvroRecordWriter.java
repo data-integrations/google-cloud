@@ -101,7 +101,9 @@ public class AvroRecordWriter extends RecordWriter<AvroKey<GenericRecord>, NullW
   /** {@inheritDoc} */
   @Override
   public void close(TaskAttemptContext context) throws IOException {
-    mAvroFileWriter.close();
+    if (mAvroFileWriter != null) {
+      mAvroFileWriter.close();
+    }
   }
 
   /** {@inheritDoc} */

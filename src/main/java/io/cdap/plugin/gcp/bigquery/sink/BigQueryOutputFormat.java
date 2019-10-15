@@ -196,84 +196,92 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
                BigQueryStrings.toString(tableRef), gcsPaths.size(), gcsPaths.isEmpty() ? "(empty)" : gcsPaths.get(0),
                true);
 
-      // Create load conf with minimal requirements.
-      JobConfigurationLoad loadConfig = new JobConfigurationLoad();
-      loadConfig.setSchema(schema);
-      loadConfig.setSourceFormat(sourceFormat.getFormatIdentifier());
-      loadConfig.setSourceUris(gcsPaths);
-      loadConfig.setWriteDisposition(writeDisposition);
-      loadConfig.setUseAvroLogicalTypes(true);
-      if (!tableExists && createPartitionedTable) {
-        TimePartitioning timePartitioning = new TimePartitioning();
-        timePartitioning.setType("DAY");
-        if (partitionByField != null) {
-          timePartitioning.setField(partitionByField);
+      if (!gcsPaths.isEmpty()) {
+        // Create load conf with minimal requirements.
+        JobConfigurationLoad loadConfig = new JobConfigurationLoad();
+        loadConfig.setSchema(schema);
+        loadConfig.setSourceFormat(sourceFormat.getFormatIdentifier());
+        loadConfig.setSourceUris(gcsPaths);
+        loadConfig.setWriteDisposition(writeDisposition);
+        loadConfig.setUseAvroLogicalTypes(true);
+        if (!tableExists && createPartitionedTable) {
+          TimePartitioning timePartitioning = new TimePartitioning();
+          timePartitioning.setType("DAY");
+          if (partitionByField != null) {
+            timePartitioning.setField(partitionByField);
+          }
+          timePartitioning.setRequirePartitionFilter(requirePartitionFilter);
+          loadConfig.setTimePartitioning(timePartitioning);
+          if (!clusteringOrderList.isEmpty()) {
+            Clustering clustering = new Clustering();
+            clustering.setFields(clusteringOrderList);
+            loadConfig.setClustering(clustering);
+          }
         }
-        timePartitioning.setRequirePartitionFilter(requirePartitionFilter);
-        loadConfig.setTimePartitioning(timePartitioning);
-        if (!clusteringOrderList.isEmpty()) {
-          Clustering clustering = new Clustering();
-          clustering.setFields(clusteringOrderList);
-          loadConfig.setClustering(clustering);
+
+        temporaryTableReference = null;
+        if (tableExists && !isTableEmpty(tableRef) && !Operation.INSERT.equals(operation)) {
+          String temporaryTableName = tableRef.getTableId() + "_"
+            + UUID.randomUUID().toString().replaceAll("-", "_");
+          temporaryTableReference = new TableReference()
+            .setDatasetId(tableRef.getDatasetId())
+            .setProjectId(tableRef.getProjectId())
+            .setTableId(temporaryTableName);
+          loadConfig.setDestinationTable(temporaryTableReference);
+        } else {
+          loadConfig.setDestinationTable(tableRef);
+
+          if (allowSchemaRelaxation) {
+            loadConfig.setSchemaUpdateOptions(Arrays.asList(
+              JobInfo.SchemaUpdateOption.ALLOW_FIELD_ADDITION.name(),
+              JobInfo.SchemaUpdateOption.ALLOW_FIELD_RELAXATION.name()));
+          }
         }
-      }
 
-      temporaryTableReference = null;
-      if (tableExists && !isTableEmpty(tableRef) && !Operation.INSERT.equals(operation)) {
-        String temporaryTableName = tableRef.getTableId() + "_"
-          + UUID.randomUUID().toString().replaceAll("-", "_");
-        temporaryTableReference = new TableReference()
-          .setDatasetId(tableRef.getDatasetId())
-          .setProjectId(tableRef.getProjectId())
-          .setTableId(temporaryTableName);
-        loadConfig.setDestinationTable(temporaryTableReference);
-      } else {
-        loadConfig.setDestinationTable(tableRef);
-
-        if (allowSchemaRelaxation) {
-          loadConfig.setSchemaUpdateOptions(Arrays.asList(
-            JobInfo.SchemaUpdateOption.ALLOW_FIELD_ADDITION.name(),
-            JobInfo.SchemaUpdateOption.ALLOW_FIELD_RELAXATION.name()));
+        if (!Strings.isNullOrEmpty(kmsKeyName)) {
+          loadConfig.setDestinationEncryptionConfiguration(new EncryptionConfiguration().setKmsKeyName(kmsKeyName));
         }
-      }
 
-      if (!Strings.isNullOrEmpty(kmsKeyName)) {
-        loadConfig.setDestinationEncryptionConfiguration(new EncryptionConfiguration().setKmsKeyName(kmsKeyName));
-      }
+        // Auto detect the schema if we're not given one, otherwise use the passed schema.
+        if (schema == null) {
+          LOG.info("No import schema provided, auto detecting schema.");
+          loadConfig.setAutodetect(true);
+        } else {
+          LOG.info("Using provided import schema '{}'.", schema.toString());
+        }
 
-      // Auto detect the schema if we're not given one, otherwise use the passed schema.
-      if (schema == null) {
-        LOG.info("No import schema provided, auto detecting schema.");
-        loadConfig.setAutodetect(true);
-      } else {
-        LOG.info("Using provided import schema '{}'.", schema.toString());
-      }
+        JobConfiguration config = new JobConfiguration();
+        config.setLoad(loadConfig);
 
-      JobConfiguration config = new JobConfiguration();
-      config.setLoad(loadConfig);
+        // Get the dataset to determine the location
+        Dataset dataset =
+          bigQueryHelper.getRawBigquery().datasets().get(tableRef.getProjectId(), tableRef.getDatasetId()).execute();
 
-      // Get the dataset to determine the location
-      Dataset dataset =
-        bigQueryHelper.getRawBigquery().datasets().get(tableRef.getProjectId(), tableRef.getDatasetId()).execute();
+        JobReference jobReference =
+          bigQueryHelper.createJobReference(projectId, "direct-bigqueryhelper-import", dataset.getLocation());
+        Job job = new Job();
+        job.setConfiguration(config);
+        job.setJobReference(jobReference);
 
-      JobReference jobReference =
-        bigQueryHelper.createJobReference(projectId, "direct-bigqueryhelper-import", dataset.getLocation());
-      Job job = new Job();
-      job.setConfiguration(config);
-      job.setJobReference(jobReference);
+        // Insert and run job.
+        bigQueryHelper.insertJobOrFetchDuplicate(projectId, job);
 
-      // Insert and run job.
-      bigQueryHelper.insertJobOrFetchDuplicate(projectId, job);
+        // Poll until job is complete.
+        waitForJobCompletion(bigQueryHelper.getRawBigquery(), projectId, jobReference);
 
-      // Poll until job is complete.
-      waitForJobCompletion(bigQueryHelper.getRawBigquery(), projectId, jobReference);
-
-      if (temporaryTableReference != null && bigQueryHelper.tableExists(temporaryTableReference)) {
-        long expirationMillis = System.currentTimeMillis() + TimeUnit.DAYS.toMillis(1);
-        Table table = bigQueryHelper.getTable(temporaryTableReference).setExpirationTime(expirationMillis);
-        bigQueryHelper.getRawBigquery().tables().update(temporaryTableReference.getProjectId(),
-                                                        temporaryTableReference.getDatasetId(),
-                                                        temporaryTableReference.getTableId(), table).execute();
+        if (temporaryTableReference != null && bigQueryHelper.tableExists(temporaryTableReference)) {
+          long expirationMillis = System.currentTimeMillis() + TimeUnit.DAYS.toMillis(1);
+          Table table = bigQueryHelper.getTable(temporaryTableReference).setExpirationTime(expirationMillis);
+          bigQueryHelper.getRawBigquery().tables().update(temporaryTableReference.getProjectId(),
+                                                          temporaryTableReference.getDatasetId(),
+                                                          temporaryTableReference.getTableId(), table).execute();
+        }
+      } else if (!bigQueryHelper.tableExists(tableRef)) {
+        Table table = new Table();
+        table.setSchema(schema);
+        table.setTableReference(tableRef);
+        bigQueryHelper.getRawBigquery().tables().insert(tableRef.getProjectId(), tableRef.getDatasetId(), table)
+          .execute();
       }
     }
 
