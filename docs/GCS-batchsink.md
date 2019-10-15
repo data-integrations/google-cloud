@@ -41,6 +41,8 @@ The format must be one of 'json', 'avro', 'parquet', 'csv', 'tsv', or 'delimited
 **Delimiter:** Delimiter to use if the format is 'delimited'.
 The delimiter will be ignored if the format is anything other than 'delimited'.
 
+**Location:** The location where the gcs bucket will get created. This value is ignored if the bucket already exists.
+
 **Service Account File Path**: Path on the local file system of the service account key used for
 authorization. Can be set to 'auto-detect' when running on a Dataproc cluster.
 When running on other clusters, the file must be present on every node in the cluster.

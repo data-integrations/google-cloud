@@ -40,6 +40,7 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
   public static final String NAME_DATASET = "dataset";
   public static final String NAME_BUCKET = "bucket";
   public static final String NAME_TRUNCATE_TABLE = "truncateTable";
+  public static final String NAME_LOCATION = "location";
 
   @Name(NAME_DATASET)
   @Macro
@@ -66,6 +67,18 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
   @Description("Whether or not to truncate the table before writing to it. "
     + "Should only be used with the Insert operation.")
   protected Boolean truncateTable;
+
+  @Name(NAME_LOCATION)
+  @Macro
+  @Nullable
+  @Description("The location where the big query dataset will get created. " +
+                 "This value is ignored if the dataset or temporary bucket already exist.")
+  protected String location;
+
+  @Nullable
+  public String getLocation() {
+    return location;
+  }
 
   @Nullable
   protected String getTable() {
