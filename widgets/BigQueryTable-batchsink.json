@@ -142,6 +142,14 @@
       "label": "Auto Create",
       "properties": [
         {
+          "widget-type": "textbox",
+          "label": "Location",
+          "name": "location",
+          "widget-attributes" : {
+            "default": "US"
+          }
+        },
+        {
           "name": "createPartitionedTable",
           "widget-type": "toggle",
           "label": "Create Partitioned Table",

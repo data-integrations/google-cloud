@@ -38,6 +38,7 @@ import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.action.Action;
 import io.cdap.cdap.etl.api.action.ActionContext;
+import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import org.slf4j.Logger;
@@ -247,22 +248,30 @@ public final class BigQueryExecute extends Action {
         try {
           getMode();
         } catch (IllegalArgumentException e) {
-          failureCollector.addFailure(e.getMessage(),
-                                      "The mode must be 'batch' or 'interactive'.").withConfigProperty(MODE);
+          failureCollector.addFailure(e.getMessage(), "The mode must be 'batch' or 'interactive'.")
+            .withConfigProperty(MODE);
         }
       }
 
       if (!containsMacro(SQL) && Strings.isNullOrEmpty(sql)) {
-        failureCollector.addFailure("SQL not specified. Please specify a SQL to execute",
-                                    null).withConfigProperty(SQL);
+        failureCollector.addFailure("SQL not specified. Please specify a SQL to execute", null).withConfigProperty(SQL);
       }
 
       // validates that either they are null together or not null together
       if ((!containsMacro(DATASET) && !containsMacro(TABLE)) &&
-            (Strings.isNullOrEmpty(dataset) != Strings.isNullOrEmpty(table))) {
+        (Strings.isNullOrEmpty(dataset) != Strings.isNullOrEmpty(table))) {
         failureCollector.addFailure("Dataset and table must be specified together.", null)
           .withConfigProperty(TABLE).withConfigProperty(DATASET);
       }
+
+      if (!containsMacro(DATASET)) {
+        BigQueryUtil.validateDataset(dataset, DATASET, failureCollector);
+      }
+
+      if (!containsMacro(TABLE)) {
+        BigQueryUtil.validateTable(table, TABLE, failureCollector);
+      }
+
       failureCollector.getOrThrowException();
     }
   }

@@ -6,5 +6,5 @@ package io.cdap.plugin.gcp.bigquery.sink;
 public enum Operation {
   INSERT,
   UPDATE,
-  UPSERT;
+  UPSERT
 }

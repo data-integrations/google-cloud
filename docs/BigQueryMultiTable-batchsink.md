@@ -39,6 +39,9 @@ bucket will be created and then deleted after the run finishes.
 **Truncate Table:** Whether or not to truncate the table before writing to it.
 Should only be used with the Insert operation.
 
+**Location:** The location where the big query datasets will get created. This value is ignored
+if the dataset or temporary bucket already exist.
+
 **Split Field:** The name of the field that will be used to determine which table to write to.
 
 **Update Table Schema**: Whether the BigQuery table schema should be modified 

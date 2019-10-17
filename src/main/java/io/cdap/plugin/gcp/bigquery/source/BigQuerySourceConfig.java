@@ -24,12 +24,12 @@ import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
 
 import java.io.IOException;
 import java.util.Set;
-import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
 /**
@@ -133,14 +133,17 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   public void validate(FailureCollector collector) {
     super.validate(collector);
     String bucket = getBucket();
-    if (!containsMacro("bucket") && bucket != null) {
-      // Basic validation for allowed characters as per https://cloud.google.com/storage/docs/naming
-      Pattern p = Pattern.compile("[a-z0-9._-]+");
-      if (!p.matcher(bucket).matches()) {
-        collector.addFailure("Bucket contains characters other than lowercase characters, numbers, '.', '_', and '-'.",
-                             null)
-          .withConfigProperty(NAME_BUCKET);
-      }
+
+    if (!containsMacro(NAME_BUCKET)) {
+      BigQueryUtil.validateBucket(bucket, NAME_BUCKET, collector);
+    }
+
+    if (!containsMacro(NAME_DATASET)) {
+      BigQueryUtil.validateDataset(dataset, NAME_DATASET, collector);
+    }
+
+    if (!containsMacro(NAME_TABLE)) {
+      BigQueryUtil.validateTable(table, NAME_TABLE, collector);
     }
   }
 

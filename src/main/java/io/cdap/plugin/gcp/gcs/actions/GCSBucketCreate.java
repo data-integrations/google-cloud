@@ -40,6 +40,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 
 /**
@@ -100,7 +101,8 @@ public final class GCSBucketCreate extends Action {
 
         // create the gcs buckets if not exist
         if (storage.get(gcsPath.getBucket()) == null) {
-          GCPUtils.createBucket(storage, gcsPath.getBucket(), null, context.getArguments().get(GCPUtils.CMEK_KEY));
+          GCPUtils.createBucket(storage, gcsPath.getBucket(), config.location,
+                                context.getArguments().get(GCPUtils.CMEK_KEY));
           undoBucket.add(bucketPath);
         } else if (gcsPath.equals(bucketPath) && config.failIfExists()) {
           // if the gcs path is just a bucket, and it exists, fail the pipeline
@@ -161,6 +163,7 @@ public final class GCSBucketCreate extends Action {
    */
   public static final class Config extends GCPConfig {
     public static final String NAME_PATHS = "paths";
+    public static final String NAME_LOCATION = "location";
 
     @Name(NAME_PATHS)
     @Description("Comma separated list of objects to be created.")
@@ -171,6 +174,13 @@ public final class GCSBucketCreate extends Action {
     @Description("Fail if path exists.")
     @Macro
     private boolean failIfExists;
+
+    @Name(NAME_LOCATION)
+    @Macro
+    @Nullable
+    @Description("The location where the gcs buckets will get created. " +
+                   "This value is ignored if the bucket already exists.")
+    protected String location;
 
     public List<String> getPaths() {
       return Arrays.stream(paths.split(",")).map(String::trim).collect(Collectors.toList());

@@ -18,17 +18,13 @@ package io.cdap.plugin.gcp.bigquery.util;
 
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
-import com.google.cloud.bigquery.Dataset;
-import com.google.cloud.bigquery.DatasetInfo;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
-import com.google.cloud.storage.Bucket;
-import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageException;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.data.schema.Schema;
@@ -52,7 +48,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Supplier;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
@@ -61,6 +57,10 @@ import javax.annotation.Nullable;
  * Common Util class for big query plugins such as {@link BigQuerySource} and {@link BigQuerySink}
  */
 public final class BigQueryUtil {
+  public static final String BUCKET_PATTERN = "[a-z0-9._-]+";
+  public static final String DATASET_PATTERN = "[A-Za-z0-9_]+";
+  public static final String TABLE_PATTERN = "[A-Za-z0-9_]+";
+
   // array of arrays and map of arrays are not supported by big query
   public static final Set<Schema.Type> UNSUPPORTED_ARRAY_TYPES = ImmutableSet.of(Schema.Type.ARRAY, Schema.Type.MAP);
 
@@ -148,79 +148,6 @@ public final class BigQueryUtil {
       configuration.set(BigQueryConfiguration.OUTPUT_TABLE_KMS_KEY_NAME_KEY, cmekKey);
     }
     return configuration;
-  }
-
-  /**
-   * Creates the given dataset and bucket if they do not already exist. If the dataset already exists but the
-   * bucket does not, the bucket will be created in the same location as the dataset. If the bucket already exists
-   * but the dataset does not, the dataset will attempt to be created in the same location. This may fail if the bucket
-   * is in a location that BigQuery does not yet support.
-   *
-   * @param bigQuery the bigquery client for the project
-   * @param storage the storage client for the project
-   * @param datasetName the name of the dataset
-   * @param bucketName the name of the bucket
-   * @param cmekKey the name of the cmek key
-   * @throws IOException if there was an error creating or fetching any GCP resource
-   */
-  public static void createResources(BigQuery bigQuery, Storage storage,
-                                     String datasetName, String bucketName,
-                                     @Nullable String cmekKey) throws IOException {
-    Dataset dataset = bigQuery.getDataset(datasetName);
-    Bucket bucket = storage.get(bucketName);
-
-    if (dataset == null && bucket == null) {
-      createBucket(storage, bucketName, null, cmekKey,
-                   () -> String.format("Unable to create Cloud Storage bucket '%s'", bucketName));
-      createDataset(bigQuery, datasetName, null,
-                    () -> String.format("Unable to create BigQuery dataset '%s'", datasetName));
-    } else if (bucket == null) {
-      createBucket(
-        storage, bucketName, dataset.getLocation(), cmekKey,
-        () -> String.format(
-          "Unable to create Cloud Storage bucket '%s' in the same location ('%s') as BigQuery dataset '%s'. "
-            + "Please use a bucket that is in the same location as the dataset.",
-          bucketName, dataset.getLocation(), datasetName));
-    } else if (dataset == null) {
-      createDataset(
-        bigQuery, datasetName, bucket.getLocation(),
-        () -> String.format(
-          "Unable to create BigQuery dataset '%s' in the same location ('%s') as Cloud Storage bucket '%s'. "
-            + "Please use a bucket that is in a supported location.",
-          datasetName, bucket.getLocation(), bucketName));
-    }
-  }
-
-  private static void createDataset(BigQuery bigQuery, String dataset, @Nullable String location,
-                                    Supplier<String> errorMessage) throws IOException {
-    DatasetInfo.Builder builder = DatasetInfo.newBuilder(dataset);
-    if (location != null) {
-      builder.setLocation(location);
-    }
-    try {
-      bigQuery.create(builder.build());
-    } catch (BigQueryException e) {
-      if (e.getCode() != 409) {
-        // A conflict means the dataset already exists (https://cloud.google.com/bigquery/troubleshooting-errors)
-        // This most likely means multiple stages in the same pipeline are trying to create the same dataset.
-        // Ignore this and move on, since all that matters is that the dataset exists.
-        throw new IOException(errorMessage.get(), e);
-      }
-    }
-  }
-
-  private static void createBucket(Storage storage, String bucket, @Nullable String location,
-                                   @Nullable String cmekKey, Supplier<String> errorMessage) throws IOException {
-    try {
-      GCPUtils.createBucket(storage, bucket, location, cmekKey);
-    } catch (StorageException e) {
-      if (e.getCode() != 409) {
-        // A conflict means the bucket already exists
-        // This most likely means multiple stages in the same pipeline are trying to create the same dataset.
-        // Ignore this and move on, since all that matters is that the dataset exists.
-        throw new IOException(errorMessage.get(), e);
-      }
-    }
   }
 
   /**
@@ -458,5 +385,64 @@ public final class BigQueryUtil {
     }
 
     return table;
+  }
+
+  /**
+   * Validates allowed characters for bucket name.
+   *
+   * @param bucket bucket name
+   * @param bucketPropertyName bucket name property
+   * @param collector failure collector
+   */
+  public static void validateBucket(String bucket, String bucketPropertyName, FailureCollector collector) {
+    // Allowed character validation for bucket name as per https://cloud.google.com/storage/docs/naming
+    String errorMessage = "Bucket name can only contain lowercase letters, numbers, '.', '_', and '-'.";
+    match(bucket, bucketPropertyName, BUCKET_PATTERN, collector, errorMessage);
+  }
+
+  /**
+   * Validates allowed characters for dataset name.
+   *
+   * @param dataset dataset name
+   * @param datasetPropertyName dataset name property
+   * @param collector failure collector
+   */
+  public static void validateDataset(String dataset, String datasetPropertyName, FailureCollector collector) {
+    // Allowed character validation for dataset name as per https://cloud.google.com/bigquery/docs/datasets
+    String errorMessage = "Dataset name can only contain letters (lower or uppercase), numbers and '_'.";
+    match(dataset, datasetPropertyName, DATASET_PATTERN, collector, errorMessage);
+  }
+
+  /**
+   * Validates allowed characters for table name.
+   *
+   * @param table table name
+   * @param tablePropertyName table name property
+   * @param collector failure collector
+   */
+  public static void validateTable(String table, String tablePropertyName, FailureCollector collector) {
+    // Allowed character validation for table name as per https://cloud.google.com/bigquery/docs/tables
+    String errorMessage = "Table name can only contain letters (lower or uppercase), numbers and '_'.";
+    match(table, tablePropertyName, TABLE_PATTERN, collector, errorMessage);
+  }
+
+  /**
+   * Matches text with provided pattern. If the text does not match the pattern, the method adds a new failure to
+   * failure collector.
+   *
+   * @param text text to be matched
+   * @param propertyName property name
+   * @param pattern pattern
+   * @param collector failure collector
+   * @param errorMessage error message
+   */
+  private static void match(String text, String propertyName, String pattern,
+                            FailureCollector collector, String errorMessage) {
+    if (!Strings.isNullOrEmpty(text)) {
+      Pattern p = Pattern.compile(pattern);
+      if (!p.matcher(text).matches()) {
+        collector.addFailure(errorMessage, null).withConfigProperty(propertyName);
+      }
+    }
   }
 }

@@ -184,6 +184,11 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   @Override
   public void validate(FailureCollector collector) {
     super.validate(collector);
+
+    if (!containsMacro(NAME_TABLE)) {
+      BigQueryUtil.validateTable(table, NAME_TABLE, collector);
+    }
+
     if (getWriteDisposition().equals(JobInfo.WriteDisposition.WRITE_TRUNCATE)
       && !getOperation().equals(Operation.INSERT)) {
       collector.addFailure("Truncate must only be used with operation 'Insert'.",
@@ -201,7 +206,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
    * @param collector failure collector
    */
   public void validate(@Nullable Schema inputSchema, @Nullable Schema outputSchema, FailureCollector collector) {
-    super.validate(collector);
+    validate(collector);
     if (!containsMacro(NAME_SCHEMA)) {
       Schema schema = outputSchema == null ? inputSchema : outputSchema;
       validatePartitionProperties(schema, collector);
@@ -324,11 +329,12 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   }
 
   private void validateOperationProperties(@Nullable Schema schema, FailureCollector collector) {
-    if (Arrays.stream(Operation.values()).map(Enum::name).noneMatch(operation.toUpperCase()::equals)) {
+    Operation operation = getOperation();
+    if (Arrays.stream(Operation.values()).noneMatch(operation::equals)) {
       collector.addFailure(
         String.format("Operation has incorrect value '%s'.", operation),
         "Set the operation to 'Insert', 'Update', or 'Upsert'.")
-        .withConfigElement(NAME_OPERATION, operation);
+        .withConfigElement(NAME_OPERATION, operation.name().toLowerCase());
       return;
     }
     if (Operation.INSERT.equals(getOperation())) {
@@ -412,7 +418,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   /**
    * Returns true if bigquery table can be connected to or schema is not a macro.
    */
-  public boolean shouldConnect() {
+  boolean shouldConnect() {
     return !containsMacro(BigQuerySinkConfig.NAME_DATASET) && !containsMacro(BigQuerySinkConfig.NAME_TABLE) &&
       !containsMacro(BigQuerySinkConfig.NAME_SERVICE_ACCOUNT_FILE_PATH) &&
       !containsMacro(BigQuerySinkConfig.NAME_PROJECT) && !containsMacro(BigQuerySinkConfig.NAME_SCHEMA);

@@ -22,10 +22,10 @@ import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.GCPReferenceSinkConfig;
 
 import java.util.Set;
-import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
 /**
@@ -40,6 +40,7 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
   public static final String NAME_DATASET = "dataset";
   public static final String NAME_BUCKET = "bucket";
   public static final String NAME_TRUNCATE_TABLE = "truncateTable";
+  public static final String NAME_LOCATION = "location";
 
   @Name(NAME_DATASET)
   @Macro
@@ -66,6 +67,18 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
   @Description("Whether or not to truncate the table before writing to it. "
     + "Should only be used with the Insert operation.")
   protected Boolean truncateTable;
+
+  @Name(NAME_LOCATION)
+  @Macro
+  @Nullable
+  @Description("The location where the big query dataset will get created. " +
+                 "This value is ignored if the dataset or temporary bucket already exist.")
+  protected String location;
+
+  @Nullable
+  public String getLocation() {
+    return location;
+  }
 
   @Nullable
   protected String getTable() {
@@ -104,13 +117,12 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
   public void validate(FailureCollector collector) {
     super.validate(collector);
     String bucket = getBucket();
-    if (!containsMacro(NAME_BUCKET) && bucket != null) {
-      // Basic validation for allowed characters as per https://cloud.google.com/storage/docs/naming
-      Pattern p = Pattern.compile("[a-z0-9._-]+");
-      if (!p.matcher(bucket).matches()) {
-        collector.addFailure("Bucket must only contain lowercase characters, numbers, '.', '_', and '-'", null)
-          .withConfigProperty(NAME_BUCKET);
-      }
+    if (!containsMacro(NAME_BUCKET)) {
+      BigQueryUtil.validateBucket(bucket, NAME_BUCKET, collector);
+    }
+
+    if (!containsMacro(NAME_DATASET)) {
+      BigQueryUtil.validateDataset(dataset, NAME_DATASET, collector);
     }
   }
 }

@@ -140,17 +140,15 @@ public class EntityToRecordTransformer {
 
     Schema.LogicalType logicalType = fieldSchema.getLogicalType();
     if (logicalType != null) {
-      switch (logicalType) {
-        case TIMESTAMP_MICROS:
-          // GC timestamp supports nano second level precision, CDAP only micro second level precision
-          Timestamp timestamp = castValue(value, fieldName, logicalType.getToken(), TimestampValue.class).get();
-          Instant zonedInstant = Instant.ofEpochSecond(timestamp.getSeconds()).plusNanos(timestamp.getNanos());
-          long micros = TimeUnit.SECONDS.toMicros(zonedInstant.getEpochSecond());
-          return Math.addExact(micros, TimeUnit.NANOSECONDS.toMicros(zonedInstant.getNano()));
-        default:
-          throw new IllegalStateException(
-            String.format("Field '%s' is of unsupported type '%s'", fieldName, logicalType.getToken()));
+      // GC timestamp supports nano second level precision, CDAP only micro second level precision
+      if (logicalType == Schema.LogicalType.TIMESTAMP_MICROS) {
+        Timestamp timestamp = castValue(value, fieldName, logicalType.getToken(), TimestampValue.class).get();
+        Instant zonedInstant = Instant.ofEpochSecond(timestamp.getSeconds()).plusNanos(timestamp.getNanos());
+        long micros = TimeUnit.SECONDS.toMicros(zonedInstant.getEpochSecond());
+        return Math.addExact(micros, TimeUnit.NANOSECONDS.toMicros(zonedInstant.getNano()));
       }
+      throw new IllegalStateException(
+        String.format("Field '%s' is of unsupported type '%s'", fieldName, logicalType.getToken()));
     }
 
     Schema.Type fieldType = fieldSchema.getType();

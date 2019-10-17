@@ -55,6 +55,9 @@ Should only be used with the Insert operation.
 multiple input records with the same key. For example, if this is set to 'updated_time desc', then if there are 
 multiple input records with the same key, the one with the largest value for 'updated_time' will be applied.              
 
+**Location:** The location where the big query dataset will get created. This value is ignored
+if the dataset or temporary bucket already exist.
+
 **Create Partitioned Table**: Whether to create the BigQuery table with time partitioning. This value 
 is ignored if the table already exists.
 * When this is set to true, table will be created with time partitioning. 

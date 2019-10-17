@@ -100,7 +100,7 @@ public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable,
                                 null : GCPUtils.loadServiceAccountCredentials(config.getServiceAccountFilePath());
     Storage storage = GCPUtils.getStorage(config.getProject(), credentials);
     if (storage.get(config.getBucket()) == null) {
-      GCPUtils.createBucket(storage, config.getBucket(), null, cmekKey);
+      GCPUtils.createBucket(storage, config.getBucket(), config.getLocation(), cmekKey);
     }
 
     for (Map.Entry<String, String> argument : argumentCopy.entrySet()) {
