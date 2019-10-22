@@ -155,6 +155,9 @@ public final class BigQuerySink extends AbstractBigQuerySink {
     if (config.getRelationTableKey() != null) {
       baseConfiguration.set(BigQueryConstants.CONFIG_TABLE_KEY, getConfig().getRelationTableKey());
     }
+    if (config.getDedupeBy() != null) {
+      baseConfiguration.set(BigQueryConstants.CONFIG_DEDUPE_BY, getConfig().getDedupeBy());
+    }
   }
 
   /**
