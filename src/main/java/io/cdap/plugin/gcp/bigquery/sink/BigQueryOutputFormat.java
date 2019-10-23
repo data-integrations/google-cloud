@@ -202,6 +202,17 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
                BigQueryStrings.toString(tableRef), gcsPaths.size(), gcsPaths.isEmpty() ? "(empty)" : gcsPaths.get(0),
                true);
 
+      if (gcsPaths.isEmpty()) {
+        if (!bigQueryHelper.tableExists(tableRef)) {
+          // If gcsPaths empty and destination table not exist - creating empty destination table.
+          Table table = new Table();
+          table.setSchema(schema);
+          table.setTableReference(tableRef);
+          bigQueryHelper.getRawBigquery().tables().insert(tableRef.getProjectId(), tableRef.getDatasetId(), table)
+            .execute();
+        }
+        return;
+      }
       // Create load conf with minimal requirements.
       JobConfigurationLoad loadConfig = new JobConfigurationLoad();
       loadConfig.setSchema(schema);
