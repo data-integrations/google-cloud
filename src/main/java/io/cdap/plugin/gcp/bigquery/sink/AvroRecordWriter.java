@@ -109,6 +109,9 @@ public class AvroRecordWriter extends RecordWriter<AvroKey<GenericRecord>, NullW
   /** {@inheritDoc} */
   @Override
   public long sync() throws IOException {
-    return mAvroFileWriter.sync();
+    if (mAvroFileWriter != null) {
+      return mAvroFileWriter.sync();
+    }
+    return 0;
   }
 }
