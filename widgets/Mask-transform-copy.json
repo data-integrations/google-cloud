@@ -1,0 +1,269 @@
+{
+  "metadata": {
+    "spec-version": "1.0"
+  },
+  "display-name": "DLP Transform",
+  "configuration-groups": [
+    {
+      "label": "Matching",
+      "properties": [
+        {
+          "name": "test",
+          "label": "test",
+          "widget-type": "input-field-selector"
+        },
+        {
+          "widget-type": "function-dropdown-with-alias",
+          "label": "Fields",
+          "name": "fields",
+          "widget-attributes": {
+            "placeholders": {
+              "field": "field",
+              "alias": "filter"
+            },
+            "dropdownOptions": [
+              "Avg",
+              "Count",
+              "First",
+              "Last",
+              "Max",
+              "Min",
+              "Stddev",
+              "Sum",
+              "Variance",
+              "CollectList",
+              "CollectSet"
+            ]
+          }
+        },
+        {
+          "widget-type": "field-key-value",
+          "label": "Fields to Transform",
+          "name": "fieldsToTransform",
+          "widget-attributes": {
+            "placeholders": {
+              "field": "FFF",
+              "filter": "filter"
+            },
+            "dropdownOptions": [
+              {
+                "id": "DEMOGRAPHIC",
+                "label": "Demographics"
+              },
+              {
+                "id": "LOCATION",
+                "label": "Location"
+              },
+              {
+                "id": "TAX",
+                "label": "Tax IDs"
+              },
+              {
+                "id": "CREDIT_CARD",
+                "label": "Credit Card Numbers"
+              },
+              {
+                "id": "PASSPORT",
+                "label": "Passport Numbers"
+              },
+              {
+                "id": "HEALTH",
+                "label": "Health IDs"
+              },
+              {
+                "id": "NATIONAL_ID",
+                "label": "National Identification"
+              },
+              {
+                "id": "DRIVER_LICENSE",
+                "label": "Driver License IDs"
+              },
+              {
+                "id": "INSURANCE",
+                "label": "Insurance Numbers"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "label": "Transform",
+      "properties": [
+        {
+          "widget-type": "radio-group",
+          "name": "transform",
+          "label": "Transform",
+          "widget-attributes": {
+            "default": "masking",
+            "options": [
+              {
+                "id": "masking",
+                "label" :"Masking"
+              },
+              {
+                "id": "redaction",
+                "label" :"Redaction"
+              },
+              {
+                "id": "time_shift",
+                "label" :"Time Shift"
+              },
+              {
+                "id": "encryption",
+                "label" :"Encryption"
+              },
+              {
+                "id": "replace_with_infotype",
+                "label" :"Replace with Infotype"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "label": "Transform Options",
+      "properties": [
+        {
+          "name": "maskingChar",
+          "widget-type": "textbox",
+          "label": "Masking Character",
+          "widget-attributes": {
+            "placeholder": "Character to be used to mask sensitive data"
+          }
+        },
+        {
+          "name": "numberToMask",
+          "widget-type": "number",
+          "label": "Number of characters to mask",
+          "widget-attributes": {
+            "min": "0"
+          }
+        },
+        {
+          "widget-type": "radio-group",
+          "name": "reverseOrder",
+          "label": "Reverse Order",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "false",
+            "options": [
+              {
+                "id": "true",
+                "label": "True"
+              },
+              {
+                "id": "false",
+                "label": "False"
+              }
+            ]
+          }
+        },
+        {
+          "name": "charsToIgnoreEnum",
+          "widget-type": "select",
+          "label": "Characters to skip",
+          "widget-attributes": {
+            "default": "None",
+            "values": [
+              {
+                "id": "COMMON_CHARS_TO_IGNORE_UNSPECIFIED",
+                "label": "None"
+              },
+              {
+                "id": "NUMERIC",
+                "label": "Numbers"
+              },
+              {
+                "id": "ALPHA_UPPER_CASE",
+                "label": "Alphabet Upper Case"
+              },
+              {
+                "id": "ALPHA_LOWER_CASE",
+                "label": "Alphabet Lower Case"
+              },
+              {
+                "id": "PUNCTUATION",
+                "label": "Punctuation"
+              },
+              {
+                "id": "WHITESPACE",
+                "label": "Whitespace"
+              },
+              {
+                "id": "CUSTOM",
+                "label": "Custom"
+              }
+            ]
+          }
+        },
+        {
+          "name": "charsToSkip",
+          "widget-type": "textbox",
+          "label": "Custom characters to skip",
+          "widget-attributes": {
+            "placeholder": "Comma separated list of characters to skip while masking"
+          }
+        }
+      ]
+    },
+    {
+      "label": "Conditions",
+      "properties": [
+        {
+          "widget-type": "function-dropdown-with-alias",
+          "label": "Conditions",
+          "name": "conditions",
+          "widget-attributes": {
+            "placeholders": {
+              "field": "field",
+              "alias": "alias"
+            },
+            "dropdownOptions": [
+              "EQUAL_TO",
+              "NOT_EQUAL_TO",
+              "GREATER_THAN",
+              "LESS_THAN",
+              "GREATER_THAN_OR_EQUALS",
+              "LESS_THAN_OR_EQUALS",
+              "EXISTS"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "label": "Credentials",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes": {
+            "default": "auto-detect"
+          }
+        }
+      ]
+    }
+  ],
+  "outputs": [
+    {
+      "name": "schema",
+      "widget-type": "schema",
+      "widget-attributes": {
+        "schema-types": [
+          "boolean",
+          "int",
+          "long",
+          "float",
+          "double",
+          "bytes",
+          "string",
+          "map<string, string>"
+        ],
+        "schema-default-type": "string"
+      }
+    }
+  ]
+}

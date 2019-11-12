@@ -44,81 +44,13 @@
       ]
     },
     {
-      "label": "Sensitive Data",
+      "label": "Sensitive Data Template",
       "properties" : [
         {
-          "name": "filter-confidence",
-          "label": "Detect confidence",
-          "widget-type": "radio-group",
-          "widget-attributes": {
-            "layout": "inline",
-            "default": "high",
-            "options": [
-              {
-                "id": "low",
-                "label": "Low"
-              },
-              {
-                "id": "medium",
-                "label": "Medium"
-              },
-              {
-                "id": "high",
-                "label": "High"
-              }
-            ]
-          }
-        },
-        {
-          "name": "sensitive-types",
-          "widget-type": "multi-select",
-          "label": "Sensitive Types",
-          "widget-attributes": {
-            "delimiter": ",",
-            "defaultValue": [
-              "DEMOGRAPHIC",
-              "CREDIT_CARD",
-              "DRIVER_LICENSE"
-            ],
-            "options": [
-              {
-                "id": "DEMOGRAPHIC",
-                "label": "Demographics"
-              },
-              {
-                "id": "LOCATION",
-                "label": "Location"
-              },
-              {
-                "id": "TAX",
-                "label": "Tax IDs"
-              },
-              {
-                "id": "CREDIT_CARD",
-                "label" : "Credit Card Numbers"
-              },
-              {
-                "id": "PASSPORT",
-                "label": "Passport Numbers"
-              },
-              {
-                "id": "HEALTH",
-                "label": "Health IDs"
-              },
-              {
-                "id": "NATIONAL_ID",
-                "label": "National Identification"
-              },
-              {
-                "id": "DRIVER_LICENSE",
-                "label": "Driver License IDs"
-              },
-              {
-                "id": "INSURANCE",
-                "label": "Insurance Numbers"
-              }
-            ]
-          }
+          "name": "template-name",
+          "widget-type": "textbox",
+          "label": "Template"
+
         }
       ]
     },
@@ -173,5 +105,20 @@
     }
   ],
   "emit-errors": true,
-  "outputs": []
+  "outputs": [],
+  "filters": [
+    {
+      "name": "Filter for simple condition objects - 1",
+      "condition": {
+        "property": "entire-record",
+        "operator": "equal to",
+        "value": "field"
+      },
+      "show": [
+        {
+          "name": "field"
+        }
+      ]
+    }
+  ]
 }
