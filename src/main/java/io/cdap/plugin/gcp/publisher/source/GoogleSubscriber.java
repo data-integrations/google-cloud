@@ -23,6 +23,7 @@ import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
+import io.cdap.cdap.etl.api.StageMetrics;
 import io.cdap.cdap.etl.api.streaming.StreamingContext;
 import io.cdap.cdap.etl.api.streaming.StreamingSource;
 import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
@@ -79,6 +80,7 @@ public class GoogleSubscriber extends StreamingSource<StructuredRecord> {
     JavaReceiverInputDStream<SparkPubsubMessage> pubSubMessages =
       PubsubUtils.createStream(streamingContext.getSparkStreamingContext(), config.getProject(), config.topic,
                                config.subscription, credentials, StorageLevel.MEMORY_ONLY());
+    StageMetrics metrics = streamingContext.getMetrics();
 
     return pubSubMessages.map(pubSubMessage -> {
       // Convert to a HashMap because com.google.api.client.util.ArrayMap is not serializable.
@@ -87,10 +89,13 @@ public class GoogleSubscriber extends StreamingSource<StructuredRecord> {
         hashMap.putAll(pubSubMessage.getAttributes());
       }
 
+      ZonedDateTime timestamp = getTimestamp(pubSubMessage.getPublishTime());
+      metrics.gauge("pubsub.source.delta", System.currentTimeMillis() - timestamp.toInstant().toEpochMilli());
+
       return StructuredRecord.builder(DEFAULT_SCHEMA)
               .set("message", pubSubMessage.getData())
               .set("id", pubSubMessage.getMessageId())
-              .setTimestamp("timestamp", getTimestamp(pubSubMessage.getPublishTime()))
+              .setTimestamp("timestamp", timestamp)
               .set("attributes", hashMap)
               .build();
     });
