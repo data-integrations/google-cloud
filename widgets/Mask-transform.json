@@ -1,0 +1,192 @@
+{
+  "metadata": {
+    "spec-version": "1.0"
+  },
+  "display-name": "DLP Transform",
+  "configuration-groups": [
+    {
+      "label": "Matching",
+      "properties": [
+        {
+          "widget-type": "dlp",
+          "label": "Fields to Transform",
+          "name": "fieldsToTransform",
+          "widget-attributes": {
+            "filters": [
+              {
+                "id": "NONE",
+                "label": "Entire Field"
+              },
+              {
+                "id": "DEMOGRAPHIC",
+                "label": "Demographics"
+              },
+              {
+                "id": "LOCATION",
+                "label": "Location"
+              },
+              {
+                "id": "TAX",
+                "label": "Tax IDs"
+              },
+              {
+                "id": "CREDIT_CARD",
+                "label": "Credit Card Numbers"
+              },
+              {
+                "id": "PASSPORT",
+                "label": "Passport Numbers"
+              },
+              {
+                "id": "HEALTH",
+                "label": "Health IDs"
+              },
+              {
+                "id": "NATIONAL_ID",
+                "label": "National Identification"
+              },
+              {
+                "id": "DRIVER_LICENSE",
+                "label": "Driver License IDs"
+              },
+              {
+                "id": "INSURANCE",
+                "label": "Insurance Numbers"
+              },
+              {
+                "id": "Telephone",
+                "label": "Telephone Numbers"
+              }
+            ],
+            "transforms": [
+              {
+                "label": "Masking",
+                "name": "MASKING",
+                "supportedTypes": [
+                  "string"
+                ],
+                "options": [
+                  {
+                    "name": "maskingChar",
+                    "widget-type": "textbox",
+                    "label": "Masking Character",
+                    "widget-attributes": {
+                      "placeholder": "Character to be used to mask sensitive data",
+                      "required": "true"
+                    }
+                  },
+                  {
+                    "name": "numberToMask",
+                    "widget-type": "number",
+                    "label": "Number of characters to mask",
+                    "widget-attributes": {
+                      "min": "0",
+                      "default": "0",
+                      "description" : "Number of characters to mask within the matching text. Leave blank or use 0 to mask all characters"
+                    }
+                  },
+                  {
+                    "widget-type": "radio-group",
+                    "name": "reverseOrder",
+                    "label": "Reverse Order",
+                    "widget-attributes": {
+                      "layout": "inline",
+                      "default": "false",
+                      "description" : "Characters will be masked starting from the end of the string if order is reversed",
+                      "options": [
+                        {
+                          "id": "true",
+                          "label": "True"
+                        },
+                        {
+                          "id": "false",
+                          "label": "False"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "name": "charsToIgnoreEnum",
+                    "widget-type": "select",
+                    "label": "Characters to skip",
+                    "widget-attributes": {
+                      "description" : "Characters to be skipped within the matching text",
+                      "default": "COMMON_CHARS_TO_IGNORE_UNSPECIFIED",
+                      "values": [
+                        {
+                          "value": "COMMON_CHARS_TO_IGNORE_UNSPECIFIED",
+                          "label": "None"
+                        },
+                        {
+                          "value": "NUMERIC",
+                          "label": "Numbers (0-9)"
+                        },
+                        {
+                          "value": "ALPHA_UPPER_CASE",
+                          "label": "Alphabet Upper Case (A-Z)"
+                        },
+                        {
+                          "value": "ALPHA_LOWER_CASE",
+                          "label": "Alphabet Lower Case (a-z)"
+                        },
+                        {
+                          "value": "PUNCTUATION",
+                          "label": "Punctuation (!\"#$%&'()*+,-./:;<=>?@[]^_`{|}~)"
+                        },
+                        {
+                          "value": "WHITESPACE",
+                          "label": "Whitespace"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "label": "Replace with value",
+                "name": "REPLACE_VALUE",
+                "options": [
+                  {
+                    "name": "newValue",
+                    "widget-type": "textbox",
+                    "label": "New Value",
+                    "widget-attributes": {
+                      "placeholder": "Value to replace matches with"
+                    }
+                  }
+                ]
+              },
+              {
+                "label": "Redact",
+                "name": "REDACT",
+                "options": [
+
+                ]
+              }
+            ]
+
+          }
+        }
+      ]
+    }
+  ],
+  "outputs": [
+    {
+      "name": "schema",
+      "widget-type": "schema",
+      "widget-attributes": {
+        "schema-types": [
+          "boolean",
+          "int",
+          "long",
+          "float",
+          "double",
+          "bytes",
+          "string",
+          "map<string, string>"
+        ],
+        "schema-default-type": "string"
+      }
+    }
+  ]
+}

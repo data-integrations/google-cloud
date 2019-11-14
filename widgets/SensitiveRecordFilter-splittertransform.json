@@ -1,0 +1,134 @@
+{
+  "metadata": {
+    "spec-version": "1.6"
+  },
+  "display-name": "PII Filter",
+  "configuration-groups": [
+    {
+      "label": "Input",
+      "properties": [
+        {
+          "name": "entire-record",
+          "label": "Filter on",
+          "widget-type": "radio-group",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "record",
+            "options": [
+              {
+                "id": "field",
+                "label": "Field"
+              },
+              {
+                "id": "record",
+                "label": "Record"
+              }
+            ]
+          },
+          "plugin-function": {
+            "label": "Get Schema",
+            "widget": "outputSchema",
+            "position": "top-right",
+            "multiple-inputs": false,
+            "button-class": "btn-hydrator"
+          }
+        },
+        {
+          "widget-type": "input-field-selector",
+          "label": "Field",
+          "name": "field",
+          "widget-attributes": {
+            "supportedTypes": [
+              "string",
+              "int",
+              "long",
+              "boolean",
+              "date",
+              "double",
+              "decimal",
+              "float",
+              "time",
+              "timestamp"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "label": "Sensitive Data Template",
+      "properties": [
+        {
+          "name": "template-id",
+          "widget-type": "textbox",
+          "label": "Template ID"
+        }
+      ]
+    },
+    {
+      "label": "Error Handling",
+      "properties": [
+        {
+          "name": "on-error",
+          "label": "On error",
+          "widget-type": "radio-group",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "send-to-error",
+            "options": [
+              {
+                "id": "stop-on-error",
+                "label": "Stop pipeline"
+              },
+              {
+                "id": "skip-record",
+                "label": "Skip record"
+              },
+              {
+                "id": "send-to-error",
+                "label": "Send to error"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "label": "Credentials",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Service Account Path",
+          "name": "serviceFilePath",
+          "widget-attributes": {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Project Id",
+          "name": "project",
+          "widget-attributes": {
+            "default": "auto-detect"
+          }
+        }
+      ]
+    }
+  ],
+  "emit-errors": true,
+  "outputs": [],
+  "filters": [
+    {
+      "name": "Filter for simple condition objects - 1",
+      "condition": {
+        "property": "entire-record",
+        "operator": "equal to",
+        "value": "field"
+      },
+      "show": [
+        {
+          "name": "field"
+        }
+      ]
+    }
+  ]
+}
