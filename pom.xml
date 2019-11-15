@@ -67,6 +67,7 @@
   </distributionManagement>
 
   <properties>
+    <dlp.version>0.80.0-beta</dlp.version>
     <jee.version>7</jee.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <avro.version>1.8.2</avro.version>
@@ -175,6 +176,11 @@
       <groupId>io.cdap.plugin</groupId>
       <artifactId>hydrator-common</artifactId>
       <version>${cdap.plugin.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-dlp</artifactId>
+      <version>${dlp.version}</version>
     </dependency>
     <dependency>
       <groupId>com.google.guava</groupId>
