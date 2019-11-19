@@ -19,10 +19,16 @@
 package io.cdap.plugin.gcp.dlp;
 
 import com.google.common.base.Strings;
+import com.google.privacy.dlp.v2.FieldId;
 import com.google.privacy.dlp.v2.FieldTransformation;
+import com.google.privacy.dlp.v2.InfoType;
+import com.google.privacy.dlp.v2.InfoTypeTransformations;
+import com.google.privacy.dlp.v2.InfoTypeTransformations.InfoTypeTransformation;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.gcp.dlp.configs.DlpTransformConfig;
+
+import java.util.List;
 
 
 /**
@@ -36,7 +42,34 @@ final class DlpFieldTransformationConfig {
   private DlpTransformConfig transformProperties;
 
   public FieldTransformation toFieldTransformation() {
-    return null;
+    FieldTransformation.Builder fieldTransformationBuilder = FieldTransformation.newBuilder();
+
+    //Adding target fields
+    for (int i = 0; i < fields.length; i++) {
+      fieldTransformationBuilder.setFields(i, FieldId.newBuilder().setName(fields[i]).build());
+    }
+
+    if (fields.length == 0 && "NONE".equals(fields[0])) {
+      fieldTransformationBuilder.setPrimitiveTransformation(transformProperties.toPrimitiveTransform());
+    } else {
+
+      SensitiveDataMapping sensitivityMapping = new SensitiveDataMapping();
+      List<InfoType> sensitiveInfoTypes = sensitivityMapping.getSensitiveInfoTypes(filters);
+      InfoTypeTransformation.Builder infoTypeTransformationBuilder = InfoTypeTransformations.InfoTypeTransformation
+        .newBuilder();
+
+      for (int i = 0; i < sensitiveInfoTypes.size(); i++) {
+        infoTypeTransformationBuilder.setInfoTypes(i, sensitiveInfoTypes.get(i));
+      }
+
+      infoTypeTransformationBuilder.setPrimitiveTransformation(transformProperties.toPrimitiveTransform());
+
+      fieldTransformationBuilder.setInfoTypeTransformations(
+        InfoTypeTransformations.newBuilder().setTransformations(0, infoTypeTransformationBuilder));
+    }
+
+    return fieldTransformationBuilder.build();
+
   }
 
 
@@ -59,7 +92,7 @@ final class DlpFieldTransformationConfig {
       //TODO Add field type checking
     }
 
-    if(filters.length == 0){
+    if (filters.length == 0) {
       collector.addFailure("At least one filter must be selected.", "");
     }
 

@@ -125,8 +125,7 @@ public final class SensitiveRecordFilter extends SplitterTransform<StructuredRec
   @Override
   public void initialize(TransformContext context) throws Exception {
     super.initialize(context);
-    // SensitiveDataMapping sensitivityMapping = new SensitiveDataMapping();
-    // List<InfoType> sensitiveInfoTypes = sensitivityMapping.getSensitiveInfoTypes(config.getSensitiveTypes());
+
     client = DlpServiceClient.create(getSettings());
   }
 
