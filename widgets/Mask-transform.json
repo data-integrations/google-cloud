@@ -82,7 +82,7 @@
                     "widget-attributes": {
                       "min": "0",
                       "default": "0",
-                      "description" : "Number of characters to mask within the matching text. Leave blank or use 0 to mask all characters"
+                      "description": "Number of characters to mask within the matching text. Leave blank or use 0 to mask all characters"
                     }
                   },
                   {
@@ -92,7 +92,7 @@
                     "widget-attributes": {
                       "layout": "inline",
                       "default": "false",
-                      "description" : "Characters will be masked starting from the end of the string if order is reversed",
+                      "description": "Characters will be masked starting from the end of the string if order is reversed",
                       "options": [
                         {
                           "id": "true",
@@ -110,7 +110,7 @@
                     "widget-type": "select",
                     "label": "Characters to skip",
                     "widget-attributes": {
-                      "description" : "Characters to be skipped within the matching text",
+                      "description": "Characters to be skipped within the matching text",
                       "default": "COMMON_CHARS_TO_IGNORE_UNSPECIFIED",
                       "values": [
                         {
@@ -160,11 +160,30 @@
                 "label": "Redact",
                 "name": "REDACT",
                 "options": [
-
                 ]
               }
             ]
-
+          }
+        }
+      ]
+    },
+    {
+      "label": "Credentials",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Service Account Path",
+          "name": "serviceFilePath",
+          "widget-attributes": {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Project Id",
+          "name": "project",
+          "widget-attributes": {
+            "default": "auto-detect"
           }
         }
       ]

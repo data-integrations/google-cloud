@@ -16,30 +16,17 @@
 
 package io.cdap.plugin.gcp.dlp;
 
+import com.google.api.gax.rpc.InvalidArgumentException;
 import com.google.cloud.dlp.v2.DlpServiceClient;
 import com.google.cloud.dlp.v2.DlpServiceSettings;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import com.google.privacy.dlp.v2.ByteContentItem;
 import com.google.privacy.dlp.v2.ContentItem;
-import com.google.privacy.dlp.v2.DeidentifyConfig;
-import com.google.privacy.dlp.v2.DeidentifyTemplate;
-import com.google.privacy.dlp.v2.FieldTransformation;
-import com.google.privacy.dlp.v2.Finding;
-import com.google.privacy.dlp.v2.InfoType;
 import com.google.privacy.dlp.v2.GetInspectTemplateRequest;
-import com.google.privacy.dlp.v2.InfoTypeTransformations;
-import com.google.privacy.dlp.v2.InspectConfig;
 import com.google.privacy.dlp.v2.InspectContentRequest;
 import com.google.privacy.dlp.v2.InspectContentResponse;
 import com.google.privacy.dlp.v2.InspectResult;
 import com.google.privacy.dlp.v2.InspectTemplate;
-import com.google.privacy.dlp.v2.Likelihood;
 import com.google.privacy.dlp.v2.ProjectName;
-import com.google.privacy.dlp.v2.RecordTransformations;
-import com.google.protobuf.ByteString;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
@@ -52,20 +39,17 @@ import io.cdap.cdap.etl.api.MultiOutputEmitter;
 import io.cdap.cdap.etl.api.MultiOutputPipelineConfigurer;
 import io.cdap.cdap.etl.api.MultiOutputStageConfigurer;
 import io.cdap.cdap.etl.api.SplitterTransform;
+import io.cdap.cdap.etl.api.StageSubmitterContext;
 import io.cdap.cdap.etl.api.TransformContext;
 import io.cdap.cdap.format.StructuredRecordStringConverter;
 import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.net.URLConnection;
-import java.nio.charset.Charset;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 
@@ -83,11 +67,12 @@ import javax.annotation.Nullable;
 @Name(SensitiveRecordFilter.NAME)
 @Description(SensitiveRecordFilter.DESCRIPTION)
 public final class SensitiveRecordFilter extends SplitterTransform<StructuredRecord, StructuredRecord> {
+
   private static final Logger LOG = LoggerFactory.getLogger(SensitiveRecordFilter.class);
   public static final String NAME = "SensitiveRecordFilter";
   public static final String DESCRIPTION = "Filters input records based that are sensitive.";
-  private static final String SENSITIVE_PORT = "S";
-  private static final String NON_SENSITIVE_PORT = "NS";
+  private static final String SENSITIVE_PORT = "Sensitive";
+  private static final String NON_SENSITIVE_PORT = "Non-Sensitive";
 
   // Stores the configuration passed to this class from user.
   private final Config config;
@@ -104,13 +89,12 @@ public final class SensitiveRecordFilter extends SplitterTransform<StructuredRec
    * Invoked during deployment of pipeline to validate configuration of the pipeline. This method checks if the input
    * specified is 'field' type and if it is, then checks if the field specified is present in the input schema.
    *
-   * @throws IllegalArgumentException if there any issues with configuration of the plugin.
    * @param configurer a <code>MultiOutputPipelineConfigurer</code> for configuring pipeline.
+   * @throws IllegalArgumentException if there any issues with configuration of the plugin.
    */
   @Override
   public void configurePipeline(MultiOutputPipelineConfigurer configurer) {
     super.configurePipeline(configurer);
-    LOG.error("got to configure");
 
     MultiOutputStageConfigurer stageConfigurer = configurer.getMultiOutputStageConfigurer();
     Schema inputSchema = stageConfigurer.getInputSchema();
@@ -124,7 +108,7 @@ public final class SensitiveRecordFilter extends SplitterTransform<StructuredRec
       }
     }
 
-    config.validate(stageConfigurer.getFailureCollector(), inputSchema, client);
+    config.validate(stageConfigurer.getFailureCollector(), inputSchema);
 
     Map<String, Schema> outputs = new HashMap<>();
     outputs.put(SENSITIVE_PORT, inputSchema);
@@ -141,9 +125,25 @@ public final class SensitiveRecordFilter extends SplitterTransform<StructuredRec
   @Override
   public void initialize(TransformContext context) throws Exception {
     super.initialize(context);
-    SensitiveDataMapping sensitivityMapping = new SensitiveDataMapping();
-    List<InfoType> sensitiveInfoTypes = sensitivityMapping.getSensitiveInfoTypes(config.getSensitiveTypes());
+    // SensitiveDataMapping sensitivityMapping = new SensitiveDataMapping();
+    // List<InfoType> sensitiveInfoTypes = sensitivityMapping.getSensitiveInfoTypes(config.getSensitiveTypes());
     client = DlpServiceClient.create(getSettings());
+  }
+
+  @Override
+  public void prepareRun(StageSubmitterContext context) throws Exception {
+    super.prepareRun(context);
+
+    String templateName = String.format("projects/%s/inspectTemplates/%s", config.getProject(), config.templateId);
+    GetInspectTemplateRequest request = GetInspectTemplateRequest.newBuilder().setName(templateName).build();
+
+    try {
+      InspectTemplate template = client.getInspectTemplate(request);
+
+    } catch (Exception e) {
+      throw new IllegalArgumentException(
+        "Unable to validate template name. Ensure template ID matches the specified ID in DLP");
+    }
   }
 
   /**
@@ -240,8 +240,8 @@ public final class SensitiveRecordFilter extends SplitterTransform<StructuredRec
     @Nullable
     private String field;
 
-
-    @Description("Information types to be matched")
+    @Name("template-id")
+    @Description("ID of the Inspection Template defined in DLP")
     private String templateId;
 
     @Macro
@@ -277,8 +277,7 @@ public final class SensitiveRecordFilter extends SplitterTransform<StructuredRec
     }
 
 
-    public void validate(FailureCollector collector, Schema inputSchema,
-                         DlpServiceClient client) {
+    public void validate(FailureCollector collector, Schema inputSchema) {
       if (!containsMacro("entire-record") && !isEntireRecord() && getFieldName() == null) {
         collector.addFailure("Input type is specified as 'Field', " +
                                "but a field name has not been specified.", "Specify the field name.")
@@ -292,7 +291,6 @@ public final class SensitiveRecordFilter extends SplitterTransform<StructuredRec
               .withConfigProperty("field");
           }
 
-
           Schema.Type type = inputSchema.getField(getFieldName()).getSchema().getType();
           if (!type.isSimpleType() || type.equals(Schema.Type.BYTES)) {
             collector.addFailure("Filtering on field supports only basic types " +
@@ -301,16 +299,6 @@ public final class SensitiveRecordFilter extends SplitterTransform<StructuredRec
         }
       }
 
-      String templateName = String.format("projects/%s/inspectTemplates/%s", getProject(), templateId);
-      GetInspectTemplateRequest request = GetInspectTemplateRequest.newBuilder().setName(templateName).build();
-
-      try {
-        InspectTemplate template = client.getInspectTemplate(request);
-
-      } catch (Exception e) {
-        collector.addFailure("Unable to validate template name.", "Ensure template ID matches the specified ID in DLP")
-          .withConfigProperty("template-id");
-      }
 
     }
   }

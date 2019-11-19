@@ -55,12 +55,15 @@
       ]
     },
     {
-      "label": "Sensitive Data Template",
+      "label": "Inspection Template",
       "properties": [
         {
           "name": "template-id",
           "widget-type": "textbox",
-          "label": "Template ID"
+          "label": "Template ID",
+          "widget-attributes": {
+            "placeholder": "Inspection Template ID"
+          }
         }
       ]
     },
