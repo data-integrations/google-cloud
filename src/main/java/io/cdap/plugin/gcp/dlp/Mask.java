@@ -5,6 +5,7 @@ import com.google.cloud.dlp.v2.DlpServiceSettings;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.privacy.dlp.v2.FieldTransformation;
 import com.google.privacy.dlp.v2.RecordTransformations;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
@@ -19,14 +20,19 @@ import io.cdap.cdap.etl.api.StageConfigurer;
 import io.cdap.cdap.etl.api.StageSubmitterContext;
 import io.cdap.cdap.etl.api.Transform;
 import io.cdap.cdap.etl.api.TransformContext;
+import io.cdap.cdap.etl.api.lineage.field.FieldOperation;
+import io.cdap.cdap.etl.api.lineage.field.FieldTransformOperation;
 import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
+import org.apache.avro.generic.GenericData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Mask class.
@@ -74,11 +80,30 @@ public class Mask extends Transform<StructuredRecord, StructuredRecord> {
     super.prepareRun(context);
 
     //Construct RecordTransformations object to be used for transforms
-    recordTransformations = constructRecordTransformations();
+    this.recordTransformations = constructRecordTransformations();
+
+    // FieldTransformOperation fieldTransformOperation = new FieldTransformOperation("Rename", "whataefer",
+    //                                                                               Collections.singletonList("a"), "a1");
+    // FieldTransformOperation fieldTransformOperation = new FieldTransformOperation("Identity transform 1", "whataefer",
+    //                                                                               Collections.singletonList("c"), "c");
+    // FieldTransformOperation fieldTransformOperation = new FieldTransformOperation("Identity transform 1", "whataefer",
+    //                                                                               Collections.singletonList("d"), "d");
+    // context.record(fieldTransformOperation);
   }
 
-  private RecordTransformations constructRecordTransformations() {
-    return null;
+  private RecordTransformations constructRecordTransformations() throws Exception {
+    RecordTransformations.Builder recordTransformationsBuilder = RecordTransformations.newBuilder();
+
+    List<DlpFieldTransformationConfig> transformationConfigs = config.parseTransformations();
+
+    recordTransformationsBuilder.addAllFieldTransformations(
+      transformationConfigs.stream()
+                           .map(DlpFieldTransformationConfig::toFieldTransformation)
+                           .collect(Collectors.toList())
+    );
+
+    return recordTransformationsBuilder.build();
+
   }
 
   @Override
@@ -135,7 +160,7 @@ public class Mask extends Transform<StructuredRecord, StructuredRecord> {
         }
       } catch (Exception e) {
         collector.addFailure(String.format("Error while parsing transforms: %s", e.getMessage()), "")
-          .withConfigProperty("fieldsToTransform");
+                 .withConfigProperty("fieldsToTransform");
       }
 
 

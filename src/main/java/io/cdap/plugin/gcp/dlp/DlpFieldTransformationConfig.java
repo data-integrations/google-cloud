@@ -28,7 +28,9 @@ import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.gcp.dlp.configs.DlpTransformConfig;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 
 /**
@@ -45,9 +47,9 @@ final class DlpFieldTransformationConfig {
     FieldTransformation.Builder fieldTransformationBuilder = FieldTransformation.newBuilder();
 
     //Adding target fields
-    for (int i = 0; i < fields.length; i++) {
-      fieldTransformationBuilder.setFields(i, FieldId.newBuilder().setName(fields[i]).build());
-    }
+    fieldTransformationBuilder.addAllFields(
+      Arrays.stream(fields).map(field -> FieldId.newBuilder().setName(field).build()).collect(Collectors.toList())
+    );
 
     if (fields.length == 0 && "NONE".equals(fields[0])) {
       fieldTransformationBuilder.setPrimitiveTransformation(transformProperties.toPrimitiveTransform());
@@ -58,14 +60,12 @@ final class DlpFieldTransformationConfig {
       InfoTypeTransformation.Builder infoTypeTransformationBuilder = InfoTypeTransformations.InfoTypeTransformation
         .newBuilder();
 
-      for (int i = 0; i < sensitiveInfoTypes.size(); i++) {
-        infoTypeTransformationBuilder.setInfoTypes(i, sensitiveInfoTypes.get(i));
-      }
+      infoTypeTransformationBuilder.addAllInfoTypes(sensitiveInfoTypes);
 
       infoTypeTransformationBuilder.setPrimitiveTransformation(transformProperties.toPrimitiveTransform());
 
       fieldTransformationBuilder.setInfoTypeTransformations(
-        InfoTypeTransformations.newBuilder().setTransformations(0, infoTypeTransformationBuilder));
+        InfoTypeTransformations.newBuilder().addTransformations(infoTypeTransformationBuilder));
     }
 
     return fieldTransformationBuilder.build();
@@ -74,7 +74,7 @@ final class DlpFieldTransformationConfig {
 
 
   DlpFieldTransformationConfig(String transform, String[] fields, String[] filters,
-                               DlpTransformConfig transformProperties) {
+    DlpTransformConfig transformProperties) {
     this.transform = transform;
     this.fields = fields;
     this.filters = filters;
