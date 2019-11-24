@@ -5,6 +5,35 @@
   "display-name": "DLP Transform",
   "configuration-groups": [
     {
+      "label": "Custom Template",
+      "properties": [
+        {
+          "widget-type": "toggle",
+          "name": "customTemplateEnabled",
+          "label": "Use custom template",
+          "widget-attributes": {
+            "default": "false",
+            "on": {
+              "value": "true",
+              "label": "Yes"
+            },
+            "off": {
+              "value": "false",
+              "label": "No"
+            }
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Template ID",
+          "name": "templateId",
+          "widget-attributes": {
+            "placeholder": "Template ID"
+          }
+        }
+      ]
+    },
+    {
       "label": "Matching",
       "properties": [
         {
@@ -15,7 +44,7 @@
             "filters": [
               {
                 "id": "NONE",
-                "label": "Entire Field"
+                "label": "Custom Template"
               },
               {
                 "id": "DEMOGRAPHIC",
@@ -86,23 +115,20 @@
                     }
                   },
                   {
-                    "widget-type": "radio-group",
+                    "widget-type": "toggle",
                     "name": "reverseOrder",
                     "label": "Reverse Order",
                     "widget-attributes": {
-                      "layout": "inline",
-                      "default": "false",
                       "description": "Characters will be masked starting from the end of the string if order is reversed",
-                      "options": [
-                        {
-                          "id": "true",
-                          "label": "True"
-                        },
-                        {
-                          "id": "false",
-                          "label": "False"
-                        }
-                      ]
+                      "default": "false",
+                      "on": {
+                        "value": "true",
+                        "label": "True"
+                      },
+                      "off": {
+                        "value": "false",
+                        "label": "False"
+                      }
                     }
                   },
                   {
@@ -206,6 +232,21 @@
         ],
         "schema-default-type": "string"
       }
+    }
+  ],
+  "filters": [
+    {
+      "name": "Filter for simple condition objects - 1",
+      "condition": {
+        "property": "customTemplateEnabled",
+        "operator": "equal to",
+        "value": "true"
+      },
+      "show": [
+        {
+          "name": "templateId"
+        }
+      ]
     }
   ]
 }

@@ -1,12 +1,25 @@
 package io.cdap.plugin.gcp.dlp;
 
+import com.google.api.gax.rpc.InvalidArgumentException;
 import com.google.cloud.dlp.v2.DlpServiceClient;
 import com.google.cloud.dlp.v2.DlpServiceSettings;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.privacy.dlp.v2.ContentItem;
+import com.google.privacy.dlp.v2.DeidentifyConfig;
+import com.google.privacy.dlp.v2.DeidentifyContentRequest;
+import com.google.privacy.dlp.v2.DeidentifyContentResponse;
+import com.google.privacy.dlp.v2.FieldId;
 import com.google.privacy.dlp.v2.FieldTransformation;
+import com.google.privacy.dlp.v2.GetInspectTemplateRequest;
+import com.google.privacy.dlp.v2.InspectTemplate;
 import com.google.privacy.dlp.v2.RecordTransformations;
+import com.google.privacy.dlp.v2.Table;
+import com.google.privacy.dlp.v2.Value;
+import com.google.protobuf.Timestamp;
+import com.google.type.Date;
+import com.google.type.TimeOfDay;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
@@ -27,12 +40,24 @@ import io.cdap.plugin.gcp.common.GCPUtils;
 import org.apache.avro.generic.GenericData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.annotation.meta.field;
 
 import java.io.IOException;
+import java.sql.Time;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 /**
  * Mask class.
@@ -79,16 +104,55 @@ public class Mask extends Transform<StructuredRecord, StructuredRecord> {
   public void prepareRun(StageSubmitterContext context) throws Exception {
     super.prepareRun(context);
 
-    //Construct RecordTransformations object to be used for transforms
-    this.recordTransformations = constructRecordTransformations();
+    if (config.customTemplateEnabled) {
+      String templateName = String.format("projects/%s/inspectTemplates/%s", config.getProject(), config.templateId);
+      GetInspectTemplateRequest request = GetInspectTemplateRequest.newBuilder().setName(templateName).build();
 
-    // FieldTransformOperation fieldTransformOperation = new FieldTransformOperation("Rename", "whataefer",
-    //                                                                               Collections.singletonList("a"), "a1");
-    // FieldTransformOperation fieldTransformOperation = new FieldTransformOperation("Identity transform 1", "whataefer",
-    //                                                                               Collections.singletonList("c"), "c");
-    // FieldTransformOperation fieldTransformOperation = new FieldTransformOperation("Identity transform 1", "whataefer",
-    //                                                                               Collections.singletonList("d"), "d");
-    // context.record(fieldTransformOperation);
+      try {
+        if (client == null) {
+          client = DlpServiceClient.create(getSettings());
+        }
+        InspectTemplate template = client.getInspectTemplate(request);
+
+      } catch (Exception e) {
+        throw new IllegalArgumentException(
+          "Unable to validate template name. Ensure template ID matches the specified ID in DLP");
+      }
+    }
+
+    //Parse config into format 'FieldName':['transform','filter']
+
+    HashMap<String, String[]> fieldOperationsData = new HashMap<>();
+    for (DlpFieldTransformationConfig transformationConfig : config.parseTransformations()) {
+      for (String field : transformationConfig.getFields()) {
+        fieldOperationsData.put(field, new String[]{transformationConfig.getTransform(),
+          String.join(", ", transformationConfig.getFilters()).replace("NONE", String
+            .format("Custom Template (%s)", config.templateId))});
+      }
+    }
+
+    for (Schema.Field field : context.getInputSchema().getFields()) {
+      if (fieldOperationsData.containsKey(field.getName()) == false) {
+        fieldOperationsData.put(field.getName(), new String[]{"Identity", ""});
+      }
+    }
+
+    List<FieldOperation> fieldOperations = new ArrayList<>();
+
+    for (String fieldName : fieldOperationsData.keySet()) {
+      String transformName = fieldOperationsData.get(fieldName)[0];
+      String filterNames = fieldOperationsData.get(fieldName)[1];
+
+      String description = String.format("Applied '%s' transform on contents of '%s'", transformName, fieldName);
+      if (filterNames.length() > 0) {
+        description += " matching " + filterNames;
+      }
+
+      String name = String.format("%s on %s", transformName, fieldName);
+      fieldOperations
+        .add(new FieldTransformOperation(name, description, Collections.singletonList(fieldName), fieldName));
+    }
+    context.record(fieldOperations);
   }
 
   private RecordTransformations constructRecordTransformations() throws Exception {
@@ -108,7 +172,213 @@ public class Mask extends Transform<StructuredRecord, StructuredRecord> {
 
   @Override
   public void transform(StructuredRecord structuredRecord, Emitter<StructuredRecord> emitter) throws Exception {
+    this.recordTransformations = constructRecordTransformations();
+    Table dlpTable = getTableFromStructuredRecord(structuredRecord);
 
+    DeidentifyConfig deidentifyConfig =
+      DeidentifyConfig.newBuilder().setRecordTransformations(this.recordTransformations).build();
+
+    ContentItem item = ContentItem.newBuilder().setTable(dlpTable).build();
+    DeidentifyContentRequest.Builder requestBuilder = DeidentifyContentRequest.newBuilder()
+                                                                              .setParent(
+                                                                                "projects/" + config.getProject())
+                                                                              .setDeidentifyConfig(deidentifyConfig)
+                                                                              .setItem(item);
+    if (config.customTemplateEnabled) {
+      String templateName = String.format("projects/%s/inspectTemplates/%s", config.getProject(), config.templateId);
+      requestBuilder.setInspectTemplateName(templateName);
+    }
+
+    DeidentifyContentResponse response = client.deidentifyContent(requestBuilder.build());
+    ContentItem item1 = response.getItem();
+
+    StructuredRecord resultRecord = getStructuredRecordFromTable(item1.getTable(), structuredRecord);
+
+    emitter.emit(resultRecord);
+
+  }
+
+  private StructuredRecord getStructuredRecordFromTable(Table table, StructuredRecord oldRecord) throws Exception {
+    StructuredRecord.Builder recordBuilder = createBuilderFromStructuredRecord(oldRecord);
+
+    if (table.getRowsCount() == 0) {
+      throw new Exception("DLP returned a table with no rows");
+    }
+    Table.Row row = table.getRows(0);
+    for (int i = 0; i < table.getHeadersList().size(); i++) {
+
+      String fieldName = table.getHeadersList().get(i).getName();
+
+      Value fieldValue = row.getValues(i);
+      Schema fieldSchema = oldRecord.getSchema().getField(fieldName).getSchema().getNonNullable();
+      if (fieldValue == null) {
+        continue;
+      }
+
+      if (fieldSchema.isSimpleOrNullableSimple()) {
+        recordBuilder.convertAndSet(fieldName, fieldValue.getStringValue());
+      } else {
+        final Schema.LogicalType logicalType = fieldSchema.getLogicalType();
+        if (logicalType != null) {
+          switch (logicalType) {
+            case TIME_MICROS:
+            case TIME_MILLIS:
+
+              TimeOfDay timeValue = fieldValue.getTimeValue();
+              recordBuilder.setTime(fieldName, LocalTime
+                .of(timeValue.getHours(), timeValue.getMinutes(), timeValue.getSeconds(), timeValue.getNanos()));
+              break;
+
+            case TIMESTAMP_MICROS:
+            case TIMESTAMP_MILLIS:
+              Timestamp timestampValue = fieldValue.getTimestampValue();
+              ZoneId zoneId = oldRecord.getTimestamp(fieldName).getZone();
+              LocalDateTime localDateTime = Instant
+                .ofEpochSecond(timestampValue.getSeconds(), timestampValue.getNanos())
+                .atZone(zoneId)
+                .toLocalDateTime();
+              recordBuilder.setTimestamp(fieldName, ZonedDateTime.of(localDateTime, zoneId));
+              break;
+            case DATE:
+              Date dateValue = fieldValue.getDateValue();
+              recordBuilder
+                .setDate(fieldName, LocalDate.of(dateValue.getYear(), dateValue.getMonth(), dateValue.getDay()));
+              break;
+            default:
+              throw new IllegalArgumentException("Failed to parse table into structured record");
+
+          }
+
+
+        }
+
+      }
+    }
+    return recordBuilder.build();
+  }
+
+  private StructuredRecord.Builder createBuilderFromStructuredRecord(StructuredRecord record) {
+    StructuredRecord.Builder recordBuilder = StructuredRecord.builder(record.getSchema());
+    for (Schema.Field field : record.getSchema().getFields()) {
+      String fieldName = field.getName();
+      Object fieldValue = record.get(fieldName);
+      Schema fieldSchema = field.getSchema().getNonNullable();
+
+      final Schema.LogicalType logicalType = fieldSchema.getLogicalType();
+      if (fieldSchema.getType().isSimpleType()) {
+        recordBuilder.set(fieldName, fieldValue);
+      } else {
+        if (logicalType != null) {
+          switch (logicalType) {
+            case TIME_MICROS:
+            case TIME_MILLIS:
+              recordBuilder.setTime(fieldName, (LocalTime) fieldValue);
+              break;
+            case TIMESTAMP_MICROS:
+            case TIMESTAMP_MILLIS:
+              recordBuilder.setTimestamp(fieldName, (ZonedDateTime) fieldValue);
+              break;
+            case DATE:
+              recordBuilder.setDate(fieldName, (LocalDate) fieldValue);
+              break;
+            default:
+              throw new IllegalArgumentException(
+                String
+                  .format("DLP plugin does not support type '%s' for field '%s'", logicalType.toString(), fieldName));
+
+          }
+        }
+      }
+    }
+    return recordBuilder;
+  }
+
+  private Table getTableFromStructuredRecord(StructuredRecord record) throws Exception {
+    Table.Builder tableBuiler = Table.newBuilder();
+    Table.Row.Builder rowBuilder = Table.Row.newBuilder();
+
+    for (Schema.Field field : record.getSchema().getFields()) {
+      String fieldName = field.getName();
+      Object fieldValue = record.get(fieldName);
+      if (fieldValue == null) {
+        continue;
+      }
+
+      tableBuiler.addHeaders(FieldId.newBuilder().setName(fieldName).build());
+
+      Value.Builder valueBuilder = Value.newBuilder();
+      final Schema.LogicalType logicalType = field.getSchema().getNonNullable().getLogicalType();
+      if (logicalType != null) {
+        switch (logicalType) {
+          case TIME_MICROS:
+          case TIME_MILLIS:
+            LocalTime time = record.getTime(fieldName);
+            valueBuilder.setTimeValue(
+              TimeOfDay.newBuilder()
+                       .setHours(time.getHour())
+                       .setMinutes(time.getMinute())
+                       .setSeconds(time.getSecond())
+                       .setNanos(time.getNano())
+                       .build()
+            );
+            break;
+          case TIMESTAMP_MICROS:
+          case TIMESTAMP_MILLIS:
+            ZonedDateTime timestamp = record.getTimestamp(fieldName);
+            valueBuilder.setTimestampValue(
+              Timestamp.newBuilder()
+                       .setSeconds(timestamp.toEpochSecond())
+                       .setNanos(timestamp.getNano())
+                       .build()
+            );
+            break;
+          case DATE:
+            LocalDate date = record.getDate(fieldName);
+            valueBuilder.setDateValue(
+              Date.newBuilder()
+                  .setYear(date.getYear())
+                  .setMonth(date.getMonthValue())
+                  .setDay(date.getDayOfMonth())
+                  .build()
+            );
+            break;
+          default:
+            throw new IllegalArgumentException(
+              String
+                .format("DLP plugin does not support type '%s' for field '%s'", logicalType.toString(), fieldName));
+
+
+        }
+      } else {
+
+        final Schema.Type type = field.getSchema().getNonNullable().getType();
+        switch (type) {
+          case STRING:
+            valueBuilder.setStringValue(String.valueOf(fieldValue));
+            break;
+          case INT:
+          case LONG:
+            valueBuilder.setIntegerValue((Long) fieldValue);
+            break;
+          case BOOLEAN:
+            valueBuilder.setBooleanValue((Boolean) fieldValue);
+            break;
+          case DOUBLE:
+          case FLOAT:
+            valueBuilder.setFloatValue((Double) fieldValue);
+            break;
+          default:
+            throw new IllegalArgumentException(
+              String.format("DLP plugin does not support type '%s' for field '%s'", type.toString(), fieldName));
+
+        }
+      }
+
+      rowBuilder.addValues(valueBuilder.build());
+    }
+
+    tableBuiler.addRows(rowBuilder.build());
+    return tableBuiler.build();
   }
 
   /**
@@ -120,7 +390,8 @@ public class Mask extends Transform<StructuredRecord, StructuredRecord> {
   private DlpServiceSettings getSettings() throws IOException {
     DlpServiceSettings.Builder builder = DlpServiceSettings.newBuilder();
     if (config.getServiceAccountFilePath() != null) {
-      builder.setCredentialsProvider(() -> GCPUtils.loadServiceAccountCredentials(config.getServiceAccountFilePath()));
+      builder
+        .setCredentialsProvider(() -> GCPUtils.loadServiceAccountCredentials(config.getServiceAccountFilePath()));
     }
     return builder.build();
   }
@@ -133,6 +404,14 @@ public class Mask extends Transform<StructuredRecord, StructuredRecord> {
     @Macro
     private String fieldsToTransform;
 
+    @Description("Enabling this option will allow you to define a custom DLP Inspection Template to use for matching "
+      + "during the transform.")
+    private Boolean customTemplateEnabled;
+
+    @Description("ID of the DLP Inspection template")
+    @Macro
+    @Nullable
+    private String templateId;
 
     public List<DlpFieldTransformationConfig> parseTransformations() throws Exception {
       Gson gson = new GsonBuilder()
@@ -149,12 +428,23 @@ public class Mask extends Transform<StructuredRecord, StructuredRecord> {
     ;
 
     public void validate(FailureCollector collector, Schema inputSchema) {
+      if (customTemplateEnabled) {
+        if (!containsMacro("templateId") && templateId == null) {
+          collector.addFailure("Must specify template ID in order to use custom template", "")
+                   .withConfigProperty("templateId");
+        }
+      }
 
       try {
         List<DlpFieldTransformationConfig> transformationConfigs = parseTransformations();
 
         for (DlpFieldTransformationConfig config : transformationConfigs) {
 
+          if (customTemplateEnabled == false && Arrays.asList(config.getFilters()).contains("NONE")) {
+            collector.addFailure(String.format("The '%s' transform on '%s' depends on a custom template.",
+                                               config.getTransform(), String.join(", ", config.getFields())),
+                                 "Enable the custom template option and provide the name of it.");
+          }
           config.validate(collector, inputSchema);
 
         }

@@ -43,6 +43,7 @@ final class DlpFieldTransformationConfig {
   private String[] filters;
   private DlpTransformConfig transformProperties;
 
+
   public FieldTransformation toFieldTransformation() {
     FieldTransformation.Builder fieldTransformationBuilder = FieldTransformation.newBuilder();
 
@@ -51,7 +52,7 @@ final class DlpFieldTransformationConfig {
       Arrays.stream(fields).map(field -> FieldId.newBuilder().setName(field).build()).collect(Collectors.toList())
     );
 
-    if (fields.length == 0 && "NONE".equals(fields[0])) {
+    if (fields.length == 0 || "NONE".equals(fields[0])) {
       fieldTransformationBuilder.setPrimitiveTransformation(transformProperties.toPrimitiveTransform());
     } else {
 
@@ -85,11 +86,26 @@ final class DlpFieldTransformationConfig {
     // No need to validate 'transform' field since it is used to deserialize this object
     // So any invalid values would have been caused an error during deserialization
 
+    if (fields.length == 0) {
+      collector.addFailure(String.format("No fields were selected to apply '%s' transform.", this.transform), "");
+    }
+
+    List<Schema.Type> supportedTypes = transformProperties.getSupportedTypes();
+
     for (String field : this.fields) {
       if (inputSchema.getField(field) == null) {
-        collector.addFailure(String.format("Field '%s' is not present in the input schema"), "");
+        collector.addFailure(String.format("Field '%s' is not present in the input schema", field), "");
+      } else {
+
+        Schema.Type fieldType = inputSchema.getField(field).getSchema().getNonNullable().getType();
+        if (!supportedTypes.contains(fieldType)) {
+          collector.addFailure(String.format("Field '%s' has type '%s' which is not supported by '%s' transform", field,
+                                             fieldType.toString(), this.transform), "");
+        }
+
       }
-      //TODO Add field type checking
+
+
     }
 
     if (filters.length == 0) {
@@ -97,6 +113,22 @@ final class DlpFieldTransformationConfig {
     }
 
     transformProperties.validate(collector);
+  }
+
+  public String getTransform() {
+    return transform;
+  }
+
+  public String[] getFields() {
+    return fields;
+  }
+
+  public String[] getFilters() {
+    return filters;
+  }
+
+  public DlpTransformConfig getTransformProperties() {
+    return transformProperties;
   }
 }
 

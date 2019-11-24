@@ -67,7 +67,7 @@
   </distributionManagement>
 
   <properties>
-    <dlp.version>0.114.0-beta</dlp.version>
+    <dlp.version>0.111.0-beta</dlp.version>
     <jee.version>7</jee.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <avro.version>1.8.2</avro.version>
@@ -96,6 +96,9 @@
     <junit.version>4.12</junit.version>
     <slf4j.version>1.7.5</slf4j.version>
     <spark.version>2.3.1</spark.version>
+
+
+
   </properties>
 
   <repositories>
