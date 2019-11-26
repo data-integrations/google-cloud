@@ -1,6 +1,8 @@
 package io.cdap.plugin.gcp.dlp.configs;
 
 
+import com.google.common.base.Strings;
+import com.google.gson.Gson;
 import com.google.privacy.dlp.v2.CharacterMaskConfig;
 import com.google.privacy.dlp.v2.CharsToIgnore;
 import com.google.privacy.dlp.v2.PrimitiveTransformation;
@@ -44,8 +46,25 @@ public class MaskingTransformConfig implements DlpTransformConfig {
   }
 
   @Override
-  public void validate(FailureCollector collector) {
-    // TODO Implement validation for transform properties
+  public void validate(FailureCollector collector, String widgetName, ErrorConfig errorConfig) {
+    Gson gson = new Gson();
+    if (Strings.isNullOrEmpty(maskingChar)) {
+      errorConfig.setNestedTransformPropertyId("maskingChar");
+      collector.addFailure("Masking Character is a required field for this transform.", "Please provide a value.")
+               .withConfigElement(widgetName, gson.toJson(errorConfig));
+    } else if (maskingChar.length() != 1) {
+      errorConfig.setNestedTransformPropertyId("maskingChar");
+      collector.addFailure(String.format(
+        "Masking Character must be a single character, string '%s' of length %d is invalid.", maskingChar,
+        maskingChar.length()), "")
+               .withConfigElement(widgetName, gson.toJson(errorConfig));
+    }
+
+    if (numberToMask < 0) {
+      errorConfig.setNestedTransformPropertyId("numberToMask");
+      collector.addFailure("Number to mask must be a positive number", "")
+               .withConfigElement(widgetName, gson.toJson(errorConfig));
+    }
   }
 
   @Override

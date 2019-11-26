@@ -16,9 +16,9 @@
  * the License.
  */
 
-package io.cdap.plugin.gcp.dlp;
+package io.cdap.plugin.gcp.dlp.configs;
 
-import com.google.common.base.Strings;
+import com.google.gson.Gson;
 import com.google.privacy.dlp.v2.FieldId;
 import com.google.privacy.dlp.v2.FieldTransformation;
 import com.google.privacy.dlp.v2.InfoType;
@@ -26,8 +26,9 @@ import com.google.privacy.dlp.v2.InfoTypeTransformations;
 import com.google.privacy.dlp.v2.InfoTypeTransformations.InfoTypeTransformation;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
-import io.cdap.plugin.gcp.dlp.configs.DlpTransformConfig;
+import io.cdap.plugin.gcp.dlp.SensitiveDataMapping;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -36,7 +37,7 @@ import java.util.stream.Collectors;
 /**
  * TODO: Move to cdap-proto
  */
-final class DlpFieldTransformationConfig {
+public final class DlpFieldTransformationConfig {
 
   private String transform;
   private String[] fields;
@@ -82,25 +83,33 @@ final class DlpFieldTransformationConfig {
     this.transformProperties = transformProperties;
   }
 
-  public void validate(FailureCollector collector, Schema inputSchema) {
+  public void validate(FailureCollector collector, Schema inputSchema, final String widgetName) {
     // No need to validate 'transform' field since it is used to deserialize this object
     // So any invalid values would have been caused an error during deserialization
 
+    Gson gson = new Gson();
+    ErrorConfig errorConfig = getErrorConfig();
     if (fields.length == 0) {
-      collector.addFailure(String.format("No fields were selected to apply '%s' transform.", this.transform), "");
+      errorConfig.setTransformPropertyId("fields");
+      collector.addFailure(String.format("No fields were selected to apply '%s' transform.", this.transform), "")
+               .withConfigElement(widgetName, gson.toJson(errorConfig));
     }
 
     List<Schema.Type> supportedTypes = transformProperties.getSupportedTypes();
 
     for (String field : this.fields) {
       if (inputSchema.getField(field) == null) {
-        collector.addFailure(String.format("Field '%s' is not present in the input schema", field), "");
+        errorConfig.setTransformPropertyId("fields");
+        collector.addFailure(String.format("Field '%s' is not present in the input schema", field), "")
+                 .withConfigElement(widgetName, gson.toJson(errorConfig));
       } else {
 
         Schema.Type fieldType = inputSchema.getField(field).getSchema().getNonNullable().getType();
         if (!supportedTypes.contains(fieldType)) {
+          errorConfig.setTransformPropertyId("fields");
           collector.addFailure(String.format("Field '%s' has type '%s' which is not supported by '%s' transform", field,
-                                             fieldType.toString(), this.transform), "");
+                                             fieldType.toString(), this.transform), "")
+                   .withConfigElement(widgetName, gson.toJson(errorConfig));
         }
 
       }
@@ -109,10 +118,12 @@ final class DlpFieldTransformationConfig {
     }
 
     if (filters.length == 0) {
-      collector.addFailure("At least one filter must be selected.", "");
+      errorConfig.setTransformPropertyId("filters");
+      collector.addFailure("At least one filter must be selected.", "")
+               .withConfigElement(widgetName, gson.toJson(errorConfig));
     }
 
-    transformProperties.validate(collector);
+    transformProperties.validate(collector, widgetName, getErrorConfig());
   }
 
   public String getTransform() {
@@ -129,6 +140,31 @@ final class DlpFieldTransformationConfig {
 
   public DlpTransformConfig getTransformProperties() {
     return transformProperties;
+  }
+
+  public ErrorConfig getErrorConfig() {
+    return getErrorConfig(null);
+  }
+
+  public ErrorConfig getErrorConfig(String transformPropertyId) {
+    return new ErrorConfig(this, transformPropertyId, false);
+  }
+
+  public List<String> getFilterDisplayNames() {
+    List<String> names = new ArrayList<>();
+
+    for (String filter : filters) {
+      if (filter.equals("NONE")) {
+        filter = "Custom Template";
+      } else {
+        filter = Arrays.stream(filter.toLowerCase().split(" ")).map(s -> s.toUpperCase().charAt(0) + s.substring(1))
+                       .collect(
+                         Collectors.joining(" "));
+
+      }
+      names.add(filter);
+    }
+    return names;
   }
 }
 

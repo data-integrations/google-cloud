@@ -81,11 +81,8 @@
               {
                 "id": "INSURANCE",
                 "label": "Insurance Numbers"
-              },
-              {
-                "id": "Telephone",
-                "label": "Telephone Numbers"
               }
+
             ],
             "transforms": [
               {
@@ -101,7 +98,8 @@
                     "label": "Masking Character",
                     "widget-attributes": {
                       "placeholder": "Character to be used to mask sensitive data",
-                      "required": "true"
+                      "required": "true",
+                      "macro": "true"
                     }
                   },
                   {

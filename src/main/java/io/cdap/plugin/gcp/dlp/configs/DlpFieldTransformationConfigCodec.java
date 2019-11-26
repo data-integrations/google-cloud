@@ -1,4 +1,4 @@
-package io.cdap.plugin.gcp.dlp;
+package io.cdap.plugin.gcp.dlp.configs;
 
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
@@ -7,8 +7,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
-import io.cdap.plugin.gcp.dlp.configs.DlpTransformConfig;
-import io.cdap.plugin.gcp.dlp.configs.MaskingTransformConfig;
 
 import java.lang.reflect.Type;
 import java.util.HashMap;

@@ -1,6 +1,5 @@
 package io.cdap.plugin.gcp.dlp;
 
-import com.google.api.gax.rpc.InvalidArgumentException;
 import com.google.cloud.dlp.v2.DlpServiceClient;
 import com.google.cloud.dlp.v2.DlpServiceSettings;
 import com.google.common.annotations.VisibleForTesting;
@@ -11,7 +10,6 @@ import com.google.privacy.dlp.v2.DeidentifyConfig;
 import com.google.privacy.dlp.v2.DeidentifyContentRequest;
 import com.google.privacy.dlp.v2.DeidentifyContentResponse;
 import com.google.privacy.dlp.v2.FieldId;
-import com.google.privacy.dlp.v2.FieldTransformation;
 import com.google.privacy.dlp.v2.GetInspectTemplateRequest;
 import com.google.privacy.dlp.v2.InspectTemplate;
 import com.google.privacy.dlp.v2.RecordTransformations;
@@ -37,19 +35,18 @@ import io.cdap.cdap.etl.api.lineage.field.FieldOperation;
 import io.cdap.cdap.etl.api.lineage.field.FieldTransformOperation;
 import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
-import org.apache.avro.generic.GenericData;
+import io.cdap.plugin.gcp.dlp.configs.DlpFieldTransformationConfig;
+import io.cdap.plugin.gcp.dlp.configs.DlpFieldTransformationConfigCodec;
+import io.cdap.plugin.gcp.dlp.configs.ErrorConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.annotation.meta.field;
 
 import java.io.IOException;
-import java.sql.Time;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -120,39 +117,70 @@ public class Mask extends Transform<StructuredRecord, StructuredRecord> {
       }
     }
 
-    //Parse config into format 'FieldName':['transform','filter']
+    List<FieldOperation> fieldOperations = getFieldOperations(context.getInputSchema());
 
-    HashMap<String, String[]> fieldOperationsData = new HashMap<>();
+    context.record(fieldOperations);
+  }
+
+  private List<FieldOperation> getFieldOperations(Schema inputSchema) throws Exception {
+
+    //Parse config into format 'FieldName': List<>(['transform','filter'])
+    HashMap<String, List<String[]>> fieldOperationsData = new HashMap<>();
     for (DlpFieldTransformationConfig transformationConfig : config.parseTransformations()) {
       for (String field : transformationConfig.getFields()) {
-        fieldOperationsData.put(field, new String[]{transformationConfig.getTransform(),
-          String.join(", ", transformationConfig.getFilters()).replace("NONE", String
-            .format("Custom Template (%s)", config.templateId))});
+        String filterName = String.join(", ", transformationConfig.getFilters())
+                                  .replace("NONE",
+                                           String.format("Custom Template (%s)", config.templateId));
+
+        String transformName = transformationConfig.getTransform();
+
+        if (!fieldOperationsData.containsKey(field)) {
+          fieldOperationsData.put(field, Collections.singletonList(new String[]{transformName, filterName}));
+        } else {
+          fieldOperationsData.get(field).add(new String[]{transformName, filterName});
+        }
+
       }
     }
 
-    for (Schema.Field field : context.getInputSchema().getFields()) {
-      if (fieldOperationsData.containsKey(field.getName()) == false) {
-        fieldOperationsData.put(field.getName(), new String[]{"Identity", ""});
+    for (Schema.Field field : inputSchema.getFields()) {
+      if (!fieldOperationsData.containsKey(field.getName())) {
+        fieldOperationsData.put(field.getName(), Collections.singletonList(new String[]{"Identity", ""}));
       }
     }
 
     List<FieldOperation> fieldOperations = new ArrayList<>();
 
     for (String fieldName : fieldOperationsData.keySet()) {
-      String transformName = fieldOperationsData.get(fieldName)[0];
-      String filterNames = fieldOperationsData.get(fieldName)[1];
+      StringBuilder descriptionBuilder = new StringBuilder();
+      StringBuilder nameBuilder = new StringBuilder();
+      descriptionBuilder.append("Applied ");
+      boolean first = true;
+      for (String[] transformFilterPair : fieldOperationsData.get(fieldName)) {
 
-      String description = String.format("Applied '%s' transform on contents of '%s'", transformName, fieldName);
-      if (filterNames.length() > 0) {
-        description += " matching " + filterNames;
+        String transformName = transformFilterPair[0];
+        String filterNames = transformFilterPair[1];
+
+        if (first) {
+          descriptionBuilder.append("        ");
+        }
+        descriptionBuilder.append(String.format("'%s' transform on contents ", transformName));
+        if (filterNames.length() > 0) {
+          descriptionBuilder.append(" matching ").append(filterNames);
+        }
+        descriptionBuilder.append(",\n");
+        nameBuilder.append(transformName).append(" ,");
+        first = false;
+
       }
-
-      String name = String.format("%s on %s", transformName, fieldName);
+      nameBuilder.deleteCharAt(nameBuilder.length() - 1);
+      descriptionBuilder.delete(descriptionBuilder.length() - 2, descriptionBuilder.length() - 1);
+      nameBuilder.append("on ").append(fieldName);
       fieldOperations
-        .add(new FieldTransformOperation(name, description, Collections.singletonList(fieldName), fieldName));
+        .add(new FieldTransformOperation(nameBuilder.toString(), descriptionBuilder.toString(),
+                                         Collections.singletonList(fieldName), fieldName));
     }
-    context.record(fieldOperations);
+    return fieldOperations;
   }
 
   private RecordTransformations constructRecordTransformations() throws Exception {
@@ -401,6 +429,7 @@ public class Mask extends Transform<StructuredRecord, StructuredRecord> {
    */
   public static class Config extends GCPConfig {
 
+    public static final String FIELDS_TO_TRANSFORM = "fieldsToTransform";
     @Macro
     private String fieldsToTransform;
 
@@ -425,7 +454,6 @@ public class Mask extends Transform<StructuredRecord, StructuredRecord> {
       return transformationConfigs;
     }
 
-    ;
 
     public void validate(FailureCollector collector, Schema inputSchema) {
       if (customTemplateEnabled) {
@@ -437,20 +465,47 @@ public class Mask extends Transform<StructuredRecord, StructuredRecord> {
 
       try {
         List<DlpFieldTransformationConfig> transformationConfigs = parseTransformations();
-
+        HashMap<String, String> transforms = new HashMap<>();
         for (DlpFieldTransformationConfig config : transformationConfigs) {
 
-          if (customTemplateEnabled == false && Arrays.asList(config.getFilters()).contains("NONE")) {
+          if (!customTemplateEnabled && Arrays.asList(config.getFilters()).contains("NONE")) {
             collector.addFailure(String.format("The '%s' transform on '%s' depends on a custom template.",
                                                config.getTransform(), String.join(", ", config.getFields())),
                                  "Enable the custom template option and provide the name of it.");
           }
-          config.validate(collector, inputSchema);
+          config.validate(collector, inputSchema, FIELDS_TO_TRANSFORM);
+          Gson gson = new Gson();
+          for (String field : config.getFields()) {
+            for (String filter : config.getFilterDisplayNames()) {
+              String transformKey = String.format("%s:%s", field, filter);
+              if (transforms.containsKey(transformKey)) {
+                ErrorConfig errorConfig = config.getErrorConfig("");
+                String errorMessage;
+                if (transforms.get(transformKey).equals(config.getTransform())) {
+
+                  errorMessage = String.format(
+                    "Combination of transform, filter and field must be unique. Found multiple definitions for '%s' "
+                      + "transform on '%s' with filter '%s'", config.getTransform(), field, filter);
+
+                } else {
+                  errorMessage = String.format(
+                    "Only one transform can be defined per field and filter combination. Found conflicting transforms"
+                      + " '%s' and '%s'",
+                    transforms.get(transformKey), config.getTransform());
+
+                }
+                collector.addFailure(errorMessage, "")
+                         .withConfigElement(FIELDS_TO_TRANSFORM, gson.toJson(errorConfig));
+              } else {
+                transforms.put(transformKey, config.getTransform());
+              }
+            }
+          }
 
         }
       } catch (Exception e) {
         collector.addFailure(String.format("Error while parsing transforms: %s", e.getMessage()), "")
-                 .withConfigProperty("fieldsToTransform");
+                 .withConfigProperty(FIELDS_TO_TRANSFORM);
       }
 
 

@@ -13,7 +13,7 @@ public interface DlpTransformConfig {
 
   PrimitiveTransformation toPrimitiveTransform();
 
-  void validate(FailureCollector collector);
+  void validate(FailureCollector collector, String widgetName, ErrorConfig errorConfig);
 
   List<Schema.Type> getSupportedTypes();
 }
