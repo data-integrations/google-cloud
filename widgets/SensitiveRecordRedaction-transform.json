@@ -2,7 +2,7 @@
   "metadata": {
     "spec-version": "1.0"
   },
-  "display-name": "DLP Transform",
+  "display-name": "Sensitive Record Redaction",
   "configuration-groups": [
     {
       "label": "Custom Template",
@@ -82,7 +82,6 @@
                 "id": "INSURANCE",
                 "label": "Insurance Numbers"
               }
-
             ],
             "transforms": [
               {
@@ -98,8 +97,7 @@
                     "label": "Masking Character",
                     "widget-attributes": {
                       "placeholder": "Character to be used to mask sensitive data",
-                      "required": "true",
-                      "macro": "true"
+                      "required": "true"
                     }
                   },
                   {
@@ -173,9 +171,10 @@
                   {
                     "name": "newValue",
                     "widget-type": "textbox",
-                    "label": "New Value",
+                    "label": "Replace Value",
                     "widget-attributes": {
-                      "placeholder": "Value to replace matches with"
+                      "placeholder": "New value",
+                      "required": "true"
                     }
                   }
                 ]
@@ -184,6 +183,122 @@
                 "label": "Redact",
                 "name": "REDACT",
                 "options": [
+                ]
+              },
+              {
+                "label": "Crypto Hash",
+                "name": "CRYPTO_HASH",
+                "options": [
+                  {
+                    "name": "keyType",
+                    "widget-type": "select",
+                    "label": "Crypto Key Type",
+                    "widget-attributes": {
+                      "description": "Type of key to use for the cryptographic hash.",
+                      "default": "TRANSIENT",
+                      "values": [
+                        {
+                          "value": "TRANSIENT",
+                          "label": "Transient"
+                        },
+                        {
+                          "value": "UNWRAPPED",
+                          "label": "Unwrapped Key"
+                        },
+                        {
+                          "value": "KMS_WRAPPED",
+                          "label": "KMS Wrapped Key"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "name": "name",
+                    "widget-type": "textbox",
+                    "label": "Transient Key Name",
+                    "widget-attributes": {
+                      "macro": "true",
+                      "placeholder": "Transient key name",
+                      "required": "true"
+                    }
+                  },
+                  {
+                    "name": "key",
+                    "widget-type": "textbox",
+                    "label": "Unwrapped Key",
+                    "widget-attributes": {
+                      "macro": "true",
+                      "placeholder": "Unwrapped key",
+                      "description": "Key to be used for cryptographic hash",
+                      "required": "true"
+                    }
+                  },
+                  {
+                    "name": "wrappedKey",
+                    "widget-type": "textbox",
+                    "label": "Wrapped Key",
+                    "widget-attributes": {
+                      "macro": "true",
+                      "placeholder": "Wrapped key",
+                      "description": "Wrapped key to be unwrapped using KMS key",
+                      "required": "true"
+                    }
+                  },
+                  {
+                    "name": "cryptoKeyName",
+                    "widget-type": "textbox",
+                    "label": "KMS Key Name",
+                    "widget-attributes": {
+                      "macro": "true",
+                      "placeholder": "Key Name",
+                      "description": "Name of the key stored in Key Management Service that will be used to unwrap the wrapped key",
+                      "required": "true"
+                    }
+                  }
+                ],
+                "filters": [
+                  {
+                    "name": "transient key rules",
+                    "condition": {
+                      "property": "keyType",
+                      "operator": "equal to",
+                      "value": "TRANSIENT"
+                    },
+                    "show": [
+                      {
+                        "name": "name"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "unwrapped key rules",
+                    "condition": {
+                      "property": "keyType",
+                      "operator": "equal to",
+                      "value": "UNWRAPPED"
+                    },
+                    "show": [
+                      {
+                        "name": "key"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "kms wrapped key rules",
+                    "condition": {
+                      "property": "keyType",
+                      "operator": "equal to",
+                      "value": "KMS_WRAPPED"
+                    },
+                    "show": [
+                      {
+                        "name": "wrappedKey"
+                      },
+                      {
+                        "name": "cryptoKeyName"
+                      }
+                    ]
+                  }
                 ]
               }
             ]

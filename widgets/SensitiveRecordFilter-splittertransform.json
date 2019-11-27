@@ -2,7 +2,7 @@
   "metadata": {
     "spec-version": "1.6"
   },
-  "display-name": "PII Filter",
+  "display-name": "Sensitive Record Filter",
   "configuration-groups": [
     {
       "label": "Input",

@@ -57,16 +57,16 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 /**
- * Mask class.
+ * SensitiveRecordRedaction class.
  */
 @Plugin(type = Transform.PLUGIN_TYPE)
-@Name(Mask.NAME)
-@Description(Mask.DESCRIPTION)
-public class Mask extends Transform<StructuredRecord, StructuredRecord> {
+@Name(SensitiveRecordRedaction.NAME)
+@Description(SensitiveRecordRedaction.DESCRIPTION)
+public class SensitiveRecordRedaction extends Transform<StructuredRecord, StructuredRecord> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(Mask.class);
-  public static final String NAME = "Mask";
-  public static final String DESCRIPTION = "Mask fields";
+  private static final Logger LOG = LoggerFactory.getLogger(SensitiveRecordRedaction.class);
+  public static final String NAME = "SensitiveRecordRedaction";
+  public static final String DESCRIPTION = "SensitiveRecordRedaction fields";
 
   // Stores the configuration passed to this class from user.
   private final Config config;
@@ -77,7 +77,7 @@ public class Mask extends Transform<StructuredRecord, StructuredRecord> {
   private RecordTransformations recordTransformations;
 
   @VisibleForTesting
-  public Mask(Config config) {
+  public SensitiveRecordRedaction(Config config) {
     this.config = config;
   }
 
@@ -100,7 +100,8 @@ public class Mask extends Transform<StructuredRecord, StructuredRecord> {
   @Override
   public void prepareRun(StageSubmitterContext context) throws Exception {
     super.prepareRun(context);
-
+    config.validate(context.getFailureCollector(), context.getInputSchema());
+    context.getFailureCollector().getOrThrowException();
     if (config.customTemplateEnabled) {
       String templateName = String.format("projects/%s/inspectTemplates/%s", config.getProject(), config.templateId);
       GetInspectTemplateRequest request = GetInspectTemplateRequest.newBuilder().setName(templateName).build();
@@ -463,49 +464,51 @@ public class Mask extends Transform<StructuredRecord, StructuredRecord> {
         }
       }
 
-      try {
-        List<DlpFieldTransformationConfig> transformationConfigs = parseTransformations();
-        HashMap<String, String> transforms = new HashMap<>();
-        for (DlpFieldTransformationConfig config : transformationConfigs) {
+      if (fieldsToTransform != null) {
+        try {
+          List<DlpFieldTransformationConfig> transformationConfigs = parseTransformations();
+          HashMap<String, String> transforms = new HashMap<>();
+          for (DlpFieldTransformationConfig config : transformationConfigs) {
 
-          if (!customTemplateEnabled && Arrays.asList(config.getFilters()).contains("NONE")) {
-            collector.addFailure(String.format("The '%s' transform on '%s' depends on a custom template.",
-                                               config.getTransform(), String.join(", ", config.getFields())),
-                                 "Enable the custom template option and provide the name of it.");
-          }
-          config.validate(collector, inputSchema, FIELDS_TO_TRANSFORM);
-          Gson gson = new Gson();
-          for (String field : config.getFields()) {
-            for (String filter : config.getFilterDisplayNames()) {
-              String transformKey = String.format("%s:%s", field, filter);
-              if (transforms.containsKey(transformKey)) {
-                ErrorConfig errorConfig = config.getErrorConfig("");
-                String errorMessage;
-                if (transforms.get(transformKey).equals(config.getTransform())) {
+            if (!customTemplateEnabled && Arrays.asList(config.getFilters()).contains("NONE")) {
+              collector.addFailure(String.format("The '%s' transform on '%s' depends on a custom template.",
+                                                 config.getTransform(), String.join(", ", config.getFields())),
+                                   "Enable the custom template option and provide the name of it.");
+            }
+            config.validate(collector, inputSchema, FIELDS_TO_TRANSFORM);
+            Gson gson = new Gson();
+            for (String field : config.getFields()) {
+              for (String filter : config.getFilterDisplayNames()) {
+                String transformKey = String.format("%s:%s", field, filter);
+                if (transforms.containsKey(transformKey)) {
+                  ErrorConfig errorConfig = config.getErrorConfig("");
+                  String errorMessage;
+                  if (transforms.get(transformKey).equals(config.getTransform())) {
 
-                  errorMessage = String.format(
-                    "Combination of transform, filter and field must be unique. Found multiple definitions for '%s' "
-                      + "transform on '%s' with filter '%s'", config.getTransform(), field, filter);
+                    errorMessage = String.format(
+                      "Combination of transform, filter and field must be unique. Found multiple definitions for '%s' "
+                        + "transform on '%s' with filter '%s'", config.getTransform(), field, filter);
 
+                  } else {
+                    errorMessage = String.format(
+                      "Only one transform can be defined per field and filter combination. Found conflicting transforms"
+                        + " '%s' and '%s'",
+                      transforms.get(transformKey), config.getTransform());
+
+                  }
+                  collector.addFailure(errorMessage, "")
+                           .withConfigElement(FIELDS_TO_TRANSFORM, gson.toJson(errorConfig));
                 } else {
-                  errorMessage = String.format(
-                    "Only one transform can be defined per field and filter combination. Found conflicting transforms"
-                      + " '%s' and '%s'",
-                    transforms.get(transformKey), config.getTransform());
-
+                  transforms.put(transformKey, config.getTransform());
                 }
-                collector.addFailure(errorMessage, "")
-                         .withConfigElement(FIELDS_TO_TRANSFORM, gson.toJson(errorConfig));
-              } else {
-                transforms.put(transformKey, config.getTransform());
               }
             }
-          }
 
+          }
+        } catch (Exception e) {
+          collector.addFailure(String.format("Error while parsing transforms: %s", e.getMessage()), "")
+                   .withConfigProperty(FIELDS_TO_TRANSFORM);
         }
-      } catch (Exception e) {
-        collector.addFailure(String.format("Error while parsing transforms: %s", e.getMessage()), "")
-                 .withConfigProperty(FIELDS_TO_TRANSFORM);
       }
 
 

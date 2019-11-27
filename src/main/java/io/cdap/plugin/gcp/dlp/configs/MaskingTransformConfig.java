@@ -17,7 +17,7 @@ import java.util.List;
  */
 public class MaskingTransformConfig implements DlpTransformConfig {
 
-  private String maskingChar;
+  private String maskingChar = "";
   private boolean reverseOrder = false;
   private int numberToMask = 0;
   private String charsToIgnoreEnum = "COMMON_CHARS_TO_IGNORE_UNSPECIFIED";

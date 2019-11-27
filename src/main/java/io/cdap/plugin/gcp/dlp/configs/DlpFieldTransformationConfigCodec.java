@@ -19,6 +19,9 @@ public class DlpFieldTransformationConfigCodec implements JsonSerializer<DlpFiel
 
   private final HashMap<String, Type> transformTypeDictionary = new HashMap<String, Type>() {{
     put("MASKING", MaskingTransformConfig.class);
+    put("REPLACE_VALUE", ReplaceValueTransformConfig.class);
+    put("REDACT", RedactTransformConfig.class);
+    put("CRYPTO_HASH", CryptoHashTransformationConfig.class);
   }};
 
   @Override
