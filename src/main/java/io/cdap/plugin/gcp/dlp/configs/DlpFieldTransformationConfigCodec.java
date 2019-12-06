@@ -22,6 +22,7 @@ public class DlpFieldTransformationConfigCodec implements JsonSerializer<DlpFiel
     put("REPLACE_VALUE", ReplaceValueTransformConfig.class);
     put("REDACT", RedactTransformConfig.class);
     put("CRYPTO_HASH", CryptoHashTransformationConfig.class);
+    put("DATE_SHIFT", DateShiftTransformationConfig.class);
   }};
 
   @Override
@@ -44,6 +45,11 @@ public class DlpFieldTransformationConfigCodec implements JsonSerializer<DlpFiel
     String[] filters = new String[]{};
     if (filtersString.length() > 0) {
       filters = filtersString.split(",");
+    }
+
+    if (!transformTypeDictionary.containsKey(transform)) {
+      throw new JsonParseException(
+        String.format("Transform %s does not have an associated transform config", transform));
     }
 
     DlpTransformConfig transformProperties = context

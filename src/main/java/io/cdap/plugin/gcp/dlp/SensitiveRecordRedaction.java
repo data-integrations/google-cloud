@@ -186,7 +186,6 @@ public class SensitiveRecordRedaction extends Transform<StructuredRecord, Struct
 
   private RecordTransformations constructRecordTransformations() throws Exception {
     RecordTransformations.Builder recordTransformationsBuilder = RecordTransformations.newBuilder();
-
     List<DlpFieldTransformationConfig> transformationConfigs = config.parseTransformations();
 
     recordTransformationsBuilder.addAllFieldTransformations(

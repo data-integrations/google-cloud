@@ -38,7 +38,7 @@
           "label": "Field",
           "name": "field",
           "widget-attributes": {
-            "supportedTypes": [
+            "allowedTypes": [
               "string",
               "int",
               "long",

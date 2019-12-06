@@ -218,8 +218,7 @@
                     "label": "Transient Key Name",
                     "widget-attributes": {
                       "macro": "true",
-                      "placeholder": "Transient key name",
-                      "required": "true"
+                      "placeholder": "Transient key name"
                     }
                   },
                   {
@@ -229,8 +228,7 @@
                     "widget-attributes": {
                       "macro": "true",
                       "placeholder": "Unwrapped key",
-                      "description": "Key to be used for cryptographic hash",
-                      "required": "true"
+                      "description": "Key to be used for cryptographic hash"
                     }
                   },
                   {
@@ -240,8 +238,7 @@
                     "widget-attributes": {
                       "macro": "true",
                       "placeholder": "Wrapped key",
-                      "description": "Wrapped key to be unwrapped using KMS key",
-                      "required": "true"
+                      "description": "Wrapped key to be unwrapped using KMS key"
                     }
                   },
                   {
@@ -251,7 +248,83 @@
                     "widget-attributes": {
                       "macro": "true",
                       "placeholder": "Key Name",
-                      "description": "Name of the key stored in Key Management Service that will be used to unwrap the wrapped key",
+                      "description": "Name of the key stored in Key Management Service that will be used to unwrap the wrapped key"
+                    }
+                  }
+                ],
+                "filters": [
+                  {
+                    "name": "transient key rules",
+                    "condition": {
+                      "property": "keyType",
+                      "operator": "equal to",
+                      "value": "TRANSIENT"
+                    },
+                    "show": [
+                      {
+                        "name": "name"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "unwrapped key rules",
+                    "condition": {
+                      "property": "keyType",
+                      "operator": "equal to",
+                      "value": "UNWRAPPED"
+                    },
+                    "show": [
+                      {
+                        "name": "key"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "kms wrapped key rules",
+                    "condition": {
+                      "property": "keyType",
+                      "operator": "equal to",
+                      "value": "KMS_WRAPPED"
+                    },
+                    "show": [
+                      {
+                        "name": "wrappedKey"
+                      },
+                      {
+                        "name": "cryptoKeyName"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "label": "Date Shift",
+                "name": "DATE_SHIFT",
+                "supportedTypes": [
+                  "date"
+                ],
+                "options": [
+                  {
+                    "name": "lowerBoundDays",
+                    "widget-type": "number",
+                    "label": "Lower Bound (in days)",
+                    "widget-attributes": {
+                      "min": "-365251",
+                      "max": "365251",
+                      "default": "0",
+                      "description": "Lower bound for range (inclusive) that will be used to randomly shift the dates",
+                      "required": "true"
+                    }
+                  },
+                  {
+                    "name": "upperBoundDays",
+                    "widget-type": "number",
+                    "label": "Upper Bound (in days)",
+                    "widget-attributes": {
+                      "min": "-365251",
+                      "max": "365251",
+                      "default": "1",
+                      "description": "Upper bound for range (inclusive) that will be used to randomly shift the dates",
                       "required": "true"
                     }
                   }
