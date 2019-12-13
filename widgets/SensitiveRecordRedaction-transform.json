@@ -2,7 +2,7 @@
   "metadata": {
     "spec-version": "1.0"
   },
-  "display-name": "Sensitive Record Redaction",
+  "display-name": "Redact",
   "configuration-groups": [
     {
       "label": "Custom Template",
@@ -167,6 +167,9 @@
               {
                 "label": "Replace with value",
                 "name": "REPLACE_VALUE",
+                "supportedTypes":[
+                  "string"
+                ],
                 "options": [
                   {
                     "name": "newValue",
@@ -182,11 +185,14 @@
               {
                 "label": "Redact",
                 "name": "REDACT",
+                "supportedTypes":[
+                  "string"
+                ],
                 "options": [
                 ]
               },
               {
-                "label": "Crypto Hash",
+                "label": "One-way Hash",
                 "name": "CRYPTO_HASH",
                 "options": [
                   {
@@ -301,7 +307,9 @@
                 "label": "Date Shift",
                 "name": "DATE_SHIFT",
                 "supportedTypes": [
-                  "date"
+                  "date",
+                  "timestamp-micros",
+                  "timestamp-millis"
                 ],
                 "options": [
                   {

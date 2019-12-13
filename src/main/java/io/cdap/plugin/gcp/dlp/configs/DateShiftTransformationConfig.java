@@ -24,7 +24,7 @@ public class DateShiftTransformationConfig implements DlpTransformConfig {
   // private CryptoKeyHelper.KeyType keyType;
 
 
-  private final Schema.Type[] supportedTypes = new Schema.Type[]{Schema.Type.INT};
+  private final Schema.Type[] supportedTypes = new Schema.Type[]{Schema.Type.INT, Schema.Type.LONG};
 
   @Override
   public PrimitiveTransformation toPrimitiveTransform() {

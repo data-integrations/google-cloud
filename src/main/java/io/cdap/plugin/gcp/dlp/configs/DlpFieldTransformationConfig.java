@@ -97,19 +97,22 @@ public final class DlpFieldTransformationConfig {
 
     List<Schema.Type> supportedTypes = transformProperties.getSupportedTypes();
 
-    for (String field : this.fields) {
-      if (inputSchema.getField(field) == null) {
+    for (String fieldName : this.fields) {
+      Schema.Field field = inputSchema.getField(fieldName);
+      if (field == null) {
         errorConfig.setTransformPropertyId("fields");
-        collector.addFailure(String.format("Field '%s' is not present in the input schema", field), "")
+        collector.addFailure(String.format("Field '%s' is not present in the input schema", fieldName), "")
                  .withConfigElement(widgetName, gson.toJson(errorConfig));
       } else {
 
-        Schema.Type fieldType = inputSchema.getField(field).getSchema().getNonNullable().getType();
+        Schema.Type fieldType =
+          field.getSchema().isNullable() ? field.getSchema().getNonNullable().getType() : field.getSchema().getType();
         if (!supportedTypes.contains(fieldType)) {
           errorConfig.setTransformPropertyId("fields");
-          collector.addFailure(String.format("Field '%s' has type '%s' which is not supported by '%s' transform", field,
-                                             fieldType.toString(), this.transform), "")
-                   .withConfigElement(widgetName, gson.toJson(errorConfig));
+          collector
+            .addFailure(String.format("Field '%s' has type '%s' which is not supported by '%s' transform", fieldName,
+                                      fieldType.toString(), this.transform), "")
+            .withConfigElement(widgetName, gson.toJson(errorConfig));
         }
 
       }

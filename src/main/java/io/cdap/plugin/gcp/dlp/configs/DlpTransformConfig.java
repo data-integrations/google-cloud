@@ -16,4 +16,5 @@ public interface DlpTransformConfig {
   void validate(FailureCollector collector, String widgetName, ErrorConfig errorConfig);
 
   List<Schema.Type> getSupportedTypes();
+
 }

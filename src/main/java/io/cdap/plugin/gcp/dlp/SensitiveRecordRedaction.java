@@ -48,6 +48,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -243,43 +244,46 @@ public class SensitiveRecordRedaction extends Transform<StructuredRecord, Struct
         continue;
       }
 
-      if (fieldSchema.isSimpleOrNullableSimple()) {
-        recordBuilder.convertAndSet(fieldName, fieldValue.getStringValue());
-      } else {
-        final Schema.LogicalType logicalType = fieldSchema.getLogicalType();
-        if (logicalType != null) {
-          switch (logicalType) {
-            case TIME_MICROS:
-            case TIME_MILLIS:
+      final Schema.LogicalType logicalType = fieldSchema.getLogicalType();
+      if (logicalType != null) {
+        switch (logicalType) {
+          case TIME_MICROS:
+          case TIME_MILLIS:
 
-              TimeOfDay timeValue = fieldValue.getTimeValue();
-              recordBuilder.setTime(fieldName, LocalTime
-                .of(timeValue.getHours(), timeValue.getMinutes(), timeValue.getSeconds(), timeValue.getNanos()));
-              break;
+            TimeOfDay timeValue = fieldValue.getTimeValue();
+            recordBuilder.setTime(fieldName, LocalTime
+              .of(timeValue.getHours(), timeValue.getMinutes(), timeValue.getSeconds(), timeValue.getNanos()));
+            break;
 
-            case TIMESTAMP_MICROS:
-            case TIMESTAMP_MILLIS:
-              Timestamp timestampValue = fieldValue.getTimestampValue();
-              ZoneId zoneId = oldRecord.getTimestamp(fieldName).getZone();
-              LocalDateTime localDateTime = Instant
+          case TIMESTAMP_MICROS:
+          case TIMESTAMP_MILLIS:
+            Timestamp timestampValue = fieldValue.getTimestampValue();
+            ZoneId zoneId = oldRecord.getTimestamp(fieldName).getZone();
+            LocalDateTime localDateTime;
+            if (timestampValue.getSeconds() + timestampValue.getNanos() == 0) {
+              localDateTime = LocalDateTime.parse(fieldValue.getStringValue(), DateTimeFormatter.ISO_INSTANT);
+            } else {
+              localDateTime = Instant
                 .ofEpochSecond(timestampValue.getSeconds(), timestampValue.getNanos())
                 .atZone(zoneId)
                 .toLocalDateTime();
-              recordBuilder.setTimestamp(fieldName, ZonedDateTime.of(localDateTime, zoneId));
-              break;
-            case DATE:
-              Date dateValue = fieldValue.getDateValue();
-              recordBuilder
-                .setDate(fieldName, LocalDate.of(dateValue.getYear(), dateValue.getMonth(), dateValue.getDay()));
-              break;
-            default:
-              throw new IllegalArgumentException("Failed to parse table into structured record");
+            }
 
-          }
-
+            recordBuilder.setTimestamp(fieldName, ZonedDateTime.of(localDateTime, zoneId));
+            break;
+          case DATE:
+            Date dateValue = fieldValue.getDateValue();
+            recordBuilder
+              .setDate(fieldName, LocalDate.of(dateValue.getYear(), dateValue.getMonth(), dateValue.getDay()));
+            break;
+          default:
+            throw new IllegalArgumentException("Failed to parse table into structured record");
 
         }
 
+
+      } else {
+        recordBuilder.convertAndSet(fieldName, fieldValue.getStringValue());
       }
     }
     return recordBuilder.build();
@@ -467,23 +471,46 @@ public class SensitiveRecordRedaction extends Transform<StructuredRecord, Struct
         try {
           List<DlpFieldTransformationConfig> transformationConfigs = parseTransformations();
           HashMap<String, String> transforms = new HashMap<>();
+          Boolean firstTransformUsedCustomTemplate = null;
+          Boolean anyTransformUsedCustomTemplate = false;
           for (DlpFieldTransformationConfig config : transformationConfigs) {
-
-            if (!customTemplateEnabled && Arrays.asList(config.getFilters()).contains("NONE")) {
-              collector.addFailure(String.format("The '%s' transform on '%s' depends on a custom template.",
-                                                 config.getTransform(), String.join(", ", config.getFields())),
-                                   "Enable the custom template option and provide the name of it.");
-            }
-            config.validate(collector, inputSchema, FIELDS_TO_TRANSFORM);
+            ErrorConfig errorConfig = config.getErrorConfig("");
             Gson gson = new Gson();
+
+            //Checking that custom template is defined if it is selected in one of the transforms
+            List<String> filters = Arrays.asList(config.getFilters());
+            if (!customTemplateEnabled && filters.contains("NONE")) {
+              collector.addFailure(String.format("This transform depends on custom template that was not defined.",
+                                                 config.getTransform(), String.join(", ", config.getFields())),
+                                   "Enable the custom template option and provide the name of it.")
+                       .withConfigElement(FIELDS_TO_TRANSFORM, gson.toJson(errorConfig));
+            }
+            //Validate the config for the transform
+            config.validate(collector, inputSchema, FIELDS_TO_TRANSFORM);
+
+            //Check that custom template and built-in types are not mixed
+            if (firstTransformUsedCustomTemplate == null) {
+              firstTransformUsedCustomTemplate = filters.contains("NONE");
+            } else {
+              anyTransformUsedCustomTemplate = anyTransformUsedCustomTemplate || filters.contains("NONE");
+              if (filters.contains("NONE") != firstTransformUsedCustomTemplate) {
+                errorConfig.setTransformPropertyId("filters");
+                collector.addFailure("Cannot use custom templates and built-in filters in the same plugin instance.",
+                                     "All transforms must use custom templates or built-in filters, not a "
+                                       + "combination of both.")
+                         .withConfigElement(FIELDS_TO_TRANSFORM, gson.toJson(errorConfig));
+
+              }
+            }
+
+            // Make sure the combination of field, transform and filter are unique
             for (String field : config.getFields()) {
               for (String filter : config.getFilterDisplayNames()) {
                 String transformKey = String.format("%s:%s", field, filter);
                 if (transforms.containsKey(transformKey)) {
-                  ErrorConfig errorConfig = config.getErrorConfig("");
+
                   String errorMessage;
                   if (transforms.get(transformKey).equals(config.getTransform())) {
-
                     errorMessage = String.format(
                       "Combination of transform, filter and field must be unique. Found multiple definitions for '%s' "
                         + "transform on '%s' with filter '%s'", config.getTransform(), field, filter);
@@ -495,6 +522,7 @@ public class SensitiveRecordRedaction extends Transform<StructuredRecord, Struct
                       transforms.get(transformKey), config.getTransform());
 
                   }
+                  errorConfig.setTransformPropertyId("");
                   collector.addFailure(errorMessage, "")
                            .withConfigElement(FIELDS_TO_TRANSFORM, gson.toJson(errorConfig));
                 } else {
@@ -503,6 +531,14 @@ public class SensitiveRecordRedaction extends Transform<StructuredRecord, Struct
               }
             }
 
+          }
+
+          // If the user has a custom template enabled but doesnt use it in any of the transforms
+          if (anyTransformUsedCustomTemplate != null && !anyTransformUsedCustomTemplate && this.customTemplateEnabled) {
+            collector.addFailure("Custom template is enabled but no transforms use a custom template.",
+                                 "Please define a transform that uses the custom template or disable the custom "
+                                   + "template.")
+                     .withConfigProperty("customTemplateEnabled");
           }
         } catch (Exception e) {
           collector.addFailure(String.format("Error while parsing transforms: %s", e.getMessage()), "")
