@@ -37,16 +37,16 @@ public final class SensitiveDataMapping {
   public SensitiveDataMapping() {
     compositeInfoTypes.put("DEMOGRAPHIC", new String[]{
       "PERSON_NAME",
-      // "FIRST_NAME",
-      // "LAST_NAME",
+      "FIRST_NAME",
+      "LAST_NAME",
       "AGE",
       "DATE_OF_BIRTH",
-      // "GENDER",
+      "GENDER",
       "PHONE_NUMBER",
-      // "MALE_NAME",
-      // "FEMALE_NAME",
+      "MALE_NAME",
+      "FEMALE_NAME",
       "ETHNIC_GROUP",
-      // "US_STATE",
+      "US_STATE",
     });
 
     compositeInfoTypes.put("LOCATION", new String[]{
@@ -57,17 +57,17 @@ public final class SensitiveDataMapping {
 
     compositeInfoTypes.put("TAX", new String[]{
       "AUSTRALIA_TAX_FILE_NUMBER",
-      // "BRAZIL_CPF_NUMBER",
+      "BRAZIL_CPF_NUMBER",
       "DENMARK_CPR_NUMBER",
-      // "INDIA_PAN_INDIVIDUAL",
-      // "MEXICO_CURP_NUMBER",
+      "INDIA_PAN_INDIVIDUAL",
+      "MEXICO_CURP_NUMBER",
       "NORWAY_NI_NUMBER",
       "PORTUGAL_CDC_NUMBER",
-      // "UK_NATIONAL_INSURANCE_NUMBER",
-      // "UK_TAXPAYER_REFERENCE",
+      "UK_NATIONAL_INSURANCE_NUMBER",
+      "UK_TAXPAYER_REFERENCE",
       "US_ADOPTION_TAXPAYER_IDENTIFICATION_NUMBER",
       "US_EMPLOYER_IDENTIFICATION_NUMBER",
-      // "US_INDIVIDUAL_TAXPAYER_IDENTIFICATION_NUMBER",
+      "US_INDIVIDUAL_TAXPAYER_IDENTIFICATION_NUMBER",
       "US_PREPARER_TAXPAYER_IDENTIFICATION_NUMBER",
     });
 
@@ -76,47 +76,47 @@ public final class SensitiveDataMapping {
     });
 
     compositeInfoTypes.put("PASSPORT", new String[]{
-      // "CANADA_PASSPORT",
-      // "CHINA_PASSPORT",
-      // "FRANCE_PASSPORT",
-      // "GERMANY_PASSPORT",
-      // "JAPAN_PASSPORT",
-      // "KOREA_PASSPORT",
-      // "MEXICO_PASSPORT",
+      "CANADA_PASSPORT",
+      "CHINA_PASSPORT",
+      "FRANCE_PASSPORT",
+      "GERMANY_PASSPORT",
+      "JAPAN_PASSPORT",
+      "KOREA_PASSPORT",
+      "MEXICO_PASSPORT",
       "NETHERLANDS_PASSPORT",
-      // "POLAND_PASSPORT",
-      // "SPAIN_PASSPORT",
-      // "SWEDEN_PASSPORT",
-      // "UK_PASSPORT",
-      // "US_PASSPORT",
+      "POLAND_PASSPORT",
+      "SPAIN_PASSPORT",
+      "SWEDEN_PASSPORT",
+      "UK_PASSPORT",
+      "US_PASSPORT",
     });
 
     compositeInfoTypes.put("HEALTH", new String[]{
-      // "UK_NATIONAL_HEALTH_SERVICE_NUMBER",
-      // "US_DEA_NUMBER",
+      "UK_NATIONAL_HEALTH_SERVICE_NUMBER",
+      "US_DEA_NUMBER",
       "US_HEALTHCARE_NPI",
-      // "CANADA_BC_PHN",
+      "CANADA_BC_PHN",
       "CANADA_OHIP",
-      // "CANADA_QUEBEC_HIN",
-      // "CANADA_SOCIAL_INSURANCE_NUMBER"
+      "CANADA_QUEBEC_HIN",
+      "CANADA_SOCIAL_INSURANCE_NUMBER"
     });
 
     compositeInfoTypes.put("NATIONAL_ID", new String[]{
-      // "ARGENTINA_DNI_NUMBER",
-      // "CANADA_SOCIAL_INSURANCE_NUMBER",
-      // "CHILE_CDI_NUMBER",
+      "ARGENTINA_DNI_NUMBER",
+      "CANADA_SOCIAL_INSURANCE_NUMBER",
+      "CHILE_CDI_NUMBER",
       "CHINA_RESIDENT_ID_NUMBER",
-      // "COLOMBIA_CDC_NUMBER",
+      "COLOMBIA_CDC_NUMBER",
       "DENMARK_CPR_NUMBER",
       "FRANCE_CNI",
       "FRANCE_NIR",
       "FINLAND_NATIONAL_ID_NUMBER",
       "JAPAN_INDIVIDUAL_NUMBER",
-      // "MEXICO_CURP_NUMBER",
-      // "NETHERLANDS_BSN_NUMBER",
+      "MEXICO_CURP_NUMBER",
+      "NETHERLANDS_BSN_NUMBER",
       "NORWAY_NI_NUMBER",
       "PARAGUAY_CIC_NUMBER",
-      // "PERU_DNI_NUMBER",
+      "PERU_DNI_NUMBER",
       "POLAND_PESEL_NUMBER",
       "POLAND_NATIONAL_ID_NUMBER",
       "PORTUGAL_CDC_NUMBER",
@@ -129,16 +129,16 @@ public final class SensitiveDataMapping {
     });
 
     compositeInfoTypes.put("DRIVER_LICENSE", new String[]{
-      // "CANADA_DRIVERS_LICENSE_NUMBER",
-      // "JAPAN_DRIVERS_LICENSE_NUMBER",
+      "CANADA_DRIVERS_LICENSE_NUMBER",
+      "JAPAN_DRIVERS_LICENSE_NUMBER",
       "SPAIN_DRIVERS_LICENSE_NUMBER",
-      // "UK_DRIVERS_LICENSE_NUMBER",
+      "UK_DRIVERS_LICENSE_NUMBER",
       "US_DRIVERS_LICENSE_NUMBER",
     });
 
     compositeInfoTypes.put("INSURANCE", new String[] {
-      // "CANADA_SOCIAL_INSURANCE_NUMBER",
-      // "UK_NATIONAL_INSURANCE_NUMBER"
+      "CANADA_SOCIAL_INSURANCE_NUMBER",
+      "UK_NATIONAL_INSURANCE_NUMBER"
     });
   };
 

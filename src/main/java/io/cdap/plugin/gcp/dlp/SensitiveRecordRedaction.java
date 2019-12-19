@@ -11,8 +11,12 @@ import com.google.privacy.dlp.v2.DeidentifyConfig;
 import com.google.privacy.dlp.v2.DeidentifyContentRequest;
 import com.google.privacy.dlp.v2.DeidentifyContentResponse;
 import com.google.privacy.dlp.v2.FieldId;
+import com.google.privacy.dlp.v2.FieldTransformation;
 import com.google.privacy.dlp.v2.GetInspectTemplateRequest;
+import com.google.privacy.dlp.v2.InfoTypeTransformations;
+import com.google.privacy.dlp.v2.InspectConfig;
 import com.google.privacy.dlp.v2.InspectTemplate;
+import com.google.privacy.dlp.v2.Likelihood;
 import com.google.privacy.dlp.v2.RecordTransformations;
 import com.google.privacy.dlp.v2.Table;
 import com.google.privacy.dlp.v2.Value;
@@ -221,15 +225,25 @@ public class SensitiveRecordRedaction extends Transform<StructuredRecord, Struct
     if (config.customTemplateEnabled) {
       String templateName = String.format("projects/%s/inspectTemplates/%s", config.getProject(), config.templateId);
       requestBuilder.setInspectTemplateName(templateName);
+    } else {
+      InspectConfig.Builder configBuilder = InspectConfig.newBuilder();
+      for (FieldTransformation fieldTransformation : this.recordTransformations.getFieldTransformationsList()) {
+        for (InfoTypeTransformations.InfoTypeTransformation infoTypeTransformation : fieldTransformation
+          .getInfoTypeTransformations().getTransformationsList()) {
+          configBuilder.addAllInfoTypes(infoTypeTransformation.getInfoTypesList());
+        }
+      }
+      configBuilder.setMinLikelihood(Likelihood.POSSIBLE);
+      requestBuilder.setInspectConfig(configBuilder);
     }
 
     DeidentifyContentResponse response = null;
     DeidentifyContentRequest request = requestBuilder.build();
     try {
-      metrics.count("redactionTransform.DLPRequests", 1);
+      metrics.count("DLPRequests", 1);
       response = client.deidentifyContent(request);
     } catch (Exception e) {
-      metrics.count("redactionTransform.failedRequests", 1);
+      metrics.count("failedDLPRequests", 1);
       if (e instanceof ResourceExhaustedException) {
         LOG.error(
           "Failed due to DLP rate limit, please request more quota from DLP: https://cloud.google"
@@ -238,7 +252,7 @@ public class SensitiveRecordRedaction extends Transform<StructuredRecord, Struct
       throw e;
     }
 
-    metrics.count("redactionTransform.successfulRequests", 1);
+    metrics.count("successfulDLPRequests", 1);
     ContentItem item1 = response.getItem();
 
     StructuredRecord resultRecord = getStructuredRecordFromTable(item1.getTable(), structuredRecord);

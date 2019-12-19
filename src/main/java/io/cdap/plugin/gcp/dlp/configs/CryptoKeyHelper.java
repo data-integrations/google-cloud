@@ -9,6 +9,9 @@ import com.google.privacy.dlp.v2.UnwrappedCryptoKey;
 import com.google.protobuf.ByteString;
 import io.cdap.cdap.etl.api.FailureCollector;
 
+import java.nio.charset.Charset;
+import java.util.Random;
+
 
 /**
  *
@@ -29,6 +32,12 @@ public class CryptoKeyHelper {
     CryptoKey.Builder cryptoKeyBuilder = CryptoKey.newBuilder();
     switch (keyType) {
       case TRANSIENT:
+        if (Strings.isNullOrEmpty(name)) {
+          //Generate random name for transient key
+          byte[] array = new byte[15];
+          new Random().nextBytes(array);
+          name = new String(array, Charset.forName("UTF-8"));
+        }
         cryptoKeyBuilder.setTransient(
           TransientCryptoKey.newBuilder()
                             .setName(name)
@@ -63,11 +72,6 @@ public class CryptoKeyHelper {
     }
     switch (keyType) {
       case TRANSIENT:
-        if (Strings.isNullOrEmpty(name)) {
-          errorConfig.setNestedTransformPropertyId("name");
-          collector.addFailure("Transient Key Name is a required field for this transform.", "Please provide a value.")
-                   .withConfigElement(widgetName, gson.toJson(errorConfig));
-        }
         break;
 
       case UNWRAPPED:

@@ -1,0 +1,253 @@
+{
+    "name": "Demo_v66",
+    "description": "Data Pipeline Application",
+    "artifact": {
+        "name": "cdap-data-pipeline",
+        "version": "6.1.0-SNAPSHOT",
+        "scope": "SYSTEM"
+    },
+    "config": {
+        "resources": {
+            "memoryMB": 2048,
+            "virtualCores": 1
+        },
+        "driverResources": {
+            "memoryMB": 2048,
+            "virtualCores": 1
+        },
+        "connections": [
+            {
+                "from": "Call Center Records",
+                "to": "Wrangler"
+            },
+            {
+                "from": "Wrangler",
+                "to": "PII Filter"
+            },
+            {
+                "from": "PII Filter",
+                "to": "Redact",
+                "port": "Sensitive"
+            },
+            {
+                "from": "Redact",
+                "to": "Redacted Sink"
+            },
+            {
+                "from": "PII Filter",
+                "to": "Non-Sensitive Sink",
+                "port": "Non-Sensitive"
+            }
+        ],
+        "comments": [],
+        "postActions": [],
+        "properties": {},
+        "processTimingEnabled": true,
+        "stageLoggingEnabled": false,
+        "stages": [
+            {
+                "name": "Call Center Records",
+                "plugin": {
+                    "name": "GCSFile",
+                    "type": "batchsource",
+                    "label": "Call Center Records",
+                    "artifact": {
+                        "name": "google-cloud",
+                        "version": "0.13.2-SNAPSHOT",
+                        "scope": "USER"
+                    },
+                    "properties": {
+                        "project": "auto-detect",
+                        "format": "text",
+                        "serviceFilePath": "auto-detect",
+                        "filenameOnly": "false",
+                        "recursive": "false",
+                        "schema": "{\"type\":\"record\",\"name\":\"etlSchemaBody\",\"fields\":[{\"name\":\"offset\",\"type\":\"long\"},{\"name\":\"body\",\"type\":\"string\"}]}",
+                        "path": "gs://meseifan-dlp-demo/sampleData.csv",
+                        "referenceName": "in"
+                    }
+                },
+                "outputSchema": "{\"type\":\"record\",\"name\":\"etlSchemaBody\",\"fields\":[{\"name\":\"offset\",\"type\":\"long\"},{\"name\":\"body\",\"type\":\"string\"}]}",
+                "type": "batchsource",
+                "label": "Call Center Records",
+                "icon": "fa-plug"
+            },
+            {
+                "name": "Wrangler",
+                "plugin": {
+                    "name": "Wrangler",
+                    "type": "transform",
+                    "label": "Wrangler",
+                    "artifact": {
+                        "name": "wrangler-transform",
+                        "version": "4.1.1",
+                        "scope": "SYSTEM"
+                    },
+                    "properties": {
+                        "field": "*",
+                        "precondition": "false",
+                        "threshold": "1",
+                        "schema": "{\"type\":\"record\",\"name\":\"etlSchemaBody\",\"fields\":[{\"name\":\"date\",\"type\":[{\"type\":\"long\",\"logicalType\":\"timestamp-micros\"},\"null\"]},{\"name\":\"loan_type\",\"type\":[\"string\",\"null\"]},{\"name\":\"loan\",\"type\":[\"string\",\"null\"]},{\"name\":\"bank\",\"type\":[\"string\",\"null\"]},{\"name\":\"state\",\"type\":[\"string\",\"null\"]},{\"name\":\"zip\",\"type\":[\"string\",\"null\"]},{\"name\":\"notes\",\"type\":[\"string\",\"null\"]}]}",
+                        "workspaceId": "e88c1f06-ccdd-49b7-b46b-1b6388da5c25",
+                        "directives": "parse-as-csv :body ',' false\ndrop body\nparse-as-simple-date :body_1 MM/dd/yyyy\nrename body_1 date\nrename body_2 loan_type\nrename body_3 loan\nrename body_4 bank\nrename body_5 state\nrename body_6 zip\nrename body_7 notes"
+                    }
+                },
+                "outputSchema": "{\"type\":\"record\",\"name\":\"etlSchemaBody\",\"fields\":[{\"name\":\"date\",\"type\":[{\"type\":\"long\",\"logicalType\":\"timestamp-micros\"},\"null\"]},{\"name\":\"loan_type\",\"type\":[\"string\",\"null\"]},{\"name\":\"loan\",\"type\":[\"string\",\"null\"]},{\"name\":\"bank\",\"type\":[\"string\",\"null\"]},{\"name\":\"state\",\"type\":[\"string\",\"null\"]},{\"name\":\"zip\",\"type\":[\"string\",\"null\"]},{\"name\":\"notes\",\"type\":[\"string\",\"null\"]}]}",
+                "inputSchema": [
+                    {
+                        "name": "GCS",
+                        "schema": "{\"type\":\"record\",\"name\":\"etlSchemaBody\",\"fields\":[{\"name\":\"offset\",\"type\":\"long\"},{\"name\":\"body\",\"type\":\"string\"}]}"
+                    }
+                ],
+                "type": "transform",
+                "label": "Wrangler",
+                "icon": "icon-DataPreparation"
+            },
+            {
+                "name": "PII Filter",
+                "plugin": {
+                    "name": "SensitiveRecordFilter",
+                    "type": "splittertransform",
+                    "label": "PII Filter",
+                    "artifact": {
+                        "name": "google-cloud",
+                        "version": "0.13.2-SNAPSHOT",
+                        "scope": "USER"
+                    },
+                    "properties": {
+                        "entire-record": "record",
+                        "on-error": "send-to-error",
+                        "serviceFilePath": "auto-detect",
+                        "project": "auto-detect",
+                        "template-id": "DemoTemplate"
+                    }
+                },
+                "outputSchema": [
+                    {
+                        "name": "Sensitive",
+                        "schema": "{\"type\":\"record\",\"name\":\"etlSchemaBody\",\"fields\":[{\"name\":\"date\",\"type\":[{\"type\":\"long\",\"logicalType\":\"timestamp-micros\"},\"null\"]},{\"name\":\"loan_type\",\"type\":[\"string\",\"null\"]},{\"name\":\"loan\",\"type\":[\"string\",\"null\"]},{\"name\":\"bank\",\"type\":[\"string\",\"null\"]},{\"name\":\"state\",\"type\":[\"string\",\"null\"]},{\"name\":\"zip\",\"type\":[\"string\",\"null\"]},{\"name\":\"notes\",\"type\":[\"string\",\"null\"]}]}"
+                    },
+                    {
+                        "name": "Non-Sensitive",
+                        "schema": "{\"type\":\"record\",\"name\":\"etlSchemaBody\",\"fields\":[{\"name\":\"date\",\"type\":[{\"type\":\"long\",\"logicalType\":\"timestamp-micros\"},\"null\"]},{\"name\":\"loan_type\",\"type\":[\"string\",\"null\"]},{\"name\":\"loan\",\"type\":[\"string\",\"null\"]},{\"name\":\"bank\",\"type\":[\"string\",\"null\"]},{\"name\":\"state\",\"type\":[\"string\",\"null\"]},{\"name\":\"zip\",\"type\":[\"string\",\"null\"]},{\"name\":\"notes\",\"type\":[\"string\",\"null\"]}]}"
+                    }
+                ],
+                "inputSchema": [
+                    {
+                        "name": "Wrangler",
+                        "schema": "{\"type\":\"record\",\"name\":\"etlSchemaBody\",\"fields\":[{\"name\":\"date\",\"type\":[{\"type\":\"long\",\"logicalType\":\"timestamp-micros\"},\"null\"]},{\"name\":\"loan_type\",\"type\":[\"string\",\"null\"]},{\"name\":\"loan\",\"type\":[\"string\",\"null\"]},{\"name\":\"bank\",\"type\":[\"string\",\"null\"]},{\"name\":\"state\",\"type\":[\"string\",\"null\"]},{\"name\":\"zip\",\"type\":[\"string\",\"null\"]},{\"name\":\"notes\",\"type\":[\"string\",\"null\"]}]}"
+                    }
+                ],
+                "type": "splittertransform",
+                "label": "PII Filter",
+                "icon": "fa-plug"
+            },
+            {
+                "name": "Redact",
+                "plugin": {
+                    "name": "SensitiveRecordRedaction",
+                    "type": "transform",
+                    "label": "Redact",
+                    "artifact": {
+                        "name": "google-cloud",
+                        "version": "0.13.2-SNAPSHOT",
+                        "scope": "USER"
+                    },
+                    "properties": {
+                        "customTemplateEnabled": "true",
+                        "serviceFilePath": "auto-detect",
+                        "project": "auto-detect",
+                        "fieldsToTransform": "[\"{\\\"fields\\\":\\\"notes\\\",\\\"transform\\\":\\\"MASKING\\\",\\\"filters\\\":\\\"NONE\\\",\\\"transformProperties\\\":{\\\"maskingChar\\\":\\\"#\\\",\\\"numberToMask\\\":\\\"0\\\",\\\"reverseOrder\\\":\\\"false\\\",\\\"charsToIgnoreEnum\\\":\\\"PUNCTUATION\\\"},\\\"expanded\\\":true}\"]",
+                        "templateId": "DemoTemplate"
+                    }
+                },
+                "outputSchema": [
+                    {
+                        "name": "etlSchemaBody",
+                        "schema": "{\"type\":\"record\",\"name\":\"etlSchemaBody\",\"fields\":[{\"name\":\"date\",\"type\":[{\"type\":\"long\",\"logicalType\":\"timestamp-micros\"},\"null\"]},{\"name\":\"loan_type\",\"type\":[\"string\",\"null\"]},{\"name\":\"loan\",\"type\":[\"string\",\"null\"]},{\"name\":\"bank\",\"type\":[\"string\",\"null\"]},{\"name\":\"state\",\"type\":[\"string\",\"null\"]},{\"name\":\"zip\",\"type\":[\"string\",\"null\"]},{\"name\":\"notes\",\"type\":[\"string\",\"null\"]}]}"
+                    }
+                ],
+                "inputSchema": [
+                    {
+                        "name": "PII Filter",
+                        "schema": "{\"type\":\"record\",\"name\":\"etlSchemaBody\",\"fields\":[{\"name\":\"date\",\"type\":[{\"type\":\"long\",\"logicalType\":\"timestamp-micros\"},\"null\"]},{\"name\":\"loan_type\",\"type\":[\"string\",\"null\"]},{\"name\":\"loan\",\"type\":[\"string\",\"null\"]},{\"name\":\"bank\",\"type\":[\"string\",\"null\"]},{\"name\":\"state\",\"type\":[\"string\",\"null\"]},{\"name\":\"zip\",\"type\":[\"string\",\"null\"]},{\"name\":\"notes\",\"type\":[\"string\",\"null\"]}]}"
+                    }
+                ],
+                "type": "transform",
+                "label": "Redact",
+                "icon": "fa-plug"
+            },
+            {
+                "name": "Redacted Sink",
+                "plugin": {
+                    "name": "GCS",
+                    "type": "batchsink",
+                    "label": "Redacted Sink",
+                    "artifact": {
+                        "name": "google-cloud",
+                        "version": "0.13.2-SNAPSHOT",
+                        "scope": "USER"
+                    },
+                    "properties": {
+                        "project": "auto-detect",
+                        "suffix": "yyyy-MM-dd-HH-mm",
+                        "format": "json",
+                        "serviceFilePath": "auto-detect",
+                        "location": "us",
+                        "path": "gs://meseifan-dlp-demo/Redacted",
+                        "referenceName": "out",
+                        "schema": "{\"type\":\"record\",\"name\":\"etlSchemaBody\",\"fields\":[{\"name\":\"date\",\"type\":[{\"type\":\"long\",\"logicalType\":\"timestamp-micros\"},\"null\"]},{\"name\":\"loan_type\",\"type\":[\"string\",\"null\"]},{\"name\":\"loan\",\"type\":[\"string\",\"null\"]},{\"name\":\"bank\",\"type\":[\"string\",\"null\"]},{\"name\":\"state\",\"type\":[\"string\",\"null\"]},{\"name\":\"zip\",\"type\":[\"string\",\"null\"]},{\"name\":\"notes\",\"type\":[\"string\",\"null\"]}]}"
+                    }
+                },
+                "outputSchema": "{\"type\":\"record\",\"name\":\"etlSchemaBody\",\"fields\":[{\"name\":\"date\",\"type\":[{\"type\":\"long\",\"logicalType\":\"timestamp-micros\"},\"null\"]},{\"name\":\"loan_type\",\"type\":[\"string\",\"null\"]},{\"name\":\"loan\",\"type\":[\"string\",\"null\"]},{\"name\":\"bank\",\"type\":[\"string\",\"null\"]},{\"name\":\"state\",\"type\":[\"string\",\"null\"]},{\"name\":\"zip\",\"type\":[\"string\",\"null\"]},{\"name\":\"notes\",\"type\":[\"string\",\"null\"]}]}",
+                "inputSchema": [
+                    {
+                        "name": "Redact",
+                        "schema": "{\"type\":\"record\",\"name\":\"etlSchemaBody\",\"fields\":[{\"name\":\"date\",\"type\":[{\"type\":\"long\",\"logicalType\":\"timestamp-micros\"},\"null\"]},{\"name\":\"loan_type\",\"type\":[\"string\",\"null\"]},{\"name\":\"loan\",\"type\":[\"string\",\"null\"]},{\"name\":\"bank\",\"type\":[\"string\",\"null\"]},{\"name\":\"state\",\"type\":[\"string\",\"null\"]},{\"name\":\"zip\",\"type\":[\"string\",\"null\"]},{\"name\":\"notes\",\"type\":[\"string\",\"null\"]}]}"
+                    }
+                ],
+                "type": "batchsink",
+                "label": "Redacted Sink",
+                "icon": "fa-plug"
+            },
+            {
+                "name": "Non-Sensitive Sink",
+                "plugin": {
+                    "name": "GCS",
+                    "type": "batchsink",
+                    "label": "Non-Sensitive Sink",
+                    "artifact": {
+                        "name": "google-cloud",
+                        "version": "0.13.2-SNAPSHOT",
+                        "scope": "USER"
+                    },
+                    "properties": {
+                        "project": "auto-detect",
+                        "suffix": "yyyy-MM-dd-HH-mm",
+                        "format": "csv",
+                        "serviceFilePath": "auto-detect",
+                        "location": "us",
+                        "referenceName": "out",
+                        "path": "gs://meseifan-dlp-demo/Non-Sensitive",
+                        "schema": "{\"type\":\"record\",\"name\":\"etlSchemaBody\",\"fields\":[{\"name\":\"date\",\"type\":[{\"type\":\"long\",\"logicalType\":\"timestamp-micros\"},\"null\"]},{\"name\":\"loan_type\",\"type\":[\"string\",\"null\"]},{\"name\":\"loan\",\"type\":[\"string\",\"null\"]},{\"name\":\"bank\",\"type\":[\"string\",\"null\"]},{\"name\":\"state\",\"type\":[\"string\",\"null\"]},{\"name\":\"zip\",\"type\":[\"string\",\"null\"]},{\"name\":\"notes\",\"type\":[\"string\",\"null\"]}]}"
+                    }
+                },
+                "outputSchema": "{\"type\":\"record\",\"name\":\"etlSchemaBody\",\"fields\":[{\"name\":\"date\",\"type\":[{\"type\":\"long\",\"logicalType\":\"timestamp-micros\"},\"null\"]},{\"name\":\"loan_type\",\"type\":[\"string\",\"null\"]},{\"name\":\"loan\",\"type\":[\"string\",\"null\"]},{\"name\":\"bank\",\"type\":[\"string\",\"null\"]},{\"name\":\"state\",\"type\":[\"string\",\"null\"]},{\"name\":\"zip\",\"type\":[\"string\",\"null\"]},{\"name\":\"notes\",\"type\":[\"string\",\"null\"]}]}",
+                "inputSchema": [
+                    {
+                        "name": "PII Filter",
+                        "schema": "{\"type\":\"record\",\"name\":\"etlSchemaBody\",\"fields\":[{\"name\":\"date\",\"type\":[{\"type\":\"long\",\"logicalType\":\"timestamp-micros\"},\"null\"]},{\"name\":\"loan_type\",\"type\":[\"string\",\"null\"]},{\"name\":\"loan\",\"type\":[\"string\",\"null\"]},{\"name\":\"bank\",\"type\":[\"string\",\"null\"]},{\"name\":\"state\",\"type\":[\"string\",\"null\"]},{\"name\":\"zip\",\"type\":[\"string\",\"null\"]},{\"name\":\"notes\",\"type\":[\"string\",\"null\"]}]}"
+                    }
+                ],
+                "type": "batchsink",
+                "label": "Non-Sensitive Sink",
+                "icon": "fa-plug"
+            }
+        ],
+        "schedule": "0 * * * *",
+        "engine": "spark",
+        "numOfRecordsPreview": 100,
+        "description": "Data Pipeline Application",
+        "maxConcurrentRuns": 1
+    }
+}

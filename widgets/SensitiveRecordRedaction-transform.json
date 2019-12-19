@@ -177,7 +177,8 @@
                     "label": "Replace Value",
                     "widget-attributes": {
                       "placeholder": "New value",
-                      "required": "true"
+                      "required": "true",
+                      "description":"Text that will be used to replace data that matches the filter"
                     }
                   }
                 ]
@@ -224,7 +225,8 @@
                     "label": "Transient Key Name",
                     "widget-attributes": {
                       "macro": "true",
-                      "placeholder": "Transient key name"
+                      "placeholder": "Transient key name",
+                      "description": "Optional name for transient key that will be generated"
                     }
                   },
                   {
@@ -234,7 +236,8 @@
                     "widget-attributes": {
                       "macro": "true",
                       "placeholder": "Unwrapped key",
-                      "description": "Key to be used for cryptographic hash"
+                      "description": "Key to be used for cryptographic hash",
+                      "required": "true"
                     }
                   },
                   {
@@ -244,7 +247,8 @@
                     "widget-attributes": {
                       "macro": "true",
                       "placeholder": "Wrapped key",
-                      "description": "Wrapped key to be unwrapped using KMS key"
+                      "description": "Wrapped key to be unwrapped using KMS key",
+                      "required": "true"
                     }
                   },
                   {
@@ -254,7 +258,8 @@
                     "widget-attributes": {
                       "macro": "true",
                       "placeholder": "Key Name",
-                      "description": "Name of the key stored in Key Management Service that will be used to unwrap the wrapped key"
+                      "description": "Name of the key stored in Key Management Service that will be used to unwrap the wrapped key",
+                      "required": "true"
                     }
                   }
                 ],

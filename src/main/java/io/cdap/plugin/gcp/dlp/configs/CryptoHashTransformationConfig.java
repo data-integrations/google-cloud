@@ -1,14 +1,8 @@
 package io.cdap.plugin.gcp.dlp.configs;
 
-import com.google.common.base.Strings;
-import com.google.gson.Gson;
 import com.google.privacy.dlp.v2.CryptoHashConfig;
 import com.google.privacy.dlp.v2.CryptoKey;
-import com.google.privacy.dlp.v2.KmsWrappedCryptoKey;
 import com.google.privacy.dlp.v2.PrimitiveTransformation;
-import com.google.privacy.dlp.v2.TransientCryptoKey;
-import com.google.privacy.dlp.v2.UnwrappedCryptoKey;
-import com.google.protobuf.ByteString;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
 

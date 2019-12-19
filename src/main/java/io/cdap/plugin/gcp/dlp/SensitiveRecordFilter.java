@@ -16,7 +16,7 @@
 
 package io.cdap.plugin.gcp.dlp;
 
-import com.google.api.gax.rpc.InvalidArgumentException;
+import com.google.api.gax.rpc.ResourceExhaustedException;
 import com.google.cloud.dlp.v2.DlpServiceClient;
 import com.google.cloud.dlp.v2.DlpServiceSettings;
 import com.google.common.annotations.VisibleForTesting;
@@ -39,12 +39,12 @@ import io.cdap.cdap.etl.api.MultiOutputEmitter;
 import io.cdap.cdap.etl.api.MultiOutputPipelineConfigurer;
 import io.cdap.cdap.etl.api.MultiOutputStageConfigurer;
 import io.cdap.cdap.etl.api.SplitterTransform;
+import io.cdap.cdap.etl.api.StageMetrics;
 import io.cdap.cdap.etl.api.StageSubmitterContext;
 import io.cdap.cdap.etl.api.TransformContext;
 import io.cdap.cdap.format.StructuredRecordStringConverter;
 import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,6 +76,8 @@ public final class SensitiveRecordFilter extends SplitterTransform<StructuredRec
 
   // Stores the configuration passed to this class from user.
   private final Config config;
+
+  private StageMetrics metrics;
 
   // DLP service client for managing interactions with DLP service.
   private DlpServiceClient client;
@@ -127,6 +129,7 @@ public final class SensitiveRecordFilter extends SplitterTransform<StructuredRec
     super.initialize(context);
 
     client = DlpServiceClient.create(getSettings());
+    metrics = context.getMetrics();
   }
 
   @Override
@@ -172,20 +175,32 @@ public final class SensitiveRecordFilter extends SplitterTransform<StructuredRec
 
       InspectContentRequest request =
         InspectContentRequest.newBuilder()
-          .setParent(ProjectName.of(config.getProject()).toString())
-          .setInspectTemplateName(templateName)
-          .setItem(contentItem)
-          .build();
+                             .setParent(ProjectName.of(config.getProject()).toString())
+                             .setInspectTemplateName(templateName)
+                             .setItem(contentItem)
+                             .build();
+
+      metrics.count("DLPRequests", 1);
       InspectContentResponse response = client.inspectContent(request);
       InspectResult result = response.getResult();
 
+      metrics.count("successfulDLPRequests", 1);
       if (result.getFindingsList().size() > 0) {
         emitter.emit(SENSITIVE_PORT, record);
         return;
       }
 
       emitter.emit(NON_SENSITIVE_PORT, record);
+
     } catch (Exception e) {
+      metrics.count("failedDLPRequests", 1);
+      if (e instanceof ResourceExhaustedException) {
+        LOG.error(
+          "Failed due to DLP rate limit, please request more quota from DLP: https://cloud.google"
+            + ".com/dlp/limits#increases");
+        throw e;
+      }
+
       switch (config.onErrorHandling()) {
         case -1:
           throw new Exception("Terminating pipeline on error as set in plugin configuration." + e.getMessage());
@@ -280,14 +295,14 @@ public final class SensitiveRecordFilter extends SplitterTransform<StructuredRec
       if (!containsMacro("entire-record") && !isEntireRecord() && getFieldName() == null) {
         collector.addFailure("Input type is specified as 'Field', " +
                                "but a field name has not been specified.", "Specify the field name.")
-          .withConfigProperty("field");
+                 .withConfigProperty("field");
       }
 
       if (!isEntireRecord()) {
         if (!containsMacro("field")) {
           if (inputSchema.getField(getFieldName()) == null) {
             collector.addFailure("Field specified is not present in the input schema", "")
-              .withConfigProperty("field");
+                     .withConfigProperty("field");
           }
 
           Schema.Type type = inputSchema.getField(getFieldName()).getSchema().getType();
