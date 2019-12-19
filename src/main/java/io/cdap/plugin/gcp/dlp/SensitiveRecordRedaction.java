@@ -1,5 +1,6 @@
 package io.cdap.plugin.gcp.dlp;
 
+import com.google.api.gax.rpc.ResourceExhaustedException;
 import com.google.cloud.dlp.v2.DlpServiceClient;
 import com.google.cloud.dlp.v2.DlpServiceSettings;
 import com.google.common.annotations.VisibleForTesting;
@@ -28,6 +29,7 @@ import io.cdap.cdap.etl.api.Emitter;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.StageConfigurer;
+import io.cdap.cdap.etl.api.StageMetrics;
 import io.cdap.cdap.etl.api.StageSubmitterContext;
 import io.cdap.cdap.etl.api.Transform;
 import io.cdap.cdap.etl.api.TransformContext;
@@ -68,6 +70,9 @@ public class SensitiveRecordRedaction extends Transform<StructuredRecord, Struct
   private static final Logger LOG = LoggerFactory.getLogger(SensitiveRecordRedaction.class);
   public static final String NAME = "SensitiveRecordRedaction";
   public static final String DESCRIPTION = "SensitiveRecordRedaction fields";
+  public static final int MAX_RETRIES = 5;
+
+  private StageMetrics metrics;
 
   // Stores the configuration passed to this class from user.
   private final Config config;
@@ -94,7 +99,7 @@ public class SensitiveRecordRedaction extends Transform<StructuredRecord, Struct
   @Override
   public void initialize(TransformContext context) throws Exception {
     super.initialize(context);
-
+    metrics = context.getMetrics();
     client = DlpServiceClient.create(getSettings());
   }
 
@@ -218,7 +223,22 @@ public class SensitiveRecordRedaction extends Transform<StructuredRecord, Struct
       requestBuilder.setInspectTemplateName(templateName);
     }
 
-    DeidentifyContentResponse response = client.deidentifyContent(requestBuilder.build());
+    DeidentifyContentResponse response = null;
+    DeidentifyContentRequest request = requestBuilder.build();
+    try {
+      metrics.count("redactionTransform.DLPRequests", 1);
+      response = client.deidentifyContent(request);
+    } catch (Exception e) {
+      metrics.count("redactionTransform.failedRequests", 1);
+      if (e instanceof ResourceExhaustedException) {
+        LOG.error(
+          "Failed due to DLP rate limit, please request more quota from DLP: https://cloud.google"
+            + ".com/dlp/limits#increases");
+      }
+      throw e;
+    }
+
+    metrics.count("redactionTransform.successfulRequests", 1);
     ContentItem item1 = response.getItem();
 
     StructuredRecord resultRecord = getStructuredRecordFromTable(item1.getTable(), structuredRecord);
@@ -239,7 +259,8 @@ public class SensitiveRecordRedaction extends Transform<StructuredRecord, Struct
       String fieldName = table.getHeadersList().get(i).getName();
 
       Value fieldValue = row.getValues(i);
-      Schema fieldSchema = oldRecord.getSchema().getField(fieldName).getSchema().getNonNullable();
+      Schema tempSchema = oldRecord.getSchema().getField(fieldName).getSchema();
+      Schema fieldSchema = tempSchema.isNullable() ? tempSchema.getNonNullable() : tempSchema;
       if (fieldValue == null) {
         continue;
       }
@@ -261,7 +282,9 @@ public class SensitiveRecordRedaction extends Transform<StructuredRecord, Struct
             ZoneId zoneId = oldRecord.getTimestamp(fieldName).getZone();
             LocalDateTime localDateTime;
             if (timestampValue.getSeconds() + timestampValue.getNanos() == 0) {
-              localDateTime = LocalDateTime.parse(fieldValue.getStringValue(), DateTimeFormatter.ISO_INSTANT);
+              localDateTime = LocalDateTime
+                .parse(fieldValue.getStringValue(), DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm'Z'"));
+
             } else {
               localDateTime = Instant
                 .ofEpochSecond(timestampValue.getSeconds(), timestampValue.getNanos())
@@ -294,7 +317,7 @@ public class SensitiveRecordRedaction extends Transform<StructuredRecord, Struct
     for (Schema.Field field : record.getSchema().getFields()) {
       String fieldName = field.getName();
       Object fieldValue = record.get(fieldName);
-      Schema fieldSchema = field.getSchema().getNonNullable();
+      Schema fieldSchema = field.getSchema().isNullable() ? field.getSchema().getNonNullable() : field.getSchema();
 
       final Schema.LogicalType logicalType = fieldSchema.getLogicalType();
       if (fieldSchema.getType().isSimpleType()) {
@@ -339,7 +362,9 @@ public class SensitiveRecordRedaction extends Transform<StructuredRecord, Struct
       tableBuiler.addHeaders(FieldId.newBuilder().setName(fieldName).build());
 
       Value.Builder valueBuilder = Value.newBuilder();
-      final Schema.LogicalType logicalType = field.getSchema().getNonNullable().getLogicalType();
+      final Schema fieldSchema =
+        field.getSchema().isNullable() ? field.getSchema().getNonNullable() : field.getSchema();
+      final Schema.LogicalType logicalType = fieldSchema.getLogicalType();
       if (logicalType != null) {
         switch (logicalType) {
           case TIME_MICROS:
@@ -383,7 +408,7 @@ public class SensitiveRecordRedaction extends Transform<StructuredRecord, Struct
         }
       } else {
 
-        final Schema.Type type = field.getSchema().getNonNullable().getType();
+        final Schema.Type type = fieldSchema.getType();
         switch (type) {
           case STRING:
             valueBuilder.setStringValue(String.valueOf(fieldValue));
@@ -489,10 +514,10 @@ public class SensitiveRecordRedaction extends Transform<StructuredRecord, Struct
             config.validate(collector, inputSchema, FIELDS_TO_TRANSFORM);
 
             //Check that custom template and built-in types are not mixed
+            anyTransformUsedCustomTemplate = anyTransformUsedCustomTemplate || filters.contains("NONE");
             if (firstTransformUsedCustomTemplate == null) {
               firstTransformUsedCustomTemplate = filters.contains("NONE");
             } else {
-              anyTransformUsedCustomTemplate = anyTransformUsedCustomTemplate || filters.contains("NONE");
               if (filters.contains("NONE") != firstTransformUsedCustomTemplate) {
                 errorConfig.setTransformPropertyId("filters");
                 collector.addFailure("Cannot use custom templates and built-in filters in the same plugin instance.",
@@ -534,7 +559,7 @@ public class SensitiveRecordRedaction extends Transform<StructuredRecord, Struct
           }
 
           // If the user has a custom template enabled but doesnt use it in any of the transforms
-          if (anyTransformUsedCustomTemplate != null && !anyTransformUsedCustomTemplate && this.customTemplateEnabled) {
+          if (!anyTransformUsedCustomTemplate && this.customTemplateEnabled) {
             collector.addFailure("Custom template is enabled but no transforms use a custom template.",
                                  "Please define a transform that uses the custom template or disable the custom "
                                    + "template.")
