@@ -76,13 +76,11 @@ public final class SensitiveRecordFilter extends SplitterTransform<StructuredRec
 
   // Stores the configuration passed to this class from user.
   private final Config config;
-
   private StageMetrics metrics;
 
   // DLP service client for managing interactions with DLP service.
   private DlpServiceClient client;
 
-  @VisibleForTesting
   public SensitiveRecordFilter(Config config) {
     this.config = config;
   }
@@ -101,13 +99,11 @@ public final class SensitiveRecordFilter extends SplitterTransform<StructuredRec
     MultiOutputStageConfigurer stageConfigurer = configurer.getMultiOutputStageConfigurer();
     Schema inputSchema = stageConfigurer.getInputSchema();
 
-    if (client == null) {
-      try {
-        LOG.error(getSettings().toString());
-        client = DlpServiceClient.create(getSettings());
-      } catch (IOException e) {
-        e.printStackTrace();
-      }
+    try {
+
+      client = DlpServiceClient.create(getSettings());
+    } catch (IOException e) {
+      LOG.error(e.printStackTrace(););
     }
 
     config.validate(stageConfigurer.getFailureCollector(), inputSchema);
@@ -141,7 +137,6 @@ public final class SensitiveRecordFilter extends SplitterTransform<StructuredRec
 
     try {
       InspectTemplate template = client.getInspectTemplate(request);
-
     } catch (Exception e) {
       throw new IllegalArgumentException(
         "Unable to validate template name. Ensure template ID matches the specified ID in DLP");
@@ -161,7 +156,7 @@ public final class SensitiveRecordFilter extends SplitterTransform<StructuredRec
     String recordString = null;
     ContentItem contentItem = null;
 
-    if (!config.isEntireRecord()) {
+    if (!config.entireRecord) {
       recordString = record.get(config.getFieldName()).toString();
     } else {
       recordString = StructuredRecordStringConverter.toDelimitedString(record, ",");
@@ -180,11 +175,11 @@ public final class SensitiveRecordFilter extends SplitterTransform<StructuredRec
                              .setItem(contentItem)
                              .build();
 
-      metrics.count("DLPRequests", 1);
+      metrics.count("dlp.requests.count", 1);
       InspectContentResponse response = client.inspectContent(request);
       InspectResult result = response.getResult();
 
-      metrics.count("successfulDLPRequests", 1);
+      metrics.count("dlp.requests.success", 1);
       if (result.getFindingsList().size() > 0) {
         emitter.emit(SENSITIVE_PORT, record);
         return;
@@ -193,12 +188,12 @@ public final class SensitiveRecordFilter extends SplitterTransform<StructuredRec
       emitter.emit(NON_SENSITIVE_PORT, record);
 
     } catch (Exception e) {
-      metrics.count("failedDLPRequests", 1);
+      metrics.count("dlp.requests.fail", 1);
       if (e instanceof ResourceExhaustedException) {
-        LOG.error(
+        ResourceExhaustedException e1 = (ResourceExhaustedException) e;
+        throw new ResourceExhaustedException(
           "Failed due to DLP rate limit, please request more quota from DLP: https://cloud.google"
-            + ".com/dlp/limits#increases");
-        throw e;
+            + ".com/dlp/limits#increases", e1.getCause(), e1.getStatusCode(), e1.isRetryable());
       }
 
       switch (config.onErrorHandling()) {
@@ -219,6 +214,7 @@ public final class SensitiveRecordFilter extends SplitterTransform<StructuredRec
     super.destroy();
     if (client != null) {
       client.close();
+      client = null;
     }
   }
 
@@ -243,13 +239,15 @@ public final class SensitiveRecordFilter extends SplitterTransform<StructuredRec
    */
   public static class Config extends GCPConfig {
 
+    public static final String FIELD = "field";
+
     @Macro
     @Name("entire-record")
     @Description("Check full record or a field")
-    private String entireRecord;
+    private Boolean entireRecord;
 
     @Macro
-    @Name("field")
+    @Name(FIELD)
     @Description("Name of field to be inspected")
     @Nullable
     private String field;
@@ -271,13 +269,6 @@ public final class SensitiveRecordFilter extends SplitterTransform<StructuredRec
     }
 
     /**
-     * @return true if entire record to checked for sensitive data.
-     */
-    public boolean isEntireRecord() {
-      return entireRecord.equalsIgnoreCase("record");
-    }
-
-    /**
      * @return -1 to stop processing, 0 to skip record, 1 to emit record to error.
      */
     public int onErrorHandling() {
@@ -292,28 +283,27 @@ public final class SensitiveRecordFilter extends SplitterTransform<StructuredRec
 
 
     public void validate(FailureCollector collector, Schema inputSchema) {
-      if (!containsMacro("entire-record") && !isEntireRecord() && getFieldName() == null) {
+      if (!containsMacro("entire-record") && !entireRecord && getFieldName() == null) {
         collector.addFailure("Input type is specified as 'Field', " +
                                "but a field name has not been specified.", "Specify the field name.")
-                 .withConfigProperty("field");
+                 .withConfigProperty(FIELD);
       }
 
-      if (!isEntireRecord()) {
-        if (!containsMacro("field")) {
+      if (!entireRecord) {
+        if (!containsMacro(FIELD)) {
           if (inputSchema.getField(getFieldName()) == null) {
-            collector.addFailure("Field specified is not present in the input schema", "")
-                     .withConfigProperty("field");
+            collector.addFailure("Field specified is not present in the input schema.",
+                                 "Update the field or input schema to ensure they match.")
+                     .withConfigProperty(FIELD);
           }
 
           Schema.Type type = inputSchema.getField(getFieldName()).getSchema().getType();
           if (!type.isSimpleType() || type.equals(Schema.Type.BYTES)) {
             collector.addFailure("Filtering on field supports only basic types " +
-                                   "(string, bool, int, long, float, double)", "").withConfigProperty("field");
+                                   "(string, bool, int, long, float, double).", "").withConfigProperty(FIELD);
           }
         }
       }
-
-
     }
   }
 }
