@@ -33,6 +33,7 @@ import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
+import io.cdap.cdap.etl.api.validation.ValidatingOutputFormat;
 import io.cdap.plugin.common.batch.sink.SinkOutputFormatProvider;
 import io.cdap.plugin.format.FileFormat;
 import io.cdap.plugin.gcp.common.GCPUtils;
@@ -76,12 +77,12 @@ public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable,
       .add("schema", String.format("${%s}", SCHEMA_MACRO)).build();
 
     OutputFormatProvider outputFormatProvider =
-      pipelineConfigurer.usePlugin(BatchSink.FORMAT_PLUGIN_TYPE, format.name().toLowerCase(),
+      pipelineConfigurer.usePlugin(ValidatingOutputFormat.PLUGIN_TYPE, format.name().toLowerCase(),
                                    FORMAT_PLUGIN_ID, formatProperties);
     if (outputFormatProvider == null) {
       collector.addFailure(
         String.format("Could not find the '%s' output format plugin.", format.name().toLowerCase()), null)
-        .withPluginNotFound(FORMAT_PLUGIN_ID, format.name().toLowerCase(), "outputformat");
+        .withPluginNotFound(FORMAT_PLUGIN_ID, format.name().toLowerCase(), ValidatingOutputFormat.PLUGIN_TYPE);
     }
   }
 
@@ -97,7 +98,7 @@ public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable,
 
     String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
     Credentials credentials = config.getServiceAccountFilePath() == null ?
-                                null : GCPUtils.loadServiceAccountCredentials(config.getServiceAccountFilePath());
+      null : GCPUtils.loadServiceAccountCredentials(config.getServiceAccountFilePath());
     Storage storage = GCPUtils.getStorage(config.getProject(), credentials);
     if (storage.get(config.getBucket()) == null) {
       GCPUtils.createBucket(storage, config.getBucket(), config.getLocation(), cmekKey);
@@ -113,11 +114,11 @@ public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable,
       // TODO: (CDAP-14600) pass in schema as an argument instead of using macros and setting arguments
       // add better platform support to allow passing in arguments when instantiating a plugin
       context.getArguments().set(SCHEMA_MACRO, schema.toString());
-      OutputFormatProvider outputFormatProvider = context.newPluginInstance(FORMAT_PLUGIN_ID);
+      ValidatingOutputFormat validatingOutputFormat = context.newPluginInstance(FORMAT_PLUGIN_ID);
 
       Map<String, String> outputProperties = new HashMap<>(baseProperties);
-      outputProperties.putAll(outputFormatProvider.getOutputFormatConfiguration());
-      outputProperties.putAll(RecordFilterOutputFormat.configure(outputFormatProvider.getOutputFormatClassName(),
+      outputProperties.putAll(validatingOutputFormat.getOutputFormatConfiguration());
+      outputProperties.putAll(RecordFilterOutputFormat.configure(validatingOutputFormat.getOutputFormatClassName(),
                                                                  config.splitField, name, schema));
       outputProperties.put(FileOutputFormat.OUTDIR, config.getOutputDir(context.getLogicalStartTime(), name));
 
