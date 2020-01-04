@@ -73,27 +73,33 @@ public class GoogleSubscriber extends StreamingSource<StructuredRecord> {
 
   @Override
   public JavaDStream<StructuredRecord> getStream(StreamingContext streamingContext) {
-    String serviceAccountFilePath = config.getServiceAccountFilePath();
-    SparkGCPCredentials credentials = new GCPCredentialsProvider(serviceAccountFilePath);
+    AsyncPullInputDStream asyncPullInputDStream =
+      new AsyncPullInputDStream(streamingContext, config.getProject(),
+                                config.subscription, config.getServiceAccountFilePath());
+    return new JavaDStream<>(asyncPullInputDStream, scala.reflect.ClassTag$.MODULE$.apply(StructuredRecord.class));
 
-    JavaReceiverInputDStream<SparkPubsubMessage> pubSubMessages =
-      PubsubUtils.createStream(streamingContext.getSparkStreamingContext(), config.getProject(), config.topic,
-                               config.subscription, credentials, StorageLevel.MEMORY_ONLY());
+//    String serviceAccountFilePath = config.getServiceAccountFilePath();
+//    SparkGCPCredentials credentials = new GCPCredentialsProvider(serviceAccountFilePath);
+//
+//    JavaReceiverInputDStream<SparkPubsubMessage> pubSubMessages =
+//      PubsubUtils.createStream(streamingContext.getSparkStreamingContext(), config.getProject(), config.topic,
+//                               config.subscription, credentials, StorageLevel.MEMORY_ONLY());
+//
+//    return pubSubMessages.map(pubSubMessage -> {
+//      // Convert to a HashMap because com.google.api.client.util.ArrayMap is not serializable.
+//      HashMap<String, String> hashMap = new HashMap<>();
+//      if (pubSubMessage.getAttributes() != null) {
+//        hashMap.putAll(pubSubMessage.getAttributes());
+//      }
+//
+//      return StructuredRecord.builder(DEFAULT_SCHEMA)
+//              .set("message", pubSubMessage.getData())
+//              .set("id", pubSubMessage.getMessageId())
+//              .setTimestamp("timestamp", getTimestamp(pubSubMessage.getPublishTime()))
+//              .set("attributes", hashMap)
+//              .build();
+//    });
 
-    return pubSubMessages.map(pubSubMessage -> {
-      // Convert to a HashMap because com.google.api.client.util.ArrayMap is not serializable.
-      HashMap<String, String> hashMap = new HashMap<>();
-      if (pubSubMessage.getAttributes() != null) {
-        hashMap.putAll(pubSubMessage.getAttributes());
-      }
-
-      return StructuredRecord.builder(DEFAULT_SCHEMA)
-              .set("message", pubSubMessage.getData())
-              .set("id", pubSubMessage.getMessageId())
-              .setTimestamp("timestamp", getTimestamp(pubSubMessage.getPublishTime()))
-              .set("attributes", hashMap)
-              .build();
-    });
   }
 
   private ZonedDateTime getTimestamp(String publishTime) {
