@@ -70,6 +70,8 @@ public class AsyncPullInputDStream extends InputDStream<StructuredRecord> {
       return;
     }
 
+    LOG.info("Successfully loaded service account credentials");
+
     MessageReceiver receiver =
       new MessageReceiver() {
         @Override
@@ -101,7 +103,9 @@ public class AsyncPullInputDStream extends InputDStream<StructuredRecord> {
       subscriber = Subscriber.newBuilder(subscriptionName, receiver)
         .setCredentialsProvider(credentialsProvider)
         .build();
+      LOG.info("Successfully created subscriber");
       subscriber.startAsync().awaitRunning();
+      LOG.info("Running async pulling...");
       // Allow the subscriber to run indefinitely unless an unrecoverable error occurs
       subscriber.awaitTerminated();
     } catch (Exception e) {
