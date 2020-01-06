@@ -44,27 +44,31 @@ public class AsyncPullInputDStream extends InputDStream<StructuredRecord> {
 
   private final String projectId;
   private final String subscriptionId;
-  private final String serviceAccountPath;
+  private final String serviceAccountFilePath;
   private Subscriber subscriber;
   private RDD<StructuredRecord> structuredRecordRDD;
   private JavaStreamingContext sparkStreamingContext;
 
   public AsyncPullInputDStream(JavaStreamingContext sparkStreamingContext, String projectId,
-                               String subscriptionId, String serviceAccountPath) {
+                               String subscriptionId, String serviceAccountFilePath) {
     super(sparkStreamingContext.ssc(), scala.reflect.ClassTag$.MODULE$.apply(StructuredRecord.class));
     this.projectId = projectId;
     this.subscriptionId = subscriptionId;
-    this.serviceAccountPath = serviceAccountPath;
+    this.serviceAccountFilePath = serviceAccountFilePath;
     this.sparkStreamingContext = sparkStreamingContext;
   }
 
   @Override
   public void start() {
+    LOG.info("Project ID", projectId);
+    LOG.info("Subscription ID", subscriptionId);
+    LOG.info("Service account file path", serviceAccountFilePath);
+
     ProjectSubscriptionName subscriptionName = ProjectSubscriptionName.of(projectId, subscriptionId);
     CredentialsProvider credentialsProvider;
 
     try {
-      credentialsProvider = FixedCredentialsProvider.create(GCPUtils.loadServiceAccountCredentials(serviceAccountPath));
+      credentialsProvider = FixedCredentialsProvider.create(GCPUtils.loadServiceAccountCredentials(serviceAccountFilePath));
     } catch (Exception e) {
       LOG.error("Failed to load service account credentials", e);
       return;
