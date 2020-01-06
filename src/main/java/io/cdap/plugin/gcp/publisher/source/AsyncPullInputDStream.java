@@ -10,7 +10,6 @@ import com.google.pubsub.v1.ProjectSubscriptionName;
 import com.google.pubsub.v1.PubsubMessage;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
-import io.cdap.cdap.etl.api.streaming.StreamingContext;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.rdd.RDD;
@@ -48,16 +47,15 @@ public class AsyncPullInputDStream extends InputDStream<StructuredRecord> {
   private final String serviceAccountPath;
   private Subscriber subscriber;
   private RDD<StructuredRecord> structuredRecordRDD;
-  private JavaStreamingContext context;
+  private JavaStreamingContext sparkStreamingContext;
 
-  public AsyncPullInputDStream(StreamingContext streamingContext, String projectId,
+  public AsyncPullInputDStream(JavaStreamingContext sparkStreamingContext, String projectId,
                                String subscriptionId, String serviceAccountPath) {
-    super(streamingContext.getSparkStreamingContext().ssc(),
-          scala.reflect.ClassTag$.MODULE$.apply(StructuredRecord.class));
+    super(sparkStreamingContext.ssc(), scala.reflect.ClassTag$.MODULE$.apply(StructuredRecord.class));
     this.projectId = projectId;
     this.subscriptionId = subscriptionId;
     this.serviceAccountPath = serviceAccountPath;
-    this.context = streamingContext.getSparkStreamingContext();
+    this.sparkStreamingContext = sparkStreamingContext;
   }
 
   @Override
@@ -80,11 +78,12 @@ public class AsyncPullInputDStream extends InputDStream<StructuredRecord> {
           // Convert to a HashMap because com.google.api.client.util.ArrayMap is not serializable.
           Map<String, String> hashMap = new HashMap<>();
           if (message.getAttributesMap() != null) {
-            hashMap.putAll(message.getAttributes());
+            hashMap.putAll(message.getAttributesMap());
           }
 
-          structuredRecordRDD = JavaRDD.<StructuredRecord>toRDD(context.sparkContext().parallelize(
-            Collections.singletonList(StructuredRecord.builder(DEFAULT_SCHEMA)
+          structuredRecordRDD = JavaRDD.<StructuredRecord>toRDD(
+            sparkStreamingContext.sparkContext().parallelize(
+              Collections.singletonList(StructuredRecord.builder(DEFAULT_SCHEMA)
                                         .set("message", message.getData())
                                         .set("id", message.getMessageId())
                                         .setTimestamp("timestamp", getTimestamp(message.getPublishTime()))

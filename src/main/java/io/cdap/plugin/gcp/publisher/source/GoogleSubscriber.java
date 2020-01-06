@@ -74,7 +74,7 @@ public class GoogleSubscriber extends StreamingSource<StructuredRecord> {
   @Override
   public JavaDStream<StructuredRecord> getStream(StreamingContext streamingContext) {
     AsyncPullInputDStream asyncPullInputDStream =
-      new AsyncPullInputDStream(streamingContext, config.getProject(),
+      new AsyncPullInputDStream(streamingContext.getSparkStreamingContext(), config.getProject(),
                                 config.subscription, config.getServiceAccountFilePath());
     return new JavaDStream<>(asyncPullInputDStream, scala.reflect.ClassTag$.MODULE$.apply(StructuredRecord.class));
 
@@ -84,7 +84,7 @@ public class GoogleSubscriber extends StreamingSource<StructuredRecord> {
 //    JavaReceiverInputDStream<SparkPubsubMessage> pubSubMessages =
 //      PubsubUtils.createStream(streamingContext.getSparkStreamingContext(), config.getProject(), config.topic,
 //                               config.subscription, credentials, StorageLevel.MEMORY_ONLY());
-//
+
 //    return pubSubMessages.map(pubSubMessage -> {
 //      // Convert to a HashMap because com.google.api.client.util.ArrayMap is not serializable.
 //      HashMap<String, String> hashMap = new HashMap<>();
