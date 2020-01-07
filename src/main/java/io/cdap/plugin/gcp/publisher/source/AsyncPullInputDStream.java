@@ -1,7 +1,10 @@
 package io.cdap.plugin.gcp.publisher.source;
 
+import com.google.api.gax.batching.FlowControlSettings;
 import com.google.api.gax.core.CredentialsProvider;
+import com.google.api.gax.core.ExecutorProvider;
 import com.google.api.gax.core.FixedCredentialsProvider;
+import com.google.api.gax.core.InstantiatingExecutorProvider;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.pubsub.v1.AckReplyConsumer;
 import com.google.cloud.pubsub.v1.MessageReceiver;
@@ -83,6 +86,14 @@ public class AsyncPullInputDStream extends InputDStream<StructuredRecord> {
 
     LOG.info("Successfully loaded service account credentials");
 
+    // default max out element count is 1000
+    FlowControlSettings flowControlSettings = FlowControlSettings.newBuilder()
+      .setMaxOutstandingElementCount(10_000L)
+      .build();
+
+    // default thread count is 5
+    ExecutorProvider executorProvider = InstantiatingExecutorProvider.newBuilder().setExecutorThreadCount(10).build();
+
     MessageReceiver receiver =
       new MessageReceiver() {
         @Override
@@ -113,6 +124,9 @@ public class AsyncPullInputDStream extends InputDStream<StructuredRecord> {
       // Create a subscriber for "my-subscription-id" bound to the message receiver
       subscriber = Subscriber.newBuilder(subscriptionName, receiver)
         .setCredentialsProvider(credentialsProvider)
+        .setFlowControlSettings(flowControlSettings)
+//        .setExecutorProvider(executorProvider)
+        .setParallelPullCount(2) // default is 1, max out can be 3
         .build();
       LOG.info("Successfully created subscriber");
       subscriber.startAsync().awaitRunning();
