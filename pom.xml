@@ -84,7 +84,7 @@
     <google.cloud.speech.version>1.20.0</google.cloud.speech.version>
     <google.cloud.storage.version>1.92.0</google.cloud.storage.version>
     <google.cloud.datastore.version>1.92.0</google.cloud.datastore.version>
-    <google.protobuf.java.version>3.4.0</google.protobuf.java.version>
+    <google.protobuf.java.version>3.9.1</google.protobuf.java.version>
     <guava.version>27.0.1-jre</guava.version>
     <hadoop.version>2.9.2</hadoop.version>
     <hbase-mapreduce-version>2.2.0</hbase-mapreduce-version>
