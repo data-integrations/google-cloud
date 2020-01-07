@@ -103,8 +103,8 @@ public class AsyncPullInputDStream extends InputDStream<StructuredRecord> {
                                         .set("attributes", hashMap)
                                         .build())));
 
-          LOG.info("Id : " + message.getMessageId());
-          LOG.info("Data : " + message.getData().toStringUtf8());
+//          LOG.info("Id : " + message.getMessageId());
+//          LOG.info("Data : " + message.getData().toStringUtf8());
           consumer.ack();
         }
       };
