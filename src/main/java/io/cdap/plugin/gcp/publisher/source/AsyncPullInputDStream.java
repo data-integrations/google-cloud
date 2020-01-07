@@ -2,6 +2,7 @@ package io.cdap.plugin.gcp.publisher.source;
 
 import com.google.api.gax.core.CredentialsProvider;
 import com.google.api.gax.core.FixedCredentialsProvider;
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.pubsub.v1.AckReplyConsumer;
 import com.google.cloud.pubsub.v1.MessageReceiver;
 import com.google.cloud.pubsub.v1.Subscriber;
@@ -60,15 +61,21 @@ public class AsyncPullInputDStream extends InputDStream<StructuredRecord> {
 
   @Override
   public void start() {
-    LOG.info("Project ID", projectId);
-    LOG.info("Subscription ID", subscriptionId);
-    LOG.info("Service account file path", serviceAccountFilePath);
+    LOG.info("Project ID: " + projectId);
+    LOG.info("Subscription ID: " + subscriptionId);
+    LOG.info("Service account file path: " + serviceAccountFilePath);
 
     ProjectSubscriptionName subscriptionName = ProjectSubscriptionName.of(projectId, subscriptionId);
     CredentialsProvider credentialsProvider;
 
     try {
-      credentialsProvider = FixedCredentialsProvider.create(GCPUtils.loadServiceAccountCredentials(serviceAccountFilePath));
+      if (serviceAccountFilePath == null) {
+        credentialsProvider = FixedCredentialsProvider.create(
+          GoogleCredentials.getApplicationDefault());
+      } else {
+        credentialsProvider = FixedCredentialsProvider.create(
+          GCPUtils.loadServiceAccountCredentials(serviceAccountFilePath));
+      }
     } catch (Exception e) {
       LOG.error("Failed to load service account credentials", e);
       return;
