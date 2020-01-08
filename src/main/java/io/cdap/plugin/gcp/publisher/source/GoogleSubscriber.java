@@ -74,8 +74,8 @@ public class GoogleSubscriber extends StreamingSource<StructuredRecord> {
   @Override
   public JavaDStream<StructuredRecord> getStream(StreamingContext streamingContext) {
     AsyncPullInputDStream asyncPullInputDStream =
-      new AsyncPullInputDStream(streamingContext.getSparkStreamingContext(), config.getProject(),
-                                config.subscription, config.getServiceAccountFilePath());
+      new AsyncPullInputDStream(streamingContext.getSparkStreamingContext(), streamingContext.getMetrics(),
+                                config.getProject(), config.subscription, config.getServiceAccountFilePath());
     return new JavaDStream<>(asyncPullInputDStream, scala.reflect.ClassTag$.MODULE$.apply(StructuredRecord.class));
 
 //    String serviceAccountFilePath = config.getServiceAccountFilePath();

@@ -14,6 +14,7 @@ import com.google.pubsub.v1.ProjectSubscriptionName;
 import com.google.pubsub.v1.PubsubMessage;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.etl.api.StageMetrics;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.rdd.RDD;
@@ -45,6 +46,7 @@ public class AsyncPullInputDStream extends InputDStream<StructuredRecord> {
                     Schema.Field.of("attributes", Schema.mapOf(Schema.of(Schema.Type.STRING),
                                                                Schema.of(Schema.Type.STRING)))
     );
+  private static final String RECORD_OUT_COUNT = "records.out";
 
   private final String projectId;
   private final String subscriptionId;
@@ -52,13 +54,15 @@ public class AsyncPullInputDStream extends InputDStream<StructuredRecord> {
   private Subscriber subscriber;
   private RDD<StructuredRecord> structuredRecordRDD;
   private JavaStreamingContext sparkStreamingContext;
+  private StageMetrics metrics;
 
-  public AsyncPullInputDStream(JavaStreamingContext sparkStreamingContext, String projectId,
+  public AsyncPullInputDStream(JavaStreamingContext sparkStreamingContext, StageMetrics metrics, String projectId,
                                String subscriptionId, String serviceAccountFilePath) {
     super(sparkStreamingContext.ssc(), scala.reflect.ClassTag$.MODULE$.apply(StructuredRecord.class));
     this.projectId = projectId;
     this.subscriptionId = subscriptionId;
     this.serviceAccountFilePath = serviceAccountFilePath;
+    this.metrics = metrics;
     this.sparkStreamingContext = sparkStreamingContext;
   }
 
@@ -117,6 +121,7 @@ public class AsyncPullInputDStream extends InputDStream<StructuredRecord> {
 //          LOG.info("Id : " + message.getMessageId());
 //          LOG.info("Data : " + message.getData().toStringUtf8());
           consumer.ack();
+          metrics.count(RECORD_OUT_COUNT, 1);
         }
       };
 
@@ -125,7 +130,7 @@ public class AsyncPullInputDStream extends InputDStream<StructuredRecord> {
       subscriber = Subscriber.newBuilder(subscriptionName, receiver)
         .setCredentialsProvider(credentialsProvider)
         .setFlowControlSettings(flowControlSettings)
-//        .setExecutorProvider(executorProvider)
+        .setExecutorProvider(executorProvider)
         .setParallelPullCount(2) // default is 1, max out can be 3
         .build();
       LOG.info("Successfully created subscriber");
