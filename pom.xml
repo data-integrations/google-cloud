@@ -84,7 +84,9 @@
     <google.cloud.speech.version>1.20.0</google.cloud.speech.version>
     <google.cloud.storage.version>1.92.0</google.cloud.storage.version>
     <google.cloud.datastore.version>1.92.0</google.cloud.datastore.version>
-    <google.protobuf.java.version>3.9.1</google.protobuf.java.version>
+<!--    version 3.9.1 is used for async pulling-->
+<!--    <google.protobuf.java.version>3.9.1</google.protobuf.java.version>-->
+    <google.protobuf.java.version>3.4.0</google.protobuf.java.version>
     <guava.version>27.0.1-jre</guava.version>
     <hadoop.version>2.9.2</hadoop.version>
     <hbase-mapreduce-version>2.2.0</hbase-mapreduce-version>
@@ -482,11 +484,11 @@
       <version>1.1.7.2</version>
     </dependency>
     <!-- Start: dependency for Google PubSub Streaming Source -->
-    <dependency>
-      <groupId>org.apache.bahir</groupId>
-      <artifactId>spark-streaming-pubsub_2.11</artifactId>
-      <version>2.3.3</version>
-    </dependency>
+<!--    <dependency>-->
+<!--      <groupId>org.apache.bahir</groupId>-->
+<!--      <artifactId>spark-streaming-pubsub_2.11</artifactId>-->
+<!--      <version>2.3.3</version>-->
+<!--    </dependency>-->
     <!-- End: dependency for Google PubSub Streaming Source -->
     
     <dependency>
@@ -588,7 +590,7 @@
             <_exportcontents>
               io.cdap.plugin.gcp.*;
               com.google.cloud.hadoop.*;
-              org.apache.spark.streaming.pubsub*;
+<!--              org.apache.spark.streaming.pubsub*;-->
               org.apache.hadoop.hbase.mapreduce.*;
               org.apache.hadoop.hbase.security.token.*;
             </_exportcontents>

@@ -88,22 +88,28 @@ public class SyncPullBasedInputDStream extends InputDStream<StructuredRecord> {
 
     LOG.info("Successfully loaded service account credentials");
 
+    SubscriberStubSettings subscriberStubSettings;
+
     try {
-      SubscriberStubSettings subscriberStubSettings =
+      subscriberStubSettings =
         SubscriberStubSettings.newBuilder()
-          .setTransportChannelProvider(
-            SubscriberStubSettings.defaultGrpcTransportProviderBuilder()
-              .setMaxInboundMessageSize(20 << 20) // 20MB
-              .build())
           .setCredentialsProvider(credentialsProvider)
           .build();
-
-      subscriber = GrpcSubscriberStub.create(subscriberStubSettings);
     } catch (Exception e) {
-      LOG.error("Error found" + e.getMessage(), e);
+      LOG.error("Failed to init subscriberSetting", e);
+      return;
     }
 
-    LOG.info("Successfully init subscriber");
+    LOG.info("Successfully init subscriberSetting");
+
+    try {
+      subscriber = GrpcSubscriberStub.create(subscriberStubSettings);
+    } catch (Exception e) {
+      LOG.error("Failed to create subscriber");
+      return;
+    }
+
+    LOG.info("Successfully created subscriber");
   }
 
   @Override
