@@ -133,7 +133,7 @@ public class SyncPullBasedInputDStream extends InputDStream<StructuredRecord> {
     PullResponse pullResponse = subscriber.pullCallable().call(pullRequest);
     List<ReceivedMessage> receivedMessagesList = pullResponse.getReceivedMessagesList();
 
-    LOG.info("Received message back");
+    LOG.info("Received message back, size is " + receivedMessagesList.size());
 
     List<String> ackIds = new ArrayList<>(receivedMessagesList.size());
     List<StructuredRecord> records = new ArrayList<>(receivedMessagesList.size());
@@ -166,7 +166,7 @@ public class SyncPullBasedInputDStream extends InputDStream<StructuredRecord> {
     // use acknowledgeCallable().futureCall to asynchronously perform this operation
     subscriber.acknowledgeCallable().call(acknowledgeRequest);
 
-//    LOG.info("Messaged are acked");
+    LOG.info("Messaged are acked");
 
     RDD<StructuredRecord> structuredRecordRDD =
       JavaRDD.toRDD(sparkStreamingContext.sparkContext().parallelize(records));
