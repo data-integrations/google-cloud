@@ -26,7 +26,12 @@ import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.streaming.StreamingContext;
 import io.cdap.cdap.etl.api.streaming.StreamingSource;
 import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
+import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.api.java.JavaDStream;
+import org.apache.spark.streaming.api.java.JavaReceiverInputDStream;
+import org.apache.spark.streaming.pubsub.PubsubUtils;
+import org.apache.spark.streaming.pubsub.SparkGCPCredentials;
+import org.apache.spark.streaming.pubsub.SparkPubsubMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,6 +39,8 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import javax.annotation.Nullable;
 
 /**
@@ -67,42 +74,55 @@ public class GoogleSubscriber extends StreamingSource<StructuredRecord> {
 
   @Override
   public JavaDStream<StructuredRecord> getStream(StreamingContext streamingContext) {
-    // sync based pulling
-    SyncPullBasedInputDStream syncPullBasedInputDStream =
-      new SyncPullBasedInputDStream(streamingContext.getSparkStreamingContext(),
-                                     config.getProject(), config.subscription, config.getServiceAccountFilePath());
-    return new JavaDStream<>(syncPullBasedInputDStream, scala.reflect.ClassTag$.MODULE$.apply(StructuredRecord.class));
+    // default version
+//    return getStreamByReceiverApproach(streamingContext);
 
-    // async based pulling
-    /*
+    // async pulling version; use protobuf version 3.9.1
+    return getStreamByAsyncPullApproach(streamingContext);
+
+    // sync pulling version
+//    return getStreamBySyncPullApproach(StreamingContext);
+  }
+
+  // async based pulling
+  private JavaDStream<StructuredRecord> getStreamByAsyncPullApproach(StreamingContext streamingContext) {
     AsyncPullBasedInputDStream asyncPullBasedInputDStream =
       new AsyncPullBasedInputDStream(streamingContext.getSparkStreamingContext(), streamingContext.getMetrics(),
                                      config.getProject(), config.subscription, config.getServiceAccountFilePath());
     return new JavaDStream<>(asyncPullBasedInputDStream, scala.reflect.ClassTag$.MODULE$.apply(StructuredRecord.class));
-     */
+  }
 
-//    String serviceAccountFilePath = config.getServiceAccountFilePath();
-//    SparkGCPCredentials credentials = new GCPCredentialsProvider(serviceAccountFilePath);
-//
-//    JavaReceiverInputDStream<SparkPubsubMessage> pubSubMessages =
-//      PubsubUtils.createStream(streamingContext.getSparkStreamingContext(), config.getProject(), config.topic,
-//                               config.subscription, credentials, StorageLevel.MEMORY_ONLY());
+  // sync based pulling
+  private JavaDStream<StructuredRecord> getStreamBySyncPullApproach(StreamingContext streamingContext) {
+    SyncPullBasedInputDStream syncPullBasedInputDStream =
+      new SyncPullBasedInputDStream(streamingContext.getSparkStreamingContext(),
+                                    config.getProject(), config.subscription, config.getServiceAccountFilePath());
+    return new JavaDStream<>(syncPullBasedInputDStream, scala.reflect.ClassTag$.MODULE$.apply(StructuredRecord.class));
+  }
 
-//    return pubSubMessages.map(pubSubMessage -> {
-//      // Convert to a HashMap because com.google.api.client.util.ArrayMap is not serializable.
-//      HashMap<String, String> hashMap = new HashMap<>();
-//      if (pubSubMessage.getAttributes() != null) {
-//        hashMap.putAll(pubSubMessage.getAttributes());
-//      }
-//
-//      return StructuredRecord.builder(DEFAULT_SCHEMA)
-//              .set("message", pubSubMessage.getData())
-//              .set("id", pubSubMessage.getMessageId())
-//              .setTimestamp("timestamp", getTimestamp(pubSubMessage.getPublishTime()))
-//              .set("attributes", hashMap)
-//              .build();
-//    });
+  // receiver based approach
+  private JavaDStream<StructuredRecord> getStreamByReceiverApproach(StreamingContext streamingContext) {
+    String serviceAccountFilePath = config.getServiceAccountFilePath();
+    SparkGCPCredentials credentials = new GCPCredentialsProvider(serviceAccountFilePath);
 
+    JavaReceiverInputDStream<SparkPubsubMessage> pubSubMessages =
+      PubsubUtils.createStream(streamingContext.getSparkStreamingContext(), config.getProject(), config.topic,
+                               config.subscription, credentials, StorageLevel.MEMORY_ONLY());
+
+    return pubSubMessages.map(pubSubMessage -> {
+      // Convert to a HashMap because com.google.api.client.util.ArrayMap is not serializable.
+      Map<String, String> hashMap = new HashMap<>();
+      if (pubSubMessage.getAttributes() != null) {
+        hashMap.putAll(pubSubMessage.getAttributes());
+      }
+
+      return StructuredRecord.builder(DEFAULT_SCHEMA)
+        .set("message", pubSubMessage.getData())
+        .set("id", pubSubMessage.getMessageId())
+        .setTimestamp("timestamp", getTimestamp(pubSubMessage.getPublishTime()))
+        .set("attributes", hashMap)
+        .build();
+    });
   }
 
   private ZonedDateTime getTimestamp(String publishTime) {
