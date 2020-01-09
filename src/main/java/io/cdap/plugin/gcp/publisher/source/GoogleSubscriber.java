@@ -26,12 +26,7 @@ import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.streaming.StreamingContext;
 import io.cdap.cdap.etl.api.streaming.StreamingSource;
 import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
-import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.api.java.JavaDStream;
-import org.apache.spark.streaming.api.java.JavaReceiverInputDStream;
-import org.apache.spark.streaming.pubsub.PubsubUtils;
-import org.apache.spark.streaming.pubsub.SparkGCPCredentials;
-import org.apache.spark.streaming.pubsub.SparkPubsubMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +34,6 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
-import java.util.HashMap;
 import javax.annotation.Nullable;
 
 /**
@@ -73,10 +67,19 @@ public class GoogleSubscriber extends StreamingSource<StructuredRecord> {
 
   @Override
   public JavaDStream<StructuredRecord> getStream(StreamingContext streamingContext) {
-    AsyncPullInputDStream asyncPullInputDStream =
-      new AsyncPullInputDStream(streamingContext.getSparkStreamingContext(), streamingContext.getMetrics(),
-                                config.getProject(), config.subscription, config.getServiceAccountFilePath());
-    return new JavaDStream<>(asyncPullInputDStream, scala.reflect.ClassTag$.MODULE$.apply(StructuredRecord.class));
+    // sync based pulling
+    SyncPullBasedInputDStream syncPullBasedInputDStream =
+      new SyncPullBasedInputDStream(streamingContext.getSparkStreamingContext(),
+                                     config.getProject(), config.subscription, config.getServiceAccountFilePath());
+    return new JavaDStream<>(syncPullBasedInputDStream, scala.reflect.ClassTag$.MODULE$.apply(StructuredRecord.class));
+
+    // async based pulling
+    /*
+    AsyncPullBasedInputDStream asyncPullBasedInputDStream =
+      new AsyncPullBasedInputDStream(streamingContext.getSparkStreamingContext(), streamingContext.getMetrics(),
+                                     config.getProject(), config.subscription, config.getServiceAccountFilePath());
+    return new JavaDStream<>(asyncPullBasedInputDStream, scala.reflect.ClassTag$.MODULE$.apply(StructuredRecord.class));
+     */
 
 //    String serviceAccountFilePath = config.getServiceAccountFilePath();
 //    SparkGCPCredentials credentials = new GCPCredentialsProvider(serviceAccountFilePath);

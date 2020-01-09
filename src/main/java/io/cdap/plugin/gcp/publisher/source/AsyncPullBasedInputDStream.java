@@ -36,8 +36,8 @@ import java.util.Map;
 /**
  * Test Version.
  */
-public class AsyncPullInputDStream extends InputDStream<StructuredRecord> {
-  private static final Logger LOG = LoggerFactory.getLogger(AsyncPullInputDStream.class);
+public class AsyncPullBasedInputDStream extends InputDStream<StructuredRecord> {
+  private static final Logger LOG = LoggerFactory.getLogger(AsyncPullBasedInputDStream.class);
   private static final Schema DEFAULT_SCHEMA =
     Schema.recordOf("event",
                     Schema.Field.of("message", Schema.of(Schema.Type.BYTES)),
@@ -56,8 +56,8 @@ public class AsyncPullInputDStream extends InputDStream<StructuredRecord> {
   private JavaStreamingContext sparkStreamingContext;
   private StageMetrics metrics;
 
-  public AsyncPullInputDStream(JavaStreamingContext sparkStreamingContext, StageMetrics metrics, String projectId,
-                               String subscriptionId, String serviceAccountFilePath) {
+  public AsyncPullBasedInputDStream(JavaStreamingContext sparkStreamingContext, StageMetrics metrics, String projectId,
+                                    String subscriptionId, String serviceAccountFilePath) {
     super(sparkStreamingContext.ssc(), scala.reflect.ClassTag$.MODULE$.apply(StructuredRecord.class));
     this.projectId = projectId;
     this.subscriptionId = subscriptionId;
