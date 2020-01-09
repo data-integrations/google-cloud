@@ -52,7 +52,7 @@ public class AsyncPullInputDStream extends InputDStream<StructuredRecord> {
   private final String subscriptionId;
   private final String serviceAccountFilePath;
   private Subscriber subscriber;
-  private RDD<StructuredRecord> structuredRecordRDD;
+  private volatile RDD<StructuredRecord> structuredRecordRDD;
   private JavaStreamingContext sparkStreamingContext;
   private StageMetrics metrics;
 
@@ -109,7 +109,7 @@ public class AsyncPullInputDStream extends InputDStream<StructuredRecord> {
             hashMap.putAll(message.getAttributesMap());
           }
 
-          structuredRecordRDD = JavaRDD.<StructuredRecord>toRDD(
+          structuredRecordRDD = JavaRDD.toRDD(
             sparkStreamingContext.sparkContext().parallelize(
               Collections.singletonList(StructuredRecord.builder(DEFAULT_SCHEMA)
                                         .set("message", message.getData())
