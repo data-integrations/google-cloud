@@ -112,7 +112,7 @@ public class AsyncPullBasedInputDStream extends InputDStream<StructuredRecord> {
           structuredRecordRDD = JavaRDD.toRDD(
             sparkStreamingContext.sparkContext().parallelize(
               Collections.singletonList(StructuredRecord.builder(DEFAULT_SCHEMA)
-                                        .set("message", message.getData())
+                                        .set("message", message.getData().toByteArray())
                                         .set("id", message.getMessageId())
                                         .setTimestamp("timestamp", getTimestamp(message.getPublishTime()))
                                         .set("attributes", hashMap)

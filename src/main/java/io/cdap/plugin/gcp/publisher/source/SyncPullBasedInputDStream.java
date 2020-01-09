@@ -125,13 +125,16 @@ public class SyncPullBasedInputDStream extends InputDStream<StructuredRecord> {
 
     PullRequest pullRequest =
       PullRequest.newBuilder()
-        .setMaxMessages(10_000)
-        .setReturnImmediately(false) // return immediately if messages are not available
+        .setMaxMessages(1000)
+        .setReturnImmediately(true) // return immediately if messages are not available
         .setSubscription(subscriptionName)
         .build();
 
     PullResponse pullResponse = subscriber.pullCallable().call(pullRequest);
     List<ReceivedMessage> receivedMessagesList = pullResponse.getReceivedMessagesList();
+
+    LOG.info("Received message back");
+
     List<String> ackIds = new ArrayList<>(receivedMessagesList.size());
     List<StructuredRecord> records = new ArrayList<>(receivedMessagesList.size());
 
@@ -143,14 +146,16 @@ public class SyncPullBasedInputDStream extends InputDStream<StructuredRecord> {
         hashMap.putAll(pubSubMessage.getAttributesMap());
       }
 
+//      LOG.info("Building records.");
       records.add(StructuredRecord.builder(DEFAULT_SCHEMA)
-                    .set("message", pubSubMessage.getData())
+                    .set("message", pubSubMessage.getData().toByteArray())
                     .set("id", pubSubMessage.getMessageId())
                     .setTimestamp("timestamp", getTimestamp(pubSubMessage.getPublishTime()))
                     .set("attributes", hashMap)
                     .build());
       ackIds.add(message.getAckId());
     }
+
     // acknowledge received messages
     AcknowledgeRequest acknowledgeRequest =
       AcknowledgeRequest.newBuilder()
@@ -160,6 +165,9 @@ public class SyncPullBasedInputDStream extends InputDStream<StructuredRecord> {
 
     // use acknowledgeCallable().futureCall to asynchronously perform this operation
     subscriber.acknowledgeCallable().call(acknowledgeRequest);
+
+//    LOG.info("Messaged are acked");
+
     RDD<StructuredRecord> structuredRecordRDD =
       JavaRDD.toRDD(sparkStreamingContext.sparkContext().parallelize(records));
 

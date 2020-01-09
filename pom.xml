@@ -79,14 +79,14 @@
     <gcs.connector.version>hadoop2-2.0.0</gcs.connector.version>
     <google.cloud.bigtable.version>1.11.0</google.cloud.bigtable.version>
     <google.cloud.bigquery.version>1.92.0</google.cloud.bigquery.version>
-    <google.cloud.pubsub.version>1.92.0</google.cloud.pubsub.version>
+    <google.cloud.pubsub.version>1.102.0</google.cloud.pubsub.version>
     <google.cloud.spanner.version>1.37.0</google.cloud.spanner.version>
     <google.cloud.speech.version>1.20.0</google.cloud.speech.version>
     <google.cloud.storage.version>1.92.0</google.cloud.storage.version>
     <google.cloud.datastore.version>1.92.0</google.cloud.datastore.version>
 <!--    version 3.9.1 is used for async pulling-->
 <!--    <google.protobuf.java.version>3.9.1</google.protobuf.java.version>-->
-    <google.protobuf.java.version>3.4.0</google.protobuf.java.version>
+    <google.protobuf.java.version>3.11.1</google.protobuf.java.version>
     <guava.version>27.0.1-jre</guava.version>
     <hadoop.version>2.9.2</hadoop.version>
     <hbase-mapreduce-version>2.2.0</hbase-mapreduce-version>
