@@ -30,9 +30,14 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /**
  * Test Version.
@@ -54,6 +59,8 @@ public class SyncPullBasedInputDStream extends InputDStream<StructuredRecord> {
   private JavaStreamingContext sparkStreamingContext;
   private String subscriptionName;
   private SubscriberStub subscriber;
+  private final int numOfThreads = 7;
+  private ExecutorService executorService;
 
   public SyncPullBasedInputDStream(JavaStreamingContext sparkStreamingContext, String projectId,
                                    String subscriptionId, String serviceAccountFilePath) {
@@ -62,6 +69,71 @@ public class SyncPullBasedInputDStream extends InputDStream<StructuredRecord> {
     this.subscriptionId = subscriptionId;
     this.serviceAccountFilePath = serviceAccountFilePath;
     this.sparkStreamingContext = sparkStreamingContext;
+    this.executorService = Executors.newFixedThreadPool(numOfThreads);
+  }
+
+  class Process implements Callable<List<StructuredRecord>> {
+
+    private final int id;
+
+    Process(int id) {
+      this.id = id;
+    }
+
+    @Override
+    public List<StructuredRecord> call() throws Exception {
+      LOG.info("Thread" + id + ": Started computing");
+
+      PullRequest pullRequest =
+        PullRequest.newBuilder()
+          .setMaxMessages(1000)
+          .setReturnImmediately(true) // return immediately if messages are not available
+          .setSubscription(subscriptionName)
+          .build();
+
+      PullResponse pullResponse = subscriber.pullCallable().call(pullRequest);
+      List<ReceivedMessage> receivedMessagesList = pullResponse.getReceivedMessagesList();
+
+      LOG.info("Thread" + id + ": Received message back, size is " + receivedMessagesList.size());
+
+      List<String> ackIds = new ArrayList<>(receivedMessagesList.size());
+      List<StructuredRecord> records = new ArrayList<>(receivedMessagesList.size());
+
+      for (ReceivedMessage message : receivedMessagesList) {
+        PubsubMessage pubSubMessage = message.getMessage();
+        // Convert to a HashMap because com.google.api.client.util.ArrayMap is not serializable.
+        Map<String, String> hashMap = new HashMap<>();
+        if (pubSubMessage.getAttributesMap() != null) {
+          hashMap.putAll(pubSubMessage.getAttributesMap());
+        }
+
+        records.add(StructuredRecord.builder(DEFAULT_SCHEMA)
+                      .set("message", pubSubMessage.getData().toByteArray())
+                      .set("id", pubSubMessage.getMessageId())
+                      .setTimestamp("timestamp", getTimestamp(pubSubMessage.getPublishTime()))
+                      .set("attributes", hashMap)
+                      .build());
+        ackIds.add(message.getAckId());
+      }
+
+      if (!records.isEmpty()) {
+        // acknowledge received messages
+        AcknowledgeRequest acknowledgeRequest =
+          AcknowledgeRequest.newBuilder()
+            .setSubscription(subscriptionName)
+            .addAllAckIds(ackIds)
+            .build();
+
+        // use acknowledgeCallable().futureCall to asynchronously perform this operation
+        subscriber.acknowledgeCallable().call(acknowledgeRequest);
+
+        LOG.info("Thread" + id + ": Messaged are acked");
+      } else {
+        LOG.info("Thread" + id + ": No returned messages");
+      }
+
+      return records;
+    }
   }
 
   @Override
@@ -117,61 +189,37 @@ public class SyncPullBasedInputDStream extends InputDStream<StructuredRecord> {
     if (subscriber != null) {
       subscriber.close();
     }
+
+    if (executorService != null) {
+      executorService.shutdown();
+    }
   }
 
   @Override
   public Option<RDD<StructuredRecord>> compute(Time time) {
-    LOG.info("Start computing");
-
-    PullRequest pullRequest =
-      PullRequest.newBuilder()
-        .setMaxMessages(1000)
-        .setReturnImmediately(true) // return immediately if messages are not available
-        .setSubscription(subscriptionName)
-        .build();
-
-    PullResponse pullResponse = subscriber.pullCallable().call(pullRequest);
-    List<ReceivedMessage> receivedMessagesList = pullResponse.getReceivedMessagesList();
-
-    LOG.info("Received message back, size is " + receivedMessagesList.size());
-
-    List<String> ackIds = new ArrayList<>(receivedMessagesList.size());
-    List<StructuredRecord> records = new ArrayList<>(receivedMessagesList.size());
-
-    for (ReceivedMessage message : receivedMessagesList) {
-      PubsubMessage pubSubMessage = message.getMessage();
-      // Convert to a HashMap because com.google.api.client.util.ArrayMap is not serializable.
-      Map<String, String> hashMap = new HashMap<>();
-      if (pubSubMessage.getAttributesMap() != null) {
-        hashMap.putAll(pubSubMessage.getAttributesMap());
-      }
-
-//      LOG.info("Building records.");
-      records.add(StructuredRecord.builder(DEFAULT_SCHEMA)
-                    .set("message", pubSubMessage.getData().toByteArray())
-                    .set("id", pubSubMessage.getMessageId())
-                    .setTimestamp("timestamp", getTimestamp(pubSubMessage.getPublishTime()))
-                    .set("attributes", hashMap)
-                    .build());
-      ackIds.add(message.getAckId());
+    List<Callable<List<StructuredRecord>>> callables = new ArrayList<>();
+    for (int i = 0; i < numOfThreads; i++) {
+      callables.add(new Process(i));
     }
 
-    // acknowledge received messages
-    AcknowledgeRequest acknowledgeRequest =
-      AcknowledgeRequest.newBuilder()
-        .setSubscription(subscriptionName)
-        .addAllAckIds(ackIds)
-        .build();
+    try {
+      List<Future<List<StructuredRecord>>> results = executorService.invokeAll(callables);
+      List<StructuredRecord> records = new ArrayList<>();
 
-    // use acknowledgeCallable().futureCall to asynchronously perform this operation
-    subscriber.acknowledgeCallable().call(acknowledgeRequest);
+      for (Future<List<StructuredRecord>> result : results) {
+        records.addAll(result.get());
+      }
 
-    LOG.info("Messaged are acked");
+      LOG.info("Total message per interval: " + records.size());
 
-    RDD<StructuredRecord> structuredRecordRDD =
-      JavaRDD.toRDD(sparkStreamingContext.sparkContext().parallelize(records));
+      RDD<StructuredRecord> structuredRecordRDD =
+        JavaRDD.toRDD(sparkStreamingContext.sparkContext().parallelize(records));
 
-    return Option.apply(structuredRecordRDD);
+      return Option.apply(structuredRecordRDD);
+    } catch (Exception e) {
+      LOG.error("Error occurred: " + e.getMessage(), e);
+      return Option.apply(JavaRDD.toRDD(sparkStreamingContext.sparkContext().parallelize(Collections.emptyList())));
+    }
   }
 
   private ZonedDateTime getTimestamp(Timestamp timestamp) {
