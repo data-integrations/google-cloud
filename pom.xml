@@ -20,7 +20,7 @@
 
   <groupId>io.cdap.plugin</groupId>
   <artifactId>google-cloud</artifactId>
-  <version>0.13.2</version>
+  <version>0.13.3</version>
   <name>Google Cloud Plugins</name>
   <packaging>jar</packaging>
   <description>Plugins for Google Big Query</description>
