@@ -20,17 +20,17 @@ import com.google.auth.Credentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryOptions;
+import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS;
+import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem;
 import com.google.cloud.storage.BucketInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
 import io.cdap.plugin.gcp.gcs.GCSPath;
-import io.cdap.plugin.gcp.gcs.sink.GCSBatchSink.GCSBatchSinkConfig;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
 
@@ -47,17 +47,17 @@ public class GCPUtils {
     }
   }
 
-  public static Map<String, String> getFileSystemProperties(GCSBatchSinkConfig config) {
-    Map<String, String> properties = new HashMap<>();
+  public static Map<String, String> getFileSystemProperties(GCPConfig config, String path,
+                                                            Map<String, String> properties) {
     String serviceAccountFilePath = config.getServiceAccountFilePath();
     if (serviceAccountFilePath != null) {
       properties.put("google.cloud.auth.service.account.json.keyfile", serviceAccountFilePath);
     }
-    properties.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
-    properties.put("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
+    properties.put("fs.gs.impl", GoogleHadoopFileSystem.class.getName());
+    properties.put("fs.AbstractFileSystem.gs.impl", GoogleHadoopFS.class.getName());
     String projectId = config.getProject();
     properties.put("fs.gs.project.id", projectId);
-    properties.put("fs.gs.system.bucket", GCSPath.from(config.getPath()).getBucket());
+    properties.put("fs.gs.system.bucket", GCSPath.from(path).getBucket());
     properties.put("fs.gs.path.encoding", "uri-path");
     properties.put("fs.gs.working.dir", GCSPath.ROOT_DIR);
     properties.put("fs.gs.impl.disable.cache", "true");

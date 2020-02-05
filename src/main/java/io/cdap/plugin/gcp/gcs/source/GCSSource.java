@@ -34,6 +34,7 @@ import io.cdap.plugin.format.input.PathTrackingInputFormat;
 import io.cdap.plugin.format.plugin.AbstractFileSource;
 import io.cdap.plugin.format.plugin.FileSourceProperties;
 import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
+import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 
 import java.lang.reflect.Type;
@@ -66,21 +67,10 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
 
   @Override
   protected Map<String, String> getFileSystemProperties(BatchSourceContext context) {
-    Map<String, String> properties = new HashMap<>(config.getFileSystemProperties());
-    String serviceAccountFilePath = config.getServiceAccountFilePath();
-    if (serviceAccountFilePath != null) {
-      properties.put("google.cloud.auth.service.account.json.keyfile", serviceAccountFilePath);
-    }
-    properties.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
-    properties.put("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
-    String projectId = config.getProject();
-    properties.put("fs.gs.project.id", projectId);
-    properties.put("fs.gs.system.bucket", GCSPath.from(config.path).getBucket());
-    properties.put("fs.gs.path.encoding", "uri-path");
-    properties.put("fs.gs.working.dir", GCSPath.ROOT_DIR);
-    properties.put("fs.gs.impl.disable.cache", "true");
-    if (config.copyHeader != null && config.copyHeader) {
-      properties.put(PathTrackingInputFormat.COPY_HEADER, "true");
+    Map<String, String> properties = GCPUtils.getFileSystemProperties(config, config.getPath(),
+                                                                      new HashMap<>(config.getFileSystemProperties()));
+    if (config.isCopyHeader()) {
+      properties.put(PathTrackingInputFormat.COPY_HEADER, Boolean.TRUE.toString());
     }
     return properties;
   }
@@ -267,6 +257,10 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
       } catch (Exception e) {
         throw new IllegalArgumentException("Unable to parse schema with error: " + e.getMessage(), e);
       }
+    }
+
+    public boolean isCopyHeader() {
+      return copyHeader != null && copyHeader;
     }
 
     Map<String, String> getFileSystemProperties() {

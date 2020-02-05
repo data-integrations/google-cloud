@@ -91,7 +91,7 @@ public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable,
     config.validate(collector);
     collector.getOrThrowException();
 
-    Map<String, String> baseProperties = new HashMap<>(GCPUtils.getFileSystemProperties(config));
+    Map<String, String> baseProperties = GCPUtils.getFileSystemProperties(config, config.getPath(), new HashMap<>());
 
     Map<String, String> argumentCopy = new HashMap<>(context.getArguments().asMap());
 
