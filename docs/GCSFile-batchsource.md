@@ -29,7 +29,7 @@ Properties
 It can be found on the Dashboard in the Google Cloud Platform Console.
 
 **Path:** Path to file(s) to be read. If a directory is specified, terminate the path name with a '/'.
-For example, gs://<bucket>/path/to/directory/.
+For example, `gs://<bucket>/path/to/directory/`.
 
 **Format:** Format of the data to read.
 The format must be one of 'avro', 'blob', 'csv', 'delimited', 'json', 'parquet', 'text', or 'tsv'.
@@ -59,3 +59,40 @@ The default value is false.
 **File System Properties:** Additional properties to use with the InputFormat when reading the data.
 
 **Schema:** Output schema. If a Path Field is set, it must be present in the schema as a string.
+
+**Data File Encrypted:** Whether files are encrypted. The default value is false. 
+If it is set to true, files will be decrypted using the Streaming AEAD provided by the 
+[Google Tink library](https://github.com/google/tink). Each data file needs to be accompanied with a metadata file
+that contains the cipher information. For example, an encrypted data file at 
+`gs://<bucket>/path/to/directory/file1.csv.enc` should have a metadata file at
+`gs://<bucket>/path/to/directory/file1.csv.enc.metadata`.
+ 
+The metadata file contains a JSON object with the following properties:
+
+| Property | Description |
+|----------|-------------| 
+| kms      | The Cloud KMS URI that was used to encrypt the Data Encryption Key |
+| aad      | The Base64 encoded Additional Authenticated Data used in the encryption |
+| keyset   | A JSON object representing the serialized keyset information from the Tink library |
+
+For example:
+```json
+{
+    "kms": "gcp-kms://projects/my-key-project/locations/us-west1/keyRings/my-key-ring/cryptoKeys/mykey",
+    "aad": "73iT4SUJBM24umXecCCf3A==",
+    "keyset": {
+        "keysetInfo": {
+            "primaryKeyId": 602257784,
+            "keyInfo": [{
+                "typeUrl": "type.googleapis.com/google.crypto.tink.AesGcmHkdfStreamingKey",
+                "outputPrefixType": "RAW",
+                "keyId": 602257784,
+                "status": "ENABLED"
+            }]
+        },
+        "encryptedKeyset": "CiQAz5HH+nUA0Zuqnz4LCnBEVTHS72s/zwjpcnAMIPGpW6kxLggSrAEAcJKHmXeg8kfJ3GD4GuFeWDZzgGn3tfolk6Yf5d7rxKxDEChIMWJWGhWlDHbBW5B9HqWfKx2nQWSC+zjM8FLefVtPYrdJ8n6Eg8ksAnSyXmhN5LoIj6az3XBugtXvCCotQHrBuyoDY+j5ZH9J4tm/bzrLEjCdWAc+oAlhsUAV77jZhowJr6EBiyVuRVfcwLwiscWkQ9J7jjHc7ih9HKfnqAZmQ6iWP36OMrEn"
+    }
+}
+```
+
+**Encryption Metadata File Suffix:** The file name suffix for the encryption metadata file. The default value is `.metadata`.

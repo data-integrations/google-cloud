@@ -35,6 +35,7 @@ import io.cdap.plugin.format.plugin.AbstractFileSource;
 import io.cdap.plugin.format.plugin.FileSourceProperties;
 import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
+import io.cdap.plugin.gcp.crypto.EncryptedFileSystem;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 
 import java.lang.reflect.Type;
@@ -72,12 +73,20 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
     if (config.isCopyHeader()) {
       properties.put(PathTrackingInputFormat.COPY_HEADER, Boolean.TRUE.toString());
     }
+
+    if (config.isEncrypted()) {
+      TinkDecryptor.configure(config.getEncryptedMetadataSuffix(), properties);
+      EncryptedFileSystem.configure("gs", TinkDecryptor.class, properties);
+      GCSRegexPathFilter.configure(config, properties);
+    }
+
     return properties;
   }
 
   @Override
   protected void recordLineage(LineageRecorder lineageRecorder, List<String> outputFields) {
-    lineageRecorder.recordRead("Read", "Read from Google Cloud Storage.", outputFields);
+    lineageRecorder.recordRead("Read", String.format("Read%sfrom Google Cloud Storage.",
+                                                     config.isEncrypted() ? " and decrypt " : " "), outputFields);
   }
 
   /**
@@ -89,6 +98,8 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
     private static final String NAME_FILE_SYSTEM_PROPERTIES = "fileSystemProperties";
     private static final String NAME_FILE_REGEX = "fileRegex";
     private static final String NAME_FORMAT = "format";
+
+    private static final String DEFAULT_ENCRYPTED_METADATA_SUFFIX = ".metadata";
 
     private static final Gson GSON = new Gson();
     private static final Type MAP_STRING_STRING_TYPE = new TypeToken<Map<String, String>>() { }.getType();
@@ -153,16 +164,23 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
     @Nullable
     private Boolean copyHeader;
 
+    @Macro
+    @Nullable
+    @Description("Whether the data file is encrypted. If it is set to 'true', a associated metadata file needs to be "
+      + "provided for each data file. Please refer to the Documentation for the details of the metadata file content.")
+    private Boolean encrypted;
+
+    @Macro
+    @Nullable
+    @Description("The file name suffix for the metadata file of the encrypted data file. "
+      + "The default is '" + DEFAULT_ENCRYPTED_METADATA_SUFFIX + "'.")
+    private String encryptedMetadataSuffix;
+
     public GCSSourceConfig() {
       this.maxSplitSize = 128L * 1024 * 1024;
       this.recursive = false;
       this.filenameOnly = false;
       this.copyHeader = false;
-    }
-
-    @Override
-    public void validate() {
-      // no-op
     }
 
     public void validate(FailureCollector collector) {
@@ -223,6 +241,15 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
       }
     }
 
+    @Nullable
+    public Pattern getExclusionPattern() {
+      if (!isEncrypted()) {
+        return null;
+      }
+
+      return Pattern.compile(".*" + Pattern.quote(getEncryptedMetadataSuffix()) + "$");
+    }
+
     @Override
     public long getMaxSplitSize() {
       return maxSplitSize;
@@ -261,6 +288,15 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
 
     public boolean isCopyHeader() {
       return copyHeader != null && copyHeader;
+    }
+
+    public boolean isEncrypted() {
+      return encrypted != null && encrypted;
+    }
+
+    public String getEncryptedMetadataSuffix() {
+      return Strings.isNullOrEmpty(encryptedMetadataSuffix) ?
+        DEFAULT_ENCRYPTED_METADATA_SUFFIX : encryptedMetadataSuffix;
     }
 
     Map<String, String> getFileSystemProperties() {
