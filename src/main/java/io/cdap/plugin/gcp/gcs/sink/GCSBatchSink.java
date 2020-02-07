@@ -38,6 +38,7 @@ import io.cdap.plugin.gcp.gcs.GCSPath;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -75,7 +76,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
 
   @Override
   protected Map<String, String> getFileSystemProperties(BatchSinkContext context) {
-    return GCPUtils.getFileSystemProperties(config);
+    return GCPUtils.getFileSystemProperties(config, config.getPath(), new HashMap<>());
   }
 
   @Override

@@ -34,6 +34,8 @@ import io.cdap.plugin.format.input.PathTrackingInputFormat;
 import io.cdap.plugin.format.plugin.AbstractFileSource;
 import io.cdap.plugin.format.plugin.FileSourceProperties;
 import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
+import io.cdap.plugin.gcp.common.GCPUtils;
+import io.cdap.plugin.gcp.crypto.EncryptedFileSystem;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 
 import java.lang.reflect.Type;
@@ -66,28 +68,25 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
 
   @Override
   protected Map<String, String> getFileSystemProperties(BatchSourceContext context) {
-    Map<String, String> properties = new HashMap<>(config.getFileSystemProperties());
-    String serviceAccountFilePath = config.getServiceAccountFilePath();
-    if (serviceAccountFilePath != null) {
-      properties.put("google.cloud.auth.service.account.json.keyfile", serviceAccountFilePath);
+    Map<String, String> properties = GCPUtils.getFileSystemProperties(config, config.getPath(),
+                                                                      new HashMap<>(config.getFileSystemProperties()));
+    if (config.isCopyHeader()) {
+      properties.put(PathTrackingInputFormat.COPY_HEADER, Boolean.TRUE.toString());
     }
-    properties.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
-    properties.put("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
-    String projectId = config.getProject();
-    properties.put("fs.gs.project.id", projectId);
-    properties.put("fs.gs.system.bucket", GCSPath.from(config.path).getBucket());
-    properties.put("fs.gs.path.encoding", "uri-path");
-    properties.put("fs.gs.working.dir", GCSPath.ROOT_DIR);
-    properties.put("fs.gs.impl.disable.cache", "true");
-    if (config.copyHeader != null && config.copyHeader) {
-      properties.put(PathTrackingInputFormat.COPY_HEADER, "true");
+
+    if (config.isEncrypted()) {
+      TinkDecryptor.configure(config.getEncryptedMetadataSuffix(), properties);
+      EncryptedFileSystem.configure("gs", TinkDecryptor.class, properties);
+      GCSRegexPathFilter.configure(config, properties);
     }
+
     return properties;
   }
 
   @Override
   protected void recordLineage(LineageRecorder lineageRecorder, List<String> outputFields) {
-    lineageRecorder.recordRead("Read", "Read from Google Cloud Storage.", outputFields);
+    lineageRecorder.recordRead("Read", String.format("Read%sfrom Google Cloud Storage.",
+                                                     config.isEncrypted() ? " and decrypt " : " "), outputFields);
   }
 
   /**
@@ -99,6 +98,8 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
     private static final String NAME_FILE_SYSTEM_PROPERTIES = "fileSystemProperties";
     private static final String NAME_FILE_REGEX = "fileRegex";
     private static final String NAME_FORMAT = "format";
+
+    private static final String DEFAULT_ENCRYPTED_METADATA_SUFFIX = ".metadata";
 
     private static final Gson GSON = new Gson();
     private static final Type MAP_STRING_STRING_TYPE = new TypeToken<Map<String, String>>() { }.getType();
@@ -163,16 +164,23 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
     @Nullable
     private Boolean copyHeader;
 
+    @Macro
+    @Nullable
+    @Description("Whether the data file is encrypted. If it is set to 'true', a associated metadata file needs to be "
+      + "provided for each data file. Please refer to the Documentation for the details of the metadata file content.")
+    private Boolean encrypted;
+
+    @Macro
+    @Nullable
+    @Description("The file name suffix for the metadata file of the encrypted data file. "
+      + "The default is '" + DEFAULT_ENCRYPTED_METADATA_SUFFIX + "'.")
+    private String encryptedMetadataSuffix;
+
     public GCSSourceConfig() {
       this.maxSplitSize = 128L * 1024 * 1024;
       this.recursive = false;
       this.filenameOnly = false;
       this.copyHeader = false;
-    }
-
-    @Override
-    public void validate() {
-      // no-op
     }
 
     public void validate(FailureCollector collector) {
@@ -233,6 +241,15 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
       }
     }
 
+    @Nullable
+    public Pattern getExclusionPattern() {
+      if (!isEncrypted()) {
+        return null;
+      }
+
+      return Pattern.compile(".*" + Pattern.quote(getEncryptedMetadataSuffix()) + "$");
+    }
+
     @Override
     public long getMaxSplitSize() {
       return maxSplitSize;
@@ -267,6 +284,19 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
       } catch (Exception e) {
         throw new IllegalArgumentException("Unable to parse schema with error: " + e.getMessage(), e);
       }
+    }
+
+    public boolean isCopyHeader() {
+      return copyHeader != null && copyHeader;
+    }
+
+    public boolean isEncrypted() {
+      return encrypted != null && encrypted;
+    }
+
+    public String getEncryptedMetadataSuffix() {
+      return Strings.isNullOrEmpty(encryptedMetadataSuffix) ?
+        DEFAULT_ENCRYPTED_METADATA_SUFFIX : encryptedMetadataSuffix;
     }
 
     Map<String, String> getFileSystemProperties() {
