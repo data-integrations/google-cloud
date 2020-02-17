@@ -51,39 +51,39 @@ Should only be used with the Insert operation.
 
 **Table Key**: List of fields that determines relation between tables during Update and Upsert operations.
 
-**Dedupe By**: Column names and sort order used to choose which input record to update/upsert when there are 
-multiple input records with the same key. For example, if this is set to 'updated_time desc', then if there are 
-multiple input records with the same key, the one with the largest value for 'updated_time' will be applied.              
+**Dedupe By**: Column names and sort order used to choose which input record to update/upsert when there are
+multiple input records with the same key. For example, if this is set to 'updated_time desc', then if there are
+multiple input records with the same key, the one with the largest value for 'updated_time' will be applied.
 
 **Location:** The location where the big query dataset will get created. This value is ignored
 if the dataset or temporary bucket already exist.
 
-**Create Partitioned Table**: Whether to create the BigQuery table with time partitioning. This value 
+**Create Partitioned Table**: Whether to create the BigQuery table with time partitioning. This value
 is ignored if the table already exists.
-* When this is set to true, table will be created with time partitioning. 
+* When this is set to true, table will be created with time partitioning.
 * When this is set to false, table will be created without time partitioning.
 
-**Partition Field**: Partitioning column for the BigQuery table. This should be left empty if the 
+**Partition Field**: Partitioning column for the BigQuery table. This should be left empty if the
 BigQuery table is an ingestion-time partitioned table.
 
-**Require Partition Filter**: Whether to create a table that requires a partition filter. This value 
+**Require Partition Filter**: Whether to create a table that requires a partition filter. This value
 is ignored if the table already exists.
-* When this is set to true, table will be created with required partition filter. 
+* When this is set to true, table will be created with required partition filter.
 * When this is set to false, table will be created without required partition filter.
 
-**Clustering Order**: List of fields that determines the sort order of the data. Fields must be of type 
+**Clustering Order**: List of fields that determines the sort order of the data. Fields must be of type
 INT, LONG, STRING, DATE, TIMESTAMP, BOOLEAN or DECIMAL. Tables cannot be clustered on more than 4 fields.
  This value is only used when the BigQuery table is automatically created and ignored if the table 
  already exists.
 
 **Update Table Schema**: Whether the BigQuery table schema should be modified 
-when it does not match the schema expected by the pipeline. 
+when it does not match the schema expected by the pipeline.
 * When this is set to false, any mismatches between the schema expected by the pipeline 
-and the schema in BigQuery will result in pipeline failure. 
+and the schema in BigQuery will result in pipeline failure.
 * When this is set to true, the schema in BigQuery will be updated to match the schema 
 expected by the pipeline, assuming the schemas are compatible.
 
-Compatible changes fall under the following categories:                
+Compatible changes fall under the following categories:
 * the pipeline schema contains nullable fields that do not exist in the BigQuery schema. 
 In this case, the new fields will be added to the BigQuery schema.
 * the pipeline schema contains nullable fields that are non-nullable in the BigQuery schema. 
