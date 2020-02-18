@@ -1,0 +1,86 @@
+{
+  "name": "Test_Firestore_Source_v1",
+  "description": "Data Pipeline Application",
+  "artifact": {
+    "name": "cdap-data-pipeline",
+    "version": "6.1.1",
+    "scope": "SYSTEM",
+    "label": "Data Pipeline - Batch"
+  },
+  "description": "",
+  "name": "",
+  "config": {
+    "resources": {
+      "memoryMB": 2048,
+      "virtualCores": 1
+    },
+    "driverResources": {
+      "memoryMB": 2048,
+      "virtualCores": 1
+    },
+    "connections": [
+      {
+        "from": "Firestore",
+        "to": "File"
+      }
+    ],
+    "comments": [],
+    "postActions": [],
+    "properties": {},
+    "processTimingEnabled": true,
+    "stageLoggingEnabled": false,
+    "stages": [
+      {
+        "name": "Firestore",
+        "plugin": {
+          "name": "Firestore",
+          "type": "batchsource",
+          "label": "Firestore",
+          "artifact": {
+            "name": "google-cloud",
+            "version": "0.13.4-SNAPSHOT",
+            "scope": "USER"
+          },
+          "properties": {
+            "queryMode": "${MODE}",
+            "serviceFilePath": "${GCP_SERVICE_ACCOUNT_FILE_PATH}",
+            "project": "${GCP_PROJECT_ID}",
+            "idAlias": "__id__",
+            "referenceName": "ref1",
+            "collection": "${FIRESTORE_COLLECTION}",
+            "schema": "{\"type\":\"record\",\"name\":\"etlSchemaBody\",\"fields\":[{\"name\":\"last\",\"type\":[\"string\",\"null\"]},{\"name\":\"born\",\"type\":[\"long\",\"null\"]},{\"name\":\"first\",\"type\":[\"string\",\"null\"]}]}",
+            "pullDocumentList": "${DOCUMENTS_TO_PULL}",
+            "skipDocumentList": "${DOCUMENTS_TO_SKIP}",
+            "customQuery": "${ADVANCED_FILTERS}",
+            "includeDocumentId": "false"
+          }
+        }
+      },
+      {
+        "name": "File",
+        "plugin": {
+          "name": "File",
+          "type": "batchsink",
+          "label": "File",
+          "artifact": {
+            "name": "core-plugins",
+            "version": "2.3.4",
+            "scope": "SYSTEM"
+          },
+          "properties": {
+            "suffix": "${OUTPUT_PATH_SUFFIX}",
+            "format": "csv",
+            "schema": "{\"type\":\"record\",\"name\":\"etlSchemaBody\",\"fields\":[{\"name\":\"last\",\"type\":[\"string\",\"null\"]},{\"name\":\"born\",\"type\":[\"long\",\"null\"]},{\"name\":\"first\",\"type\":[\"string\",\"null\"]}]}",
+            "referenceName": "ref2",
+            "path": "${OUTPUT_FILE_PATH}",
+            "delimiter": ","
+          }
+        }
+      }
+    ],
+    "schedule": "0 * * * *",
+    "engine": "spark",
+    "numOfRecordsPreview": 100,
+    "maxConcurrentRuns": 1
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "metadata": {
+    "spec-version": "1.0"
+  },
+  "display-name": "Firestore",
+  "configuration-groups": [
+    {
+      "label": "Basic",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Reference Name",
+          "name": "referenceName",
+          "widget-attributes": {
+            "placeholder": "Name used to identify this sink for lineage"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Collection",
+          "name": "collection"
+        },
+        {
+          "widget-type": "select",
+          "label": "Document Id Type",
+          "name": "documentIdType",
+          "widget-attributes": {
+            "default": "Auto-generated id",
+            "values": [
+              "Auto-generated id",
+              "Custom name"
+            ]
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Document Id Alias",
+          "name": "idAlias",
+          "widget-attributes" : {
+            "placeholder": "Id alias"
+          }
+        }
+      ]
+    },
+    {
+      "label": "Credentials",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Project ID",
+          "name": "project",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Database Id",
+          "name": "databaseId"
+        }
+      ]
+    },
+    {
+      "label" : "Advanced",
+      "properties" : [
+        {
+          "widget-type": "number",
+          "label": "Batch Size",
+          "name": "batchSize",
+          "widget-attributes": {
+            "default": "25",
+            "min": "1",
+            "max": "500"
+          }
+        }
+      ]
+    }
+  ],
+  "outputs": [ ],
+  "jump-config": {
+    "datasets": [
+      {
+        "ref-property-name": "referenceName"
+      }
+    ]
+  }
+}

@@ -11,6 +11,7 @@ Following plugins are available in this repository.
   * Cloud Spanner Source & Sink
   * Cloud Speech API
   * Google Cloud Datastore Source & Sink
+  * Google Cloud Firestore Source & Sink
 
 # Contact
 
