@@ -173,8 +173,8 @@ public final class BigQueryExecute extends Action {
 
     @Name(MODE)
     @Description("Mode to execute the query in. The value must be 'batch' or 'interactive'. " +
-                   "A batch query is executed as soon as possible and count towards the concurrent rate limit " +
-                   "and the daily rate limit. An interactive query is queued and started as soon as idle resources " +
+                   "An interactive query is executed as soon as possible and counts towards the concurrent rate " +
+                   "limit and the daily rate limit. A batch query is queued and started as soon as idle resources " +
                    "are available, usually within a few minutes. If the query hasn't started within 3 hours, " +
                    "its priority is changed to 'interactive'")
     @Macro
