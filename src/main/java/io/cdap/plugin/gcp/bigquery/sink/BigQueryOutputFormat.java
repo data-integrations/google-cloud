@@ -92,7 +92,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryOutputFormat.class);
 
   private static final String SOURCE_DATA_QUERY = "(SELECT * FROM (SELECT row_number() OVER (PARTITION BY %s%s) " +
-    "as rowid, * FROM %s) where rowid = 1)";
+    "as rowid, * FROM %s %s) where rowid = 1)";
   private static final String UPDATE_QUERY = "UPDATE %s T SET %s FROM %s S WHERE %s";
   private static final String UPSERT_QUERY = "MERGE %s T USING %s S ON %s WHEN MATCHED THEN UPDATE SET %s " +
     "WHEN NOT MATCHED THEN INSERT (%s) VALUES(%s)";
@@ -115,6 +115,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
     private List<String> tableKeyList;
     private List<String> orderedByList;
     private List<String> tableFieldsList;
+    private String partitionFilter;
 
     private boolean allowSchemaRelaxation;
 
@@ -166,6 +167,10 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       String tableFields = conf.get(BigQueryConstants.CONFIG_TABLE_FIELDS, null);
       tableFieldsList = Arrays.stream(tableFields != null ? tableFields.split(",") : new String[0])
         .map(String::trim).collect(Collectors.toList());
+      if (operation.equals(Operation.UPDATE)) {
+        partitionFilter = conf.get(BigQueryConstants.CONFIG_PARTITION_FILTER, null);
+        LOG.debug("Partition filter: '{}'", partitionFilter);
+      }
       boolean tableExists = conf.getBoolean(BigQueryConstants.CONFIG_DESTINATION_TABLE_EXISTS, false);
 
       try {
@@ -454,12 +459,14 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       String destinationTable = tableRef.getDatasetId() + "." + tableRef.getTableId();
       String criteria = tableKeyList.stream().map(s -> String.format(criteriaTemplate, s, s))
         .collect(Collectors.joining(" AND "));
+      criteria = partitionFilter != null ? String.format("(%s) AND %s", partitionFilter, criteria) : criteria;
       String fieldsForUpdate = tableFieldsList.stream().filter(s -> !tableKeyList.contains(s))
         .map(s -> String.format(criteriaTemplate, s, s)).collect(Collectors.joining(", "));
       String orderedBy = orderedByList.isEmpty() ? "" : " ORDER BY " + String.join(", ", orderedByList);
+      String partitionCriteria = partitionFilter != null ? String.format(" WHERE %s", partitionFilter) : "";
       String sourceTable = String.format(SOURCE_DATA_QUERY, String.join(", ", tableKeyList), orderedBy,
                                          temporaryTableReference.getDatasetId() + "." +
-                                           temporaryTableReference.getTableId());
+                                           temporaryTableReference.getTableId(), partitionCriteria);
       switch (operation) {
         case UPDATE:
           return String.format(UPDATE_QUERY, destinationTable, fieldsForUpdate, sourceTable, criteria);

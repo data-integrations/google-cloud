@@ -55,6 +55,9 @@ Should only be used with the Insert operation.
 multiple input records with the same key. For example, if this is set to 'updated_time desc', then if there are
 multiple input records with the same key, the one with the largest value for 'updated_time' will be applied.
 
+**Partition Filter**: Partition filter that can be used for partition elimination during Update operation.
+Should only be used with Update operation for tables where require partition filter is enabled.
+
 **Location:** The location where the big query dataset will get created. This value is ignored
 if the dataset or temporary bucket already exist.
 
