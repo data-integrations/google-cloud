@@ -88,8 +88,9 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
 
     String partitionFromDate = configuration.get(BigQueryConstants.CONFIG_PARTITION_FROM_DATE, null);
     String partitionToDate = configuration.get(BigQueryConstants.CONFIG_PARTITION_TO_DATE, null);
+    String filter = configuration.get(BigQueryConstants.CONFIG_FILTER, null);
 
-    String query = generateQuery(partitionFromDate, partitionToDate, inputProjectId, datasetId, tableName,
+    String query = generateQuery(partitionFromDate, partitionToDate, filter, inputProjectId, datasetId, tableName,
                                  serviceFilePath);
 
     if (query != null) {
@@ -108,9 +109,9 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
     }
   }
 
-  private String generateQuery(String partitionFromDate, String partitionToDate, String project, String dataset,
-                               String table, @Nullable String serviceFilePath) {
-    if (partitionFromDate == null && partitionToDate == null) {
+  private String generateQuery(String partitionFromDate, String partitionToDate, String filter,
+                               String project, String dataset, String table, @Nullable String serviceFilePath) {
+    if (partitionFromDate == null && partitionToDate == null && filter == null) {
       return null;
     }
     String queryTemplate = "select * from %s where %s";
@@ -118,35 +119,23 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
                                                                                 serviceFilePath);
     StandardTableDefinition tableDefinition = Objects.requireNonNull(sourceTable).getDefinition();
     TimePartitioning timePartitioning = tableDefinition.getTimePartitioning();
-    if (timePartitioning == null) {
+    if (timePartitioning == null && filter == null) {
       return null;
     }
     StringBuilder condition = new StringBuilder();
-    String columnName = timePartitioning.getField() != null ? timePartitioning.getField() : DEFAULT_COLUMN_NAME;
 
-    LegacySQLTypeName columnType = null;
-    if (!DEFAULT_COLUMN_NAME.equals(columnName)) {
-      columnType = tableDefinition.getSchema().getFields().get(columnName).getType();
+    if (timePartitioning != null) {
+      String timePartitionCondition = generateTimePartitionCondition(tableDefinition, timePartitioning,
+                                                                     partitionFromDate, partitionToDate);
+      condition.append(timePartitionCondition);
     }
 
-    if (partitionFromDate != null) {
-      if (LegacySQLTypeName.DATE.equals(columnType)) {
-        condition.append("TIMESTAMP(").append(columnName).append(")");
+    if (filter != null) {
+      if (condition.length() == 0) {
+        condition.append(filter);
       } else {
-        condition.append(columnName);
+        condition.append(" and (").append(filter).append(")");
       }
-      condition.append(" >= ").append("TIMESTAMP(\"").append(partitionFromDate).append("\")");
-    }
-    if (partitionFromDate != null && partitionToDate != null) {
-      condition.append(" and ");
-    }
-    if (partitionToDate != null) {
-      if (LegacySQLTypeName.DATE.equals(columnType)) {
-        condition.append("TIMESTAMP(").append(columnName).append(")");
-      } else {
-        condition.append(columnName);
-      }
-      condition.append(" < ").append("TIMESTAMP(\"").append(partitionToDate).append("\")");
     }
 
     String tableName = dataset + "." + table;
@@ -201,5 +190,36 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
       bigQueryHelper.getRawBigquery().tables().update(tableRef.getProjectId(), tableRef.getDatasetId(),
                                                       tableRef.getTableId(), table).execute();
     }
+  }
+
+  private String generateTimePartitionCondition(StandardTableDefinition tableDefinition,
+                                                TimePartitioning timePartitioning, String partitionFromDate,
+                                                String partitionToDate) {
+    StringBuilder timePartitionCondition = new StringBuilder();
+    String columnName = timePartitioning.getField() != null ? timePartitioning.getField() : DEFAULT_COLUMN_NAME;
+
+    LegacySQLTypeName columnType = null;
+    if (!DEFAULT_COLUMN_NAME.equals(columnName)) {
+      columnType = tableDefinition.getSchema().getFields().get(columnName).getType();
+    }
+
+    if (partitionFromDate != null) {
+      if (LegacySQLTypeName.DATE.equals(columnType)) {
+        columnName = "TIMESTAMP(\"" + columnName + "\")";
+      }
+      timePartitionCondition.append(columnName).append(" >= ").append("TIMESTAMP(\"")
+        .append(partitionFromDate).append("\")");
+    }
+    if (partitionFromDate != null && partitionToDate != null) {
+      timePartitionCondition.append(" and ");
+    }
+    if (partitionToDate != null) {
+      if (LegacySQLTypeName.DATE.equals(columnType)) {
+        columnName = "TIMESTAMP(\"" + columnName + "\")";
+      }
+      timePartitionCondition.append(columnName).append(" < ").append("TIMESTAMP(\"")
+        .append(partitionToDate).append("\")");
+    }
+    return timePartitionCondition.toString();
   }
 }
