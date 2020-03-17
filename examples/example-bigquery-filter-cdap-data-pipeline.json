@@ -1,0 +1,101 @@
+{
+    "artifact": {
+        "name": "cdap-data-pipeline",
+        "version": "6.1.1",
+        "scope": "SYSTEM",
+        "label": "Data Pipeline - Batch"
+    },
+    "description": "",
+    "name": "example-bigquery-filter",
+    "config": {
+        "resources": {
+            "memoryMB": 2048,
+            "virtualCores": 1
+        },
+        "driverResources": {
+            "memoryMB": 2048,
+            "virtualCores": 1
+        },
+        "connections": [
+            {
+                "from": "BigQuery",
+                "to": "GCS"
+            }
+        ],
+        "comments": [],
+        "postActions": [],
+        "properties": {},
+        "processTimingEnabled": true,
+        "stageLoggingEnabled": false,
+        "stages": [
+            {
+                "name": "BigQuery",
+                "plugin": {
+                    "name": "BigQueryTable",
+                    "type": "batchsource",
+                    "label": "BigQuery",
+                    "artifact": {
+                        "name": "google-cloud",
+                        "version": "0.15.0-SNAPSHOT",
+                        "scope": "USER"
+                    },
+                    "properties": {
+                        "project": "auto-detect",
+                        "serviceFilePath": "auto-detect",
+                        "referenceName": "BigQueryExample",
+                        "dataset": "${dataset}",
+                        "table": "${table}",
+                        "filter": "${filter}",
+                        "schema": "${outputSchema}"
+                    }
+                },
+                "outputSchema": [
+                    {
+                        "name": "etlSchemaBody",
+                        "schema": "${outputSchema}"
+                    }
+                ]
+            },
+            {
+                "name": "GCS",
+                "plugin": {
+                    "name": "GCS",
+                    "type": "batchsink",
+                    "label": "GCS",
+                    "artifact": {
+                        "name": "google-cloud",
+                        "version": "0.13.2",
+                        "scope": "SYSTEM"
+                    },
+                    "properties": {
+                        "project": "auto-detect",
+                        "suffix": "yyyy-MM-dd-HH-mm",
+                        "format": "csv",
+                        "serviceFilePath": "auto-detect",
+                        "location": "us",
+                        "schema": "${inputSchema}",
+                        "referenceName": "GCSExample",
+                        "path": "${path}",
+                        "delimiter": "${delimiter}"
+                    }
+                },
+                "outputSchema": [
+                    {
+                        "name": "etlSchemaBody",
+                        "schema": "${inputSchema}"
+                    }
+                ],
+                "inputSchema": [
+                    {
+                        "name": "BigQuery",
+                        "schema": ""
+                    }
+                ]
+            }
+        ],
+        "schedule": "0 * * * *",
+        "engine": "spark",
+        "numOfRecordsPreview": 100,
+        "maxConcurrentRuns": 1
+    }
+}
