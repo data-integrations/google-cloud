@@ -92,10 +92,13 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryOutputFormat.class);
 
   private static final String SOURCE_DATA_QUERY = "(SELECT * FROM (SELECT row_number() OVER (PARTITION BY %s%s) " +
-    "as rowid, * FROM %s %s) where rowid = 1)";
+    "as rowid, * FROM %s) where rowid = 1)";
   private static final String UPDATE_QUERY = "UPDATE %s T SET %s FROM %s S WHERE %s";
   private static final String UPSERT_QUERY = "MERGE %s T USING %s S ON %s WHEN MATCHED THEN UPDATE SET %s " +
     "WHEN NOT MATCHED THEN INSERT (%s) VALUES(%s)";
+  private static final List<String> COMPARISON_OPERATORS = Arrays.asList("=", "<", ">", "<=", ">=", "!=", "<>",
+          "LIKE", "NOT LIKE", "BETWEEN", "NOT BETWEEN", "IN", "NOT IN", "IS NULL", "IS NOT NULL",
+          "IS TRUE", "IS NOT TRUE", "IS FALSE", "IS NOT FALSE");
 
   @Override
   public OutputCommitter createCommitter(TaskAttemptContext context) throws IOException {
@@ -459,14 +462,14 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       String destinationTable = tableRef.getDatasetId() + "." + tableRef.getTableId();
       String criteria = tableKeyList.stream().map(s -> String.format(criteriaTemplate, s, s))
         .collect(Collectors.joining(" AND "));
-      criteria = partitionFilter != null ? String.format("(%s) AND %s", partitionFilter, criteria) : criteria;
+      criteria = partitionFilter != null ? String.format("(%s) AND %s",
+              formatPartitionFilter(partitionFilter), criteria) : criteria;
       String fieldsForUpdate = tableFieldsList.stream().filter(s -> !tableKeyList.contains(s))
         .map(s -> String.format(criteriaTemplate, s, s)).collect(Collectors.joining(", "));
       String orderedBy = orderedByList.isEmpty() ? "" : " ORDER BY " + String.join(", ", orderedByList);
-      String partitionCriteria = partitionFilter != null ? String.format(" WHERE %s", partitionFilter) : "";
       String sourceTable = String.format(SOURCE_DATA_QUERY, String.join(", ", tableKeyList), orderedBy,
                                          temporaryTableReference.getDatasetId() + "." +
-                                           temporaryTableReference.getTableId(), partitionCriteria);
+                                           temporaryTableReference.getTableId());
       switch (operation) {
         case UPDATE:
           return String.format(UPDATE_QUERY, destinationTable, fieldsForUpdate, sourceTable, criteria);
@@ -502,6 +505,19 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
                   temporaryTableReference.getTableId())
           .execute();
       }
+    }
+
+    private static String formatPartitionFilter(String partitionFilter) {
+      String[] queryWords = partitionFilter.split(" ");
+      int index = 0;
+      for (String word: queryWords) {
+        if (COMPARISON_OPERATORS.contains(word.toUpperCase())) {
+          queryWords[index - 1] = queryWords[index - 1].replace(queryWords[index - 1],
+                  "T." + queryWords[index - 1]);
+        }
+        index++;
+      }
+      return String.join(" ", queryWords);
     }
   }
 }
