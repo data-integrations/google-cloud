@@ -5,7 +5,7 @@
         "scope": "SYSTEM"
     },
     "description": "Data Pipeline Application",
-    "name": "example-big-query-update",
+    "name": "example-bigquery-to-bigquery-update-partition-filter-enabled",
     "config": {
         "resources": {
             "memoryMB": 2048,
@@ -17,89 +17,49 @@
         },
         "connections": [
             {
-                "from": "GCSFile",
-                "to": "Wrangler"
-            },
-            {
-                "from": "Wrangler",
-                "to": "BigQuery"
+                "from": "BigQuery",
+                "to": "BigQuery2"
             }
         ],
         "comments": [],
         "postActions": [],
         "properties": {},
         "processTimingEnabled": true,
-        "stageLoggingEnabled": true,
+        "stageLoggingEnabled": false,
         "stages": [
-            {
-                "name": "GCSFile",
-                "plugin": {
-                    "name": "GCSFile",
-                    "type": "batchsource",
-                    "label": "GCSFile",
-                    "artifact": {
-                        "name": "google-cloud",
-                        "version": "0.13.2",
-                        "scope": "SYSTEM"
-                    },
-                    "properties": {
-                        "format": "text",
-                        "serviceFilePath": "auto-detect",
-                        "filenameOnly": "false",
-                        "recursive": "false",
-                        "copyHeader": "true",
-                        "schema": "{\"type\":\"record\",\"name\":\"etlSchemaBody\",\"fields\":[{\"name\":\"body\",\"type\":\"string\"}]}",
-                        "path": "${path}",
-                        "referenceName": "GCSFile",
-                        "project": "${projectId}"
-                    }
-                },
-                "outputSchema": [
-                    {
-                        "name": "etlSchemaBody",
-                        "schema": "{\"type\":\"record\",\"name\":\"etlSchemaBody\",\"fields\":[{\"name\":\"body\",\"type\":\"string\"}]}"
-                    }
-                ]
-            },
-            {
-                "name": "Wrangler",
-                "plugin": {
-                    "name": "Wrangler",
-                    "type": "transform",
-                    "label": "Wrangler",
-                    "artifact": {
-                        "name": "wrangler-transform",
-                        "version": "4.1.4",
-                        "scope": "SYSTEM"
-                    },
-                    "properties": {
-                        "field": "*",
-                        "precondition": "false",
-                        "threshold": "1",
-                        "workspaceId": "62440dda-3e3b-4a18-905d-681ef83efad6",
-                        "directives": "${recipe}",
-                        "schema": "${outputSchema}"
-                    }
-                },
-                "outputSchema": [
-                    {
-                        "name": "etlSchemaBody",
-                        "schema": "${outputSchema}"
-                    }
-                ],
-                "inputSchema": [
-                    {
-                        "name": "GCSFile",
-                        "schema": "{\"type\":\"record\",\"name\":\"etlSchemaBody\",\"fields\":[{\"name\":\"body\",\"type\":\"string\"}]}"
-                    }
-                ]
-            },
             {
                 "name": "BigQuery",
                 "plugin": {
                     "name": "BigQueryTable",
-                    "type": "batchsink",
+                    "type": "batchsource",
                     "label": "BigQuery",
+                    "artifact": {
+                        "name": "google-cloud",
+                        "version": "0.15.0-SNAPSHOT",
+                        "scope": "USER"
+                    },
+                    "properties": {
+                        "project": "auto-detect",
+                        "serviceFilePath": "auto-detect",
+                        "dataset": "${sourceDataset}",
+                        "table": "${sourceTable}",
+                        "referenceName": "BigQuerySource",
+                        "schema": "${outputSchema}"
+                    }
+                },
+                "outputSchema": [
+                    {
+                        "name": "etlSchemaBody",
+                        "schema": "${outputSchema}"
+                    }
+                ]
+            },
+            {
+                "name": "BigQuery2",
+                "plugin": {
+                    "name": "BigQueryTable",
+                    "type": "batchsink",
+                    "label": "BigQuery2",
                     "artifact": {
                         "name": "google-cloud",
                         "version": "0.15.0-SNAPSHOT",
@@ -115,11 +75,11 @@
                         "createPartitionedTable": "false",
                         "partitionFilterRequired": "false",
                         "schema": "${inputSchema}",
-                        "referenceName": "BigQuerySink",
-                        "dataset": "${dataset}",
-                        "table": "${table}",
+                        "referenceName": "BigQuerySinkExample",
+                        "table": "${sinkTable}",
+                        "relationTableKey": "${tableKey}",
                         "partitionFilter": "${partitionFilter}",
-                        "relationTableKey": "${tableKey}"
+                        "dataset": "${sinkDataset}"
                     }
                 },
                 "outputSchema": [
@@ -130,7 +90,7 @@
                 ],
                 "inputSchema": [
                     {
-                        "name": "Wrangler",
+                        "name": "BigQuery",
                         "schema": ""
                     }
                 ]
