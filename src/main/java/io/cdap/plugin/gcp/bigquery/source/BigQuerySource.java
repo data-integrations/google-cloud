@@ -223,6 +223,9 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
       // throw if there was validation failure(s) added to the collector
       collector.getOrThrowException();
     }
+    if (schemafields.isEmpty()) {
+      return null;
+    }
     return Schema.recordOf("output", schemafields);
   }
 
@@ -237,6 +240,12 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     com.google.cloud.bigquery.Schema bqSchema = getBQSchema(collector);
 
     FieldList fields = bqSchema.getFields();
+
+    if (configuredSchema == null) {
+      collector.addFailure("No schema was specified in input BigQuery table.",
+                           "Please edit the table to add a schema.");
+      collector.getOrThrowException();
+    }
     // Match output schema field type with bigquery column type
     for (Schema.Field field : configuredSchema.getFields()) {
       try {
