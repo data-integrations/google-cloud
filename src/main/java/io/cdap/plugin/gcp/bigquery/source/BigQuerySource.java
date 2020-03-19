@@ -117,6 +117,13 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
   public void prepareRun(BatchSourceContext context) throws Exception {
     FailureCollector collector = context.getFailureCollector();
     config.validate(collector);
+
+    if (getBQSchema(collector).getFields().isEmpty()) {
+      collector.addFailure("No schema was specified in input BigQuery table.",
+                           "Please edit the table to add a schema.");
+      collector.getOrThrowException();
+    }
+
     Schema configuredSchema = getOutputSchema(collector);
 
     String serviceAccountPath = config.getServiceAccountFilePath();
@@ -241,11 +248,6 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
 
     FieldList fields = bqSchema.getFields();
 
-    if (fields.isEmpty()) {
-      collector.addFailure("No schema was specified in input BigQuery table.",
-                           "Please edit the table to add a schema.");
-      collector.getOrThrowException();
-    }
     // Match output schema field type with bigquery column type
     for (Schema.Field field : configuredSchema.getFields()) {
       try {
