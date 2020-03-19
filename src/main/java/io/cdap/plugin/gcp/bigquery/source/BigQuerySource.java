@@ -119,7 +119,8 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     config.validate(collector);
 
     if (getBQSchema(collector).getFields().isEmpty()) {
-      collector.addFailure("No schema was specified in input BigQuery table.",
+      collector.addFailure(String.format("BigQuery table %s.%s does not have a schema.",
+                                         config.getDataset(), config.getTable()),
                            "Please edit the table to add a schema.");
       collector.getOrThrowException();
     }
