@@ -175,17 +175,15 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
 
   @Nullable
   public String getPartitionFilter() {
-    if (partitionFilter != null) {
-      partitionFilter = partitionFilter.trim();
-      if (partitionFilter.isEmpty()) {
-        return null;
-      }
-      // remove the WHERE from the filter
-      if (partitionFilter.toUpperCase().startsWith(WHERE)) {
-        partitionFilter = partitionFilter.replace(WHERE, "");
-      }
+    if (Strings.isNullOrEmpty(partitionFilter)) {
+      return null;
     }
-    return partitionFilter;
+    partitionFilter = partitionFilter.trim();
+    // remove the WHERE keyword from the filter if the user adds it at the begging of the expression
+    if (partitionFilter.toUpperCase().startsWith(WHERE)) {
+      partitionFilter = partitionFilter.substring(WHERE.length());
+    }
+    return  partitionFilter;
   }
 
   /**
