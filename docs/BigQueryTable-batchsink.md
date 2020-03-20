@@ -57,6 +57,9 @@ multiple input records with the same key, the one with the largest value for 'up
 
 **Partition Filter**: Partition filter that can be used for partition elimination during Update operation.
 Should only be used with Update operation for tables where require partition filter is enabled.
+For example, if the table is partitioned the Partition Filter 
+'_PARTITIONTIME > "2020-01-01" and _PARTITIONTIME < "2020-03-01"', 
+the update operation will be performed only in the partitions meeting the criteria.
 
 **Location:** The location where the big query dataset will get created. This value is ignored
 if the dataset or temporary bucket already exist.
