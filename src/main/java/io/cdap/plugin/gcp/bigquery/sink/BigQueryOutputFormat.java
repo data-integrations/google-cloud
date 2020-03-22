@@ -170,10 +170,8 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       String tableFields = conf.get(BigQueryConstants.CONFIG_TABLE_FIELDS, null);
       tableFieldsList = Arrays.stream(tableFields != null ? tableFields.split(",") : new String[0])
         .map(String::trim).collect(Collectors.toList());
-      if (operation.equals(Operation.UPDATE)) {
-        partitionFilter = conf.get(BigQueryConstants.CONFIG_PARTITION_FILTER, null);
-        LOG.debug("Partition filter: '{}'", partitionFilter);
-      }
+      partitionFilter = conf.get(BigQueryConstants.CONFIG_PARTITION_FILTER, null);
+      LOG.debug("Partition filter: '{}'", partitionFilter);
       boolean tableExists = conf.getBoolean(BigQueryConstants.CONFIG_DESTINATION_TABLE_EXISTS, false);
 
       try {
