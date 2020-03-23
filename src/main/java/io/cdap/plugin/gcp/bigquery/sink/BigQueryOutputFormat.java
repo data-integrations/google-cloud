@@ -96,6 +96,9 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
   private static final String UPDATE_QUERY = "UPDATE %s T SET %s FROM %s S WHERE %s";
   private static final String UPSERT_QUERY = "MERGE %s T USING %s S ON %s WHEN MATCHED THEN UPDATE SET %s " +
     "WHEN NOT MATCHED THEN INSERT (%s) VALUES(%s)";
+  private static final List<String> COMPARISON_OPERATORS = Arrays.asList("=", "<", ">", "<=", ">=", "!=", "<>",
+          "LIKE", "NOT LIKE", "BETWEEN", "NOT BETWEEN", "IN", "NOT IN", "IS NULL", "IS NOT NULL",
+          "IS TRUE", "IS NOT TRUE", "IS FALSE", "IS NOT FALSE");
 
   @Override
   public OutputCommitter createCommitter(TaskAttemptContext context) throws IOException {
@@ -115,6 +118,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
     private List<String> tableKeyList;
     private List<String> orderedByList;
     private List<String> tableFieldsList;
+    private String partitionFilter;
 
     private boolean allowSchemaRelaxation;
 
@@ -166,6 +170,8 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       String tableFields = conf.get(BigQueryConstants.CONFIG_TABLE_FIELDS, null);
       tableFieldsList = Arrays.stream(tableFields != null ? tableFields.split(",") : new String[0])
         .map(String::trim).collect(Collectors.toList());
+      partitionFilter = conf.get(BigQueryConstants.CONFIG_PARTITION_FILTER, null);
+      LOG.debug("Partition filter: '{}'", partitionFilter);
       boolean tableExists = conf.getBoolean(BigQueryConstants.CONFIG_DESTINATION_TABLE_EXISTS, false);
 
       try {
@@ -454,6 +460,8 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       String destinationTable = tableRef.getDatasetId() + "." + tableRef.getTableId();
       String criteria = tableKeyList.stream().map(s -> String.format(criteriaTemplate, s, s))
         .collect(Collectors.joining(" AND "));
+      criteria = partitionFilter != null ? String.format("(%s) AND %s",
+              formatPartitionFilter(partitionFilter), criteria) : criteria;
       String fieldsForUpdate = tableFieldsList.stream().filter(s -> !tableKeyList.contains(s))
         .map(s -> String.format(criteriaTemplate, s, s)).collect(Collectors.joining(", "));
       String orderedBy = orderedByList.isEmpty() ? "" : " ORDER BY " + String.join(", ", orderedByList);
@@ -495,6 +503,19 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
                   temporaryTableReference.getTableId())
           .execute();
       }
+    }
+
+    private static String formatPartitionFilter(String partitionFilter) {
+      String[] queryWords = partitionFilter.split(" ");
+      int index = 0;
+      for (String word: queryWords) {
+        if (COMPARISON_OPERATORS.contains(word.toUpperCase())) {
+          queryWords[index - 1] = queryWords[index - 1].replace(queryWords[index - 1],
+                  "T." + queryWords[index - 1]);
+        }
+        index++;
+      }
+      return String.join(" ", queryWords);
     }
   }
 }

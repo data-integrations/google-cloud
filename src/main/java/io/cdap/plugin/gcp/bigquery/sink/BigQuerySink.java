@@ -158,6 +158,9 @@ public final class BigQuerySink extends AbstractBigQuerySink {
     if (config.getDedupeBy() != null) {
       baseConfiguration.set(BigQueryConstants.CONFIG_DEDUPE_BY, getConfig().getDedupeBy());
     }
+    if (config.getPartitionFilter() != null) {
+      baseConfiguration.set(BigQueryConstants.CONFIG_PARTITION_FILTER, getConfig().getPartitionFilter());
+    }
   }
 
   /**
