@@ -83,6 +83,14 @@
         },
         {
           "widget-type": "textbox",
+          "label": "Filter",
+          "name": "filter",
+          "widget-attributes" : {
+            "placeholder": ""
+          }
+        },
+        {
+          "widget-type": "textbox",
           "label": "Temporary Bucket Name",
           "name": "bucket",
           "widget-attributes" : {
