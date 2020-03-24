@@ -154,6 +154,9 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     if (config.getPartitionTo() != null) {
       configuration.set(BigQueryConstants.CONFIG_PARTITION_TO_DATE, config.getPartitionTo());
     }
+    if (config.getFilter() != null) {
+      configuration.set(BigQueryConstants.CONFIG_FILTER, config.getFilter());
+    }
 
     String temporaryGcsPath = String.format("gs://%s/hadoop/input/%s", bucket, uuid);
     PartitionedBigQueryInputFormat.setTemporaryCloudStorageDirectory(configuration, temporaryGcsPath);
