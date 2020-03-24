@@ -117,10 +117,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
   public void prepareRun(BatchSourceContext context) throws Exception {
     FailureCollector collector = context.getFailureCollector();
     config.validate(collector);
-    Schema configuredSchema = config.getSchema(collector);
-    configuredSchema = configuredSchema == null ? getSchema(collector) : configuredSchema;
-    validatePartitionProperties(collector);
-    validateConfiguredSchema(configuredSchema, collector);
+    Schema configuredSchema = getOutputSchema(collector);
 
     String serviceAccountPath = config.getServiceAccountFilePath();
     Credentials credentials = serviceAccountPath == null ?
@@ -176,7 +173,8 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
   @Override
   public void initialize(BatchRuntimeContext context) throws Exception {
     super.initialize(context);
-    outputSchema = context.getOutputSchema();
+    FailureCollector collector = context.getFailureCollector();
+    outputSchema = getOutputSchema(collector);
   }
 
   /**
@@ -284,6 +282,15 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
       throw collector.getOrThrowException();
     }
     return bqSchema;
+  }
+
+  @Nullable
+  private Schema getOutputSchema(FailureCollector collector) {
+    Schema outputSchema = config.getSchema(collector);
+    outputSchema = outputSchema == null ? getSchema(collector) : outputSchema;
+    validatePartitionProperties(collector);
+    validateConfiguredSchema(outputSchema, collector);
+    return outputSchema;
   }
 
   @Nullable
