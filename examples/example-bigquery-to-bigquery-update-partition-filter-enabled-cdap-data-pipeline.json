@@ -1,0 +1,105 @@
+{
+    "artifact": {
+        "name": "cdap-data-pipeline",
+        "version": "6.1.1",
+        "scope": "SYSTEM"
+    },
+    "description": "Data Pipeline Application",
+    "name": "example-bigquery-to-bigquery-update-partition-filter-enabled",
+    "config": {
+        "resources": {
+            "memoryMB": 2048,
+            "virtualCores": 1
+        },
+        "driverResources": {
+            "memoryMB": 2048,
+            "virtualCores": 1
+        },
+        "connections": [
+            {
+                "from": "BigQuery",
+                "to": "BigQuery2"
+            }
+        ],
+        "comments": [],
+        "postActions": [],
+        "properties": {},
+        "processTimingEnabled": true,
+        "stageLoggingEnabled": false,
+        "stages": [
+            {
+                "name": "BigQuery",
+                "plugin": {
+                    "name": "BigQueryTable",
+                    "type": "batchsource",
+                    "label": "BigQuery",
+                    "artifact": {
+                        "name": "google-cloud",
+                        "version": "0.15.0-SNAPSHOT",
+                        "scope": "USER"
+                    },
+                    "properties": {
+                        "project": "auto-detect",
+                        "serviceFilePath": "auto-detect",
+                        "dataset": "${sourceDataset}",
+                        "table": "${sourceTable}",
+                        "referenceName": "BigQuerySource",
+                        "schema": "${outputSchema}"
+                    }
+                },
+                "outputSchema": [
+                    {
+                        "name": "etlSchemaBody",
+                        "schema": "${outputSchema}"
+                    }
+                ]
+            },
+            {
+                "name": "BigQuery2",
+                "plugin": {
+                    "name": "BigQueryTable",
+                    "type": "batchsink",
+                    "label": "BigQuery2",
+                    "artifact": {
+                        "name": "google-cloud",
+                        "version": "0.15.0-SNAPSHOT",
+                        "scope": "USER"
+                    },
+                    "properties": {
+                        "project": "auto-detect",
+                        "serviceFilePath": "auto-detect",
+                        "operation": "update",
+                        "truncateTable": "false",
+                        "allowSchemaRelaxation": "false",
+                        "location": "US",
+                        "createPartitionedTable": "false",
+                        "partitionFilterRequired": "false",
+                        "schema": "${inputSchema}",
+                        "referenceName": "BigQuerySinkExample",
+                        "table": "${sinkTable}",
+                        "relationTableKey": "${tableKey}",
+                        "partitionFilter": "${partitionFilter}",
+                        "dataset": "${sinkDataset}"
+                    }
+                },
+                "outputSchema": [
+                    {
+                        "name": "etlSchemaBody",
+                        "schema": "${inputSchema}"
+                    }
+                ],
+                "inputSchema": [
+                    {
+                        "name": "BigQuery",
+                        "schema": ""
+                    }
+                ]
+            }
+        ],
+        "schedule": "0 * * * *",
+        "engine": "spark",
+        "numOfRecordsPreview": 100,
+        "description": "Data Pipeline Application",
+        "maxConcurrentRuns": 1
+    }
+}
