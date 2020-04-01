@@ -67,6 +67,22 @@
         },
         {
           "widget-type": "toggle",
+          "name": "cleanseQuotes",
+          "label": "Cleanse Quotes",
+          "widget-attributes": {
+            "default": "false",
+            "on": {
+              "value": "true",
+              "label": "True"
+            },
+            "off": {
+              "value": "false",
+              "label": "False"
+            }
+          }
+        },
+        {
+          "widget-type": "toggle",
           "name": "skipHeader",
           "label": "Skip Header",
           "widget-attributes": {
@@ -80,7 +96,8 @@
               "label": "False"
             }
           }
-        }
+        },
+
       ]
     },
     {

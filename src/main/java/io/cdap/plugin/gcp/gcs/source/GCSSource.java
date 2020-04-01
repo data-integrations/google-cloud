@@ -165,6 +165,12 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
                    "'delimited'. Default value is false.")
     private Boolean skipHeader;
 
+    @Macro
+    @Nullable
+    @Description("Whether to cleanse all the quotes in the record. This value will only be used if the format " +
+                   "is 'csv', 'tsv' or 'delimited'. Default value is false.")
+    protected Boolean cleanseQuotes;
+
     // this is a hidden property that only exists for wrangler's parse-as-csv that uses the header as the schema
     // when this is true and the format is text, the header will be the first record returned by every record reader
     @Nullable
