@@ -61,18 +61,21 @@ Data Type Mappings from BigQuery to CDAP
 The following table lists out different BigQuery data types, as well as the 
 corresponding CDAP data type for each BigQuery type.
 
-| BigQuery type | CDAP type |
-|---------------|-----------|
-| int64         | long      |
-| numeric       | numeric   |
-| float64       | double    |
-| boolean       | boolean   |
-| string        | string    |
-| bytes         | bytes     |
-| date          | date      |
-| datetime      | string    |
-| time          | time      |
-| timestamp     | timestamp |
-| array         | array     |
-| struct        | record    |
-| geo           | N/A       |
+| BigQuery type | CDAP type   |
+|---------------|-------------|
+| int64         | long        |
+| numeric       | decimal     |
+| float64       | double      |
+| bool          | boolean     |
+| string        | string      |
+| bytes         | bytes       |
+| date          | date        |
+| datetime      | string      |
+| time          | time        |
+| timestamp     | timestamp   |
+| array         | array       |
+| struct        | record      |
+| geo           | unsupported |
+
+For time and timestamp, values are stored upto microsecond precision in both
+CDAP and BigQuery.
