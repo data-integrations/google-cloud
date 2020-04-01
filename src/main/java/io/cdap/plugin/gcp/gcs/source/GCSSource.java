@@ -159,6 +159,12 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
       + "is anything other than 'delimited'.")
     private String delimiter;
 
+    @Macro
+    @Nullable
+    @Description("Whether to skip the first line of each file. Supported formats are 'text', 'csv', 'tsv', " +
+                   "'delimited'. Default value is false.")
+    private Boolean skipHeader;
+
     // this is a hidden property that only exists for wrangler's parse-as-csv that uses the header as the schema
     // when this is true and the format is text, the header will be the first record returned by every record reader
     @Nullable
@@ -288,6 +294,11 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
 
     public boolean isCopyHeader() {
       return copyHeader != null && copyHeader;
+    }
+
+    @Override
+    public boolean skipHeader() {
+      return skipHeader == null ? false : skipHeader;
     }
 
     public boolean isEncrypted() {
