@@ -48,19 +48,19 @@ corresponding BigQuery data type for each CDAP type, for updates and upserts.
 
 | CDAP type | BigQuery type |
 |-----------|---------------|
-| long      | int64         |
-| decimal   | numeric       |
-| double    | float64       |
+| array     | unsupported   |
 | boolean   | bool          |
-| string    | string        |
 | bytes     | bytes         |
 | date      | date          |
-| time      | time          |
-| timestamp | timestamp     |
-| array     | array         |
-| record    | struct        |
+| decimal   | numeric       |
+| double    | float64       |
 | float     | float64       |
 | int       | int64         |
+| long      | int64         |
+| record    | struct        |
+| string    | string        |
+| time      | time          |
+| timestamp | timestamp     |
 | union     | unsupported   |
 
 For inserts, the type conversions are the same as those used in loading Avro
