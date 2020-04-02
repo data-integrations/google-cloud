@@ -55,3 +55,24 @@ Only columns defined in schema will be included into output record.
 **onError**: Strategy used to handle errors during transformation of a text entry to record. Possible values are:
 - **Skip error** - Ignores erroneous records.
 - **Fail Pipeline** - Fails pipeline due to erroneous record.
+
+Data Type Mappings from BigQuery to CDAP
+----------
+The following table lists out different BigQuery data types, as well as the 
+corresponding CDAP data type for each BigQuery type.
+
+| BigQuery type | CDAP type   | Precision / Range           |
+|---------------|-------------|-----------------------------|
+| array         | unsupported |                             |
+| bool          | boolean     |                             |
+| bytes         | bytes       |                             |
+| date          | date        | YYYY-MM-DD                  |
+| datetime      | string      |                             |
+| float64       | double      | 8 bytes, double precision   |
+| geo           | unsupported |                             |
+| int64         | long        | 8 bytes                     |
+| numeric       | decimal     | 38 digits, 9 decimal places |
+| string        | string      |                             |
+| struct        | record      |                             |
+| time          | time        | microseconds                |
+| timestamp     | timestamp   | microseconds                |
