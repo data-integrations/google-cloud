@@ -119,6 +119,7 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
       + "Smaller partitions will increase the level of parallelism, but will require more resources and overhead.")
     private Long maxSplitSize;
 
+    @Macro
     @Nullable
     @Description("Output field to place the path of the file that the record was read from. "
       + "If not specified, the file path will not be included in output records. "
@@ -134,6 +135,7 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
     @Description("Output schema. If a Path Field is set, it must be present in the schema as a string.")
     private String schema;
 
+    @Macro
     @Nullable
     @Description("Whether to only use the filename instead of the URI of the file path when a path field is given. "
       + "The default value is false.")
