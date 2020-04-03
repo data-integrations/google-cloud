@@ -341,7 +341,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
       Schema.Type type = nonNullSchema.getType();
       Schema.LogicalType logicalType = nonNullSchema.getLogicalType();
 
-      if ((!SUPPORTED_CLUSTERING_TYPES.contains(type)) || !isSupportedLogicalType(logicalType)) {
+      if ((!SUPPORTED_CLUSTERING_TYPES.contains(type)) && !isSupportedLogicalType(logicalType)) {
         collector.addFailure(
           String.format("Field '%s' is of unsupported type '%s'.", column, nonNullSchema.getDisplayName()),
           "Supported types are : string, bytes, int, long, boolean, date, timestamp and decimal.")
