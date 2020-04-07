@@ -40,27 +40,3 @@ Full list of allowed properties: https://cloud.google.com/bigtable/docs/hbase-cl
 **Service Account File Path**: Path on the local file system of the service account key used for
 authorization. Can be set to 'auto-detect' when running on a Dataproc cluster.
 When running on other clusters, the file must be present on every node in the cluster.
-
-Data Type Mappings from CDAP to BigQuery
-----------
-The following table lists out different CDAP data types, as well as the 
-corresponding BigQuery data type for each CDAP type, for updates and upserts.
-
-| CDAP type      | BigQuery type |
-|----------------|---------------|
-| array          | unsupported   |
-| boolean        | bool          |
-| bytes          | bytes         |
-| date           | date          |
-| decimal        | numeric       |
-| double / float | float64       |
-| int / long     | int64         |
-| record         | struct        |
-| string         | string        |
-| time           | time          |
-| timestamp      | timestamp     |
-| union          | unsupported   |
-
-For inserts, the type conversions are the same as those used in loading Avro
-data to BigQuery; the table is available
-[here](https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro#avro_conversions).
