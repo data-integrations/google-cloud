@@ -108,6 +108,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     @Macro
     private String suffix;
 
+    @Macro
     @Description("The format to write in. The format must be one of 'json', 'avro', 'parquet', 'csv', 'tsv', "
       + "or 'delimited'.")
     protected String format;
@@ -155,10 +156,14 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
             .withConfigProperty(NAME_SUFFIX).withStacktrace(e.getStackTrace());
         }
       }
-      try {
-        getFormat();
-      } catch (IllegalArgumentException e) {
-        collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_FORMAT).withStacktrace(e.getStackTrace());
+
+      if (!containsMacro(NAME_FORMAT)) {
+        try {
+          getFormat();
+        } catch (IllegalArgumentException e) {
+          collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_FORMAT)
+            .withStacktrace(e.getStackTrace());
+        }
       }
 
       try {
