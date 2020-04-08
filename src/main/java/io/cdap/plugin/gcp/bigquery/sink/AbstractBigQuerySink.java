@@ -250,7 +250,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
                                 FailureCollector collector) {
     String tableName = table.getTableId().getTable();
     com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
-    if (bqSchema == null) {
+    if (bqSchema == null || bqSchema.getFields().isEmpty()) {
       // Table is created without schema, so no further validation is required.
       return;
     }
