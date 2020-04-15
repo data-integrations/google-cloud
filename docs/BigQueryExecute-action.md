@@ -29,8 +29,8 @@ This is the project that the BigQuery SQL will run in.
 the query will use BigQuery's standard SQL: https://cloud.google.com/bigquery/sql-reference/.
 If set to 'legacy', BigQuery's legacy SQL dialect will be used for this query.
 
-**Mode**: Mode to execute the query in. The value must be 'batch' or 'interactive'. A batch query is executed as
-soon as possible and counts towards the concurrent rate limit and the daily rate limit. An interactive query is
+**Mode**: Mode to execute the query in. The value must be 'batch' or 'interactive'. An interactive query is executed 
+as soon as possible and counts towards the concurrent rate limit and the daily rate limit. A batch query is
 queued and started as soon as idle resources are available, usually within a few minutes. If the query hasn't
 started within 3 hours, its priority is changed to 'interactive'.
 
