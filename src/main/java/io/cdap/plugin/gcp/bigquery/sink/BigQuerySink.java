@@ -29,10 +29,8 @@ import io.cdap.cdap.etl.api.Emitter;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.StageConfigurer;
-import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
-import io.cdap.plugin.format.avro.StructuredToAvroTransformer;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import org.apache.avro.generic.GenericRecord;
@@ -62,7 +60,6 @@ public final class BigQuerySink extends AbstractBigQuerySink {
   public static final String NAME = "BigQueryTable";
 
   private final BigQuerySinkConfig config;
-  private Schema schema;
 
   public BigQuerySink(BigQuerySinkConfig config) {
     this.config = config;
@@ -125,16 +122,9 @@ public final class BigQuerySink extends AbstractBigQuerySink {
   }
 
   @Override
-  public void initialize(BatchRuntimeContext context) throws Exception {
-    super.initialize(context);
-    this.schema = context.getOutputSchema();
-  }
-
-  @Override
   public void transform(StructuredRecord input,
                         Emitter<KeyValue<AvroKey<GenericRecord>, NullWritable>> emitter) throws IOException {
-    StructuredToAvroTransformer transformer = new StructuredToAvroTransformer(input.getSchema());
-    emitter.emit(new KeyValue<>(new AvroKey<>(transformer.transform(input)), NullWritable.get()));
+    emitter.emit(new KeyValue<>(new AvroKey<>(toAvroRecord(input)), NullWritable.get()));
   }
 
   /**
