@@ -381,8 +381,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
       return;
     }
     if (sourceTable.getDefinition() instanceof StandardTableDefinition) {
-      TimePartitioning timePartitioning = ((StandardTableDefinition) sourceTable.getDefinition())
-          .getTimePartitioning();
+      TimePartitioning timePartitioning = ((StandardTableDefinition) sourceTable.getDefinition()).getTimePartitioning();
       if (timePartitioning == null) {
         return;
       }
