@@ -451,14 +451,15 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
 
     private String generateQuery(TableReference tableRef) {
       String criteriaTemplate = "T.%s = S.%s";
-      String destinationTable = tableRef.getDatasetId() + "." + tableRef.getTableId();
+      String destinationTable = tableRef.getProjectId() + "." + tableRef.getDatasetId() + "." + tableRef.getTableId();
       String criteria = tableKeyList.stream().map(s -> String.format(criteriaTemplate, s, s))
         .collect(Collectors.joining(" AND "));
       String fieldsForUpdate = tableFieldsList.stream().filter(s -> !tableKeyList.contains(s))
         .map(s -> String.format(criteriaTemplate, s, s)).collect(Collectors.joining(", "));
       String orderedBy = orderedByList.isEmpty() ? "" : " ORDER BY " + String.join(", ", orderedByList);
       String sourceTable = String.format(SOURCE_DATA_QUERY, String.join(", ", tableKeyList), orderedBy,
-                                         temporaryTableReference.getDatasetId() + "." +
+                                         temporaryTableReference.getProjectId() + "." +
+                                           temporaryTableReference.getDatasetId() + "." +
                                            temporaryTableReference.getTableId());
       switch (operation) {
         case UPDATE:
