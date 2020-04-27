@@ -1,3 +1,19 @@
+/*
+ * Copyright © 2020 Cask Data, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+
 package io.cdap.plugin.gcp.bigquery.source;
 
 import com.google.api.services.bigquery.model.Job;
@@ -64,8 +80,7 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
 
   @Override
   public RecordReader<LongWritable, GenericData.Record> createDelegateRecordReader(InputSplit split,
-                                                                                   Configuration configuration)
-    throws IOException, InterruptedException {
+                                                                                   Configuration configuration) {
     Preconditions.checkState(
       split instanceof FileSplit, "AvroBigQueryInputFormat requires FileSplit input splits");
     return new AvroRecordReader();
@@ -171,14 +186,11 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
     job.setJobReference(jobReference);
 
     // Run the job.
-    Job response = bigQueryHelper.insertJobOrFetchDuplicate(projectId, job);
+    bigQueryHelper.insertJobOrFetchDuplicate(projectId, job);
 
     // Create anonymous Progressable object
-    Progressable progressable = new Progressable() {
-      @Override
-      public void progress() {
-        // TODO(user): ensure task doesn't time out
-      }
+    Progressable progressable = () -> {
+      // TODO(user): ensure task doesn't time out
     };
 
     // Poll until job is complete.
