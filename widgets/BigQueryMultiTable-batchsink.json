@@ -75,6 +75,14 @@
         },
         {
           "widget-type": "textbox",
+          "label": "GCS Upload Request Chunk Size",
+          "name": "gcsChunkSize",
+          "widget-attributes" : {
+            "placeholder": "GCS upload request chunk size in bytes"
+          }
+        },
+        {
+          "widget-type": "textbox",
           "label": "Split Field",
           "name": "splitField",
           "widget-attributes": {
