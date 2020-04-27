@@ -409,7 +409,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
         updateTableSchema(tableRef);
       }
       String query = generateQuery(tableRef);
-      LOG.debug("Update/Upsert query: " + query);
+      LOG.info("Update/Upsert query: " + query);
 
       BigQuery bigquery = BigQueryOptions.getDefaultInstance().getService();
       QueryJobConfiguration queryConfig =
@@ -457,7 +457,8 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
 
     private String generateQuery(TableReference tableRef) {
       String criteriaTemplate = "T.%s = S.%s";
-      String destinationTable = tableRef.getProjectId() + "." + tableRef.getDatasetId() + "." + tableRef.getTableId();
+      String destinationTable = String.format("`%s.%s.%s`", tableRef.getProjectId(), tableRef.getDatasetId(),
+                                              tableRef.getTableId());
       String criteria = tableKeyList.stream().map(s -> String.format(criteriaTemplate, s, s))
         .collect(Collectors.joining(" AND "));
       criteria = partitionFilter != null ? String.format("(%s) AND %s",
@@ -465,10 +466,10 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       String fieldsForUpdate = tableFieldsList.stream().filter(s -> !tableKeyList.contains(s))
         .map(s -> String.format(criteriaTemplate, s, s)).collect(Collectors.joining(", "));
       String orderedBy = orderedByList.isEmpty() ? "" : " ORDER BY " + String.join(", ", orderedByList);
+      String tempTable = String.format("`%s.%s.%s`", temporaryTableReference.getProjectId(),
+                                       temporaryTableReference.getDatasetId(), temporaryTableReference.getTableId());
       String sourceTable = String.format(SOURCE_DATA_QUERY, String.join(", ", tableKeyList), orderedBy,
-                                         temporaryTableReference.getProjectId() + "." +
-                                           temporaryTableReference.getDatasetId() + "." +
-                                           temporaryTableReference.getTableId());
+                                         tempTable);
       switch (operation) {
         case UPDATE:
           return String.format(UPDATE_QUERY, destinationTable, fieldsForUpdate, sourceTable, criteria);
