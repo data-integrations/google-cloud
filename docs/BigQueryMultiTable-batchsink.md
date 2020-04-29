@@ -36,6 +36,8 @@ It will be automatically created if it does not exist, but will not be automatic
 Temporary data will be deleted after it is loaded into BigQuery. If it is not provided, a unique
 bucket will be created and then deleted after the run finishes.
 
+**GCS Upload Request Chunk Size**: GCS upload request chunk size in bytes. Default value is 8388608 bytes.
+
 **Truncate Table:** Whether or not to truncate the table before writing to it.
 Should only be used with the Insert operation.
 

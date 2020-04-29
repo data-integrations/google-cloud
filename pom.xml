@@ -19,7 +19,7 @@
 
   <groupId>io.cdap.plugin</groupId>
   <artifactId>google-cloud</artifactId>
-  <version>0.14.3-SNAPSHOT</version>
+  <version>0.14.4-SNAPSHOT</version>
   <name>Google Cloud Plugins</name>
   <packaging>jar</packaging>
   <description>Plugins for Google Big Query</description>
@@ -71,8 +71,8 @@
     <avro.version>1.8.2</avro.version>
     <bigquery.connector.hadoop2.version>hadoop2-1.0.0</bigquery.connector.hadoop2.version>
     <commons.codec.version>1.4</commons.codec.version>
-    <cdap.version>6.1.2</cdap.version>
-    <cdap.plugin.version>2.3.5</cdap.plugin.version>
+    <cdap.version>6.1.1</cdap.version>
+    <cdap.plugin.version>2.3.4</cdap.plugin.version>
     <dropwizard.metrics-core.version>3.2.6</dropwizard.metrics-core.version>
     <flogger.system.backend.version>0.3.1</flogger.system.backend.version>
     <gcs.connector.version>hadoop2-2.0.0</gcs.connector.version>
@@ -201,46 +201,46 @@
         </exclusion>
       </exclusions>
     </dependency>
-    <dependency>
-      <groupId>com.google.cloud.bigtable</groupId>
-      <artifactId>bigtable-hbase-1.x-mapreduce</artifactId>
-      <version>${google.cloud.bigtable.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>org.apache.hbase</groupId>
-          <artifactId>hbase-client</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.hbase</groupId>
-          <artifactId>hbase-server</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <!--
-        Required by bigtable-hbase-1.x-mapreduce instead of excluded non-shaded version.
-        Shaded library is used to avoid dependency conflicts with Datastore module on profobuf-java dependency.
-        Bigtable requires version 2.x and Datastore module requires 3.x protocol.
-      -->
-      <groupId>org.apache.hbase</groupId>
-      <artifactId>hbase-shaded-client</artifactId>
-      <version>${hbase-shaded-client.version}</version>
-    </dependency>
-    <dependency>
-      <!--
-        Required by bigtable-hbase-1.x-mapreduce instead of excluded non-shaded version.
-        Shaded library is used to avoid dependency conflicts with Datastore module on profobuf-java dependency.
-        Bigtable requires version 2.x and Datastore module requires 3.x protocol.
-      -->
-      <groupId>org.apache.hbase</groupId>
-      <artifactId>hbase-shaded-server</artifactId>
-      <version>${hbase-shaded-server.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>io.dropwizard.metrics</groupId>
-      <artifactId>metrics-core</artifactId>
-      <version>${dropwizard.metrics-core.version}</version>
-    </dependency>
+<!--    <dependency>-->
+<!--      <groupId>com.google.cloud.bigtable</groupId>-->
+<!--      <artifactId>bigtable-hbase-1.x-mapreduce</artifactId>-->
+<!--      <version>${google.cloud.bigtable.version}</version>-->
+<!--      <exclusions>-->
+<!--        <exclusion>-->
+<!--          <groupId>org.apache.hbase</groupId>-->
+<!--          <artifactId>hbase-client</artifactId>-->
+<!--        </exclusion>-->
+<!--        <exclusion>-->
+<!--          <groupId>org.apache.hbase</groupId>-->
+<!--          <artifactId>hbase-server</artifactId>-->
+<!--        </exclusion>-->
+<!--      </exclusions>-->
+<!--    </dependency>-->
+<!--    <dependency>-->
+<!--      &lt;!&ndash;-->
+<!--        Required by bigtable-hbase-1.x-mapreduce instead of excluded non-shaded version.-->
+<!--        Shaded library is used to avoid dependency conflicts with Datastore module on profobuf-java dependency.-->
+<!--        Bigtable requires version 2.x and Datastore module requires 3.x protocol.-->
+<!--      &ndash;&gt;-->
+<!--      <groupId>org.apache.hbase</groupId>-->
+<!--      <artifactId>hbase-shaded-client</artifactId>-->
+<!--      <version>${hbase-shaded-client.version}</version>-->
+<!--    </dependency>-->
+<!--    <dependency>-->
+<!--      &lt;!&ndash;-->
+<!--        Required by bigtable-hbase-1.x-mapreduce instead of excluded non-shaded version.-->
+<!--        Shaded library is used to avoid dependency conflicts with Datastore module on profobuf-java dependency.-->
+<!--        Bigtable requires version 2.x and Datastore module requires 3.x protocol.-->
+<!--      &ndash;&gt;-->
+<!--      <groupId>org.apache.hbase</groupId>-->
+<!--      <artifactId>hbase-shaded-server</artifactId>-->
+<!--      <version>${hbase-shaded-server.version}</version>-->
+<!--    </dependency>-->
+<!--    <dependency>-->
+<!--      <groupId>io.dropwizard.metrics</groupId>-->
+<!--      <artifactId>metrics-core</artifactId>-->
+<!--      <version>${dropwizard.metrics-core.version}</version>-->
+<!--    </dependency>-->
     <dependency>
       <groupId>com.google.cloud</groupId>
       <artifactId>google-cloud-bigquery</artifactId>
@@ -620,8 +620,8 @@
         <version>1.1.0</version>
         <configuration>
           <cdapArtifacts>
-            <parent>system:cdap-data-pipeline[6.1.2,7.0.0-SNAPSHOT)</parent>
-            <parent>system:cdap-data-streams[6.1.2,7.0.0-SNAPSHOT)</parent>
+            <parent>system:cdap-data-pipeline[6.1.1,7.0.0-SNAPSHOT)</parent>
+            <parent>system:cdap-data-streams[6.1.1,7.0.0-SNAPSHOT)</parent>
           </cdapArtifacts>
         </configuration>
         <executions>

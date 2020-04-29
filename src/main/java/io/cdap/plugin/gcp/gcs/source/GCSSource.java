@@ -298,7 +298,6 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
       return copyHeader != null && copyHeader;
     }
 
-    @Override
     public boolean skipHeader() {
       return skipHeader == null ? false : skipHeader;
     }

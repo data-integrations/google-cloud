@@ -25,8 +25,6 @@ import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.streaming.StreamingContext;
 import io.cdap.cdap.etl.api.streaming.StreamingSource;
-import io.cdap.cdap.etl.api.streaming.StreamingSourceContext;
-import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
 import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.api.java.JavaDStream;
@@ -72,19 +70,6 @@ public class GoogleSubscriber extends StreamingSource<StructuredRecord> {
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     super.configurePipeline(pipelineConfigurer);
     pipelineConfigurer.getStageConfigurer().setOutputSchema(DEFAULT_SCHEMA);
-  }
-
-  @Override
-  public void prepareRun(StreamingSourceContext context) throws Exception {
-    Schema schema = DEFAULT_SCHEMA;
-    // record dataset lineage
-    context.registerLineage(config.referenceName, schema);
-
-    if (schema.getFields() != null) {
-      LineageRecorder recorder = new LineageRecorder(context, config.referenceName);
-      recorder.recordRead("Read", "Read from Pub/Sub",
-                          schema.getFields().stream().map(Schema.Field::getName).collect(Collectors.toList()));
-    }
   }
 
   @Override

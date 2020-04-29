@@ -41,6 +41,7 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
   public static final String NAME_BUCKET = "bucket";
   public static final String NAME_TRUNCATE_TABLE = "truncateTable";
   public static final String NAME_LOCATION = "location";
+  private static final String NAME_GCS_CHUNK_SIZE = "gcsChunkSize";
 
   @Name(NAME_DATASET)
   @Macro
@@ -56,6 +57,13 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
     + "Cloud Storage data will be deleted after it is loaded into BigQuery. "
     + "If it is not provided, a unique bucket will be created and then deleted after the run finishes.")
   protected String bucket;
+
+  @Name(NAME_GCS_CHUNK_SIZE)
+  @Macro
+  @Nullable
+  @Description("Optional property to tune chunk size in gcs upload request. The value of this property should be in " +
+    "number of bytes. By default, 8388608 bytes (8MB) will be used as upload request chunk size.")
+  protected String gcsChunkSize;
 
   @Macro
   @Description("Whether to modify the BigQuery table schema if it differs from the input schema.")
@@ -74,6 +82,11 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
   @Description("The location where the big query dataset will get created. " +
                  "This value is ignored if the dataset or temporary bucket already exist.")
   protected String location;
+
+  @Nullable
+  public String getGcsChunkSize() {
+    return gcsChunkSize;
+  }
 
   @Nullable
   public String getLocation() {
