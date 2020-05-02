@@ -82,11 +82,11 @@
           }
         },
         {
-          "widget-type": "textbox",
+          "widget-type": "textarea",
           "label": "Filter",
           "name": "filter",
           "widget-attributes" : {
-            "placeholder": ""
+            "rows": 5
           }
         },
         {
