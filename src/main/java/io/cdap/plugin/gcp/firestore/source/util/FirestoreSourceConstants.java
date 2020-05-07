@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019 Cask Data, Inc.
+ * Copyright © 2020 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -22,12 +22,12 @@ package io.cdap.plugin.gcp.firestore.source.util;
 public interface FirestoreSourceConstants {
 
   /**
-   * Configuration property name used to specify if document id to be included in output
+   * Configuration property name used to specify if document id to be included in output.
    */
   String PROPERTY_INCLUDE_ID = "includeDocumentId";
 
   /**
-   * Configuration property name used to specify name document id column
+   * Configuration property name used to specify name document id column.
    */
   String PROPERTY_ID_ALIAS = "idAlias";
 
@@ -35,11 +35,6 @@ public interface FirestoreSourceConstants {
    * Configuration property name used to specify the schema of the documents.
    */
   String PROPERTY_SCHEMA = "schema";
-
-  /**
-   * Configuration property name used to specify the number of splits.
-   */
-  //String PROPERTY_NUM_SPLITS = "numSplits";
 
   /**
    * Configuration property name used to specify the query mode.

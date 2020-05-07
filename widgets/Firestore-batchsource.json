@@ -103,15 +103,19 @@
       "label": "Advanced",
       "properties": [
         {
-          "widget-type": "select",
-          "label": "Include Document Id",
+          "widget-type": "toggle",
           "name": "includeDocumentId",
+          "label": "Include Document Id?",
           "widget-attributes": {
-            "values": [
-              "true",
-              "false"
-            ],
-            "default": "false"
+            "default": "false",
+            "on": {
+              "value": "true",
+              "label": "Yes"
+            },
+            "off": {
+              "value": "false",
+              "label": "No"
+            }
           }
         },
         {
@@ -149,5 +153,35 @@
         "ref-property-name": "referenceName"
       }
     ]
-  }
+  },
+  "filters": [
+    {
+      "name": "showBasicMode",
+      "condition": {
+        "expression": "queryMode == 'Basic'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "pullDocumentList"
+        },
+        {
+          "type": "property",
+          "name": "skipDocumentList"
+        }
+      ]
+    },
+    {
+      "name": "showAdvancedMode",
+      "condition": {
+        "expression": "queryMode == 'Advanced'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "customQuery"
+        }
+      ]
+    }
+  ]
 }

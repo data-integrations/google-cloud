@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019 Cask Data, Inc.
+ * Copyright © 2020 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -31,7 +31,9 @@ import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
 import io.cdap.plugin.gcp.firestore.exception.FirestoreInitializationException;
 import io.cdap.plugin.gcp.firestore.source.util.FilterInfo;
 import io.cdap.plugin.gcp.firestore.source.util.FilterInfoParser;
+import io.cdap.plugin.gcp.firestore.source.util.FirestoreSourceConstants;
 import io.cdap.plugin.gcp.firestore.source.util.SourceQueryMode;
+import io.cdap.plugin.gcp.firestore.util.FirestoreConstants;
 import io.cdap.plugin.gcp.firestore.util.FirestoreUtil;
 import io.cdap.plugin.gcp.firestore.util.Util;
 import org.slf4j.Logger;
@@ -45,16 +47,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
-
-import static io.cdap.plugin.gcp.firestore.source.util.FirestoreSourceConstants.PROPERTY_CUSTOM_QUERY;
-import static io.cdap.plugin.gcp.firestore.source.util.FirestoreSourceConstants.PROPERTY_ID_ALIAS;
-import static io.cdap.plugin.gcp.firestore.source.util.FirestoreSourceConstants.PROPERTY_INCLUDE_ID;
-import static io.cdap.plugin.gcp.firestore.source.util.FirestoreSourceConstants.PROPERTY_PULL_DOCUMENTS;
-import static io.cdap.plugin.gcp.firestore.source.util.FirestoreSourceConstants.PROPERTY_QUERY_MODE;
-import static io.cdap.plugin.gcp.firestore.source.util.FirestoreSourceConstants.PROPERTY_SCHEMA;
-import static io.cdap.plugin.gcp.firestore.source.util.FirestoreSourceConstants.PROPERTY_SKIP_DOCUMENTS;
-import static io.cdap.plugin.gcp.firestore.util.FirestoreConstants.PROPERTY_COLLECTION;
-import static io.cdap.plugin.gcp.firestore.util.FirestoreConstants.PROPERTY_DATABASE_ID;
 
 /**
  * Defines a base {@link PluginConfig} that Firestore Source and Sink can re-use.
@@ -71,68 +63,49 @@ public class FirestoreSourceConfig extends GCPReferenceSourceConfig {
     Schema.LogicalType.DECIMAL, Schema.LogicalType.TIMESTAMP_MILLIS, Schema.LogicalType.TIMESTAMP_MICROS);
   private static final Logger LOG = LoggerFactory.getLogger(FirestoreSourceConfig.class);
 
-  /*
-private static final Map<ValueType, Schema> SUPPORTED_SIMPLE_TYPES = new ImmutableMap.Builder<ValueType, Schema>()
-        .put(ValueType.STRING, Schema.of(Schema.Type.STRING))
-        .put(ValueType.LONG, Schema.of(Schema.Type.LONG))
-        .put(ValueType.DOUBLE, Schema.of(Schema.Type.DOUBLE))
-        .put(ValueType.BOOLEAN, Schema.of(Schema.Type.BOOLEAN))
-        .put(ValueType.TIMESTAMP, Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))
-        .put(ValueType.BLOB, Schema.of(Schema.Type.BYTES))
-        .put(ValueType.NULL, Schema.of(Schema.Type.NULL))
-        .build();
-*/
-  @Name(PROPERTY_DATABASE_ID)
+  @Name(FirestoreConstants.PROPERTY_DATABASE_ID)
   @Description("Firestore database name.")
   @Macro
   @Nullable
   private String database;
 
-  @Name(PROPERTY_COLLECTION)
+  @Name(FirestoreConstants.PROPERTY_COLLECTION)
   @Description("Name of the database collection.")
   @Macro
   private String collection;
 
-  @Name(PROPERTY_INCLUDE_ID)
+  @Name(FirestoreSourceConstants.PROPERTY_INCLUDE_ID)
   @Description("A flag to specify document id to be included in output")
   @Macro
   private String includeDocumentId;
 
-  @Name(PROPERTY_ID_ALIAS)
+  @Name(FirestoreSourceConstants.PROPERTY_ID_ALIAS)
   @Description("Name of the field to set as the id field. This value is ignored if the `Include Document Id` is set to "
     + "`false`. If no value is provided, `__id__` is used.")
   @Macro
   @Nullable
   private String idAlias;
 
-  /*
-  @Name(PROPERTY_NUM_SPLITS)
-  @Macro
-  @Description("Desired number of splits to divide the query into when reading from Cloud Datastore. "
-    + "Fewer splits may be created if the query cannot be divided into the desired number of splits.")
-  private int numSplits;
-  */
-
-  @Name(PROPERTY_QUERY_MODE)
+  @Name(FirestoreSourceConstants.PROPERTY_QUERY_MODE)
   @Macro
   @Description("Mode of query. The mode can be one of two values: "
     + "`Basic` - will allow user to specify documents to pull or skip, `Advanced` - will allow user to "
     + "specify custom query.")
   private String queryMode;
 
-  @Name(PROPERTY_PULL_DOCUMENTS)
+  @Name(FirestoreSourceConstants.PROPERTY_PULL_DOCUMENTS)
   @Macro
   @Nullable
   @Description("Specify the document ids to be extracted from Firestore Collection; for example: 'Doc1,Doc2'.")
   private String pullDocuments;
 
-  @Name(PROPERTY_SKIP_DOCUMENTS)
+  @Name(FirestoreSourceConstants.PROPERTY_SKIP_DOCUMENTS)
   @Macro
   @Nullable
   @Description("Specify the document ids to be skipped from Firestore Collection; for example: 'Doc1,Doc2'.")
   private String skipDocuments;
 
-  @Name(PROPERTY_CUSTOM_QUERY)
+  @Name(FirestoreSourceConstants.PROPERTY_CUSTOM_QUERY)
   @Macro
   @Nullable
   @Description("Specify the custom filter for fetching documents from Firestore Collection. " +
@@ -144,10 +117,25 @@ private static final Map<ValueType, Schema> SUPPORTED_SIMPLE_TYPES = new Immutab
     "The second will create a filter as population < 1000000.")
   private String filters;
 
-  @Name(PROPERTY_SCHEMA)
+  @Name(FirestoreSourceConstants.PROPERTY_SCHEMA)
   @Description("Schema of records output by the source.")
   private String schema;
 
+  /**
+   * Constructor for FirestoreSourceConfig object.
+   * @param referenceName  the reference name
+   * @param project         the project id
+   * @param serviceFilePath the service file path
+   * @param database         the database id
+   * @param collection       the collection id
+   * @param queryMode        the query mode (basic or advanced)
+   * @param pullDocuments    the pull documents  for given value
+   * @param skipDocuments    the skip documents  for given value
+   * @param filters          the filter for given field as well as value
+   * @param includeDocumentId  the included document id
+   * @param idAlias            the id alias
+   * @param schema             the schema
+   */
   public FirestoreSourceConfig(String referenceName, String project, String serviceFilePath, String database,
                                String collection, String queryMode, String pullDocuments, String skipDocuments,
                                String filters, String includeDocumentId, String idAlias, String schema) {
@@ -178,15 +166,34 @@ private static final Map<ValueType, Schema> SUPPORTED_SIMPLE_TYPES = new Immutab
     return collection;
   }
 
+  /**
+   * Returns the query mode chosen.
+   *
+   * @param collector   The failure collector to collect the errors
+   * @return An instance of SourceQueryMode
+   */
   public SourceQueryMode getQueryMode(FailureCollector collector) {
-    Optional<SourceQueryMode> sourceQueryMode = SourceQueryMode.fromValue(queryMode);
-    if (sourceQueryMode.isPresent()) {
-      return sourceQueryMode.get();
+    SourceQueryMode mode = getQueryMode();
+    if (mode != null) {
+      return mode;
     }
+
     collector.addFailure("Unsupported query mode value: " + queryMode,
-      String.format("Supported modes are: %s", SourceQueryMode.getSupportedModes()))
-      .withConfigProperty(PROPERTY_QUERY_MODE);
-    throw collector.getOrThrowException();
+                         String.format("Supported modes are: %s", SourceQueryMode.getSupportedModes()))
+      .withConfigProperty(FirestoreSourceConstants.PROPERTY_QUERY_MODE);
+    collector.getOrThrowException();
+    return null;
+  }
+
+  /**
+   * Returns the query mode chosen.
+   *
+   * @return An instance of SourceQueryMode
+   */
+  public SourceQueryMode getQueryMode() {
+    Optional<SourceQueryMode> sourceQueryMode = SourceQueryMode.fromValue(queryMode);
+
+    return sourceQueryMode.isPresent() ? sourceQueryMode.get() : null;
   }
 
   @Nullable
@@ -213,6 +220,11 @@ private static final Map<ValueType, Schema> SUPPORTED_SIMPLE_TYPES = new Immutab
     return idAlias;
   }
 
+  /**
+   * Return the  Schema.
+   * @param collector the FailureCollector
+   * @return The Schema
+   */
   public Schema getSchema(FailureCollector collector) {
     if (Util.isNullOrEmpty(schema)) {
       return null;
@@ -221,10 +233,12 @@ private static final Map<ValueType, Schema> SUPPORTED_SIMPLE_TYPES = new Immutab
       return Schema.parseJson(schema);
     } catch (IOException e) {
       collector.addFailure("Invalid schema: " + e.getMessage(), null)
-        .withConfigProperty(PROPERTY_SCHEMA);
+        .withConfigProperty(FirestoreSourceConstants.PROPERTY_SCHEMA);
+      // if there was an error that was added, it will throw an exception, otherwise, this statement will
+      // not be executed
+      collector.getOrThrowException();
+      return null;
     }
-    // if there was an error that was added, it will throw an exception, otherwise, this statement will not be executed
-    throw collector.getOrThrowException();
   }
 
   /**
@@ -234,11 +248,10 @@ private static final Map<ValueType, Schema> SUPPORTED_SIMPLE_TYPES = new Immutab
     super.validate(collector);
     validateFirestoreConnection(collector);
     validateCollection(collector);
-    //validateNumSplits(collector);
     validateDocumentLists(collector);
     validateFilters(collector);
 
-    if (containsMacro(PROPERTY_SCHEMA)) {
+    if (containsMacro(FirestoreSourceConstants.PROPERTY_SCHEMA)) {
       return;
     }
 
@@ -258,7 +271,6 @@ private static final Map<ValueType, Schema> SUPPORTED_SIMPLE_TYPES = new Immutab
       db = FirestoreUtil.getFirestore(getServiceAccountFilePath(), getProject(), getDatabase());
 
       if (db != null) {
-        //checkCollectionExists(db);
         db.close();
       }
     } catch (FirestoreInitializationException e) {
@@ -269,26 +281,29 @@ private static final Map<ValueType, Schema> SUPPORTED_SIMPLE_TYPES = new Immutab
         .withStacktrace(e.getStackTrace());
     } catch (IllegalArgumentException e) {
       collector.addFailure(e.getMessage(), "Ensure collection name exists in Firestore.")
-        .withConfigProperty(PROPERTY_COLLECTION)
+        .withConfigProperty(FirestoreConstants.PROPERTY_COLLECTION)
         .withStacktrace(e.getStackTrace());
     } catch (Exception e) {
       LOG.error("Error", e);
     }
   }
 
+  /**
+   * Validates the given referenceName to consists of characters allowed to represent a dataset.
+   */
   public void validateCollection(FailureCollector collector) {
-    if (containsMacro(PROPERTY_COLLECTION)) {
+    if (containsMacro(FirestoreConstants.PROPERTY_COLLECTION)) {
       return;
     }
 
     if (Util.isNullOrEmpty(getCollection())) {
       collector.addFailure("Collection must be specified.", null)
-        .withConfigProperty(PROPERTY_COLLECTION);
+        .withConfigProperty(FirestoreConstants.PROPERTY_COLLECTION);
     }
   }
 
   private void checkCollectionExists(Firestore db) throws IllegalArgumentException {
-    if (containsMacro(PROPERTY_COLLECTION)) {
+    if (containsMacro(FirestoreConstants.PROPERTY_COLLECTION)) {
       return;
     }
 
@@ -305,7 +320,7 @@ private static final Map<ValueType, Schema> SUPPORTED_SIMPLE_TYPES = new Immutab
     List<Schema.Field> fields = schema.getFields();
     if (fields == null || fields.isEmpty()) {
       collector.addFailure("Source schema must contain at least one field", null)
-        .withConfigProperty(PROPERTY_SCHEMA);
+        .withConfigProperty(FirestoreSourceConstants.PROPERTY_SCHEMA);
     } else {
       fields.forEach(f -> validateFieldSchema(f.getName(), f.getSchema(), collector));
     }
@@ -377,28 +392,16 @@ private static final Map<ValueType, Schema> SUPPORTED_SIMPLE_TYPES = new Immutab
    * Returns true if Firestore can be connected to or schema is not a macro.
    */
   public boolean shouldConnect() {
-    return !containsMacro(PROPERTY_SCHEMA) &&
+    return !containsMacro(FirestoreSourceConstants.PROPERTY_SCHEMA) &&
       !containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH) &&
       !containsMacro(NAME_PROJECT) &&
       tryGetProject() != null &&
       !autoServiceAccountUnavailable();
   }
-
-  /*
-  private void validateNumSplits(FailureCollector collector) {
-    if (containsMacro(PROPERTY_NUM_SPLITS)) {
-      return;
-    }
-
-    if (numSplits < 1) {
-      collector.addFailure("Number of splits must be greater than 0", null)
-        .withConfigProperty(PROPERTY_NUM_SPLITS);
-    }
-  }
-  */
-
+  
   private void validateDocumentLists(FailureCollector collector) {
-    if (containsMacro(PROPERTY_PULL_DOCUMENTS) || containsMacro(PROPERTY_SKIP_DOCUMENTS)) {
+    if (containsMacro(FirestoreSourceConstants.PROPERTY_PULL_DOCUMENTS) ||
+      containsMacro(FirestoreSourceConstants.PROPERTY_SKIP_DOCUMENTS)) {
       return;
     }
 
@@ -410,47 +413,47 @@ private static final Map<ValueType, Schema> SUPPORTED_SIMPLE_TYPES = new Immutab
     if (mode == SourceQueryMode.BASIC) {
       if (!pullDocumentList.isEmpty() && !skipDocumentList.isEmpty()) {
         collector.addFailure("Either Documents to pull Or Documents to skip should be defined", null)
-          .withConfigProperty(PROPERTY_PULL_DOCUMENTS)
-          .withConfigProperty(PROPERTY_SKIP_DOCUMENTS);
+          .withConfigProperty(FirestoreSourceConstants.PROPERTY_PULL_DOCUMENTS)
+          .withConfigProperty(FirestoreSourceConstants.PROPERTY_SKIP_DOCUMENTS);
       }
     } else if (mode == SourceQueryMode.ADVANCED) {
       if (!pullDocumentList.isEmpty() || !skipDocumentList.isEmpty()) {
         collector.addFailure("In case of Mode=Advanced, Both Documents to pull Or Documents to skip " +
           "must be empty", null)
-          .withConfigProperty(PROPERTY_PULL_DOCUMENTS)
-          .withConfigProperty(PROPERTY_SKIP_DOCUMENTS);
+          .withConfigProperty(FirestoreSourceConstants.PROPERTY_PULL_DOCUMENTS)
+          .withConfigProperty(FirestoreSourceConstants.PROPERTY_SKIP_DOCUMENTS);
       }
     }
   }
 
   private void validateFilters(FailureCollector collector) {
-    if (containsMacro(PROPERTY_CUSTOM_QUERY)) {
+    if (containsMacro(FirestoreSourceConstants.PROPERTY_CUSTOM_QUERY)) {
       return;
     }
 
-    //2020:Less Than(born)
     SourceQueryMode mode = getQueryMode(collector);
 
     if (mode == SourceQueryMode.BASIC && !Util.isNullOrEmpty(getFilters())) {
       collector.addFailure("In case of Mode=Basic, Filters must be empty", null)
-        .withConfigProperty(PROPERTY_CUSTOM_QUERY);
+        .withConfigProperty(FirestoreSourceConstants.PROPERTY_CUSTOM_QUERY);
     } else if (mode == SourceQueryMode.ADVANCED) {
       List<FilterInfo> filters = getFiltersAsList(collector);
       collector.getOrThrowException();
       if (filters.isEmpty()) {
         collector.addFailure("In case of Mode=Advanced, Filters must contain at least one filter", null)
-          .withConfigProperty(PROPERTY_CUSTOM_QUERY);
+          .withConfigProperty(FirestoreSourceConstants.PROPERTY_CUSTOM_QUERY);
         return;
       }
     }
   }
 
   /**
-   * @return the filters to apply. Returns an empty list if filters contains a macro. Otherwise, the list
-   * returned can never be empty.
+   * Returns the empty list if filters contains a macro. Otherwise, the list returned can never be empty.
+   * @param collector the FailureCollector
+   * @return the this of FilterInfo
    */
   public List<FilterInfo> getFiltersAsList(FailureCollector collector) {
-    if (containsMacro(PROPERTY_CUSTOM_QUERY)) {
+    if (containsMacro(FirestoreSourceConstants.PROPERTY_CUSTOM_QUERY)) {
       return Collections.emptyList();
     }
 
@@ -458,7 +461,8 @@ private static final Map<ValueType, Schema> SUPPORTED_SIMPLE_TYPES = new Immutab
       List<FilterInfo> filterInfos = FilterInfoParser.parseFilterString(filters);
       return filterInfos;
     } catch (Exception e) {
-      collector.addFailure(e.getMessage(), null).withConfigProperty(PROPERTY_CUSTOM_QUERY);
+      collector.addFailure(e.getMessage(), null)
+        .withConfigProperty(FirestoreSourceConstants.PROPERTY_CUSTOM_QUERY);
       return Collections.emptyList();
     }
   }

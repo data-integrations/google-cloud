@@ -46,6 +46,7 @@ import javax.annotation.Nullable;
  */
 public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   private static final Logger LOG = LoggerFactory.getLogger(BigQuerySinkConfig.class);
+  private static final String WHERE = "WHERE";
   public static final Set<Schema.Type> SUPPORTED_CLUSTERING_TYPES =
     ImmutableSet.of(Schema.Type.INT, Schema.Type.LONG, Schema.Type.STRING, Schema.Type.BOOLEAN, Schema.Type.BYTES);
 
@@ -56,6 +57,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   public static final String NAME_PARTITION_BY_FIELD = "partitionByField";
   public static final String NAME_CLUSTERING_ORDER = "clusteringOrder";
   public static final String NAME_OPERATION = "operation";
+  public static final String PARTITION_FILTER = "partitionFilter";
 
   public static final int MAX_NUMBER_OF_COLUMNS = 4;
 
@@ -119,6 +121,13 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     "only used when the BigQuery table is automatically created and ignored if the table already exists.")
   protected String clusteringOrder;
 
+  @Name(PARTITION_FILTER)
+  @Macro
+  @Nullable
+  @Description("Partition filter that can be used for partition elimination during Update or Upsert operations." +
+          "This value is ignored if operation is not UPDATE or UPSERT.")
+  protected String partitionFilter;
+
   public BigQuerySinkConfig(String referenceName, String dataset, String table,
                             @Nullable String bucket, @Nullable String schema) {
     this.referenceName = referenceName;
@@ -162,6 +171,19 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   @Nullable
   public String getDedupeBy() {
     return Strings.isNullOrEmpty(dedupeBy) ? null : dedupeBy;
+  }
+
+  @Nullable
+  public String getPartitionFilter() {
+    if (Strings.isNullOrEmpty(partitionFilter)) {
+      return null;
+    }
+    partitionFilter = partitionFilter.trim();
+    // remove the WHERE keyword from the filter if the user adds it at the begging of the expression
+    if (partitionFilter.toUpperCase().startsWith(WHERE)) {
+      partitionFilter = partitionFilter.substring(WHERE.length());
+    }
+    return  partitionFilter;
   }
 
   /**
@@ -319,7 +341,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
       Schema.Type type = nonNullSchema.getType();
       Schema.LogicalType logicalType = nonNullSchema.getLogicalType();
 
-      if ((!SUPPORTED_CLUSTERING_TYPES.contains(type)) || !isSupportedLogicalType(logicalType)) {
+      if (!SUPPORTED_CLUSTERING_TYPES.contains(type) && !isSupportedLogicalType(logicalType)) {
         collector.addFailure(
           String.format("Field '%s' is of unsupported type '%s'.", column, nonNullSchema.getDisplayName()),
           "Supported types are : string, bytes, int, long, boolean, date, timestamp and decimal.")

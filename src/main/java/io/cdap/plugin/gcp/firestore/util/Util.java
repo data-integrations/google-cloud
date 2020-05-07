@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019 Cask Data, Inc.
+ * Copyright © 2020 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -26,10 +26,23 @@ import java.util.List;
  * Utility class.
  */
 public class Util {
+  /**
+   * Checks if string is empty or not after trimming it.
+   *
+   * @param string The string to be checked for Null or Empty
+   * @return true if string is either NULL / empty (after trimming) otherwise returns false
+   */
   public static boolean isNullOrEmpty(String string) {
     return Strings.isNullOrEmpty(Strings.nullToEmpty(string).trim());
   }
 
+  /**
+   * Returns the list of String.
+   *
+   * @param value  the value is String
+   * @param delimiter  the delimiter
+   * @return The list of String.
+   */
   public static List<String> splitToList(String value, char delimiter) {
     if (isNullOrEmpty(value)) {
       return Collections.emptyList();

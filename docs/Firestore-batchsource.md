@@ -2,8 +2,8 @@
 
 Description
 -----------
-Reads documents from a Firestore collection and converts each document into a StructuredRecord with the help
-of a specified schema. The user can optionally provide an input query to filter documents from Firestore.
+This source reads documents from a Google Cloud Firestore collection. The user can optionally provide an input query 
+to filter documents from Firestore. 
 
 Credentials
 -----------

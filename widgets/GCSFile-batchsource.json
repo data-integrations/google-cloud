@@ -64,6 +64,22 @@
           "widget-attributes": {
             "placeholder": "Delimiter if the format is 'delimited'"
           }
+        },
+        {
+          "widget-type": "toggle",
+          "name": "skipHeader",
+          "label": "Skip Header",
+          "widget-attributes": {
+            "default": "false",
+            "on": {
+              "value": "true",
+              "label": "True"
+            },
+            "off": {
+              "value": "false",
+              "label": "False"
+            }
+          }
         }
       ]
     },
@@ -143,6 +159,33 @@
                 "label": "False"
               }
             ]
+          }
+        },
+        {
+          "widget-type": "radio-group",
+          "name": "encrypted",
+          "label": "Data File Encrypted",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "false",
+            "options": [
+              {
+                "id": "true",
+                "label": "True"
+              },
+              {
+                "id": "false",
+                "label": "False"
+              }
+            ]
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Encryption Metadata File Suffix",
+          "name": "encryptedMetadataSuffix",
+          "widget-attributes": {
+            "placeholder": ".metadata"
           }
         },
         {

@@ -14,13 +14,12 @@
   ~ License for the specific language governing permissions and limitations under
   ~ the License.
   -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>io.cdap.plugin</groupId>
   <artifactId>google-cloud</artifactId>
-  <version>0.13.4-SNAPSHOT</version>
+  <version>0.16.0-SNAPSHOT</version>
   <name>Google Cloud Plugins</name>
   <packaging>jar</packaging>
   <description>Plugins for Google Big Query</description>
@@ -72,8 +71,8 @@
     <avro.version>1.8.2</avro.version>
     <bigquery.connector.hadoop2.version>hadoop2-1.0.0</bigquery.connector.hadoop2.version>
     <commons.codec.version>1.4</commons.codec.version>
-    <cdap.version>6.1.1</cdap.version>
-    <cdap.plugin.version>2.3.4</cdap.plugin.version>
+    <cdap.version>6.3.0-SNAPSHOT</cdap.version>
+    <cdap.plugin.version>2.4.0-SNAPSHOT</cdap.plugin.version>
     <dropwizard.metrics-core.version>3.2.6</dropwizard.metrics-core.version>
     <flogger.system.backend.version>0.3.1</flogger.system.backend.version>
     <gcs.connector.version>hadoop2-2.0.0</gcs.connector.version>
@@ -86,6 +85,7 @@
     <google.cloud.datastore.version>1.92.0</google.cloud.datastore.version>
     <google.cloud.firestore.version>1.32.2</google.cloud.firestore.version>
     <google.protobuf.java.version>3.11.3</google.protobuf.java.version>
+    <google.tink.version>1.3.0-rc3</google.tink.version>
     <guava.version>27.0.1-jre</guava.version>
     <hadoop.version>2.9.2</hadoop.version>
     <hbase-mapreduce-version>2.2.0</hbase-mapreduce-version>
@@ -246,6 +246,16 @@
       <groupId>com.google.cloud</groupId>
       <artifactId>google-cloud-bigquery</artifactId>
       <version>${google.cloud.bigquery.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.crypto.tink</groupId>
+      <artifactId>tink</artifactId>
+      <version>${google.tink.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.crypto.tink</groupId>
+      <artifactId>tink-gcpkms</artifactId>
+      <version>${google.tink.version}</version>
     </dependency>
     <dependency>
       <groupId>com.google.cloud</groupId>
@@ -491,7 +501,7 @@
     <dependency>
       <groupId>org.apache.bahir</groupId>
       <artifactId>spark-streaming-pubsub_2.11</artifactId>
-      <version>2.3.3</version>
+      <version>2.4.0</version>
     </dependency>
     <!-- End: dependency for Google PubSub Streaming Source -->
     
@@ -616,8 +626,8 @@
         <version>1.1.0</version>
         <configuration>
           <cdapArtifacts>
-            <parent>system:cdap-data-pipeline[6.1.0-SNAPSHOT,7.0.0-SNAPSHOT)</parent>
-            <parent>system:cdap-data-streams[6.1.0-SNAPSHOT,7.0.0-SNAPSHOT)</parent>
+            <parent>system:cdap-data-pipeline[6.3.0-SNAPSHOT,7.0.0-SNAPSHOT)</parent>
+            <parent>system:cdap-data-streams[6.3.0-SNAPSHOT,7.0.0-SNAPSHOT)</parent>
           </cdapArtifacts>
         </configuration>
         <executions>

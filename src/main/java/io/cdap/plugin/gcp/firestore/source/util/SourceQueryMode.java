@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019 Cask Data, Inc.
+ * Copyright © 2020 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -13,6 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
+
 package io.cdap.plugin.gcp.firestore.source.util;
 
 import java.util.Arrays;
@@ -26,12 +27,12 @@ import java.util.stream.Stream;
 public enum SourceQueryMode {
 
   /**
-   * Mode will be used as Basic for querying documents
+   * Mode will be used as Basic for querying documents.
    */
   BASIC("Basic"),
 
   /**
-   * Mode will be used as Advanced for querying documents
+   * Mode will be used as Advanced for querying documents.
    */
   ADVANCED("Advanced");
 

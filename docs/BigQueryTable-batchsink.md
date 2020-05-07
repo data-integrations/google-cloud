@@ -55,6 +55,12 @@ Should only be used with the Insert operation.
 multiple input records with the same key. For example, if this is set to 'updated_time desc', then if there are
 multiple input records with the same key, the one with the largest value for 'updated_time' will be applied.
 
+**Partition Filter**: Partition filter that can be used for partition elimination during Update or 
+Upsert operations. Should only be used with Update or Upsert operations for tables where 
+require partition filter is enabled. For example, if the table is partitioned the Partition Filter 
+'_PARTITIONTIME > "2020-01-01" and _PARTITIONTIME < "2020-03-01"', 
+the update operation will be performed only in the partitions meeting the criteria.
+
 **Location:** The location where the big query dataset will get created. This value is ignored
 if the dataset or temporary bucket already exist.
 
@@ -99,3 +105,29 @@ When running on other clusters, the file must be present on every node in the cl
 
 **Schema**: Schema of the data to write. 
 If a schema is provided, it must be compatible with the table schema in BigQuery.
+
+Data Type Mappings from CDAP to BigQuery
+----------
+The following table lists out different CDAP data types, as well as the 
+corresponding BigQuery data type for each CDAP type, for updates and upserts.
+
+| CDAP type      | BigQuery type |
+|----------------|---------------|
+| array          | repeated      |
+| boolean        | bool          |
+| bytes          | bytes         |
+| date           | date          |
+| decimal        | numeric       |
+| double / float | float64       |
+| enum           | unsupported   |
+| int / long     | int64         |
+| map            | unsupported   |
+| record         | struct        |
+| string         | string        |
+| time           | time          |
+| timestamp      | timestamp     |
+| union          | unsupported   |
+
+For inserts, the type conversions are the same as those used in loading Avro
+data to BigQuery; the table is available
+[here](https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro#avro_conversions).

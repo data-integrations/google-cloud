@@ -45,6 +45,11 @@ If no value is given, all partitions up to the partition end date will be read.
 **Partition End Date**: Exclusive partition end date, specified as 'yyyy-MM-dd'. For example, '2019-01-01'. 
 If no value is given, all partitions up from the partition start date will be read.
 
+**Filter**: Filters out rows that do not match the given condition. For example, if the filter is 'age > 50 and 
+name is not null', all output rows will have an 'age' over 50 and a value for the 'name' field.
+This is the same as the WHERE clause in BigQuery. More information can be found at
+https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax#where_clause
+
 **Temporary Bucket Name**: Google Cloud Storage bucket to store temporary data in.
 It will be automatically created if it does not exist, but will not be automatically deleted.
 Temporary data will be deleted after it has been read. If it is not provided, a unique bucket will be
@@ -55,3 +60,25 @@ authorization. Can be set to 'auto-detect' when running on a Dataproc cluster.
 When running on other clusters, the file must be present on every node in the cluster.
 
 **Schema**: Schema of the table to read. This can be fetched by clicking the 'Get Schema' button.
+
+Data Type Mappings from BigQuery to CDAP
+----------
+The following table lists out different BigQuery data types, as well as the 
+corresponding CDAP data type for each BigQuery type.
+
+| BigQuery type | CDAP type                             |
+|---------------|---------------------------------------|
+| bool          | boolean                               |
+| bytes         | bytes                                 |
+| date          | date                                  |
+| datetime      | string, eg. 2020-04-06T18:06:54.371637|
+| float64       | double                                |
+| geo           | unsupported                           |
+| int64         | long                                  |
+| numeric       | decimal (38 digits, 9 decimal places) |
+| record        | record                                |
+| repeated      | array                                 |
+| string        | string                                |
+| struct        | record                                |
+| time          | time (microseconds)                   |
+| timestamp     | timestamp (microseconds)              |

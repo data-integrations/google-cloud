@@ -25,21 +25,27 @@ import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.streaming.StreamingContext;
 import io.cdap.cdap.etl.api.streaming.StreamingSource;
+import io.cdap.cdap.etl.api.streaming.StreamingSourceContext;
+import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
 import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaReceiverInputDStream;
+import org.apache.spark.streaming.dstream.ReceiverInputDStream;
 import org.apache.spark.streaming.pubsub.PubsubUtils;
 import org.apache.spark.streaming.pubsub.SparkGCPCredentials;
 import org.apache.spark.streaming.pubsub.SparkPubsubMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import scala.Option;
+import scala.reflect.ClassTag;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.HashMap;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 /**
@@ -72,13 +78,34 @@ public class GoogleSubscriber extends StreamingSource<StructuredRecord> {
   }
 
   @Override
+  public void prepareRun(StreamingSourceContext context) throws Exception {
+    Schema schema = DEFAULT_SCHEMA;
+    // record dataset lineage
+    context.registerLineage(config.referenceName, schema);
+
+    if (schema.getFields() != null) {
+      LineageRecorder recorder = new LineageRecorder(context, config.referenceName);
+      recorder.recordRead("Read", "Read from Pub/Sub",
+                          schema.getFields().stream().map(Schema.Field::getName).collect(Collectors.toList()));
+    }
+  }
+
+  @Override
   public JavaDStream<StructuredRecord> getStream(StreamingContext streamingContext) {
     String serviceAccountFilePath = config.getServiceAccountFilePath();
     SparkGCPCredentials credentials = new GCPCredentialsProvider(serviceAccountFilePath);
 
-    JavaReceiverInputDStream<SparkPubsubMessage> pubSubMessages =
-      PubsubUtils.createStream(streamingContext.getSparkStreamingContext(), config.getProject(), config.topic,
-                               config.subscription, credentials, StorageLevel.MEMORY_ONLY());
+    boolean autoAcknowledge = true;
+    if (streamingContext.isPreviewEnabled()) {
+      autoAcknowledge = false;
+    }
+    Option<String> topic = Option.apply(config.topic);
+    ReceiverInputDStream<SparkPubsubMessage> stream =
+      PubsubUtils.createStream(streamingContext.getSparkStreamingContext().ssc(), config.getProject(),
+                               topic, config.subscription, credentials,
+                               StorageLevel.MEMORY_ONLY(), autoAcknowledge);
+    ClassTag<SparkPubsubMessage> tag = scala.reflect.ClassTag$.MODULE$.apply(SparkPubsubMessage.class);
+    JavaReceiverInputDStream<SparkPubsubMessage> pubSubMessages = new JavaReceiverInputDStream<>(stream, tag);
 
     return pubSubMessages.map(pubSubMessage -> {
       // Convert to a HashMap because com.google.api.client.util.ArrayMap is not serializable.

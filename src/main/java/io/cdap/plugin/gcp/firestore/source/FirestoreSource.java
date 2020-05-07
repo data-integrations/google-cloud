@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019 Cask Data, Inc.
+ * Copyright © 2020 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -37,7 +37,9 @@ import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
 import io.cdap.plugin.common.LineageRecorder;
+import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.firestore.exception.FirestoreInitializationException;
+import io.cdap.plugin.gcp.firestore.util.FirestoreConstants;
 import io.cdap.plugin.gcp.firestore.util.FirestoreUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,36 +49,16 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import static io.cdap.plugin.gcp.common.GCPConfig.NAME_PROJECT;
-import static io.cdap.plugin.gcp.common.GCPConfig.NAME_SERVICE_ACCOUNT_FILE_PATH;
-import static io.cdap.plugin.gcp.firestore.util.FirestoreConstants.ID_PROPERTY_NAME;
-import static io.cdap.plugin.gcp.firestore.util.FirestoreConstants.PLUGIN_NAME;
-import static io.cdap.plugin.gcp.firestore.util.FirestoreConstants.PROPERTY_COLLECTION;
-
 /**
  * A {@link BatchSource} that reads data from Firestore and converts each document into
  * a {@link StructuredRecord} using the specified Schema.
  */
 @Plugin(type = BatchSource.PLUGIN_TYPE)
-@Name(PLUGIN_NAME)
+@Name(FirestoreConstants.PLUGIN_NAME)
 @Description("Firestore Batch Source will read documents from Firestore and convert each document " +
   "into a StructuredRecord with the help of the specified Schema. ")
 public class FirestoreSource extends BatchSource<Object, QueryDocumentSnapshot, StructuredRecord> {
-
   private static final Logger LOG = LoggerFactory.getLogger(FirestoreSource.class);
-
-    /*
-    private static final Map<Value.ValueTypeCase, Schema> SUPPORTED_SIMPLE_TYPES1 =
-            new ImmutableMap.Builder<Value.ValueTypeCase, Schema>()
-                    .put(NULL_VALUE, Schema.of(Schema.Type.NULL))
-                    .put(BOOLEAN_VALUE, Schema.of(Schema.Type.BOOLEAN))
-                    .put(INTEGER_VALUE, Schema.of(Schema.Type.INT))
-                    .put(DOUBLE_VALUE, Schema.of(Schema.Type.DOUBLE))
-                    .put(TIMESTAMP_VALUE, Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))
-                    .put(STRING_VALUE, Schema.of(Schema.Type.STRING))
-                    .put(BYTES_VALUE, Schema.of(Schema.Type.BYTES))
-                    .build();
-    */
 
   private static final Map<String, Schema> SUPPORTED_SIMPLE_TYPES =
     new ImmutableMap.Builder<String, Schema>()
@@ -86,15 +68,6 @@ public class FirestoreSource extends BatchSource<Object, QueryDocumentSnapshot, 
       .put(Double.class.getName(), Schema.of(Schema.Type.DOUBLE))
       .put(String.class.getName(), Schema.of(Schema.Type.STRING))
       .build();
-
-    /*
-    com.google.firestore.v1.Value.ValueTypeCase
-    REFERENCE_VALUE(5),
-    GEO_POINT_VALUE(8),
-    ARRAY_VALUE(9),
-    MAP_VALUE(6),
-    VALUETYPE_NOT_SET(0);
-    */
 
   private final FirestoreSourceConfig config;
   private QueryDocumentSnapshotToRecordTransformer queryDocumentSnapshotToRecordTransformer;
@@ -122,7 +95,6 @@ public class FirestoreSource extends BatchSource<Object, QueryDocumentSnapshot, 
       return;
     }
 
-
     if (configuredSchema == null) {
       Schema schema = getSchema(collector);
       stageConfigurer.setOutputSchema(schema);
@@ -142,8 +114,7 @@ public class FirestoreSource extends BatchSource<Object, QueryDocumentSnapshot, 
     String serviceAccountFile = config.getServiceAccountFilePath();
     String database = config.getDatabase();
     String collection = config.getCollection();
-    //String splits = String.valueOf(config.getNumSplits());
-    String mode = config.getQueryMode(collector).getValue();
+    String mode = config.getQueryMode().getValue();
     String pullDocuments = config.getPullDocuments();
     String skipDocuments = config.getSkipDocuments();
     String filters = config.getFilters();
@@ -177,7 +148,7 @@ public class FirestoreSource extends BatchSource<Object, QueryDocumentSnapshot, 
 
   private List<String> fetchSchemaFields(Schema schema) {
     return schema.getFields().stream()
-      .filter(f -> !f.getName().equals(ID_PROPERTY_NAME))
+      .filter(f -> !f.getName().equals(FirestoreConstants.ID_PROPERTY_NAME))
       .map(Schema.Field::getName)
       .collect(Collectors.toList());
   }
@@ -209,9 +180,9 @@ public class FirestoreSource extends BatchSource<Object, QueryDocumentSnapshot, 
     } catch (FirestoreInitializationException e) {
       collector.addFailure(e.getMessage(), "Ensure properties like project, service account " +
         "file path, collection are correct.")
-        .withConfigProperty(NAME_SERVICE_ACCOUNT_FILE_PATH)
-        .withConfigProperty(NAME_PROJECT)
-        .withConfigProperty(PROPERTY_COLLECTION)
+        .withConfigProperty(GCPConfig.NAME_SERVICE_ACCOUNT_FILE_PATH)
+        .withConfigProperty(GCPConfig.NAME_PROJECT)
+        .withConfigProperty(FirestoreConstants.PROPERTY_COLLECTION)
         .withStacktrace(e.getStackTrace());
       throw collector.getOrThrowException();
 
@@ -228,7 +199,7 @@ public class FirestoreSource extends BatchSource<Object, QueryDocumentSnapshot, 
 
     collector.addFailure("Cloud Firestore query did not return any results. ",
       "Ensure Collection property is set correct.")
-      .withConfigProperty(PROPERTY_COLLECTION);
+      .withConfigProperty(FirestoreConstants.PROPERTY_COLLECTION);
 
     throw collector.getOrThrowException();
   }
@@ -302,41 +273,6 @@ public class FirestoreSource extends BatchSource<Object, QueryDocumentSnapshot, 
     if (schema != null) {
       return schema;
     }
-
-        /*
-        switch (value.getType()) {
-            case ENTITY:
-                List<Schema.Field> fields = constructSchemaFields(((EntityValue) value).get());
-                return Schema.recordOf(name, fields);
-            case LIST:
-                @SuppressWarnings("unchecked")
-                List<? extends Value<?>> values = (List<? extends Value<?>>) value.get();
-                Set<Schema> arraySchemas = new HashSet<>();
-                for (Value<?> val : values) {
-                    Schema valSchema = createSchema(name, val);
-                    if (valSchema == null) {
-                        return null;
-                    }
-                    arraySchemas.add(valSchema);
-                }
-
-                if (arraySchemas.isEmpty()) {
-                    return Schema.arrayOf(Schema.of(Schema.Type.NULL));
-                }
-
-                if (arraySchemas.size() == 1) {
-                    Schema componentSchema = arraySchemas.iterator().next();
-                    return Schema.Type.NULL == componentSchema.getType()
-                            ? Schema.arrayOf(componentSchema)
-                            : Schema.arrayOf(Schema.nullableOf(componentSchema));
-                }
-
-                LOG.debug("Field '{}' has several schemas in array, add them as union of schemas "
-                        + "plus {} schema for null values", name, Schema.Type.NULL);
-                arraySchemas.add(Schema.of(Schema.Type.NULL));
-                return Schema.arrayOf(Schema.unionOf(arraySchemas));
-        }
-        */
 
     LOG.debug("Field '{}' is of unsupported type '{}', skipping field from the schema", name,
       value.getClass().getName());

@@ -105,6 +105,14 @@
           }
         },
         {
+          "widget-type": "textbox",
+          "label": "Partition Filter",
+          "name": "partitionFilter",
+          "widget-attributes" : {
+            "placeholder": "Filter that can be used for partition elimination"
+          }
+        },
+        {
           "widget-type": "toggle",
           "name": "truncateTable",
           "label": "Truncate Table",

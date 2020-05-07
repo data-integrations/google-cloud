@@ -19,13 +19,12 @@ package io.cdap.plugin.gcp.firestore.source;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.validation.CauseAttributes;
 import io.cdap.cdap.etl.mock.validation.MockFailureCollector;
+import io.cdap.plugin.gcp.firestore.util.FirestoreConstants;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.Mockito;
-
-import static io.cdap.plugin.gcp.firestore.util.FirestoreConstants.PROPERTY_COLLECTION;
 
 /**
  * Tests for {@link FirestoreSourceConfig}.
@@ -44,7 +43,7 @@ public class FirestoreSourceConfigTest {
 
     config.validate(collector);
     Assert.assertEquals(1, collector.getValidationFailures().size());
-    Assert.assertEquals(PROPERTY_COLLECTION, collector.getValidationFailures().get(0)
+    Assert.assertEquals(FirestoreConstants.PROPERTY_COLLECTION, collector.getValidationFailures().get(0)
       .getCauses().get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
   }
 
@@ -57,7 +56,7 @@ public class FirestoreSourceConfigTest {
 
     config.validate(collector);
     Assert.assertEquals(1, collector.getValidationFailures().size());
-    Assert.assertEquals(PROPERTY_COLLECTION, collector.getValidationFailures().get(0)
+    Assert.assertEquals(FirestoreConstants.PROPERTY_COLLECTION, collector.getValidationFailures().get(0)
       .getCauses().get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
   }
 

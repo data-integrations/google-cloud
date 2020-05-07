@@ -37,6 +37,7 @@ import javax.annotation.Nullable;
  */
 public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   private static final String SCHEME = "gs://";
+  private static final String WHERE = "WHERE";
   public static final Set<Schema.Type> SUPPORTED_TYPES =
     ImmutableSet.of(Schema.Type.LONG, Schema.Type.STRING, Schema.Type.DOUBLE, Schema.Type.BOOLEAN, Schema.Type.BYTES,
                     Schema.Type.ARRAY, Schema.Type.RECORD);
@@ -48,6 +49,7 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   public static final String NAME_DATASET_PROJECT = "datasetProject";
   public static final String NAME_PARTITION_FROM = "partitionFrom";
   public static final String NAME_PARTITION_TO = "partitionTo";
+  public static final String NAME_FILTER = "filter";
 
   @Name(NAME_DATASET)
   @Macro
@@ -99,6 +101,13 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   @Description("It's inclusive partition end date. It should be a String with format \"yyyy-MM-dd\". " +
     "This value is ignored if the table does not support partitioning.")
   private String partitionTo;
+
+  @Name(NAME_FILTER)
+  @Macro
+  @Nullable
+  @Description("The WHERE clause filters out rows by evaluating each row against boolean expression, " +
+          "and discards all rows that do not return TRUE (that is, rows that return FALSE or NULL).")
+  private String filter;
 
   public String getDataset() {
     return dataset;
@@ -169,6 +178,21 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   @Nullable
   public String getPartitionTo() {
     return Strings.isNullOrEmpty(partitionTo) ? null : partitionTo;
+  }
+
+  @Nullable
+  public String getFilter() {
+    if (filter != null) {
+      filter = filter.trim();
+      if (filter.isEmpty()) {
+        return null;
+      }
+      // remove the WHERE keyword from the filter if the user adds it at the begging of the expression
+      if (filter.toUpperCase().startsWith(WHERE)) {
+        filter = filter.substring(WHERE.length());
+      }
+    }
+    return filter;
   }
 
   /**

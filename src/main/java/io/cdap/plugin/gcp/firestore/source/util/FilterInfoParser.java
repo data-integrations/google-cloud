@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019 Cask Data, Inc.
+ * Copyright © 2020 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -24,13 +24,16 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * {@link FilterInfoParser}
+ * {@link FilterInfoParser}.
  */
 public class FilterInfoParser {
-
   /**
-   * @return the filters to apply. Returns an empty list if filters contains a macro. Otherwise, the list
-   * returned can never be empty.
+   * Returns the filters to apply. Returns an empty list if filters contains a macro. Otherwise,
+   * the list returned can never be empty.
+   * @param filterString the filter string in value:operator(field)[,value:operator(field)] format
+   * @return the filters to apply. Returns an empty list if filters contains a macro. Otherwise,
+   * the list returned can never be empty
+   * @throws IllegalArgumentException
    */
   public static List<FilterInfo> parseFilterString(String filterString) throws IllegalArgumentException {
     List<FilterInfo> filterInfos = new ArrayList<>();
@@ -38,8 +41,7 @@ public class FilterInfoParser {
     if (Util.isNullOrEmpty(filterString)) {
       return filterInfos;
     }
-
-    //List<String> filterNames = new ArrayList<>();
+    
     for (String filter : Splitter.on(',').trimResults().split(filterString)) {
       int colonIdx = filter.indexOf(':');
       if (colonIdx < 0) {

@@ -14,18 +14,21 @@
  * the License.
  */
 
-package io.cdap.plugin.gcp.firestore.exception;
+package io.cdap.plugin.gcp.crypto;
+
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+
+import java.io.IOException;
+import java.nio.channels.SeekableByteChannel;
 
 /**
- * Runtime Firestore initialization exception thrown where there were errors
- * during Firestore creation.
+ * This interface defines the contract for creating decryption stream
  */
-public class FirestoreInitializationException extends RuntimeException {
-  public FirestoreInitializationException(String message) {
-    super(message);
-  }
+public interface Decryptor {
 
-  public FirestoreInitializationException(String message, Throwable cause) {
-    super(message, cause);
-  }
+  /**
+   * Opens a decrypted {@link SeekableByteChannel} for the given {@link Path}.
+   */
+  SeekableByteChannel open(FileSystem fs, Path path, int bufferSize) throws IOException;
 }

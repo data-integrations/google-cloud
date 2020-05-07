@@ -117,10 +117,15 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
   public void prepareRun(BatchSourceContext context) throws Exception {
     FailureCollector collector = context.getFailureCollector();
     config.validate(collector);
-    Schema configuredSchema = config.getSchema(collector);
-    configuredSchema = configuredSchema == null ? getSchema(collector) : configuredSchema;
-    validatePartitionProperties(collector);
-    validateConfiguredSchema(configuredSchema, collector);
+
+    if (getBQSchema(collector).getFields().isEmpty()) {
+      collector.addFailure(String.format("BigQuery table %s.%s does not have a schema.",
+                                         config.getDataset(), config.getTable()),
+                           "Please edit the table to add a schema.");
+      collector.getOrThrowException();
+    }
+
+    Schema configuredSchema = getOutputSchema(collector);
 
     String serviceAccountPath = config.getServiceAccountFilePath();
     Credentials credentials = serviceAccountPath == null ?
@@ -157,6 +162,9 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     if (config.getPartitionTo() != null) {
       configuration.set(BigQueryConstants.CONFIG_PARTITION_TO_DATE, config.getPartitionTo());
     }
+    if (config.getFilter() != null) {
+      configuration.set(BigQueryConstants.CONFIG_FILTER, config.getFilter());
+    }
 
     String temporaryGcsPath = String.format("gs://%s/hadoop/input/%s", bucket, uuid);
     PartitionedBigQueryInputFormat.setTemporaryCloudStorageDirectory(configuration, temporaryGcsPath);
@@ -176,7 +184,8 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
   @Override
   public void initialize(BatchRuntimeContext context) throws Exception {
     super.initialize(context);
-    outputSchema = context.getOutputSchema();
+    FailureCollector collector = context.getFailureCollector();
+    outputSchema = getOutputSchema(collector);
   }
 
   /**
@@ -225,6 +234,9 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
       // throw if there was validation failure(s) added to the collector
       collector.getOrThrowException();
     }
+    if (schemafields.isEmpty()) {
+      return null;
+    }
     return Schema.recordOf("output", schemafields);
   }
 
@@ -239,6 +251,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     com.google.cloud.bigquery.Schema bqSchema = getBQSchema(collector);
 
     FieldList fields = bqSchema.getFields();
+
     // Match output schema field type with bigquery column type
     for (Schema.Field field : configuredSchema.getFields()) {
       try {
@@ -284,6 +297,15 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
       throw collector.getOrThrowException();
     }
     return bqSchema;
+  }
+
+  @Nullable
+  private Schema getOutputSchema(FailureCollector collector) {
+    Schema outputSchema = config.getSchema(collector);
+    outputSchema = outputSchema == null ? getSchema(collector) : outputSchema;
+    validatePartitionProperties(collector);
+    validateConfiguredSchema(outputSchema, collector);
+    return outputSchema;
   }
 
   @Nullable
@@ -370,10 +392,11 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     if (sourceTable == null) {
       return;
     }
-    TimePartitioning timePartitioning = ((StandardTableDefinition) (sourceTable).getDefinition())
-      .getTimePartitioning();
-    if (timePartitioning == null) {
-      return;
+    if (sourceTable.getDefinition() instanceof StandardTableDefinition) {
+      TimePartitioning timePartitioning = ((StandardTableDefinition) sourceTable.getDefinition()).getTimePartitioning();
+      if (timePartitioning == null) {
+        return;
+      }
     }
     String partitionFromDate = config.getPartitionFrom();
     String partitionToDate = config.getPartitionTo();

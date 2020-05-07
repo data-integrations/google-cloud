@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019 Cask Data, Inc.
+ * Copyright © 2020 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -18,7 +18,6 @@ package io.cdap.plugin.gcp.firestore.sink;
 
 import com.google.cloud.firestore.Firestore;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
@@ -26,44 +25,33 @@ import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.plugin.PluginConfig;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.gcp.common.GCPReferenceSinkConfig;
+import io.cdap.plugin.gcp.firestore.sink.util.FirestoreSinkConstants;
 import io.cdap.plugin.gcp.firestore.sink.util.SinkIdType;
+import io.cdap.plugin.gcp.firestore.util.FirestoreConstants;
 import io.cdap.plugin.gcp.firestore.util.FirestoreUtil;
 import io.cdap.plugin.gcp.firestore.util.Util;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import javax.annotation.Nullable;
-
-import static io.cdap.plugin.gcp.firestore.sink.util.FirestoreSinkConstants.MAX_BATCH_SIZE;
-import static io.cdap.plugin.gcp.firestore.sink.util.FirestoreSinkConstants.PROPERTY_BATCH_SIZE;
-import static io.cdap.plugin.gcp.firestore.sink.util.FirestoreSinkConstants.PROPERTY_ID_ALIAS;
-import static io.cdap.plugin.gcp.firestore.sink.util.FirestoreSinkConstants.PROPERTY_ID_TYPE;
-import static io.cdap.plugin.gcp.firestore.sink.util.SinkIdType.AUTO_GENERATED_ID;
-import static io.cdap.plugin.gcp.firestore.util.FirestoreConstants.ID_PROPERTY_NAME;
-import static io.cdap.plugin.gcp.firestore.util.FirestoreConstants.PROPERTY_COLLECTION;
-import static io.cdap.plugin.gcp.firestore.util.FirestoreConstants.PROPERTY_DATABASE_ID;
 
 /**
  * Defines a base {@link PluginConfig} that Firestore Source and Sink can re-use.
  */
 public class FirestoreSinkConfig extends GCPReferenceSinkConfig {
-
-  @Name(PROPERTY_DATABASE_ID)
+  @Name(FirestoreConstants.PROPERTY_DATABASE_ID)
   @Description("Firestore database name.")
   @Macro
   @Nullable
   private String database;
 
-  @Name(PROPERTY_COLLECTION)
+  @Name(FirestoreConstants.PROPERTY_COLLECTION)
   @Description("Name of the database collection. If the collection name does not exist in Firestore " +
     "then it will create a new collection and then the data will be written to it.")
   @Macro
   private String collection;
 
-  @Name(PROPERTY_ID_TYPE)
+  @Name(FirestoreSinkConstants.PROPERTY_ID_TYPE)
   @Macro
   @Description("Type of id assigned to documents written to the Firestore. The type can be one of two values: "
     + "`Auto-generated id` - id will be auto-generated as a Alpha-numeric ID, `Custom name` - id "
@@ -71,14 +59,14 @@ public class FirestoreSinkConfig extends GCPReferenceSinkConfig {
     + "of type STRING.")
   private String idType;
 
-  @Name(PROPERTY_ID_ALIAS)
+  @Name(FirestoreSinkConstants.PROPERTY_ID_ALIAS)
   @Macro
   @Nullable
   @Description("The field that will be used as the document id when writing to Cloud Firestore. This must be provided "
     + "when the Id Type is not auto generated.")
   private String idAlias;
 
-  @Name(PROPERTY_BATCH_SIZE)
+  @Name(FirestoreSinkConstants.PROPERTY_BATCH_SIZE)
   @Macro
   @Description("Maximum number of documents that can be passed in one batch to a Commit operation. "
     + "The minimum value is 1 and maximum value is 500")
@@ -88,6 +76,17 @@ public class FirestoreSinkConfig extends GCPReferenceSinkConfig {
     // needed for initialization
   }
 
+  /**
+   * Constructor for FirestoreSinkConfig object.
+   * @param referenceName   the reference name
+   * @param project         the project id
+   * @param serviceFilePath the service file path
+   * @param database        the database id
+   * @param collection      the collection  likes a table
+   * @param idType           the id type
+   * @param idAlias          the id alias
+   * @param batchSize        the batch size
+   */
   @VisibleForTesting
   public FirestoreSinkConfig(String referenceName, String project, String serviceFilePath, String database,
                              String collection, String idType, String idAlias, int batchSize) {
@@ -114,28 +113,47 @@ public class FirestoreSinkConfig extends GCPReferenceSinkConfig {
     return collection;
   }
 
+  /**
+   * Returns the id type chosen.
+   *
+   * @param collector   The failure collector to collect the errors
+   * @return An instance of SinkIdType
+   */
   public SinkIdType getIdType(FailureCollector collector) {
-    Optional<SinkIdType> sinkIdType = SinkIdType.fromValue(idType);
-    if (sinkIdType.isPresent()) {
-      return sinkIdType.get();
+    SinkIdType sinkIdType = getIdType();
+    if (sinkIdType != null) {
+      return sinkIdType;
     }
+
     collector.addFailure("Unsupported id type value: " + idType,
-      String.format("Supported types are: %s", SinkIdType.getSupportedTypes()))
-      .withConfigProperty(PROPERTY_ID_TYPE);
-    throw collector.getOrThrowException();
+                         String.format("Supported types are: %s", SinkIdType.getSupportedTypes()))
+      .withConfigProperty(FirestoreSinkConstants.PROPERTY_ID_TYPE);
+    collector.getOrThrowException();
+    return null;
+  }
+
+  /**
+   * Returns the id type chosen.
+   *
+   * @return An instance of SinkIdType
+   */
+  public SinkIdType getIdType() {
+    Optional<SinkIdType> sinkIdType = SinkIdType.fromValue(idType);
+
+    return sinkIdType.isPresent() ? sinkIdType.get() : null;
   }
 
   @Nullable
   public String getIdAlias() {
-    return Util.isNullOrEmpty(idAlias) ? ID_PROPERTY_NAME : idAlias;
+    return Util.isNullOrEmpty(idAlias) ? FirestoreConstants.ID_PROPERTY_NAME : idAlias;
   }
 
   public int getBatchSize() {
     return batchSize;
   }
 
-  public boolean shouldUseAutoGeneratedId(FailureCollector collector) {
-    return getIdType(collector) == AUTO_GENERATED_ID;
+  public boolean shouldUseAutoGeneratedId() {
+    return getIdType() == SinkIdType.AUTO_GENERATED_ID;
   }
 
   /**
@@ -234,7 +252,7 @@ public class FirestoreSinkConfig extends GCPReferenceSinkConfig {
    * @param collector failure collector
    */
   private void validateIdType(Schema schema, FailureCollector collector) {
-    if (containsMacro(PROPERTY_ID_TYPE) || shouldUseAutoGeneratedId(collector)) {
+    if (containsMacro(FirestoreSinkConstants.PROPERTY_ID_TYPE) || shouldUseAutoGeneratedId()) {
       return;
     }
 
@@ -242,7 +260,7 @@ public class FirestoreSinkConfig extends GCPReferenceSinkConfig {
     if (field == null) {
       collector.addFailure(String.format("Id field '%s' does not exist in the schema", idAlias),
         "Change the Id field to be one of the schema fields.")
-        .withConfigProperty(PROPERTY_ID_ALIAS);
+        .withConfigProperty(FirestoreSinkConstants.PROPERTY_ID_ALIAS);
       return;
     }
 
@@ -253,18 +271,18 @@ public class FirestoreSinkConfig extends GCPReferenceSinkConfig {
       collector.addFailure(
         String.format("Id field '%s' is of unsupported type '%s'", idAlias, fieldSchema.getDisplayName()),
         "Ensure the type is non-nullable string")
-        .withConfigProperty(PROPERTY_ID_ALIAS).withInputSchemaField(idAlias);
+        .withConfigProperty(FirestoreSinkConstants.PROPERTY_ID_ALIAS).withInputSchemaField(idAlias);
     }
   }
 
   private void validateBatchSize(FailureCollector collector) {
-    if (containsMacro(PROPERTY_BATCH_SIZE)) {
+    if (containsMacro(FirestoreSinkConstants.PROPERTY_BATCH_SIZE)) {
       return;
     }
-    if (batchSize < 1 || batchSize > MAX_BATCH_SIZE) {
+    if (batchSize < 1 || batchSize > FirestoreSinkConstants.MAX_BATCH_SIZE) {
       collector.addFailure(String.format("Invalid Firestore batch size '%d'.", batchSize),
-        String.format("Ensure the batch size is at least 1 or at most '%d'", MAX_BATCH_SIZE))
-        .withConfigProperty(PROPERTY_BATCH_SIZE);
+        String.format("Ensure the batch size is at least 1 or at most '%d'", FirestoreSinkConstants.MAX_BATCH_SIZE))
+        .withConfigProperty(FirestoreSinkConstants.PROPERTY_BATCH_SIZE);
     }
   }
 

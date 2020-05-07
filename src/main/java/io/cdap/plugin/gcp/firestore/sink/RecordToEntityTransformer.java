@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019 Cask Data, Inc.
+ * Copyright © 2020 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -22,6 +22,7 @@ import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.format.UnexpectedFormatException;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.plugin.gcp.firestore.sink.util.SinkIdType;
+import io.cdap.plugin.gcp.firestore.util.FirestoreConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,9 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
-
-import static io.cdap.plugin.gcp.firestore.sink.util.SinkIdType.CUSTOM_NAME;
-import static io.cdap.plugin.gcp.firestore.util.FirestoreConstants.ID_PROPERTY_NAME;
 
 /**
  * Transforms {@link StructuredRecord} to the Google Cloud Firestore {@link QueryDocumentSnapshot}.
@@ -48,6 +46,11 @@ public class RecordToEntityTransformer {
     this.idAlias = idAlias;
   }
 
+  /**
+   * Returns the map of String and Object.
+   * @param record  the StructuredRecord
+   * @return The map of String and Object
+   */
   public Map<String, Object> transformStructuredRecord(StructuredRecord record) {
     List<Schema.Field> fields = Objects.requireNonNull(record.getSchema().getFields(),
       "Schema fields cannot be empty");
@@ -57,16 +60,11 @@ public class RecordToEntityTransformer {
     for (Schema.Field field : fields) {
       String fieldName = field.getName();
       Object fieldValue = convertToValue(fieldName, field.getSchema(), record);
-      /*
-      if (fieldValue == null) {
-        continue;
-      }
-      */
 
       LOG.debug("fieldName: {}, fieldValue={}", fieldName, fieldValue);
 
-      if (idType == CUSTOM_NAME && fieldName.equals(idAlias)) {
-        data.put(ID_PROPERTY_NAME, fieldValue);
+      if (idType == SinkIdType.CUSTOM_NAME && fieldName.equals(idAlias)) {
+        data.put(FirestoreConstants.ID_PROPERTY_NAME, fieldValue);
       } else {
         data.put(fieldName, fieldValue);
       }

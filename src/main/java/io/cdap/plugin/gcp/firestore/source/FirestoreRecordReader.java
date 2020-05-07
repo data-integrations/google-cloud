@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019 Cask Data, Inc.
+ * Copyright © 2020 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -21,9 +21,12 @@ import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.Query;
 import com.google.cloud.firestore.QueryDocumentSnapshot;
 import com.google.cloud.firestore.QuerySnapshot;
+import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.firestore.source.util.FilterInfo;
 import io.cdap.plugin.gcp.firestore.source.util.FilterInfoParser;
 import io.cdap.plugin.gcp.firestore.source.util.FirestoreQueryBuilder;
+import io.cdap.plugin.gcp.firestore.source.util.FirestoreSourceConstants;
+import io.cdap.plugin.gcp.firestore.util.FirestoreConstants;
 import io.cdap.plugin.gcp.firestore.util.FirestoreUtil;
 import io.cdap.plugin.gcp.firestore.util.Util;
 import org.apache.hadoop.conf.Configuration;
@@ -41,17 +44,8 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
-import static io.cdap.plugin.gcp.common.GCPConfig.NAME_PROJECT;
-import static io.cdap.plugin.gcp.common.GCPConfig.NAME_SERVICE_ACCOUNT_FILE_PATH;
-import static io.cdap.plugin.gcp.firestore.source.util.FirestoreSourceConstants.PROPERTY_CUSTOM_QUERY;
-import static io.cdap.plugin.gcp.firestore.source.util.FirestoreSourceConstants.PROPERTY_PULL_DOCUMENTS;
-import static io.cdap.plugin.gcp.firestore.source.util.FirestoreSourceConstants.PROPERTY_SCHEMA;
-import static io.cdap.plugin.gcp.firestore.source.util.FirestoreSourceConstants.PROPERTY_SKIP_DOCUMENTS;
-import static io.cdap.plugin.gcp.firestore.util.FirestoreConstants.PROPERTY_COLLECTION;
-import static io.cdap.plugin.gcp.firestore.util.FirestoreConstants.PROPERTY_DATABASE_ID;
-
 /**
- * {@link FirestoreRecordReader}
+ * {@link FirestoreRecordReader}.
  */
 public class FirestoreRecordReader extends RecordReader<Object, QueryDocumentSnapshot> {
   private static final Logger LOG = LoggerFactory.getLogger(FirestoreRecordReader.class);
@@ -70,14 +64,14 @@ public class FirestoreRecordReader extends RecordReader<Object, QueryDocumentSna
     throws IOException, InterruptedException {
 
     conf = taskAttemptContext.getConfiguration();
-    String projectId = conf.get(NAME_PROJECT);
-    String databaseId = conf.get(PROPERTY_DATABASE_ID);
-    String serviceAccountFilePath = conf.get(NAME_SERVICE_ACCOUNT_FILE_PATH);
-    String collection = conf.get(PROPERTY_COLLECTION);
-    List<String> fields = Util.splitToList(conf.get(PROPERTY_SCHEMA, ""), ',');
-    List<String> pullDocuments = Util.splitToList(conf.get(PROPERTY_PULL_DOCUMENTS, ""), ',');
-    List<String> skipDocuments = Util.splitToList(conf.get(PROPERTY_SKIP_DOCUMENTS, ""), ',');
-    String customQuery = conf.get(PROPERTY_CUSTOM_QUERY, "");
+    String projectId = conf.get(GCPConfig.NAME_PROJECT);
+    String databaseId = conf.get(FirestoreConstants.PROPERTY_DATABASE_ID);
+    String serviceAccountFilePath = conf.get(GCPConfig.NAME_SERVICE_ACCOUNT_FILE_PATH);
+    String collection = conf.get(FirestoreConstants.PROPERTY_COLLECTION);
+    List<String> fields = Util.splitToList(conf.get(FirestoreSourceConstants.PROPERTY_SCHEMA, ""), ',');
+    List<String> pullDocuments = Util.splitToList(conf.get(FirestoreSourceConstants.PROPERTY_PULL_DOCUMENTS, ""), ',');
+    List<String> skipDocuments = Util.splitToList(conf.get(FirestoreSourceConstants.PROPERTY_SKIP_DOCUMENTS, ""), ',');
+    String customQuery = conf.get(FirestoreSourceConstants.PROPERTY_CUSTOM_QUERY, "");
 
     db = FirestoreUtil.getFirestore(serviceAccountFilePath, projectId, databaseId);
 
@@ -138,7 +132,6 @@ public class FirestoreRecordReader extends RecordReader<Object, QueryDocumentSna
 
   @Override
   public void close() throws IOException {
-    //db.close();
   }
 
   private List<FilterInfo> getParsedFilters(String filterString) {

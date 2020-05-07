@@ -38,10 +38,12 @@ import io.cdap.cdap.api.data.batch.OutputFormatProvider;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.plugin.common.LineageRecorder;
+import io.cdap.plugin.format.avro.StructuredToAvroTransformer;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
@@ -77,6 +79,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
   // UUID is used since GCS bucket names must be globally unique.
   private final UUID uuid = UUID.randomUUID();
   protected Configuration baseConfiguration;
+  private StructuredToAvroTransformer avroTransformer;
 
   /**
    * Executes main prepare run logic. Child classes cannot override this method,
@@ -120,6 +123,18 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
         LOG.warn("Failed to delete bucket '{}': {}", gcsPath, e.getMessage());
       }
     }
+  }
+
+  @Override
+  public void initialize(BatchRuntimeContext context) throws Exception {
+    avroTransformer = new StructuredToAvroTransformer(null);
+  }
+
+  /**
+   * Transform the given {@link StructuredRecord} into avro {@link GenericRecord} with the same schema.
+   */
+  protected final GenericRecord toAvroRecord(StructuredRecord record) throws IOException {
+    return avroTransformer.transform(record, record.getSchema());
   }
 
   /**
@@ -250,7 +265,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
                                 FailureCollector collector) {
     String tableName = table.getTableId().getTable();
     com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
-    if (bqSchema == null) {
+    if (bqSchema == null || bqSchema.getFields().isEmpty()) {
       // Table is created without schema, so no further validation is required.
       return;
     }
