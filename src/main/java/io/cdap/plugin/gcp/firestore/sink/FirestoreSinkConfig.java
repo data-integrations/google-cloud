@@ -18,6 +18,7 @@ package io.cdap.plugin.gcp.firestore.sink;
 
 import com.google.cloud.firestore.Firestore;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
@@ -29,7 +30,6 @@ import io.cdap.plugin.gcp.firestore.sink.util.FirestoreSinkConstants;
 import io.cdap.plugin.gcp.firestore.sink.util.SinkIdType;
 import io.cdap.plugin.gcp.firestore.util.FirestoreConstants;
 import io.cdap.plugin.gcp.firestore.util.FirestoreUtil;
-import io.cdap.plugin.gcp.firestore.util.Util;
 
 import java.util.List;
 import java.util.Optional;
@@ -78,14 +78,14 @@ public class FirestoreSinkConfig extends GCPReferenceSinkConfig {
 
   /**
    * Constructor for FirestoreSinkConfig object.
-   * @param referenceName   the reference name
-   * @param project         the project id
+   * @param referenceName the reference name
+   * @param project the project id
    * @param serviceFilePath the service file path
-   * @param database        the database id
-   * @param collection      the collection  likes a table
-   * @param idType           the id type
-   * @param idAlias          the id alias
-   * @param batchSize        the batch size
+   * @param database the database id
+   * @param collection the collection
+   * @param idType the id type
+   * @param idAlias the id alias
+   * @param batchSize the batch size
    */
   @VisibleForTesting
   public FirestoreSinkConfig(String referenceName, String project, String serviceFilePath, String database,
@@ -116,7 +116,7 @@ public class FirestoreSinkConfig extends GCPReferenceSinkConfig {
   /**
    * Returns the id type chosen.
    *
-   * @param collector   The failure collector to collect the errors
+   * @param collector The failure collector to collect the errors
    * @return An instance of SinkIdType
    */
   public SinkIdType getIdType(FailureCollector collector) {
@@ -145,7 +145,7 @@ public class FirestoreSinkConfig extends GCPReferenceSinkConfig {
 
   @Nullable
   public String getIdAlias() {
-    return Util.isNullOrEmpty(idAlias) ? FirestoreConstants.ID_PROPERTY_NAME : idAlias;
+    return Strings.isNullOrEmpty(idAlias) ? FirestoreConstants.ID_PROPERTY_NAME : idAlias;
   }
 
   public int getBatchSize() {
@@ -201,9 +201,9 @@ public class FirestoreSinkConfig extends GCPReferenceSinkConfig {
    * Validates given field schema to be complaint with Firestore types.
    * Will throw {@link IllegalArgumentException} if schema contains unsupported type.
    *
-   * @param fieldName   field name
+   * @param fieldName field name
    * @param fieldSchema schema for CDAP field
-   * @param collector   failure collector
+   * @param collector failure collector
    */
   private void validateSinkFieldSchema(String fieldName, Schema fieldSchema, FailureCollector collector) {
     Schema.LogicalType logicalType = fieldSchema.getLogicalType();
@@ -248,7 +248,7 @@ public class FirestoreSinkConfig extends GCPReferenceSinkConfig {
    * If id type is not auto-generated, validates if id alias column is present in the schema
    * and its type is {@link Schema.Type#STRING}.
    *
-   * @param schema    CDAP schema
+   * @param schema CDAP schema
    * @param collector failure collector
    */
   private void validateIdType(Schema schema, FailureCollector collector) {

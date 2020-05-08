@@ -21,6 +21,7 @@ import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.format.UnexpectedFormatException;
 import io.cdap.cdap.api.data.schema.Schema;
 
+import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
@@ -34,14 +35,13 @@ import javax.annotation.Nullable;
  * Transforms {@link QueryDocumentSnapshot} to {@link StructuredRecord}.
  */
 public class QueryDocumentSnapshotToRecordTransformer {
-
   private final Schema schema;
   private final Boolean includeDocumentId;
   private final String idAlias;
 
   /**
-   *   Constructor for QueryDocumentSnapshotToRecordTransformer object.
-   * @param schema  the  schema
+   * Constructor for QueryDocumentSnapshotToRecordTransformer object.
+   * @param schema the schema
    * @param includeDocumentId the include document id
    * @param idAlias the id alias
    */
@@ -105,6 +105,13 @@ public class QueryDocumentSnapshotToRecordTransformer {
           Instant dateInstant = ((Date) object).toInstant();
           long micros = TimeUnit.SECONDS.toMicros(dateInstant.getEpochSecond());
           return Math.addExact(micros, TimeUnit.NANOSECONDS.toMicros(dateInstant.getNano()));
+        case DECIMAL:
+          ByteBuffer value = (ByteBuffer) object;
+          byte[] bytes = new byte[value.remaining()];
+          int pos = value.position();
+          value.get(bytes);
+          value.position(pos);
+          return bytes;
         default:
           throw new UnexpectedFormatException(String.format("Field '%s' is of unsupported type '%s'",
             fieldName, fieldLogicalType.name().toLowerCase()));
@@ -123,21 +130,19 @@ public class QueryDocumentSnapshotToRecordTransformer {
         ensureTypeValid(fieldName, object, Double.class);
         return object;
       case BYTES:
-
+        ensureTypeValid(fieldName, object, byte[].class);
         return object;
       case LONG:
         ensureTypeValid(fieldName, object, Long.class);
         return object;
       case STRING:
-
+        ensureTypeValid(fieldName, object, String.class);
         return object;
-
       default:
         throw new UnexpectedFormatException(String.format("Field '%s' is of unsupported type '%s'", fieldName,
           fieldType.name().toLowerCase()));
     }
   }
-
 
   private void ensureTypeValid(String fieldName, Object value, Class... expectedTypes) {
     for (Class expectedType : expectedTypes) {

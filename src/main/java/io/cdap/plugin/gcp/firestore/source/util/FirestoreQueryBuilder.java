@@ -25,19 +25,19 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * {@link FirestoreQueryBuilder}.
+ * The class that provides helper method to build the Firestore {@link Query} object.
  */
 public class FirestoreQueryBuilder {
   /**
-   *  Returns the Query.
-   * @param db  the database id
+   * Returns the Query.
+   * @param db the database id
    * @param collection the collection likes a table
-   * @param fields    the fields of  collection
-   * @param inputSplit  the inputSplit is a limit
-   * @param filters     the filter for given field as well as value
-   * @return The Query
-   * @throws IOException    on issues with file reading
-   * @throws InterruptedException   on issues,  Interrupting when reading  a file
+   * @param fields the fields of collection
+   * @param inputSplit the inputSplit is a limit
+   * @param filters the filter for given field as well as value
+   * @return The instance of {@link Query} object
+   * @throws IOException on issues with file reading
+   * @throws InterruptedException on issues, interrupting when reading a file
    */
   public static Query buildQuery(Firestore db, String collection, List<String> fields, InputSplit inputSplit,
                                  List<FilterInfo> filters) throws IOException, InterruptedException {

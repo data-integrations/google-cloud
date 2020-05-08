@@ -16,11 +16,10 @@
 
 package io.cdap.plugin.gcp.firestore.source;
 
-import com.google.cloud.firestore.CollectionReference;
 import com.google.cloud.firestore.Firestore;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
@@ -35,7 +34,6 @@ import io.cdap.plugin.gcp.firestore.source.util.FirestoreSourceConstants;
 import io.cdap.plugin.gcp.firestore.source.util.SourceQueryMode;
 import io.cdap.plugin.gcp.firestore.util.FirestoreConstants;
 import io.cdap.plugin.gcp.firestore.util.FirestoreUtil;
-import io.cdap.plugin.gcp.firestore.util.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,24 +41,12 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 
 /**
- * Defines a base {@link PluginConfig} that Firestore Source and Sink can re-use.
+ * Defines a base {@link PluginConfig} that Firestore Source.
  */
 public class FirestoreSourceConfig extends GCPReferenceSourceConfig {
-  public static final Schema ERROR_SCHEMA = Schema.recordOf("error", Schema.Field.of("document",
-    Schema.of(Schema.Type.STRING)));
-  public static final Set<Schema.Type> SUPPORTED_SIMPLE_TYPES = ImmutableSet.of(Schema.Type.BOOLEAN, Schema.Type.INT,
-    Schema.Type.DOUBLE, Schema.Type.BYTES,
-    Schema.Type.LONG, Schema.Type.STRING,
-    Schema.Type.ARRAY, Schema.Type.RECORD,
-    Schema.Type.MAP);
-  public static final Set<Schema.LogicalType> SUPPORTED_LOGICAL_TYPES = ImmutableSet.of(
-    Schema.LogicalType.DECIMAL, Schema.LogicalType.TIMESTAMP_MILLIS, Schema.LogicalType.TIMESTAMP_MICROS);
   private static final Logger LOG = LoggerFactory.getLogger(FirestoreSourceConfig.class);
 
   @Name(FirestoreConstants.PROPERTY_DATABASE_ID)
@@ -123,18 +109,18 @@ public class FirestoreSourceConfig extends GCPReferenceSourceConfig {
 
   /**
    * Constructor for FirestoreSourceConfig object.
-   * @param referenceName  the reference name
-   * @param project         the project id
+   * @param referenceName the reference name
+   * @param project the project id
    * @param serviceFilePath the service file path
-   * @param database         the database id
-   * @param collection       the collection id
-   * @param queryMode        the query mode (basic or advanced)
-   * @param pullDocuments    the pull documents  for given value
-   * @param skipDocuments    the skip documents  for given value
-   * @param filters          the filter for given field as well as value
-   * @param includeDocumentId  the included document id
-   * @param idAlias            the id alias
-   * @param schema             the schema
+   * @param database the database id
+   * @param collection the collection id
+   * @param queryMode the query mode (basic or advanced)
+   * @param pullDocuments the list of documents to pull
+   * @param skipDocuments the list of documents to skip
+   * @param filters the filter for given field as well as value
+   * @param includeDocumentId the included document id
+   * @param idAlias the id alias
+   * @param schema the schema
    */
   public FirestoreSourceConfig(String referenceName, String project, String serviceFilePath, String database,
                                String collection, String queryMode, String pullDocuments, String skipDocuments,
@@ -169,7 +155,7 @@ public class FirestoreSourceConfig extends GCPReferenceSourceConfig {
   /**
    * Returns the query mode chosen.
    *
-   * @param collector   The failure collector to collect the errors
+   * @param collector The failure collector to collect the errors
    * @return An instance of SourceQueryMode
    */
   public SourceQueryMode getQueryMode(FailureCollector collector) {
@@ -221,12 +207,12 @@ public class FirestoreSourceConfig extends GCPReferenceSourceConfig {
   }
 
   /**
-   * Return the  Schema.
+   * Return the Schema.
    * @param collector the FailureCollector
    * @return The Schema
    */
   public Schema getSchema(FailureCollector collector) {
-    if (Util.isNullOrEmpty(schema)) {
+    if (Strings.isNullOrEmpty(schema)) {
       return null;
     }
     try {
@@ -296,23 +282,9 @@ public class FirestoreSourceConfig extends GCPReferenceSourceConfig {
       return;
     }
 
-    if (Util.isNullOrEmpty(getCollection())) {
+    if (Strings.isNullOrEmpty(getCollection())) {
       collector.addFailure("Collection must be specified.", null)
         .withConfigProperty(FirestoreConstants.PROPERTY_COLLECTION);
-    }
-  }
-
-  private void checkCollectionExists(Firestore db) throws IllegalArgumentException {
-    if (containsMacro(FirestoreConstants.PROPERTY_COLLECTION)) {
-      return;
-    }
-
-    String collectionName = Strings.nullToEmpty(getCollection()).trim();
-
-    List<String> collections = StreamSupport.stream(db.listCollections().spliterator(), false)
-      .map(CollectionReference::getId).collect(Collectors.toList());
-    if (!collections.contains(collectionName)) {
-      throw new IllegalArgumentException("Invalid collection");
     }
   }
 
@@ -329,9 +301,9 @@ public class FirestoreSourceConfig extends GCPReferenceSourceConfig {
   /**
    * Validates given field schema to be compliant with Firestore types.
    *
-   * @param fieldName   field name
+   * @param fieldName field name
    * @param fieldSchema schema for CDAP field
-   * @param collector   failure collector to collect failures if schema contains unsupported type.
+   * @param collector failure collector to collect failures if schema contains unsupported type.
    */
   private void validateFieldSchema(String fieldName, Schema fieldSchema, FailureCollector collector) {
     Schema.LogicalType logicalType = fieldSchema.getLogicalType();
@@ -407,8 +379,8 @@ public class FirestoreSourceConfig extends GCPReferenceSourceConfig {
 
     SourceQueryMode mode = getQueryMode(collector);
 
-    List<String> pullDocumentList = Util.splitToList(getPullDocuments(), ',');
-    List<String> skipDocumentList = Util.splitToList(getSkipDocuments(), ',');
+    List<String> pullDocumentList = Splitter.on(',').trimResults().splitToList(getPullDocuments());
+    List<String> skipDocumentList = Splitter.on(',').trimResults().splitToList(getSkipDocuments());
 
     if (mode == SourceQueryMode.BASIC) {
       if (!pullDocumentList.isEmpty() && !skipDocumentList.isEmpty()) {
@@ -433,7 +405,7 @@ public class FirestoreSourceConfig extends GCPReferenceSourceConfig {
 
     SourceQueryMode mode = getQueryMode(collector);
 
-    if (mode == SourceQueryMode.BASIC && !Util.isNullOrEmpty(getFilters())) {
+    if (mode == SourceQueryMode.BASIC && !Strings.isNullOrEmpty(getFilters())) {
       collector.addFailure("In case of Mode=Basic, Filters must be empty", null)
         .withConfigProperty(FirestoreSourceConstants.PROPERTY_CUSTOM_QUERY);
     } else if (mode == SourceQueryMode.ADVANCED) {

@@ -26,9 +26,9 @@ public class FilterInfo {
 
   /**
    * Constructor for FilterInfo object.
-   * @param field   the field
+   * @param field the field
    * @param operator the operator
-   * @param value     the value
+   * @param value the value
    */
   public FilterInfo(String field, FilterOperator operator, Object value) {
     this.field = field;

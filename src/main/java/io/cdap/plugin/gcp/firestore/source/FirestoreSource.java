@@ -38,7 +38,6 @@ import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.gcp.common.GCPConfig;
-import io.cdap.plugin.gcp.firestore.exception.FirestoreInitializationException;
 import io.cdap.plugin.gcp.firestore.util.FirestoreConstants;
 import io.cdap.plugin.gcp.firestore.util.FirestoreUtil;
 import org.slf4j.Logger;
@@ -177,19 +176,14 @@ public class FirestoreSource extends BatchSource<Object, QueryDocumentSnapshot, 
 
       items = querySnapshot.getDocuments();
 
-    } catch (FirestoreInitializationException e) {
+    } catch (Exception e) {
       collector.addFailure(e.getMessage(), "Ensure properties like project, service account " +
         "file path, collection are correct.")
         .withConfigProperty(GCPConfig.NAME_SERVICE_ACCOUNT_FILE_PATH)
         .withConfigProperty(GCPConfig.NAME_PROJECT)
         .withConfigProperty(FirestoreConstants.PROPERTY_COLLECTION)
         .withStacktrace(e.getStackTrace());
-      throw collector.getOrThrowException();
-
-    } catch (Exception e) {
-      collector.addFailure("Unable to fetch data from Firestore: " + e.getMessage(), null)
-        .withStacktrace(e.getStackTrace());
-      throw collector.getOrThrowException();
+      collector.getOrThrowException();
     }
 
     if (items != null && !items.isEmpty()) {
@@ -201,17 +195,18 @@ public class FirestoreSource extends BatchSource<Object, QueryDocumentSnapshot, 
       "Ensure Collection property is set correct.")
       .withConfigProperty(FirestoreConstants.PROPERTY_COLLECTION);
 
-    throw collector.getOrThrowException();
+    collector.getOrThrowException();
+    return null;
   }
 
   /**
    * Constructs CDAP schema based on given DocumentSnapshot and source configuration,
    * will add Firestore document id to the list of schema fields if config include key flag is set to true.
    *
-   * @param entity      QueryDocumentSnapshot entity
+   * @param entity QueryDocumentSnapshot entity
    * @param isIncludeId flag that indicates that document id should be included in schema
-   * @param idName      id name
-   * @return CDAP schema
+   * @param idName name to be used for id column
+   * @return The instance of Schema object
    */
   @VisibleForTesting
   Schema constructSchema(QueryDocumentSnapshot entity, boolean isIncludeId, String idName) {
@@ -229,7 +224,7 @@ public class FirestoreSource extends BatchSource<Object, QueryDocumentSnapshot, 
    * filters out fields schemas with null value.
    *
    * @param entity Firestore document
-   * @return list of CDAP schema fields
+   * @return list of schema fields
    */
   private List<Schema.Field> constructSchemaFields(QueryDocumentSnapshot entity) {
     return entity.getData().keySet().stream()
@@ -242,9 +237,9 @@ public class FirestoreSource extends BatchSource<Object, QueryDocumentSnapshot, 
    * Since Firestore is schemaless database, creates field with nullable schema for the given value
    * based on its value type, for unsupported types returns null.
    *
-   * @param name  field name
+   * @param name field name
    * @param value Firestore value
-   * @return CDAP field
+   * @return the instance of Schema.Field object
    */
   private Schema.Field transformToField(String name, Object value) {
     Schema schema = createSchema(name, value);
@@ -260,9 +255,9 @@ public class FirestoreSource extends BatchSource<Object, QueryDocumentSnapshot, 
    * Creates CDAP schema based on given Firestore value and its type,
    * for unsupported types will return null.
    *
-   * @param name  field name
+   * @param name field name
    * @param value Firestore value
-   * @return CDAP schema
+   * @return The instance of Schema object
    */
   private Schema createSchema(String name, Object value) {
     Schema schema = SUPPORTED_SIMPLE_TYPES.get(value.getClass().getName());

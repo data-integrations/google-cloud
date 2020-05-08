@@ -46,8 +46,7 @@ import java.util.stream.Collectors;
  */
 @Plugin(type = BatchSink.PLUGIN_TYPE)
 @Name(FirestoreConstants.PLUGIN_NAME)
-@Description("CDAP Google Cloud Firestore Batch Sink takes the structured record from the input source and writes "
-  + "to Google Cloud Firestore.")
+@Description("The sink writes data to a Google Cloud Firestore Collection.")
 public class FirestoreSink extends BatchSink<StructuredRecord, NullWritable, Map<String, Object>> {
   private static final Logger LOG = LoggerFactory.getLogger(FirestoreSink.class);
   private final FirestoreSinkConfig config;
@@ -104,11 +103,7 @@ public class FirestoreSink extends BatchSink<StructuredRecord, NullWritable, Map
 
   @Override
   public void transform(StructuredRecord record, Emitter<KeyValue<NullWritable, Map<String, Object>>> emitter) {
-    try {
-      Map<String, Object> fullEntity = recordToEntityTransformer.transformStructuredRecord(record);
-      emitter.emit(new KeyValue<>(NullWritable.get(), fullEntity));
-    } catch (Exception e) {
-      throw new RuntimeException("Failed to process record", e);
-    }
+    Map<String, Object> fullEntity = recordToEntityTransformer.transformStructuredRecord(record);
+    emitter.emit(new KeyValue<>(NullWritable.get(), fullEntity));
   }
 }

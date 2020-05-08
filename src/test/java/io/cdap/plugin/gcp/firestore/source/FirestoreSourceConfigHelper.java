@@ -84,7 +84,5 @@ public class FirestoreSourceConfigHelper {
       return new FirestoreSourceConfig(referenceName, project, serviceFilePath, database, collection,
         "Basic", "", "", "", includeDocumentId, idAlias, schema);
     }
-
   }
-
 }

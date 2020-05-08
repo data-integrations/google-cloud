@@ -17,16 +17,17 @@
 package io.cdap.plugin.gcp.firestore.source;
 
 import com.google.common.base.Joiner;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import io.cdap.cdap.api.data.batch.InputFormatProvider;
 import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.firestore.source.util.FirestoreSourceConstants;
 import io.cdap.plugin.gcp.firestore.util.FirestoreConstants;
-import io.cdap.plugin.gcp.firestore.util.Util;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import javax.annotation.Nullable;
 
 /**
  * Provides FirestoreInputFormat class name and configuration.
@@ -37,27 +38,27 @@ public class FirestoreInputFormatProvider implements InputFormatProvider {
 
   /**
    * Constructor for FirestoreInputFormatProvider object.
-   * @param project  the project  of  firestore  DB
-   * @param serviceAccountPath   the  service account path  of  firestore  DB
-   * @param databaseId  the databaseId of  firestore  DB
-   * @param collection   the collection likes a table
-   * @param mode         there are two modes(basic and advanced)
-   * @param pullDocuments the pull documents  for given value
-   * @param skipDocuments  the skip documents for given value
-   * @param filters        the filter for given field as well as value
-   * @param fields         the fields of  collection
+   * @param project the project of Firestore DB
+   * @param serviceAccountPath the service account path of Firestore DB
+   * @param databaseId the databaseId of Firestore DB
+   * @param collection the collection
+   * @param mode there are two modes (basic and advanced)
+   * @param pullDocuments the list of documents to pull
+   * @param skipDocuments the list of documents to skip
+   * @param filters the filter for given field as well as value
+   * @param fields the fields of collection
    */
-  public FirestoreInputFormatProvider(String project, String serviceAccountPath, String databaseId, String collection,
-                                      String mode, String pullDocuments, String skipDocuments, String filters,
-                                      List<String> fields) {
+  public FirestoreInputFormatProvider(String project, @Nullable String serviceAccountPath, String databaseId,
+                                      String collection, String mode, String pullDocuments, String skipDocuments,
+                                      String filters, List<String> fields) {
     ImmutableMap.Builder<String, String> builder = new ImmutableMap.Builder<String, String>()
       .put(GCPConfig.NAME_PROJECT, project)
-      .put(FirestoreConstants.PROPERTY_DATABASE_ID, Util.isNullOrEmpty(databaseId) ? "" : databaseId)
-      .put(FirestoreConstants.PROPERTY_COLLECTION, Util.isNullOrEmpty(collection) ? "" : collection)
+      .put(FirestoreConstants.PROPERTY_DATABASE_ID, Strings.isNullOrEmpty(databaseId) ? "" : databaseId)
+      .put(FirestoreConstants.PROPERTY_COLLECTION, Strings.isNullOrEmpty(collection) ? "" : collection)
       .put(FirestoreSourceConstants.PROPERTY_QUERY_MODE, mode)
-      .put(FirestoreSourceConstants.PROPERTY_PULL_DOCUMENTS, Util.isNullOrEmpty(pullDocuments) ? "" : pullDocuments)
-      .put(FirestoreSourceConstants.PROPERTY_SKIP_DOCUMENTS, Util.isNullOrEmpty(skipDocuments) ? "" : skipDocuments)
-      .put(FirestoreSourceConstants.PROPERTY_CUSTOM_QUERY, Util.isNullOrEmpty(filters) ? "" : filters)
+      .put(FirestoreSourceConstants.PROPERTY_PULL_DOCUMENTS, Strings.isNullOrEmpty(pullDocuments) ? "" : pullDocuments)
+      .put(FirestoreSourceConstants.PROPERTY_SKIP_DOCUMENTS, Strings.isNullOrEmpty(skipDocuments) ? "" : skipDocuments)
+      .put(FirestoreSourceConstants.PROPERTY_CUSTOM_QUERY, Strings.isNullOrEmpty(filters) ? "" : filters)
       .put(FirestoreSourceConstants.PROPERTY_SCHEMA, Joiner.on(",").join(fields));
     if (Objects.nonNull(serviceAccountPath)) {
       builder.put(GCPConfig.NAME_SERVICE_ACCOUNT_FILE_PATH, serviceAccountPath);

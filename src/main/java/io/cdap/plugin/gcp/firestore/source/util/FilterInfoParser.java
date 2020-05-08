@@ -17,28 +17,28 @@
 package io.cdap.plugin.gcp.firestore.source.util;
 
 import com.google.common.base.Splitter;
-import io.cdap.plugin.gcp.firestore.util.Util;
+import com.google.common.base.Strings;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 /**
- * {@link FilterInfoParser}.
+ * The class that provides helper method for parsing the filterInfo string.
  */
 public class FilterInfoParser {
   /**
    * Returns the filters to apply. Returns an empty list if filters contains a macro. Otherwise,
    * the list returned can never be empty.
    * @param filterString the filter string in value:operator(field)[,value:operator(field)] format
-   * @return the filters to apply. Returns an empty list if filters contains a macro. Otherwise,
+   * @return the list of filters to apply. Returns an empty list if filters contains a macro. Otherwise,
    * the list returned can never be empty
    * @throws IllegalArgumentException
    */
   public static List<FilterInfo> parseFilterString(String filterString) throws IllegalArgumentException {
     List<FilterInfo> filterInfos = new ArrayList<>();
 
-    if (Util.isNullOrEmpty(filterString)) {
+    if (Strings.isNullOrEmpty(filterString)) {
       return filterInfos;
     }
     

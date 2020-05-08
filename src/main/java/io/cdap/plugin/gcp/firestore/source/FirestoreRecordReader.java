@@ -21,6 +21,7 @@ import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.Query;
 import com.google.cloud.firestore.QueryDocumentSnapshot;
 import com.google.cloud.firestore.QuerySnapshot;
+import com.google.common.base.Splitter;
 import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.firestore.source.util.FilterInfo;
 import io.cdap.plugin.gcp.firestore.source.util.FilterInfoParser;
@@ -28,7 +29,6 @@ import io.cdap.plugin.gcp.firestore.source.util.FirestoreQueryBuilder;
 import io.cdap.plugin.gcp.firestore.source.util.FirestoreSourceConstants;
 import io.cdap.plugin.gcp.firestore.util.FirestoreConstants;
 import io.cdap.plugin.gcp.firestore.util.FirestoreUtil;
-import io.cdap.plugin.gcp.firestore.util.Util;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.mapreduce.InputSplit;
@@ -45,7 +45,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 /**
- * {@link FirestoreRecordReader}.
+ * {@link FirestoreRecordReader} reads the data from Firestore.
  */
 public class FirestoreRecordReader extends RecordReader<Object, QueryDocumentSnapshot> {
   private static final Logger LOG = LoggerFactory.getLogger(FirestoreRecordReader.class);
@@ -68,9 +68,12 @@ public class FirestoreRecordReader extends RecordReader<Object, QueryDocumentSna
     String databaseId = conf.get(FirestoreConstants.PROPERTY_DATABASE_ID);
     String serviceAccountFilePath = conf.get(GCPConfig.NAME_SERVICE_ACCOUNT_FILE_PATH);
     String collection = conf.get(FirestoreConstants.PROPERTY_COLLECTION);
-    List<String> fields = Util.splitToList(conf.get(FirestoreSourceConstants.PROPERTY_SCHEMA, ""), ',');
-    List<String> pullDocuments = Util.splitToList(conf.get(FirestoreSourceConstants.PROPERTY_PULL_DOCUMENTS, ""), ',');
-    List<String> skipDocuments = Util.splitToList(conf.get(FirestoreSourceConstants.PROPERTY_SKIP_DOCUMENTS, ""), ',');
+    List<String> fields = Splitter.on(',').trimResults()
+      .splitToList(conf.get(FirestoreSourceConstants.PROPERTY_SCHEMA, ""));
+    List<String> pullDocuments = Splitter.on(',').trimResults()
+      .splitToList(conf.get(FirestoreSourceConstants.PROPERTY_PULL_DOCUMENTS, ""));
+    List<String> skipDocuments = Splitter.on(',').trimResults()
+      .splitToList(conf.get(FirestoreSourceConstants.PROPERTY_SKIP_DOCUMENTS, ""));
     String customQuery = conf.get(FirestoreSourceConstants.PROPERTY_CUSTOM_QUERY, "");
 
     db = FirestoreUtil.getFirestore(serviceAccountFilePath, projectId, databaseId);

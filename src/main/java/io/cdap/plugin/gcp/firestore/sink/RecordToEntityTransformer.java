@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
+import javax.annotation.Nullable;
 
 /**
  * Transforms {@link StructuredRecord} to the Google Cloud Firestore {@link QueryDocumentSnapshot}.
@@ -48,7 +49,7 @@ public class RecordToEntityTransformer {
 
   /**
    * Returns the map of String and Object.
-   * @param record  the StructuredRecord
+   * @param record the StructuredRecord
    * @return The map of String and Object
    */
   public Map<String, Object> transformStructuredRecord(StructuredRecord record) {
@@ -73,6 +74,7 @@ public class RecordToEntityTransformer {
     return data;
   }
 
+  @Nullable
   private Object convertToValue(String fieldName, Schema fieldSchema, StructuredRecord record) {
     if (record.get(fieldName) == null) {
       return null;

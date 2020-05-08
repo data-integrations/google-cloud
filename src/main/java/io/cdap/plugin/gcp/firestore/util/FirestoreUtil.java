@@ -18,6 +18,7 @@ package io.cdap.plugin.gcp.firestore.util;
 
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.FirestoreOptions;
+import com.google.common.base.Strings;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.firestore.exception.FirestoreInitializationException;
 import org.slf4j.Logger;
@@ -36,8 +37,8 @@ public class FirestoreUtil {
    * Connects to Firestore instance using given credentials in JSON file, project ID and optional database Id.
    *
    * @param serviceAccountFilePath path to credentials defined in JSON file
-   * @param projectId              Google Cloud project ID
-   * @param databaseId             Firestore Database ID
+   * @param projectId Google Cloud project ID
+   * @param databaseId Firestore Database ID
    * @return Firestore service
    */
   public static Firestore getFirestore(@Nullable String serviceAccountFilePath, String projectId,
@@ -48,11 +49,11 @@ public class FirestoreUtil {
 
       LOG.debug("serviceAccount={}, project={}, db={}...", serviceAccountFilePath, projectId, databaseId);
 
-      if (!Util.isNullOrEmpty(serviceAccountFilePath)) {
+      if (!Strings.isNullOrEmpty(serviceAccountFilePath)) {
         optionsBuilder.setCredentials(GCPUtils.loadServiceAccountCredentials(serviceAccountFilePath));
       }
 
-      if (!Util.isNullOrEmpty(databaseId)) {
+      if (!Strings.isNullOrEmpty(databaseId)) {
         optionsBuilder.setDatabaseId(databaseId);
       }
 
