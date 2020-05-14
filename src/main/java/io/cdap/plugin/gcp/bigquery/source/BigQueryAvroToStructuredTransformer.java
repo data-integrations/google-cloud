@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.bigquery.source;
 
+import io.cdap.cdap.api.common.Bytes;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.format.UnexpectedFormatException;
 import io.cdap.cdap.api.data.schema.Schema;
@@ -102,5 +103,10 @@ public class BigQueryAvroToStructuredTransformer extends RecordConverter<Generic
       return resultList;
     }
     return super.convertField(field, fieldSchema);
+  }
+
+  @Override
+  protected Object convertBytes(Object field) {
+    return field instanceof ByteBuffer ? Bytes.toBytes((ByteBuffer) field) : field;
   }
 }
