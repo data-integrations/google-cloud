@@ -35,7 +35,7 @@
                     "label": "BigQuery",
                     "artifact": {
                         "name": "google-cloud",
-                        "version": "0.15.0-SNAPSHOT",
+                        "version": "0.15.0",
                         "scope": "USER"
                     },
                     "properties": {
@@ -62,7 +62,7 @@
                     "label": "BigQuery2",
                     "artifact": {
                         "name": "google-cloud",
-                        "version": "0.15.0-SNAPSHOT",
+                        "version": "0.15.0",
                         "scope": "USER"
                     },
                     "properties": {
