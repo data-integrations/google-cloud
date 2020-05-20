@@ -33,6 +33,7 @@ import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableSchema;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
+import com.google.common.base.Strings;
 import io.cdap.cdap.api.data.batch.Output;
 import io.cdap.cdap.api.data.batch.OutputFormatProvider;
 import io.cdap.cdap.api.data.format.StructuredRecord;
@@ -211,12 +212,20 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
    * @return base configuration
    */
   private Configuration getBaseConfiguration(@Nullable String cmekKey) throws IOException {
-    Configuration baseConfiguration = BigQueryUtil.getBigQueryConfig(getConfig().getServiceAccountFilePath(),
-                                                                     getConfig().getProject(), cmekKey);
+    AbstractBigQuerySinkConfig config = getConfig();
+    Configuration baseConfiguration = BigQueryUtil.getBigQueryConfig(config.getServiceAccountFilePath(),
+                                                                     config.getProject(), cmekKey);
     baseConfiguration.setBoolean(BigQueryConstants.CONFIG_ALLOW_SCHEMA_RELAXATION,
-                                 getConfig().isAllowSchemaRelaxation());
+                                 config.isAllowSchemaRelaxation());
     baseConfiguration.setStrings(BigQueryConfiguration.OUTPUT_TABLE_WRITE_DISPOSITION_KEY,
-                                 getConfig().getWriteDisposition().name());
+                                 config.getWriteDisposition().name());
+    // this setting is needed because gcs has default chunk size of 64MB. This is large default chunk size which can
+    // cause OOM issue if there are many tables being written. See this - CDAP-16670
+    String gcsChunkSize = "8388608";
+    if (!Strings.isNullOrEmpty(config.getGcsChunkSize())) {
+      gcsChunkSize = config.getGcsChunkSize();
+    }
+    baseConfiguration.set("fs.gs.outputstream.upload.chunk.size", gcsChunkSize);
     return baseConfiguration;
   }
 
