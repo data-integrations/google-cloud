@@ -66,8 +66,9 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
   protected String gcsChunkSize;
 
   @Macro
+  @Nullable
   @Description("Whether to modify the BigQuery table schema if it differs from the input schema.")
-  protected boolean allowSchemaRelaxation;
+  protected Boolean allowSchemaRelaxation;
 
   @Name(NAME_TRUNCATE_TABLE)
   @Macro
@@ -118,7 +119,7 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
   }
 
   public boolean isAllowSchemaRelaxation() {
-    return allowSchemaRelaxation;
+    return allowSchemaRelaxation == null ? false : allowSchemaRelaxation;
   }
 
   public JobInfo.WriteDisposition getWriteDisposition() {
