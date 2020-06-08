@@ -35,4 +35,5 @@ public interface BigQueryConstants {
   String CONFIG_TABLE_FIELDS = "cdap.bq.sink.table.fields";
   String CONFIG_FILTER = "cdap.bq.source.filter";
   String CONFIG_PARTITION_FILTER = "cdap.bq.sink.partition.filter";
+  String CONFIG_JOB_ID = "cdap.bq.sink.job.id";
 }

@@ -22,6 +22,10 @@ import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetInfo;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
+import com.google.cloud.bigquery.Job;
+import com.google.cloud.bigquery.JobConfiguration;
+import com.google.cloud.bigquery.JobId;
+import com.google.cloud.bigquery.JobStatistics;
 import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
@@ -75,12 +79,15 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
 
   private static final String gcsPathFormat = "gs://%s";
   private static final String temporaryBucketFormat = gcsPathFormat + "/input/%s-%s";
+  public static final String RECORDS_UPDATED_METRIC = "records.updated";
 
   // UUID for the run. Will be used as bucket name if bucket is not provided.
   // UUID is used since GCS bucket names must be globally unique.
   private final UUID uuid = UUID.randomUUID();
   protected Configuration baseConfiguration;
   private StructuredToAvroTransformer avroTransformer;
+  private final String jobId = UUID.randomUUID().toString();
+  private BigQuery bigQuery;
 
   /**
    * Executes main prepare run logic. Child classes cannot override this method,
@@ -98,10 +105,11 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
     Credentials credentials = serviceAccountFilePath == null ?
       null : GCPUtils.loadServiceAccountCredentials(serviceAccountFilePath);
     String project = config.getProject();
-    BigQuery bigQuery = GCPUtils.getBigQuery(project, credentials);
+    bigQuery = GCPUtils.getBigQuery(project, credentials);
     String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
     baseConfiguration = getBaseConfiguration(cmekKey);
     String bucket = configureBucket();
+    baseConfiguration.set(BigQueryConstants.CONFIG_JOB_ID, jobId);
     if (!context.isPreviewEnabled()) {
       createResources(bigQuery, GCPUtils.getStorage(project, credentials), config.getDataset(), bucket,
                       config.getLocation(), cmekKey);
@@ -112,6 +120,8 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
 
   @Override
   public final void onRunFinish(boolean succeeded, BatchSinkContext context) {
+    recordMetric(succeeded, context);
+
     if (getConfig().getBucket() == null) {
       Path gcsPath = new Path(String.format(gcsPathFormat, uuid.toString()));
       try {
@@ -124,6 +134,47 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
         LOG.warn("Failed to delete bucket '{}': {}", gcsPath, e.getMessage());
       }
     }
+  }
+
+  private void recordMetric(boolean succeeded, BatchSinkContext context) {
+    if (!succeeded) {
+      return;
+    }
+    Job queryJob = bigQuery.getJob(getJobId());
+    if (queryJob == null) {
+      LOG.warn("Unable to find BigQuery job. No metric will be emitted for the number of affected rows.");
+      return;
+    }
+    long totalRows = getTotalRows(queryJob);
+    LOG.info("Job {} affected {} rows", queryJob.getJobId(), totalRows);
+    //work around since StageMetrics count() only takes int as of now
+    int cap = 10000; // so the loop will not cause significant delays
+    long count = totalRows / Integer.MAX_VALUE;
+    if (count > cap) {
+      LOG.warn("Total record count is too high! Metric for the number of affected rows may not be updated correctly");
+    }
+    count = count < cap ? count : cap;
+    for (int i = 0; i <= count && totalRows > 0; i++) {
+      int rowCount = totalRows < Integer.MAX_VALUE ? (int) totalRows : Integer.MAX_VALUE;
+      context.getMetrics().count(RECORDS_UPDATED_METRIC, rowCount);
+      totalRows -= rowCount;
+    }
+  }
+
+  private JobId getJobId() {
+    String location = bigQuery.getDataset(getConfig().getDataset()).getLocation();
+    return JobId.newBuilder().setLocation(location).setJob(jobId).build();
+  }
+
+  private long getTotalRows(Job queryJob) {
+    JobConfiguration.Type type = queryJob.getConfiguration().getType();
+    if (type == JobConfiguration.Type.LOAD) {
+      return ((JobStatistics.LoadStatistics) queryJob.getStatistics()).getOutputRows();
+    } else if (type == JobConfiguration.Type.QUERY) {
+      return ((JobStatistics.QueryStatistics) queryJob.getStatistics()).getNumDmlAffectedRows();
+    }
+    LOG.warn("Unable to identify BigQuery job type. No metric will be emitted for the number of affected rows.");
+    return 0;
   }
 
   @Override
