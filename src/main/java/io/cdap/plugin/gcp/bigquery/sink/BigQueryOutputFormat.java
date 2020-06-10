@@ -174,12 +174,14 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       LOG.debug("Partition filter: '{}'", partitionFilter);
       boolean tableExists = conf.getBoolean(BigQueryConstants.CONFIG_DESTINATION_TABLE_EXISTS, false);
 
+      String jobIdString = conf.get(BigQueryConstants.CONFIG_JOB_ID);
+      JobId jobId = JobId.of(jobIdString);
       try {
         importFromGcs(destProjectId, destTable, destSchema.orElse(null), kmsKeyName, outputFileFormat,
                       writeDisposition, sourceUris, createPartitionedTable, partitionByField,
-                      requirePartitionFilter, clusteringOrderList, tableExists);
+                      requirePartitionFilter, clusteringOrderList, tableExists, jobIdString);
         if (temporaryTableReference != null) {
-          operationAction(destTable, kmsKeyName);
+          operationAction(destTable, kmsKeyName, jobId);
         }
       } catch (InterruptedException e) {
         throw new IOException("Failed to import GCS into BigQuery", e);
@@ -202,7 +204,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
                                @Nullable String kmsKeyName, BigQueryFileFormat sourceFormat, String writeDisposition,
                                List<String> gcsPaths, boolean createPartitionedTable,
                                @Nullable String partitionByField, boolean requirePartitionFilter,
-                               List<String> clusteringOrderList, boolean tableExists)
+                               List<String> clusteringOrderList, boolean tableExists, String jobId)
       throws IOException, InterruptedException {
       LOG.info("Importing into table '{}' from {} paths; path[0] is '{}'; awaitCompletion: {}",
                BigQueryStrings.toString(tableRef), gcsPaths.size(), gcsPaths.isEmpty() ? "(empty)" : gcsPaths.get(0),
@@ -280,7 +282,9 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
         bigQueryHelper.getRawBigquery().datasets().get(tableRef.getProjectId(), tableRef.getDatasetId()).execute();
 
       JobReference jobReference =
-        bigQueryHelper.createJobReference(projectId, "direct-bigqueryhelper-import", dataset.getLocation());
+        new JobReference().setProjectId(projectId)
+          .setJobId(temporaryTableReference == null ? jobId : UUID.randomUUID().toString())
+          .setLocation(dataset.getLocation());
       Job job = new Job();
       job.setConfiguration(config);
       job.setJobReference(jobReference);
@@ -404,7 +408,8 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       return Optional.empty();
     }
 
-    private void operationAction(TableReference tableRef, @Nullable String cmekKey) throws InterruptedException {
+    private void operationAction(TableReference tableRef, @Nullable String cmekKey, JobId jobId)
+      throws InterruptedException {
       if (allowSchemaRelaxation) {
         updateTableSchema(tableRef);
       }
@@ -419,7 +424,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
             com.google.cloud.bigquery.EncryptionConfiguration.newBuilder().setKmsKeyName(cmekKey).build())
           .build();
 
-      JobId jobId = JobId.of(UUID.randomUUID().toString());
+
       com.google.cloud.bigquery.Job queryJob = bigquery.create(JobInfo.newBuilder(queryConfig).setJobId(jobId).build());
 
       // Wait for the query to complete.
