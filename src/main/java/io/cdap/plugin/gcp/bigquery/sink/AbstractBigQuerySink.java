@@ -330,6 +330,13 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
       return;
     }
 
+    if (getConfig().isTruncateTableSet()) {
+      //no validation required for schema if truncate table is set.
+      // BQ will overwrite the schema for normal tables when write disposition is WRITE_TRUNCATE
+      //note - If write to single partition is supported in future, schema validation will be necessary
+      return;
+    }
+
     FieldList bqFields = bqSchema.getFields();
     List<Schema.Field> outputSchemaFields = Objects.requireNonNull(tableSchema.getFields());
 
