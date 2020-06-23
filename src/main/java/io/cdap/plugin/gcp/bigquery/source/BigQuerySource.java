@@ -176,8 +176,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
   @Override
   public void initialize(BatchRuntimeContext context) throws Exception {
     super.initialize(context);
-    FailureCollector collector = context.getFailureCollector();
-    outputSchema = getOutputSchema(collector);
+    this.outputSchema = config.getSchema(context.getFailureCollector());
   }
 
   /**
@@ -190,7 +189,9 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
   @Override
   public void transform(KeyValue<LongWritable, GenericData.Record> input, Emitter<StructuredRecord> emitter)
     throws Exception {
-    emitter.emit(transformer.transform(input.getValue(), outputSchema));
+    StructuredRecord transformed = outputSchema == null ?
+      transformer.transform(input.getValue()) : transformer.transform(input.getValue(), outputSchema);
+    emitter.emit(transformed);
   }
 
   @Override
