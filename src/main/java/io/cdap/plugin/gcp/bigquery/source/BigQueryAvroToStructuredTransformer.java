@@ -36,6 +36,16 @@ import javax.annotation.Nullable;
  * Create StructuredRecords from GenericRecords. Contains custom logic for BigQuery date and time types.
  */
 public class BigQueryAvroToStructuredTransformer extends RecordConverter<GenericRecord, StructuredRecord> {
+
+  private Schema genericRecordSchema;
+
+  public StructuredRecord transform(GenericRecord genericRecord) throws IOException {
+    if (genericRecordSchema == null) {
+      genericRecordSchema = Schema.parseJson(genericRecord.getSchema().toString());
+    }
+    return transform(genericRecord, genericRecordSchema);
+  }
+
   @Override
   public StructuredRecord transform(GenericRecord genericRecord, Schema structuredSchema) throws IOException {
     StructuredRecord.Builder builder = StructuredRecord.builder(structuredSchema);
@@ -109,4 +119,5 @@ public class BigQueryAvroToStructuredTransformer extends RecordConverter<Generic
   protected Object convertBytes(Object field) {
     return field instanceof ByteBuffer ? Bytes.toBytes((ByteBuffer) field) : field;
   }
+
 }
