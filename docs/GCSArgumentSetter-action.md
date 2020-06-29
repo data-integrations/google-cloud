@@ -1,4 +1,4 @@
-# Google BigQuery Table Source
+# GCS Argument Setter
 
 Description
 -----------
