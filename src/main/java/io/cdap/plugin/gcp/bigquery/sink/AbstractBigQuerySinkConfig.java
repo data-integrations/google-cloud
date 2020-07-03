@@ -46,6 +46,7 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
   public static final String NAME_TRUNCATE_TABLE = "truncateTable";
   public static final String NAME_LOCATION = "location";
   private static final String NAME_GCS_CHUNK_SIZE = "gcsChunkSize";
+  private static final String NAME_UPDATE_SCHEMA = "allowSchemaRelaxation";
 
   @Name(DATASET_PROJECT_ID)
   @Macro
@@ -76,6 +77,7 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
     "number of bytes. By default, 8388608 bytes (8MB) will be used as upload request chunk size.")
   protected String gcsChunkSize;
 
+  @Name(NAME_UPDATE_SCHEMA)
   @Macro
   @Nullable
   @Description("Whether to modify the BigQuery table schema if it differs from the input schema.")
@@ -85,7 +87,7 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
   @Macro
   @Nullable
   @Description("Whether or not to truncate the table before writing to it. "
-    + "Should only be used with the Insert operation.")
+    + "Should only be used with the Insert operation. This could overwrite the table schema")
   protected Boolean truncateTable;
 
   @Name(NAME_LOCATION)
@@ -142,8 +144,12 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
   }
 
   public JobInfo.WriteDisposition getWriteDisposition() {
-    return truncateTable != null && truncateTable ? JobInfo.WriteDisposition.WRITE_TRUNCATE
+    return isTruncateTableSet() ? JobInfo.WriteDisposition.WRITE_TRUNCATE
       : JobInfo.WriteDisposition.WRITE_APPEND;
+  }
+
+  public boolean isTruncateTableSet() {
+    return truncateTable != null && truncateTable;
   }
 
   @Override
@@ -157,5 +163,6 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
     if (!containsMacro(NAME_DATASET)) {
       BigQueryUtil.validateDataset(dataset, NAME_DATASET, collector);
     }
+
   }
 }

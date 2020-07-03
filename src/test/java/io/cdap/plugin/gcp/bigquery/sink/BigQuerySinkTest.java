@@ -14,24 +14,27 @@
  *  the License.
  */
 
-package io.cdap.plugin.gcp.bigquery;
+package io.cdap.plugin.gcp.bigquery.sink;
 
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.Dataset;
+import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.Job;
 import com.google.cloud.bigquery.JobConfiguration;
 import com.google.cloud.bigquery.JobId;
 import com.google.cloud.bigquery.JobStatistics;
+import com.google.cloud.bigquery.LegacySQLTypeName;
+import com.google.cloud.bigquery.Table;
+import com.google.cloud.bigquery.TableDefinition;
+import com.google.cloud.bigquery.TableId;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
+import io.cdap.cdap.etl.api.validation.ValidationException;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.cdap.etl.common.AbstractStageContext;
 import io.cdap.cdap.etl.mock.common.MockStageMetrics;
 import io.cdap.cdap.etl.mock.validation.MockFailureCollector;
 import io.cdap.cdap.etl.spark.batch.SparkBatchSinkContext;
-import io.cdap.plugin.gcp.bigquery.sink.AbstractBigQuerySink;
-import io.cdap.plugin.gcp.bigquery.sink.BigQuerySink;
-import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkConfig;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -169,6 +172,46 @@ public class BigQuerySinkTest {
     when(job.getStatistics()).thenReturn(queryStatistics);
     when(queryStatistics.getNumDmlAffectedRows()).thenReturn(count);
     return job;
+  }
+
+  @Test(expected = ValidationException.class)
+  public void testSchemaValidationException() throws NoSuchFieldException {
+    BigQuerySink sink = getValidationTestSink(false);
+    MockFailureCollector collector = new MockFailureCollector("bqsink");
+    Table table = getTestSchema();
+    sink.validateSchema(table, sink.getConfig().getSchema(collector), false, collector);
+  }
+
+  @Test
+  public void testSchemaValidationNoException() throws NoSuchFieldException {
+    BigQuerySink sink = getValidationTestSink(true);
+    MockFailureCollector collector = new MockFailureCollector("bqsink");
+    Table table = getTestSchema();
+    sink.validateSchema(table, sink.getConfig().getSchema(collector), false, collector);
+    Assert.assertEquals(0, collector.getValidationFailures().size());
+  }
+
+  private Table getTestSchema() {
+    Table table = mock(Table.class);
+    TableId tableId = TableId.of("test", "testds", "testtab");
+    when(table.getTableId()).thenReturn(tableId);
+    TableDefinition mock = mock(TableDefinition.class);
+    when(table.getDefinition()).thenReturn(mock);
+    Field field = Field.of("Field1", LegacySQLTypeName.STRING);
+    when(mock.getSchema()).thenReturn(com.google.cloud.bigquery.Schema.of(field));
+    return table;
+  }
+
+  private BigQuerySink getValidationTestSink(boolean truncateTable) throws NoSuchFieldException {
+    Schema schema = Schema.recordOf("record",
+                                    Schema.Field.of("id", Schema.of(Schema.Type.LONG)),
+                                    Schema.Field.of("name", Schema.of(Schema.Type.STRING)));
+    BigQuerySinkConfig config =
+      new BigQuerySinkConfig("testmetric", "ds", "tb", "bkt", schema.toString());
+    FieldSetter.setField(config, AbstractBigQuerySinkConfig.class.getDeclaredField("truncateTable"),
+                         truncateTable);
+    BigQuery bigQueryMock = mock(BigQuery.class);
+    return new BigQuerySink(config);
   }
 
 }
