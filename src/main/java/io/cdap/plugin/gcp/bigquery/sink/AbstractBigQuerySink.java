@@ -102,7 +102,8 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
     Credentials credentials = serviceAccountFilePath == null ?
       null : GCPUtils.loadServiceAccountCredentials(serviceAccountFilePath);
     String project = config.getProject();
-    bigQuery = GCPUtils.getBigQuery(project, credentials);
+    String datasetProjectId = config.getDatasetProject();
+    bigQuery = GCPUtils.getBigQuery(datasetProjectId, credentials);
     String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
     baseConfiguration = getBaseConfiguration(cmekKey);
     String bucket = configureBucket();
@@ -461,7 +462,8 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
 
     BigQueryOutputConfiguration.configure(
       configuration,
-      String.format("%s.%s", getConfig().getDataset(), tableName),
+        String.format("%s:%s.%s", getConfig().getDatasetProject(), getConfig().getDataset(),
+            tableName),
       outputTableSchema,
       temporaryGcsPath,
       BigQueryFileFormat.AVRO,

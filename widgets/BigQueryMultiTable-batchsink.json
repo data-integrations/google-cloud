@@ -25,6 +25,14 @@
         },
         {
           "widget-type": "textbox",
+          "label": "Dataset Project Id",
+          "name": "datasetProject",
+          "widget-attributes": {
+            "placeholder": "The project in which the dataset is located/should be created. Defaults to the project specified in the Project Id property."
+          }
+        },
+        {
+          "widget-type": "textbox",
           "label": "Dataset",
           "name": "dataset",
           "widget-attributes" : {

@@ -28,6 +28,10 @@ It can be found on the Dashboard in the Google Cloud Platform Console. This is t
 that the BigQuery job will run in. If a temporary bucket needs to be created, the service account
 must have permission in this project to create buckets.
 
+**Dataset Project**: Project the dataset belongs to. This is only required if the dataset is not
+in the same project that the BigQuery job will run in. If no value is given,
+it will default to the configured Project ID.
+
 **Dataset**: Dataset the table belongs to. A dataset is contained within a specific project.
 Datasets are top-level containers that are used to organize and control access to tables and views.
 
@@ -66,10 +70,29 @@ the update operation will be performed only in the partitions meeting the criter
 **Location:** The location where the big query dataset will get created. This value is ignored
 if the dataset or temporary bucket already exist.
 
-**Create Partitioned Table**: Whether to create the BigQuery table with time partitioning. This value
+**Create Partitioned Table [DEPRECATED]**: Whether to create the BigQuery table with time partitioning. This value
 is ignored if the table already exists.
 * When this is set to true, table will be created with time partitioning.
-* When this is set to false, table will be created without time partitioning.
+* When this is set to false, value of Partitioning type will be used.
+* [DEPRECATED] use Partitioning Type
+
+**Partitioning Type**: Specifies the partitioning type. Can either be Integer or Time or None. Defaults to Time.
+ This value is ignored if the table already exists.
+* When this is set to Time, table will be created with time partitioning.
+* When this is set to Integer, table will be created with range partitioning.
+* When this is set to None, table will be created without time partitioning.
+
+**Range Start**: For integer partitioning, specifies the start of the range. Only used when table doesn’t 
+exist already, and partitioning type is set to Integer.
+* The start value is inclusive.
+
+**Range End**: For integer partitioning, specifies the end of the range. Only used when table doesn’t 
+exist already, and partitioning type is set to Integer.
+* The end value is exclusive.
+
+**Range Interval**: For integer partitioning, specifies the partition interval. Only used when table doesn’t exist already,
+ and partitioning type is set to Integer.
+* The interval value must be a positive integer.
 
 **Partition Field**: Partitioning column for the BigQuery table. This should be left empty if the
 BigQuery table is an ingestion-time partitioned table.

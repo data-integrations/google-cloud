@@ -25,6 +25,14 @@
         },
         {
           "widget-type": "textbox",
+          "label": "Dataset Project Id",
+          "name": "datasetProject",
+          "widget-attributes": {
+            "placeholder": "The project in which the dataset is located/should be created. Defaults to the project specified in the Project Id property."
+          }
+        },
+        {
+          "widget-type": "textbox",
           "label": "Dataset",
           "name": "dataset",
           "widget-attributes" : {
@@ -182,6 +190,47 @@
           }
         },
         {
+          "widget-type": "radio-group",
+          "label": "Partitioning type",
+          "name": "partitioningType",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "TIME",
+            "options": [
+              {
+                "id": "TIME",
+                "label": "Time"
+              },
+              {
+                "id": "INTEGER",
+                "label": "Integer"
+              },
+              {
+                "id": "NONE",
+                "label": "None"
+              }
+            ]
+          }
+        },
+        {
+          "widget-type": "Number",
+          "label": "Range Start",
+          "name": "rangeStart",
+          "widget-attributes": {
+            "default": "0"
+          }
+        },
+        {
+          "widget-type": "Number",
+          "label": "Range End",
+          "name": "rangeEnd"
+        },
+        {
+          "widget-type": "Number",
+          "label": "Range Interval",
+          "name": "rangeInterval"
+        },
+        {
           "widget-type": "textbox",
           "label": "Partition Field",
           "name": "partitionByField",
@@ -232,6 +281,52 @@
         "schema-default-type": "string"
       }
     }
+  ],
+  "filters": [
+  {
+    "name": "PartitioningIntegerFieldsFilter",
+    "condition": {
+      "expression": "partitioningType == 'INTEGER'"
+    },
+    "show": [
+      {
+        "type": "property",
+        "name": "rangeStart"
+      },
+      {
+        "type": "property",
+        "name": "rangeEnd"
+      },
+      {
+        "type": "property",
+        "name": "rangeInterval"
+      },
+      {
+        "type": "property",
+        "name": "clientAccessToken"
+      }
+    ]
+  },
+  {
+    "name": "PartitionFieldFilter",
+    "condition": {
+      "expression": "createPartitionedTable == true || partitioningType == 'INTEGER' || partitioningType == 'TIME'"
+    },
+    "show": [
+      {
+        "type": "property",
+        "name": "partitionByField"
+      },
+      {
+        "type": "property",
+        "name": "partitionFilterRequired"
+      },
+      {
+        "type": "property",
+        "name": "clusteringOrder"
+      }
+    ]
+  }
   ],
   "jump-config": {
     "datasets": [
