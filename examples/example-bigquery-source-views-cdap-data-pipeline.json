@@ -1,0 +1,96 @@
+{
+    "artifact": {
+        "name": "cdap-data-pipeline",
+        "version": "6.1.2",
+        "scope": "SYSTEM"
+    },
+    "description": "Data Pipeline Application",
+    "name": "example-bigquery-source-views",
+    "config": {
+        "resources": {
+            "memoryMB": 2048,
+            "virtualCores": 1
+        },
+        "driverResources": {
+            "memoryMB": 2048,
+            "virtualCores": 1
+        },
+        "connections": [
+            {
+                "from": "BigQuery2",
+                "to": "Trash"
+            }
+        ],
+        "comments": [],
+        "postActions": [],
+        "properties": {},
+        "processTimingEnabled": true,
+        "stageLoggingEnabled": false,
+        "stages": [
+            {
+                "name": "BigQuery2",
+                "plugin": {
+                    "name": "BigQueryTable",
+                    "type": "batchsource",
+                    "label": "BigQuery2",
+                    "artifact": {
+                        "name": "google-cloud",
+                        "version": "0.14.5",
+                        "scope": "USER"
+                    },
+                    "properties": {
+                        "project": "${projectid}",
+                        "enableQueryingViews": "true",
+                        "viewMaterializationProject": "${materialization_project}",
+                        "viewMaterializationDataset": "${materialization_dataset}",
+                        "serviceFilePath": "auto-detect",
+                        "referenceName": "BQSource",
+                        "table": "${health_view}",
+                        "dataset": "${View_dataset}",
+                        "bucket": "${temp_bucketname}",
+                        "schema": "${schema_view}"
+                    }
+                },
+                "outputSchema": [
+                    {
+                        "name": "etlSchemaBody",
+                        "schema": "${schema_view}"
+                    }
+                ]
+            },
+            {
+                "name": "Trash",
+                "plugin": {
+                    "name": "Trash",
+                    "type": "batchsink",
+                    "label": "Trash",
+                    "artifact": {
+                        "name": "trash-plugin",
+                        "version": "1.2.0",
+                        "scope": "USER"
+                    },
+                    "properties": {
+                        "referenceName": "Trash"
+                    }
+                },
+                "outputSchema": [
+                    {
+                        "name": "etlSchemaBody",
+                        "schema": "${schema_view}"
+                    }
+                ],
+                "inputSchema": [
+                    {
+                        "name": "BigQuery2",
+                        "schema": "${schema_view}"
+                    }
+                ]
+            }
+        ],
+        "schedule": "0 * * * *",
+        "engine": "spark",
+        "numOfRecordsPreview": 100,
+        "description": "Data Pipeline Application",
+        "maxConcurrentRuns": 1
+    }
+}

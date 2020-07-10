@@ -100,6 +100,37 @@
       ]
     },
     {
+      "label": "Views",
+      "properties": [
+        {
+          "widget-type": "toggle",
+          "label": "Enable querying views",
+          "name": "enableQueryingViews",
+          "widget-attributes": {
+            "on": {
+              "value": "true",
+              "label": "YES"
+            },
+            "off": {
+              "value": "false",
+              "label": "NO"
+            },
+            "default": "false"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "View Materialization Project",
+          "name": "viewMaterializationProject"
+        },
+        {
+          "widget-type": "textbox",
+          "label": "View Materialization Dataset",
+          "name": "viewMaterializationDataset"
+        }
+      ]
+    },
+    {
       "label" : "Credentials",
       "properties" : [
         {
@@ -129,6 +160,24 @@
         ],
         "schema-default-type": "string"
       }
+    }
+  ],
+  "filters": [
+    {
+      "name": "ViewsProperties",
+      "condition": {
+        "expression": "enableQueryingViews == true "
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "viewMaterializationProject"
+        },
+        {
+          "type": "property",
+          "name": "viewMaterializationDataset"
+        }
+      ]
     }
   ],
   "jump-config": {

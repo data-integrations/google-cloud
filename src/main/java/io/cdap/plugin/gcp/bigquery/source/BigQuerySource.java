@@ -25,6 +25,7 @@ import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.StandardSQLTypeName;
 import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.Table;
+import com.google.cloud.bigquery.TableDefinition.Type;
 import com.google.cloud.bigquery.TimePartitioning;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import io.cdap.cdap.api.annotation.Description;
@@ -157,6 +158,13 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     if (config.getFilter() != null) {
       configuration.set(BigQueryConstants.CONFIG_FILTER, config.getFilter());
     }
+    if (config.getViewMaterializationProject() != null) {
+      configuration.set(BigQueryConstants.CONFIG_VIEW_MATERIALIZATION_PROJECT, config.getViewMaterializationProject());
+    }
+    if (config.getViewMaterializationDataset() != null) {
+      configuration.set(BigQueryConstants.CONFIG_VIEW_MATERIALIZATION_DATASET, config.getViewMaterializationDataset());
+    }
+
 
     String temporaryGcsPath = String.format("gs://%s/hadoop/input/%s", bucket, uuid);
     PartitionedBigQueryInputFormat.setTemporaryCloudStorageDirectory(configuration, temporaryGcsPath);
@@ -169,7 +177,8 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
 
     // Both emitLineage and setOutputFormat internally try to create an external dataset if it does not already exists.
     // We call emitLineage before since it creates the dataset with schema.
-    emitLineage(context, configuredSchema);
+    Type sourceTableType = config.getSourceTableType();
+    emitLineage(context, configuredSchema, sourceTableType, config.getTable());
     setInputFormat(context);
   }
 
@@ -437,13 +446,18 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     }));
   }
 
-  private void emitLineage(BatchSourceContext context, Schema schema) {
+  private void emitLineage(BatchSourceContext context, Schema schema, Type sourceTableType,
+      String table) {
     LineageRecorder lineageRecorder = new LineageRecorder(context, config.referenceName);
     lineageRecorder.createExternalDataset(schema);
 
+    String type = Type.VIEW == sourceTableType ? "view" : "table";
+
     if (schema.getFields() != null) {
-      lineageRecorder.recordRead("Read", "Read from BigQuery table.",
-                                 schema.getFields().stream().map(Schema.Field::getName).collect(Collectors.toList()));
+      lineageRecorder.recordRead(
+          "Read",
+          String.format("Read from BigQuery %s '%s'.", type, table),
+          schema.getFields().stream().map(Schema.Field::getName).collect(Collectors.toList()));
     }
   }
 }

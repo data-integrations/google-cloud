@@ -36,4 +36,6 @@ public interface BigQueryConstants {
   String CONFIG_PARTITION_FILTER = "cdap.bq.sink.partition.filter";
   String CONFIG_FILTER = "cdap.bq.source.filter";
   String CONFIG_JOB_ID = "cdap.bq.sink.job.id";
+  String CONFIG_VIEW_MATERIALIZATION_PROJECT = "cdap.bq.source.view.materialization.project";
+  String CONFIG_VIEW_MATERIALIZATION_DATASET = "cdap.bq.source.view.materialization.dataset";
 }
