@@ -37,6 +37,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
@@ -49,6 +51,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   private static final String WHERE = "WHERE";
   public static final Set<Schema.Type> SUPPORTED_CLUSTERING_TYPES =
     ImmutableSet.of(Schema.Type.INT, Schema.Type.LONG, Schema.Type.STRING, Schema.Type.BOOLEAN, Schema.Type.BYTES);
+  private static final Pattern FIELD_PATTERN = Pattern.compile("[a-zA-Z0-9_]+");
 
   public static final String NAME_TABLE = "table";
   public static final String NAME_SCHEMA = "schema";
@@ -240,6 +243,12 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
 
       for (Schema.Field field : outputSchema.getFields()) {
         String name = field.getName();
+        // BigQuery column names only allow alphanumeric characters and _
+        // https://cloud.google.com/bigquery/docs/schemas#column_names
+        if (!FIELD_PATTERN.matcher(name).matches()) {
+          collector.addFailure(String.format("Output field '%s' must only contain alphanumeric characters and '_'.",
+                                             name), null).withOutputSchemaField(name);
+        }
 
         // check if the required fields are present in the input schema.
         if (!field.getSchema().isNullable() && inputSchema != null && inputSchema.getField(field.getName()) == null) {
