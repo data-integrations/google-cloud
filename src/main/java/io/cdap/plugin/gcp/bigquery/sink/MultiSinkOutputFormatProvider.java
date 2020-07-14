@@ -60,9 +60,7 @@ public class MultiSinkOutputFormatProvider implements OutputFormatProvider {
 
   @Override
   public Map<String, String> getOutputFormatConfiguration() {
-    Map<String, String> map = BigQueryUtil.configToMap(config);
-    map.put(org.apache.hadoop.mapred.JobContext.OUTPUT_KEY_CLASS, AvroKey.class.getName());
-    return map;
+    return BigQueryUtil.configToMap(config);
   }
 
   /**
