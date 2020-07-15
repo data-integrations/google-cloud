@@ -112,11 +112,12 @@ public final class BigQueryExecute extends Action {
     try {
       queryJob.waitFor();
     } catch (BigQueryException e) {
+      // TODO: Remove once issue in client library is fixed
       // Minor bug with BigQuery java client causing it to prematurely throw an exception
       // Pipeline should always fail if an exception is encountered, but BigQueryErrors take priority
       // See CDAP-17061
-      if (queryJob == null || queryJob.getStatus() == null || queryJob.getStatus().getError() == null) {
-        throw new RuntimeException(e);
+      if (queryJob.getStatus() == null || queryJob.getStatus().getError() == null) {
+        throw e;
       }
     }
 
