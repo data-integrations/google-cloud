@@ -18,6 +18,7 @@ package io.cdap.plugin.gcp.bigquery.action;
 
 import com.google.auth.Credentials;
 import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.EncryptionConfiguration;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldValueList;
@@ -108,7 +109,16 @@ public final class BigQueryExecute extends Action {
     LOG.debug("The BigQuery SQL is {}", config.getSql());
 
     // Wait for the query to complete
-    queryJob.waitFor();
+    try {
+      queryJob.waitFor();
+    } catch (BigQueryException e) {
+      // Minor bug with BigQuery java client causing it to prematurely throw an exception
+      // Pipeline should always fail if an exception is encountered, but BigQueryErrors take priority
+      // See CDAP-17061
+      if (queryJob == null || queryJob.getStatus() == null || queryJob.getStatus().getError() == null) {
+        throw new RuntimeException(e);
+      }
+    }
 
     // Check for errors
     if (queryJob.getStatus().getError() != null) {
