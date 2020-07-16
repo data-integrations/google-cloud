@@ -1,5 +1,5 @@
 /*
- * Copyright © 2015 Cask Data, Inc.
+ * Copyright © 2015-2020 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -17,7 +17,9 @@
 package io.cdap.plugin.gcp.gcs.actions;
 
 import com.google.auth.Credentials;
+import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageException;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
@@ -100,7 +102,16 @@ public final class GCSBucketCreate extends Action {
         }
 
         // create the gcs buckets if not exist
-        if (storage.get(gcsPath.getBucket()) == null) {
+        Bucket bucket = null;
+        try {
+          bucket = storage.get(gcsPath.getBucket());
+        } catch (StorageException e) {
+          // Add more descriptive error message
+          throw new RuntimeException(
+            String.format("Unable to access or create bucket %s. ", gcsPath.getBucket())
+              + "Ensure you entered the correct bucket path and have permissions for it.", e);
+        }
+        if (bucket == null) {
           GCPUtils.createBucket(storage, gcsPath.getBucket(), config.location,
                                 context.getArguments().get(GCPUtils.CMEK_KEY));
           undoBucket.add(bucketPath);
