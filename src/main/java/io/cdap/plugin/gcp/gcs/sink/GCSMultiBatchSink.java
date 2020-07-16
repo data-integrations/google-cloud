@@ -1,5 +1,5 @@
 /*
- * Copyright © 2015-2016 Cask Data, Inc.
+ * Copyright © 2015-2020 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -18,6 +18,7 @@ package io.cdap.plugin.gcp.gcs.sink;
 
 import com.google.auth.Credentials;
 import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageException;
 import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
@@ -100,8 +101,15 @@ public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable,
     Credentials credentials = config.getServiceAccountFilePath() == null ?
       null : GCPUtils.loadServiceAccountCredentials(config.getServiceAccountFilePath());
     Storage storage = GCPUtils.getStorage(config.getProject(), credentials);
-    if (storage.get(config.getBucket()) == null) {
-      GCPUtils.createBucket(storage, config.getBucket(), config.getLocation(), cmekKey);
+    try {
+      if (storage.get(config.getBucket()) == null) {
+        GCPUtils.createBucket(storage, config.getBucket(), config.getLocation(), cmekKey);
+      }
+    } catch (StorageException e) {
+      // Add more descriptive error message
+      throw new RuntimeException(
+        String.format("Unable to access or create bucket %s. ", config.getBucket())
+          + "Ensure you entered the correct bucket path and have permissions for it.", e);
     }
 
     for (Map.Entry<String, String> argument : argumentCopy.entrySet()) {
