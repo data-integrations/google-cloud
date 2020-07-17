@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019 Cask Data, Inc.
+ * Copyright © 2019-2020 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -112,7 +112,7 @@ public final class BigQueryExecute extends Action {
     try {
       queryJob.waitFor();
     } catch (BigQueryException e) {
-      // TODO: Remove once issue in client library is fixed
+      // TODO: Remove once issue in service API is fixed
       // Minor bug with BigQuery java client causing it to prematurely throw an exception
       // Pipeline should always fail if an exception is encountered, but BigQueryErrors take priority
       // See CDAP-17061
