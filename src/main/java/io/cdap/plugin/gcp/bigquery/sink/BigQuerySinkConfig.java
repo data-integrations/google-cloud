@@ -360,6 +360,9 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   }
 
   private void validateOperationProperties(@Nullable Schema schema, FailureCollector collector) {
+    if (containsMacro(NAME_OPERATION) || containsMacro(NAME_TABLE_KEY) || containsMacro(NAME_DEDUPE_BY)) {
+      return;
+    }
     Operation operation = getOperation();
     if (Arrays.stream(Operation.values()).noneMatch(operation::equals)) {
       collector.addFailure(
@@ -368,10 +371,10 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
         .withConfigElement(NAME_OPERATION, operation.name().toLowerCase());
       return;
     }
-    if (Operation.INSERT.equals(getOperation())) {
+    if (Operation.INSERT.equals(operation)) {
       return;
     }
-    if ((Operation.UPDATE.equals(getOperation()) || Operation.UPSERT.equals(getOperation()))
+    if ((Operation.UPDATE.equals(operation) || Operation.UPSERT.equals(operation))
       && getRelationTableKey() == null) {
       collector.addFailure(
         "Table key must be set if the operation is 'Update' or 'Upsert'.", null)
@@ -405,17 +408,16 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
         .withConfigElement(NAME_TABLE_KEY, key)
       );
 
-    if ((Operation.UPDATE.equals(getOperation()) || Operation.UPSERT.equals(getOperation()))
-      && getDedupeBy() != null) {
+    if ((Operation.UPDATE.equals(operation) || Operation.UPSERT.equals(operation)) && getDedupeBy() != null) {
       List<String> dedupeByList = Arrays.stream(Objects.requireNonNull(getDedupeBy()).split(","))
         .collect(Collectors.toList());
 
       dedupeByList.stream()
         .filter(v -> !fields.contains(v.split(" ")[0]))
         .forEach(v -> collector.addFailure(
-        String.format("Dedupe by field '%s' does not exist in the schema.", v.split(" ")[0]),
-        "Change the Dedupe by field to be one of the schema fields.")
-        .withConfigElement(NAME_DEDUPE_BY, v));
+          String.format("Dedupe by field '%s' does not exist in the schema.", v.split(" ")[0]),
+          "Change the Dedupe by field to be one of the schema fields.")
+          .withConfigElement(NAME_DEDUPE_BY, v));
 
       Map<String, Integer> orderedByFieldMap = calculateDuplicates(dedupeByList);
       Map<String, String> orderedByFieldValueMap = dedupeByList.stream()
@@ -428,7 +430,6 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
           String.format("Remove duplicates of Dedupe by field '%s'.", key))
           .withConfigElement(NAME_DEDUPE_BY, orderedByFieldValueMap.get(key))
         );
-
     }
   }
 
