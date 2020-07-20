@@ -45,8 +45,14 @@ must have permission in this project to create buckets.
 
 **Path**: GCS Path to the file containing the arguments.
 
+**Provide Service Account as JSON Content**: Provide service account as JSON. When it is set to 'Yes', 
+the content of service account key needs to be copied, whereas when it is set to 'No' the service Account 
+file path needs to be specified. The default value is 'No'.
+
 **Service Account File Path**: Path on the local file system of the service account key used for
 authorization. Can be set to 'auto-detect' when running on a Dataproc cluster.
 When running on other clusters, the file must be present on every node in the cluster.
+
+**Service Account JSON**: The content of the service account.
 
 

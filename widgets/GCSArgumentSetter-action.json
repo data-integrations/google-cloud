@@ -32,21 +32,61 @@
           }
         },
         {
+          "label": "Provide Service Account as JSON Content",
+          "name": "serviceAccountType",
+          "widget-type": "toggle",
+          "widget-attributes": {
+            "on": {
+              "value": "JSON",
+              "label": "Yes"
+            },
+            "off": {
+              "value": "filePath",
+              "label": "No"
+            },
+            "default": "filePath"
+          }
+        },
+        {
           "widget-type": "textbox",
           "label": "Service Account File Path",
           "name": "serviceFilePath",
           "widget-attributes": {
             "default": "auto-detect"
           }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Service Account JSON",
+          "name": "serviceAccountJSON"
         }
       ]
     }
   ],
-  "jump-config": {
-    "datasets": [
-      {
-        "ref-property-name": "referenceName"
-      }
-    ]
-  }
+  "filters": [
+    {
+      "name": "ServiceAuthenticationTypeFilePath",
+      "condition": {
+        "expression": "serviceAccountType == 'filePath'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "serviceFilePath"
+        }
+      ]
+    },
+    {
+      "name": "ServiceAuthenticationTypeJSON",
+      "condition": {
+        "expression": "serviceAccountType == 'JSON'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "serviceAccountJSON"
+        }
+      ]
+    }
+  ]
 }

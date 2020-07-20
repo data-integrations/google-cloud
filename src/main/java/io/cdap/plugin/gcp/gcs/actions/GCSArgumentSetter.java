@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.gcs.actions;
 
+import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
@@ -35,7 +36,9 @@ import io.cdap.cdap.etl.api.action.Action;
 import io.cdap.cdap.etl.api.action.ActionContext;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.GCSPath;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -44,9 +47,7 @@ import java.util.Map;
  * This class <code>GCSArgumentSetter</code> get json file configuration from GCS.
  *
  * <p>The plugin provides the ability to map json properties as pipeline arguments name and columns
- * values as pipeline arguments</p>
- *
- * <code>
+ * values as pipeline arguments <code>
  *   {
  *     "arguments" : [
  *        { "name" : "input.path", "type" : "string", "value" : "/data/sunny_feeds/master"},
@@ -108,9 +109,25 @@ public final class GCSArgumentSetter extends Action {
   private static Storage getStorage(GCSArgumentSetterConfig config) throws IOException {
     return StorageOptions.newBuilder()
         .setProjectId(config.getProject())
-        .setCredentials(GCPUtils.loadServiceAccountCredentials(config.getServiceAccountFilePath()))
+        .setCredentials(getCredentials(config))
         .build()
         .getService();
+  }
+
+  public static ServiceAccountCredentials getCredentials(GCSArgumentSetterConfig config)
+      throws IOException {
+    ServiceAccountCredentials credentials = null;
+    switch (config.getServiceAccountType()) {
+      case FILE_PATH:
+        credentials = GCPUtils.loadServiceAccountCredentials(config.getServiceAccountFilePath());
+        break;
+      case JSON:
+        InputStream jsonInputStream =
+            new ByteArrayInputStream(config.getServiceAccountJSON().getBytes());
+        credentials = ServiceAccountCredentials.fromStream(jsonInputStream);
+        break;
+    }
+    return credentials;
   }
 
   public static String getContent(GCSArgumentSetterConfig config) throws IOException {
@@ -135,7 +152,7 @@ public final class GCSArgumentSetter extends Action {
     private String type;
     private JsonElement value;
 
-     Argument() {
+    Argument() {
       type = "string";
     }
 

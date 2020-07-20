@@ -21,26 +21,38 @@ import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.etl.api.FailureCollector;
-import io.cdap.plugin.gcp.bigquery.source.BigQuerySource;
-import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
+import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.gcs.GCSPath;
+import javax.annotation.Nullable;
 
-/**
- * Holds configuration required for configuring {@link BigQuerySource}.
- */
-public final class GCSArgumentSetterConfig extends GCPReferenceSourceConfig {
+/** Holds configuration required for configuring {@link GCSArgumentSetter}. */
+public final class GCSArgumentSetterConfig extends GCPConfig {
 
   public static final String NAME_PATH = "path";
+  public static final String NAME_SERVICE_ACCOUNT_TYPE = "serviceAccountType";
+  public static final String NAME_SERVICE_ACCOUNT_JSON = "serviceAccountJSON";
 
   @Name(NAME_PATH)
   @Macro
   @Description("GCS Path to the file containing the arguments")
   private String path;
 
-  @Override
-  public void validate(FailureCollector collector) {
-    super.validate(collector);
+  @Name(NAME_SERVICE_ACCOUNT_TYPE)
+  @Macro
+  @Nullable
+  @Description(
+      "Provide service account as JSON. When it is set to 'Yes', "
+          + "the content of service account key needs to be copied, whereas when it is set to 'No' "
+          + "the service Account file path needs to be specified. The default value is 'No'")
+  private String serviceAccountType;
 
+  @Name(NAME_SERVICE_ACCOUNT_JSON)
+  @Macro
+  @Nullable
+  @Description("The content of the service account.")
+  private String serviceAccountJSON;
+
+  public void validate(FailureCollector collector) {
     validateProperties(collector);
 
     if (canConnect()) {
@@ -60,15 +72,54 @@ public final class GCSArgumentSetterConfig extends GCPReferenceSourceConfig {
         collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_PATH);
       }
     }
+
+    if (getServiceAccountType() == ServiceAccountType.JSON
+        && !containsMacro(NAME_SERVICE_ACCOUNT_JSON)
+        && Strings.isNullOrEmpty(getServiceAccountJSON())) {
+      collector.addFailure("Required property 'Service Account JSON' has no value.", "")
+          .withConfigProperty(NAME_SERVICE_ACCOUNT_JSON);
+    }
   }
 
   private boolean canConnect() {
-    return !Strings.isNullOrEmpty(getServiceAccountFilePath())
-        && !(containsMacro(NAME_PROJECT) || AUTO_DETECT.equals(project))
-        && !containsMacro(NAME_PATH);
+    boolean canConnect =
+        !containsMacro(NAME_PATH)
+            && !(containsMacro(NAME_PROJECT) || AUTO_DETECT.equals(project))
+            && !(containsMacro(NAME_SERVICE_ACCOUNT_TYPE));
+
+    if (!canConnect) {
+      return false;
+    }
+
+    ServiceAccountType serviceAccountType = getServiceAccountType();
+
+    if (serviceAccountType == ServiceAccountType.FILE_PATH) {
+      return !containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH)
+          && !Strings.isNullOrEmpty(getServiceAccountFilePath());
+    }
+    return !containsMacro(NAME_SERVICE_ACCOUNT_JSON)
+        && !Strings.isNullOrEmpty(getServiceAccountJSON());
   }
 
   public GCSPath getPath() {
     return GCSPath.from(path);
+  }
+
+  public ServiceAccountType getServiceAccountType() {
+    return "JSON".equalsIgnoreCase(serviceAccountType)
+        ? ServiceAccountType.JSON
+        : ServiceAccountType.FILE_PATH;
+  }
+
+  public String getServiceAccountJSON() {
+    return serviceAccountJSON;
+  }
+
+  /**
+   *  The type of service account.
+   * */
+  public enum ServiceAccountType {
+    FILE_PATH,
+    JSON;
   }
 }
