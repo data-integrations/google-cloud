@@ -2,7 +2,7 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name" : "BigQuery",
+  "display-name": "BigQuery",
   "configuration-groups": [
     {
       "label": "Basic",
@@ -11,7 +11,7 @@
           "widget-type": "textbox",
           "label": "Reference Name",
           "name": "referenceName",
-          "widget-attributes" : {
+          "widget-attributes": {
             "placeholder": "Name used to identify this source for lineage"
           }
         },
@@ -27,7 +27,7 @@
           "widget-type": "textbox",
           "label": "Project ID",
           "name": "project",
-          "widget-attributes" : {
+          "widget-attributes": {
             "default": "auto-detect"
           }
         },
@@ -35,7 +35,7 @@
           "widget-type": "textbox",
           "label": "Dataset Project ID",
           "name": "datasetProject",
-          "widget-attributes" : {
+          "widget-attributes": {
             "placeholder": "Project the dataset belongs to, if different from the Project ID."
           }
         },
@@ -43,7 +43,7 @@
           "widget-type": "textbox",
           "label": "Dataset",
           "name": "dataset",
-          "widget-attributes" : {
+          "widget-attributes": {
             "placeholder": "Dataset the table belongs to"
           }
         },
@@ -51,7 +51,7 @@
           "widget-type": "textbox",
           "label": "Table",
           "name": "table",
-          "widget-attributes" : {
+          "widget-attributes": {
             "placeholder": "Table to read from"
           },
           "plugin-function": {
@@ -69,7 +69,7 @@
           "widget-type": "textbox",
           "label": "Partition Start Date",
           "name": "partitionFrom",
-          "widget-attributes" : {
+          "widget-attributes": {
             "placeholder": "Partition start date in format yyyy-MM-dd"
           }
         },
@@ -77,7 +77,7 @@
           "widget-type": "textbox",
           "label": "Partition End Date",
           "name": "partitionTo",
-          "widget-attributes" : {
+          "widget-attributes": {
             "placeholder": "Partition end date in format yyyy-MM-dd"
           }
         },
@@ -85,7 +85,7 @@
           "widget-type": "textbox",
           "label": "Filter",
           "name": "filter",
-          "widget-attributes" : {
+          "widget-attributes": {
             "placeholder": ""
           }
         },
@@ -93,20 +93,51 @@
           "widget-type": "textbox",
           "label": "Temporary Bucket Name",
           "name": "bucket",
-          "widget-attributes" : {
+          "widget-attributes": {
             "placeholder": "Google Cloud Storage bucket for temporary data"
           }
         }
       ]
     },
     {
-      "label" : "Credentials",
-      "properties" : [
+      "label": "Views",
+      "properties": [
+        {
+          "widget-type": "toggle",
+          "label": "Enable querying views",
+          "name": "enableQueryingViews",
+          "widget-attributes": {
+            "on": {
+              "value": "true",
+              "label": "YES"
+            },
+            "off": {
+              "value": "false",
+              "label": "NO"
+            },
+            "default": "false"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "View Materialization Project",
+          "name": "viewMaterializationProject"
+        },
+        {
+          "widget-type": "textbox",
+          "label": "View Materialization Dataset",
+          "name": "viewMaterializationDataset"
+        }
+      ]
+    },
+    {
+      "label": "Credentials",
+      "properties": [
         {
           "widget-type": "textbox",
           "label": "Service Account File Path",
           "name": "serviceFilePath",
-          "widget-attributes" : {
+          "widget-attributes": {
             "default": "auto-detect"
           }
         }
@@ -129,6 +160,24 @@
         ],
         "schema-default-type": "string"
       }
+    }
+  ],
+  "filters": [
+    {
+      "name": "ViewsProperties",
+      "condition": {
+        "expression": "enableQueryingViews == true "
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "viewMaterializationProject"
+        },
+        {
+          "type": "property",
+          "name": "viewMaterializationDataset"
+        }
+      ]
     }
   ],
   "jump-config": {

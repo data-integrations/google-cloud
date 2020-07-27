@@ -50,6 +50,15 @@ name is not null', all output rows will have an 'age' over 50 and a value for th
 This is the same as the WHERE clause in BigQuery. More information can be found at
 https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax#where_clause
 
+**Enable Querying Views**: Whether to allow querying views. Since BigQuery views are not materialized 
+by default, querying them may have a performance overhead.
+
+**View Materialization Project**: The project name where the View should be materialized. Defaults 
+to the same project in which the view is located.
+
+**View Materialization Dataset**: The dataset in the specified project where the view should be
+materialized. Defaults to the same dataset in which the view is located.
+
 **Temporary Bucket Name**: Google Cloud Storage bucket to store temporary data in.
 It will be automatically created if it does not exist, but will not be automatically deleted.
 Temporary data will be deleted after it has been read. If it is not provided, a unique bucket will be
