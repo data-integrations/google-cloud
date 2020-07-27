@@ -43,10 +43,12 @@ import io.cdap.cdap.api.data.batch.OutputFormatProvider;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.plugin.common.LineageRecorder;
+import io.cdap.plugin.format.avro.StructuredToAvroTransformer;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
@@ -83,6 +85,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
   // UUID is used since GCS bucket names must be globally unique.
   private final UUID uuid = UUID.randomUUID();
   protected Configuration baseConfiguration;
+  private StructuredToAvroTransformer avroTransformer;
   private final String jobId = UUID.randomUUID().toString();
   private BigQuery bigQuery;
 
@@ -172,6 +175,18 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
     }
     LOG.warn("Unable to identify BigQuery job type. No metric will be emitted for the number of affected rows.");
     return 0;
+  }
+
+  @Override
+  public void initialize(BatchRuntimeContext context) throws Exception {
+    avroTransformer = new StructuredToAvroTransformer(null);
+  }
+
+  /**
+   * Transform the given {@link StructuredRecord} into avro {@link GenericRecord} with the same schema.
+   */
+  protected final GenericRecord toAvroRecord(StructuredRecord record) throws IOException {
+    return avroTransformer.transform(record, record.getSchema());
   }
 
   /**
@@ -312,6 +327,13 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
     com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
     if (bqSchema == null || bqSchema.getFields().isEmpty()) {
       // Table is created without schema, so no further validation is required.
+      return;
+    }
+
+    if (getConfig().isTruncateTableSet()) {
+      //no validation required for schema if truncate table is set.
+      // BQ will overwrite the schema for normal tables when write disposition is WRITE_TRUNCATE
+      //note - If write to single partition is supported in future, schema validation will be necessary
       return;
     }
 

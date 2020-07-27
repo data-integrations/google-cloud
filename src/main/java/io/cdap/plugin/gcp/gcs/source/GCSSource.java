@@ -126,6 +126,7 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
       + "If specified, the field must exist in the output schema as a string.")
     private String pathField;
 
+    @Macro
     @Description("Format of the data to read. Supported formats are 'avro', 'blob', 'csv', 'delimited', 'json', "
       + "'parquet', 'text', and 'tsv'.")
     private String format;
@@ -217,10 +218,13 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
             .withStacktrace(e.getStackTrace());
         }
       }
-      try {
-        getFormat();
-      } catch (IllegalArgumentException e) {
-        collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_FORMAT).withStacktrace(e.getStackTrace());
+      if (!containsMacro(NAME_FORMAT)) {
+        try {
+          getFormat();
+        } catch (IllegalArgumentException e) {
+          collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_FORMAT)
+            .withStacktrace(e.getStackTrace());
+        }
       }
     }
 

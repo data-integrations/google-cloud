@@ -37,6 +37,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
@@ -49,6 +51,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   private static final String WHERE = "WHERE";
   public static final Set<Schema.Type> SUPPORTED_CLUSTERING_TYPES =
     ImmutableSet.of(Schema.Type.INT, Schema.Type.LONG, Schema.Type.STRING, Schema.Type.BOOLEAN, Schema.Type.BYTES);
+  private static final Pattern FIELD_PATTERN = Pattern.compile("[a-zA-Z0-9_]+");
 
   public static final String NAME_TABLE = "table";
   public static final String NAME_SCHEMA = "schema";
@@ -240,6 +243,12 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
 
       for (Schema.Field field : outputSchema.getFields()) {
         String name = field.getName();
+        // BigQuery column names only allow alphanumeric characters and _
+        // https://cloud.google.com/bigquery/docs/schemas#column_names
+        if (!FIELD_PATTERN.matcher(name).matches()) {
+          collector.addFailure(String.format("Output field '%s' must only contain alphanumeric characters and '_'.",
+                                             name), null).withOutputSchemaField(name);
+        }
 
         // check if the required fields are present in the input schema.
         if (!field.getSchema().isNullable() && inputSchema != null && inputSchema.getField(field.getName()) == null) {
@@ -351,6 +360,9 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   }
 
   private void validateOperationProperties(@Nullable Schema schema, FailureCollector collector) {
+    if (containsMacro(NAME_OPERATION) || containsMacro(NAME_TABLE_KEY) || containsMacro(NAME_DEDUPE_BY)) {
+      return;
+    }
     Operation operation = getOperation();
     if (Arrays.stream(Operation.values()).noneMatch(operation::equals)) {
       collector.addFailure(
@@ -359,10 +371,10 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
         .withConfigElement(NAME_OPERATION, operation.name().toLowerCase());
       return;
     }
-    if (Operation.INSERT.equals(getOperation())) {
+    if (Operation.INSERT.equals(operation)) {
       return;
     }
-    if ((Operation.UPDATE.equals(getOperation()) || Operation.UPSERT.equals(getOperation()))
+    if ((Operation.UPDATE.equals(operation) || Operation.UPSERT.equals(operation))
       && getRelationTableKey() == null) {
       collector.addFailure(
         "Table key must be set if the operation is 'Update' or 'Upsert'.", null)
@@ -396,17 +408,16 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
         .withConfigElement(NAME_TABLE_KEY, key)
       );
 
-    if ((Operation.UPDATE.equals(getOperation()) || Operation.UPSERT.equals(getOperation()))
-      && getDedupeBy() != null) {
+    if ((Operation.UPDATE.equals(operation) || Operation.UPSERT.equals(operation)) && getDedupeBy() != null) {
       List<String> dedupeByList = Arrays.stream(Objects.requireNonNull(getDedupeBy()).split(","))
         .collect(Collectors.toList());
 
       dedupeByList.stream()
         .filter(v -> !fields.contains(v.split(" ")[0]))
         .forEach(v -> collector.addFailure(
-        String.format("Dedupe by field '%s' does not exist in the schema.", v.split(" ")[0]),
-        "Change the Dedupe by field to be one of the schema fields.")
-        .withConfigElement(NAME_DEDUPE_BY, v));
+          String.format("Dedupe by field '%s' does not exist in the schema.", v.split(" ")[0]),
+          "Change the Dedupe by field to be one of the schema fields.")
+          .withConfigElement(NAME_DEDUPE_BY, v));
 
       Map<String, Integer> orderedByFieldMap = calculateDuplicates(dedupeByList);
       Map<String, String> orderedByFieldValueMap = dedupeByList.stream()
@@ -419,7 +430,6 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
           String.format("Remove duplicates of Dedupe by field '%s'.", key))
           .withConfigElement(NAME_DEDUPE_BY, orderedByFieldValueMap.get(key))
         );
-
     }
   }
 

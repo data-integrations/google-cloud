@@ -1,5 +1,5 @@
 /*
- * Copyright © 2020 AdaptiveScale, Inc.
+ * Copyright © 2020 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -76,7 +76,8 @@ public final class GCSArgumentSetterConfig extends GCPConfig {
     if (getServiceAccountType() == ServiceAccountType.JSON
         && !containsMacro(NAME_SERVICE_ACCOUNT_JSON)
         && Strings.isNullOrEmpty(getServiceAccountJSON())) {
-      collector.addFailure("Required property 'Service Account JSON' has no value.", "")
+      collector
+          .addFailure("Required property 'Service Account JSON' has no value.", "")
           .withConfigProperty(NAME_SERVICE_ACCOUNT_JSON);
     }
   }
@@ -115,9 +116,7 @@ public final class GCSArgumentSetterConfig extends GCPConfig {
     return serviceAccountJSON;
   }
 
-  /**
-   *  The type of service account.
-   * */
+  /** The type of service account. */
   public enum ServiceAccountType {
     FILE_PATH,
     JSON;
