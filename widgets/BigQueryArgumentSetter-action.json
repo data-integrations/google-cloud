@@ -1,0 +1,95 @@
+{
+  "metadata": {
+    "spec-version": "1.5"
+  },
+  "display-name" : "BigQuery Argument Setter",
+  "configuration-groups": [
+    {
+      "label": "Basic",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Reference Name",
+          "name": "referenceName",
+          "widget-attributes" : {
+            "placeholder": "Name used to identify this source for lineage"
+          }
+        },
+        {
+          "widget-type": "connection-browser",
+          "widget-category": "plugin",
+          "widget-attributes": {
+            "connectionType": "BIGQUERY",
+            "label": "Browse"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Project ID",
+          "name": "project",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Dataset",
+          "name": "dataset",
+          "widget-attributes" : {
+            "placeholder": "Dataset the table belongs to"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Table",
+          "name": "table",
+          "widget-attributes" : {
+            "placeholder": "Table to read from"
+          }
+        },
+        {
+          "widget-type": "ds-multiplevalues",
+          "label": "Argument Selection Conditions",
+          "name": "argumentSelectionConditions",
+          "widget-attributes" : {
+            "delimiter": ";",
+            "values-delimiter": "=",
+            "placeholders": [
+              "Column name for identifying the argument to run a pipeline",
+              "Column value for identifying the argument to run a pipeline"
+            ]
+          }
+        },
+        {
+          "name": "argumentsColumns",
+          "label": "Arguments Columns",
+          "widget-type": "CSV",
+          "widget-attributes" : {
+            "delimiter": ",",
+            "placeholder": "The name of the column that contains the arguments for this run."
+          }
+        }
+      ]
+    },
+    {
+      "label" : "Credentials",
+      "properties" : [
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        }
+      ]
+    }
+  ],
+  "jump-config": {
+    "datasets": [
+      {
+        "ref-property-name": "referenceName"
+      }
+    ]
+  }
+}
