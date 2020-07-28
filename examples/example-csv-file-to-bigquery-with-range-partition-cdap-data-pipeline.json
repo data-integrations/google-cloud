@@ -1,0 +1,102 @@
+{
+  "artifact": {
+    "name": "cdap-data-pipeline",
+    "version": "6.3.0-SNAPSHOT",
+    "scope": "SYSTEM"
+  },
+  "description": "Data Pipeline Application",
+  "name": "example-csv-file-to-bigquery-with-range-partition",
+  "config": {
+    "resources": {
+      "memoryMB": 2048,
+      "virtualCores": 1
+    },
+    "driverResources": {
+      "memoryMB": 2048,
+      "virtualCores": 1
+    },
+    "connections": [
+      {
+        "from": "File",
+        "to": "BigQuery"
+      }
+    ],
+    "comments": [],
+    "postActions": [],
+    "properties": {},
+    "processTimingEnabled": true,
+    "stageLoggingEnabled": false,
+    "stages": [
+      {
+        "name": "File",
+        "plugin": {
+          "name": "File",
+          "type": "batchsource",
+          "label": "File",
+          "artifact": {
+            "name": "core-plugins",
+            "version": "2.5.0-SNAPSHOT",
+            "scope": "SYSTEM"
+          },
+          "properties": {
+            "format": "delimited",
+            "skipHeader": "true",
+            "filenameOnly": "false",
+            "recursive": "false",
+            "ignoreNonExistingFolders": "false",
+            "schema": "${out_schema}",
+            "referenceName": "file",
+            "delimiter": ";",
+            "path": "${path_to_csv_example}"
+          }
+        },
+        "outputSchema": "${out_schema}"
+      },
+      {
+        "name": "BigQuery",
+        "plugin": {
+          "name": "BigQueryTable",
+          "type": "batchsink",
+          "label": "BigQuery",
+          "artifact": {
+            "name": "google-cloud",
+            "version": "0.16.0-SNAPSHOT",
+            "scope": "USER"
+          },
+          "properties": {
+            "serviceFilePath": "/Users/ardian/Workspace/CDAP/google-cloud-plugins/BigQueryArgumentSetter/Data/adaptivescale-178418-a5edd1eb37f9.json",
+            "operation": "insert",
+            "truncateTable": "false",
+            "allowSchemaRelaxation": "false",
+            "location": "US",
+            "createPartitionedTable": "false",
+            "partitioningType": "INTEGER",
+            "rangeStart": "${range_start}",
+            "partitionFilterRequired": "false",
+            "dataset": "${bqsink_dataset}",
+            "table": "${bqsink_table}",
+            "referenceName": "BigQuerySink",
+            "partitionByField": "${partitionfield}",
+            "rangeEnd": "${range_end}",
+            "rangeInterval": "${range_interval}",
+            "schema": "${out_schema}",
+            "project": "adaptivescale-178418",
+            "bucket": "adaptive_scale_test_bucket"
+          }
+        },
+        "outputSchema": "${out_schema}",
+        "inputSchema": [
+          {
+            "name": "File",
+            "schema": "${out_schema}"
+          }
+        ]
+      }
+    ],
+    "schedule": "0 * * * *",
+    "engine": "spark",
+    "numOfRecordsPreview": 100,
+    "description": "Data Pipeline Application",
+    "maxConcurrentRuns": 1
+  }
+}

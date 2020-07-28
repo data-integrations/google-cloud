@@ -15,7 +15,9 @@
  */
 package io.cdap.plugin.gcp.bigquery.sink;
 
+import com.google.cloud.ServiceOptions;
 import com.google.cloud.bigquery.JobInfo;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
@@ -23,6 +25,7 @@ import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
+import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.common.GCPReferenceSinkConfig;
 
 import java.util.Set;
@@ -37,12 +40,20 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
     ImmutableSet.of(Schema.Type.INT, Schema.Type.LONG, Schema.Type.STRING, Schema.Type.FLOAT, Schema.Type.DOUBLE,
                     Schema.Type.BOOLEAN, Schema.Type.BYTES, Schema.Type.ARRAY, Schema.Type.RECORD);
 
+  public static final String DATASET_PROJECT_ID = "datasetProject";
   public static final String NAME_DATASET = "dataset";
   public static final String NAME_BUCKET = "bucket";
   public static final String NAME_TRUNCATE_TABLE = "truncateTable";
   public static final String NAME_LOCATION = "location";
   private static final String NAME_GCS_CHUNK_SIZE = "gcsChunkSize";
   private static final String NAME_UPDATE_SCHEMA = "allowSchemaRelaxation";
+
+  @Name(DATASET_PROJECT_ID)
+  @Macro
+  @Nullable
+  @Description("The project in which the dataset is located/should be created."
+    + " Defaults to the project specified in the Project Id property.")
+  private String datasetProject;
 
   @Name(NAME_DATASET)
   @Macro
@@ -98,6 +109,14 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
 
   public String getDataset() {
     return dataset;
+  }
+
+  @Nullable
+  public String getDatasetProject() {
+    if (GCPConfig.AUTO_DETECT.equalsIgnoreCase(datasetProject)) {
+      return ServiceOptions.getDefaultProjectId();
+    }
+    return Strings.isNullOrEmpty(datasetProject) ? getProject() : datasetProject;
   }
 
   @Nullable
