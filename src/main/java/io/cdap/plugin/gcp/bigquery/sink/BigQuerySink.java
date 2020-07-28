@@ -196,8 +196,6 @@ public final class BigQuerySink extends AbstractBigQuerySink {
    */
   private void configureBigQuerySink() {
     baseConfiguration.set(BigQueryConstants.CONFIG_JOB_ID, jobId);
-    baseConfiguration.setBoolean(BigQueryConstants.CONFIG_CREATE_PARTITIONED_TABLE,
-                                 getConfig().shouldCreatePartitionedTable());
     if (config.getPartitionByField() != null) {
       baseConfiguration.set(BigQueryConstants.CONFIG_PARTITION_BY_FIELD, getConfig().getPartitionByField());
     }
@@ -215,6 +213,19 @@ public final class BigQuerySink extends AbstractBigQuerySink {
     }
     if (config.getPartitionFilter() != null) {
       baseConfiguration.set(BigQueryConstants.CONFIG_PARTITION_FILTER, getConfig().getPartitionFilter());
+    }
+
+    PartitionType partitioningType = getConfig().getPartitioningType();
+    baseConfiguration.setEnum(BigQueryConstants.CONFIG_PARTITION_TYPE, partitioningType);
+
+    if (config.getRangeStart() != null) {
+      baseConfiguration.setLong(BigQueryConstants.CONFIG_PARTITION_INTEGER_RANGE_START, config.getRangeStart());
+    }
+    if (config.getRangeEnd() != null) {
+      baseConfiguration.setLong(BigQueryConstants.CONFIG_PARTITION_INTEGER_RANGE_END, config.getRangeEnd());
+    }
+    if (config.getRangeInterval() != null) {
+      baseConfiguration.setLong(BigQueryConstants.CONFIG_PARTITION_INTEGER_RANGE_INTERVAL, config.getRangeInterval());
     }
   }
 
