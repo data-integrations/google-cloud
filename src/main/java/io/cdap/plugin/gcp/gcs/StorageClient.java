@@ -19,6 +19,7 @@ package io.cdap.plugin.gcp.gcs;
 import com.google.api.gax.paging.Page;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
+import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.CopyWriter;
 import com.google.cloud.storage.Storage;
@@ -31,7 +32,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
 
@@ -44,6 +47,62 @@ public class StorageClient {
 
   private StorageClient(Storage storage) {
     this.storage = storage;
+  }
+
+  /**
+   * Picks one blob that has the path prefix and is not ending with '/'
+   * @param path
+   * @return
+   */
+  public Blob pickABlob(String path) {
+    if (path == null || path.isEmpty()) {
+      return null;
+    }
+    GCSPath gcsPath = GCSPath.from(path);
+    Page<Blob> blobPage = storage.list(gcsPath.getBucket(), Storage.BlobListOption.prefix(gcsPath.getName()));
+    Iterator<Blob> iterator = blobPage.getValues().iterator();
+    while (iterator.hasNext()) {
+      Blob blob = iterator.next();
+      if (blob.getName().endsWith("/")) {
+        continue;
+      }
+      return blob;
+    }
+    return null;
+  }
+
+  /**
+   * Updates the metadata for the blob
+   * @param blob
+   * @param metaData
+   */
+  public void setMetaData(Blob blob, Map<String, String> metaData) {
+    if (blob == null || metaData == null || metaData.isEmpty()) {
+      return;
+    }
+    storage.update(BlobInfo.newBuilder(blob.getBlobId()).setMetadata(metaData).build());
+  }
+
+  /**
+   * Applies the given function with metadata of each blobs in the path
+   * @param path
+   * @param function
+   */
+  public void mapMetaDataForAllBlobs(String path, Consumer<Map<String, String>> function) {
+    if (path == null || path.isEmpty() || function == null) {
+      return;
+    }
+    GCSPath gcsPath = GCSPath.from(path);
+    Page<Blob> blobPage = storage.list(gcsPath.getBucket(), Storage.BlobListOption.prefix(gcsPath.getName()));
+    Iterator<Blob> blobIterator = blobPage.iterateAll().iterator();
+    while (blobIterator.hasNext()) {
+      Blob blob = blobIterator.next();
+      Map<String, String> metadata = blob.getMetadata();
+      if (metadata == null) {
+        continue;
+      }
+      function.accept(metadata);
+    }
   }
 
   /**
