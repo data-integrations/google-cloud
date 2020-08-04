@@ -26,8 +26,10 @@ import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
+import io.cdap.cdap.etl.api.StageMetrics;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
+import io.cdap.cdap.etl.api.validation.ValidatingOutputFormat;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.format.FileFormat;
 import io.cdap.plugin.format.plugin.AbstractFileSink;
@@ -35,6 +37,9 @@ import io.cdap.plugin.format.plugin.FileSinkProperties;
 import io.cdap.plugin.gcp.common.GCPReferenceSinkConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.GCSPath;
+import io.cdap.plugin.gcp.gcs.StorageClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -50,7 +55,14 @@ import javax.annotation.Nullable;
 @Name("GCS")
 @Description("Writes records to one or more files in a directory on Google Cloud Storage.")
 public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConfig> {
+
+  private static final Logger LOG = LoggerFactory.getLogger(GCSBatchSink.class);
+  public static final String RECORD_COUNT = "recordcount";
+  private static final String RECORDS_UPDATED_METRIC = "records.updated";
+
   private final GCSBatchSinkConfig config;
+  private String outputPath;
+
 
   public GCSBatchSink(GCSBatchSinkConfig config) {
     super(config);
@@ -60,6 +72,18 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     super.configurePipeline(pipelineConfigurer);
+  }
+
+  @Override
+  public ValidatingOutputFormat getValidatingOutputFormat(PipelineConfigurer pipelineConfigurer) {
+    ValidatingOutputFormat delegate = super.getValidatingOutputFormat(pipelineConfigurer);
+    return new GCSOutputFormatProvider(delegate);
+  }
+
+  @Override
+  public ValidatingOutputFormat getOutputFormatForRun(BatchSinkContext context) throws InstantiationException {
+    ValidatingOutputFormat outputFormatForRun = super.getOutputFormatForRun(context);
+    return new GCSOutputFormatProvider(outputFormatForRun);
   }
 
   @Override
@@ -80,8 +104,66 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
   }
 
   @Override
+  protected String getOutputDir(long logicalStartTime) {
+    this.outputPath = super.getOutputDir(logicalStartTime);
+    return this.outputPath;
+  }
+
+  @Override
   protected void recordLineage(LineageRecorder lineageRecorder, List<String> outputFields) {
     lineageRecorder.recordWrite("Write", "Wrote to Google Cloud Storage.", outputFields);
+  }
+
+  @Override
+  public void onRunFinish(boolean succeeded, BatchSinkContext context) {
+    super.onRunFinish(succeeded, context);
+    emitMetrics(succeeded, context);
+  }
+
+  private void emitMetrics(boolean succeeded, BatchSinkContext context) {
+    if (!succeeded) {
+      return;
+    }
+
+    try {
+      StorageClient storageClient = StorageClient.create(config.getProject(), config.getServiceAccountFilePath());
+      storageClient.mapMetaDataForAllBlobs(outputPath, new MetricsEmitter(context.getMetrics())::emitMetrics);
+    } catch (Exception e) {
+      LOG.warn("Metrics for the number of affected rows in GCS Sink maybe incorrect.", e);
+    }
+  }
+
+  private static class MetricsEmitter {
+    private StageMetrics stageMetrics;
+
+    private MetricsEmitter(StageMetrics stageMetrics) {
+      this.stageMetrics = stageMetrics;
+    }
+
+    public void emitMetrics(Map<String, String> metaData) {
+      long totalRows = extractRecordCount(metaData);
+      if (totalRows == 0) {
+        return;
+      }
+
+      //work around since StageMetrics count() only takes int as of now
+      int cap = 10000; // so the loop will not cause significant delays
+      long count = totalRows / Integer.MAX_VALUE;
+      if (count > cap) {
+        LOG.warn("Total record count is too high! Metric for the number of affected rows may not be updated correctly");
+      }
+      count = count < cap ? count : cap;
+      for (int i = 0; i <= count && totalRows > 0; i++) {
+        int rowCount = totalRows < Integer.MAX_VALUE ? (int) totalRows : Integer.MAX_VALUE;
+        stageMetrics.count(RECORDS_UPDATED_METRIC, rowCount);
+        totalRows -= rowCount;
+      }
+    }
+
+    private long extractRecordCount(Map<String, String> metadata) {
+      String value = metadata.get(RECORD_COUNT);
+      return value == null ? 0L : Long.parseLong(value);
+    }
   }
 
   /**
