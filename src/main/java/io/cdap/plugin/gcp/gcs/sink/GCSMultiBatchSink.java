@@ -52,7 +52,8 @@ import javax.annotation.Nullable;
  */
 @Plugin(type = BatchSink.PLUGIN_TYPE)
 @Name("GCSMultiFiles")
-@Description("Writes records to one or more avro files in a directory on Google Cloud Storage.")
+@Description("Writes records to one or more Avro, ORC, Parquet or Delimited format files in a directory " +
+        "on Google Cloud Storage.")
 public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable, StructuredRecord> {
   private static final String TABLE_PREFIX = "multisink.";
   private static final String FORMAT_PLUGIN_ID = "format";
