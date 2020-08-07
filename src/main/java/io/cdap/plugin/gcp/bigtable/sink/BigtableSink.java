@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019 Cask Data, Inc.
+ * Copyright © 2019-2020 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -48,6 +48,8 @@ import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.mapreduce.TableOutputFormat;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
@@ -65,6 +67,7 @@ import java.util.stream.Collectors;
 @Description("This sink writes data to Google Cloud Bigtable. " +
   "Cloud Bigtable is Google's NoSQL Big Data database service.")
 public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableBytesWritable, Mutation> {
+  private static final Logger LOG = LoggerFactory.getLogger(BigtableSink.class);
   public static final String NAME = "Bigtable";
 
   private static final Set<Schema.Type> SUPPORTED_FIELD_TYPES = ImmutableSet.of(
@@ -103,10 +106,8 @@ public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableByt
           validateExistingTable(connection, tableName, collector);
         }
       } catch (IOException e) {
-        collector.addFailure(
-          String.format("Failed to connect to BigTable : %s", e.getMessage()), null)
-          .withConfigProperty(BigtableSinkConfig.BIGTABLE_OPTIONS)
-          .withStacktrace(e.getStackTrace());
+        // Don't fail deployments due to connect failures
+        LOG.warn("Failed to connect to BigTable.", e);
       }
     }
   }
@@ -210,7 +211,8 @@ public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableByt
     }
   }
 
-  private void validateExistingTable(Connection connection, TableName tableName, FailureCollector collector) {
+  private void validateExistingTable(Connection connection, TableName tableName, FailureCollector collector)
+    throws IOException {
     try (Table table = connection.getTable(tableName)) {
       Set<String> existingFamilies = table.getTableDescriptor()
         .getFamiliesKeys()
@@ -228,9 +230,6 @@ public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableByt
                                ConfigUtil.getKVPair(entry.getKey(), entry.getValue().getQualifiedName(), "="));
         }
       }
-    } catch (IOException e) {
-      collector.addFailure(String.format("Failed to connect to Bigtable : %s", e.getMessage()), null)
-        .withStacktrace(e.getStackTrace());
     }
   }
 
