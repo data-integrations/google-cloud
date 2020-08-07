@@ -1,5 +1,5 @@
 /*
- * Copyright © 2018 Cask Data, Inc.
+ * Copyright © 2018-2020 Cask Data, Inc.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not
  *  use this file except in compliance with the License. You may obtain a copy of
@@ -343,45 +343,6 @@ public final class BigQueryUtil {
       table = bigQuery.getTable(tableId);
     } catch (BigQueryException e) {
       throw new InvalidStageException("Unable to get details about the BigQuery table: " + e.getMessage(), e);
-    }
-
-    return table;
-  }
-
-  /**
-   * Get BigQuery table.
-   *
-   * @param projectId BigQuery project ID
-   * @param datasetId BigQuery dataset ID
-   * @param tableName BigQuery table name
-   * @param serviceAccountPath service account file path
-   * @param collector failure collector
-   * @return BigQuery table
-   */
-  @Nullable
-  public static Table getBigQueryTable(String projectId, String datasetId, String tableName,
-                                       @Nullable String serviceAccountPath, FailureCollector collector) {
-    TableId tableId = TableId.of(projectId, datasetId, tableName);
-    com.google.auth.Credentials credentials = null;
-    if (serviceAccountPath != null) {
-      try {
-        credentials = GCPUtils.loadServiceAccountCredentials(serviceAccountPath);
-      } catch (IOException e) {
-        collector.addFailure(String.format("Unable to load credentials from %s.", serviceAccountPath),
-                             "Ensure the service account file is available on the local filesystem.")
-          .withConfigProperty(GCPConfig.NAME_SERVICE_ACCOUNT_FILE_PATH);
-        throw collector.getOrThrowException();
-      }
-    }
-    BigQuery bigQuery = GCPUtils.getBigQuery(projectId, credentials);
-
-    Table table = null;
-    try {
-      table = bigQuery.getTable(tableId);
-    } catch (BigQueryException e) {
-      collector.addFailure("Unable to get details about the BigQuery table: " + e.getMessage(), null)
-        .withConfigProperty(BigQuerySourceConfig.NAME_TABLE);
-      throw collector.getOrThrowException();
     }
 
     return table;

@@ -111,12 +111,11 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
 
       Schemas.validateFieldsMatch(schema, configuredSchema, collector);
       stageConfigurer.setOutputSchema(configuredSchema);
-    } catch (SpannerException e) {
+    } catch (IOException | SpannerException e) {
       // this is because spanner exception error message is not very user friendly. It contains class names and new
       // lines in the error message.
-      collector.addFailure("Unable to connect to spanner instance.",
-                           "Verify spanner configurations such as instance, database, table, project, etc.")
-        .withStacktrace(e.getStackTrace());
+      // We don't want to fail pipelines which fail to connect in deployment
+      LOG.warn("Unable to connect to spanner instance with error:\n", e);
     }
   }
 
@@ -124,7 +123,15 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
   public void prepareRun(BatchSourceContext batchSourceContext) throws Exception {
     FailureCollector collector = batchSourceContext.getFailureCollector();
     config.validate(collector);
-    Schema actualSchema = getSchema(collector);
+    Schema actualSchema = null;
+    try {
+      actualSchema = getSchema(collector);
+    } catch (IOException e) {
+      collector.addFailure("Unable to get Spanner Client: " + e.getMessage(), null)
+        .withConfigProperty(GCPConfig.NAME_SERVICE_ACCOUNT_FILE_PATH);
+      // if there was an error that was added, it will throw an exception.
+      throw collector.getOrThrowException();
+    }
     Schema configuredSchema = config.getSchema(collector);
     if (configuredSchema != null) {
       Schemas.validateFieldsMatch(actualSchema, configuredSchema, collector);
@@ -226,7 +233,7 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
     return builder.build();
   }
 
-  private Schema getSchema(FailureCollector collector) {
+  private Schema getSchema(FailureCollector collector) throws IOException {
     String projectId = config.getProject();
 
     try (Spanner spanner = SpannerUtil.getSpannerService(config.getServiceAccountFilePath(), projectId)) {
@@ -253,13 +260,7 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
         }
         return Schema.recordOf("outputSchema", schemaFields);
       }
-    } catch (IOException e) {
-      collector.addFailure("Unable to get Spanner Client: " + e.getMessage(), null)
-        .withConfigProperty(GCPConfig.NAME_SERVICE_ACCOUNT_FILE_PATH);
-      // if there was an error that was added, it will throw an exception.
-      throw collector.getOrThrowException();
     }
-
   }
 
   @Nullable

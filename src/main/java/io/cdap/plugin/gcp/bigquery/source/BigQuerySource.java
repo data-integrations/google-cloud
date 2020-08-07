@@ -1,5 +1,5 @@
 /*
- * Copyright © 2018 Cask Data, Inc.
+ * Copyright © 2018-2020 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -18,6 +18,7 @@ package io.cdap.plugin.gcp.bigquery.source;
 
 import com.google.auth.Credentials;
 import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
@@ -42,10 +43,13 @@ import io.cdap.cdap.etl.api.StageConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
+import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
+import io.cdap.cdap.etl.api.validation.InvalidStageException;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
+import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import org.apache.avro.generic.GenericData;
 import org.apache.hadoop.conf.Configuration;
@@ -66,6 +70,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import javax.validation.constraints.Null;
 
 /**
  * Class description here.
@@ -100,32 +105,53 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
       stageConfigurer.setOutputSchema(configuredSchema);
       return;
     }
+    try {
+      Schema schema = getSchema(collector);
+      validatePartitionProperties(collector);
 
-    Schema schema = getSchema(collector);
-    validatePartitionProperties(collector);
+      if (configuredSchema == null) {
+        stageConfigurer.setOutputSchema(schema);
+        return;
+      }
 
-    if (configuredSchema == null) {
-      stageConfigurer.setOutputSchema(schema);
-      return;
+      validateConfiguredSchema(configuredSchema, collector);
+      stageConfigurer.setOutputSchema(configuredSchema);
+    } catch (IllegalArgumentException | InvalidStageException e) {
+      // Allow deployment even if retrieving schema fails
+      LOG.warn("Unable to set BigQuery source output schema with error:\n", e);
     }
-
-    validateConfiguredSchema(configuredSchema, collector);
-    stageConfigurer.setOutputSchema(configuredSchema);
   }
 
   @Override
   public void prepareRun(BatchSourceContext context) throws Exception {
     FailureCollector collector = context.getFailureCollector();
     config.validate(collector);
+    Schema configuredSchema = null;
+    try {
+      com.google.cloud.bigquery.Schema bqSchema = getBQSchema();
+      if (bqSchema == null) {
+        collector.addFailure(String.format("BigQuery table '%s:%s.%s' does not exist or has no schema.",
+                                           config.getProject(), config.getDataset(), config.getTable()),
+                             "Ensure correct table name is provided.")
+          .withConfigProperty(BigQuerySourceConfig.NAME_TABLE);
+        throw collector.getOrThrowException();
+      }
+      if (bqSchema.getFields().isEmpty()) {
+        collector.addFailure(String.format("BigQuery table %s.%s does not have a schema.",
+                                           config.getDataset(), config.getTable()),
+                             "Please edit the table to add a schema.");
+      }
+      configuredSchema = getOutputSchema(collector);
+    } catch (InvalidConfigPropertyException e) {
+      collector.addFailure(String.format("Unable to load credentials from %s.", config.getServiceAccountFilePath()),
+                           "Ensure the service account file is available on the local filesystem.")
+        .withConfigProperty(GCPConfig.NAME_SERVICE_ACCOUNT_FILE_PATH);
 
-    if (getBQSchema(collector).getFields().isEmpty()) {
-      collector.addFailure(String.format("BigQuery table %s.%s does not have a schema.",
-                                         config.getDataset(), config.getTable()),
-                           "Please edit the table to add a schema.");
-      collector.getOrThrowException();
+    } catch (InvalidStageException e) {
+      collector.addFailure("Unable to get details about the BigQuery table: " + e.getMessage(), null)
+        .withConfigProperty(BigQuerySourceConfig.NAME_TABLE);
     }
-
-    Schema configuredSchema = getOutputSchema(collector);
+    collector.getOrThrowException();
 
     String serviceAccountPath = config.getServiceAccountFilePath();
     Credentials credentials = serviceAccountPath == null ?
@@ -217,8 +243,11 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     }
   }
 
-  public Schema getSchema(FailureCollector collector) {
-    com.google.cloud.bigquery.Schema bqSchema = getBQSchema(collector);
+  public Schema getSchema(FailureCollector collector) throws IllegalArgumentException {
+    com.google.cloud.bigquery.Schema bqSchema = getBQSchema();
+    if (bqSchema == null) {
+      throw new IllegalArgumentException("BigQuery table does not exist or does not have a schema.");
+    }
     FieldList fields = bqSchema.getFields();
     List<Schema.Field> schemafields = new ArrayList<>();
 
@@ -245,11 +274,16 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
    * Validate output schema. This is needed because its possible that output schema is set without using
    * {@link #getSchema} method.
    */
-  private void validateConfiguredSchema(Schema configuredSchema, FailureCollector collector) {
+  private void validateConfiguredSchema(Schema configuredSchema, FailureCollector collector)
+    throws IllegalArgumentException {
     String dataset = config.getDataset();
     String tableName = config.getTable();
     String project = config.getDatasetProject();
-    com.google.cloud.bigquery.Schema bqSchema = getBQSchema(collector);
+    com.google.cloud.bigquery.Schema bqSchema = getBQSchema();
+    if (bqSchema == null) {
+      throw new IllegalArgumentException(String.format("BigQuery table '%s:%s.%s' does not exist or does not have a " +
+                                                      "schema.", project, dataset, tableName));
+    }
 
     FieldList fields = bqSchema.getFields();
 
@@ -275,37 +309,38 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     collector.getOrThrowException();
   }
 
-  private com.google.cloud.bigquery.Schema getBQSchema(FailureCollector collector) {
+  /**
+   * Returns null if table does not exist or does not have a schema
+   * @return The BigQuery table schema or null if the table does not exist or has no schema
+   */
+  private @Nullable com.google.cloud.bigquery.Schema getBQSchema() {
     String serviceAccountPath = config.getServiceAccountFilePath();
     String dataset = config.getDataset();
     String tableName = config.getTable();
     String project = config.getDatasetProject();
 
-    Table table = BigQueryUtil.getBigQueryTable(project, dataset, tableName, serviceAccountPath, collector);
+    Table table = BigQueryUtil.getBigQueryTable(project, dataset, tableName, serviceAccountPath);
     if (table == null) {
-      // Table does not exist
-      collector.addFailure(String.format("BigQuery table '%s:%s.%s' does not exist.", project, dataset, tableName),
-                           "Ensure correct table name is provided.")
-        .withConfigProperty(BigQuerySourceConfig.NAME_TABLE);
-      throw collector.getOrThrowException();
+      // Table does not exist, but don't immediately fail
+      return null;
     }
-
-    com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
-    if (bqSchema == null) {
-      collector.addFailure(String.format("Cannot read from table '%s:%s.%s' because it has no schema.",
-                                         project, dataset, table), "Alter the table to have a schema.")
-        .withConfigProperty(BigQuerySourceConfig.NAME_TABLE);
-      throw collector.getOrThrowException();
-    }
-    return bqSchema;
+    return table.getDefinition().getSchema();
   }
 
   @Nullable
   private Schema getOutputSchema(FailureCollector collector) {
     Schema outputSchema = config.getSchema(collector);
-    outputSchema = outputSchema == null ? getSchema(collector) : outputSchema;
     validatePartitionProperties(collector);
-    validateConfiguredSchema(outputSchema, collector);
+    try {
+      outputSchema = outputSchema == null ? getSchema(collector) : outputSchema;
+      validateConfiguredSchema(outputSchema, collector);
+    } catch (IllegalArgumentException e) {
+      collector.addFailure(String.format("BigQuery table '%s:%s.%s' does not exist.", config.getProject(),
+                                         config.getDataset(), config.getTable()),
+                           "Ensure correct table name is provided.")
+        .withConfigProperty(BigQuerySourceConfig.NAME_TABLE);
+      throw collector.getOrThrowException();
+    }
     return outputSchema;
   }
 
@@ -389,7 +424,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     String dataset = config.getDataset();
     String tableName = config.getTable();
     Table sourceTable = BigQueryUtil.getBigQueryTable(project, dataset, tableName,
-                                                      config.getServiceAccountFilePath(), collector);
+                                                      config.getServiceAccountFilePath());
     if (sourceTable == null) {
       return;
     }

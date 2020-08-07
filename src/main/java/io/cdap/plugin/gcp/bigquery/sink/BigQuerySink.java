@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019 Cask Data, Inc.
+ * Copyright © 2019-2020 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -16,6 +16,7 @@
 package io.cdap.plugin.gcp.bigquery.sink;
 
 import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.Table;
 import io.cdap.cdap.api.annotation.Description;
@@ -31,12 +32,19 @@ import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.StageConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
+import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
+import io.cdap.cdap.etl.api.validation.InvalidStageException;
+import io.cdap.plugin.gcp.bigquery.source.BigQuerySource;
+import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceConfig;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
+import io.cdap.plugin.gcp.common.GCPConfig;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
@@ -56,7 +64,7 @@ import java.util.stream.Collectors;
   + "BigQuery is Google's serverless, highly scalable, enterprise data warehouse. "
   + "Data is first written to a temporary location on Google Cloud Storage, then loaded into BigQuery from there.")
 public final class BigQuerySink extends AbstractBigQuerySink {
-
+  private static final Logger LOG = LoggerFactory.getLogger(BigQuerySink.class);
   public static final String NAME = "BigQueryTable";
 
   private final BigQuerySinkConfig config;
@@ -78,9 +86,18 @@ public final class BigQuerySink extends AbstractBigQuerySink {
     if (config.tryGetProject() == null || config.autoServiceAccountUnavailable()) {
       return;
     }
-    // validate schema with underlying table
-    Schema schema = configuredSchema == null ? inputSchema : configuredSchema;
-    validateConfiguredSchema(schema, collector);
+
+    // Try validations which may require connectivity
+    try {
+      // Validate partition properties
+      config.validatePartitionProperties(inputSchema, configuredSchema, collector);
+      // validate schema with underlying table
+      Schema schema = configuredSchema == null ? inputSchema : configuredSchema;
+      validateConfiguredSchema(schema, collector);
+    } catch (InvalidStageException e) {
+      // Allow deployment even if retrieving schema fails
+      LOG.warn("Unable to validate BigQuery schema with error:\n", e);
+    }
   }
 
   @Override
@@ -92,6 +109,18 @@ public final class BigQuerySink extends AbstractBigQuerySink {
   protected void prepareRunValidation(BatchSinkContext context) {
     FailureCollector collector = context.getFailureCollector();
     config.validate(context.getInputSchema(), config.getSchema(collector), collector);
+    try {
+      config.validatePartitionProperties(context.getInputSchema(), config.getSchema(collector), collector);
+    } catch (InvalidConfigPropertyException e) {
+      collector.addFailure(String.format("Unable to load credentials from %s.", config.getServiceAccountFilePath()),
+                           "Ensure the service account file is available on the local filesystem.")
+        .withConfigProperty(GCPConfig.NAME_SERVICE_ACCOUNT_FILE_PATH);
+
+    } catch (InvalidStageException e) {
+      collector.addFailure("Unable to get details about the BigQuery table: " + e.getMessage(), null)
+        .withConfigProperty(BigQuerySourceConfig.NAME_TABLE);
+    }
+    collector.getOrThrowException();
   }
 
   @Override
@@ -175,7 +204,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
     }
 
     Table table = BigQueryUtil.getBigQueryTable(config.getProject(), config.getDataset(), config.getTable(),
-                                                config.getServiceAccountFilePath(), collector);
+                                                config.getServiceAccountFilePath());
     if (table != null) {
       // if table already exists, validate schema against underlying bigquery table
 

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019 Cask Data, Inc.
+ * Copyright © 2019-2020 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -202,7 +202,6 @@ public class DatastoreSinkConfig extends GCPReferenceSinkConfig {
     validateKind(collector);
     validateAncestors(collector);
     validateBatchSize(collector);
-    validateDatastoreConnection(collector);
 
     if (schema != null) {
       validateSchema(schema, collector);
@@ -296,8 +295,11 @@ public class DatastoreSinkConfig extends GCPReferenceSinkConfig {
     }
   }
 
-  @VisibleForTesting
-  void validateDatastoreConnection(FailureCollector collector) {
+  /**
+   * Validates a datastore connection.
+   * @param collector The FailureCollector to use
+   */
+  public void validateDatastoreConnection(FailureCollector collector) {
     if (!shouldConnect()) {
       return;
     }

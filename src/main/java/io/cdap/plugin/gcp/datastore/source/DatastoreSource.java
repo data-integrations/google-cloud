@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019 Cask Data, Inc.
+ * Copyright © 2019-2020 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -104,7 +104,14 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
       return;
     }
 
-    Schema schema = getSchema(collector);
+    Schema schema = null;
+    try {
+      schema = getSchema(collector);
+    } catch (DatastoreException e) {
+      // Don't fail on deploy
+      LOG.warn("Unable to fetch data from Datastore with error:\n", e);
+      return;
+    }
     if (configuredSchema == null) {
       stageConfigurer.setOutputSchema(schema);
       return;
@@ -118,6 +125,7 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
     LOG.debug("Validate config during `prepareRun` stage: {}", config);
     FailureCollector collector = batchSourceContext.getFailureCollector();
     config.validate(collector);
+    config.validateDatastoreConnection(collector);
     collector.getOrThrowException();
 
     String project = config.getProject();
@@ -155,7 +163,7 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
     emitter.emit(record);
   }
 
-  private Schema getSchema(FailureCollector collector) {
+  private Schema getSchema(FailureCollector collector) throws DatastoreException {
     EntityQuery.Builder queryBuilder = Query.newEntityQueryBuilder()
       .setNamespace(config.getNamespace())
       .setKind(config.getKind())
@@ -170,13 +178,7 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
 
     Datastore datastore = DatastoreUtil.getDatastore(config.getServiceAccountFilePath(), config.getProject());
     QueryResults<Entity> results;
-    try {
-      results = datastore.run(query);
-    } catch (DatastoreException e) {
-      collector.addFailure("Unable to fetch data from Datastore: " + e.getMessage(), null)
-        .withStacktrace(e.getStackTrace());
-      throw collector.getOrThrowException();
-    }
+    results = datastore.run(query);
 
     if (results.hasNext()) {
       Entity entity = results.next();

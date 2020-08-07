@@ -1,5 +1,5 @@
 /*
- * Copyright © 2018 Cask Data, Inc.
+ * Copyright © 2018-2020 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.bigquery.sink;
 
+import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.Table;
@@ -27,6 +28,8 @@ import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
+import io.cdap.cdap.etl.api.validation.InvalidStageException;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -234,7 +237,6 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     validate(collector);
     if (!containsMacro(NAME_SCHEMA)) {
       Schema schema = outputSchema == null ? inputSchema : outputSchema;
-      validatePartitionProperties(schema, collector);
       validateClusteringOrder(schema, collector);
       validateOperationProperties(schema, collector);
       if (outputSchema == null) {
@@ -261,10 +263,22 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     }
   }
 
-  private void validatePartitionProperties(@Nullable Schema schema, FailureCollector collector) {
+  /**
+   * Attempts to validate partition properties. Requires BigQuery connectivity to function.
+   * @param inputSchema The input schema for the stage
+   * @param collector The FailureCollector for the current context
+   * @throws IOException If unable to load service account credentials
+   * @throws BigQueryException If an error occurred while accessing the BigQuery table
+   */
+  public void validatePartitionProperties(@Nullable Schema inputSchema, @Nullable Schema outputSchema,
+                                          FailureCollector collector) {
+    if (containsMacro(NAME_SCHEMA)) {
+      return;
+    }
     if (tryGetProject() == null) {
       return;
     }
+    Schema schema = outputSchema == null ? inputSchema : outputSchema;
     String project = getProject();
     String dataset = getDataset();
     String tableName = getTable();
@@ -274,7 +288,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
       return;
     }
 
-    Table table = BigQueryUtil.getBigQueryTable(project, dataset, tableName, serviceAccountPath, collector);
+    Table table = BigQueryUtil.getBigQueryTable(project, dataset, tableName, serviceAccountPath);
     if (table != null) {
       StandardTableDefinition tableDefinition = table.getDefinition();
       TimePartitioning timePartitioning = tableDefinition.getTimePartitioning();
