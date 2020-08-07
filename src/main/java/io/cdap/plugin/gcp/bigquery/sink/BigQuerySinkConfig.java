@@ -16,7 +16,6 @@
 
 package io.cdap.plugin.gcp.bigquery.sink;
 
-import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.Table;
@@ -267,8 +266,6 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
    * Attempts to validate partition properties. Requires BigQuery connectivity to function.
    * @param inputSchema The input schema for the stage
    * @param collector The FailureCollector for the current context
-   * @throws IOException If unable to load service account credentials
-   * @throws BigQueryException If an error occurred while accessing the BigQuery table
    */
   public void validatePartitionProperties(@Nullable Schema inputSchema, @Nullable Schema outputSchema,
                                           FailureCollector collector) {
