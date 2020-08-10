@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019 Cask Data, Inc.
+ * Copyright © 2019-2020 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -22,6 +22,7 @@ import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.CopyWriter;
 import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
 import com.google.common.annotations.VisibleForTesting;
 import io.cdap.plugin.gcp.common.GCPUtils;
@@ -82,12 +83,28 @@ public class StorageClient {
   private void pairTraverse(GCSPath sourcePath, GCSPath destPath, boolean recursive, boolean overwrite,
                             Consumer<BlobPair> consumer) {
 
-    Bucket sourceBucket = storage.get(sourcePath.getBucket());
+    Bucket sourceBucket = null;
+    try {
+      sourceBucket = storage.get(sourcePath.getBucket());
+    } catch (StorageException e) {
+      // Add more descriptive error message
+      throw new RuntimeException(
+        String.format("Unable to access source bucket %s. ", sourcePath.getBucket())
+          + "Ensure you entered the correct bucket path.", e);
+    }
     if (sourceBucket == null) {
       throw new IllegalArgumentException(
         String.format("Source bucket '%s' does not exist.", sourcePath.getBucket()));
     }
-    Bucket destBucket = storage.get(destPath.getBucket());
+    Bucket destBucket = null;
+    try {
+      destBucket = storage.get(destPath.getBucket());
+    } catch (StorageException e) {
+      // Add more descriptive error message
+      throw new RuntimeException(
+        String.format("Unable to access destination bucket %s. ", destPath.getBucket())
+          + "Ensure you entered the correct bucket path.", e);
+    }
     if (destBucket == null) {
       throw new IllegalArgumentException(
         String.format("Destination bucket '%s' does not exist. Please create it first.", destPath.getBucket()));
