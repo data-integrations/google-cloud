@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019 Cask Data, Inc.
+ * Copyright © 2019-2020 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -85,10 +85,8 @@ public final class BigtableSource extends BatchSource<ImmutableBytesWritable, Re
         Configuration conf = getConfiguration(collector);
         validateOutputSchema(conf, collector);
       } catch (IOException e) {
-        collector.addFailure(
-          String.format("Failed to prepare configuration for job : %s", e.getMessage()), null)
-          .withConfigProperty(BigtableSourceConfig.BIGTABLE_OPTIONS)
-          .withStacktrace(e.getStackTrace());
+        // Don't fail deployment on connection failure
+        LOG.warn("Failed to validate output schema", e);
       }
     }
 
@@ -103,14 +101,21 @@ public final class BigtableSource extends BatchSource<ImmutableBytesWritable, Re
     Configuration conf = null;
     try {
       conf = getConfiguration(collector);
-      validateOutputSchema(conf, collector);
+
     } catch (IOException e) {
       collector.addFailure(
         String.format("Failed to prepare configuration for job : %s", e.getMessage()), null)
         .withConfigProperty(BigtableSourceConfig.BIGTABLE_OPTIONS)
         .withStacktrace(e.getStackTrace());
+      collector.getOrThrowException();
     }
-    collector.getOrThrowException();
+    try {
+      validateOutputSchema(conf, collector);
+    } catch (IOException e) {
+      collector.addFailure(String.format("Failed to connect to Bigtable : %s", e.getMessage()), null)
+        .withStacktrace(e.getStackTrace());
+      collector.getOrThrowException();
+    }
 
     // Both emitLineage and setOutputFormat internally try to create an external dataset if it does not already exists.
     // We call emitLineage before since it creates the dataset with schema.
@@ -163,7 +168,7 @@ public final class BigtableSource extends BatchSource<ImmutableBytesWritable, Re
     return conf;
   }
 
-  private void validateOutputSchema(Configuration configuration, FailureCollector collector) {
+  private void validateOutputSchema(Configuration configuration, FailureCollector collector) throws IOException {
     TableName tableName = TableName.valueOf(config.table);
     try (Connection connection = BigtableConfiguration.connect(configuration);
          Table table = connection.getTable(tableName)) {
@@ -182,9 +187,6 @@ public final class BigtableSource extends BatchSource<ImmutableBytesWritable, Re
                                ConfigUtil.getKVPair(key, columnMappings.get(key), "="));
         }
       }
-    } catch (IOException e) {
-      collector.addFailure(String.format("Failed to connect to Bigtable : %s", e.getMessage()), null)
-        .withStacktrace(e.getStackTrace());
     }
   }
 
