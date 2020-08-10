@@ -1,5 +1,5 @@
 /*
- * Copyright © 2015 Cask Data, Inc.
+ * Copyright © 2015-2020 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -16,6 +16,10 @@
 
 package io.cdap.plugin.gcp.gcs.source;
 
+import com.google.auth.Credentials;
+import com.google.cloud.storage.Bucket;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageException;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -64,6 +68,29 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     super.configurePipeline(pipelineConfigurer);
+  }
+
+  @Override
+  public void prepareRun(BatchSourceContext context) throws Exception {
+    GCSPath gcsPath = GCSPath.from(config.getPath());
+    // Verify the bucket exists
+    try {
+      Credentials credentials = config.getServiceAccountFilePath() == null ?
+        null : GCPUtils.loadServiceAccountCredentials(config.getServiceAccountFilePath());
+      Storage storage = GCPUtils.getStorage(config.getProject(), credentials);
+      Bucket bucket = storage.get(gcsPath.getBucket());
+      if (bucket == null) {
+        throw new RuntimeException(
+          String.format("Bucket does %s not exist. Please ensure you entered the correct bucket path",
+                        gcsPath.getBucket()));
+      }
+    } catch (StorageException e) {
+      // Probably some kind of access exception
+      throw new RuntimeException(
+        String.format("Unable to access bucket %s. ", gcsPath.getBucket())
+          + "Ensure you entered the correct bucket path and have permissions for it.", e);
+    }
+    super.prepareRun(context);
   }
 
   @Override
@@ -198,7 +225,8 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
         try {
           GCSPath.from(path);
         } catch (IllegalArgumentException e) {
-          collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_PATH).withStacktrace(e.getStackTrace());
+          collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_PATH)
+            .withStacktrace(e.getStackTrace());
         }
       }
       if (!containsMacro(NAME_FILE_SYSTEM_PROPERTIES)) {
