@@ -39,6 +39,8 @@ import javax.annotation.Nullable;
  */
 public class GCPUtils {
   public static final String CMEK_KEY = "gcp.cmek.key.name";
+  public static final String FS_GS_PROJECT_ID = "fs.gs.project.id";
+  public static final String CLOUD_JSON_KEYFILE = "google.cloud.auth.service.account.json.keyfile";
 
   public static ServiceAccountCredentials loadServiceAccountCredentials(String path) throws IOException {
     File credentialsPath = new File(path);
@@ -51,12 +53,12 @@ public class GCPUtils {
                                                             Map<String, String> properties) {
     String serviceAccountFilePath = config.getServiceAccountFilePath();
     if (serviceAccountFilePath != null) {
-      properties.put("google.cloud.auth.service.account.json.keyfile", serviceAccountFilePath);
+      properties.put(CLOUD_JSON_KEYFILE, serviceAccountFilePath);
     }
     properties.put("fs.gs.impl", GoogleHadoopFileSystem.class.getName());
     properties.put("fs.AbstractFileSystem.gs.impl", GoogleHadoopFS.class.getName());
     String projectId = config.getProject();
-    properties.put("fs.gs.project.id", projectId);
+    properties.put(FS_GS_PROJECT_ID, projectId);
     properties.put("fs.gs.system.bucket", GCSPath.from(path).getBucket());
     properties.put("fs.gs.path.encoding", "uri-path");
     properties.put("fs.gs.working.dir", GCSPath.ROOT_DIR);
