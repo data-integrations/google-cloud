@@ -228,4 +228,9 @@ public final class BigtableSource extends BatchSource<ImmutableBytesWritable, Re
     }
     return s;
   }
+
+  @Override
+  public void destroy() {
+    super.destroy();
+  }
 }

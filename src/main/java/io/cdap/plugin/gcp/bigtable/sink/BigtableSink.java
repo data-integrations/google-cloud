@@ -251,4 +251,9 @@ public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableByt
       }
     }
   }
+
+  @Override
+  public void destroy() {
+    super.destroy();
+  }
 }
