@@ -21,6 +21,9 @@ import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
 import com.google.common.base.Strings;
+import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
+import com.google.gson.reflect.TypeToken;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
@@ -45,6 +48,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -61,6 +65,8 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
   private static final Logger LOG = LoggerFactory.getLogger(GCSBatchSink.class);
   public static final String RECORD_COUNT = "recordcount";
   private static final String RECORDS_UPDATED_METRIC = "records.updated";
+  public static final String AVRO_NAMED_OUTPUT = "avro.mo.config.namedOutput";
+  public static final String COMMON_NAMED_OUTPUT = "mapreduce.output.basename";
 
   private final GCSBatchSinkConfig config;
   private String outputPath;
@@ -110,7 +116,16 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
 
   @Override
   protected Map<String, String> getFileSystemProperties(BatchSinkContext context) {
-    return GCPUtils.getFileSystemProperties(config, config.getPath(), new HashMap<>());
+    Map<String, String> properties = GCPUtils.getFileSystemProperties(config, config.getPath(), new HashMap<>());
+    properties.putAll(config.getFileSystemProperties());
+    String outputFileBaseName = config.getOutputFileNameBase();
+    if (outputFileBaseName == null || outputFileBaseName.isEmpty()) {
+      return properties;
+    }
+
+    properties.put(AVRO_NAMED_OUTPUT, outputFileBaseName);
+    properties.put(COMMON_NAMED_OUTPUT, outputFileBaseName);
+    return properties;
   }
 
   @Override
@@ -137,10 +152,40 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
 
     try {
       StorageClient storageClient = StorageClient.create(config.getProject(), config.getServiceAccountFilePath());
-      storageClient.mapMetaDataForAllBlobs(outputPath, new MetricsEmitter(context.getMetrics())::emitMetrics);
+      storageClient.mapMetaDataForAllBlobs(getPrefixPath(), new MetricsEmitter(context.getMetrics())::emitMetrics);
     } catch (Exception e) {
       LOG.warn("Metrics for the number of affected rows in GCS Sink maybe incorrect.", e);
     }
+  }
+
+  private String getPrefixPath() {
+    String filenameBase = getFilenameBase();
+    if (filenameBase == null) {
+      return outputPath;
+    }
+    //Following code is for handling a special case for saving files in same output directory.
+    //The specified file prefix from Filesystem Properties/Output file base name can be used to make filename unique.
+    //The code is based on assumptions from the internal implementation of
+    //org.apache.avro.mapreduce.AvroOutputFormatBase and org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
+    String outputPathPrefix = outputPath.endsWith("/") ? outputPath.substring(0, outputPath.length() - 1) : outputPath;
+    return String.format("%s/%s-", outputPathPrefix, filenameBase);
+  }
+
+  @Nullable
+  private String getFilenameBase() {
+    String outputFileBaseName = config.getOutputFileNameBase();
+    if (outputFileBaseName != null && !outputFileBaseName.isEmpty()) {
+      return outputFileBaseName;
+    }
+
+    Map<String, String> fileSystemProperties = config.getFileSystemProperties();
+    if (fileSystemProperties.containsKey(AVRO_NAMED_OUTPUT) && config.getFormat() == FileFormat.AVRO) {
+      return fileSystemProperties.get(AVRO_NAMED_OUTPUT);
+    }
+    if (fileSystemProperties.containsKey(COMMON_NAMED_OUTPUT)) {
+      return fileSystemProperties.get(COMMON_NAMED_OUTPUT);
+    }
+    return null;
   }
 
   private static class MetricsEmitter {
@@ -186,6 +231,8 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     private static final String NAME_FORMAT = "format";
     private static final String NAME_SCHEMA = "schema";
     private static final String NAME_LOCATION = "location";
+    private static final String NAME_FS_PROPERTIES = "fileSystemProperties";
+    private static final String NAME_FILE_NAME_BASE = "outputFileNameBase";
 
     private static final String SCHEME = "gs://";
     @Name(NAME_PATH)
@@ -223,6 +270,18 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
                    "This value is ignored if the bucket already exists")
     protected String location;
 
+    @Name(NAME_FS_PROPERTIES)
+    @Macro
+    @Nullable
+    @Description("Advanced feature to specify any additional properties that should be used with the sink.")
+    private String fileSystemProperties;
+
+    @Name(NAME_FILE_NAME_BASE)
+    @Macro
+    @Nullable
+    @Description("Advanced feature to specify file output name prefix.")
+    private String outputFileNameBase;
+
     @Override
     public void validate() {
       // no-op
@@ -257,6 +316,13 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
         getSchema();
       } catch (IllegalArgumentException e) {
         collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_SCHEMA).withStacktrace(e.getStackTrace());
+      }
+
+      try {
+        getFileSystemProperties();
+      } catch (IllegalArgumentException e) {
+        collector.addFailure("File system properties must be a valid json.", null)
+          .withConfigProperty(NAME_FS_PROPERTIES).withStacktrace(e.getStackTrace());
       }
     }
 
@@ -301,6 +367,23 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     @Nullable
     public String getLocation() {
       return location;
+    }
+
+    public Map<String, String> getFileSystemProperties() {
+      if (fileSystemProperties == null || fileSystemProperties.isEmpty()) {
+        return Collections.emptyMap();
+      }
+      try {
+        return new Gson().fromJson(fileSystemProperties, new TypeToken<Map<String, String>>() {
+        }.getType());
+      } catch (JsonSyntaxException e) {
+        throw new IllegalArgumentException("Unable to parse filesystem properties: " + e.getMessage(), e);
+      }
+    }
+
+    @Nullable
+    public String getOutputFileNameBase() {
+      return outputFileNameBase;
     }
   }
 }
