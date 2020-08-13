@@ -92,6 +92,21 @@
           }
         }
       ]
+    },
+    {
+      "label": "Advanced",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Output File Prefix",
+          "name": "outputFileNameBase"
+        },
+        {
+          "widget-type": "json-editor",
+          "label": "File System Properties",
+          "name": "fileSystemProperties"
+        }
+      ]
     }
   ],
   "outputs": [
