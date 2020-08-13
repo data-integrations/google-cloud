@@ -47,5 +47,11 @@ The delimiter will be ignored if the format is anything other than 'delimited'.
 authorization. Can be set to 'auto-detect' when running on a Dataproc cluster.
 When running on other clusters, the file must be present on every node in the cluster.
 
+**Output File Prefix:** Prefix for the output file name.  
+If none is given, it will default to 'part', which means all data files written by the sink will look like 
+'part-r-00000', 'part-r-00001', etc.
+
+**File System Properties:** Additional properties to use with the OutputFormat.
+
 **Schema:** Schema of the data to write.
 The 'avro' and 'parquet' formats require a schema but other formats do not.
