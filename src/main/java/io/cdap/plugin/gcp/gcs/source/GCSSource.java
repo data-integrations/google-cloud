@@ -16,10 +16,6 @@
 
 package io.cdap.plugin.gcp.gcs.source;
 
-import com.google.auth.Credentials;
-import com.google.cloud.storage.Bucket;
-import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageException;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -68,29 +64,6 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     super.configurePipeline(pipelineConfigurer);
-  }
-
-  @Override
-  public void prepareRun(BatchSourceContext context) throws Exception {
-    GCSPath gcsPath = GCSPath.from(config.getPath());
-    // Verify the bucket exists
-    try {
-      Credentials credentials = config.getServiceAccountFilePath() == null ?
-        null : GCPUtils.loadServiceAccountCredentials(config.getServiceAccountFilePath());
-      Storage storage = GCPUtils.getStorage(config.getProject(), credentials);
-      Bucket bucket = storage.get(gcsPath.getBucket());
-      if (bucket == null) {
-        throw new RuntimeException(
-          String.format("Bucket does %s not exist. Please ensure you entered the correct bucket path",
-                        gcsPath.getBucket()));
-      }
-    } catch (StorageException e) {
-      // Probably some kind of access exception
-      throw new RuntimeException(
-        String.format("Unable to access bucket %s. ", gcsPath.getBucket())
-          + "Ensure you entered the correct bucket path and have permissions for it.", e);
-    }
-    super.prepareRun(context);
   }
 
   @Override
