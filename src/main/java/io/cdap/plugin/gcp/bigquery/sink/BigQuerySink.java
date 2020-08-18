@@ -98,9 +98,9 @@ public final class BigQuerySink extends AbstractBigQuerySink {
   protected void prepareRunInternal(BatchSinkContext context, BigQuery bigQuery, String bucket) throws IOException {
     FailureCollector collector = context.getFailureCollector();
     Schema configSchema = config.getSchema(collector);
-    configureTable();
-    configureBigQuerySink();
     Schema schema = configSchema == null ? context.getInputSchema() : configSchema;
+    configureTable(schema);
+    configureBigQuerySink();
     initOutput(context, bigQuery, config.getReferenceName(), config.getTable(), schema, bucket, collector);
   }
 
@@ -156,17 +156,21 @@ public final class BigQuerySink extends AbstractBigQuerySink {
   /**
    * Sets the output table for the AbstractBigQuerySink's Hadoop configuration
    */
-  private void configureTable() {
+  private void configureTable(Schema schema) {
     AbstractBigQuerySinkConfig config = getConfig();
     Table table = BigQueryUtil.getBigQueryTable(config.getProject(), config.getDataset(),
                                                 config.getTable(),
                                                 config.getServiceAccountFilePath());
     baseConfiguration.setBoolean(BigQueryConstants.CONFIG_DESTINATION_TABLE_EXISTS, table != null);
+    List<String> tableFieldsNames;
     if (table != null) {
-      List<String> tableFieldsNames = Objects.requireNonNull(table.getDefinition().getSchema()).getFields().stream()
+       tableFieldsNames = Objects.requireNonNull(table.getDefinition().getSchema()).getFields().stream()
         .map(Field::getName).collect(Collectors.toList());
-      baseConfiguration.set(BigQueryConstants.CONFIG_TABLE_FIELDS, String.join(",", tableFieldsNames));
+    } else {
+      tableFieldsNames = schema.getFields().stream()
+        .map(Schema.Field::getName).collect(Collectors.toList());
     }
+    baseConfiguration.set(BigQueryConstants.CONFIG_TABLE_FIELDS, String.join(",", tableFieldsNames));
   }
 
   private void validateConfiguredSchema(Schema schema, FailureCollector collector) {
