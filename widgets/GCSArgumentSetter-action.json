@@ -1,0 +1,92 @@
+{
+  "metadata": {
+    "spec-version": "1.5"
+  },
+  "display-name": "GCS Argument Setter",
+  "configuration-groups": [
+    {
+      "label": "Basic",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Reference Name",
+          "name": "referenceName",
+          "widget-attributes": {
+            "placeholder": "Name used to identify this source for lineage"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Project ID",
+          "name": "project",
+          "widget-attributes": {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Path",
+          "name": "path",
+          "widget-attributes": {
+            "placeholder": "gs://<bucket>/path/to/configuration.json"
+          }
+        },
+        {
+          "label": "Provide Service Account as JSON Content",
+          "name": "serviceAccountType",
+          "widget-type": "toggle",
+          "widget-attributes": {
+            "on": {
+              "value": "JSON",
+              "label": "Yes"
+            },
+            "off": {
+              "value": "filePath",
+              "label": "No"
+            },
+            "default": "filePath"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes": {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Service Account JSON",
+          "name": "serviceAccountJSON"
+        }
+      ]
+    }
+  ],
+  "filters": [
+    {
+      "name": "ServiceAuthenticationTypeFilePath",
+      "condition": {
+        "expression": "serviceAccountType == 'filePath'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "serviceFilePath"
+        }
+      ]
+    },
+    {
+      "name": "ServiceAuthenticationTypeJSON",
+      "condition": {
+        "expression": "serviceAccountType == 'JSON'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "serviceAccountJSON"
+        }
+      ]
+    }
+  ]
+}
