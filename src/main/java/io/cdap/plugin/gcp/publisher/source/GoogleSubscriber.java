@@ -174,6 +174,12 @@ public class GoogleSubscriber extends StreamingSource<StructuredRecord> {
           "Name must start with a letter. Check Plugin documentation for naming convention")
           .withConfigProperty(subscription);
       }
+      if (getSubscription().length() < 3  || getSubscription().length() > 255) {
+        collector.addFailure("Subscription Name does not match naming convention.",
+          "Character Length must be between 3 and 255 characters. Check Plugin documentation for naming convention")
+          .withConfigProperty(subscription);
+      }
+      collector.getOrThrowException();
     }
 
     public String getSubscription() {

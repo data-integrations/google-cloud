@@ -47,6 +47,7 @@ Naming Convention for Subscription:
        The special characters in the above list can be used in resource names without URL-encoding. 
        However, you must ensure that any other special characters are properly encoded/decoded when used in URLs. 
        For example, mi-tópico is an invalid subscription-name. However, mi-t%C3%B3pico is valid.
+       https://cloud.google.com/pubsub/docs/admin
 
 **Topic**: Name of the Google Cloud PubSub topic to subscribe to. If a topic is provided and the given subscriber
 does not exists it will be created. If a subscriber does not exists and is created only the messages arrived after
