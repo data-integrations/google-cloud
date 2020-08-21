@@ -103,6 +103,16 @@
           "widget-attributes": {
             "default": "tablename"
           }
+        },
+        {
+          "widget-type": "hidden",
+          "label": "Output File Prefix",
+          "name": "outputFileNameBase"
+        },
+        {
+          "widget-type": "hidden",
+          "label": "File System Properties",
+          "name": "fileSystemProperties"
         }
       ]
     },
