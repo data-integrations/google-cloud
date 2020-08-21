@@ -54,6 +54,7 @@ public class GCSOutputFormatProvider implements ValidatingOutputFormat {
   public Map<String, String> getOutputFormatConfiguration() {
     Map<String, String> outputFormatConfiguration = new HashMap<>(delegate.getOutputFormatConfiguration());
     outputFormatConfiguration.put(DELEGATE_OUTPUTFORMAT_CLASSNAME, delegate.getOutputFormatClassName());
+    outputFormatConfiguration.put("mapreduce.fileoutputcommitter.algorithm.version", "2");
     return outputFormatConfiguration;
   }
 

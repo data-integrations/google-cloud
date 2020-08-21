@@ -473,6 +473,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
       temporaryGcsPath,
       BigQueryFileFormat.AVRO,
       AvroOutputFormat.class);
+    configuration.set("mapreduce.fileoutputcommitter.algorithm.version", "2");
 
     return configuration;
   }

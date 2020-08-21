@@ -129,6 +129,7 @@ public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable,
       outputProperties.putAll(RecordFilterOutputFormat.configure(validatingOutputFormat.getOutputFormatClassName(),
                                                                  config.splitField, name, schema));
       outputProperties.put(FileOutputFormat.OUTDIR, config.getOutputDir(context.getLogicalStartTime(), name));
+      outputProperties.put("mapreduce.fileoutputcommitter.algorithm.version", "2");
 
       context.addOutput(Output.of(
         config.getReferenceName() + "_" + name,
