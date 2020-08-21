@@ -17,6 +17,10 @@ package io.cdap.plugin.gcp.bigquery.sink;
 
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.Field;
+import com.google.cloud.bigquery.Job;
+import com.google.cloud.bigquery.JobConfiguration;
+import com.google.cloud.bigquery.JobId;
+import com.google.cloud.bigquery.JobStatistics;
 import com.google.cloud.bigquery.Table;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
@@ -39,11 +43,14 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -63,6 +70,10 @@ public final class BigQuerySink extends AbstractBigQuerySink {
 
   private final BigQuerySinkConfig config;
   private Schema schema;
+
+  private final String jobId = UUID.randomUUID().toString();
+
+  private static final Logger LOG = LoggerFactory.getLogger(BigQuerySink.class);
 
   public BigQuerySink(BigQuerySinkConfig config) {
     this.config = config;
@@ -108,6 +119,59 @@ public final class BigQuerySink extends AbstractBigQuerySink {
   }
 
   @Override
+  public void onRunFinish(boolean succeeded, BatchSinkContext context) {
+    super.onRunFinish(succeeded, context);
+
+    try {
+      recordMetric(succeeded, context);
+    } catch (Exception exception) {
+      LOG.warn("Exception while trying to emit metric. No metric will be emitted for the number of affected rows.",
+               exception);
+    }
+  }
+
+  private void recordMetric(boolean succeeded, BatchSinkContext context) {
+    if (!succeeded) {
+      return;
+    }
+    Job queryJob = bigQuery.getJob(getJobId());
+    if (queryJob == null) {
+      LOG.warn("Unable to find BigQuery job. No metric will be emitted for the number of affected rows.");
+      return;
+    }
+    long totalRows = getTotalRows(queryJob);
+    LOG.info("Job {} affected {} rows", queryJob.getJobId(), totalRows);
+    //work around since StageMetrics count() only takes int as of now
+    int cap = 10000; // so the loop will not cause significant delays
+    long count = totalRows / Integer.MAX_VALUE;
+    if (count > cap) {
+      LOG.warn("Total record count is too high! Metric for the number of affected rows may not be updated correctly");
+    }
+    count = count < cap ? count : cap;
+    for (int i = 0; i <= count && totalRows > 0; i++) {
+      int rowCount = totalRows < Integer.MAX_VALUE ? (int) totalRows : Integer.MAX_VALUE;
+      context.getMetrics().count(RECORDS_UPDATED_METRIC, rowCount);
+      totalRows -= rowCount;
+    }
+  }
+
+  private JobId getJobId() {
+    String location = bigQuery.getDataset(getConfig().getDataset()).getLocation();
+    return JobId.newBuilder().setLocation(location).setJob(jobId).build();
+  }
+
+  private long getTotalRows(Job queryJob) {
+    JobConfiguration.Type type = queryJob.getConfiguration().getType();
+    if (type == JobConfiguration.Type.LOAD) {
+      return ((JobStatistics.LoadStatistics) queryJob.getStatistics()).getOutputRows();
+    } else if (type == JobConfiguration.Type.QUERY) {
+      return ((JobStatistics.QueryStatistics) queryJob.getStatistics()).getNumDmlAffectedRows();
+    }
+    LOG.warn("Unable to identify BigQuery job type. No metric will be emitted for the number of affected rows.");
+    return 0;
+  }
+
+  @Override
   protected OutputFormatProvider getOutputFormatProvider(Configuration configuration,
                                                          String tableName,
                                                          Schema tableSchema) {
@@ -141,6 +205,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
    * Sets addition configuration for the AbstractBigQuerySink's Hadoop configuration
    */
   private void configureBigQuerySink() {
+    baseConfiguration.set(BigQueryConstants.CONFIG_JOB_ID, jobId);
     baseConfiguration.setBoolean(BigQueryConstants.CONFIG_CREATE_PARTITIONED_TABLE,
                                  getConfig().shouldCreatePartitionedTable());
     if (config.getPartitionByField() != null) {

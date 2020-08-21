@@ -72,7 +72,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.math.BigInteger;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -175,20 +174,41 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       LOG.debug("Partition filter: '{}'", partitionFilter);
       boolean tableExists = conf.getBoolean(BigQueryConstants.CONFIG_DESTINATION_TABLE_EXISTS, false);
 
-      String jobIdString = conf.get(BigQueryConstants.CONFIG_JOB_ID);
-      JobId jobId = JobId.of(jobIdString);
       try {
         importFromGcs(destProjectId, destTable, destSchema.orElse(null), kmsKeyName, outputFileFormat,
                       writeDisposition, sourceUris, createPartitionedTable, partitionByField,
-                      requirePartitionFilter, clusteringOrderList, tableExists, jobIdString);
+                      requirePartitionFilter, clusteringOrderList, tableExists, getJobIdForImportGCS(conf));
         if (temporaryTableReference != null) {
-          operationAction(destTable, kmsKeyName, jobId);
+          operationAction(destTable, kmsKeyName, getJobIdForUpdateUpsert(conf));
         }
       } catch (Exception e) {
         throw new IOException("Failed to import GCS into BigQuery. ", e);
       }
 
       cleanup(jobContext);
+    }
+
+    private String getJobIdForImportGCS(Configuration conf) {
+      //If the operation is not INSERT then this is a write to a temporary table. No need to use saved JobId here.
+      // Return a random UUID
+      if (!Operation.INSERT.equals(operation)) {
+        return UUID.randomUUID().toString();
+      }
+      //See if plugin specified a Job ID to be used.
+      String savedJobId = conf.get(BigQueryConstants.CONFIG_JOB_ID);
+      if (savedJobId == null || savedJobId.isEmpty()) {
+        return UUID.randomUUID().toString();
+      }
+      return savedJobId;
+    }
+
+    private JobId getJobIdForUpdateUpsert(Configuration conf) {
+      //See if plugin specified a Job ID to be used.
+      String savedJobId = conf.get(BigQueryConstants.CONFIG_JOB_ID);
+      if (savedJobId == null || savedJobId.isEmpty()) {
+        return JobId.of(UUID.randomUUID().toString());
+      }
+      return JobId.of(savedJobId);
     }
 
     @Override
@@ -299,7 +319,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
 
       JobReference jobReference =
         new JobReference().setProjectId(projectId)
-          .setJobId(temporaryTableReference == null ? jobId : UUID.randomUUID().toString())
+          .setJobId(jobId)
           .setLocation(dataset.getLocation());
       Job job = new Job();
       job.setConfiguration(config);
