@@ -112,7 +112,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
     baseConfiguration.set(BigQueryConstants.CONFIG_JOB_ID, jobId);
     if (!context.isPreviewEnabled()) {
       createResources(bigQuery, GCPUtils.getStorage(project, credentials), config.getDataset(), bucket,
-                      config.getLocation(), cmekKey);
+        config.getLocation(), cmekKey);
     }
 
     prepareRunInternal(context, bigQuery, bucket);
@@ -192,12 +192,12 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
   /**
    * Initializes output along with lineage recording for given table and its schema.
    *
-   * @param context batch sink context
-   * @param bigQuery big query client for the configured project
-   * @param outputName output name
-   * @param tableName table name
+   * @param context     batch sink context
+   * @param bigQuery    big query client for the configured project
+   * @param outputName  output name
+   * @param tableName   table name
    * @param tableSchema table schema
-   * @param bucket bucket name
+   * @param bucket      bucket name
    */
   protected final void initOutput(BatchSinkContext context, BigQuery bigQuery, String outputName, String tableName,
                                   @Nullable Schema tableSchema, String bucket,
@@ -205,7 +205,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
     LOG.debug("Init output for table '{}' with schema: {}", tableName, tableSchema);
 
     List<BigQueryTableFieldSchema> fields = getBigQueryTableFields(bigQuery, tableName, tableSchema,
-                                                                   getConfig().isAllowSchemaRelaxation(), collector);
+      getConfig().isAllowSchemaRelaxation(), collector);
     Configuration configuration = getOutputConfiguration(bucket, tableName, fields);
 
     // Both emitLineage and setOutputFormat internally try to create an external dataset if it does not already exist.
@@ -238,9 +238,9 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
    * Executes main prepare run logic, i.e. prepares output for given table (for Batch Sink plugin)
    * or for a number of tables (for Batch Multi Sink plugin).
    *
-   * @param context batch sink context
+   * @param context  batch sink context
    * @param bigQuery a big query client for the configured project
-   * @param bucket bucket name
+   * @param bucket   bucket name
    */
   protected abstract void prepareRunInternal(BatchSinkContext context, BigQuery bigQuery,
                                              String bucket) throws IOException;
@@ -249,8 +249,8 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
    * Returns output format provider instance specific to the child classes that extend this class.
    *
    * @param configuration Hadoop configuration
-   * @param tableName table name
-   * @param tableSchema table schema
+   * @param tableName     table name
+   * @param tableSchema   table schema
    * @return output format provider
    */
   protected abstract OutputFormatProvider getOutputFormatProvider(Configuration configuration,
@@ -265,11 +265,11 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
   private Configuration getBaseConfiguration(@Nullable String cmekKey) throws IOException {
     AbstractBigQuerySinkConfig config = getConfig();
     Configuration baseConfiguration = BigQueryUtil.getBigQueryConfig(config.getServiceAccountFilePath(),
-                                                                     config.getProject(), cmekKey);
+      config.getProject(), cmekKey);
     baseConfiguration.setBoolean(BigQueryConstants.CONFIG_ALLOW_SCHEMA_RELAXATION,
-                                 config.isAllowSchemaRelaxation());
+      config.isAllowSchemaRelaxation());
     baseConfiguration.setStrings(BigQueryConfiguration.OUTPUT_TABLE_WRITE_DISPOSITION_KEY,
-                                 config.getWriteDisposition().name());
+      config.getWriteDisposition().name());
     // this setting is needed because gcs has default chunk size of 64MB. This is large default chunk size which can
     // cause OOM issue if there are many tables being written. See this - CDAP-16670
     String gcsChunkSize = "8388608";
@@ -283,7 +283,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
   /**
    * Generates full path to temporary bucket based on given bucket and table names.
    *
-   * @param bucket bucket name
+   * @param bucket    bucket name
    * @param tableName table name
    * @return full path to temporary bucket
    */
@@ -310,6 +310,33 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
     baseConfiguration.setBoolean("fs.gs.metadata.cache.enable", false);
     return bucket;
   }
+
+  protected void validateInsertSchema(Table table, Schema tableSchema, FailureCollector collector) {
+    com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
+    if (bqSchema == null || bqSchema.getFields().isEmpty()) {
+      // Table is created without schema, so no further validation is required.
+      return;
+    }
+
+    if (getConfig().isTruncateTableSet()) {
+      //no validation required for schema if truncate table is set.
+      // BQ will overwrite the schema for normal tables when write disposition is WRITE_TRUNCATE
+      //note - If write to single partition is supported in future, schema validation will be necessary
+      return;
+    }
+    FieldList bqFields = bqSchema.getFields();
+    List<Schema.Field> outputSchemaFields = Objects.requireNonNull(tableSchema.getFields());
+
+    List<String> remainingBQFields = BigQueryUtil.getBqFieldsMinusSchema(bqFields, outputSchemaFields);
+    for (String field : remainingBQFields) {
+      if (bqFields.get(field).getMode() != Field.Mode.NULLABLE) {
+        collector.addFailure(String.format("Required Column '%s' is not present in the schema.", field),
+          String.format("Add '%s' to the schema.", field));
+      }
+    }
+  }
+
+
 
   /**
    * Validates output schema against Big Query table schema. It throws {@link IllegalArgumentException}
@@ -339,7 +366,6 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
 
     FieldList bqFields = bqSchema.getFields();
     List<Schema.Field> outputSchemaFields = Objects.requireNonNull(tableSchema.getFields());
-
     List<String> missingBQFields = BigQueryUtil.getSchemaMinusBqFields(outputSchemaFields, bqFields);
 
     if (allowSchemaRelaxation) {

@@ -178,8 +178,11 @@ public final class BigQuerySink extends AbstractBigQuerySink {
                                                 config.getServiceAccountFilePath(), collector);
     if (table != null) {
       // if table already exists, validate schema against underlying bigquery table
-
-      validateSchema(table, schema, config.allowSchemaRelaxation, collector);
+      if (config.getOperation().equals(Operation.INSERT)) {
+        validateInsertSchema(table, schema, collector);
+      } else if (config.getOperation().equals(Operation.UPSERT)) {
+        validateSchema(table, schema, config.allowSchemaRelaxation, collector);
+      }
     }
   }
 }
