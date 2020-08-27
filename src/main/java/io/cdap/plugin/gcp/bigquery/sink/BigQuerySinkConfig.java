@@ -249,6 +249,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
           collector.addFailure(String.format("Output field '%s' must only contain alphanumeric characters and '_'.",
                                              name), null).withOutputSchemaField(name);
         }
+
           // check if the required fields are present in the input schema.
           if (!field.getSchema().isNullable() && inputSchema != null && inputSchema.getField(field.getName()) == null) {
             collector.addFailure(
