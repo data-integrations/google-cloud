@@ -32,19 +32,22 @@
           }
         },
         {
-          "label": "Provide Service Account as JSON Content",
           "name": "serviceAccountType",
-          "widget-type": "toggle",
+          "label": "Provide Service Account",
+          "widget-type": "radio-group",
           "widget-attributes": {
-            "on": {
-              "value": "JSON",
-              "label": "Yes"
-            },
-            "off": {
-              "value": "filePath",
-              "label": "No"
-            },
-            "default": "filePath"
+            "layout": "inline",
+            "default": "filePath",
+            "options": [
+              {
+                "id": "JSON",
+                "label": "JSON"
+              },
+              {
+                "id": "filePath",
+                "label": "File Path"
+              }
+            ]
           }
         },
         {
