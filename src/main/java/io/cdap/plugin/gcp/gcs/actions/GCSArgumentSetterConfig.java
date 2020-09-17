@@ -23,34 +23,16 @@ import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.gcs.GCSPath;
-import javax.annotation.Nullable;
 
 /** Holds configuration required for configuring {@link GCSArgumentSetter}. */
 public final class GCSArgumentSetterConfig extends GCPConfig {
 
   public static final String NAME_PATH = "path";
-  public static final String NAME_SERVICE_ACCOUNT_TYPE = "serviceAccountType";
-  public static final String NAME_SERVICE_ACCOUNT_JSON = "serviceAccountJSON";
 
   @Name(NAME_PATH)
   @Macro
   @Description("GCS Path to the file containing the arguments")
   private String path;
-
-  @Name(NAME_SERVICE_ACCOUNT_TYPE)
-  @Macro
-  @Nullable
-  @Description(
-      "Provide service account as JSON. When it is set to 'Yes', "
-          + "the content of service account key needs to be copied, whereas when it is set to 'No' "
-          + "the service Account file path needs to be specified. The default value is 'No'")
-  private String serviceAccountType;
-
-  @Name(NAME_SERVICE_ACCOUNT_JSON)
-  @Macro
-  @Nullable
-  @Description("The content of the service account.")
-  private String serviceAccountJSON;
 
   public void validate(FailureCollector collector) {
     validateProperties(collector);
@@ -74,12 +56,12 @@ public final class GCSArgumentSetterConfig extends GCPConfig {
       }
     }
 
-    if (getServiceAccountType() == ServiceAccountType.JSON
-        && !containsMacro(NAME_SERVICE_ACCOUNT_JSON)
-        && Strings.isNullOrEmpty(getServiceAccountJSON())) {
+    if (isServiceAccountJson()
+      && !containsMacro(NAME_SERVICE_ACCOUNT_JSON)
+      && Strings.isNullOrEmpty(getServiceAccountJson())) {
       collector
-          .addFailure("Required property 'Service Account JSON' has no value.", "")
-          .withConfigProperty(NAME_SERVICE_ACCOUNT_JSON);
+        .addFailure("Required property 'Service Account JSON' has no value.", "")
+        .withConfigProperty(NAME_SERVICE_ACCOUNT_JSON);
     }
   }
 
@@ -93,33 +75,15 @@ public final class GCSArgumentSetterConfig extends GCPConfig {
       return false;
     }
 
-    ServiceAccountType serviceAccountType = getServiceAccountType();
-
-    if (serviceAccountType == ServiceAccountType.FILE_PATH) {
+    if (!isServiceAccountJson()) {
       return !containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH)
           && !Strings.isNullOrEmpty(getServiceAccountFilePath());
     }
     return !containsMacro(NAME_SERVICE_ACCOUNT_JSON)
-        && !Strings.isNullOrEmpty(getServiceAccountJSON());
+        && !Strings.isNullOrEmpty(getServiceAccountJson());
   }
 
   public GCSPath getPath() {
     return GCSPath.from(path);
-  }
-
-  public ServiceAccountType getServiceAccountType() {
-    return "JSON".equalsIgnoreCase(serviceAccountType)
-        ? ServiceAccountType.JSON
-        : ServiceAccountType.FILE_PATH;
-  }
-
-  public String getServiceAccountJSON() {
-    return serviceAccountJSON;
-  }
-
-  /** The type of service account. */
-  public enum ServiceAccountType {
-    FILE_PATH,
-    JSON;
   }
 }
