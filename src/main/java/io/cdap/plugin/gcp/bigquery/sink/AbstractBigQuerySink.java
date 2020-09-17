@@ -15,7 +15,7 @@
  */
 package io.cdap.plugin.gcp.bigquery.sink;
 
-import com.google.auth.Credentials;
+import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.Dataset;
@@ -96,9 +96,8 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
     prepareRunValidation(context);
 
     AbstractBigQuerySinkConfig config = getConfig();
-    String serviceAccountFilePath = config.getServiceAccountFilePath();
-    Credentials credentials = serviceAccountFilePath == null ?
-      null : GCPUtils.loadServiceAccountCredentials(serviceAccountFilePath);
+    ServiceAccountCredentials credentials = config.getServiceAccount() == null ? null :
+      GCPUtils.loadServiceAccountCredentials(config.getServiceAccount(), config.isServiceAccountFilePath());
     String project = config.getProject();
     bigQuery = GCPUtils.getBigQuery(project, credentials);
     String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
@@ -215,8 +214,8 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
    */
   private Configuration getBaseConfiguration(@Nullable String cmekKey) throws IOException {
     AbstractBigQuerySinkConfig config = getConfig();
-    Configuration baseConfiguration = BigQueryUtil.getBigQueryConfig(config.getServiceAccountFilePath(),
-                                                                     config.getProject(), cmekKey);
+    Configuration baseConfiguration = BigQueryUtil.getBigQueryConfig(config.getServiceAccount(), config.getProject(),
+                                                                     cmekKey, config.isServiceAccountFilePath());
     baseConfiguration.setBoolean(BigQueryConstants.CONFIG_ALLOW_SCHEMA_RELAXATION,
                                  config.isAllowSchemaRelaxation());
     baseConfiguration.setStrings(BigQueryConfiguration.OUTPUT_TABLE_WRITE_DISPOSITION_KEY,

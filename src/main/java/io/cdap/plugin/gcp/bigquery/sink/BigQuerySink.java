@@ -86,7 +86,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
 
     config.validate(inputSchema, configuredSchema, collector);
 
-    if (config.tryGetProject() == null || config.autoServiceAccountUnavailable()) {
+    if (config.tryGetProject() == null || config.getServiceAccount() == null) {
       return;
     }
     // validate schema with underlying table
@@ -225,7 +225,8 @@ public final class BigQuerySink extends AbstractBigQuerySink {
     AbstractBigQuerySinkConfig config = getConfig();
     Table table = BigQueryUtil.getBigQueryTable(config.getProject(), config.getDataset(),
                                                 config.getTable(),
-                                                config.getServiceAccountFilePath());
+                                                config.getServiceAccount(),
+                                                config.isServiceAccountFilePath());
     baseConfiguration.setBoolean(BigQueryConstants.CONFIG_DESTINATION_TABLE_EXISTS, table != null);
     List<String> tableFieldsNames;
     if (table != null) {
@@ -244,7 +245,8 @@ public final class BigQuerySink extends AbstractBigQuerySink {
     }
 
     Table table = BigQueryUtil.getBigQueryTable(config.getProject(), config.getDataset(), config.getTable(),
-                                                config.getServiceAccountFilePath(), collector);
+                                                config.getServiceAccount(), config.isServiceAccountFilePath(),
+                                                collector);
     if (table != null) {
       // if table already exists, validate schema against underlying bigquery table
 
