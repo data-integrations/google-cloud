@@ -48,7 +48,15 @@ public class GCSCopy extends Action {
   public void run(ActionContext context) throws IOException {
     config.validate(context.getFailureCollector());
 
-    StorageClient storageClient = StorageClient.create(config.getProject(), config.getServiceAccountFilePath());
+    Boolean isServiceAccountFilePath = config.isServiceAccountFilePath();
+    if (isServiceAccountFilePath == null) {
+      context.getFailureCollector().addFailure("Service account type is undefined.",
+                                               "Must be `File Path` or `JSON`");
+      context.getFailureCollector().getOrThrowException();
+      return;
+    }
+    StorageClient storageClient = StorageClient.create(config.getProject(), config.getServiceAccount(),
+                                                       isServiceAccountFilePath);
     //noinspection ConstantConditions
     storageClient.copy(config.getSourcePath(), config.getDestPath(), config.recursive, config.shouldOverwrite());
   }

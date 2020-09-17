@@ -301,6 +301,16 @@ public class StorageClient {
     return new StorageClient(storage);
   }
 
+  public static StorageClient create(String project, @Nullable String serviceAccount,
+                                     Boolean isServiceAccountFilePath) throws IOException {
+    StorageOptions.Builder builder = StorageOptions.newBuilder().setProjectId(project);
+    if (serviceAccount != null) {
+      builder.setCredentials(GCPUtils.loadServiceAccountCredentials(serviceAccount, isServiceAccountFilePath));
+    }
+    Storage storage = builder.build().getService();
+    return new StorageClient(storage);
+  }
+
   /**
    * Represents a blob to be copied or moved.
    */

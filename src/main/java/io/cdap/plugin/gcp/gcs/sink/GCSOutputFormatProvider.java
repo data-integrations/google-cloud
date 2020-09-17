@@ -190,8 +190,16 @@ public class GCSOutputFormatProvider implements ValidatingOutputFormat {
     @VisibleForTesting
     StorageClient getStorageClient(Configuration configuration) throws IOException {
       String project = configuration.get(GCPUtils.FS_GS_PROJECT_ID);
-      String serviceAccountPath = configuration.get(GCPUtils.CLOUD_JSON_KEYFILE);
-      return StorageClient.create(project, serviceAccountPath);
+      String serviceAccount = null;
+      boolean isServiceAccountFile = GCPUtils.SERVICE_ACCOUNT_TYPE_FILE_PATH
+        .equals(configuration.get(GCPUtils.SERVICE_ACCOUNT_TYPE));
+      if (isServiceAccountFile) {
+        serviceAccount = configuration.get(GCPUtils.CLOUD_JSON_KEYFILE, null);
+      } else {
+        serviceAccount = configuration.get(String.format("%s.%s", GCPUtils.CLOUD_JSON_KEYFILE_PREFIX,
+                                                         GCPUtils.CLOUD_ACCOUNT_JSON_SUFFIX));
+      }
+      return StorageClient.create(project, serviceAccount, isServiceAccountFile);
     }
 
     @Override

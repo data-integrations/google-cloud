@@ -98,8 +98,15 @@ public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable,
     Map<String, String> argumentCopy = new HashMap<>(context.getArguments().asMap());
 
     String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
-    Credentials credentials = config.getServiceAccountFilePath() == null ?
-      null : GCPUtils.loadServiceAccountCredentials(config.getServiceAccountFilePath());
+    Boolean isServiceAccountFilePath = config.isServiceAccountFilePath();
+    if (isServiceAccountFilePath == null) {
+      context.getFailureCollector().addFailure("Service account type is undefined.",
+                                               "Must be `File Path` or `JSON`");
+      context.getFailureCollector().getOrThrowException();
+      return;
+    }
+    Credentials credentials = config.getServiceAccount() == null ?
+      null : GCPUtils.loadServiceAccountCredentials(config.getServiceAccount(), isServiceAccountFilePath);
     Storage storage = GCPUtils.getStorage(config.getProject(), credentials);
     try {
       if (storage.get(config.getBucket()) == null) {
