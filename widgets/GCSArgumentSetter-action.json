@@ -33,19 +33,19 @@
         },
         {
           "name": "serviceAccountType",
-          "label": "Provide Service Account",
+          "label": "Service Account Type",
           "widget-type": "radio-group",
           "widget-attributes": {
             "layout": "inline",
             "default": "filePath",
             "options": [
               {
-                "id": "JSON",
-                "label": "JSON"
-              },
-              {
                 "id": "filePath",
                 "label": "File Path"
+              },
+              {
+                "id": "JSON",
+                "label": "JSON"
               }
             ]
           }
