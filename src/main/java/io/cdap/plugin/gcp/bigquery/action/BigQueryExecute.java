@@ -35,11 +35,9 @@ import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.etl.api.FailureCollector;
-import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.action.Action;
 import io.cdap.cdap.etl.api.action.ActionContext;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
-import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,7 +54,7 @@ import javax.annotation.Nullable;
 @Plugin(type = Action.PLUGIN_TYPE)
 @Name(BigQueryExecute.NAME)
 @Description("Execute a Google BigQuery SQL.")
-public final class BigQueryExecute extends Action {
+public final class BigQueryExecute extends AbstractBigQueryAction {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryExecute.class);
   public static final String NAME = "BigQueryExecute";
   private static final String RECORDS_PROCESSED = "records.processed";
@@ -146,14 +144,14 @@ public final class BigQueryExecute extends Action {
   }
 
   @Override
-  public void configurePipeline(PipelineConfigurer configurer) throws IllegalArgumentException {
-    config.validate(configurer.getStageConfigurer().getFailureCollector());
+  public AbstractBigQueryActionConfig getConfig() {
+    return config;
   }
 
   /**
    * Config for the plugin.
    */
-  public final class Config extends GCPConfig {
+  public final class Config extends AbstractBigQueryActionConfig {
     private static final String MODE = "mode";
     private static final String SQL = "sql";
     private static final String DATASET = "dataset";
@@ -242,6 +240,7 @@ public final class BigQueryExecute extends Action {
       return table;
     }
 
+    @Override
     public void validate(FailureCollector failureCollector) {
       // check the mode is valid
       if (!containsMacro(MODE)) {
