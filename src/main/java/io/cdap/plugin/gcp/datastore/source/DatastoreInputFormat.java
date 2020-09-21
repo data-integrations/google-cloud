@@ -63,7 +63,8 @@ public class DatastoreInputFormat extends InputFormat<LongWritable, Entity> {
       .build();
     int numSplits = config.getInt(DatastoreSourceConstants.CONFIG_NUM_SPLITS, 1);
     Datastore datastore = DatastoreUtil.getDatastoreV1(
-      config.get(DatastoreSourceConstants.CONFIG_SERVICE_ACCOUNT_FILE_PATH),
+      config.get(DatastoreSourceConstants.CONFIG_SERVICE_ACCOUNT),
+      Boolean.parseBoolean(config.get(DatastoreSourceConstants.CONFIG_SERVICE_ACCOUNT_IS_FILE)),
       config.get(DatastoreSourceConstants.CONFIG_PROJECT));
     QuerySplitter querySplitter = DatastoreHelper.getQuerySplitter();
 

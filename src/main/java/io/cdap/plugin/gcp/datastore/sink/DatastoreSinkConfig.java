@@ -302,7 +302,7 @@ public class DatastoreSinkConfig extends GCPReferenceSinkConfig {
       return;
     }
     try {
-      DatastoreUtil.getDatastore(getServiceAccountFilePath(), getProject());
+      DatastoreUtil.getDatastore(getServiceAccount(), isServiceAccountFilePath(), getProject());
     } catch (DatastoreInitializationException e) {
       collector.addFailure(e.getMessage(), "Ensure properties like project, service account file path are correct.")
         .withConfigProperty(DatastoreSinkConstants.PROPERTY_SERVICE_FILE_PATH)
@@ -400,7 +400,8 @@ public class DatastoreSinkConfig extends GCPReferenceSinkConfig {
    * Returns true if datastore can be connected to
    */
   public boolean shouldConnect() {
-    return !containsMacro(DatastoreSourceConfig.NAME_SERVICE_ACCOUNT_FILE_PATH) &&
+    return !(containsMacro(DatastoreSourceConfig.NAME_SERVICE_ACCOUNT_FILE_PATH) &&
+      containsMacro(DatastoreSourceConfig.NAME_SERVICE_ACCOUNT_JSON)) &&
       !containsMacro(DatastoreSourceConfig.NAME_PROJECT) &&
       tryGetProject() != null &&
       !autoServiceAccountUnavailable();

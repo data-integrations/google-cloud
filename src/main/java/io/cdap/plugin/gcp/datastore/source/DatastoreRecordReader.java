@@ -72,7 +72,8 @@ public class DatastoreRecordReader extends RecordReader<LongWritable, Entity> {
     Configuration config = taskAttemptContext.getConfiguration();
     Query<Entity> query = transformPbQuery(((QueryInputSplit) inputSplit).getQuery(), config);
     Datastore datastore = DatastoreUtil.getDatastore(
-      config.get(DatastoreSourceConstants.CONFIG_SERVICE_ACCOUNT_FILE_PATH),
+      config.get(DatastoreSourceConstants.CONFIG_SERVICE_ACCOUNT),
+      Boolean.parseBoolean(config.get(DatastoreSourceConstants.CONFIG_SERVICE_ACCOUNT_IS_FILE)),
       config.get(DatastoreSourceConstants.CONFIG_PROJECT));
     LOG.trace("Executing query split: {}", query);
     results = datastore.run(query);

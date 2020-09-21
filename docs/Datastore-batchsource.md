@@ -57,9 +57,11 @@ If no value is provided, `__key__` is used.
 **Project ID**: Google Cloud Project ID, which uniquely identifies a project.
 It can be found on the Dashboard in the Google Cloud Platform Console.
 
-**Service Account File Path**: Path on the local file system of the service account key used for
-authorization. Can be set to `auto-detect` when running on a Dataproc cluster.
+**Service Account**  - service account key used for authorization
+* **File Path**: Path on the local file system of the service account key used for
+authorization. Can be set to 'auto-detect' when running on a Dataproc cluster.
 When running on other clusters, the file must be present on every node in the cluster.
+* **JSON**: Contents of the service account JSON file.
 
 **Schema**: Schema of the data to read. Can be imported or fetched by clicking the `Get Schema` button.
 
@@ -136,4 +138,3 @@ Examples
 | Key(Country, 'USA', User, 'user-100') | Smith    | Apple    |
 | Key(Country, 'USA', User, 'user-103') | Wilson   | Facebook |
 
-    
