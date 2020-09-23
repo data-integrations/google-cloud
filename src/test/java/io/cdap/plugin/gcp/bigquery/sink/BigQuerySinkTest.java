@@ -28,6 +28,7 @@ import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TableId;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.validation.ValidationException;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
@@ -175,19 +176,57 @@ public class BigQuerySinkTest {
   }
 
   @Test(expected = ValidationException.class)
-  public void testSchemaValidationException() throws NoSuchFieldException {
+  public void testSchemaValidationNoTruncateNoSchemaRelaxationException() throws NoSuchFieldException {
     BigQuerySink sink = getValidationTestSink(false);
     MockFailureCollector collector = new MockFailureCollector("bqsink");
     Table table = getTestSchema();
-    sink.validateSchema(table, sink.getConfig().getSchema(collector), false, collector);
+    sink.validateSchema(
+      table.getTableId().getTable(),
+      table.getDefinition().getSchema(),
+      sink.getConfig().getSchema(collector),
+      false,
+      collector);
   }
 
-  @Test
-  public void testSchemaValidationNoException() throws NoSuchFieldException {
+  @Test(expected = ValidationException.class)
+  public void testSchemaValidationTruncateNoSchemaRelaxationException() throws NoSuchFieldException {
     BigQuerySink sink = getValidationTestSink(true);
     MockFailureCollector collector = new MockFailureCollector("bqsink");
     Table table = getTestSchema();
-    sink.validateSchema(table, sink.getConfig().getSchema(collector), false, collector);
+    sink.validateSchema(
+      table.getTableId().getTable(),
+      table.getDefinition().getSchema(),
+      sink.getConfig().getSchema(collector),
+      false,
+      collector);
+    Assert.assertEquals(0, collector.getValidationFailures().size());
+  }
+
+  @Test
+  public void testSchemaValidationAllowSchemaRelaxationTruncateNoException() throws NoSuchFieldException {
+    BigQuerySink sink = getValidationTestSink(true);
+    MockFailureCollector collector = new MockFailureCollector("bqsink");
+    Table table = getTestSchema();
+    sink.validateSchema(
+      table.getTableId().getTable(),
+      table.getDefinition().getSchema(),
+      sink.getConfig().getSchema(collector),
+      true,
+      collector);
+    Assert.assertEquals(0, collector.getValidationFailures().size());
+  }
+
+  @Test(expected = ValidationException.class)
+  public void testSchemaValidationAllowSchemaRelaxationNoTruncateException() throws NoSuchFieldException {
+    BigQuerySink sink = getValidationTestSink(false);
+    MockFailureCollector collector = new MockFailureCollector("bqsink");
+    Table table = getTestSchema();
+    sink.validateSchema(
+      table.getTableId().getTable(),
+      table.getDefinition().getSchema(),
+      sink.getConfig().getSchema(collector),
+      true,
+      collector);
     Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
