@@ -62,12 +62,36 @@
       "label" : "Credentials",
       "properties" : [
         {
+          "name": "serviceAccountType",
+          "label": "Service Account Type",
+          "widget-type": "radio-group",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "filePath",
+            "options": [
+              {
+                "id": "filePath",
+                "label": "File Path"
+              },
+              {
+                "id": "json",
+                "label": "JSON"
+              }
+            ]
+          }
+        },
+        {
           "widget-type": "textbox",
-          "label": "Service Account File Path",
+          "label": "File Path",
           "name": "serviceFilePath",
           "widget-attributes" : {
             "default": "auto-detect"
           }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "JSON",
+          "name": "serviceJson"
         }
       ]
     },
@@ -81,6 +105,34 @@
           "widget-attributes" : {
             "placeholder": "Maximum number of records to buffer in RecordWriter before writing to spanner table."
           }
+        }
+      ]
+    }
+  ],
+  "filters": [
+
+
+    {
+      "name": "ServiceAuthenticationTypeFilePath",
+      "condition": {
+        "expression": "serviceAccountType == 'filePath'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "serviceFilePath"
+        }
+      ]
+    },
+    {
+      "name": "ServiceAuthenticationTypeJSON",
+      "condition": {
+        "expression": "serviceAccountType == 'json'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "serviceJson"
         }
       ]
     }

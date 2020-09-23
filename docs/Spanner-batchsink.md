@@ -40,9 +40,11 @@ If the table does not exist, it will get created.
 **Primary Key**: If the table does not exist, a primary key must be provided in order to auto-create the table.
 The key can be a composite key of multiple fields in the schema. This is not required if the table already exists.
 
-**Service Account File Path**: Path on the local file system of the service account key used for
+**Service Account**  - service account key used for authorization
+* **File Path**: Path on the local file system of the service account key used for
 authorization. Can be set to 'auto-detect' when running on a Dataproc cluster.
 When running on other clusters, the file must be present on every node in the cluster.
+* **JSON**: Contents of the service account JSON file.
 
 **Write Batch Size**: Size (in number of records) of the batched writes to the Spanner table.
 Each write to Cloud Spanner contains some overhead. To maximize bulk write throughput,

@@ -97,7 +97,8 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
     config.validate(collector);
     Schema configuredSchema = config.getSchema(collector);
 
-    if (!config.shouldConnect() || config.tryGetProject() == null || config.autoServiceAccountUnavailable()) {
+    if (!config.shouldConnect() || config.tryGetProject() == null
+      || (config.isServiceAccountFilePath() && config.autoServiceAccountUnavailable())) {
       stageConfigurer.setOutputSchema(configuredSchema);
       return;
     }
@@ -136,7 +137,8 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
     initializeConfig(configuration, projectId);
 
     // initialize spanner
-    try (Spanner spanner = SpannerUtil.getSpannerService(config.getServiceAccountFilePath(), projectId)) {
+    try (Spanner spanner = SpannerUtil.getSpannerService(config.getServiceAccount(), config.isServiceAccountFilePath(),
+                                                         projectId)) {
       BatchClient batchClient =
         spanner.getBatchClient(DatabaseId.of(projectId, config.instance, config.database));
       Timestamp logicalStartTimeMicros =
@@ -189,7 +191,9 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
 
   private void initializeConfig(Configuration configuration, String projectId) {
     setIfValueNotNull(configuration, SpannerConstants.PROJECT_ID, projectId);
-    setIfValueNotNull(configuration, SpannerConstants.SERVICE_ACCOUNT_FILE_PATH, config.getServiceAccountFilePath());
+    setIfValueNotNull(configuration, SpannerConstants.SERVICE_ACCOUNT_TYPE, config.isServiceAccountFilePath() ?
+      SpannerConstants.SERVICE_ACCOUNT_TYPE_FILE_PATH : SpannerConstants.SERVICE_ACCOUNT_TYPE_JSON);
+    setIfValueNotNull(configuration, SpannerConstants.SERVICE_ACCOUNT, config.getServiceAccount());
     setIfValueNotNull(configuration, SpannerConstants.INSTANCE_ID, config.instance);
     setIfValueNotNull(configuration, SpannerConstants.DATABASE, config.database);
     setIfValueNotNull(configuration, SpannerConstants.QUERY, String.format("Select * from %s;", config.table));
@@ -229,7 +233,8 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
   private Schema getSchema(FailureCollector collector) {
     String projectId = config.getProject();
 
-    try (Spanner spanner = SpannerUtil.getSpannerService(config.getServiceAccountFilePath(), projectId)) {
+    try (Spanner spanner = SpannerUtil.getSpannerService(config.getServiceAccount(), config.isServiceAccountFilePath(),
+                                                         projectId)) {
       DatabaseClient databaseClient =
         spanner.getDatabaseClient(DatabaseId.of(projectId, config.instance, config.database));
       Statement getTableSchemaStatement = SCHEMA_STATEMENT_BUILDER.bind(TABLE_NAME).to(config.table).build();
@@ -255,7 +260,8 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
       }
     } catch (IOException e) {
       collector.addFailure("Unable to get Spanner Client: " + e.getMessage(), null)
-        .withConfigProperty(GCPConfig.NAME_SERVICE_ACCOUNT_FILE_PATH);
+        .withConfigProperty(config.isServiceAccountFilePath() ?
+                              GCPConfig.NAME_SERVICE_ACCOUNT_FILE_PATH : GCPConfig.NAME_SERVICE_ACCOUNT_JSON);
       // if there was an error that was added, it will throw an exception.
       throw collector.getOrThrowException();
     }
