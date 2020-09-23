@@ -385,19 +385,22 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
       }
     }
 
-    // Match output schema field type with BigQuery column type
-    for (Schema.Field field : tableSchema.getFields()) {
-      String fieldName = field.getName();
-      // skip checking schema if field is missing in BigQuery
-      if (!missingBQFields.contains(fieldName)) {
-        ValidationFailure failure = BigQueryUtil.validateFieldSchemaMatches(
-          bqFields.get(field.getName()), field, getConfig().getDataset(), tableName,
-          AbstractBigQuerySinkConfig.SUPPORTED_TYPES, collector);
-        if (failure != null) {
-          failure.withInputSchemaField(fieldName).withOutputSchemaField(fieldName);
+    if (!allowSchemaRelaxation || !getConfig().isTruncateTableSet()) {
+      // Match output schema field type with BigQuery column type
+      for (Schema.Field field : tableSchema.getFields()) {
+        String fieldName = field.getName();
+        // skip checking schema if field is missing in BigQuery
+        if (!missingBQFields.contains(fieldName)) {
+          ValidationFailure failure = BigQueryUtil.validateFieldSchemaMatches(
+              bqFields.get(field.getName()), field, getConfig().getDataset(), tableName,
+              AbstractBigQuerySinkConfig.SUPPORTED_TYPES, collector);
+          if (failure != null) {
+            failure.withInputSchemaField(fieldName).withOutputSchemaField(fieldName);
+          }
         }
       }
     }
+
     collector.getOrThrowException();
   }
 
