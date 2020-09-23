@@ -385,6 +385,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
       }
     }
 
+    // column type changes should be disallowed if either allowSchemaRelaxation or truncate table are not set.
     if (!allowSchemaRelaxation || !getConfig().isTruncateTableSet()) {
       // Match output schema field type with BigQuery column type
       for (Schema.Field field : tableSchema.getFields()) {
