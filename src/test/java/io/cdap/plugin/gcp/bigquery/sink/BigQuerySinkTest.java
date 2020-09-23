@@ -175,19 +175,37 @@ public class BigQuerySinkTest {
   }
 
   @Test(expected = ValidationException.class)
-  public void testSchemaValidationException() throws NoSuchFieldException {
+  public void testSchemaValidationNoTruncateNoSchemaRelaxationException() throws NoSuchFieldException {
     BigQuerySink sink = getValidationTestSink(false);
     MockFailureCollector collector = new MockFailureCollector("bqsink");
     Table table = getTestSchema();
     sink.validateSchema(table, sink.getConfig().getSchema(collector), false, collector);
   }
 
-  @Test
-  public void testSchemaValidationNoException() throws NoSuchFieldException {
+  @Test(expected = ValidationException.class)
+  public void testSchemaValidationTruncateNoSchemaRelaxationException() throws NoSuchFieldException {
     BigQuerySink sink = getValidationTestSink(true);
     MockFailureCollector collector = new MockFailureCollector("bqsink");
     Table table = getTestSchema();
     sink.validateSchema(table, sink.getConfig().getSchema(collector), false, collector);
+    Assert.assertEquals(0, collector.getValidationFailures().size());
+  }
+
+  @Test
+  public void testSchemaValidationAllowSchemaRelaxationTruncateNoException() throws NoSuchFieldException {
+    BigQuerySink sink = getValidationTestSink(true);
+    MockFailureCollector collector = new MockFailureCollector("bqsink");
+    Table table = getTestSchema();
+    sink.validateSchema(table, sink.getConfig().getSchema(collector), true, collector);
+    Assert.assertEquals(0, collector.getValidationFailures().size());
+  }
+
+  @Test(expected = ValidationException.class)
+  public void testSchemaValidationAllowSchemaRelaxationNoTruncateException() throws NoSuchFieldException {
+    BigQuerySink sink = getValidationTestSink(false);
+    MockFailureCollector collector = new MockFailureCollector("bqsink");
+    Table table = getTestSchema();
+    sink.validateSchema(table, sink.getConfig().getSchema(collector), true, collector);
     Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 

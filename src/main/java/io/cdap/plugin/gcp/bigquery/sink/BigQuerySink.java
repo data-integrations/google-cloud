@@ -41,6 +41,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
+import org.junit.internal.runners.statements.Fail;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,6 +51,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 /**
  * This class <code>BigQuerySink</code> is a plugin that would allow users
@@ -108,11 +110,14 @@ public final class BigQuerySink extends AbstractBigQuerySink {
   @Override
   protected void prepareRunInternal(BatchSinkContext context, BigQuery bigQuery, String bucket) throws IOException {
     FailureCollector collector = context.getFailureCollector();
+
     Schema configSchema = config.getSchema(collector);
-    Schema schema = configSchema == null ? context.getInputSchema() : configSchema;
-    configureTable(schema);
+    Schema outputSchema = overrideOutputSchemaWithTableSchemaIfNeeded(
+        configSchema == null ? context.getInputSchema() : configSchema, config.getTable(), collector);
+
+    configureTable(outputSchema);
     configureBigQuerySink();
-    initOutput(context, bigQuery, config.getReferenceName(), config.getTable(), schema, bucket, collector);
+    initOutput(context, bigQuery, config.getReferenceName(), config.getTable(), outputSchema, bucket, collector);
   }
 
   @Override
