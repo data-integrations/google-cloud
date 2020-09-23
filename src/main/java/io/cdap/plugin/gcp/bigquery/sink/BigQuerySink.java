@@ -41,7 +41,6 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
-import org.junit.internal.runners.statements.Fail;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,7 +50,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 
 /**
  * This class <code>BigQuerySink</code> is a plugin that would allow users
@@ -113,7 +111,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
 
     Schema configSchema = config.getSchema(collector);
     Schema outputSchema = overrideOutputSchemaWithTableSchemaIfNeeded(
-        configSchema == null ? context.getInputSchema() : configSchema, config.getTable(), collector);
+      configSchema == null ? context.getInputSchema() : configSchema, config.getTable(), collector);
 
     configureTable(outputSchema);
     configureBigQuerySink();

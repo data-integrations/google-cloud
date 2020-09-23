@@ -30,8 +30,8 @@ import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
-import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 
+import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.hadoop.conf.Configuration;
@@ -42,7 +42,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import javax.annotation.Nullable;
 
 /**
  * This plugin allows users to write {@link StructuredRecord} entries to multiple Google Big Query tables.
@@ -53,8 +52,6 @@ import javax.annotation.Nullable;
   + "BigQuery is Google's serverless, highly scalable, enterprise data warehouse. "
   + "Data is first written to a temporary location on Google Cloud Storage, then loaded into BigQuery from there.")
 public class BigQueryMultiSink extends AbstractBigQuerySink {
-  private static final Logger LOG = LoggerFactory.getLogger(BigQueryMultiSink.class);
-
   private static final String TABLE_PREFIX = "multisink.";
 
   private final BigQueryMultiSinkConfig config;
@@ -78,6 +75,7 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
   protected void prepareRunValidation(BatchSinkContext context) {
     FailureCollector collector = context.getFailureCollector();
     config.validate(collector);
+    validateConfiguredSchema(context, collector);
     collector.getOrThrowException();
   }
 
@@ -100,7 +98,7 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
 
       try {
         Schema tableSchema = overrideOutputSchemaWithTableSchemaIfNeeded(
-            Schema.parseJson(argument.getValue()), tableName, collector);
+          Schema.parseJson(argument.getValue()), tableName, collector);
 
         String outputName = String.format("%s-%s", config.getReferenceName(), tableName);
         initOutput(context, bigQuery, outputName, tableName, tableSchema, bucket, context.getFailureCollector());
@@ -122,5 +120,40 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
   public void transform(StructuredRecord input,
                         Emitter<KeyValue<AvroKey<GenericRecord>, NullWritable>> emitter) throws IOException {
     emitter.emit(new KeyValue<>(new AvroKey<>(toAvroRecord(input)), NullWritable.get()));
+  }
+
+  /**
+   * Validates configured output schema against underlying BigQuery table schema.
+   * @param context Sink Context
+   * @param collector Failure collector to report failures to the client.
+   */
+  private void validateConfiguredSchema(BatchSinkContext context, FailureCollector collector) {
+    Map<String, String> arguments = new HashMap<>(context.getArguments().asMap());
+    for (Map.Entry<String, String> argument : arguments.entrySet()) {
+      String key = argument.getKey();
+      if (!key.startsWith(TABLE_PREFIX)) {
+        continue;
+      }
+      String tableName = key.substring(TABLE_PREFIX.length());
+      // remove the database prefix, as BigQuery doesn't allow dots
+      String[] split = tableName.split("\\.");
+      if (split.length == 2) {
+        tableName = split[1];
+      }
+
+      Table table = BigQueryUtil.getBigQueryTable(
+        config.getProject(), config.getDataset(), tableName, config.getServiceAccountFilePath(),
+        collector);
+
+      if (table != null) {
+        // if table already exists, validate schema against underlying bigquery table.
+        try {
+          validateSchema(table, Schema.parseJson(argument.getValue()), config.allowSchemaRelaxation,
+            collector);
+        } catch (IOException e) {
+          collector.addFailure("Invalid schema: " + e.getMessage(), null);
+        }
+      }
+    }
   }
 }

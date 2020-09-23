@@ -303,7 +303,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
         // or with WRITE_TRUNCATE disposition on a table partition - The logic below should change when we support
         // insertion into single partition
         if (allowSchemaRelaxation && !JobInfo.WriteDisposition.WRITE_TRUNCATE
-            .equals(JobInfo.WriteDisposition.valueOf(writeDisposition))) {
+          .equals(JobInfo.WriteDisposition.valueOf(writeDisposition))) {
           loadConfig.setSchemaUpdateOptions(Arrays.asList(
             JobInfo.SchemaUpdateOption.ALLOW_FIELD_ADDITION.name(),
             JobInfo.SchemaUpdateOption.ALLOW_FIELD_RELAXATION.name()));

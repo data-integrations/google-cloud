@@ -272,9 +272,9 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
    * @return
    */
   protected final Schema overrideOutputSchemaWithTableSchemaIfNeeded(
-      Schema configuredSchema,
-      String tableName,
-      FailureCollector collector) {
+    Schema configuredSchema,
+    String tableName,
+    FailureCollector collector) {
     AbstractBigQuerySinkConfig config = getConfig();
 
     if (!config.isAllowSchemaRelaxation()) {
@@ -315,7 +315,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
     com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
     if (bqSchema == null || bqSchema.getFields().isEmpty()) {
       // Table is created without schema, so no further validation is required.
-      LOG.info("Table [%s] doesn't have a valid schema. Using input schema for writing records.", config.getTable());
+      LOG.info("Table [%s] doesn't have a schema. Using input schema for writing records.", config.getTable());
       return null;
     }
     return BigQueryUtil.getTableSchema(bqSchema, collector);
@@ -345,25 +345,25 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
 
     List<String> missingBQFields = BigQueryUtil.getSchemaMinusBqFields(outputSchemaFields, bqFields);
 
-    if (allowSchemaRelaxation) {
+    if (allowSchemaRelaxation && !getConfig().isTruncateTableSet()) {
       // Required fields can be added only if truncate table option is set.
-      if (!getConfig().isTruncateTableSet()) {
-        List<String> nonNullableFields = missingBQFields.stream()
-            .map(tableSchema::getField)
-            .filter(Objects::nonNull)
-            .filter(field -> !field.getSchema().isNullable())
-            .map(Schema.Field::getName)
-            .collect(Collectors.toList());
+      List<String> nonNullableFields = missingBQFields.stream()
+        .map(tableSchema::getField)
+        .filter(Objects::nonNull)
+        .filter(field -> !field.getSchema().isNullable())
+        .map(Schema.Field::getName)
+        .collect(Collectors.toList());
 
-        for (String nonNullableField : nonNullableFields) {
-          collector.addFailure(
-              String.format("Required field '%s' does not exist in BigQuery table '%s.%s'.",
-                  nonNullableField, getConfig().getDataset(), tableName),
-              "Change the field to be nullable.")
-              .withInputSchemaField(nonNullableField).withOutputSchemaField(nonNullableField);
-        }
+      for (String nonNullableField : nonNullableFields) {
+        collector.addFailure(
+          String.format("Required field '%s' does not exist in BigQuery table '%s.%s'.",
+              nonNullableField, getConfig().getDataset(), tableName),
+          "Change the field to be nullable.")
+          .withInputSchemaField(nonNullableField).withOutputSchemaField(nonNullableField);
       }
-    } else {
+    }
+
+    if (!allowSchemaRelaxation) {
       // schema should not have fields that are not present in BigQuery table,
       for (String missingField : missingBQFields) {
         collector.addFailure(
@@ -393,9 +393,9 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
         // skip checking schema if field is missing in BigQuery
         if (!missingBQFields.contains(fieldName)) {
           ValidationFailure failure = BigQueryUtil.validateFieldSchemaMatches(
-              bqFields.get(field.getName()), field, getConfig().getDataset(), tableName,
-              AbstractBigQuerySinkConfig.SUPPORTED_TYPES, collector);
-          if (failure != null) {
+            bqFields.get(field.getName()), field, getConfig().getDataset(), tableName,
+            AbstractBigQuerySinkConfig.SUPPORTED_TYPES, collector);
+        if (failure != null) {
             failure.withInputSchemaField(fieldName).withOutputSchemaField(fieldName);
           }
         }
