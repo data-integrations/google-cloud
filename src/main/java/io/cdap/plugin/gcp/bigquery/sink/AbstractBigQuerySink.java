@@ -248,28 +248,93 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
   }
 
   /**
+   * Adjusts output format schema depending on allowSchemaRelaxation setting to avoid unexpected
+   * schema changes to the underlying bigQuery table.
+   * @param configuredSchema Schema configured for output format.
+   * @param bqSchema Optional BigQuery table schema to avoid duplicate calls.
+   * @param tableName BigQuery table name for writing record.
+   * @param collector Failure collector to report failures to the client.
+   * @return
+   */
+  protected final Schema overrideOutputSchemaWithTableSchemaIfNeeded(
+    String tableName,
+    Schema configuredSchema,
+    @Nullable com.google.cloud.bigquery.Schema bqSchema,
+    FailureCollector collector) {
+    AbstractBigQuerySinkConfig config = getConfig();
+
+    if (!config.isAllowSchemaRelaxation()) {
+      Schema tableSchema = getTableSchema(tableName, bqSchema, collector);
+      // We use GCS buckets to write AVRO files and import them in BigQuery.
+      // Avro is a self describing format and BigQuery overwrites table schema with AVRO record
+      // schema.
+      // If table schema relaxation is not allowed then AVRO records will be normalized and
+      // written to GCS using table schema to avoid any table schema changes.
+      if (tableSchema != null) {
+        LOG.info("Output schema updated to use table schema");
+        return tableSchema;
+      }
+    }
+    return configuredSchema;
+  }
+
+  /**
+   * Returns Bigtable schema in a CDAP schema format.
+   * @param tableName BigQuery table name for writing record.
+   * @param bqSchema Optional BigQuery table schema to avoid duplicate calls.
+   * @param collector Failure collector to report failures to the client.
+   * @return
+   */
+  @Nullable
+  private Schema getTableSchema(
+    String tableName,
+    @Nullable com.google.cloud.bigquery.Schema bqSchema,
+    FailureCollector collector) {
+    if (bqSchema == null) {
+      AbstractBigQuerySinkConfig config = getConfig();
+      Table table = BigQueryUtil.getBigQueryTable(
+        config.getProject(),
+        config.getDataset(),
+        tableName,
+        config.getServiceAccountFilePath(),
+        collector);
+
+      if (table == null) {
+        LOG.info("Table [%s] doesn't exist yet. Using input schema for writing records.",
+          tableName);
+        return null;
+      }
+
+      bqSchema = table.getDefinition().getSchema();
+    }
+
+    if (bqSchema == null || bqSchema.getFields().isEmpty()) {
+      // Table is created without schema, so no further validation is required.
+      LOG.info("Table [%s] doesn't have a schema. Using input schema for writing records.", tableName);
+      return null;
+    }
+    return BigQueryUtil.getTableSchema(bqSchema, collector);
+  }
+
+  /**
    * Validates output schema against Big Query table schema. It throws {@link IllegalArgumentException}
    * if the output schema has more fields than Big Query table or output schema field types does not match
    * Big Query column types unless schema relaxation policy is allowed.
    *
-   * @param table big query table
-   * @param tableSchema table schema
+   * @param tableName big query table
+   * @param bqSchema BigQuery table schema
+   * @param tableSchema Configured table schema
    * @param allowSchemaRelaxation allows schema relaxation policy
    * @param collector failure collector
    */
-  protected void validateSchema(Table table, Schema tableSchema, boolean allowSchemaRelaxation,
-                                FailureCollector collector) {
-    String tableName = table.getTableId().getTable();
-    com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
+  protected void validateSchema(
+    String tableName,
+    com.google.cloud.bigquery.Schema bqSchema,
+    Schema tableSchema,
+    boolean allowSchemaRelaxation,
+    FailureCollector collector) {
     if (bqSchema == null || bqSchema.getFields().isEmpty()) {
       // Table is created without schema, so no further validation is required.
-      return;
-    }
-
-    if (getConfig().isTruncateTableSet()) {
-      //no validation required for schema if truncate table is set.
-      // BQ will overwrite the schema for normal tables when write disposition is WRITE_TRUNCATE
-      //note - If write to single partition is supported in future, schema validation will be necessary
       return;
     }
 
@@ -278,7 +343,8 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
 
     List<String> missingBQFields = BigQueryUtil.getSchemaMinusBqFields(outputSchemaFields, bqFields);
 
-    if (allowSchemaRelaxation) {
+    if (allowSchemaRelaxation && !getConfig().isTruncateTableSet()) {
+      // Required fields can be added only if truncate table option is set.
       List<String> nonNullableFields = missingBQFields.stream()
         .map(tableSchema::getField)
         .filter(Objects::nonNull)
@@ -289,11 +355,13 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
       for (String nonNullableField : nonNullableFields) {
         collector.addFailure(
           String.format("Required field '%s' does not exist in BigQuery table '%s.%s'.",
-                        nonNullableField, getConfig().getDataset(), tableName),
+              nonNullableField, getConfig().getDataset(), tableName),
           "Change the field to be nullable.")
           .withInputSchemaField(nonNullableField).withOutputSchemaField(nonNullableField);
       }
-    } else {
+    }
+
+    if (!allowSchemaRelaxation) {
       // schema should not have fields that are not present in BigQuery table,
       for (String missingField : missingBQFields) {
         collector.addFailure(
@@ -306,26 +374,31 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
       // validate the missing columns in output schema are nullable fields in BigQuery
       List<String> remainingBQFields = BigQueryUtil.getBqFieldsMinusSchema(bqFields, outputSchemaFields);
       for (String field : remainingBQFields) {
-        if (bqFields.get(field).getMode() != Field.Mode.NULLABLE) {
+        Field.Mode mode = bqFields.get(field).getMode();
+        // Mode is optional. If the mode is unspecified, the column defaults to NULLABLE.
+        if (mode != null && mode != Field.Mode.NULLABLE) {
           collector.addFailure(String.format("Required Column '%s' is not present in the schema.", field),
                                String.format("Add '%s' to the schema.", field));
         }
       }
     }
 
-    // Match output schema field type with BigQuery column type
-    for (Schema.Field field : tableSchema.getFields()) {
-      String fieldName = field.getName();
-      // skip checking schema if field is missing in BigQuery
-      if (!missingBQFields.contains(fieldName)) {
-        ValidationFailure failure = BigQueryUtil.validateFieldSchemaMatches(
-          bqFields.get(field.getName()), field, getConfig().getDataset(), tableName,
-          AbstractBigQuerySinkConfig.SUPPORTED_TYPES, collector);
-        if (failure != null) {
-          failure.withInputSchemaField(fieldName).withOutputSchemaField(fieldName);
+    if (!allowSchemaRelaxation || !getConfig().isTruncateTableSet()) {
+      // Match output schema field type with BigQuery column type
+      for (Schema.Field field : tableSchema.getFields()) {
+        String fieldName = field.getName();
+        // skip checking schema if field is missing in BigQuery
+        if (!missingBQFields.contains(fieldName)) {
+          ValidationFailure failure = BigQueryUtil.validateFieldSchemaMatches(
+            bqFields.get(field.getName()), field, getConfig().getDataset(), tableName,
+            AbstractBigQuerySinkConfig.SUPPORTED_TYPES, collector);
+          if (failure != null) {
+            failure.withInputSchemaField(fieldName).withOutputSchemaField(fieldName);
+          }
         }
       }
     }
+
     collector.getOrThrowException();
   }
 
@@ -352,7 +425,8 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
       Table table = bigQuery.getTable(tableId);
       // if table is null that mean it does not exist. So there is no need to perform validation
       if (table != null) {
-        validateSchema(table, tableSchema, allowSchemaRelaxation, collector);
+        com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
+        validateSchema(tableName, bqSchema, tableSchema, allowSchemaRelaxation, collector);
       }
     } catch (BigQueryException e) {
       collector.addFailure("Unable to get details about the BigQuery table: " + e.getMessage(), null)

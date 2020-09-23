@@ -211,23 +211,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
 
   public Schema getSchema(FailureCollector collector) {
     com.google.cloud.bigquery.Schema bqSchema = getBQSchema(collector);
-    FieldList fields = bqSchema.getFields();
-    List<Schema.Field> schemafields = new ArrayList<>();
-
-    for (Field field : fields) {
-      Schema.Field schemaField = getSchemaField(field, collector);
-      // if schema field is null, that means that there was a validation error. We will still continue in order to
-      // collect more errors
-      if (schemaField == null) {
-        continue;
-      }
-      schemafields.add(schemaField);
-    }
-    if (schemafields.isEmpty() && !collector.getValidationFailures().isEmpty()) {
-      // throw if there was validation failure(s) added to the collector
-      collector.getOrThrowException();
-    }
-    return Schema.recordOf("output", schemafields);
+    return BigQueryUtil.getTableSchema(bqSchema, collector);
   }
 
   /**
@@ -295,81 +279,6 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     validatePartitionProperties(collector);
     validateConfiguredSchema(outputSchema, collector);
     return outputSchema;
-  }
-
-  @Nullable
-  private Schema.Field getSchemaField(Field field, FailureCollector collector) {
-    Schema schema = convertFieldType(field, collector);
-    if (schema == null) {
-      return null;
-    }
-
-    Field.Mode mode = field.getMode() == null ? Field.Mode.NULLABLE : field.getMode();
-    switch (mode) {
-      case NULLABLE:
-        return Schema.Field.of(field.getName(), Schema.nullableOf(schema));
-      case REQUIRED:
-        return Schema.Field.of(field.getName(), schema);
-      case REPEATED:
-        return Schema.Field.of(field.getName(), Schema.arrayOf(schema));
-      default:
-        // this should not happen, unless newer bigquery versions introduces new mode that is not supported by this
-        // plugin.
-        collector.addFailure(String.format("Field '%s' has unsupported mode '%s'.", field.getName(), mode), null);
-    }
-    return null;
-  }
-
-  @Nullable
-  private Schema convertFieldType(Field field, FailureCollector collector) {
-    LegacySQLTypeName type = field.getType();
-    Schema schema = null;
-    StandardSQLTypeName value = type.getStandardType();
-    if (value == StandardSQLTypeName.FLOAT64) {
-      // float is a float64, so corresponding type becomes double
-      schema = Schema.of(Schema.Type.DOUBLE);
-    } else if (value == StandardSQLTypeName.BOOL) {
-      schema = Schema.of(Schema.Type.BOOLEAN);
-    } else if (value == StandardSQLTypeName.INT64) {
-      // int is a int64, so corresponding type becomes long
-      schema = Schema.of(Schema.Type.LONG);
-    } else if (value == StandardSQLTypeName.STRING || value == StandardSQLTypeName.DATETIME) {
-      schema = Schema.of(Schema.Type.STRING);
-    } else if (value == StandardSQLTypeName.BYTES) {
-      schema = Schema.of(Schema.Type.BYTES);
-    } else if (value == StandardSQLTypeName.TIME) {
-      schema = Schema.of(Schema.LogicalType.TIME_MICROS);
-    } else if (value == StandardSQLTypeName.DATE) {
-      schema = Schema.of(Schema.LogicalType.DATE);
-    } else if (value == StandardSQLTypeName.TIMESTAMP) {
-      schema = Schema.of(Schema.LogicalType.TIMESTAMP_MICROS);
-    } else if (value == StandardSQLTypeName.NUMERIC) {
-      // bigquery has 38 digits of precision and 9 digits of scale.
-      // https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro#logical_types
-      schema = Schema.decimalOf(38, 9);
-    } else if (value == StandardSQLTypeName.STRUCT) {
-      FieldList fields = field.getSubFields();
-      List<Schema.Field> schemafields = new ArrayList<>();
-      for (Field f : fields) {
-        Schema.Field schemaField = getSchemaField(f, collector);
-        // if schema field is null, that means that there was a validation error. We will still continue in order to
-        // collect more errors
-        if (schemaField == null) {
-          continue;
-        }
-        schemafields.add(schemaField);
-      }
-      // do not return schema for the struct field if none of the nested fields are of supported types
-      if (!schemafields.isEmpty()) {
-        schema = Schema.recordOf(field.getName(), schemafields);
-      }
-    } else {
-      collector.addFailure(
-        String.format("BigQuery column '%s' is of unsupported type '%s'.", field.getName(), value.name()),
-        String.format("Supported column types are: %s.", BigQueryUtil.BQ_TYPE_MAP.keySet().stream()
-          .map(t -> t.getStandardType().name()).collect(Collectors.joining(", "))));
-    }
-    return schema;
   }
 
   private void validatePartitionProperties(FailureCollector collector) {
