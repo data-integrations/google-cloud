@@ -299,7 +299,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       } else {
         loadConfig.setDestinationTable(tableRef);
 
-        //Schema update options should only be specified with WRITE_APPEND disposition,
+        // Schema update options should only be specified with WRITE_APPEND disposition,
         // or with WRITE_TRUNCATE disposition on a table partition - The logic below should change when we support
         // insertion into single partition
         if (allowSchemaRelaxation && !JobInfo.WriteDisposition.WRITE_TRUNCATE
