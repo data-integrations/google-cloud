@@ -317,7 +317,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
 
       if (table == null) {
         LOG.info("Table [%s] doesn't exist yet. Using input schema for writing records.",
-          config.getTable());
+          tableName);
         return null;
       }
 
