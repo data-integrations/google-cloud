@@ -17,6 +17,7 @@
 package io.cdap.plugin.gcp.bigtable.sink;
 
 import com.google.cloud.bigtable.hbase.BigtableConfiguration;
+import com.google.cloud.bigtable.hbase.BigtableOptionsFactory;
 import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
@@ -34,6 +35,7 @@ import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.gcp.bigtable.common.HBaseColumn;
+import io.cdap.plugin.gcp.bigtable.common.TableOutputCustomFormat;
 import io.cdap.plugin.gcp.common.ConfigUtil;
 import io.cdap.plugin.gcp.common.SourceOutputFormatProvider;
 import org.apache.hadoop.conf.Configuration;
@@ -137,7 +139,7 @@ public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableByt
     // We call emitLineage before since it creates the dataset with schema.
     emitLineage(context);
     context.addOutput(Output.of(config.getReferenceName(),
-                                new SourceOutputFormatProvider(TableOutputFormat.class, conf)));
+                                new SourceOutputFormatProvider(TableOutputCustomFormat.class, conf)));
   }
 
   @Override
@@ -156,6 +158,16 @@ public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableByt
 
   private Configuration getConfiguration() {
     Configuration conf = new Configuration();
+    String serviceAccount = config.getServiceAccount();
+    if (serviceAccount != null) {
+      conf.setBoolean(BigtableOptionsFactory.BIGTABLE_USE_SERVICE_ACCOUNTS_KEY,
+                      BigtableOptionsFactory.BIGTABLE_USE_SERVICE_ACCOUNTS_DEFAULT);
+      if (config.isServiceAccountFilePath()) {
+        conf.set(BigtableOptionsFactory.BIGTABLE_SERVICE_ACCOUNT_JSON_KEYFILE_LOCATION_KEY, serviceAccount);
+      } else {
+        conf.set(BigtableOptionsFactory.BIGTABLE_SERVICE_ACCOUNT_JSON_VALUE_KEY, serviceAccount);
+      }
+    }
     BigtableConfiguration.configure(conf, config.getProject(), config.instance);
     conf.set(TableOutputFormat.OUTPUT_TABLE, config.table);
     config.getBigtableOptions().forEach(conf::set);

@@ -163,11 +163,11 @@ public final class BigtableSourceConfig extends GCPReferenceSourceConfig {
     if (!containsMacro(INSTANCE) && Strings.isNullOrEmpty(instance)) {
       collector.addFailure("Instance ID must be specified.", null).withConfigProperty(INSTANCE);
     }
-    String serviceAccountFilePath = getServiceAccountFilePath();
-    if (!containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH) && serviceAccountFilePath != null) {
-      File serviceAccountFile = new File(serviceAccountFilePath);
+    String serviceAccount = getServiceAccount();
+    if (!containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH) && serviceAccount != null && isServiceAccountFilePath()) {
+      File serviceAccountFile = new File(serviceAccount);
       if (!serviceAccountFile.exists()) {
-        collector.addFailure(String.format("Service account file '%s' does not exist.", serviceAccountFilePath),
+        collector.addFailure(String.format("Service account file '%s' does not exist.", serviceAccount),
                              "Ensure the service account file is available on the local filesystem.")
           .withConfigProperty(NAME_SERVICE_ACCOUNT_FILE_PATH);
       }
@@ -281,7 +281,7 @@ public final class BigtableSourceConfig extends GCPReferenceSourceConfig {
     return !containsMacro(INSTANCE) && Strings.isNullOrEmpty(instance)
       && !containsMacro(NAME_PROJECT) && Strings.isNullOrEmpty(project)
       && !containsMacro(TABLE) && Strings.isNullOrEmpty(table)
-      && !containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH);
+      && !(containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH) || containsMacro(NAME_SERVICE_ACCOUNT_JSON));
   }
 
   public List<HBaseColumn> getRequestedColumns(FailureCollector collector) {
