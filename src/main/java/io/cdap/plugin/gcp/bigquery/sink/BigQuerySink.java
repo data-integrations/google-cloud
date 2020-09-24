@@ -111,7 +111,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
 
     Schema configSchema = config.getSchema(collector);
     Schema outputSchema = overrideOutputSchemaWithTableSchemaIfNeeded(
-      configSchema == null ? context.getInputSchema() : configSchema, config.getTable(), collector);
+      config.getTable(), configSchema == null ? context.getInputSchema() : configSchema, null, collector);
 
     configureTable(outputSchema);
     configureBigQuerySink();
@@ -257,12 +257,14 @@ public final class BigQuerySink extends AbstractBigQuerySink {
       return;
     }
 
-    Table table = BigQueryUtil.getBigQueryTable(config.getProject(), config.getDataset(), config.getTable(),
+    String tableName = config.getTable();
+    Table table = BigQueryUtil.getBigQueryTable(config.getProject(), config.getDataset(), tableName,
                                                 config.getServiceAccountFilePath(), collector);
     if (table != null) {
       // if table already exists, validate schema against underlying bigquery table
 
-      validateSchema(table, schema, config.allowSchemaRelaxation, collector);
+      com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
+      validateSchema(tableName, bqSchema, schema, config.allowSchemaRelaxation, collector);
     }
   }
 }

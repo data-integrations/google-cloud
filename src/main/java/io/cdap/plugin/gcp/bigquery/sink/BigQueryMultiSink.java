@@ -75,7 +75,6 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
   protected void prepareRunValidation(BatchSinkContext context) {
     FailureCollector collector = context.getFailureCollector();
     config.validate(collector);
-    validateConfiguredSchema(context, collector);
     collector.getOrThrowException();
   }
 
@@ -97,8 +96,23 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
       }
 
       try {
-        Schema tableSchema = overrideOutputSchemaWithTableSchemaIfNeeded(
-          Schema.parseJson(argument.getValue()), tableName, collector);
+        Schema configuredSchema = Schema.parseJson(argument.getValue());
+
+        Table table = BigQueryUtil.getBigQueryTable(
+          config.getProject(), config.getDataset(), tableName, config.getServiceAccountFilePath(),
+          collector);
+
+        Schema tableSchema = configuredSchema;
+        if (table != null) {
+          // if table already exists, validate schema against underlying bigquery table and
+          // override against configured schema as necessary.
+          com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
+
+          validateSchema(tableName, bqSchema, configuredSchema, config.allowSchemaRelaxation, collector);
+
+          tableSchema = overrideOutputSchemaWithTableSchemaIfNeeded(
+            tableName, configuredSchema, bqSchema, collector);
+        }
 
         String outputName = String.format("%s-%s", config.getReferenceName(), tableName);
         initOutput(context, bigQuery, outputName, tableName, tableSchema, bucket, context.getFailureCollector());
@@ -120,40 +134,5 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
   public void transform(StructuredRecord input,
                         Emitter<KeyValue<AvroKey<GenericRecord>, NullWritable>> emitter) throws IOException {
     emitter.emit(new KeyValue<>(new AvroKey<>(toAvroRecord(input)), NullWritable.get()));
-  }
-
-  /**
-   * Validates configured output schema against underlying BigQuery table schema.
-   * @param context Sink Context
-   * @param collector Failure collector to report failures to the client.
-   */
-  private void validateConfiguredSchema(BatchSinkContext context, FailureCollector collector) {
-    Map<String, String> arguments = new HashMap<>(context.getArguments().asMap());
-    for (Map.Entry<String, String> argument : arguments.entrySet()) {
-      String key = argument.getKey();
-      if (!key.startsWith(TABLE_PREFIX)) {
-        continue;
-      }
-      String tableName = key.substring(TABLE_PREFIX.length());
-      // remove the database prefix, as BigQuery doesn't allow dots
-      String[] split = tableName.split("\\.");
-      if (split.length == 2) {
-        tableName = split[1];
-      }
-
-      Table table = BigQueryUtil.getBigQueryTable(
-        config.getProject(), config.getDataset(), tableName, config.getServiceAccountFilePath(),
-        collector);
-
-      if (table != null) {
-        // if table already exists, validate schema against underlying bigquery table.
-        try {
-          validateSchema(table, Schema.parseJson(argument.getValue()), config.allowSchemaRelaxation,
-            collector);
-        } catch (IOException e) {
-          collector.addFailure("Invalid schema: " + e.getMessage(), null);
-        }
-      }
-    }
   }
 }

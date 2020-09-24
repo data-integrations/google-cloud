@@ -267,18 +267,20 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
    * Adjusts output format schema depending on allowSchemaRelaxation setting to avoid unexpected
    * schema changes to the underlying bigQuery table.
    * @param configuredSchema Schema configured for output format.
+   * @param bqSchema Optional BigQuery table schema to avoid duplicate calls.
    * @param tableName BigQuery table name for writing record.
    * @param collector Failure collector to report failures to the client.
    * @return
    */
   protected final Schema overrideOutputSchemaWithTableSchemaIfNeeded(
-    Schema configuredSchema,
     String tableName,
+    Schema configuredSchema,
+    @Nullable com.google.cloud.bigquery.Schema bqSchema,
     FailureCollector collector) {
     AbstractBigQuerySinkConfig config = getConfig();
 
     if (!config.isAllowSchemaRelaxation()) {
-      Schema tableSchema = getTableSchema(config.getTable(), collector);
+      Schema tableSchema = getTableSchema(tableName, bqSchema, collector);
       // We use GCS buckets to write AVRO files and import them in BigQuery.
       // Avro is a self describing format and BigQuery overwrites table schema with AVRO record
       // schema.
@@ -295,27 +297,36 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
   /**
    * Returns Bigtable schema in a CDAP schema format.
    * @param tableName BigQuery table name for writing record.
+   * @param bqSchema Optional BigQuery table schema to avoid duplicate calls.
    * @param collector Failure collector to report failures to the client.
    * @return
    */
   @Nullable
-  private Schema getTableSchema(String tableName, FailureCollector collector) {
-    AbstractBigQuerySinkConfig config = getConfig();
-    Table table = BigQueryUtil.getBigQueryTable(
+  private Schema getTableSchema(
+    String tableName,
+    @Nullable com.google.cloud.bigquery.Schema bqSchema,
+    FailureCollector collector) {
+    if (bqSchema == null) {
+      AbstractBigQuerySinkConfig config = getConfig();
+      Table table = BigQueryUtil.getBigQueryTable(
         config.getProject(),
-        config.getDataset(), tableName,
+        config.getDataset(),
+        tableName,
         config.getServiceAccountFilePath(),
         collector);
 
-    if (table == null) {
-      LOG.info("Table [%s] doesn't exist yet. Using input schema for writing records.", config.getTable());
-      return null;
+      if (table == null) {
+        LOG.info("Table [%s] doesn't exist yet. Using input schema for writing records.",
+          config.getTable());
+        return null;
+      }
+
+      bqSchema = table.getDefinition().getSchema();
     }
 
-    com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
     if (bqSchema == null || bqSchema.getFields().isEmpty()) {
       // Table is created without schema, so no further validation is required.
-      LOG.info("Table [%s] doesn't have a schema. Using input schema for writing records.", config.getTable());
+      LOG.info("Table [%s] doesn't have a schema. Using input schema for writing records.", tableName);
       return null;
     }
     return BigQueryUtil.getTableSchema(bqSchema, collector);
@@ -326,15 +337,18 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
    * if the output schema has more fields than Big Query table or output schema field types does not match
    * Big Query column types unless schema relaxation policy is allowed.
    *
-   * @param table big query table
-   * @param tableSchema table schema
+   * @param tableName big query table
+   * @param bqSchema BigQuery table schema
+   * @param tableSchema Configured table schema
    * @param allowSchemaRelaxation allows schema relaxation policy
    * @param collector failure collector
    */
-  protected void validateSchema(Table table, Schema tableSchema, boolean allowSchemaRelaxation,
-                                FailureCollector collector) {
-    String tableName = table.getTableId().getTable();
-    com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
+  protected void validateSchema(
+    String tableName,
+    com.google.cloud.bigquery.Schema bqSchema,
+    Schema tableSchema,
+    boolean allowSchemaRelaxation,
+    FailureCollector collector) {
     if (bqSchema == null || bqSchema.getFields().isEmpty()) {
       // Table is created without schema, so no further validation is required.
       return;
@@ -428,7 +442,8 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
       Table table = bigQuery.getTable(tableId);
       // if table is null that mean it does not exist. So there is no need to perform validation
       if (table != null) {
-        validateSchema(table, tableSchema, allowSchemaRelaxation, collector);
+        com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
+        validateSchema(tableName, bqSchema, tableSchema, allowSchemaRelaxation, collector);
       }
     } catch (BigQueryException e) {
       collector.addFailure("Unable to get details about the BigQuery table: " + e.getMessage(), null)
