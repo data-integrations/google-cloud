@@ -79,9 +79,11 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, T
     config.validate(collector);
 
     TopicAdminSettings.Builder topicAdminSettings = TopicAdminSettings.newBuilder();
-    String serviceAccountPath = config.getServiceAccountFilePath();
-    if (serviceAccountPath != null) {
-      topicAdminSettings.setCredentialsProvider(() -> GCPUtils.loadServiceAccountCredentials(serviceAccountPath));
+    String serviceAccount = config.getServiceAccount();
+    if (serviceAccount != null) {
+      topicAdminSettings
+        .setCredentialsProvider(() -> GCPUtils.loadServiceAccountCredentials(serviceAccount ,
+                                                                             config.isServiceAccountFilePath()));
     }
     String projectId = config.getProject();
     ProjectTopicName projectTopicName = ProjectTopicName.of(projectId, config.topic);
