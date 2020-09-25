@@ -23,6 +23,7 @@ import com.google.cloud.speech.v1.SpeechClient;
 import com.google.cloud.speech.v1.SpeechRecognitionAlternative;
 import com.google.cloud.speech.v1.SpeechRecognitionResult;
 import com.google.cloud.speech.v1.SpeechSettings;
+import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
@@ -173,8 +174,9 @@ public class SpeechToTextTransform extends Transform<StructuredRecord, Structure
 
   private SpeechSettings getSettings() throws IOException {
     SpeechSettings.Builder builder = SpeechSettings.newBuilder();
-    if (config.getServiceAccountFilePath() != null) {
-      builder.setCredentialsProvider(() -> GCPUtils.loadServiceAccountCredentials(config.getServiceAccountFilePath()));
+    if (config.getServiceAccount() != null) {
+      builder.setCredentialsProvider(() -> GCPUtils.loadServiceAccountCredentials(config.getServiceAccount(),
+                                                                                  config.isServiceAccountFilePath()));
     }
     return builder.build();
   }
@@ -231,6 +233,11 @@ public class SpeechToTextTransform extends Transform<StructuredRecord, Structure
     private static final String NAME_TRANS_PART = "transcriptionPartsField";
     private static final String NAME_TRANS_TEXT = "transcriptionTextField";
     private static final String NAME_RATE = "samplerate";
+    public static final String NAME_SERVICE_ACCOUNT_TYPE = "serviceAccountType";
+    public static final String NAME_SERVICE_ACCOUNT_FILE_PATH = "serviceFilePath";
+    public static final String NAME_SERVICE_ACCOUNT_JSON = "serviceJson";
+    public static final String SERVICE_ACCOUNT_TYPE_FILE_PATH = "filePath";
+    public static final String SERVICE_ACCOUNT_TYPE_JSON = "json";
 
     @Macro
     @Name(NAME_AUDIOFIELD)
@@ -274,21 +281,67 @@ public class SpeechToTextTransform extends Transform<StructuredRecord, Structure
       "as text.")
     private String transcriptionTextField;
 
+    @Name(NAME_SERVICE_ACCOUNT_TYPE)
+    @Description("Service account which can be either file path or JSON content.")
     @Macro
     @Nullable
-    @Name("serviceFilePath")
+    protected String serviceAccountType;
+
+    @Macro
+    @Nullable
+    @Name(NAME_SERVICE_ACCOUNT_FILE_PATH)
     @Description("Path on the local file system of the service account key used for authorization. Can be set to " +
       "'auto-detect' when running on a Dataproc cluster. When running on other clusters, the file must be present on " +
       "every node in the cluster.")
     private String serviceAccountFilePath;
 
+    @Name(NAME_SERVICE_ACCOUNT_JSON)
+    @Description("Content of the service account file.")
+    @Macro
+    @Nullable
+    protected String serviceJson;
+
+    public String getServiceAccountType() {
+      if (containsMacro(NAME_SERVICE_ACCOUNT_TYPE) || Strings.isNullOrEmpty(serviceAccountType)) {
+        return null;
+      }
+      return serviceAccountType;
+    }
+
     @Nullable
     public String getServiceAccountFilePath() {
-      if (containsMacro("serviceFilePath") || serviceAccountFilePath == null ||
+      if (containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH) || serviceAccountFilePath == null ||
         serviceAccountFilePath.isEmpty() || GCPConfig.AUTO_DETECT.equals(serviceAccountFilePath)) {
         return null;
       }
       return serviceAccountFilePath;
+    }
+
+    @Nullable
+    public String getServiceAccountJson() {
+      if (containsMacro(NAME_SERVICE_ACCOUNT_JSON) || Strings.isNullOrEmpty(serviceJson)) {
+        return null;
+      }
+      return serviceJson;
+    }
+
+    @Nullable
+    public String getServiceAccount() {
+      Boolean serviceAccountJson = isServiceAccountJson();
+      if (serviceAccountJson == null) {
+        return null;
+      }
+      return serviceAccountJson ? getServiceAccountJson() : getServiceAccountFilePath();
+    }
+
+    public Boolean isServiceAccountFilePath() {
+      return getServiceAccountType() == null ?
+        null : getServiceAccountType().equals(SERVICE_ACCOUNT_TYPE_FILE_PATH);
+    }
+
+    public Boolean isServiceAccountJson() {
+      return getServiceAccountType() == null ?
+        null : getServiceAccountType().equals(SERVICE_ACCOUNT_TYPE_JSON);
     }
 
     @Nullable
