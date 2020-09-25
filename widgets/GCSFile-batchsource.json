@@ -101,6 +101,14 @@
       "properties": [
         {
           "widget-type": "textbox",
+          "label": "Minimum Split Size",
+          "name": "minSplitSize",
+          "widget-attributes": {
+            "placeholder": "Minimum split size for each partition specified in bytes"
+          }
+        },
+        {
+          "widget-type": "textbox",
           "label": "Maximum Split Size",
           "name": "maxSplitSize",
           "widget-attributes": {
