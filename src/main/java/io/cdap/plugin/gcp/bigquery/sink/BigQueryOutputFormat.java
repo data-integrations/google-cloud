@@ -77,6 +77,8 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -252,6 +254,23 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       loadConfig.setSourceUris(gcsPaths);
       loadConfig.setWriteDisposition(writeDisposition);
       loadConfig.setUseAvroLogicalTypes(true);
+
+      Map<String, String> fieldDescriptions = new HashMap<>();
+      if (JobInfo.WriteDisposition.WRITE_TRUNCATE
+        .equals(JobInfo.WriteDisposition.valueOf(writeDisposition)) && tableExists) {
+          List<TableFieldSchema> tableFieldSchemas = Optional.ofNullable(bigQueryHelper.getTable(tableRef))
+            .map(it -> it.getSchema())
+            .map(it -> it.getFields())
+            .orElse(Collections.emptyList());
+
+          tableFieldSchemas
+            .forEach(it -> {
+              if (!Strings.isNullOrEmpty(it.getDescription())) {
+                fieldDescriptions.put(it.getName(), it.getDescription());
+              }
+            });
+      }
+
       if (!tableExists) {
         switch (partitionType) {
           case TIME:
@@ -349,6 +368,30 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
         bigQueryHelper.getRawBigquery().tables().update(temporaryTableReference.getProjectId(),
                                                         temporaryTableReference.getDatasetId(),
                                                         temporaryTableReference.getTableId(), table).execute();
+      }
+
+      if (JobInfo.WriteDisposition.WRITE_TRUNCATE
+        .equals(JobInfo.WriteDisposition.valueOf(writeDisposition))) {
+
+        Table table = bigQueryHelper.getTable(tableRef);
+        List<TableFieldSchema> tableFieldSchemas = Optional.ofNullable(table)
+          .map(Table::getSchema)
+          .map(TableSchema::getFields)
+          .orElse(Collections.emptyList());
+
+        tableFieldSchemas
+          .forEach(it -> {
+            Optional.ofNullable(fieldDescriptions.get(it.getName()))
+              .ifPresent(it::setDescription);
+          });
+
+        bigQueryHelper
+          .getRawBigquery()
+          .tables()
+          .update(tableRef.getProjectId(),
+                  tableRef.getDatasetId(),
+                  tableRef.getTableId(), table)
+          .execute();
       }
     }
 
