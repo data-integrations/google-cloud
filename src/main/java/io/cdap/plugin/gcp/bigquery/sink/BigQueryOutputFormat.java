@@ -77,7 +77,6 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -257,11 +256,8 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
 
       Map<String, String> fieldDescriptions = new HashMap<>();
       if (JobInfo.WriteDisposition.WRITE_TRUNCATE
-        .equals(JobInfo.WriteDisposition.valueOf(writeDisposition)) && tableExists) {
-          List<TableFieldSchema> tableFieldSchemas = Optional.ofNullable(bigQueryHelper.getTable(tableRef))
-            .map(it -> it.getSchema())
-            .map(it -> it.getFields())
-            .orElse(Collections.emptyList());
+        .equals(JobInfo.WriteDisposition.valueOf(writeDisposition)) && allowSchemaRelaxation && tableExists) {
+          List<TableFieldSchema> tableFieldSchemas = bigQueryHelper.getTable(tableRef).getSchema().getFields();
 
           tableFieldSchemas
             .forEach(it -> {
@@ -371,18 +367,16 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       }
 
       if (JobInfo.WriteDisposition.WRITE_TRUNCATE
-        .equals(JobInfo.WriteDisposition.valueOf(writeDisposition))) {
+        .equals(JobInfo.WriteDisposition.valueOf(writeDisposition)) && allowSchemaRelaxation) {
 
         Table table = bigQueryHelper.getTable(tableRef);
-        List<TableFieldSchema> tableFieldSchemas = Optional.ofNullable(table)
-          .map(Table::getSchema)
-          .map(TableSchema::getFields)
-          .orElse(Collections.emptyList());
+        List<TableFieldSchema> tableFieldSchemas = table.getSchema().getFields();
 
         tableFieldSchemas
           .forEach(it -> {
-            Optional.ofNullable(fieldDescriptions.get(it.getName()))
-              .ifPresent(it::setDescription);
+            if (fieldDescriptions.containsKey(it.getName())) {
+              it.setDescription(fieldDescriptions.get(it.getName()));
+            }
           });
 
         bigQueryHelper
