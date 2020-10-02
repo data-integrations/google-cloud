@@ -78,6 +78,10 @@ public class SpannerSourceConfig extends GCPReferenceSourceConfig {
     if (!containsMacro(NAME_SCHEMA) && schema != null) {
       SpannerUtil.validateSchema(schema, SUPPORTED_TYPES, collector);
     }
+    if (!containsMacro(NAME_SCHEMA) && schema == null) {
+      collector.addFailure("Invalid schema.", "Ensure the schema is provided.")
+              .withConfigProperty(NAME_SCHEMA);
+    }
     if (!containsMacro(NAME_MAX_PARTITIONS) && maxPartitions != null && maxPartitions < 1) {
       collector.addFailure("Invalid max partitions.", "Ensure the value is a positive number.")
         .withConfigProperty(NAME_MAX_PARTITIONS);
