@@ -30,6 +30,8 @@ import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
+import com.google.api.services.bigquery.model.RangePartitioning;
+import com.google.api.services.bigquery.model.RangePartitioning.Range;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
@@ -150,8 +152,9 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
 
       allowSchemaRelaxation = conf.getBoolean(BigQueryConstants.CONFIG_ALLOW_SCHEMA_RELAXATION, false);
       LOG.debug("Allow schema relaxation: '{}'", allowSchemaRelaxation);
-      boolean createPartitionedTable = conf.getBoolean(BigQueryConstants.CONFIG_CREATE_PARTITIONED_TABLE, false);
-      LOG.debug("Create Partitioned Table: '{}'", createPartitionedTable);
+      PartitionType partitionType = conf.getEnum(BigQueryConstants.CONFIG_PARTITION_TYPE, PartitionType.NONE);
+      LOG.debug("Create Partitioned Table type: '{}'", partitionType);
+      Range range = partitionType == PartitionType.INTEGER ? createRangeForIntegerPartitioning(conf) : null;
       String partitionByField = conf.get(BigQueryConstants.CONFIG_PARTITION_BY_FIELD, null);
       LOG.debug("Partition Field: '{}'", partitionByField);
       boolean requirePartitionFilter = conf.getBoolean(BigQueryConstants.CONFIG_REQUIRE_PARTITION_FILTER, false);
@@ -176,7 +179,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
 
       try {
         importFromGcs(destProjectId, destTable, destSchema.orElse(null), kmsKeyName, outputFileFormat,
-                      writeDisposition, sourceUris, createPartitionedTable, partitionByField,
+                      writeDisposition, sourceUris, partitionType, range, partitionByField,
                       requirePartitionFilter, clusteringOrderList, tableExists, getJobIdForImportGCS(conf));
         if (temporaryTableReference != null) {
           operationAction(destTable, kmsKeyName, getJobIdForUpdateUpsert(conf));
@@ -223,7 +226,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
      */
     private void importFromGcs(String projectId, TableReference tableRef, @Nullable TableSchema schema,
                                @Nullable String kmsKeyName, BigQueryFileFormat sourceFormat, String writeDisposition,
-                               List<String> gcsPaths, boolean createPartitionedTable,
+                               List<String> gcsPaths, PartitionType partitionType, @Nullable Range range,
                                @Nullable String partitionByField, boolean requirePartitionFilter,
                                List<String> clusteringOrderList, boolean tableExists, String jobId)
       throws IOException, InterruptedException {
@@ -249,15 +252,24 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       loadConfig.setSourceUris(gcsPaths);
       loadConfig.setWriteDisposition(writeDisposition);
       loadConfig.setUseAvroLogicalTypes(true);
-      if (!tableExists && createPartitionedTable) {
-        TimePartitioning timePartitioning = new TimePartitioning();
-        timePartitioning.setType("DAY");
-        if (partitionByField != null) {
-          timePartitioning.setField(partitionByField);
+      if (!tableExists) {
+        switch (partitionType) {
+          case TIME:
+            TimePartitioning timePartitioning = createTimePartitioning(partitionByField, requirePartitionFilter);
+            loadConfig.setTimePartitioning(timePartitioning);
+            break;
+          case INTEGER:
+            RangePartitioning rangePartitioning = createRangePartitioning(partitionByField, range);
+            if (requirePartitionFilter) {
+              createTableWithRangePartitionAndRequirePartitionFilter(tableRef, schema, rangePartitioning);
+            } else {
+              loadConfig.setRangePartitioning(rangePartitioning);
+            }
+            break;
+          case NONE:
+            break;
         }
-        timePartitioning.setRequirePartitionFilter(requirePartitionFilter);
-        loadConfig.setTimePartitioning(timePartitioning);
-        if (!clusteringOrderList.isEmpty()) {
+        if (PartitionType.NONE != partitionType && !clusteringOrderList.isEmpty()) {
           Clustering clustering = new Clustering();
           clustering.setFields(clusteringOrderList);
           loadConfig.setClustering(clustering);
@@ -562,6 +574,51 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
         index++;
       }
       return String.join(" ", queryWords);
+    }
+
+    private Range createRangeForIntegerPartitioning(Configuration conf) {
+      long rangeStart = conf.getLong(BigQueryConstants.CONFIG_PARTITION_INTEGER_RANGE_START, 0);
+      long rangeEnd = conf.getLong(BigQueryConstants.CONFIG_PARTITION_INTEGER_RANGE_END, 0);
+      long rangeInterval = conf.getLong(BigQueryConstants.CONFIG_PARTITION_INTEGER_RANGE_INTERVAL, 0);
+      Range range = new Range();
+      range.setStart(rangeStart);
+      range.setEnd(rangeEnd);
+      range.setInterval(rangeInterval);
+      return range;
+    }
+
+    private TimePartitioning createTimePartitioning(
+      @Nullable String partitionByField, boolean requirePartitionFilter) {
+      TimePartitioning timePartitioning = new TimePartitioning();
+      timePartitioning.setType("DAY");
+      if (partitionByField != null) {
+        timePartitioning.setField(partitionByField);
+      }
+      timePartitioning.setRequirePartitionFilter(requirePartitionFilter);
+      return timePartitioning;
+    }
+
+    private void createTableWithRangePartitionAndRequirePartitionFilter(TableReference tableRef,
+                                                                        @Nullable TableSchema schema,
+                                                                        RangePartitioning rangePartitioning)
+      throws IOException {
+      Table table = new Table();
+      table.setSchema(schema);
+      table.setTableReference(tableRef);
+      table.setRequirePartitionFilter(true);
+      table.setRangePartitioning(rangePartitioning);
+      bigQueryHelper.getRawBigquery().tables()
+        .insert(tableRef.getProjectId(), tableRef.getDatasetId(), table)
+        .execute();
+    }
+
+    private RangePartitioning createRangePartitioning(@Nullable String partitionByField, @Nullable Range range) {
+      RangePartitioning rangePartitioning = new RangePartitioning();
+      rangePartitioning.setRange(range);
+      if (partitionByField != null) {
+        rangePartitioning.setField(partitionByField);
+      }
+      return rangePartitioning;
     }
   }
 }

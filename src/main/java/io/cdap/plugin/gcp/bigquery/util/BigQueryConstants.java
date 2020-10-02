@@ -22,7 +22,6 @@ public interface BigQueryConstants {
 
   String CONFIG_ALLOW_SCHEMA_RELAXATION = "cdap.bq.sink.allow.schema.relaxation";
   String CONFIG_DESTINATION_TABLE_EXISTS = "cdap.bq.sink.destination.table.exists";
-  String CONFIG_CREATE_PARTITIONED_TABLE = "cdap.bq.sink.create.partitioned.table";
   String CONFIG_PARTITION_BY_FIELD = "cdap.bq.sink.partition.by.field";
   String CONFIG_REQUIRE_PARTITION_FILTER = "cdap.bq.sink.require.partition.filter";
   String CONFIG_PARTITION_FROM_DATE = "cdap.bq.source.partition.from.date";
@@ -38,4 +37,8 @@ public interface BigQueryConstants {
   String CONFIG_JOB_ID = "cdap.bq.sink.job.id";
   String CONFIG_VIEW_MATERIALIZATION_PROJECT = "cdap.bq.source.view.materialization.project";
   String CONFIG_VIEW_MATERIALIZATION_DATASET = "cdap.bq.source.view.materialization.dataset";
+  String CONFIG_PARTITION_TYPE = "cdap.bq.sink.partition.type";
+  String CONFIG_PARTITION_INTEGER_RANGE_START = "cdap.bq.sink.partition.integer.range.start";
+  String CONFIG_PARTITION_INTEGER_RANGE_END = "cdap.bq.sink.partition.integer.range.end";
+  String CONFIG_PARTITION_INTEGER_RANGE_INTERVAL = "cdap.bq.sink.partition.integer.range.interval";
 }
