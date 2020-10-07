@@ -108,11 +108,14 @@ public final class BigQuerySink extends AbstractBigQuerySink {
   @Override
   protected void prepareRunInternal(BatchSinkContext context, BigQuery bigQuery, String bucket) throws IOException {
     FailureCollector collector = context.getFailureCollector();
+
     Schema configSchema = config.getSchema(collector);
-    Schema schema = configSchema == null ? context.getInputSchema() : configSchema;
-    configureTable(schema);
+    Schema outputSchema = overrideOutputSchemaWithTableSchemaIfNeeded(
+      config.getTable(), configSchema == null ? context.getInputSchema() : configSchema, null, collector);
+
+    configureTable(outputSchema);
     configureBigQuerySink();
-    initOutput(context, bigQuery, config.getReferenceName(), config.getTable(), schema, bucket, collector);
+    initOutput(context, bigQuery, config.getReferenceName(), config.getTable(), outputSchema, bucket, collector);
   }
 
   @Override
@@ -254,12 +257,18 @@ public final class BigQuerySink extends AbstractBigQuerySink {
       return;
     }
 
-    Table table = BigQueryUtil.getBigQueryTable(config.getProject(), config.getDataset(), config.getTable(),
-                                                config.getServiceAccountFilePath(), collector);
-    if (table != null) {
-      // if table already exists, validate schema against underlying bigquery table
+    String tableName = config.getTable();
+    Table table = BigQueryUtil.getBigQueryTable(config.getProject(), config.getDataset(), tableName,
+      config.getServiceAccountFilePath(), collector);
 
-      validateSchema(table, schema, config.allowSchemaRelaxation, collector);
+    if (tableName != null) {
+      // if table already exists, validate schema against underlying bigquery table
+      com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
+      if (config.getOperation().equals(Operation.INSERT)) {
+        validateInsertSchema(table, schema, collector);
+      } else if (config.getOperation().equals(Operation.UPSERT)) {
+        validateSchema(tableName, bqSchema, schema, config.allowSchemaRelaxation, collector);
+      }
     }
   }
 }
