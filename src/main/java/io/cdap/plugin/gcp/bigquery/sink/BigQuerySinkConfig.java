@@ -251,7 +251,8 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
         }
 
           // check if the required fields are present in the input schema.
-          if (!field.getSchema().isNullable() && inputSchema != null && inputSchema.getField(field.getName()) == null) {
+          if (!field.getSchema().isNullable() && inputSchema != null && inputSchema.getField(field.getName()) == null)
+          {
             collector.addFailure(
               String.format("Required output field '%s' must be present in input schema.", field.getName()),
               "Change the field to be nullable.")

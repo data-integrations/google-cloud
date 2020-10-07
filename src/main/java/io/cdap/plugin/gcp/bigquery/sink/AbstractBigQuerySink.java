@@ -112,7 +112,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
     baseConfiguration.set(BigQueryConstants.CONFIG_JOB_ID, jobId);
     if (!context.isPreviewEnabled()) {
       createResources(bigQuery, GCPUtils.getStorage(project, credentials), config.getDataset(), bucket,
-        config.getLocation(), cmekKey);
+                        config.getLocation(), cmekKey);
     }
 
     prepareRunInternal(context, bigQuery, bucket);
@@ -192,12 +192,12 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
   /**
    * Initializes output along with lineage recording for given table and its schema.
    *
-   * @param context     batch sink context
-   * @param bigQuery    big query client for the configured project
-   * @param outputName  output name
-   * @param tableName   table name
+   * @param context batch sink context
+   * @param bigQuery big query client for the configured project
+   * @param outputName output name
+   * @param tableName table name
    * @param tableSchema table schema
-   * @param bucket      bucket name
+   * @param bucket bucket name
    */
   protected final void initOutput(BatchSinkContext context, BigQuery bigQuery, String outputName, String tableName,
                                   @Nullable Schema tableSchema, String bucket,
@@ -205,7 +205,8 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
     LOG.debug("Init output for table '{}' with schema: {}", tableName, tableSchema);
 
     List<BigQueryTableFieldSchema> fields = getBigQueryTableFields(bigQuery, tableName, tableSchema,
-      getConfig().isAllowSchemaRelaxation(), collector);
+                                                                    getConfig().isAllowSchemaRelaxation(),
+      collector);
     Configuration configuration = getOutputConfiguration(bucket, tableName, fields);
 
     // Both emitLineage and setOutputFormat internally try to create an external dataset if it does not already exist.
@@ -238,9 +239,9 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
    * Executes main prepare run logic, i.e. prepares output for given table (for Batch Sink plugin)
    * or for a number of tables (for Batch Multi Sink plugin).
    *
-   * @param context  batch sink context
+   * @param context batch sink context
    * @param bigQuery a big query client for the configured project
-   * @param bucket   bucket name
+   * @param bucket bucket name
    */
   protected abstract void prepareRunInternal(BatchSinkContext context, BigQuery bigQuery,
                                              String bucket) throws IOException;
@@ -265,11 +266,11 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
   private Configuration getBaseConfiguration(@Nullable String cmekKey) throws IOException {
     AbstractBigQuerySinkConfig config = getConfig();
     Configuration baseConfiguration = BigQueryUtil.getBigQueryConfig(config.getServiceAccountFilePath(),
-      config.getProject(), cmekKey);
+                                                                    config.getProject(), cmekKey);
     baseConfiguration.setBoolean(BigQueryConstants.CONFIG_ALLOW_SCHEMA_RELAXATION,
-      config.isAllowSchemaRelaxation());
+                                config.isAllowSchemaRelaxation());
     baseConfiguration.setStrings(BigQueryConfiguration.OUTPUT_TABLE_WRITE_DISPOSITION_KEY,
-      config.getWriteDisposition().name());
+                                config.getWriteDisposition().name());
     // this setting is needed because gcs has default chunk size of 64MB. This is large default chunk size which can
     // cause OOM issue if there are many tables being written. See this - CDAP-16670
     String gcsChunkSize = "8388608";
@@ -283,7 +284,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
   /**
    * Generates full path to temporary bucket based on given bucket and table names.
    *
-   * @param bucket    bucket name
+   * @param bucket bucket name
    * @param tableName table name
    * @return full path to temporary bucket
    */
@@ -334,8 +335,24 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
           String.format("Add '%s' to the schema.", field));
       }
     }
-  }
 
+    String tableName = table.getTableId().getTable();
+    List<String> missingBQFields = BigQueryUtil.getSchemaMinusBqFields(outputSchemaFields, bqFields);
+    // Match output schema field type with BigQuery column type
+    for (Schema.Field field : tableSchema.getFields()) {
+      String fieldName = field.getName();
+      // skip checking schema if field is missing in BigQuery
+      if (!missingBQFields.contains(fieldName)) {
+        ValidationFailure failure = BigQueryUtil.validateFieldSchemaMatches(
+          bqFields.get(field.getName()), field, getConfig().getDataset(), tableName,
+          AbstractBigQuerySinkConfig.SUPPORTED_TYPES, collector);
+        if (failure != null) {
+          failure.withInputSchemaField(fieldName).withOutputSchemaField(fieldName);
+        }
+      }
+    }
+    collector.getOrThrowException();
+  }
 
 
   /**
@@ -379,7 +396,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
       for (String nonNullableField : nonNullableFields) {
         collector.addFailure(
           String.format("Required field '%s' does not exist in BigQuery table '%s.%s'.",
-                        nonNullableField, getConfig().getDataset(), tableName),
+            nonNullableField, getConfig().getDataset(), tableName),
           "Change the field to be nullable.")
           .withInputSchemaField(nonNullableField).withOutputSchemaField(nonNullableField);
       }
@@ -388,7 +405,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
       for (String missingField : missingBQFields) {
         collector.addFailure(
           String.format("Field '%s' does not exist in BigQuery table '%s.%s'.",
-                        missingField, getConfig().getDataset(), tableName),
+            missingField, getConfig().getDataset(), tableName),
           String.format("Remove '%s' from the input, or add a column to the BigQuery table.", missingField))
           .withInputSchemaField(missingField).withOutputSchemaField(missingField);
       }
@@ -398,7 +415,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
       for (String field : remainingBQFields) {
         if (bqFields.get(field).getMode() != Field.Mode.NULLABLE) {
           collector.addFailure(String.format("Required Column '%s' is not present in the schema.", field),
-                               String.format("Add '%s' to the schema.", field));
+            String.format("Add '%s' to the schema.", field));
         }
       }
     }
@@ -422,11 +439,11 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
   /**
    * Generates Big Query field instances based on given CDAP table schema after schema validation.
    *
-   * @param bigQuery big query object
-   * @param tableName table name
-   * @param tableSchema table schema
+   * @param bigQuery              big query object
+   * @param tableName             table name
+   * @param tableSchema           table schema
    * @param allowSchemaRelaxation if schema relaxation policy is allowed
-   * @param collector failure collector
+   * @param collector             failure collector
    * @return list of Big Query fields
    */
   private List<BigQueryTableFieldSchema> getBigQueryTableFields(BigQuery bigQuery, String tableName,
@@ -472,8 +489,8 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
           : field.getSchema().getFields();
       }
       fieldSchema.setFields(Objects.requireNonNull(schemaFields).stream()
-                              .map(this::generateTableFieldSchema)
-                              .collect(Collectors.toList()));
+        .map(this::generateTableFieldSchema)
+        .collect(Collectors.toList()));
 
     }
     return fieldSchema;
@@ -491,9 +508,9 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
   /**
    * Creates Hadoop configuration for the given table and its fields.
    *
-   * @param bucket bucket name
+   * @param bucket    bucket name
    * @param tableName table name
-   * @param fields list of Big Query fields
+   * @param fields    list of Big Query fields
    * @return Hadoop configuration
    */
   private Configuration getOutputConfiguration(String bucket,
@@ -579,25 +596,25 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
    * but the dataset does not, the dataset will attempt to be created in the same location. This may fail if the bucket
    * is in a location that BigQuery does not yet support.
    *
-   * @param bigQuery the bigquery client for the project
-   * @param storage the storage client for the project
+   * @param bigQuery    the bigquery client for the project
+   * @param storage     the storage client for the project
    * @param datasetName the name of the dataset
-   * @param bucketName the name of the bucket
-   * @param location the location of the resources, this is only applied if both the bucket and dataset do not exist
-   * @param cmekKey the name of the cmek key
+   * @param bucketName  the name of the bucket
+   * @param location    the location of the resources, this is only applied if both the bucket and dataset do not exist
+   * @param cmekKey     the name of the cmek key
    * @throws IOException if there was an error creating or fetching any GCP resource
    */
   private static void createResources(BigQuery bigQuery, Storage storage,
-                                     String datasetName, String bucketName, @Nullable String location,
-                                     @Nullable String cmekKey) throws IOException {
+                                      String datasetName, String bucketName, @Nullable String location,
+                                      @Nullable String cmekKey) throws IOException {
     Dataset dataset = bigQuery.getDataset(datasetName);
     Bucket bucket = storage.get(bucketName);
 
     if (dataset == null && bucket == null) {
       createBucket(storage, bucketName, location, cmekKey,
-                   () -> String.format("Unable to create Cloud Storage bucket '%s'", bucketName));
+        () -> String.format("Unable to create Cloud Storage bucket '%s'", bucketName));
       createDataset(bigQuery, datasetName, location,
-                    () -> String.format("Unable to create BigQuery dataset '%s'", datasetName));
+        () -> String.format("Unable to create BigQuery dataset '%s'", datasetName));
     } else if (bucket == null) {
       createBucket(
         storage, bucketName, dataset.getLocation(), cmekKey,
