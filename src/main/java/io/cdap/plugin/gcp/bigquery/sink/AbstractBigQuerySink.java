@@ -332,6 +332,48 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
     return BigQueryUtil.getTableSchema(bqSchema, collector);
   }
 
+  protected void validateInsertSchema(Table table, Schema tableSchema, FailureCollector collector) {
+    com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
+    if (bqSchema == null || bqSchema.getFields().isEmpty()) {
+      // Table is created without schema, so no further validation is required.
+      return;
+    }
+
+    if (getConfig().isTruncateTableSet()) {
+      //no validation required for schema if truncate table is set.
+      // BQ will overwrite the schema for normal tables when write disposition is WRITE_TRUNCATE
+      //note - If write to single partition is supported in future, schema validation will be necessary
+      return;
+    }
+    FieldList bqFields = bqSchema.getFields();
+    List<Schema.Field> outputSchemaFields = Objects.requireNonNull(tableSchema.getFields());
+
+    List<String> remainingBQFields = BigQueryUtil.getBqFieldsMinusSchema(bqFields, outputSchemaFields);
+    for (String field : remainingBQFields) {
+      if (bqFields.get(field).getMode() != Field.Mode.NULLABLE) {
+        collector.addFailure(String.format("Required Column '%s' is not present in the schema.", field),
+          String.format("Add '%s' to the schema.", field));
+      }
+    }
+
+    String tableName = table.getTableId().getTable();
+    List<String> missingBQFields = BigQueryUtil.getSchemaMinusBqFields(outputSchemaFields, bqFields);
+    // Match output schema field type with BigQuery column type
+    for (Schema.Field field : tableSchema.getFields()) {
+      String fieldName = field.getName();
+      // skip checking schema if field is missing in BigQuery
+      if (!missingBQFields.contains(fieldName)) {
+        ValidationFailure failure = BigQueryUtil.validateFieldSchemaMatches(
+          bqFields.get(field.getName()), field, getConfig().getDataset(), tableName,
+          AbstractBigQuerySinkConfig.SUPPORTED_TYPES, collector);
+        if (failure != null) {
+          failure.withInputSchemaField(fieldName).withOutputSchemaField(fieldName);
+        }
+      }
+    }
+    collector.getOrThrowException();
+  }
+
   /**
    * Validates output schema against Big Query table schema. It throws {@link IllegalArgumentException}
    * if the output schema has more fields than Big Query table or output schema field types does not match
@@ -415,7 +457,6 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
         }
       }
     }
-
     collector.getOrThrowException();
   }
 
