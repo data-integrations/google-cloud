@@ -259,12 +259,16 @@ public final class BigQuerySink extends AbstractBigQuerySink {
 
     String tableName = config.getTable();
     Table table = BigQueryUtil.getBigQueryTable(config.getProject(), config.getDataset(), tableName,
-                                                config.getServiceAccountFilePath(), collector);
-    if (table != null) {
-      // if table already exists, validate schema against underlying bigquery table
+      config.getServiceAccountFilePath(), collector);
 
+    if (tableName != null) {
+      // if table already exists, validate schema against underlying bigquery table
       com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
-      validateSchema(tableName, bqSchema, schema, config.allowSchemaRelaxation, collector);
+      if (config.getOperation().equals(Operation.INSERT)) {
+        validateInsertSchema(table, schema, collector);
+      } else if (config.getOperation().equals(Operation.UPSERT)) {
+        validateSchema(tableName, bqSchema, schema, config.allowSchemaRelaxation, collector);
+      }
     }
   }
 }
