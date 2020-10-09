@@ -22,6 +22,7 @@ import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.streaming.StreamingContext;
 import io.cdap.cdap.etl.api.streaming.StreamingSource;
@@ -76,6 +77,8 @@ public class GoogleSubscriber extends StreamingSource<StructuredRecord> {
 
   @Override
   public void prepareRun(StreamingSourceContext context) throws Exception {
+    FailureCollector collector = context.getFailureCollector();
+    config.validate(collector);
     Schema schema = DEFAULT_SCHEMA;
     // record dataset lineage
     context.registerLineage(config.referenceName, schema);
@@ -138,5 +141,36 @@ public class GoogleSubscriber extends StreamingSource<StructuredRecord> {
     @Macro
     @Nullable
     private String topic;
+
+    public void validate(FailureCollector collector) {
+      super.validate(collector);
+      String regAllowedChars = "[A-Za-z0-9-.%~+_]*$";
+      String regStartWithLetter = "[A-Za-z]";
+      if (!getSubscription().matches(regAllowedChars)) {
+        collector.addFailure("Subscription Name does not match naming convention.",
+          "Unexpected Character. Check Plugin documentation for naming convention.")
+          .withConfigProperty(subscription);
+      }
+      if (getSubscription().startsWith("goog")) {
+        collector.addFailure("Subscription Name does not match naming convention.",
+          " Cannot Start with String goog. Check Plugin documentation for naming convention.")
+          .withConfigProperty(subscription);
+      }
+      if (!getSubscription().substring(0, 1).matches(regStartWithLetter)) {
+        collector.addFailure("Subscription Name does not match naming convention.",
+          "Name must start with a letter. Check Plugin documentation for naming convention.")
+          .withConfigProperty(subscription);
+      }
+      if (getSubscription().length() < 3  || getSubscription().length() > 255) {
+        collector.addFailure("Subscription Name does not match naming convention.",
+          "Character Length must be between 3 and 255 characters. Check Plugin documentation for naming convention.")
+          .withConfigProperty(subscription);
+      }
+      collector.getOrThrowException();
+    }
+
+    public String getSubscription() {
+      return subscription;
+    }
   }
 }
