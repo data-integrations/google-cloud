@@ -28,6 +28,25 @@ It can be found on the Dashboard in the Google Cloud Platform Console.
 
 **Subscription**: Name of the Google Cloud PubSub subscription to subscribe.
 If the subscription needs to be created then the topic to which the subscription will belong must be provided.
+[Naming Convention](https://cloud.google.com/pubsub/docs/admin#resource_names) for Subscription:   
+                        
+   + Not begin with the string goog
+   + Start with a letter
+   + Contain between 3 and 255 characters
+   + Contain only the following characters:
+                                    
+      - Letters: [A-Za-z]
+      - Numbers: [0-9]
+      - Dashes: -
+      - Underscores: _
+      - Periods: .
+      - Tildes: ~
+      - Plus signs: +
+      - Percent signs: %
+                                    
+        The special characters in the above list can be used in resource names without URL-encoding. 
+       However, you must ensure that any other special characters are properly encoded/decoded when used in URLs. 
+       For example, mi-tópico is an invalid subscription-name. However, mi-t%C3%B3pico is valid.
 
 **Topic**: Name of the Google Cloud PubSub topic to subscribe to. If a topic is provided and the given subscriber
 does not exists it will be created. If a subscriber does not exists and is created only the messages arrived after
