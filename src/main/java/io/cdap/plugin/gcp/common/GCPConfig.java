@@ -16,8 +16,12 @@ import javax.annotation.Nullable;
  */
 public class GCPConfig extends PluginConfig {
   public static final String NAME_PROJECT = "project";
+  public static final String NAME_SERVICE_ACCOUNT_TYPE = "serviceAccountType";
   public static final String NAME_SERVICE_ACCOUNT_FILE_PATH = "serviceFilePath";
+  public static final String NAME_SERVICE_ACCOUNT_JSON = "serviceAccountJSON";
   public static final String AUTO_DETECT = "auto-detect";
+  public static final String SERVICE_ACCOUNT_FILE_PATH = "filePath";
+  public static final String SERVICE_ACCOUNT_JSON = "JSON";
 
   @Name(NAME_PROJECT)
   @Description("Google Cloud Project ID, which uniquely identifies a project. "
@@ -26,6 +30,13 @@ public class GCPConfig extends PluginConfig {
   @Nullable
   protected String project;
 
+  @Name(NAME_SERVICE_ACCOUNT_TYPE)
+  @Description("Service account type, file path where the service account is located or the JSON content of the " +
+    "service account.")
+  @Macro
+  @Nullable
+  protected String serviceAccountType;
+
   @Name(NAME_SERVICE_ACCOUNT_FILE_PATH)
   @Description("Path on the local file system of the service account key used "
     + "for authorization. Can be set to 'auto-detect' when running on a Dataproc cluster. "
@@ -33,6 +44,12 @@ public class GCPConfig extends PluginConfig {
   @Macro
   @Nullable
   protected String serviceFilePath;
+
+  @Name(NAME_SERVICE_ACCOUNT_JSON)
+  @Description("Content of the service account file.")
+  @Macro
+  @Nullable
+  protected String serviceAccountJson;
 
   public String getProject() {
     String projectId = tryGetProject();
@@ -64,6 +81,40 @@ public class GCPConfig extends PluginConfig {
     return serviceFilePath;
   }
 
+  @Nullable
+  public String getServiceAccountJson() {
+    if (containsMacro(NAME_SERVICE_ACCOUNT_JSON) || Strings.isNullOrEmpty(serviceAccountJson)) {
+      return null;
+    }
+    return serviceAccountJson;
+  }
+
+  public String getServiceAccountType() {
+    if (containsMacro(NAME_SERVICE_ACCOUNT_TYPE) || Strings.isNullOrEmpty(serviceAccountType)) {
+      return null;
+    }
+    return serviceAccountType;
+  }
+
+  public Boolean isServiceAccountJson() {
+    String serviceAccountType = getServiceAccountType();
+    return Strings.isNullOrEmpty(serviceAccountType) ? null : serviceAccountType.equals(SERVICE_ACCOUNT_JSON);
+  }
+
+  public Boolean isServiceAccountFilePath() {
+    String serviceAccountType = getServiceAccountType();
+    return Strings.isNullOrEmpty(serviceAccountType) ? null : serviceAccountType.equals(SERVICE_ACCOUNT_FILE_PATH);
+  }
+
+  @Nullable
+  public String getServiceAccount() {
+    Boolean serviceAccountJson = isServiceAccountJson();
+    if (serviceAccountJson == null) {
+      return null;
+    }
+    return serviceAccountJson ? getServiceAccountJson() : getServiceAccountFilePath();
+  }
+
   /**
    * Return true if the service account is set to auto-detect but it can't be fetched from the environment.
    * This shouldn't result in a deployment failure, as the credential could be detected at runtime if the pipeline
@@ -72,7 +123,7 @@ public class GCPConfig extends PluginConfig {
    * @return true if the service account is set to auto-detect but it can't be fetched from the environment.
    */
   public boolean autoServiceAccountUnavailable() {
-    if (getServiceAccountFilePath() == null) {
+    if (getServiceAccountFilePath() == null && SERVICE_ACCOUNT_FILE_PATH.equals(getServiceAccountType())) {
       try {
         ServiceAccountCredentials.getApplicationDefault();
       } catch (IOException e) {
