@@ -30,14 +30,11 @@ import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
-
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -99,8 +96,8 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
         Schema configuredSchema = Schema.parseJson(argument.getValue());
 
         Table table = BigQueryUtil.getBigQueryTable(
-          config.getProject(), config.getDataset(), tableName, config.getServiceAccountFilePath(),
-          collector);
+          config.getProject(), config.getDataset(), tableName, config.getServiceAccount(),
+          config.isServiceAccountFilePath(), collector);
 
         Schema tableSchema = configuredSchema;
         if (table != null) {
