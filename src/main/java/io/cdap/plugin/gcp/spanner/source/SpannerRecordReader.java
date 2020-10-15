@@ -23,12 +23,15 @@ import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Spanner;
 import io.cdap.plugin.gcp.spanner.SpannerConstants;
+import io.cdap.plugin.gcp.spanner.common.BytesCounter;
 import io.cdap.plugin.gcp.spanner.common.SpannerUtil;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormatCounter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,6 +44,8 @@ public class SpannerRecordReader extends RecordReader<NullWritable, ResultSet> {
   private static final Logger LOG = LoggerFactory.getLogger(SpannerRecordReader.class);
   private final BatchTransactionId batchTransactionId;
   private ResultSet resultSet;
+  private Counter bytesRead;
+  BytesCounter counter;
 
   public SpannerRecordReader(BatchTransactionId batchTransactionId) {
     this.batchTransactionId = batchTransactionId;
@@ -48,15 +53,19 @@ public class SpannerRecordReader extends RecordReader<NullWritable, ResultSet> {
 
   @Override
   public void initialize(InputSplit inputSplit,
-                         TaskAttemptContext taskAttemptContext) throws IOException, InterruptedException {
+                         TaskAttemptContext context) throws IOException, InterruptedException {
     PartitionInputSplit partitionInputSplit = (PartitionInputSplit) inputSplit;
     try {
-      Configuration configuration = taskAttemptContext.getConfiguration();
+      Configuration configuration = context.getConfiguration();
       boolean isServiceAccountFilePath = SpannerConstants.SERVICE_ACCOUNT_TYPE_FILE_PATH
         .equals(configuration.get(SpannerConstants.SERVICE_ACCOUNT_TYPE));
-      Spanner spanner = SpannerUtil.getSpannerService(configuration.get(SpannerConstants.SERVICE_ACCOUNT),
-                                                      isServiceAccountFilePath,
-                                                      configuration.get(SpannerConstants.PROJECT_ID));
+      bytesRead = context.getCounter(FileInputFormatCounter.BYTES_READ);
+      counter = new BytesCounter();
+      Spanner spanner = SpannerUtil.getSpannerServiceWithReadInterceptor(
+        configuration.get(SpannerConstants.SERVICE_ACCOUNT),
+        isServiceAccountFilePath,
+        configuration.get(SpannerConstants.PROJECT_ID),
+        counter);
       BatchClient batchClient = spanner.getBatchClient(
         DatabaseId.of(configuration.get(SpannerConstants.PROJECT_ID),
                       configuration.get(SpannerConstants.INSTANCE_ID), configuration.get(SpannerConstants.DATABASE)));
@@ -90,6 +99,7 @@ public class SpannerRecordReader extends RecordReader<NullWritable, ResultSet> {
   @Override
   public void close() throws IOException {
     LOG.trace("Closing Record reader");
+    bytesRead.increment(counter.getValue());
     resultSet.close();
   }
 }

@@ -22,6 +22,7 @@ import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Spanner;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.plugin.gcp.spanner.SpannerConstants;
+import io.cdap.plugin.gcp.spanner.common.BytesCounter;
 import io.cdap.plugin.gcp.spanner.common.SpannerUtil;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
@@ -30,6 +31,7 @@ import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.OutputFormat;
 import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormatCounter;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -73,14 +75,17 @@ public class SpannerOutputFormat extends OutputFormat<NullWritable, Mutation> {
     String database = configuration.get(SpannerConstants.DATABASE);
     String serviceAccountType = configuration.get(SpannerConstants.SERVICE_ACCOUNT_TYPE);
     String serviceAccount = configuration.get(SpannerConstants.SERVICE_ACCOUNT);
-    Spanner spanner =
-      SpannerUtil.getSpannerService(serviceAccount,
-                                    SpannerConstants.SERVICE_ACCOUNT_TYPE_FILE_PATH.equals(serviceAccountType),
-                                    projectId);
+    BytesCounter counter = new BytesCounter();
+
+    Spanner spanner = SpannerUtil.getSpannerServiceWithWriteInterceptor(
+      serviceAccount,
+      SpannerConstants.SERVICE_ACCOUNT_TYPE_FILE_PATH.equals(serviceAccountType),
+      projectId,
+      counter);
     int batchSize = Integer.parseInt(configuration.get(SpannerConstants.SPANNER_WRITE_BATCH_SIZE));
     DatabaseId db = DatabaseId.of(projectId, instanceId, database);
     DatabaseClient client = spanner.getDatabaseClient(db);
-    return new SpannerRecordWriter(spanner, client, batchSize);
+    return new SpannerRecordWriter(spanner, client, batchSize, counter);
   }
 
   /**
@@ -91,12 +96,14 @@ public class SpannerOutputFormat extends OutputFormat<NullWritable, Mutation> {
     private final DatabaseClient databaseClient;
     private final List<Mutation> mutations;
     private final int batchSize;
+    private final BytesCounter counter;
 
-    public SpannerRecordWriter(Spanner spanner, DatabaseClient client, int batchSize) {
+    public SpannerRecordWriter(Spanner spanner, DatabaseClient client, int batchSize, BytesCounter counter) {
       this.spanner = spanner;
       this.databaseClient = client;
       this.mutations = new ArrayList<>();
       this.batchSize = batchSize;
+      this.counter = counter;
     }
 
     @Override
@@ -113,6 +120,7 @@ public class SpannerOutputFormat extends OutputFormat<NullWritable, Mutation> {
       try {
         if (mutations.size() > 0) {
           databaseClient.write(mutations);
+          taskAttemptContext.getCounter(FileOutputFormatCounter.BYTES_WRITTEN).increment(counter.getValue());
           mutations.clear();
         }
       } finally {
