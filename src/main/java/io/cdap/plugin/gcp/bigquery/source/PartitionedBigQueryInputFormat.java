@@ -86,14 +86,16 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
     String inputProjectId = mandatoryConfig.get(BigQueryConfiguration.INPUT_PROJECT_ID_KEY);
     String datasetId = mandatoryConfig.get(BigQueryConfiguration.INPUT_DATASET_ID_KEY);
     String tableName = mandatoryConfig.get(BigQueryConfiguration.INPUT_TABLE_ID_KEY);
-    String serviceFilePath = configuration.get(BigQueryConstants.CONFIG_SERVICE_ACCOUNT_FILE_PATH, null);
+    String serviceAccount = configuration.get(BigQueryConstants.CONFIG_SERVICE_ACCOUNT, null);
+    Boolean isServiceAccountFilePath = configuration.getBoolean(BigQueryConstants.CONFIG_SERVICE_ACCOUNT_IS_FILE,
+                                                                true);
 
     String partitionFromDate = configuration.get(BigQueryConstants.CONFIG_PARTITION_FROM_DATE, null);
     String partitionToDate = configuration.get(BigQueryConstants.CONFIG_PARTITION_TO_DATE, null);
     String filter = configuration.get(BigQueryConstants.CONFIG_FILTER, null);
 
     com.google.cloud.bigquery.Table bigQueryTable =
-      BigQueryUtil.getBigQueryTable(inputProjectId, datasetId, tableName, serviceFilePath);
+      BigQueryUtil.getBigQueryTable(inputProjectId, datasetId, tableName, serviceAccount, isServiceAccountFilePath);
     Type type = Objects.requireNonNull(bigQueryTable).getDefinition().getType();
 
     String query;
@@ -101,7 +103,7 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
       query = generateQueryForMaterializingView(datasetId, tableName, filter);
     } else {
       query = generateQuery(partitionFromDate, partitionToDate, filter, inputProjectId, datasetId, tableName,
-                            serviceFilePath);
+                            serviceAccount, isServiceAccountFilePath);
     }
 
     if (query != null) {
@@ -123,13 +125,15 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
   }
 
   private String generateQuery(String partitionFromDate, String partitionToDate, String filter,
-                               String project, String dataset, String table, @Nullable String serviceFilePath) {
+                               String project, String dataset, String table, @Nullable String serviceAccount,
+                               @Nullable Boolean isServiceAccountFilePath) {
     if (partitionFromDate == null && partitionToDate == null && filter == null) {
       return null;
     }
     String queryTemplate = "select * from %s where %s";
     com.google.cloud.bigquery.Table sourceTable = BigQueryUtil.getBigQueryTable(project, dataset, table,
-                                                                                serviceFilePath);
+                                                                                serviceAccount,
+                                                                                isServiceAccountFilePath);
     StandardTableDefinition tableDefinition = Objects.requireNonNull(sourceTable).getDefinition();
     TimePartitioning timePartitioning = tableDefinition.getTimePartitioning();
     if (timePartitioning == null && filter == null) {

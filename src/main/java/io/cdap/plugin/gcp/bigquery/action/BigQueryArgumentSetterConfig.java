@@ -143,7 +143,7 @@ public final class BigQueryArgumentSetterConfig extends AbstractBigQueryActionCo
     return !containsMacro(NAME_DATASET)
       && !containsMacro(NAME_TABLE)
       && !containsMacro(NAME_DATASET_PROJECT)
-      && !containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH)
+      && !(containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH) || containsMacro(NAME_SERVICE_ACCOUNT_JSON))
       && !containsMacro(NAME_PROJECT)
       && !containsMacro(NAME_ARGUMENT_SELECTION_CONDITIONS)
       && !containsMacro(argumentsColumns);
@@ -181,7 +181,8 @@ public final class BigQueryArgumentSetterConfig extends AbstractBigQueryActionCo
   }
 
   public QueryJobConfiguration getQueryJobConfiguration() {
-    Table sourceTable = BigQueryUtil.getBigQueryTable(project, dataset, table, serviceFilePath);
+    Table sourceTable = BigQueryUtil.getBigQueryTable(project, dataset, table, getServiceAccount(),
+                                                      isServiceAccountFilePath());
 
     StandardTableDefinition tableDefinition = Objects.requireNonNull(sourceTable).getDefinition();
     FieldList fields = Objects.requireNonNull(tableDefinition.getSchema()).getFields();

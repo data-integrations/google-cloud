@@ -204,7 +204,7 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   public Type getSourceTableType() {
     Table sourceTable =
       BigQueryUtil.getBigQueryTable(
-        getDatasetProject(), getDataset(), table, getServiceAccountFilePath());
+        getDatasetProject(), getDataset(), table, getServiceAccount(), isServiceAccountFilePath());
     return sourceTable != null ? sourceTable.getDefinition().getType() : null;
   }
 
@@ -273,7 +273,8 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
    */
   public boolean canConnect() {
     return !containsMacro(NAME_SCHEMA) && !containsMacro(NAME_DATASET) && !containsMacro(NAME_TABLE) &&
-      !containsMacro(NAME_DATASET_PROJECT) && !containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH) &&
+      !containsMacro(NAME_DATASET_PROJECT) &&
+      !(containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH) || containsMacro(NAME_SERVICE_ACCOUNT_JSON)) &&
       !containsMacro(NAME_PROJECT);
   }
 }
