@@ -47,6 +47,10 @@ cache that will be flushed whenever tables in the query are modified.
 an arguments for 'min_id' and 'max_id' will be set based on the query results. Plugins further down the pipeline can then
 reference these values with macros ${min_id} and ${max_id}.
 
-**Service Account File Path**: Path on the local file system of the service account key used for
+**Service Account**  - service account key used for authorization
+
+* **File Path**: Path on the local file system of the service account key used for
 authorization. Can be set to 'auto-detect' when running on a Dataproc cluster.
 When running on other clusters, the file must be present on every node in the cluster.
+
+* **JSON**: Contents of the service account JSON file.

@@ -42,6 +42,10 @@
 
  **Arguments Columns**:  Name of the columns, separated by comma that contains the arguments for this run
 
- **Service Account File Path**: Path on the local file system of the service account key used for
+ **Service Account**  - service account key used for authorization
+
+ * **File Path**: Path on the local file system of the service account key used for
  authorization. Can be set to 'auto-detect' when running on a Dataproc cluster.
  When running on other clusters, the file must be present on every node in the cluster.
+
+ * **JSON**: Contents of the service account JSON file.
