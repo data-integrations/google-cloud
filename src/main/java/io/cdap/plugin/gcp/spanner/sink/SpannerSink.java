@@ -101,7 +101,8 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
 
     Schema schema = config.getSchema(collector);
     if (!context.isPreviewEnabled()) {
-      try (Spanner spanner = SpannerUtil.getSpannerService(config.getServiceAccountFilePath(), config.getProject())) {
+      try (Spanner spanner = SpannerUtil.getSpannerService(config.getServiceAccount(),
+                                                           config.isServiceAccountFilePath(), config.getProject())) {
         DatabaseId db = DatabaseId.of(config.getProject(), config.getInstance(), config.getDatabase());
         DatabaseClient dbClient = spanner.getDatabaseClient(db);
         DatabaseAdminClient dbAdminClient = spanner.getDatabaseAdminClient();
