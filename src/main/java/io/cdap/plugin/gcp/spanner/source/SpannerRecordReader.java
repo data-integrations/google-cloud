@@ -52,7 +52,10 @@ public class SpannerRecordReader extends RecordReader<NullWritable, ResultSet> {
     PartitionInputSplit partitionInputSplit = (PartitionInputSplit) inputSplit;
     try {
       Configuration configuration = taskAttemptContext.getConfiguration();
-      Spanner spanner = SpannerUtil.getSpannerService(configuration.get(SpannerConstants.SERVICE_ACCOUNT_FILE_PATH),
+      boolean isServiceAccountFilePath = SpannerConstants.SERVICE_ACCOUNT_TYPE_FILE_PATH
+        .equals(configuration.get(SpannerConstants.SERVICE_ACCOUNT_TYPE));
+      Spanner spanner = SpannerUtil.getSpannerService(configuration.get(SpannerConstants.SERVICE_ACCOUNT),
+                                                      isServiceAccountFilePath,
                                                       configuration.get(SpannerConstants.PROJECT_ID));
       BatchClient batchClient = spanner.getBatchClient(
         DatabaseId.of(configuration.get(SpannerConstants.PROJECT_ID),

@@ -23,7 +23,10 @@ public final class SpannerConstants {
   public static final String PROJECT_ID = "project.id";
   public static final String INSTANCE_ID = "instance.id";
   public static final String DATABASE = "database.name";
-  public static final String SERVICE_ACCOUNT_FILE_PATH = "service.account.path";
+  public static final String SERVICE_ACCOUNT_TYPE = "service.account.type";
+  public static final String SERVICE_ACCOUNT_TYPE_FILE_PATH = "serviceFilePath";
+  public static final String SERVICE_ACCOUNT_TYPE_JSON = "serviceJson";
+  public static final String SERVICE_ACCOUNT = "service.account.path";
   public static final String PARTITIONS_LIST = "partitions.list";
   public static final String QUERY = "query";
   public static final String SPANNER_BATCH_TRANSACTION_ID = "spanner.batch.transaction.id";
