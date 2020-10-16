@@ -19,6 +19,7 @@ package io.cdap.plugin.gcp.bigtable.source;
 public final class BigtableSourceConfigBuilder {
   private String referenceName;
   private String project;
+  private String serviceAccountType;
   private String serviceFilePath;
   private String table;
   private String instance;
@@ -46,6 +47,11 @@ public final class BigtableSourceConfigBuilder {
 
   public BigtableSourceConfigBuilder setReferenceName(String referenceName) {
     this.referenceName = referenceName;
+    return this;
+  }
+
+  public BigtableSourceConfigBuilder setServiceAccountType(String serviceAccountType) {
+    this.serviceAccountType = serviceAccountType;
     return this;
   }
 
@@ -115,6 +121,7 @@ public final class BigtableSourceConfigBuilder {
       table,
       instance,
       project,
+      serviceAccountType,
       serviceFilePath,
       keyAlias,
       columnMappings,
