@@ -96,9 +96,9 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
     prepareRunValidation(context);
 
     AbstractBigQuerySinkConfig config = getConfig();
-    String serviceAccountFilePath = config.getServiceAccountFilePath();
-    Credentials credentials = serviceAccountFilePath == null ?
-      null : GCPUtils.loadServiceAccountCredentials(serviceAccountFilePath);
+    String serviceAccount = config.getServiceAccount();
+    Credentials credentials = serviceAccount == null ?
+      null : GCPUtils.loadServiceAccountCredentials(serviceAccount, config.isServiceAccountFilePath());
     String project = config.getProject();
     String datasetProjectId = config.getDatasetProject();
     bigQuery = GCPUtils.getBigQuery(datasetProjectId, credentials);
@@ -216,8 +216,8 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
    */
   private Configuration getBaseConfiguration(@Nullable String cmekKey) throws IOException {
     AbstractBigQuerySinkConfig config = getConfig();
-    Configuration baseConfiguration = BigQueryUtil.getBigQueryConfig(config.getServiceAccountFilePath(),
-                                                                     config.getProject(), cmekKey);
+    Configuration baseConfiguration = BigQueryUtil.getBigQueryConfig(config.getServiceAccount(), config.getProject(),
+                                                                     cmekKey, config.getServiceAccountType());
     baseConfiguration.setBoolean(BigQueryConstants.CONFIG_ALLOW_SCHEMA_RELAXATION,
                                  config.isAllowSchemaRelaxation());
     baseConfiguration.setStrings(BigQueryConfiguration.OUTPUT_TABLE_WRITE_DISPOSITION_KEY,
@@ -312,7 +312,8 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
         config.getProject(),
         config.getDataset(),
         tableName,
-        config.getServiceAccountFilePath(),
+        config.getServiceAccount(),
+        config.isServiceAccountFilePath(),
         collector);
 
       if (table == null) {
