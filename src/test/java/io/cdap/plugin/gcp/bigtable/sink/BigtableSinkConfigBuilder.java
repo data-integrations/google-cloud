@@ -19,6 +19,7 @@ package io.cdap.plugin.gcp.bigtable.sink;
 public final class BigtableSinkConfigBuilder {
   private String referenceName;
   private String project;
+  private String serviceAccountType;
   private String serviceFilePath;
   private String table;
   private String instance;
@@ -40,6 +41,11 @@ public final class BigtableSinkConfigBuilder {
 
   public BigtableSinkConfigBuilder setReferenceName(String referenceName) {
     this.referenceName = referenceName;
+    return this;
+  }
+
+  public BigtableSinkConfigBuilder setServiceAccountType(String serviceAccountType) {
+    this.serviceAccountType = serviceAccountType;
     return this;
   }
 
@@ -78,7 +84,8 @@ public final class BigtableSinkConfigBuilder {
       referenceName, 
       table, 
       instance, 
-      project, 
+      project,
+      serviceAccountType,
       serviceFilePath, 
       keyAlias, 
       columnMappings, 

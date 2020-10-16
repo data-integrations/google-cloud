@@ -31,6 +31,7 @@ public class BigtableSinkConfigTest {
   private static final String VALID_TABLE = "test-table";
   private static final String VALID_INSTANCE = "test-instance";
   private static final String VALID_PROJECT = "test-project";
+  private static final String VALID_SERVICE_ACCOUNT_TYPE = "filePath";
   private static final String VALID_ACCOUNT_FILE_PATH =
     BigtableSinkConfig.class.getResource("/credentials.json").getPath();
   private static final String VALID_KEY_ALIAS = "test-alias";
@@ -100,6 +101,7 @@ public class BigtableSinkConfigTest {
       .setTable(VALID_TABLE)
       .setInstance(VALID_INSTANCE)
       .setProject(VALID_PROJECT)
+      .setServiceAccountType(VALID_SERVICE_ACCOUNT_TYPE)
       .setServiceFilePath(VALID_ACCOUNT_FILE_PATH)
       .setKeyAlias(VALID_KEY_ALIAS)
       .setColumnMappings(VALID_COLUMN_MAPPING)
