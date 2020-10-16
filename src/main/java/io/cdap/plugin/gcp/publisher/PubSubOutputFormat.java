@@ -51,7 +51,10 @@ import java.util.concurrent.atomic.AtomicReference;
 public class PubSubOutputFormat extends OutputFormat<NullWritable, Text> {
   private static final Logger LOG = LoggerFactory.getLogger(PubSubOutputFormat.class);
 
-  private static final String SERVICE_PATH = "service.path";
+  private static final String SERVICE_ACCOUNT = "service.account";
+  private static final String SERVICE_ACCOUNT_TYPE = "service.account.type";
+  private static final String SERVICE_ACCOUNT_TYPE_JSON = "json";
+  private static final String SERVICE_ACCOUNT_TYPE_FILE_PATH = "filePath";
   private static final String PROJECT = "project";
   private static final String TOPIC = "topic";
   private static final String COUNT_BATCH_SIZE = "message.count.batch.size";
@@ -61,9 +64,11 @@ public class PubSubOutputFormat extends OutputFormat<NullWritable, Text> {
   private static final String RETRY_TIMEOUT_SECONDS = "retry.timeout";
 
   public static void configure(Configuration configuration, GooglePublisher.Config config) {
-    String serviceAccountFilePath = config.getServiceAccountFilePath();
-    if (serviceAccountFilePath != null) {
-      configuration.set(SERVICE_PATH, config.getServiceAccountFilePath());
+
+    String serviceAccount = config.getServiceAccount();
+    if (serviceAccount != null) {
+      configuration.set(SERVICE_ACCOUNT_TYPE, config.getServiceAccountType());
+      configuration.set(SERVICE_ACCOUNT, config.getServiceAccount());
     }
     String projectId = config.getProject();
     configuration.set(PROJECT, projectId);
@@ -78,7 +83,8 @@ public class PubSubOutputFormat extends OutputFormat<NullWritable, Text> {
   @Override
   public RecordWriter<NullWritable, Text> getRecordWriter(TaskAttemptContext taskAttemptContext) throws IOException {
     Configuration config = taskAttemptContext.getConfiguration();
-    String serviceAccountFilePath = config.get(SERVICE_PATH);
+    String serviceAccount = config.get(SERVICE_ACCOUNT);
+    boolean isServiceAccountFilePath = SERVICE_ACCOUNT_TYPE_FILE_PATH.equals(config.get(SERVICE_ACCOUNT_TYPE));
     String projectId = config.get(PROJECT);
     String topic = config.get(TOPIC);
     long countSize = Long.parseLong(config.get(COUNT_BATCH_SIZE));
@@ -90,8 +96,9 @@ public class PubSubOutputFormat extends OutputFormat<NullWritable, Text> {
       .setBatchingSettings(getBatchingSettings(countSize, bytesThreshold, delayThreshold))
       .setRetrySettings(getRetrySettings(retryTimeout));
 
-    if (serviceAccountFilePath != null) {
-      publisher.setCredentialsProvider(() -> GCPUtils.loadServiceAccountCredentials(serviceAccountFilePath));
+    if (serviceAccount != null) {
+      publisher.setCredentialsProvider(() -> GCPUtils.loadServiceAccountCredentials(serviceAccount,
+                                                                                    isServiceAccountFilePath));
     }
 
     return new PubSubRecordWriter(publisher.build(), errorThreshold);

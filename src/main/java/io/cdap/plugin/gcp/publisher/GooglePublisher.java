@@ -21,6 +21,7 @@ import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.NotFoundException;
 import com.google.cloud.pubsub.v1.TopicAdminClient;
 import com.google.cloud.pubsub.v1.TopicAdminSettings;
+import com.google.common.base.Strings;
 import com.google.pubsub.v1.ProjectTopicName;
 import com.google.pubsub.v1.Topic;
 import io.cdap.cdap.api.annotation.Description;
@@ -79,9 +80,18 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, T
     config.validate(collector);
 
     TopicAdminSettings.Builder topicAdminSettings = TopicAdminSettings.newBuilder();
-    String serviceAccountPath = config.getServiceAccountFilePath();
-    if (serviceAccountPath != null) {
-      topicAdminSettings.setCredentialsProvider(() -> GCPUtils.loadServiceAccountCredentials(serviceAccountPath));
+    Boolean isServiceAccountFilePath = config.isServiceAccountFilePath();
+    if (isServiceAccountFilePath == null) {
+      context.getFailureCollector().addFailure("Service account type is undefined.",
+                                               "Must be `filePath` or `JSON`");
+      collector.getOrThrowException();
+    }
+
+    String serviceAccount = config.getServiceAccount();
+    if (!Strings.isNullOrEmpty(serviceAccount)) {
+      topicAdminSettings
+        .setCredentialsProvider(() -> GCPUtils.loadServiceAccountCredentials(serviceAccount ,
+                                                                             isServiceAccountFilePath));
     }
     String projectId = config.getProject();
     ProjectTopicName projectTopicName = ProjectTopicName.of(projectId, config.topic);
