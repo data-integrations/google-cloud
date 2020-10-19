@@ -32,7 +32,8 @@ public interface DatastoreSourceConstants {
   String PROPERTY_SCHEMA = "schema";
 
   String CONFIG_PROJECT = "mapred.gcd.input.project";
-  String CONFIG_SERVICE_ACCOUNT_FILE_PATH = "mapred.gcd.input.service.account.file.path";
+  String CONFIG_SERVICE_ACCOUNT = "mapred.gcd.input.service.account";
+  String CONFIG_SERVICE_ACCOUNT_IS_FILE = "mapred.gcd.input.service.account.isfile";
   String CONFIG_NAMESPACE = "mapred.gcd.input.namespace";
   String CONFIG_KIND = "mapred.gcd.input.kind";
   String CONFIG_QUERY = "mapred.gcd.input.query";
