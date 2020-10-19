@@ -41,9 +41,13 @@ If the format is 'text', the schema must contain a field named 'body' of type 's
 
 **Skip Header** Whether to skip the first line of each file. Supported formats are 'text', 'csv', 'tsv', 'delimited'.
 
-**Service Account File Path**: Path on the local file system of the service account key used for
+**Service Account**  - service account key used for authorization
+
+* **File Path**: Path on the local file system of the service account key used for
 authorization. Can be set to 'auto-detect' when running on a Dataproc cluster.
 When running on other clusters, the file must be present on every node in the cluster.
+
+* **JSON**: Contents of the service account JSON file.
 
 **Maximum Split Size:** Maximum size in bytes for each input partition.
 Smaller partitions will increase the level of parallelism, but will require more resources and overhead.
