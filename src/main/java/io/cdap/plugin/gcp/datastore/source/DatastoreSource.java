@@ -121,7 +121,8 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
     collector.getOrThrowException();
 
     String project = config.getProject();
-    String serviceAccountFile = config.getServiceAccountFilePath();
+    String serviceAccount = config.getServiceAccount();
+
     String namespace = config.getNamespace();
     String kind = config.getKind();
     String pbQuery = config.constructPbQuery(collector).toString();
@@ -129,7 +130,8 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
 
     batchSourceContext.setInput(
       Input.of(config.getReferenceName(),
-               new DatastoreInputFormatProvider(project, serviceAccountFile, namespace, kind, pbQuery, splits)));
+               new DatastoreInputFormatProvider(project, serviceAccount, config.isServiceAccountFilePath(), namespace,
+                                                kind, pbQuery, splits)));
 
     Schema schema = batchSourceContext.getOutputSchema();
     LineageRecorder lineageRecorder = new LineageRecorder(batchSourceContext, config.getReferenceName());
@@ -168,7 +170,8 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
     EntityQuery query = queryBuilder.build();
     LOG.debug("Executing query for `Get Schema`: {}", query);
 
-    Datastore datastore = DatastoreUtil.getDatastore(config.getServiceAccountFilePath(), config.getProject());
+    Datastore datastore = DatastoreUtil.getDatastore(config.getServiceAccount(), config.isServiceAccountFilePath(),
+                                                     config.getProject());
     QueryResults<Entity> results;
     try {
       results = datastore.run(query);
