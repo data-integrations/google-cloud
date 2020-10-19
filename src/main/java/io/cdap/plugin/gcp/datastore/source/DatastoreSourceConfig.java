@@ -16,10 +16,10 @@
 package io.cdap.plugin.gcp.datastore.source;
 
 import com.google.cloud.Timestamp;
-import com.google.cloud.datastore.PathElement;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.datastore.v1.Filter;
+import com.google.datastore.v1.Key.PathElement;
 import com.google.datastore.v1.KindExpression;
 import com.google.datastore.v1.PartitionId;
 import com.google.datastore.v1.PropertyFilter;
@@ -252,7 +252,6 @@ public class DatastoreSourceConfig extends GCPReferenceSourceConfig {
       return;
     }
     try {
-      DatastoreUtil.getDatastore(getServiceAccount(), isServiceAccountFilePath(), getProject());
       DatastoreUtil.getDatastoreV1(getServiceAccount(), isServiceAccountFilePath(), getProject());
     } catch (DatastoreInitializationException e) {
       collector.addFailure(e.getMessage(), "Ensure properties like project, service account file path are correct.")
@@ -460,7 +459,9 @@ public class DatastoreSourceConfig extends GCPReferenceSourceConfig {
    */
   private com.google.datastore.v1.Key constructKey(List<PathElement> pathElements, String project, String namespace) {
     Object[] elements = pathElements.stream()
-      .flatMap(pathElement -> Stream.of(pathElement.getKind(), pathElement.getNameOrId()))
+      .flatMap(pathElement -> Stream.of(pathElement.getKind(),
+                                        pathElement.getIdTypeCase() == PathElement.IdTypeCase.ID ?
+                                          pathElement.getId() : pathElement.getName()))
       .toArray();
 
     return DatastoreHelper.makeKey(elements)

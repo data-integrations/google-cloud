@@ -15,21 +15,20 @@
  */
 package io.cdap.plugin.gcp.datastore.source;
 
-import com.google.cloud.datastore.Datastore;
-import com.google.cloud.datastore.DatastoreException;
-import com.google.cloud.datastore.Entity;
-import com.google.cloud.datastore.EntityQuery;
-import com.google.cloud.datastore.EntityValue;
-import com.google.cloud.datastore.FullEntity;
-import com.google.cloud.datastore.Key;
-import com.google.cloud.datastore.PathElement;
-import com.google.cloud.datastore.Query;
-import com.google.cloud.datastore.QueryResults;
-import com.google.cloud.datastore.StructuredQuery;
-import com.google.cloud.datastore.Value;
-import com.google.cloud.datastore.ValueType;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
+import com.google.datastore.v1.Entity;
+import com.google.datastore.v1.EntityResult;
+import com.google.datastore.v1.Key;
+import com.google.datastore.v1.KindExpression;
+import com.google.datastore.v1.PartitionId;
+import com.google.datastore.v1.Query;
+import com.google.datastore.v1.RunQueryRequest;
+import com.google.datastore.v1.Value;
+import com.google.datastore.v1.client.Datastore;
+import com.google.datastore.v1.client.DatastoreException;
+import com.google.datastore.v1.client.DatastoreHelper;
+import com.google.protobuf.Int32Value;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
@@ -52,6 +51,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -71,14 +71,15 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
   private static final Logger LOG = LoggerFactory.getLogger(DatastoreSource.class);
   public static final String NAME = "Datastore";
 
-  private static final Map<ValueType, Schema> SUPPORTED_SIMPLE_TYPES = new ImmutableMap.Builder<ValueType, Schema>()
-    .put(ValueType.STRING, Schema.of(Schema.Type.STRING))
-    .put(ValueType.LONG, Schema.of(Schema.Type.LONG))
-    .put(ValueType.DOUBLE, Schema.of(Schema.Type.DOUBLE))
-    .put(ValueType.BOOLEAN, Schema.of(Schema.Type.BOOLEAN))
-    .put(ValueType.TIMESTAMP, Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))
-    .put(ValueType.BLOB, Schema.of(Schema.Type.BYTES))
-    .put(ValueType.NULL, Schema.of(Schema.Type.NULL))
+  private static final Map<Value.ValueTypeCase, Schema> SUPPORTED_SIMPLE_TYPES =
+    new ImmutableMap.Builder<Value.ValueTypeCase, Schema>()
+    .put(Value.ValueTypeCase.STRING_VALUE, Schema.of(Schema.Type.STRING))
+    .put(Value.ValueTypeCase.INTEGER_VALUE, Schema.of(Schema.Type.LONG))
+    .put(Value.ValueTypeCase.DOUBLE_VALUE, Schema.of(Schema.Type.DOUBLE))
+    .put(Value.ValueTypeCase.BOOLEAN_VALUE, Schema.of(Schema.Type.BOOLEAN))
+    .put(Value.ValueTypeCase.TIMESTAMP_VALUE, Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))
+    .put(Value.ValueTypeCase.BLOB_VALUE, Schema.of(Schema.Type.BYTES))
+    .put(Value.ValueTypeCase.NULL_VALUE, Schema.of(Schema.Type.NULL))
     .build();
 
   private final DatastoreSourceConfig config;
@@ -151,30 +152,37 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
   }
 
   @Override
-  public void transform(KeyValue<NullWritable, Entity> input, Emitter<StructuredRecord> emitter) {
+  public void transform(KeyValue<NullWritable, Entity> input,
+                        Emitter<StructuredRecord> emitter) {
     Entity entity = input.getValue();
     StructuredRecord record = entityToRecordTransformer.transformEntity(entity);
     emitter.emit(record);
   }
 
   private Schema getSchema(FailureCollector collector) {
-    EntityQuery.Builder queryBuilder = Query.newEntityQueryBuilder()
-      .setNamespace(config.getNamespace())
-      .setKind(config.getKind())
-      .setLimit(1);
+    Query.Builder queryBuilder = Query.newBuilder()
+      .addKind(KindExpression.newBuilder().setName(config.getKind()).build())
+      .setLimit(Int32Value.of(1));
 
     Key ancestorKey = constructAncestorKey(config, collector);
     if (ancestorKey != null) {
-      queryBuilder.setFilter(StructuredQuery.PropertyFilter.hasAncestor(ancestorKey));
+      queryBuilder.setFilter(DatastoreHelper.makeAncestorFilter(ancestorKey).build());
     }
-    EntityQuery query = queryBuilder.build();
+    Query query = queryBuilder.build();
     LOG.debug("Executing query for `Get Schema`: {}", query);
 
-    Datastore datastore = DatastoreUtil.getDatastore(config.getServiceAccount(), config.isServiceAccountFilePath(),
-                                                     config.getProject());
-    QueryResults<Entity> results;
+    Datastore datastore = DatastoreUtil.getDatastoreV1(config.getServiceAccount(), config.isServiceAccountFilePath(),
+                                                       config.getProject());
+    Iterator<EntityResult> results;
+    RunQueryRequest request = RunQueryRequest.newBuilder()
+      .setQuery(query)
+      .setPartitionId(PartitionId.newBuilder()
+                        .setNamespaceId(config.getNamespace())
+                        .setProjectId(config.getProject()))
+      .build();
+
     try {
-      results = datastore.run(query);
+      results = datastore.runQuery(request).getBatch().getEntityResultsList().iterator();
     } catch (DatastoreException e) {
       collector.addFailure("Unable to fetch data from Datastore: " + e.getMessage(), null)
         .withStacktrace(e.getStackTrace());
@@ -182,7 +190,7 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
     }
 
     if (results.hasNext()) {
-      Entity entity = results.next();
+      Entity entity = results.next().getEntity();
       return constructSchema(entity, config.isIncludeKey(collector), config.getKeyAlias());
     }
 
@@ -202,26 +210,35 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
    * @param collector failure collector
    * @return Datastore key instance
    */
+  @VisibleForTesting
   @Nullable
-  private Key constructAncestorKey(DatastoreSourceConfig config, FailureCollector collector) {
-    List<PathElement> ancestor = config.getAncestor(collector);
+  Key constructAncestorKey(DatastoreSourceConfig config, FailureCollector collector) {
+    List<Key.PathElement> ancestor = config.getAncestor(collector);
 
-    if (ancestor.isEmpty()) {
+    if (ancestor.size() <= 1) {
       return null;
     }
 
-    PathElement keyElement = ancestor.get(ancestor.size() - 1);
-    Key.Builder keyBuilder;
-    if (keyElement.hasId()) {
-      keyBuilder = Key.newBuilder(config.getProject(), keyElement.getKind(), keyElement.getId());
-    } else {
-      keyBuilder = Key.newBuilder(config.getProject(), keyElement.getKind(), keyElement.getName());
-    }
+    Key.PathElement keyElement = ancestor.get(ancestor.size() - 1);
+    Key.Builder keyBuilder = Key.newBuilder()
+      .setPartitionId(PartitionId.newBuilder()
+                        .setProjectId(config.getProject())
+                        .setNamespaceId(config.getNamespace()));
 
-    if (ancestor.size() > 1) {
-      ancestor.subList(0, ancestor.size() - 1).forEach(keyBuilder::addAncestor);
+    ancestor.subList(0, ancestor.size() - 1).forEach(keyBuilder::addPath);
+
+    if (keyElement.getIdTypeCase() == Key.PathElement.IdTypeCase.ID) {
+      keyBuilder.addPath(Key.PathElement.newBuilder()
+                           .setId(keyElement.getId())
+                           .setKind(keyElement.getKind()).build());
+
+    } else {
+      keyBuilder.addPath(Key.PathElement.newBuilder()
+                           .setName(keyElement.getName())
+                           .setKind(keyElement.getKind()).build());
+
     }
-    return keyBuilder.setNamespace(config.getNamespace()).build();
+    return keyBuilder.build();
   }
 
 
@@ -252,9 +269,9 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
    * @param entity Datastore entity
    * @return list of CDAP schema fields
    */
-  private List<Schema.Field> constructSchemaFields(FullEntity<?> entity) {
-    return entity.getNames().stream()
-      .map(name -> transformToField(name, entity.getValue(name)))
+  private List<Schema.Field> constructSchemaFields(Entity entity) {
+    return entity.getPropertiesMap().entrySet().stream()
+      .map(entry -> transformToField(entry.getKey(), entry.getValue()))
       .filter(Objects::nonNull)
       .collect(Collectors.toList());
   }
@@ -267,7 +284,8 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
    * @param value Datastore value
    * @return CDAP field
    */
-  private Schema.Field transformToField(String name, Value<?> value) {
+  //private Schema.Field transformToField(String name, Value<?> value) {
+  private Schema.Field transformToField(String name, Value value) {
     Schema schema = createSchema(name, value);
     if (schema == null) {
       return null;
@@ -285,22 +303,22 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
    * @param value Datastore value
    * @return CDAP schema
    */
-  private Schema createSchema(String name, Value<?> value) {
-    Schema schema = SUPPORTED_SIMPLE_TYPES.get(value.getType());
+  private Schema createSchema(String name, Value value) {
+    Schema schema = SUPPORTED_SIMPLE_TYPES.get(value.getValueTypeCase());
 
     if (schema != null) {
       return schema;
     }
 
-    switch (value.getType()) {
-      case ENTITY:
-        List<Schema.Field> fields = constructSchemaFields(((EntityValue) value).get());
+    switch (value.getValueTypeCase()) {
+      case ENTITY_VALUE:
+        List<Schema.Field> fields = constructSchemaFields(value.getEntityValue());
         return Schema.recordOf(name, fields);
-      case LIST:
+      case ARRAY_VALUE:
         @SuppressWarnings("unchecked")
-        List<? extends Value<?>> values = (List<? extends Value<?>>) value.get();
+        List<Value> values = value.getArrayValue().getValuesList();
         Set<Schema> arraySchemas = new HashSet<>();
-        for (Value<?> val : values) {
+        for (Value val: values) {
           Schema valSchema = createSchema(name, val);
           if (valSchema == null) {
             return null;
@@ -325,7 +343,7 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
         return Schema.arrayOf(Schema.unionOf(arraySchemas));
     }
 
-    LOG.debug("Field '{}' is of unsupported type '{}', skipping field from the schema", name, value.getType());
+    LOG.debug("Field '{}' is of unsupported type '{}', skipping field from the schema", name, value.getValueTypeCase());
     return null;
   }
 

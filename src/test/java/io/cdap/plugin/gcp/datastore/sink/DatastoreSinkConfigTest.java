@@ -15,7 +15,7 @@
  */
 package io.cdap.plugin.gcp.datastore.sink;
 
-import com.google.cloud.datastore.PathElement;
+import com.google.datastore.v1.Key.PathElement;
 import com.google.datastore.v1.client.DatastoreHelper;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.validation.CauseAttributes;
@@ -211,9 +211,9 @@ public class DatastoreSinkConfigTest {
       .setAncestor(ancestor)
       .build();
 
-    List<PathElement> expectedAncestor = Arrays.asList(PathElement.of("A", 100),
-                                                       PathElement.of("B", "bId"),
-                                                       PathElement.of("C C C", 123));
+    List<PathElement> expectedAncestor = Arrays.asList(PathElement.newBuilder().setKind("A").setId(100).build(),
+                                                       PathElement.newBuilder().setKind("B").setName("bId").build(),
+                                                       PathElement.newBuilder().setKind("C C C").setId(123).build());
 
     MockFailureCollector collector = new MockFailureCollector();
     Assert.assertEquals(expectedAncestor, config.getAncestor(collector));

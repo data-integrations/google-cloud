@@ -15,9 +15,9 @@
  */
 package io.cdap.plugin.gcp.datastore.util;
 
-import com.google.cloud.datastore.PathElement;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.datastore.v1.Key.PathElement;
 import com.google.datastore.v1.client.DatastoreHelper;
 
 import java.util.ArrayList;
@@ -73,8 +73,8 @@ public class DatastorePropertyUtil {
         String kind = keyArray[i].trim().replaceAll("`", "");
         String identifier = keyArray[i + 1].trim();
         PathElement pathElement = identifier.contains("'")
-          ? PathElement.of(kind, identifier.replaceAll("'", ""))
-          : PathElement.of(kind, Long.valueOf(identifier));
+          ? PathElement.newBuilder().setKind(kind).setName(identifier.replaceAll("'", "")).build()
+          : PathElement.newBuilder().setKind(kind).setId(Long.valueOf(identifier)).build();
         resultList.add(pathElement);
       }
       return resultList;

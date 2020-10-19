@@ -15,8 +15,8 @@
  */
 package io.cdap.plugin.gcp.datastore.source;
 
-import com.google.cloud.datastore.PathElement;
 import com.google.datastore.v1.Filter;
+import com.google.datastore.v1.Key.PathElement;
 import com.google.datastore.v1.KindExpression;
 import com.google.datastore.v1.PartitionId;
 import com.google.datastore.v1.PropertyFilter;
@@ -37,8 +37,10 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.mockito.Mockito;
 
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -108,9 +110,11 @@ public class DatastoreSourceConfigTest {
       .setAncestor(ancestor)
       .build();
 
-    List<PathElement> expectedAncestor = Arrays.asList(PathElement.of("A", 100),
-                                                       PathElement.of("B", "bId"),
-                                                       PathElement.of("C C C", 123));
+    List<PathElement> expectedAncestor = Arrays.asList(PathElement.newBuilder().setKind("A").setId(100).build(),
+                                                       PathElement.newBuilder().setKind("B").setName("bId").build(),
+                                                       PathElement.newBuilder().setKind("C C C").setId(123).build());
+
+
 
     MockFailureCollector collector = new MockFailureCollector();
     Assert.assertEquals(expectedAncestor, config.getAncestor(collector));
@@ -604,12 +608,14 @@ public class DatastoreSourceConfigTest {
       .setSchema(Schema.recordOf("schema",
         Schema.Field.of("id", Schema.of(Schema.Type.LONG)),
         Schema.Field.of("name", Schema.nullableOf(Schema.of(Schema.Type.STRING))),
-        Schema.Field.of("type", Schema.nullableOf(Schema.of(Schema.Type.STRING))))
-        .toString())
+        Schema.Field.of("type", Schema.nullableOf(Schema.of(Schema.Type.STRING))),
+        Schema.Field.of("price", Schema.nullableOf(Schema.of(Schema.Type.DOUBLE))),
+        Schema.Field.of("bool", Schema.nullableOf(Schema.of(Schema.Type.BOOLEAN))),
+        Schema.Field.of("timestamp", Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))))
+      .toString())
       .setAncestor("key(A1, 10, A2, 'N1')")
-      .setFilters("id|10;name|test;type|")
+      .setFilters("id|10;name|test;price|3.14;bool|true;timestamp|2018-11-01T14:31:10Z;type|")
       .build();
-
     Filter idFilter = DatastoreHelper.makeFilter("id",
        PropertyFilter.Operator.EQUAL,
        DatastoreHelper.makeValue(10)).build();
@@ -618,6 +624,16 @@ public class DatastoreSourceConfigTest {
        DatastoreHelper.makeValue("test")).build();
     Filter nullFilter = DatastoreHelper.makeFilter("type", PropertyFilter.Operator.EQUAL,
        Value.newBuilder().setNullValue(com.google.protobuf.NullValue.NULL_VALUE).build()).build();
+    Filter timestampFilter = DatastoreHelper.makeFilter("timestamp", PropertyFilter.Operator.EQUAL,
+                                                        DatastoreHelper.makeValue(
+                                                          Date.from(Instant.parse("2018-11-01T14:31:10Z")))).build();
+    Filter priceFilter = DatastoreHelper.makeFilter("price",
+                                                   PropertyFilter.Operator.EQUAL,
+                                                   DatastoreHelper.makeValue(3.14)).build();
+    Filter boolFilter = DatastoreHelper.makeFilter("bool",
+                                                    PropertyFilter.Operator.EQUAL,
+                                                    DatastoreHelper.makeValue(true)).build();
+
 
     Filter ancestorFilter = DatastoreHelper.makeAncestorFilter(DatastoreHelper.makeKey("A1", 10, "A2", "N1")
        .setPartitionId(PartitionId.newBuilder()
@@ -629,7 +645,8 @@ public class DatastoreSourceConfigTest {
 
     Query expectedPbQuery = Query.newBuilder()
       .addKind(KindExpression.newBuilder().setName(config.getKind()))
-      .setFilter(DatastoreHelper.makeAndFilter(idFilter, nameFilter, nullFilter, ancestorFilter))
+      .setFilter(DatastoreHelper.makeAndFilter(idFilter, nameFilter, priceFilter, boolFilter,
+                                               timestampFilter, nullFilter, ancestorFilter))
       .build();
 
     MockFailureCollector collector = new MockFailureCollector();
