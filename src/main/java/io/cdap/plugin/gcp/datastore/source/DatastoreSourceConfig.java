@@ -252,8 +252,8 @@ public class DatastoreSourceConfig extends GCPReferenceSourceConfig {
       return;
     }
     try {
-      DatastoreUtil.getDatastore(getServiceAccountFilePath(), getProject());
-      DatastoreUtil.getDatastoreV1(getServiceAccountFilePath(), getProject());
+      DatastoreUtil.getDatastore(getServiceAccount(), isServiceAccountFilePath(), getProject());
+      DatastoreUtil.getDatastoreV1(getServiceAccount(), isServiceAccountFilePath(), getProject());
     } catch (DatastoreInitializationException e) {
       collector.addFailure(e.getMessage(), "Ensure properties like project, service account file path are correct.")
         .withConfigProperty(DatastoreSourceConstants.PROPERTY_SERVICE_FILE_PATH)
@@ -559,7 +559,8 @@ public class DatastoreSourceConfig extends GCPReferenceSourceConfig {
    */
   boolean shouldConnect() {
     return !containsMacro(DatastoreSourceConstants.PROPERTY_SCHEMA) &&
-      !containsMacro(DatastoreSourceConfig.NAME_SERVICE_ACCOUNT_FILE_PATH) &&
+      !(containsMacro(DatastoreSourceConfig.NAME_SERVICE_ACCOUNT_FILE_PATH) ||
+        containsMacro(DatastoreSourceConfig.NAME_SERVICE_ACCOUNT_JSON)) &&
       !containsMacro(DatastoreSourceConfig.NAME_PROJECT) &&
       tryGetProject() != null &&
       !autoServiceAccountUnavailable();
