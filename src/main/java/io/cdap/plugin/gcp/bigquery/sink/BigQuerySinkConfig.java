@@ -478,6 +478,14 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     if (!shouldCreatePartitionedTable() || Strings.isNullOrEmpty(clusteringOrder) || schema == null) {
       return;
     }
+
+    if (!containsMacro(NAME_PARTITION_BY_FIELD) && !containsMacro(NAME_CLUSTERING_ORDER) &&
+      !Strings.isNullOrEmpty(clusteringOrder) && (Strings.isNullOrEmpty(partitionByField))) {
+      collector.addFailure(String.format("Clustering order cannot be validated."),
+                           "Partition field must have a value.");
+      return;
+    }
+
     List<String> columnsNames = Arrays.stream(clusteringOrder.split(",")).map(String::trim)
       .collect(Collectors.toList());
     if (columnsNames.size() > MAX_NUMBER_OF_COLUMNS) {
