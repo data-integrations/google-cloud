@@ -50,9 +50,12 @@ public class SpannerOutputFormat extends OutputFormat<NullWritable, Mutation> {
   public static void configure(Configuration configuration, SpannerSinkConfig config, Schema schema) {
     String projectId = config.getProject();
     configuration.set(SpannerConstants.PROJECT_ID, projectId);
-    String serviceAccountFilePath = config.getServiceAccountFilePath();
-    if (serviceAccountFilePath != null) {
-      configuration.set(SpannerConstants.SERVICE_ACCOUNT_FILE_PATH, serviceAccountFilePath);
+    String serviceAccount = config.getServiceAccount();
+    if (serviceAccount != null) {
+      String type = config.isServiceAccountFilePath() ? SpannerConstants.SERVICE_ACCOUNT_TYPE_FILE_PATH :
+        SpannerConstants.SERVICE_ACCOUNT_TYPE_JSON;
+      configuration.set(SpannerConstants.SERVICE_ACCOUNT_TYPE, type);
+      configuration.set(SpannerConstants.SERVICE_ACCOUNT, serviceAccount);
     }
     configuration.set(SpannerConstants.INSTANCE_ID, config.getInstance());
     configuration.set(SpannerConstants.DATABASE, config.getDatabase());
@@ -68,8 +71,12 @@ public class SpannerOutputFormat extends OutputFormat<NullWritable, Mutation> {
     String projectId = configuration.get(SpannerConstants.PROJECT_ID);
     String instanceId = configuration.get(SpannerConstants.INSTANCE_ID);
     String database = configuration.get(SpannerConstants.DATABASE);
-    String serviceFilePath = configuration.get(SpannerConstants.SERVICE_ACCOUNT_FILE_PATH);
-    Spanner spanner = SpannerUtil.getSpannerService(serviceFilePath, projectId);
+    String serviceAccountType = configuration.get(SpannerConstants.SERVICE_ACCOUNT_TYPE);
+    String serviceAccount = configuration.get(SpannerConstants.SERVICE_ACCOUNT);
+    Spanner spanner =
+      SpannerUtil.getSpannerService(serviceAccount,
+                                    SpannerConstants.SERVICE_ACCOUNT_TYPE_FILE_PATH.equals(serviceAccountType),
+                                    projectId);
     int batchSize = Integer.parseInt(configuration.get(SpannerConstants.SPANNER_WRITE_BATCH_SIZE));
     DatabaseId db = DatabaseId.of(projectId, instanceId, database);
     DatabaseClient client = spanner.getDatabaseClient(db);

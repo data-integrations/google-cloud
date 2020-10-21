@@ -2,11 +2,11 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name": "Spanner",
+  "display-name" : "BigQuery Argument Setter",
   "configuration-groups": [
     {
-      "label" : "Basic",
-      "properties" : [
+      "label": "Basic",
+      "properties": [
         {
           "widget-type": "textbox",
           "label": "Reference Name",
@@ -19,7 +19,7 @@
           "widget-type": "connection-browser",
           "widget-category": "plugin",
           "widget-attributes": {
-            "connectionType": "SPANNER",
+            "connectionType": "BIGQUERY",
             "label": "Browse"
           }
         },
@@ -33,51 +33,47 @@
         },
         {
           "widget-type": "textbox",
-          "label": "Instance ID",
-          "name": "instance",
+          "label": "Dataset",
+          "name": "dataset",
           "widget-attributes" : {
-            "placeholder": "Instance ID"
+            "placeholder": "Dataset the table belongs to"
           }
         },
         {
           "widget-type": "textbox",
-          "label": "Database Name",
-          "name": "database",
-          "widget-attributes" : {
-            "placeholder": "Database name"
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Table Name",
+          "label": "Table",
           "name": "table",
           "widget-attributes" : {
-            "placeholder": "Table name"
-          },
-          "plugin-function": {
-            "label": "Get Schema",
-            "widget": "outputSchema",
-            "output-property": "schema",
-            "omit-properties": [
-              {
-                "name": "schema"
-              }
+            "placeholder": "Table to read from"
+          }
+        },
+        {
+          "widget-type": "ds-multiplevalues",
+          "label": "Argument Selection Conditions",
+          "name": "argumentSelectionConditions",
+          "widget-attributes" : {
+            "delimiter": ";",
+            "values-delimiter": "=",
+            "placeholders": [
+              "Column name for identifying the argument to run a pipeline",
+              "Column value for identifying the argument to run a pipeline"
             ]
           }
         },
         {
-          "widget-type": "textarea",
-          "label": "Import Query",
-          "name": "importQuery",
-          "widget-attributes": {
-            "rows": "4"
+          "name": "argumentsColumns",
+          "label": "Arguments Columns",
+          "widget-type": "CSV",
+          "widget-attributes" : {
+            "delimiter": ",",
+            "placeholder": "The name of the column that contains the arguments for this run."
           }
         }
       ]
     },
     {
-      "label": "Credentials",
-      "properties": [
+      "label" : "Credentials",
+      "properties" : [
         {
           "name": "serviceAccountType",
           "label": "Service Account Type",
@@ -111,27 +107,6 @@
           "name": "serviceAccountJSON"
         }
       ]
-    },
-    {
-      "label": "Advanced",
-      "properties": [
-        {
-          "widget-type": "textbox",
-          "label": "Max Partitions",
-          "name": "maxPartitions",
-          "widget-attributes" : {
-            "placeholder": "Maximum number of partitions."
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Partition Size (Megabytes)",
-          "name": "partitionSizeMB",
-          "widget-attributes" : {
-            "placeholder": "Partition size in Megabytes."
-          }
-        }
-      ]
     }
   ],
   "filters": [
@@ -158,22 +133,6 @@
           "name": "serviceAccountJSON"
         }
       ]
-    }
-  ],
-  "outputs": [
-    {
-      "name": "schema",
-      "widget-type": "schema",
-      "widget-attributes": {
-        "schema-types": [
-          "boolean",
-          "long",
-          "double",
-          "string",
-          "bytes"
-        ],
-        "schema-default-type": "string"
-      }
     }
   ],
   "jump-config": {

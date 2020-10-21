@@ -330,13 +330,14 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     String project = getDatasetProject();
     String dataset = getDataset();
     String tableName = getTable();
-    String serviceAccountPath = getServiceAccountFilePath();
+    String serviceAccount = getServiceAccount();
 
-    if (project == null || dataset == null || tableName == null || serviceAccountPath == null) {
+    if (project == null || dataset == null || tableName == null || serviceAccount == null) {
       return;
     }
 
-    Table table = BigQueryUtil.getBigQueryTable(project, dataset, tableName, serviceAccountPath, collector);
+    Table table = BigQueryUtil.getBigQueryTable(project, dataset, tableName, serviceAccount,
+                                                isServiceAccountFilePath(), collector);
     if (table != null) {
       StandardTableDefinition tableDefinition = table.getDefinition();
       TimePartitioning timePartitioning = tableDefinition.getTimePartitioning();
@@ -477,6 +478,14 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     if (!shouldCreatePartitionedTable() || Strings.isNullOrEmpty(clusteringOrder) || schema == null) {
       return;
     }
+
+    if (!containsMacro(NAME_PARTITION_BY_FIELD) && !containsMacro(NAME_CLUSTERING_ORDER) &&
+      !Strings.isNullOrEmpty(clusteringOrder) && (Strings.isNullOrEmpty(partitionByField))) {
+      collector.addFailure(String.format("Clustering order cannot be validated."),
+                           "Partition field must have a value.");
+      return;
+    }
+
     List<String> columnsNames = Arrays.stream(clusteringOrder.split(",")).map(String::trim)
       .collect(Collectors.toList());
     if (columnsNames.size() > MAX_NUMBER_OF_COLUMNS) {
@@ -602,7 +611,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   boolean shouldConnect() {
     return !containsMacro(BigQuerySinkConfig.NAME_DATASET) &&
       !containsMacro(BigQuerySinkConfig.NAME_TABLE) &&
-      !containsMacro(BigQuerySinkConfig.NAME_SERVICE_ACCOUNT_FILE_PATH) &&
+      !(containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH) || containsMacro(NAME_SERVICE_ACCOUNT_JSON)) &&
       !containsMacro(BigQuerySinkConfig.NAME_PROJECT) &&
       !containsMacro(BigQuerySinkConfig.DATASET_PROJECT_ID) &&
       !containsMacro(BigQuerySinkConfig.NAME_SCHEMA);
