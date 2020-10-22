@@ -36,6 +36,8 @@ Spanner database is contained within a specific Spanner instance.
 Each record is composed of columns (also called fields).
 Every table is defined by a schema that describes the column names, data types, and other information.
 
+**Import Query**: The SELECT query to use to import data from the specified table.
+
 **Service Account**  - service account key used for authorization
 * **File Path**: Path on the local file system of the service account key used for
 authorization. Can be set to 'auto-detect' when running on a Dataproc cluster.
