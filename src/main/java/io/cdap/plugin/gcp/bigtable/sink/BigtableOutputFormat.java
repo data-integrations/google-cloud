@@ -16,8 +16,12 @@
 
 package io.cdap.plugin.gcp.bigtable.sink;
 
+import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.mapreduce.TableOutputFormat;
 import org.apache.hadoop.mapreduce.JobContext;
+import org.apache.hadoop.mapreduce.RecordWriter;
+import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormatCounter;
 
 import java.io.IOException;
 
@@ -25,10 +29,29 @@ import java.io.IOException;
  * Table output format class - extends default {@link TableOutputFormat} in order to override checkOutputSpecs method
  * to include configuration properties before calling `ConnectionFactory.createConnection`.
  * Fixes null pointer exception during connection creation.
+ * @param <KEY> the key is ignored
  */
-public class BigtableOutputFormat extends TableOutputFormat {
+public class BigtableOutputFormat<KEY> extends TableOutputFormat<KEY> {
   public BigtableOutputFormat() {
 
+  }
+
+  @Override
+  public RecordWriter<KEY, Mutation> getRecordWriter(TaskAttemptContext context)
+    throws IOException, InterruptedException {
+    RecordWriter<KEY, Mutation> recordWriter = super.getRecordWriter(context);
+    return new RecordWriter<KEY, Mutation>() {
+      @Override
+      public void close(TaskAttemptContext context) throws IOException, InterruptedException {
+        recordWriter.close(context);
+      }
+
+      @Override
+      public void write(KEY key, Mutation value) throws IOException, InterruptedException {
+        context.getCounter(FileOutputFormatCounter.BYTES_WRITTEN).increment(value.getRow().length);
+        recordWriter.write(key, value);
+      }
+    };
   }
 
   @Override
