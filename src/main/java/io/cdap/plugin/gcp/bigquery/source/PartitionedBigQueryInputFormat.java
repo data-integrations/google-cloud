@@ -8,6 +8,7 @@ import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.StandardTableDefinition;
+import com.google.cloud.bigquery.TableDefinition.Type;
 import com.google.cloud.bigquery.TimePartitioning;
 import com.google.cloud.hadoop.io.bigquery.AbstractBigQueryInputFormat;
 import com.google.cloud.hadoop.io.bigquery.AvroBigQueryInputFormat;
@@ -18,6 +19,7 @@ import com.google.cloud.hadoop.io.bigquery.BigQueryUtils;
 import com.google.cloud.hadoop.io.bigquery.ExportFileFormat;
 import com.google.cloud.hadoop.util.ConfigurationUtil;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.sun.istack.Nullable;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
@@ -84,39 +86,54 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
     String inputProjectId = mandatoryConfig.get(BigQueryConfiguration.INPUT_PROJECT_ID_KEY);
     String datasetId = mandatoryConfig.get(BigQueryConfiguration.INPUT_DATASET_ID_KEY);
     String tableName = mandatoryConfig.get(BigQueryConfiguration.INPUT_TABLE_ID_KEY);
-    String serviceFilePath = configuration.get(BigQueryConstants.CONFIG_SERVICE_ACCOUNT_FILE_PATH, null);
+    String serviceAccount = configuration.get(BigQueryConstants.CONFIG_SERVICE_ACCOUNT, null);
+    Boolean isServiceAccountFilePath = configuration.getBoolean(BigQueryConstants.CONFIG_SERVICE_ACCOUNT_IS_FILE,
+                                                                true);
 
     String partitionFromDate = configuration.get(BigQueryConstants.CONFIG_PARTITION_FROM_DATE, null);
     String partitionToDate = configuration.get(BigQueryConstants.CONFIG_PARTITION_TO_DATE, null);
     String filter = configuration.get(BigQueryConstants.CONFIG_FILTER, null);
 
-    String query = generateQuery(partitionFromDate, partitionToDate, filter, inputProjectId, datasetId, tableName,
-                                 serviceFilePath);
+    com.google.cloud.bigquery.Table bigQueryTable =
+      BigQueryUtil.getBigQueryTable(inputProjectId, datasetId, tableName, serviceAccount, isServiceAccountFilePath);
+    Type type = Objects.requireNonNull(bigQueryTable).getDefinition().getType();
+
+    String query;
+    if (type == Type.VIEW || type == Type.MATERIALIZED_VIEW) {
+      query = generateQueryForMaterializingView(datasetId, tableName, filter);
+    } else {
+      query = generateQuery(partitionFromDate, partitionToDate, filter, inputProjectId, datasetId, tableName,
+                            serviceAccount, isServiceAccountFilePath);
+    }
 
     if (query != null) {
-      TableReference sourceTable = new TableReference()
-        .setDatasetId(datasetId)
-        .setProjectId(inputProjectId)
+      TableReference sourceTable = new TableReference().setDatasetId(datasetId).setProjectId(inputProjectId)
         .setTableId(tableName);
       String location = bigQueryHelper.getTable(sourceTable).getLocation();
-      String temporaryTableName = tableName + "_" + UUID.randomUUID().toString().replaceAll("-", "_");
-      TableReference exportTableReference = new TableReference()
-        .setDatasetId(datasetId)
-        .setProjectId(inputProjectId)
-        .setTableId(temporaryTableName);
+      String temporaryTableName = String.format("%s_%s", tableName, UUID.randomUUID().toString().replaceAll("-", "_"));
+      TableReference exportTableReference = createExportTableReference(type, inputProjectId, datasetId,
+                                                                       temporaryTableName, configuration);
       runQuery(bigQueryHelper, inputProjectId, exportTableReference, query, location);
+      if (type == Type.VIEW || type == Type.MATERIALIZED_VIEW) {
+        configuration.set(BigQueryConfiguration.INPUT_PROJECT_ID_KEY,
+                          configuration.get(BigQueryConstants.CONFIG_VIEW_MATERIALIZATION_PROJECT));
+        configuration.set(BigQueryConfiguration.INPUT_DATASET_ID_KEY,
+                          configuration.get(BigQueryConstants.CONFIG_VIEW_MATERIALIZATION_DATASET));
+      }
       configuration.set(BigQueryConfiguration.INPUT_TABLE_ID_KEY, temporaryTableName);
     }
   }
 
   private String generateQuery(String partitionFromDate, String partitionToDate, String filter,
-                               String project, String dataset, String table, @Nullable String serviceFilePath) {
+                               String project, String dataset, String table, @Nullable String serviceAccount,
+                               @Nullable Boolean isServiceAccountFilePath) {
     if (partitionFromDate == null && partitionToDate == null && filter == null) {
       return null;
     }
     String queryTemplate = "select * from %s where %s";
     com.google.cloud.bigquery.Table sourceTable = BigQueryUtil.getBigQueryTable(project, dataset, table,
-                                                                                serviceFilePath);
+                                                                                serviceAccount,
+                                                                                isServiceAccountFilePath);
     StandardTableDefinition tableDefinition = Objects.requireNonNull(sourceTable).getDefinition();
     TimePartitioning timePartitioning = tableDefinition.getTimePartitioning();
     if (timePartitioning == null && filter == null) {
@@ -140,6 +157,48 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
 
     String tableName = dataset + "." + table;
     return String.format(queryTemplate, tableName, condition.toString());
+  }
+
+  private String generateQueryForMaterializingView(String dataset, String table, String filter) {
+    String queryTemplate = "select * from %s %s";
+    StringBuilder condition = new StringBuilder();
+
+    if (!Strings.isNullOrEmpty(filter)) {
+      condition.append(String.format(" where %s", filter));
+    }
+
+    String tableName = dataset + "." + table;
+    return String.format(queryTemplate, tableName, condition.toString());
+  }
+
+  /**
+   * Create {@link TableReference} to export Table or View
+   *
+   * @param type           BigQuery table type
+   * @param inputProjectId project id of source table
+   * @param datasetId      dataset id of source table
+   * @param tableId        The ID of the table
+   * @param configuration  Configuration that contains View Materialization ProjectId and View
+   *                       Materialization Dataset Id
+   * @return {@link TableReference}
+   */
+  private TableReference createExportTableReference(
+    Type type, String inputProjectId,
+    String datasetId,
+    String tableId,
+    Configuration configuration) {
+
+    TableReference tableReference = new TableReference().setTableId(tableId);
+
+    if (type == Type.VIEW || type == Type.MATERIALIZED_VIEW) {
+      tableReference.setProjectId(configuration.get(BigQueryConstants.CONFIG_VIEW_MATERIALIZATION_PROJECT));
+      tableReference.setDatasetId(configuration.get(BigQueryConstants.CONFIG_VIEW_MATERIALIZATION_DATASET));
+    } else {
+      tableReference.setProjectId(inputProjectId);
+      tableReference.setDatasetId(datasetId);
+    }
+
+    return tableReference;
   }
 
   private static void runQuery(

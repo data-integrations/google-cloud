@@ -30,6 +30,7 @@ import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.TimestampBound;
 import com.google.cloud.spanner.Type;
+import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
@@ -97,7 +98,8 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
     config.validate(collector);
     Schema configuredSchema = config.getSchema(collector);
 
-    if (!config.shouldConnect() || config.tryGetProject() == null || config.autoServiceAccountUnavailable()) {
+    if (!config.shouldConnect() || config.tryGetProject() == null
+      || (config.isServiceAccountFilePath() && config.autoServiceAccountUnavailable())) {
       stageConfigurer.setOutputSchema(configuredSchema);
       return;
     }
@@ -136,7 +138,8 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
     initializeConfig(configuration, projectId);
 
     // initialize spanner
-    try (Spanner spanner = SpannerUtil.getSpannerService(config.getServiceAccountFilePath(), projectId)) {
+    try (Spanner spanner = SpannerUtil.getSpannerService(config.getServiceAccount(), config.isServiceAccountFilePath(),
+                                                         projectId)) {
       BatchClient batchClient =
         spanner.getBatchClient(DatabaseId.of(projectId, config.instance, config.database));
       Timestamp logicalStartTimeMicros =
@@ -149,10 +152,12 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
 
       // partitionQuery returns ImmutableList which doesn't implement java Serializable interface,
       // we add to array list, which implements java Serializable
+      String importQuery = Strings.isNullOrEmpty(config.importQuery) ?
+        String.format("Select * from %s;", config.table) : config.importQuery;
       List<Partition> partitions =
         new ArrayList<>(
           batchReadOnlyTransaction.partitionQuery(getPartitionOptions(),
-                                                  Statement.of(String.format("Select * from %s;", config.table))));
+                                                  Statement.of(importQuery)));
 
       // serialize batch transaction-id and partitions
       configuration.set(SpannerConstants.SPANNER_BATCH_TRANSACTION_ID, getSerializedObjectString(batchTransactionId));
@@ -189,10 +194,13 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
 
   private void initializeConfig(Configuration configuration, String projectId) {
     setIfValueNotNull(configuration, SpannerConstants.PROJECT_ID, projectId);
-    setIfValueNotNull(configuration, SpannerConstants.SERVICE_ACCOUNT_FILE_PATH, config.getServiceAccountFilePath());
+    setIfValueNotNull(configuration, SpannerConstants.SERVICE_ACCOUNT_TYPE, config.isServiceAccountFilePath() ?
+      SpannerConstants.SERVICE_ACCOUNT_TYPE_FILE_PATH : SpannerConstants.SERVICE_ACCOUNT_TYPE_JSON);
+    setIfValueNotNull(configuration, SpannerConstants.SERVICE_ACCOUNT, config.getServiceAccount());
     setIfValueNotNull(configuration, SpannerConstants.INSTANCE_ID, config.instance);
     setIfValueNotNull(configuration, SpannerConstants.DATABASE, config.database);
-    setIfValueNotNull(configuration, SpannerConstants.QUERY, String.format("Select * from %s;", config.table));
+    setIfValueNotNull(configuration, SpannerConstants.QUERY, Strings.isNullOrEmpty(config.importQuery) ?
+      String.format("Select * from %s;", config.table) : config.importQuery);
   }
 
   private void setIfValueNotNull(Configuration configuration, String key, String value) {
@@ -229,7 +237,8 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
   private Schema getSchema(FailureCollector collector) {
     String projectId = config.getProject();
 
-    try (Spanner spanner = SpannerUtil.getSpannerService(config.getServiceAccountFilePath(), projectId)) {
+    try (Spanner spanner = SpannerUtil.getSpannerService(config.getServiceAccount(), config.isServiceAccountFilePath(),
+                                                         projectId)) {
       DatabaseClient databaseClient =
         spanner.getDatabaseClient(DatabaseId.of(projectId, config.instance, config.database));
       Statement getTableSchemaStatement = SCHEMA_STATEMENT_BUILDER.bind(TABLE_NAME).to(config.table).build();
@@ -255,7 +264,8 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
       }
     } catch (IOException e) {
       collector.addFailure("Unable to get Spanner Client: " + e.getMessage(), null)
-        .withConfigProperty(GCPConfig.NAME_SERVICE_ACCOUNT_FILE_PATH);
+        .withConfigProperty(config.isServiceAccountFilePath() ?
+                              GCPConfig.NAME_SERVICE_ACCOUNT_FILE_PATH : GCPConfig.NAME_SERVICE_ACCOUNT_JSON);
       // if there was an error that was added, it will throw an exception.
       throw collector.getOrThrowException();
     }

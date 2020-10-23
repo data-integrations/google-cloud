@@ -17,6 +17,7 @@
 package io.cdap.plugin.gcp.bigquery.sink;
 
 import com.google.cloud.bigquery.JobInfo;
+import com.google.cloud.bigquery.RangePartitioning;
 import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TimePartitioning;
@@ -26,6 +27,8 @@ import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.api.data.schema.Schema.LogicalType;
+import io.cdap.cdap.api.data.schema.Schema.Type;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import org.slf4j.Logger;
@@ -37,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
@@ -49,6 +53,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   private static final String WHERE = "WHERE";
   public static final Set<Schema.Type> SUPPORTED_CLUSTERING_TYPES =
     ImmutableSet.of(Schema.Type.INT, Schema.Type.LONG, Schema.Type.STRING, Schema.Type.BOOLEAN, Schema.Type.BYTES);
+  private static final Pattern FIELD_PATTERN = Pattern.compile("[a-zA-Z0-9_]+");
 
   public static final String NAME_TABLE = "table";
   public static final String NAME_SCHEMA = "schema";
@@ -58,6 +63,10 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   public static final String NAME_CLUSTERING_ORDER = "clusteringOrder";
   public static final String NAME_OPERATION = "operation";
   public static final String PARTITION_FILTER = "partitionFilter";
+  public static final String NAME_PARTITIONING_TYPE = "partitioningType";
+  public static final String NAME_RANGE_START = "rangeStart";
+  public static final String NAME_RANGE_END = "rangeEnd";
+  public static final String NAME_RANGE_INTERVAL = "rangeInterval";
 
   public static final int MAX_NUMBER_OF_COLUMNS = 4;
 
@@ -76,9 +85,37 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
 
   @Macro
   @Nullable
-  @Description("Whether to create the BigQuery table with time partitioning. This value is ignored if the table " +
-    "already exists.")
+  @Description("DEPRECATED!. Whether to create the BigQuery table with time partitioning. "
+    + "This value is ignored if the table already exists."
+    + " When this is set to false, value of Partitioning type will be used. Use 'Partitioning type' property")
   protected Boolean createPartitionedTable;
+
+  @Name(NAME_PARTITIONING_TYPE)
+  @Macro
+  @Nullable
+  @Description("Specifies the partitioning type. Can either be Integer or Time or None. "
+    + "Ignored when table already exists")
+  protected String partitioningType;
+
+  @Name(NAME_RANGE_START)
+  @Macro
+  @Nullable
+  @Description("Start value for range partitioning. The start value is inclusive. Ignored when table already exists")
+  protected Long rangeStart;
+
+  @Name(NAME_RANGE_END)
+  @Macro
+  @Nullable
+  @Description("End value for range partitioning. The end value is exclusive. Ignored when table already exists")
+  protected Long rangeEnd;
+
+  @Name(NAME_RANGE_INTERVAL)
+  @Macro
+  @Nullable
+  @Description(
+    "Interval value for range partitioning. The interval value must be a positive integer."
+      + "Ignored when table already exists")
+  protected Long rangeInterval;
 
   @Name(NAME_PARTITION_BY_FIELD)
   @Macro
@@ -129,12 +166,17 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   protected String partitionFilter;
 
   public BigQuerySinkConfig(String referenceName, String dataset, String table,
-                            @Nullable String bucket, @Nullable String schema) {
+                            @Nullable String bucket, @Nullable String schema, @Nullable String partitioningType,
+                            @Nullable Long rangeStart, @Nullable Long rangeEnd, @Nullable Long rangeInterval) {
     this.referenceName = referenceName;
     this.dataset = dataset;
     this.table = table;
     this.bucket = bucket;
     this.schema = schema;
+    this.partitioningType = partitioningType;
+    this.rangeStart = rangeStart;
+    this.rangeEnd = rangeEnd;
+    this.rangeInterval = rangeInterval;
   }
 
   public String getTable() {
@@ -142,7 +184,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   }
 
   public boolean shouldCreatePartitionedTable() {
-    return createPartitionedTable == null ? false : createPartitionedTable;
+    return getPartitioningType() != PartitionType.NONE;
   }
 
   @Nullable
@@ -184,6 +226,29 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
       partitionFilter = partitionFilter.substring(WHERE.length());
     }
     return  partitionFilter;
+  }
+
+  @Nullable
+  public Long getRangeStart() {
+    return rangeStart;
+  }
+
+  @Nullable
+  public Long getRangeEnd() {
+    return rangeEnd;
+  }
+
+  @Nullable
+  public Long getRangeInterval() {
+    return rangeInterval;
+  }
+
+  public PartitionType getPartitioningType() {
+    if (createPartitionedTable != null && createPartitionedTable) {
+      return PartitionType.TIME;
+    }
+    return Strings.isNullOrEmpty(partitioningType) ? PartitionType.TIME
+      : PartitionType.valueOf(partitioningType.toUpperCase());
   }
 
   /**
@@ -240,6 +305,12 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
 
       for (Schema.Field field : outputSchema.getFields()) {
         String name = field.getName();
+        // BigQuery column names only allow alphanumeric characters and _
+        // https://cloud.google.com/bigquery/docs/schemas#column_names
+        if (!FIELD_PATTERN.matcher(name).matches()) {
+          collector.addFailure(String.format("Output field '%s' must only contain alphanumeric characters and '_'.",
+                                             name), null).withOutputSchemaField(name);
+        }
 
         // check if the required fields are present in the input schema.
         if (!field.getSchema().isNullable() && inputSchema != null && inputSchema.getField(field.getName()) == null) {
@@ -256,16 +327,17 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     if (tryGetProject() == null) {
       return;
     }
-    String project = getProject();
+    String project = getDatasetProject();
     String dataset = getDataset();
     String tableName = getTable();
-    String serviceAccountPath = getServiceAccountFilePath();
+    String serviceAccount = getServiceAccount();
 
-    if (project == null || dataset == null || tableName == null || serviceAccountPath == null) {
+    if (project == null || dataset == null || tableName == null || serviceAccount == null) {
       return;
     }
 
-    Table table = BigQueryUtil.getBigQueryTable(project, dataset, tableName, serviceAccountPath, collector);
+    Table table = BigQueryUtil.getBigQueryTable(project, dataset, tableName, serviceAccount,
+                                                isServiceAccountFilePath(), collector);
     if (table != null) {
       StandardTableDefinition tableDefinition = table.getDefinition();
       TimePartitioning timePartitioning = tableDefinition.getTimePartitioning();
@@ -274,21 +346,60 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
                                  "exists without partitioning. Please verify the partitioning configuration.",
                                table.getTableId().getTable()));
       }
-      if (timePartitioning != null && timePartitioning.getField() != null
-        && !timePartitioning.getField().equals(partitionByField)) {
-        collector.addFailure(String.format("Destination table '%s' is partitioned by column '%s'.",
-                                           table.getTableId().getTable(),
-                                           timePartitioning.getField()),
-                             String.format("Set the partition field to '%s'.", timePartitioning.getField()))
-          .withConfigProperty(NAME_PARTITION_BY_FIELD);
+      RangePartitioning rangePartitioning = tableDefinition.getRangePartitioning();
+      if (timePartitioning == null && rangePartitioning == null && shouldCreatePartitionedTable()) {
+        LOG.warn(String.format(
+          "The plugin is configured to auto-create a partitioned table, but table '%s' already " +
+            "exists without partitioning. Please verify the partitioning configuration.",
+          table.getTableId().getTable()));
+      } else if (timePartitioning != null) {
+        validateTimePartitionTableWithInputConfiguration(table, timePartitioning, collector);
+      } else if (rangePartitioning != null) {
+        validateRangePartitionTableWithInputConfiguration(table, rangePartitioning, collector);
       }
       validateColumnForPartition(partitionByField, schema, collector);
       return;
     }
-    if (createPartitionedTable == null || !createPartitionedTable) {
-      return;
+    if (!shouldCreatePartitionedTable()) {
+      validateColumnForPartition(partitionByField, schema, collector);
     }
-    validateColumnForPartition(partitionByField, schema, collector);
+  }
+
+  private void validateTimePartitionTableWithInputConfiguration(Table table, TimePartitioning timePartitioning,
+                                                                FailureCollector collector) {
+    PartitionType partitioningType = getPartitioningType();
+    if (partitioningType == PartitionType.TIME && timePartitioning.getField() != null && !timePartitioning.getField()
+      .equals(partitionByField)) {
+      collector.addFailure(String.format("Destination table '%s' is partitioned by column '%s'.",
+                                         table.getTableId().getTable(),
+                                         timePartitioning.getField()),
+                           String.format("Set the partition field to '%s'.", timePartitioning.getField()))
+        .withConfigProperty(NAME_PARTITION_BY_FIELD);
+    } else if (partitioningType != PartitionType.TIME) {
+      LOG.warn(String.format("The plugin is configured to %s, but table '%s' already " +
+                               "exists with Time partitioning. Please verify the partitioning configuration.",
+                             partitioningType == PartitionType.INTEGER ? "auto-create a Integer partitioned table"
+                               : "auto-create table without partition",
+                             table.getTableId().getTable()));
+    }
+  }
+
+  private void validateRangePartitionTableWithInputConfiguration(Table table, RangePartitioning rangePartitioning,
+                                                                 FailureCollector collector) {
+    PartitionType partitioningType = getPartitioningType();
+    if (partitioningType != PartitionType.INTEGER) {
+      LOG.warn(String.format("The plugin is configured to %s, but table '%s' already " +
+                               "exists with Integer partitioning. Please verify the partitioning configuration.",
+                             partitioningType == PartitionType.TIME ? "auto-create a Time partitioned table"
+                               : "auto-create table without partition",
+                             table.getTableId().getTable()));
+    } else if (rangePartitioning.getField() != null && !rangePartitioning.getField().equals(partitionByField)) {
+      collector.addFailure(String.format("Destination table '%s' is partitioned by column '%s'.",
+                                         table.getTableId().getTable(),
+                                         rangePartitioning.getField()),
+                           String.format("Set the partition field to '%s'.", rangePartitioning.getField()))
+        .withConfigProperty(NAME_PARTITION_BY_FIELD);
+    }
   }
 
   private void validateColumnForPartition(@Nullable String columnName, @Nullable Schema schema,
@@ -305,13 +416,61 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     }
     Schema fieldSchema = field.getSchema();
     fieldSchema = fieldSchema.isNullable() ? fieldSchema.getNonNullable() : fieldSchema;
-    Schema.LogicalType logicalType = fieldSchema.getLogicalType();
-    if (logicalType != Schema.LogicalType.DATE && logicalType != Schema.LogicalType.TIMESTAMP_MICROS
-      && logicalType != Schema.LogicalType.TIMESTAMP_MILLIS) {
+    PartitionType partitioningType = getPartitioningType();
+    if (partitioningType == PartitionType.TIME) {
+      validateTimePartitioningColumn(columnName, collector, fieldSchema);
+    } else if (partitioningType == PartitionType.INTEGER) {
+      validateIntegerPartitioningColumn(columnName, collector, fieldSchema);
+      validateIntegerPartitioningRange(getRangeStart(), getRangeEnd(), getRangeInterval(), collector);
+    }
+  }
+
+  private void validateIntegerPartitioningColumn(String columnName, FailureCollector collector, Schema fieldSchema) {
+    if (fieldSchema.getType() != Type.INT && fieldSchema.getType() != Type.LONG) {
       collector.addFailure(
         String.format("Partition column '%s' is of invalid type '%s'.", columnName, fieldSchema.getDisplayName()),
-        "Partition column must be a date or timestamp.").withConfigProperty(NAME_PARTITION_BY_FIELD)
+        "Partition column must be a int  or long.").withConfigProperty(NAME_PARTITION_BY_FIELD)
         .withOutputSchemaField(columnName).withInputSchemaField(columnName);
+    }
+  }
+
+  private void validateTimePartitioningColumn(String columnName, FailureCollector collector, Schema fieldSchema) {
+    Schema.LogicalType logicalType = fieldSchema.getLogicalType();
+    if (logicalType != LogicalType.DATE && logicalType != LogicalType.TIMESTAMP_MICROS
+      && logicalType != LogicalType.TIMESTAMP_MILLIS) {
+      collector.addFailure(
+        String.format("Partition column '%s' is of invalid type '%s'.", columnName, fieldSchema.getDisplayName()),
+        "Partition column must be a date or timestamp.")
+        .withConfigProperty(NAME_PARTITION_BY_FIELD)
+        .withOutputSchemaField(columnName).withInputSchemaField(columnName);
+    }
+  }
+
+  private void validateIntegerPartitioningRange(Long rangeStart, Long rangeEnd, Long rangeInterval,
+                                                FailureCollector collector) {
+    if (!containsMacro(NAME_RANGE_START) && rangeStart == null) {
+      collector.addFailure("Range Start is not defined.",
+                           "For Integer Partitioning, Range Start must be defined.")
+        .withConfigProperty(NAME_RANGE_START);
+    }
+    if (!containsMacro(NAME_RANGE_END) && rangeEnd == null) {
+      collector.addFailure("Range End is not defined.",
+                           "For Integer Partitioning, Range End must be defined.")
+        .withConfigProperty(NAME_RANGE_END);
+    }
+
+    if (!containsMacro(NAME_RANGE_INTERVAL)) {
+      if (rangeInterval == null) {
+        collector.addFailure(
+          "Range Interval is not defined.",
+          "For Integer Partitioning, Range Interval must be defined.")
+          .withConfigProperty(NAME_RANGE_INTERVAL);
+      } else if (rangeInterval <= 0) {
+        collector.addFailure(
+          "Range Interval is not a positive number.",
+          "Range interval must be a valid positive integer.")
+          .withConfigProperty(NAME_RANGE_INTERVAL);
+      }
     }
   }
 
@@ -319,6 +478,14 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     if (!shouldCreatePartitionedTable() || Strings.isNullOrEmpty(clusteringOrder) || schema == null) {
       return;
     }
+
+    if (!containsMacro(NAME_PARTITION_BY_FIELD) && !containsMacro(NAME_CLUSTERING_ORDER) &&
+      !Strings.isNullOrEmpty(clusteringOrder) && (Strings.isNullOrEmpty(partitionByField))) {
+      collector.addFailure(String.format("Clustering order cannot be validated."),
+                           "Partition field must have a value.");
+      return;
+    }
+
     List<String> columnsNames = Arrays.stream(clusteringOrder.split(",")).map(String::trim)
       .collect(Collectors.toList());
     if (columnsNames.size() > MAX_NUMBER_OF_COLUMNS) {
@@ -351,6 +518,9 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   }
 
   private void validateOperationProperties(@Nullable Schema schema, FailureCollector collector) {
+    if (containsMacro(NAME_OPERATION) || containsMacro(NAME_TABLE_KEY) || containsMacro(NAME_DEDUPE_BY)) {
+      return;
+    }
     Operation operation = getOperation();
     if (Arrays.stream(Operation.values()).noneMatch(operation::equals)) {
       collector.addFailure(
@@ -359,10 +529,10 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
         .withConfigElement(NAME_OPERATION, operation.name().toLowerCase());
       return;
     }
-    if (Operation.INSERT.equals(getOperation())) {
+    if (Operation.INSERT.equals(operation)) {
       return;
     }
-    if ((Operation.UPDATE.equals(getOperation()) || Operation.UPSERT.equals(getOperation()))
+    if ((Operation.UPDATE.equals(operation) || Operation.UPSERT.equals(operation))
       && getRelationTableKey() == null) {
       collector.addFailure(
         "Table key must be set if the operation is 'Update' or 'Upsert'.", null)
@@ -396,17 +566,16 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
         .withConfigElement(NAME_TABLE_KEY, key)
       );
 
-    if ((Operation.UPDATE.equals(getOperation()) || Operation.UPSERT.equals(getOperation()))
-      && getDedupeBy() != null) {
+    if ((Operation.UPDATE.equals(operation) || Operation.UPSERT.equals(operation)) && getDedupeBy() != null) {
       List<String> dedupeByList = Arrays.stream(Objects.requireNonNull(getDedupeBy()).split(","))
         .collect(Collectors.toList());
 
       dedupeByList.stream()
         .filter(v -> !fields.contains(v.split(" ")[0]))
         .forEach(v -> collector.addFailure(
-        String.format("Dedupe by field '%s' does not exist in the schema.", v.split(" ")[0]),
-        "Change the Dedupe by field to be one of the schema fields.")
-        .withConfigElement(NAME_DEDUPE_BY, v));
+          String.format("Dedupe by field '%s' does not exist in the schema.", v.split(" ")[0]),
+          "Change the Dedupe by field to be one of the schema fields.")
+          .withConfigElement(NAME_DEDUPE_BY, v));
 
       Map<String, Integer> orderedByFieldMap = calculateDuplicates(dedupeByList);
       Map<String, String> orderedByFieldValueMap = dedupeByList.stream()
@@ -419,7 +588,6 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
           String.format("Remove duplicates of Dedupe by field '%s'.", key))
           .withConfigElement(NAME_DEDUPE_BY, orderedByFieldValueMap.get(key))
         );
-
     }
   }
 
@@ -441,8 +609,11 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
    * Returns true if bigquery table can be connected to or schema is not a macro.
    */
   boolean shouldConnect() {
-    return !containsMacro(BigQuerySinkConfig.NAME_DATASET) && !containsMacro(BigQuerySinkConfig.NAME_TABLE) &&
-      !containsMacro(BigQuerySinkConfig.NAME_SERVICE_ACCOUNT_FILE_PATH) &&
-      !containsMacro(BigQuerySinkConfig.NAME_PROJECT) && !containsMacro(BigQuerySinkConfig.NAME_SCHEMA);
+    return !containsMacro(BigQuerySinkConfig.NAME_DATASET) &&
+      !containsMacro(BigQuerySinkConfig.NAME_TABLE) &&
+      !(containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH) || containsMacro(NAME_SERVICE_ACCOUNT_JSON)) &&
+      !containsMacro(BigQuerySinkConfig.NAME_PROJECT) &&
+      !containsMacro(BigQuerySinkConfig.DATASET_PROJECT_ID) &&
+      !containsMacro(BigQuerySinkConfig.NAME_SCHEMA);
   }
 }

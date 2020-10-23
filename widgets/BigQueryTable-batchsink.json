@@ -2,7 +2,7 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name" : "BigQuery",
+  "display-name": "BigQuery",
   "configuration-groups": [
     {
       "label": "Basic",
@@ -11,7 +11,7 @@
           "widget-type": "textbox",
           "label": "Reference Name",
           "name": "referenceName",
-          "widget-attributes" : {
+          "widget-attributes": {
             "placeholder": "Name used to identify this sink for lineage"
           }
         },
@@ -19,15 +19,23 @@
           "widget-type": "textbox",
           "label": "Project ID",
           "name": "project",
-          "widget-attributes" : {
+          "widget-attributes": {
             "default": "auto-detect"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Dataset Project Id",
+          "name": "datasetProject",
+          "widget-attributes": {
+            "placeholder": "The project in which the dataset is located/should be created. Defaults to the project specified in the Project Id property."
           }
         },
         {
           "widget-type": "textbox",
           "label": "Dataset",
           "name": "dataset",
-          "widget-attributes" : {
+          "widget-attributes": {
             "placeholder": "Dataset the table belongs to"
           }
         },
@@ -35,7 +43,7 @@
           "widget-type": "textbox",
           "label": "Table",
           "name": "table",
-          "widget-attributes" : {
+          "widget-attributes": {
             "placeholder": "Table to write to"
           }
         },
@@ -43,22 +51,54 @@
           "widget-type": "textbox",
           "label": "Temporary Bucket Name",
           "name": "bucket",
-          "widget-attributes" : {
+          "widget-attributes": {
             "placeholder": "Google Cloud Storage bucket for temporary data"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "GCS Upload Request Chunk Size",
+          "name": "gcsChunkSize",
+          "widget-attributes": {
+            "placeholder": "GCS upload request chunk size in bytes"
           }
         }
       ]
     },
     {
-      "label" : "Credentials",
-      "properties" : [
+      "label": "Credentials",
+      "properties": [
+        {
+          "name": "serviceAccountType",
+          "label": "Service Account Type",
+          "widget-type": "radio-group",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "filePath",
+            "options": [
+              {
+                "id": "filePath",
+                "label": "File Path"
+              },
+              {
+                "id": "JSON",
+                "label": "JSON"
+              }
+            ]
+          }
+        },
         {
           "widget-type": "textbox",
           "label": "Service Account File Path",
           "name": "serviceFilePath",
-          "widget-attributes" : {
+          "widget-attributes": {
             "default": "auto-detect"
           }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Service Account JSON",
+          "name": "serviceAccountJSON"
         }
       ]
     },
@@ -67,8 +107,8 @@
       "properties": [
         {
           "widget-type": "radio-group",
-          "name" : "operation",
-          "label" : "Operation",
+          "name": "operation",
+          "label": "Operation",
           "widget-attributes": {
             "layout": "inline",
             "default": "insert",
@@ -92,7 +132,7 @@
           "name": "relationTableKey",
           "widget-type": "csv",
           "label": "Table Key",
-          "widget-attributes" : {}
+          "widget-attributes": {}
         },
         {
           "name": "dedupeBy",
@@ -101,14 +141,17 @@
           "widget-attributes": {
             "delimiter": ",",
             "kv-delimiter": " ",
-            "dropdownOptions": [ "ASC", "DESC"]
+            "dropdownOptions": [
+              "ASC",
+              "DESC"
+            ]
           }
         },
         {
           "widget-type": "textbox",
           "label": "Partition Filter",
           "name": "partitionFilter",
-          "widget-attributes" : {
+          "widget-attributes": {
             "placeholder": "Filter that can be used for partition elimination"
           }
         },
@@ -153,7 +196,7 @@
           "widget-type": "textbox",
           "label": "Location",
           "name": "location",
-          "widget-attributes" : {
+          "widget-attributes": {
             "default": "US"
           }
         },
@@ -174,10 +217,51 @@
           }
         },
         {
+          "widget-type": "radio-group",
+          "label": "Partitioning type",
+          "name": "partitioningType",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "TIME",
+            "options": [
+              {
+                "id": "TIME",
+                "label": "Time"
+              },
+              {
+                "id": "INTEGER",
+                "label": "Integer"
+              },
+              {
+                "id": "NONE",
+                "label": "None"
+              }
+            ]
+          }
+        },
+        {
+          "widget-type": "Number",
+          "label": "Range Start (inclusive)",
+          "name": "rangeStart",
+          "widget-attributes": {
+            "default": "0"
+          }
+        },
+        {
+          "widget-type": "Number",
+          "label": "Range End (exclusive)",
+          "name": "rangeEnd"
+        },
+        {
+          "widget-type": "Number",
+          "label": "Range Interval",
+          "name": "rangeInterval"
+        },
+        {
           "widget-type": "textbox",
           "label": "Partition Field",
           "name": "partitionByField",
-          "widget-attributes" : {
+          "widget-attributes": {
             "placeholder": "Table field for partitioning"
           }
         },
@@ -201,7 +285,7 @@
           "name": "clusteringOrder",
           "widget-type": "csv",
           "label": "Clustering Order",
-          "widget-attributes" : {}
+          "widget-attributes": {}
         }
       ]
     }
@@ -223,6 +307,76 @@
         ],
         "schema-default-type": "string"
       }
+    }
+  ],
+  "filters": [
+    {
+      "name": "PartitioningIntegerFieldsFilter",
+      "condition": {
+        "expression": "partitioningType == 'INTEGER'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "rangeStart"
+        },
+        {
+          "type": "property",
+          "name": "rangeEnd"
+        },
+        {
+          "type": "property",
+          "name": "rangeInterval"
+        },
+        {
+          "type": "property",
+          "name": "clientAccessToken"
+        }
+      ]
+    },
+    {
+      "name": "PartitionFieldFilter",
+      "condition": {
+        "expression": "createPartitionedTable == true || partitioningType == 'INTEGER' || partitioningType == 'TIME'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "partitionByField"
+        },
+        {
+          "type": "property",
+          "name": "partitionFilterRequired"
+        },
+        {
+          "type": "property",
+          "name": "clusteringOrder"
+        }
+      ]
+    },
+    {
+      "name": "ServiceAuthenticationTypeFilePath",
+      "condition": {
+        "expression": "serviceAccountType == 'filePath'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "serviceFilePath"
+        }
+      ]
+    },
+    {
+      "name": "ServiceAuthenticationTypeJSON",
+      "condition": {
+        "expression": "serviceAccountType == 'JSON'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "serviceAccountJSON"
+        }
+      ]
     }
   ],
   "jump-config": {

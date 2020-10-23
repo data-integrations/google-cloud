@@ -64,6 +64,14 @@
               }
             ]
           }
+        },
+        {
+          "widget-type": "textarea",
+          "label": "Import Query",
+          "name": "importQuery",
+          "widget-attributes": {
+            "rows": "4"
+          }
         }
       ]
     },
@@ -71,12 +79,36 @@
       "label": "Credentials",
       "properties": [
         {
+          "name": "serviceAccountType",
+          "label": "Service Account Type",
+          "widget-type": "radio-group",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "filePath",
+            "options": [
+              {
+                "id": "filePath",
+                "label": "File Path"
+              },
+              {
+                "id": "JSON",
+                "label": "JSON"
+              }
+            ]
+          }
+        },
+        {
           "widget-type": "textbox",
           "label": "Service Account File Path",
           "name": "serviceFilePath",
           "widget-attributes" : {
             "default": "auto-detect"
           }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Service Account JSON",
+          "name": "serviceAccountJSON"
         }
       ]
     },
@@ -98,6 +130,32 @@
           "widget-attributes" : {
             "placeholder": "Partition size in Megabytes."
           }
+        }
+      ]
+    }
+  ],
+  "filters": [
+    {
+      "name": "ServiceAuthenticationTypeFilePath",
+      "condition": {
+        "expression": "serviceAccountType == 'filePath'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "serviceFilePath"
+        }
+      ]
+    },
+    {
+      "name": "ServiceAuthenticationTypeJSON",
+      "condition": {
+        "expression": "serviceAccountType == 'JSON'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "serviceAccountJSON"
         }
       ]
     }

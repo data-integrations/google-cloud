@@ -70,12 +70,36 @@
       "label" : "Credentials",
       "properties" : [
         {
+          "name": "serviceAccountType",
+          "label": "Service Account Type",
+          "widget-type": "radio-group",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "filePath",
+            "options": [
+              {
+                "id": "filePath",
+                "label": "File Path"
+              },
+              {
+                "id": "JSON",
+                "label": "JSON"
+              }
+            ]
+          }
+        },
+        {
           "widget-type": "textbox",
           "label": "Service Account File Path",
           "name": "serviceFilePath",
           "widget-attributes" : {
             "default": "auto-detect"
           }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Service Account JSON",
+          "name": "serviceAccountJSON"
         }
       ]
     },
@@ -103,6 +127,16 @@
           "widget-attributes": {
             "default": "tablename"
           }
+        },
+        {
+          "widget-type": "hidden",
+          "label": "Output File Prefix",
+          "name": "outputFileNameBase"
+        },
+        {
+          "widget-type": "hidden",
+          "label": "File System Properties",
+          "name": "fileSystemProperties"
         }
       ]
     },
@@ -136,6 +170,32 @@
         ],
         "schema-default-type": "string"
       }
+    }
+  ],
+  "filters": [
+    {
+      "name": "ServiceAuthenticationTypeFilePath",
+      "condition": {
+        "expression": "serviceAccountType == 'filePath'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "serviceFilePath"
+        }
+      ]
+    },
+    {
+      "name": "ServiceAuthenticationTypeJSON",
+      "condition": {
+        "expression": "serviceAccountType == 'JSON'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "serviceAccountJSON"
+        }
+      ]
     }
   ],
   "jump-config": {

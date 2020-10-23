@@ -21,6 +21,7 @@ import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.LegacySQLTypeName;
+import com.google.cloud.bigquery.StandardSQLTypeName;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
@@ -60,6 +61,7 @@ public final class BigQueryUtil {
   public static final String BUCKET_PATTERN = "[a-z0-9._-]+";
   public static final String DATASET_PATTERN = "[A-Za-z0-9_]+";
   public static final String TABLE_PATTERN = "[A-Za-z0-9_]+";
+  public static final String MAP_REDUCE_JSON_KEY_PREFIX = "mapred.bq";
 
   // array of arrays and map of arrays are not supported by big query
   public static final Set<Schema.Type> UNSUPPORTED_ARRAY_TYPES = ImmutableSet.of(Schema.Type.ARRAY, Schema.Type.MAP);
@@ -114,14 +116,15 @@ public final class BigQueryUtil {
   /**
    * Get Bigquery {@link Configuration}.
    *
-   * @param serviceAccountFilePath service account file path
+   * @param serviceAccountInfo service account file path or JSON content
    * @param projectId BigQuery project ID
    * @param cmekKey the name of the cmek key
-   * @return {@link Configuration} with config set for BigQuery
+   * @param serviceAccountType type of the service account
+   * @return indicator for whether service account is file or json
    * @throws IOException if not able to get credentials
    */
-  public static Configuration getBigQueryConfig(@Nullable String serviceAccountFilePath, String projectId,
-                                                @Nullable String cmekKey)
+  public static Configuration getBigQueryConfig(@Nullable String serviceAccountInfo, String projectId,
+                                                @Nullable String cmekKey, String serviceAccountType)
     throws IOException {
     Job job = Job.getInstance();
 
@@ -135,9 +138,12 @@ public final class BigQueryUtil {
 
     Configuration configuration = job.getConfiguration();
     configuration.clear();
-    if (serviceAccountFilePath != null) {
-      configuration.set("mapred.bq.auth.service.account.json.keyfile", serviceAccountFilePath);
-      configuration.set("google.cloud.auth.service.account.json.keyfile", serviceAccountFilePath);
+    if (serviceAccountInfo != null) {
+      final Map<String, String> authProperties = GCPUtils.generateAuthProperties(serviceAccountInfo,
+                                                                                 serviceAccountType,
+                                                                                 MAP_REDUCE_JSON_KEY_PREFIX,
+                                                                                 GCPUtils.CLOUD_JSON_KEYFILE_PREFIX);
+      authProperties.forEach(configuration::set);
     }
     configuration.set("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
     configuration.set("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
@@ -148,6 +154,122 @@ public final class BigQueryUtil {
       configuration.set(BigQueryConfiguration.OUTPUT_TABLE_KMS_KEY_NAME_KEY, cmekKey);
     }
     return configuration;
+  }
+
+  /**
+   * Converts BigQuery Table Schema into a CDAP Schema object.
+   * @param bqSchema BigQuery Schema to be converted.
+   * @param collector Failure collector to collect failure messages for the client.
+   * @return CDAP schema object
+   */
+  public static Schema getTableSchema(com.google.cloud.bigquery.Schema bqSchema, FailureCollector collector) {
+    FieldList fields = bqSchema.getFields();
+    List<Schema.Field> schemafields = new ArrayList<>();
+
+    for (Field field : fields) {
+      Schema.Field schemaField = getSchemaField(field, collector);
+      // if schema field is null, that means that there was a validation error. We will still continue in order to
+      // collect more errors
+      if (schemaField == null) {
+        continue;
+      }
+      schemafields.add(schemaField);
+    }
+    if (schemafields.isEmpty() && !collector.getValidationFailures().isEmpty()) {
+      // throw if there was validation failure(s) added to the collector
+      collector.getOrThrowException();
+    }
+    if (schemafields.isEmpty()) {
+      return null;
+    }
+    return Schema.recordOf("output", schemafields);
+  }
+
+  /**
+   * Converts BigQuery schema field into a corresponding CDAP Schema.Field.
+   * @param field BigQuery field to be converted.
+   * @param collector Failure collector to collect failure messages for the client.
+   * @return A CDAP schema field
+   */
+  @Nullable
+  public static Schema.Field getSchemaField(Field field, FailureCollector collector) {
+    Schema schema = convertFieldType(field, collector);
+    if (schema == null) {
+      return null;
+    }
+
+    Field.Mode mode = field.getMode() == null ? Field.Mode.NULLABLE : field.getMode();
+    switch (mode) {
+      case NULLABLE:
+        return Schema.Field.of(field.getName(), Schema.nullableOf(schema));
+      case REQUIRED:
+        return Schema.Field.of(field.getName(), schema);
+      case REPEATED:
+        return Schema.Field.of(field.getName(), Schema.arrayOf(schema));
+      default:
+        // this should not happen, unless newer bigquery versions introduces new mode that is not supported by this
+        // plugin.
+        collector.addFailure(String.format("Field '%s' has unsupported mode '%s'.", field.getName(), mode), null);
+    }
+    return null;
+  }
+
+  /**
+   * Converts BiqQuery field type into a CDAP field type.
+   * @param field Bigquery field to be converted.
+   * @param collector Failure collector to collect failure messages for the client.
+   * @return A CDAP field schema
+   */
+  @Nullable
+  public static Schema convertFieldType(Field field, FailureCollector collector) {
+    LegacySQLTypeName type = field.getType();
+    Schema schema = null;
+    StandardSQLTypeName value = type.getStandardType();
+    if (value == StandardSQLTypeName.FLOAT64) {
+      // float is a float64, so corresponding type becomes double
+      schema = Schema.of(Schema.Type.DOUBLE);
+    } else if (value == StandardSQLTypeName.BOOL) {
+      schema = Schema.of(Schema.Type.BOOLEAN);
+    } else if (value == StandardSQLTypeName.INT64) {
+      // int is a int64, so corresponding type becomes long
+      schema = Schema.of(Schema.Type.LONG);
+    } else if (value == StandardSQLTypeName.STRING || value == StandardSQLTypeName.DATETIME) {
+      schema = Schema.of(Schema.Type.STRING);
+    } else if (value == StandardSQLTypeName.BYTES) {
+      schema = Schema.of(Schema.Type.BYTES);
+    } else if (value == StandardSQLTypeName.TIME) {
+      schema = Schema.of(Schema.LogicalType.TIME_MICROS);
+    } else if (value == StandardSQLTypeName.DATE) {
+      schema = Schema.of(Schema.LogicalType.DATE);
+    } else if (value == StandardSQLTypeName.TIMESTAMP) {
+      schema = Schema.of(Schema.LogicalType.TIMESTAMP_MICROS);
+    } else if (value == StandardSQLTypeName.NUMERIC) {
+      // bigquery has 38 digits of precision and 9 digits of scale.
+      // https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro#logical_types
+      schema = Schema.decimalOf(38, 9);
+    } else if (value == StandardSQLTypeName.STRUCT) {
+      FieldList fields = field.getSubFields();
+      List<Schema.Field> schemafields = new ArrayList<>();
+      for (Field f : fields) {
+        Schema.Field schemaField = getSchemaField(f, collector);
+        // if schema field is null, that means that there was a validation error. We will still continue in order to
+        // collect more errors
+        if (schemaField == null) {
+          continue;
+        }
+        schemafields.add(schemaField);
+      }
+      // do not return schema for the struct field if none of the nested fields are of supported types
+      if (!schemafields.isEmpty()) {
+        schema = Schema.recordOf(field.getName(), schemafields);
+      }
+    } else {
+      collector.addFailure(
+          String.format("BigQuery column '%s' is of unsupported type '%s'.", field.getName(), value.name()),
+          String.format("Supported column types are: %s.", BigQueryUtil.BQ_TYPE_MAP.keySet().stream()
+              .map(t -> t.getStandardType().name()).collect(Collectors.joining(", "))));
+    }
+    return schema;
   }
 
   /**
@@ -325,15 +447,32 @@ public final class BigQueryUtil {
   @Nullable
   public static Table getBigQueryTable(String projectId, String datasetId, String tableName,
                                        @Nullable String serviceAccountPath) {
+    return getBigQueryTable(projectId, datasetId, tableName, serviceAccountPath, true);
+  }
+
+  /**
+   * Get BigQuery table.
+   *
+   * @param projectId BigQuery project ID
+   * @param datasetId BigQuery dataset ID
+   * @param tableName BigQuery table name
+   * @param serviceAccount service account file path or JSON content
+   * @param isServiceAccountFilePath indicator for whether service account is file or json
+   * @return BigQuery table
+   */
+  @Nullable
+  public static Table getBigQueryTable(String projectId, String datasetId, String tableName,
+                                       @Nullable String serviceAccount, boolean isServiceAccountFilePath) {
     TableId tableId = TableId.of(projectId, datasetId, tableName);
 
     com.google.auth.Credentials credentials = null;
-    if (serviceAccountPath != null) {
+    if (serviceAccount != null) {
       try {
-        credentials = GCPUtils.loadServiceAccountCredentials(serviceAccountPath);
+        credentials = GCPUtils.loadServiceAccountCredentials(serviceAccount, isServiceAccountFilePath);
       } catch (IOException e) {
         throw new InvalidConfigPropertyException(
-          String.format("Unable to load credentials from %s", serviceAccountPath), "serviceFilePath");
+          String.format("Unable to load credentials from %s", isServiceAccountFilePath ? serviceAccount : " JSON."),
+          "serviceFilePath");
       }
     }
     BigQuery bigQuery = GCPUtils.getBigQuery(projectId, credentials);
@@ -361,13 +500,31 @@ public final class BigQueryUtil {
   @Nullable
   public static Table getBigQueryTable(String projectId, String datasetId, String tableName,
                                        @Nullable String serviceAccountPath, FailureCollector collector) {
+    return getBigQueryTable(projectId, datasetId, tableName, serviceAccountPath, true, collector);
+  }
+
+  /**
+   * Get BigQuery table.
+   *
+   * @param projectId BigQuery project ID
+   * @param datasetId BigQuery dataset ID
+   * @param tableName BigQuery table name
+   * @param serviceAccount service account file path or JSON content
+   * @param isServiceAccountFilePath indicator for whether service account is file or json
+   * @param collector failure collector
+   * @return BigQuery table
+   */
+  public static Table getBigQueryTable(String projectId, String datasetId, String tableName,
+                                       @Nullable String serviceAccount, @Nullable Boolean isServiceAccountFilePath,
+                                       FailureCollector collector) {
     TableId tableId = TableId.of(projectId, datasetId, tableName);
     com.google.auth.Credentials credentials = null;
-    if (serviceAccountPath != null) {
+    if (serviceAccount != null) {
       try {
-        credentials = GCPUtils.loadServiceAccountCredentials(serviceAccountPath);
+        credentials = GCPUtils.loadServiceAccountCredentials(serviceAccount, isServiceAccountFilePath);
       } catch (IOException e) {
-        collector.addFailure(String.format("Unable to load credentials from %s.", serviceAccountPath),
+        collector.addFailure(String.format("Unable to load credentials from %s.",
+                                           isServiceAccountFilePath ? serviceAccount : "provided JSON key"),
                              "Ensure the service account file is available on the local filesystem.")
           .withConfigProperty(GCPConfig.NAME_SERVICE_ACCOUNT_FILE_PATH);
         throw collector.getOrThrowException();

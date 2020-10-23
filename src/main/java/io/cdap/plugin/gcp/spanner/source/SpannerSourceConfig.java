@@ -42,6 +42,7 @@ public class SpannerSourceConfig extends GCPReferenceSourceConfig {
   public static final String NAME_INSTANCE = "instance";
   public static final String NAME_DATABASE = "database";
   public static final String NAME_TABLE = "table";
+  public static final String NAME_IMPORT_QUERY = "importQuery";
   public static final String NAME_SCHEMA = "schema";
 
   @Description("Maximum number of partitions. This is only a hint. The actual number of partitions may vary")
@@ -67,6 +68,11 @@ public class SpannerSourceConfig extends GCPReferenceSourceConfig {
   @Macro
   public String table;
 
+  @Description("The SELECT query to use to import data from the specified table.")
+  @Macro
+  @Nullable
+  public String importQuery;
+
   @Description("Schema of the Spanner table.")
   @Macro
   @Nullable
@@ -77,6 +83,10 @@ public class SpannerSourceConfig extends GCPReferenceSourceConfig {
     Schema schema = getSchema(collector);
     if (!containsMacro(NAME_SCHEMA) && schema != null) {
       SpannerUtil.validateSchema(schema, SUPPORTED_TYPES, collector);
+    }
+    if (!containsMacro(NAME_SCHEMA) && schema == null) {
+      collector.addFailure("Invalid schema.", "Ensure the schema is provided.")
+              .withConfigProperty(NAME_SCHEMA);
     }
     if (!containsMacro(NAME_MAX_PARTITIONS) && maxPartitions != null && maxPartitions < 1) {
       collector.addFailure("Invalid max partitions.", "Ensure the value is a positive number.")
@@ -106,6 +116,6 @@ public class SpannerSourceConfig extends GCPReferenceSourceConfig {
     return !containsMacro(SpannerSourceConfig.NAME_SCHEMA) && !containsMacro(SpannerSourceConfig.NAME_DATABASE) &&
       !containsMacro(SpannerSourceConfig.NAME_TABLE) && !containsMacro(SpannerSourceConfig.NAME_INSTANCE) &&
       !containsMacro(SpannerSourceConfig.NAME_SERVICE_ACCOUNT_FILE_PATH) &&
-      !containsMacro(SpannerSourceConfig.NAME_PROJECT);
+      !containsMacro(SpannerSourceConfig.NAME_PROJECT) && !containsMacro(SpannerSourceConfig.NAME_IMPORT_QUERY);
   }
 }

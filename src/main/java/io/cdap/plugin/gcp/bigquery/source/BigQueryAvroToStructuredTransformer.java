@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.bigquery.source;
 
+import io.cdap.cdap.api.common.Bytes;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.format.UnexpectedFormatException;
 import io.cdap.cdap.api.data.schema.Schema;
@@ -35,6 +36,16 @@ import javax.annotation.Nullable;
  * Create StructuredRecords from GenericRecords. Contains custom logic for BigQuery date and time types.
  */
 public class BigQueryAvroToStructuredTransformer extends RecordConverter<GenericRecord, StructuredRecord> {
+
+  private Schema genericRecordSchema;
+
+  public StructuredRecord transform(GenericRecord genericRecord) throws IOException {
+    if (genericRecordSchema == null) {
+      genericRecordSchema = Schema.parseJson(genericRecord.getSchema().toString());
+    }
+    return transform(genericRecord, genericRecordSchema);
+  }
+
   @Override
   public StructuredRecord transform(GenericRecord genericRecord, Schema structuredSchema) throws IOException {
     StructuredRecord.Builder builder = StructuredRecord.builder(structuredSchema);
@@ -103,4 +114,10 @@ public class BigQueryAvroToStructuredTransformer extends RecordConverter<Generic
     }
     return super.convertField(field, fieldSchema);
   }
+
+  @Override
+  protected Object convertBytes(Object field) {
+    return field instanceof ByteBuffer ? Bytes.toBytes((ByteBuffer) field) : field;
+  }
+
 }

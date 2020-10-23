@@ -30,12 +30,15 @@ import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
+import com.google.api.services.bigquery.model.RangePartitioning;
+import com.google.api.services.bigquery.model.RangePartitioning.Range;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
@@ -71,10 +74,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.math.BigInteger;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -150,8 +154,9 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
 
       allowSchemaRelaxation = conf.getBoolean(BigQueryConstants.CONFIG_ALLOW_SCHEMA_RELAXATION, false);
       LOG.debug("Allow schema relaxation: '{}'", allowSchemaRelaxation);
-      boolean createPartitionedTable = conf.getBoolean(BigQueryConstants.CONFIG_CREATE_PARTITIONED_TABLE, false);
-      LOG.debug("Create Partitioned Table: '{}'", createPartitionedTable);
+      PartitionType partitionType = conf.getEnum(BigQueryConstants.CONFIG_PARTITION_TYPE, PartitionType.NONE);
+      LOG.debug("Create Partitioned Table type: '{}'", partitionType);
+      Range range = partitionType == PartitionType.INTEGER ? createRangeForIntegerPartitioning(conf) : null;
       String partitionByField = conf.get(BigQueryConstants.CONFIG_PARTITION_BY_FIELD, null);
       LOG.debug("Partition Field: '{}'", partitionByField);
       boolean requirePartitionFilter = conf.getBoolean(BigQueryConstants.CONFIG_REQUIRE_PARTITION_FILTER, false);
@@ -176,16 +181,39 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
 
       try {
         importFromGcs(destProjectId, destTable, destSchema.orElse(null), kmsKeyName, outputFileFormat,
-                      writeDisposition, sourceUris, createPartitionedTable, partitionByField,
-                      requirePartitionFilter, clusteringOrderList, tableExists);
+                      writeDisposition, sourceUris, partitionType, range, partitionByField,
+                      requirePartitionFilter, clusteringOrderList, tableExists, getJobIdForImportGCS(conf));
         if (temporaryTableReference != null) {
-          operationAction(destTable, kmsKeyName);
+          operationAction(destTable, kmsKeyName, getJobIdForUpdateUpsert(conf));
         }
-      } catch (InterruptedException e) {
-        throw new IOException("Failed to import GCS into BigQuery", e);
+      } catch (Exception e) {
+        throw new IOException("Failed to import GCS into BigQuery. ", e);
       }
 
       cleanup(jobContext);
+    }
+
+    private String getJobIdForImportGCS(Configuration conf) {
+      //If the operation is not INSERT then this is a write to a temporary table. No need to use saved JobId here.
+      // Return a random UUID
+      if (!Operation.INSERT.equals(operation)) {
+        return UUID.randomUUID().toString();
+      }
+      //See if plugin specified a Job ID to be used.
+      String savedJobId = conf.get(BigQueryConstants.CONFIG_JOB_ID);
+      if (savedJobId == null || savedJobId.isEmpty()) {
+        return UUID.randomUUID().toString();
+      }
+      return savedJobId;
+    }
+
+    private JobId getJobIdForUpdateUpsert(Configuration conf) {
+      //See if plugin specified a Job ID to be used.
+      String savedJobId = conf.get(BigQueryConstants.CONFIG_JOB_ID);
+      if (savedJobId == null || savedJobId.isEmpty()) {
+        return JobId.of(UUID.randomUUID().toString());
+      }
+      return JobId.of(savedJobId);
     }
 
     @Override
@@ -200,9 +228,9 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
      */
     private void importFromGcs(String projectId, TableReference tableRef, @Nullable TableSchema schema,
                                @Nullable String kmsKeyName, BigQueryFileFormat sourceFormat, String writeDisposition,
-                               List<String> gcsPaths, boolean createPartitionedTable,
+                               List<String> gcsPaths, PartitionType partitionType, @Nullable Range range,
                                @Nullable String partitionByField, boolean requirePartitionFilter,
-                               List<String> clusteringOrderList, boolean tableExists)
+                               List<String> clusteringOrderList, boolean tableExists, String jobId)
       throws IOException, InterruptedException {
       LOG.info("Importing into table '{}' from {} paths; path[0] is '{}'; awaitCompletion: {}",
                BigQueryStrings.toString(tableRef), gcsPaths.size(), gcsPaths.isEmpty() ? "(empty)" : gcsPaths.get(0),
@@ -226,15 +254,41 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       loadConfig.setSourceUris(gcsPaths);
       loadConfig.setWriteDisposition(writeDisposition);
       loadConfig.setUseAvroLogicalTypes(true);
-      if (!tableExists && createPartitionedTable) {
-        TimePartitioning timePartitioning = new TimePartitioning();
-        timePartitioning.setType("DAY");
-        if (partitionByField != null) {
-          timePartitioning.setField(partitionByField);
+
+      Map<String, String> fieldDescriptions = new HashMap<>();
+      if (JobInfo.WriteDisposition.WRITE_TRUNCATE
+        .equals(JobInfo.WriteDisposition.valueOf(writeDisposition)) && tableExists) {
+          List<TableFieldSchema> tableFieldSchemas = Optional.ofNullable(bigQueryHelper.getTable(tableRef))
+            .map(it -> it.getSchema())
+            .map(it -> it.getFields())
+            .orElse(Collections.emptyList());
+
+          tableFieldSchemas
+            .forEach(it -> {
+              if (!Strings.isNullOrEmpty(it.getDescription())) {
+                fieldDescriptions.put(it.getName(), it.getDescription());
+              }
+            });
+      }
+
+      if (!tableExists) {
+        switch (partitionType) {
+          case TIME:
+            TimePartitioning timePartitioning = createTimePartitioning(partitionByField, requirePartitionFilter);
+            loadConfig.setTimePartitioning(timePartitioning);
+            break;
+          case INTEGER:
+            RangePartitioning rangePartitioning = createRangePartitioning(partitionByField, range);
+            if (requirePartitionFilter) {
+              createTableWithRangePartitionAndRequirePartitionFilter(tableRef, schema, rangePartitioning);
+            } else {
+              loadConfig.setRangePartitioning(rangePartitioning);
+            }
+            break;
+          case NONE:
+            break;
         }
-        timePartitioning.setRequirePartitionFilter(requirePartitionFilter);
-        loadConfig.setTimePartitioning(timePartitioning);
-        if (!clusteringOrderList.isEmpty()) {
+        if (PartitionType.NONE != partitionType && !clusteringOrderList.isEmpty()) {
           Clustering clustering = new Clustering();
           clustering.setFields(clusteringOrderList);
           loadConfig.setClustering(clustering);
@@ -242,7 +296,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       }
 
       temporaryTableReference = null;
-      if (tableExists && !isTableEmpty(tableRef) && !Operation.INSERT.equals(operation)) {
+      if (!Operation.INSERT.equals(operation)) {
         String temporaryTableName = tableRef.getTableId() + "_"
           + UUID.randomUUID().toString().replaceAll("-", "_");
         temporaryTableReference = new TableReference()
@@ -250,10 +304,25 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
           .setProjectId(tableRef.getProjectId())
           .setTableId(temporaryTableName);
         loadConfig.setDestinationTable(temporaryTableReference);
+
+        if (!tableExists) {
+          if (Operation.UPSERT.equals(operation)) {
+            // For upsert operation, if the destination table does not exist, create it
+            Table table = new Table();
+            table.setTableReference(tableRef);
+            table.setSchema(schema);
+            bigQueryHelper.getRawBigquery().tables().insert(tableRef.getProjectId(), tableRef.getDatasetId(), table)
+              .execute();
+          }
+        }
       } else {
         loadConfig.setDestinationTable(tableRef);
 
-        if (allowSchemaRelaxation) {
+        // Schema update options should only be specified with WRITE_APPEND disposition,
+        // or with WRITE_TRUNCATE disposition on a table partition - The logic below should change when we support
+        // insertion into single partition
+        if (allowSchemaRelaxation && !JobInfo.WriteDisposition.WRITE_TRUNCATE
+          .equals(JobInfo.WriteDisposition.valueOf(writeDisposition))) {
           loadConfig.setSchemaUpdateOptions(Arrays.asList(
             JobInfo.SchemaUpdateOption.ALLOW_FIELD_ADDITION.name(),
             JobInfo.SchemaUpdateOption.ALLOW_FIELD_RELAXATION.name()));
@@ -280,7 +349,9 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
         bigQueryHelper.getRawBigquery().datasets().get(tableRef.getProjectId(), tableRef.getDatasetId()).execute();
 
       JobReference jobReference =
-        bigQueryHelper.createJobReference(projectId, "direct-bigqueryhelper-import", dataset.getLocation());
+        new JobReference().setProjectId(projectId)
+          .setJobId(jobId)
+          .setLocation(dataset.getLocation());
       Job job = new Job();
       job.setConfiguration(config);
       job.setJobReference(jobReference);
@@ -297,6 +368,30 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
         bigQueryHelper.getRawBigquery().tables().update(temporaryTableReference.getProjectId(),
                                                         temporaryTableReference.getDatasetId(),
                                                         temporaryTableReference.getTableId(), table).execute();
+      }
+
+      if (JobInfo.WriteDisposition.WRITE_TRUNCATE
+        .equals(JobInfo.WriteDisposition.valueOf(writeDisposition))) {
+
+        Table table = bigQueryHelper.getTable(tableRef);
+        List<TableFieldSchema> tableFieldSchemas = Optional.ofNullable(table)
+          .map(Table::getSchema)
+          .map(TableSchema::getFields)
+          .orElse(Collections.emptyList());
+
+        tableFieldSchemas
+          .forEach(it -> {
+            Optional.ofNullable(fieldDescriptions.get(it.getName()))
+              .ifPresent(it::setDescription);
+          });
+
+        bigQueryHelper
+          .getRawBigquery()
+          .tables()
+          .update(tableRef.getProjectId(),
+                  tableRef.getDatasetId(),
+                  tableRef.getTableId(), table)
+          .execute();
       }
     }
 
@@ -404,7 +499,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       return Optional.empty();
     }
 
-    private void operationAction(TableReference tableRef, @Nullable String cmekKey) throws InterruptedException {
+    private void operationAction(TableReference tableRef, @Nullable String cmekKey, JobId jobId) throws Exception {
       if (allowSchemaRelaxation) {
         updateTableSchema(tableRef);
       }
@@ -419,11 +514,21 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
             com.google.cloud.bigquery.EncryptionConfiguration.newBuilder().setKmsKeyName(cmekKey).build())
           .build();
 
-      JobId jobId = JobId.of(UUID.randomUUID().toString());
-      com.google.cloud.bigquery.Job queryJob = bigquery.create(JobInfo.newBuilder(queryConfig).setJobId(jobId).build());
-
-      // Wait for the query to complete.
-      queryJob.waitFor();
+      try {
+        com.google.cloud.bigquery.Job queryJob = bigquery.create(JobInfo.newBuilder(queryConfig)
+                                                                   .setJobId(jobId).build());
+        // Wait for the query to complete.
+        queryJob.waitFor();
+      } catch (BigQueryException e) {
+        if (Operation.UPDATE.equals(operation) && !bigQueryHelper.tableExists(tableRef)) {
+          // ignore the exception. This is because we do not want to fail the pipeline as per below discussion
+          // https://github.com/data-integrations/google-cloud/pull/290#discussion_r472405882
+          LOG.warn("BigQuery Table {} does not exist. The operation update will not write any records to the table."
+            , String.format("%s.%s.%s", tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId()));
+          return;
+        }
+        throw e;
+      }
     }
 
     private void updateTableSchema(TableReference tableRef) {
@@ -489,12 +594,6 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       return new TableSchema().setFields(fields);
     }
 
-    private boolean isTableEmpty(TableReference tableRef) throws IOException {
-      Table table = bigQueryHelper.getTable(tableRef);
-      return table.getNumRows().compareTo(BigInteger.ZERO) <= 0 && table.getNumBytes() == 0
-        && table.getNumLongTermBytes() == 0;
-    }
-
     @Override
     protected void cleanup(JobContext context) throws IOException {
       super.cleanup(context);
@@ -518,6 +617,51 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
         index++;
       }
       return String.join(" ", queryWords);
+    }
+
+    private Range createRangeForIntegerPartitioning(Configuration conf) {
+      long rangeStart = conf.getLong(BigQueryConstants.CONFIG_PARTITION_INTEGER_RANGE_START, 0);
+      long rangeEnd = conf.getLong(BigQueryConstants.CONFIG_PARTITION_INTEGER_RANGE_END, 0);
+      long rangeInterval = conf.getLong(BigQueryConstants.CONFIG_PARTITION_INTEGER_RANGE_INTERVAL, 0);
+      Range range = new Range();
+      range.setStart(rangeStart);
+      range.setEnd(rangeEnd);
+      range.setInterval(rangeInterval);
+      return range;
+    }
+
+    private TimePartitioning createTimePartitioning(
+      @Nullable String partitionByField, boolean requirePartitionFilter) {
+      TimePartitioning timePartitioning = new TimePartitioning();
+      timePartitioning.setType("DAY");
+      if (partitionByField != null) {
+        timePartitioning.setField(partitionByField);
+      }
+      timePartitioning.setRequirePartitionFilter(requirePartitionFilter);
+      return timePartitioning;
+    }
+
+    private void createTableWithRangePartitionAndRequirePartitionFilter(TableReference tableRef,
+                                                                        @Nullable TableSchema schema,
+                                                                        RangePartitioning rangePartitioning)
+      throws IOException {
+      Table table = new Table();
+      table.setSchema(schema);
+      table.setTableReference(tableRef);
+      table.setRequirePartitionFilter(true);
+      table.setRangePartitioning(rangePartitioning);
+      bigQueryHelper.getRawBigquery().tables()
+        .insert(tableRef.getProjectId(), tableRef.getDatasetId(), table)
+        .execute();
+    }
+
+    private RangePartitioning createRangePartitioning(@Nullable String partitionByField, @Nullable Range range) {
+      RangePartitioning rangePartitioning = new RangePartitioning();
+      rangePartitioning.setRange(range);
+      if (partitionByField != null) {
+        rangePartitioning.setField(partitionByField);
+      }
+      return rangePartitioning;
     }
   }
 }

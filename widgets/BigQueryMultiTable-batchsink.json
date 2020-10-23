@@ -25,6 +25,14 @@
         },
         {
           "widget-type": "textbox",
+          "label": "Dataset Project Id",
+          "name": "datasetProject",
+          "widget-attributes": {
+            "placeholder": "The project in which the dataset is located/should be created. Defaults to the project specified in the Project Id property."
+          }
+        },
+        {
+          "widget-type": "textbox",
           "label": "Dataset",
           "name": "dataset",
           "widget-attributes" : {
@@ -53,12 +61,36 @@
       "label" : "Credentials",
       "properties" : [
         {
+          "name": "serviceAccountType",
+          "label": "Service Account Type",
+          "widget-type": "radio-group",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "filePath",
+            "options": [
+              {
+                "id": "filePath",
+                "label": "File Path"
+              },
+              {
+                "id": "JSON",
+                "label": "JSON"
+              }
+            ]
+          }
+        },
+        {
           "widget-type": "textbox",
           "label": "Service Account File Path",
           "name": "serviceFilePath",
           "widget-attributes" : {
             "default": "auto-detect"
           }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Service Account JSON",
+          "name": "serviceAccountJSON"
         }
       ]
     },
@@ -71,6 +103,14 @@
           "name": "bucket",
           "widget-attributes" : {
             "placeholder": "Google Cloud Storage bucket for temporary data"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "GCS Upload Request Chunk Size",
+          "name": "gcsChunkSize",
+          "widget-attributes" : {
+            "placeholder": "GCS upload request chunk size in bytes"
           }
         },
         {
@@ -117,6 +157,32 @@
     }
   ],
   "outputs": [],
+  "filters": [
+    {
+      "name": "ServiceAuthenticationTypeFilePath",
+      "condition": {
+        "expression": "serviceAccountType == 'filePath'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "serviceFilePath"
+        }
+      ]
+    },
+    {
+      "name": "ServiceAuthenticationTypeJSON",
+      "condition": {
+        "expression": "serviceAccountType == 'JSON'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "serviceAccountJSON"
+        }
+      ]
+    }
+  ],
   "jump-config": {
     "datasets": [
       {

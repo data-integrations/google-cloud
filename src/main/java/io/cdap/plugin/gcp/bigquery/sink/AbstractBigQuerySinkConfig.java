@@ -15,7 +15,9 @@
  */
 package io.cdap.plugin.gcp.bigquery.sink;
 
+import com.google.cloud.ServiceOptions;
 import com.google.cloud.bigquery.JobInfo;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
@@ -23,6 +25,7 @@ import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
+import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.common.GCPReferenceSinkConfig;
 
 import java.util.Set;
@@ -37,10 +40,20 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
     ImmutableSet.of(Schema.Type.INT, Schema.Type.LONG, Schema.Type.STRING, Schema.Type.FLOAT, Schema.Type.DOUBLE,
                     Schema.Type.BOOLEAN, Schema.Type.BYTES, Schema.Type.ARRAY, Schema.Type.RECORD);
 
+  public static final String DATASET_PROJECT_ID = "datasetProject";
   public static final String NAME_DATASET = "dataset";
   public static final String NAME_BUCKET = "bucket";
   public static final String NAME_TRUNCATE_TABLE = "truncateTable";
   public static final String NAME_LOCATION = "location";
+  private static final String NAME_GCS_CHUNK_SIZE = "gcsChunkSize";
+  private static final String NAME_UPDATE_SCHEMA = "allowSchemaRelaxation";
+
+  @Name(DATASET_PROJECT_ID)
+  @Macro
+  @Nullable
+  @Description("The project in which the dataset is located/should be created."
+    + " Defaults to the project specified in the Project Id property.")
+  private String datasetProject;
 
   @Name(NAME_DATASET)
   @Macro
@@ -57,15 +70,24 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
     + "If it is not provided, a unique bucket will be created and then deleted after the run finishes.")
   protected String bucket;
 
+  @Name(NAME_GCS_CHUNK_SIZE)
   @Macro
+  @Nullable
+  @Description("Optional property to tune chunk size in gcs upload request. The value of this property should be in " +
+    "number of bytes. By default, 8388608 bytes (8MB) will be used as upload request chunk size.")
+  protected String gcsChunkSize;
+
+  @Name(NAME_UPDATE_SCHEMA)
+  @Macro
+  @Nullable
   @Description("Whether to modify the BigQuery table schema if it differs from the input schema.")
-  protected boolean allowSchemaRelaxation;
+  protected Boolean allowSchemaRelaxation;
 
   @Name(NAME_TRUNCATE_TABLE)
   @Macro
   @Nullable
   @Description("Whether or not to truncate the table before writing to it. "
-    + "Should only be used with the Insert operation.")
+    + "Should only be used with the Insert operation. This could overwrite the table schema")
   protected Boolean truncateTable;
 
   @Name(NAME_LOCATION)
@@ -90,6 +112,19 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
   }
 
   @Nullable
+  public String getDatasetProject() {
+    if (GCPConfig.AUTO_DETECT.equalsIgnoreCase(datasetProject)) {
+      return ServiceOptions.getDefaultProjectId();
+    }
+    return Strings.isNullOrEmpty(datasetProject) ? getProject() : datasetProject;
+  }
+
+  @Nullable
+  public String getGcsChunkSize() {
+    return gcsChunkSize;
+  }
+
+  @Nullable
   public String getBucket() {
     if (bucket != null) {
       bucket = bucket.trim();
@@ -105,12 +140,16 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
   }
 
   public boolean isAllowSchemaRelaxation() {
-    return allowSchemaRelaxation;
+    return allowSchemaRelaxation == null ? false : allowSchemaRelaxation;
   }
 
   public JobInfo.WriteDisposition getWriteDisposition() {
-    return truncateTable != null && truncateTable ? JobInfo.WriteDisposition.WRITE_TRUNCATE
+    return isTruncateTableSet() ? JobInfo.WriteDisposition.WRITE_TRUNCATE
       : JobInfo.WriteDisposition.WRITE_APPEND;
+  }
+
+  public boolean isTruncateTableSet() {
+    return truncateTable != null && truncateTable;
   }
 
   @Override
@@ -124,5 +163,6 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
     if (!containsMacro(NAME_DATASET)) {
       BigQueryUtil.validateDataset(dataset, NAME_DATASET, collector);
     }
+
   }
 }

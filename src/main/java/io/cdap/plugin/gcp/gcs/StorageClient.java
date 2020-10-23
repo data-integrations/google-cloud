@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019 Cask Data, Inc.
+ * Copyright © 2019-2020 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -19,9 +19,11 @@ package io.cdap.plugin.gcp.gcs;
 import com.google.api.gax.paging.Page;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
+import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.CopyWriter;
 import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
 import com.google.common.annotations.VisibleForTesting;
 import io.cdap.plugin.gcp.common.GCPUtils;
@@ -30,7 +32,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
 
@@ -43,6 +47,62 @@ public class StorageClient {
 
   private StorageClient(Storage storage) {
     this.storage = storage;
+  }
+
+  /**
+   * Picks one blob that has the path prefix and is not ending with '/'
+   * @param path
+   * @return
+   */
+  public Blob pickABlob(String path) {
+    if (path == null || path.isEmpty()) {
+      return null;
+    }
+    GCSPath gcsPath = GCSPath.from(path);
+    Page<Blob> blobPage = storage.list(gcsPath.getBucket(), Storage.BlobListOption.prefix(gcsPath.getName()));
+    Iterator<Blob> iterator = blobPage.getValues().iterator();
+    while (iterator.hasNext()) {
+      Blob blob = iterator.next();
+      if (blob.getName().endsWith("/")) {
+        continue;
+      }
+      return blob;
+    }
+    return null;
+  }
+
+  /**
+   * Updates the metadata for the blob
+   * @param blob
+   * @param metaData
+   */
+  public void setMetaData(Blob blob, Map<String, String> metaData) {
+    if (blob == null || metaData == null || metaData.isEmpty()) {
+      return;
+    }
+    storage.update(BlobInfo.newBuilder(blob.getBlobId()).setMetadata(metaData).build());
+  }
+
+  /**
+   * Applies the given function with metadata of each blobs in the path
+   * @param path
+   * @param function
+   */
+  public void mapMetaDataForAllBlobs(String path, Consumer<Map<String, String>> function) {
+    if (path == null || path.isEmpty() || function == null) {
+      return;
+    }
+    GCSPath gcsPath = GCSPath.from(path);
+    Page<Blob> blobPage = storage.list(gcsPath.getBucket(), Storage.BlobListOption.prefix(gcsPath.getName()));
+    Iterator<Blob> blobIterator = blobPage.iterateAll().iterator();
+    while (blobIterator.hasNext()) {
+      Blob blob = blobIterator.next();
+      Map<String, String> metadata = blob.getMetadata();
+      if (metadata == null) {
+        continue;
+      }
+      function.accept(metadata);
+    }
   }
 
   /**
@@ -82,12 +142,28 @@ public class StorageClient {
   private void pairTraverse(GCSPath sourcePath, GCSPath destPath, boolean recursive, boolean overwrite,
                             Consumer<BlobPair> consumer) {
 
-    Bucket sourceBucket = storage.get(sourcePath.getBucket());
+    Bucket sourceBucket = null;
+    try {
+      sourceBucket = storage.get(sourcePath.getBucket());
+    } catch (StorageException e) {
+      // Add more descriptive error message
+      throw new RuntimeException(
+        String.format("Unable to access source bucket %s. ", sourcePath.getBucket())
+          + "Ensure you entered the correct bucket path.", e);
+    }
     if (sourceBucket == null) {
       throw new IllegalArgumentException(
         String.format("Source bucket '%s' does not exist.", sourcePath.getBucket()));
     }
-    Bucket destBucket = storage.get(destPath.getBucket());
+    Bucket destBucket = null;
+    try {
+      destBucket = storage.get(destPath.getBucket());
+    } catch (StorageException e) {
+      // Add more descriptive error message
+      throw new RuntimeException(
+        String.format("Unable to access destination bucket %s. ", destPath.getBucket())
+          + "Ensure you entered the correct bucket path.", e);
+    }
     if (destBucket == null) {
       throw new IllegalArgumentException(
         String.format("Destination bucket '%s' does not exist. Please create it first.", destPath.getBucket()));
@@ -216,10 +292,11 @@ public class StorageClient {
     return String.format("gs://%s/%s", blobId.getBucket(), blobId.getName());
   }
 
-  public static StorageClient create(String project, @Nullable String serviceAccountPath) throws IOException {
+  public static StorageClient create(String project, @Nullable String serviceAccount,
+                                     Boolean isServiceAccountFilePath) throws IOException {
     StorageOptions.Builder builder = StorageOptions.newBuilder().setProjectId(project);
-    if (serviceAccountPath != null) {
-      builder.setCredentials(GCPUtils.loadServiceAccountCredentials(serviceAccountPath));
+    if (serviceAccount != null) {
+      builder.setCredentials(GCPUtils.loadServiceAccountCredentials(serviceAccount, isServiceAccountFilePath));
     }
     Storage storage = builder.build().getService();
     return new StorageClient(storage);

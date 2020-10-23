@@ -27,6 +27,10 @@ It can be found on the Dashboard in the Google Cloud Platform Console. This is t
 that the BigQuery job will run in. If a temporary bucket needs to be created, the service account
 must have permission in this project to create buckets.
 
+**Dataset Project**: Project the dataset belongs to. This is only required if the dataset is not
+in the same project that the BigQuery job will run in. If no value is given, it will default to the 
+configured Project ID.
+
 **Dataset:** Dataset the tables belongs to. A dataset is contained within a specific project.
 Datasets are top-level containers that are used to organize and control access to tables and views.
 If dataset does not exist, it will be created.
@@ -35,6 +39,8 @@ If dataset does not exist, it will be created.
 It will be automatically created if it does not exist, but will not be automatically deleted.
 Temporary data will be deleted after it is loaded into BigQuery. If it is not provided, a unique
 bucket will be created and then deleted after the run finishes.
+
+**GCS Upload Request Chunk Size**: GCS upload request chunk size in bytes. Default value is 8388608 bytes.
 
 **Truncate Table:** Whether or not to truncate the table before writing to it.
 Should only be used with the Insert operation.
@@ -61,9 +67,13 @@ In this case, those fields in the BigQuery schema will be modified to become nul
                          
 Incompatible schema changes will result in pipeline failure.
 
-**Service Account File Path:** Path on the local file system of the service account key used for
+**Service Account**  - service account key used for authorization
+
+* **File Path**: Path on the local file system of the service account key used for
 authorization. Can be set to 'auto-detect' when running on a Dataproc cluster.
 When running on other clusters, the file must be present on every node in the cluster.
+
+* **JSON**: Contents of the service account JSON file.
 
 Example
 -------

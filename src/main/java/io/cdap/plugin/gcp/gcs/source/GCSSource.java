@@ -1,5 +1,5 @@
 /*
- * Copyright © 2015 Cask Data, Inc.
+ * Copyright © 2015-2020 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -73,7 +73,9 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
     if (config.isCopyHeader()) {
       properties.put(PathTrackingInputFormat.COPY_HEADER, Boolean.TRUE.toString());
     }
-
+    if (config.getMinSplitSize() != null) {
+      properties.put("mapreduce.input.fileinputformat.split.minsize", String.valueOf(config.getMinSplitSize()));
+    }
     if (config.isEncrypted()) {
       TinkDecryptor.configure(config.getEncryptedMetadataSuffix(), properties);
       EncryptedFileSystem.configure("gs", TinkDecryptor.class, properties);
@@ -118,6 +120,11 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
     @Description("Maximum size of each partition used to read data. "
       + "Smaller partitions will increase the level of parallelism, but will require more resources and overhead.")
     private Long maxSplitSize;
+
+    @Macro
+    @Nullable
+    @Description("Minimum size of each partition used to read data. ")
+    private Long minSplitSize;
 
     @Macro
     @Nullable
@@ -199,7 +206,8 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
         try {
           GCSPath.from(path);
         } catch (IllegalArgumentException e) {
-          collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_PATH).withStacktrace(e.getStackTrace());
+          collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_PATH)
+            .withStacktrace(e.getStackTrace());
         }
       }
       if (!containsMacro(NAME_FILE_SYSTEM_PROPERTIES)) {
@@ -265,6 +273,11 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
     @Override
     public long getMaxSplitSize() {
       return maxSplitSize;
+    }
+
+    @Nullable
+    public Long getMinSplitSize() {
+      return minSplitSize;
     }
 
     @Override

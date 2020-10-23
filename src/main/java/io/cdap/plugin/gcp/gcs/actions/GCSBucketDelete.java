@@ -1,5 +1,5 @@
 /*
- * Copyright © 2015 Cask Data, Inc.
+ * Copyright © 2015-2020 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -16,6 +16,9 @@
 
 package io.cdap.plugin.gcp.gcs.actions;
 
+import com.google.auth.oauth2.ServiceAccountCredentials;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageException;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
@@ -25,6 +28,7 @@ import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.action.Action;
 import io.cdap.cdap.etl.api.action.ActionContext;
 import io.cdap.plugin.gcp.common.GCPConfig;
+import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -36,6 +40,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 
@@ -60,9 +65,21 @@ public final class GCSBucketDelete extends Action {
     config.validate(context.getFailureCollector());
 
     Configuration configuration = new Configuration();
-    String serviceAccountFilePath = config.getServiceAccountFilePath();
-    if (serviceAccountFilePath != null) {
-      configuration.set("google.cloud.auth.service.account.json.keyfile", serviceAccountFilePath);
+
+    Boolean isServiceAccountFilePath = config.isServiceAccountFilePath();
+    if (isServiceAccountFilePath == null) {
+      context.getFailureCollector().addFailure("Service account type is undefined.",
+                                               "Must be `File Path` or `JSON`");
+      context.getFailureCollector().getOrThrowException();
+      return;
+    }
+    String serviceAccount = config.getServiceAccount();
+    ServiceAccountCredentials credentials = serviceAccount == null ?
+      null : GCPUtils.loadServiceAccountCredentials(serviceAccount, isServiceAccountFilePath);
+    if (serviceAccount != null) {
+      Map<String, String> map = GCPUtils.generateAuthProperties(serviceAccount, config.getServiceAccountType(),
+                                                                GCPUtils.CLOUD_JSON_KEYFILE_PREFIX);
+      map.forEach(configuration::set);
     }
     configuration.set("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
     configuration.set("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
@@ -74,8 +91,19 @@ public final class GCSBucketDelete extends Action {
     configuration.setBoolean("fs.gs.impl.disable.cache", true);
 
     List<Path> gcsPaths = new ArrayList<>();
+    Storage storage = GCPUtils.getStorage(config.getProject(), credentials);
     for (String path : config.getPaths()) {
-      gcsPaths.add(new Path(GCSPath.from(path).getUri()));
+      GCSPath gcsPath = GCSPath.from(path);
+      // Check if the bucket is accessible
+      try {
+        storage.get(gcsPath.getBucket());
+      } catch (StorageException e) {
+        // Add more descriptive error message
+        throw new RuntimeException(
+          String.format("Unable to access or create bucket %s. ", gcsPath.getBucket())
+            + "Ensure you entered the correct bucket path and have permissions for it.", e);
+      }
+      gcsPaths.add(new Path(gcsPath.getUri()));
     }
 
     FileSystem fs;

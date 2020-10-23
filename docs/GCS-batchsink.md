@@ -43,9 +43,19 @@ The delimiter will be ignored if the format is anything other than 'delimited'.
 
 **Location:** The location where the gcs bucket will get created. This value is ignored if the bucket already exists.
 
-**Service Account File Path**: Path on the local file system of the service account key used for
+**Service Account**  - service account key used for authorization
+
+* **File Path**: Path on the local file system of the service account key used for
 authorization. Can be set to 'auto-detect' when running on a Dataproc cluster.
 When running on other clusters, the file must be present on every node in the cluster.
+
+* **JSON**: Contents of the service account JSON file.
+
+**Output File Prefix:** Prefix for the output file name.  
+If none is given, it will default to 'part', which means all data files written by the sink will look like 
+'part-r-00000', 'part-r-00001', etc.
+
+**File System Properties:** Additional properties to use with the OutputFormat.
 
 **Schema:** Schema of the data to write.
 The 'avro' and 'parquet' formats require a schema but other formats do not.

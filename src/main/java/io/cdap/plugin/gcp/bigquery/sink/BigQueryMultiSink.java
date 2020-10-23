@@ -16,6 +16,7 @@
 package io.cdap.plugin.gcp.bigquery.sink;
 
 import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.Table;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
@@ -29,6 +30,7 @@ import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
+import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.hadoop.conf.Configuration;
@@ -47,7 +49,6 @@ import java.util.Map;
   + "BigQuery is Google's serverless, highly scalable, enterprise data warehouse. "
   + "Data is first written to a temporary location on Google Cloud Storage, then loaded into BigQuery from there.")
 public class BigQueryMultiSink extends AbstractBigQuerySink {
-
   private static final String TABLE_PREFIX = "multisink.";
 
   private final BigQueryMultiSinkConfig config;
@@ -92,7 +93,24 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
       }
 
       try {
-        Schema tableSchema = Schema.parseJson(argument.getValue());
+        Schema configuredSchema = Schema.parseJson(argument.getValue());
+
+        Table table = BigQueryUtil.getBigQueryTable(
+          config.getProject(), config.getDataset(), tableName, config.getServiceAccount(),
+          config.isServiceAccountFilePath(), collector);
+
+        Schema tableSchema = configuredSchema;
+        if (table != null) {
+          // if table already exists, validate schema against underlying bigquery table and
+          // override against configured schema as necessary.
+          com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
+
+          validateSchema(tableName, bqSchema, configuredSchema, config.allowSchemaRelaxation, collector);
+
+          tableSchema = overrideOutputSchemaWithTableSchemaIfNeeded(
+            tableName, configuredSchema, bqSchema, collector);
+        }
+
         String outputName = String.format("%s-%s", config.getReferenceName(), tableName);
         initOutput(context, bigQuery, outputName, tableName, tableSchema, bucket, context.getFailureCollector());
       } catch (IOException e) {
