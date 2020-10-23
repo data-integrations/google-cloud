@@ -66,9 +66,11 @@ The minimum value is `1` and maximum value is `500`.
 **Project ID**: Google Cloud Project ID, which uniquely identifies a project.
 It can be found on the Dashboard in the Google Cloud Platform Console.
 
-**Service Account File Path**: Path on the local file system of the service account key used for
-authorization. Can be set to `auto-detect` when running on a Dataproc cluster.
+**Service Account**  - service account key used for authorization
+* **File Path**: Path on the local file system of the service account key used for
+authorization. Can be set to 'auto-detect' when running on a Dataproc cluster.
 When running on other clusters, the file must be present on every node in the cluster.
+* **JSON**: Contents of the service account JSON file.
 
 Examples
 --------
