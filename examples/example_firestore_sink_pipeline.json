@@ -1,0 +1,83 @@
+{
+  "name": "Test_Firestore_Source_v1",
+  "description": "Data Pipeline Application",
+  "artifact": {
+    "name": "cdap-data-pipeline",
+    "version": "6.1.1",
+    "scope": "SYSTEM",
+    "label": "Data Pipeline - Batch"
+  },
+  "description": "",
+  "name": "",
+  "config": {
+    "resources": {
+      "memoryMB": 2048,
+      "virtualCores": 1
+    },
+    "driverResources": {
+      "memoryMB": 2048,
+      "virtualCores": 1
+    },
+    "connections": [
+      {
+        "from": "File",
+        "to": "Firestore"
+      }
+    ],
+    "comments": [],
+    "postActions": [],
+    "properties": {},
+    "processTimingEnabled": true,
+    "stageLoggingEnabled": false,
+    "stages": [
+      {
+        "name": "File",
+        "plugin": {
+          "name": "File",
+          "type": "batchsource",
+          "label": "File",
+          "artifact": {
+            "name": "core-plugins",
+            "version": "2.3.4",
+            "scope": "SYSTEM"
+          },
+          "properties": {
+            "format": "csv",
+            "filenameOnly": "false",
+            "recursive": "false",
+            "ignoreNonExistingFolders": "false",
+            "schema": "{\"type\":\"record\",\"name\":\"etlSchemaBody\",\"fields\":[{\"name\":\"offset\",\"type\":\"long\"},{\"name\":\"body\",\"type\":\"string\"}]}",
+            "referenceName": "ref1",
+            "path": "${INPUT_FILE_PATH}"
+          }
+        }
+      },
+      {
+        "name": "Firestore",
+        "plugin": {
+          "name": "Firestore",
+          "type": "batchsink",
+          "label": "Firestore",
+          "artifact": {
+            "name": "google-cloud",
+            "version": "0.13.4-SNAPSHOT",
+            "scope": "USER"
+          },
+          "properties": {
+            "documentIdType": "Auto-generated id",
+            "serviceFilePath": "${GCP_SERVICE_ACCOUNT_FILE_PATH}",
+            "project": "${GCP_PROJECT_ID}",
+            "batchSize": "${BATCH_SIZE}",
+            "referenceName": "ref2",
+            "collection": "${FIRESTORE_COLLECTION}",
+            "idAlias": ""
+          }
+        }
+      }
+    ],
+    "schedule": "0 * * * *",
+    "engine": "spark",
+    "numOfRecordsPreview": 100,
+    "maxConcurrentRuns": 1
+  }
+}
