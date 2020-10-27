@@ -16,7 +16,6 @@
 
 package io.cdap.plugin.gcp.gcs.actions;
 
-import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
@@ -36,9 +35,7 @@ import io.cdap.cdap.etl.api.action.Action;
 import io.cdap.cdap.etl.api.action.ActionContext;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.GCSPath;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -110,26 +107,11 @@ public final class GCSArgumentSetter extends Action {
 
   private static Storage getStorage(GCSArgumentSetterConfig config) throws IOException {
     return StorageOptions.newBuilder()
-        .setProjectId(config.getProject())
-        .setCredentials(getCredentials(config))
-        .build()
-        .getService();
-  }
-
-  public static ServiceAccountCredentials getCredentials(GCSArgumentSetterConfig config)
-      throws IOException {
-    ServiceAccountCredentials credentials = null;
-    switch (config.getServiceAccountType()) {
-      case FILE_PATH:
-        credentials = GCPUtils.loadServiceAccountCredentials(config.getServiceAccountFilePath());
-        break;
-      case JSON:
-        InputStream jsonInputStream =
-            new ByteArrayInputStream(config.getServiceAccountJSON().getBytes());
-        credentials = ServiceAccountCredentials.fromStream(jsonInputStream);
-        break;
-    }
-    return credentials;
+      .setProjectId(config.getProject())
+      .setCredentials(GCPUtils.loadServiceAccountCredentials(config.getServiceAccount(),
+                                                             config.isServiceAccountFilePath()))
+      .build()
+      .getService();
   }
 
   public static String getContent(GCSArgumentSetterConfig config) throws IOException {
