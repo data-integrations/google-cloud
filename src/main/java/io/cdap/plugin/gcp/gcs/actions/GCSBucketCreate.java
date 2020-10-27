@@ -16,7 +16,7 @@
 
 package io.cdap.plugin.gcp.gcs.actions;
 
-import com.google.auth.Credentials;
+import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
@@ -41,6 +41,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
@@ -67,13 +68,23 @@ public final class GCSBucketCreate extends Action {
 
     Configuration configuration = new Configuration();
 
-    String serviceAccountFilePath = config.getServiceAccountFilePath();
-    Credentials credentials = serviceAccountFilePath == null ?
-                                null : GCPUtils.loadServiceAccountCredentials(serviceAccountFilePath);
-
-    if (serviceAccountFilePath != null) {
-      configuration.set("google.cloud.auth.service.account.json.keyfile", serviceAccountFilePath);
+    Boolean isServiceAccountFilePath = config.isServiceAccountFilePath();
+    if (isServiceAccountFilePath == null) {
+      context.getFailureCollector().addFailure("Service account type is undefined.",
+                                               "Must be `filePath` or `JSON`");
+      context.getFailureCollector().getOrThrowException();
+      return;
     }
+    String serviceAccount = config.getServiceAccount();
+    ServiceAccountCredentials credentials = serviceAccount == null ?
+                                null : GCPUtils.loadServiceAccountCredentials(serviceAccount, isServiceAccountFilePath);
+
+    if (serviceAccount != null) {
+      Map<String, String> map = GCPUtils.generateAuthProperties(serviceAccount, config.getServiceAccountType(),
+                                                                GCPUtils.CLOUD_JSON_KEYFILE_PREFIX);
+      map.forEach(configuration::set);
+    }
+
     configuration.set("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
     configuration.set("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
     // validate project id availability
