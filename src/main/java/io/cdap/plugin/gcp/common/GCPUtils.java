@@ -107,7 +107,7 @@ public class GCPUtils {
     boolean isServiceAccountFilePath = SERVICE_ACCOUNT_TYPE_FILE_PATH.equals(serviceAccountType);
 
     for (String prefix : keyPrefix) {
-      if (isServiceAccountFilePath) {
+      if (isServiceAccountFilePath && serviceAccount != null) {
         properties.put(String.format("%s.%s", prefix, CLOUD_JSON_KEYFILE_SUFFIX), serviceAccount);
         continue;
       }
