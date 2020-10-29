@@ -72,12 +72,13 @@ public final class BigtableSinkConfig extends GCPReferenceSinkConfig {
   private final String bigtableOptions;
 
   public BigtableSinkConfig(String referenceName, String table, String instance, @Nullable String project,
-                            @Nullable String serviceFilePath, String keyAlias, String columnMappings,
-                            @Nullable String bigtableOptions) {
+                            @Nullable String serviceAccountType, @Nullable String serviceFilePath, String keyAlias,
+                            String columnMappings, @Nullable String bigtableOptions) {
     this.referenceName = referenceName;
     this.table = table;
     this.instance = instance;
     this.project = project;
+    this.serviceAccountType = serviceAccountType;
     this.serviceFilePath = serviceFilePath;
     this.keyAlias = keyAlias;
     this.columnMappings = columnMappings;
@@ -92,13 +93,16 @@ public final class BigtableSinkConfig extends GCPReferenceSinkConfig {
     if (!containsMacro(INSTANCE) && Strings.isNullOrEmpty(instance)) {
       collector.addFailure("Instance ID must be specified.", null).withConfigProperty(INSTANCE);
     }
-    String serviceAccountFilePath = getServiceAccountFilePath();
-    if (!containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH) && serviceAccountFilePath != null) {
-      File serviceAccountFile = new File(serviceAccountFilePath);
-      if (!serviceAccountFile.exists()) {
-        collector.addFailure(String.format("Service account file '%s' does not exist.", serviceAccountFilePath),
-                             "Ensure the service account file is available on the local filesystem.")
-          .withConfigProperty(NAME_SERVICE_ACCOUNT_FILE_PATH);
+    String serviceAccount = getServiceAccount();
+    if (!(containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH) || containsMacro(NAME_SERVICE_ACCOUNT_JSON)) &&
+      serviceAccount != null) {
+      if (isServiceAccountFilePath()) {
+        File serviceAccountFile = new File(serviceAccount);
+        if (!serviceAccountFile.exists()) {
+          collector.addFailure(String.format("Service account file '%s' does not exist.", serviceAccount),
+                               "Ensure the service account file is available on the local filesystem.")
+            .withConfigProperty(NAME_SERVICE_ACCOUNT_FILE_PATH);
+        }
       }
     }
   }
@@ -132,7 +136,7 @@ public final class BigtableSinkConfig extends GCPReferenceSinkConfig {
     return !containsMacro(INSTANCE) && Strings.isNullOrEmpty(instance)
       && !containsMacro(NAME_PROJECT) && Strings.isNullOrEmpty(project)
       && !containsMacro(TABLE) && Strings.isNullOrEmpty(table)
-      && !containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH)
+      && !(containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH) || containsMacro(NAME_SERVICE_ACCOUNT_JSON))
       && tryGetProject() != null
       && !autoServiceAccountUnavailable();
   }
