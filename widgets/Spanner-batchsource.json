@@ -64,6 +64,14 @@
               }
             ]
           }
+        },
+        {
+          "widget-type": "textarea",
+          "label": "Import Query",
+          "name": "importQuery",
+          "widget-attributes": {
+            "rows": "4"
+          }
         }
       ]
     },
