@@ -611,6 +611,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   boolean shouldConnect() {
     return !containsMacro(BigQuerySinkConfig.NAME_DATASET) &&
       !containsMacro(BigQuerySinkConfig.NAME_TABLE) &&
+      !containsMacro(NAME_SERVICE_ACCOUNT_TYPE) &&
       !(containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH) || containsMacro(NAME_SERVICE_ACCOUNT_JSON)) &&
       !containsMacro(BigQuerySinkConfig.NAME_PROJECT) &&
       !containsMacro(BigQuerySinkConfig.DATASET_PROJECT_ID) &&

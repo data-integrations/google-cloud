@@ -115,7 +115,9 @@ public class SpannerSourceConfig extends GCPReferenceSourceConfig {
   public boolean shouldConnect() {
     return !containsMacro(SpannerSourceConfig.NAME_SCHEMA) && !containsMacro(SpannerSourceConfig.NAME_DATABASE) &&
       !containsMacro(SpannerSourceConfig.NAME_TABLE) && !containsMacro(SpannerSourceConfig.NAME_INSTANCE) &&
-      !containsMacro(SpannerSourceConfig.NAME_SERVICE_ACCOUNT_FILE_PATH) &&
+      !containsMacro(NAME_SERVICE_ACCOUNT_TYPE) &&
+      !(containsMacro(SpannerSourceConfig.NAME_SERVICE_ACCOUNT_FILE_PATH) ||
+        containsMacro(SpannerSourceConfig.NAME_SERVICE_ACCOUNT_JSON)) &&
       !containsMacro(SpannerSourceConfig.NAME_PROJECT) && !containsMacro(SpannerSourceConfig.NAME_IMPORT_QUERY);
   }
 }
