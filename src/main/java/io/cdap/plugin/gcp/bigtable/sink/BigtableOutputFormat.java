@@ -14,7 +14,7 @@
  * the License.
  */
 
-package io.cdap.plugin.gcp.bigtable.common;
+package io.cdap.plugin.gcp.bigtable.sink;
 
 import org.apache.hadoop.hbase.mapreduce.TableOutputFormat;
 import org.apache.hadoop.mapreduce.JobContext;
