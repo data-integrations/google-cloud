@@ -121,7 +121,7 @@ public final class BigtableSource extends BatchSource<ImmutableBytesWritable, Re
     // Both emitLineage and setOutputFormat internally try to create an external dataset if it does not already exists.
     // We call emitLineage before since it creates the dataset with schema.
     emitLineage(context, configuredSchema);
-    context.setInput(Input.of(config.referenceName, new SourceInputFormatProvider(TableInputFormat.class, conf)));
+    context.setInput(Input.of(config.referenceName, new SourceInputFormatProvider(BigtableInputFormat.class, conf)));
   }
 
   @Override

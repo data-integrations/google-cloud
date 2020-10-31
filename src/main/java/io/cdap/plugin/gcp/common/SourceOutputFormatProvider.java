@@ -30,8 +30,8 @@ public final class SourceOutputFormatProvider implements OutputFormatProvider {
   private final String outputFormatClassName;
   private final Map<String, String> configuration;
 
-  public SourceOutputFormatProvider(Class<? extends OutputFormat> inputFormatClass, Configuration hConf) {
-    this(inputFormatClass.getName(), hConf);
+  public SourceOutputFormatProvider(Class<? extends OutputFormat> outputFormatClass, Configuration hConf) {
+    this(outputFormatClass.getName(), hConf);
   }
 
   public SourceOutputFormatProvider(String outputFormatClassName, Configuration hConf) {
