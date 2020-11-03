@@ -18,12 +18,28 @@ package io.cdap.plugin.gcp.spanner.common;
 
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
+import com.google.cloud.spanner.spi.v1.SpannerInterceptorProvider;
 import com.google.common.collect.ImmutableSet;
+import com.google.protobuf.GeneratedMessageV3;
+import com.google.spanner.v1.CommitRequest;
+import com.google.spanner.v1.Mutation;
+import com.google.spanner.v1.PartialResultSet;
+import com.google.spanner.v1.ResultSet;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.gcp.common.GCPUtils;
+import io.grpc.CallOptions;
+import io.grpc.Channel;
+import io.grpc.ClientCall;
+import io.grpc.ClientInterceptor;
+import io.grpc.ForwardingClientCall;
+import io.grpc.ForwardingClientCallListener;
+import io.grpc.Metadata;
+import io.grpc.MethodDescriptor;
 
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -39,12 +55,118 @@ public class SpannerUtil {
    */
   public static Spanner getSpannerService(String serviceAccount, boolean isServiceAccountFilePath, String projectId)
     throws IOException {
+    SpannerOptions.Builder optionsBuilder = buildSpannerOptions(serviceAccount, isServiceAccountFilePath, projectId);
+    return optionsBuilder.build().getService();
+  }
+
+  /**
+   * Construct and return the {@link Spanner} service with an interceptor that increments the provided counter by the
+   * number of bytes read from Spanner.
+   */
+    public static Spanner getSpannerServiceWithReadInterceptor(String serviceAccount,
+                                                               boolean isServiceAccountFilePath,
+                                                               String projectId,
+                                                               BytesCounter counter) throws IOException {
+      class InterceptedClientCall<ReqT, RespT> extends ForwardingClientCall.SimpleForwardingClientCall<ReqT, RespT> {
+        InterceptedClientCall(ClientCall<ReqT, RespT> call) {
+          super(call);
+        }
+
+        @Override
+        public void start(Listener<RespT> responseListener, Metadata headers) {
+          super.start(new ForwardingClientCallListener.
+            SimpleForwardingClientCallListener<RespT>(responseListener) {
+            @Override
+            public void onMessage(RespT message) {
+              if (message instanceof PartialResultSet) {
+                PartialResultSet partialResultSet = (PartialResultSet) message;
+                counter.increment(partialResultSet.getSerializedSize());
+              } else if (message instanceof ResultSet) {
+                ResultSet resultSet = (ResultSet) message;
+                counter.increment(resultSet.getSerializedSize());
+              }
+              super.onMessage(message);
+            }
+          }, headers);
+        }
+      }
+
+      SpannerOptions.Builder optionsBuilder = buildSpannerOptions(serviceAccount, isServiceAccountFilePath, projectId);
+      optionsBuilder.setInterceptorProvider(
+      SpannerInterceptorProvider.createDefault()
+      .with(
+        new ClientInterceptor() {
+          @Override
+          public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(
+            MethodDescriptor<ReqT, RespT> method, CallOptions callOptions, Channel next) {
+            ClientCall<ReqT, RespT> call = next.newCall(method, callOptions);
+            return new InterceptedClientCall<>(call);
+          }
+        }
+      ));
+
+    return optionsBuilder.build().getService();
+  }
+
+  /**
+   * Construct and return the {@link Spanner} service with an interceptor that increments the provided counter by the
+   * number of bytes written to Spanner.
+   */
+  public static Spanner getSpannerServiceWithWriteInterceptor(String serviceAccount,
+                                                              boolean isServiceAccountFilePath,
+                                                              String projectId,
+                                                              BytesCounter counter) throws IOException {
+    class InterceptedClientCall<ReqT, RespT> extends ForwardingClientCall.SimpleForwardingClientCall<ReqT, RespT> {
+      InterceptedClientCall(ClientCall<ReqT, RespT> call) {
+        super(call);
+      }
+      @Override
+      public void sendMessage(ReqT message) {
+        if (message instanceof CommitRequest) {
+          // Increment counter by the total size of write mutation protos written to Spanner
+          CommitRequest commitRequest = (CommitRequest) message;
+          commitRequest.getMutationsList().stream()
+            .map(GeneratedMessageV3::getAllFields)
+            .map(Map::values)
+            .flatMap(Collection::stream)
+            .filter(Mutation.Write.class::isInstance)
+            .map(Mutation.Write.class::cast)
+            .map(Mutation.Write::getSerializedSize)
+            .forEach(counter::increment);
+        }
+        super.sendMessage(message);
+      }
+    }
+
+    SpannerOptions.Builder optionsBuilder = buildSpannerOptions(serviceAccount, isServiceAccountFilePath, projectId);
+    optionsBuilder.setInterceptorProvider(
+      SpannerInterceptorProvider.createDefault()
+        .with(
+          new ClientInterceptor() {
+            @Override
+            public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(
+              MethodDescriptor<ReqT, RespT> method, CallOptions callOptions, Channel next) {
+              ClientCall<ReqT, RespT> call = next.newCall(method, callOptions);
+              return new InterceptedClientCall<>(call);
+            }
+          }
+        ));
+
+    return optionsBuilder.build().getService();
+  }
+
+    /**
+     * Construct and return a {@link SpannerOptions.Builder} with the provided credentials and projectId
+     */
+  private static SpannerOptions.Builder buildSpannerOptions(String serviceAccount,
+                                                            boolean isServiceAccountFilePath,
+                                                            String projectId) throws IOException {
     SpannerOptions.Builder optionsBuilder = SpannerOptions.newBuilder();
     if (serviceAccount != null) {
       optionsBuilder.setCredentials(GCPUtils.loadServiceAccountCredentials(serviceAccount, isServiceAccountFilePath));
     }
     optionsBuilder.setProjectId(projectId);
-    return optionsBuilder.build().getService();
+    return optionsBuilder;
   }
 
   /**
