@@ -15,14 +15,16 @@
  */
 package io.cdap.plugin.gcp.datastore.source;
 
-import com.google.cloud.Timestamp;
 import com.google.cloud.datastore.Blob;
-import com.google.cloud.datastore.Entity;
-import com.google.cloud.datastore.Key;
-import com.google.cloud.datastore.LatLng;
-import com.google.cloud.datastore.LongValue;
-import com.google.cloud.datastore.PathElement;
-import com.google.cloud.datastore.StringValue;
+import com.google.datastore.v1.ArrayValue;
+import com.google.datastore.v1.Entity;
+import com.google.datastore.v1.Key;
+import com.google.datastore.v1.PartitionId;
+import com.google.datastore.v1.Value;
+import com.google.protobuf.ByteString;
+import com.google.protobuf.NullValue;
+import com.google.protobuf.Timestamp;
+import com.google.type.LatLng;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.format.UnexpectedFormatException;
 import io.cdap.cdap.api.data.schema.Schema;
@@ -32,6 +34,10 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
 
@@ -60,24 +66,46 @@ public class EntityToRecordTransformerTest {
       Schema.Field.of("list_field",
                       Schema.nullableOf(Schema.arrayOf(Schema.nullableOf(Schema.of(Schema.Type.STRING))))));
 
-    Timestamp entityTs = Timestamp.now();
-    Entity entity = Entity.newBuilder(Key.newBuilder(DatastoreSourceConfigHelper.TEST_PROJECT,
-                                                     DatastoreSourceConfigHelper.TEST_KIND, 1).build())
-      .set("string_field", "string_value")
-      .set("long_field", 10L)
-      .set("double_field", 10.5D)
-      .set("boolean_field", true)
-      .set("timestamp_field", entityTs)
-      .set("blob_field", Blob.copyFrom("test_blob".getBytes()))
-      .setNull("null_field")
-      .set("entity_field", Entity.newBuilder()
-        .set("nested_string_field", "nested_value")
-        .set("nested_long_field", 20L)
+    Instant time = Instant.now();
+    Timestamp entityTs = Timestamp.newBuilder().setSeconds(time.getEpochSecond())
+      .setNanos(time.getNano()).build();
+    Entity nestedEntity = Entity.newBuilder()
+      .putProperties("nested_string_field", Value.newBuilder().setStringValue("nested_value")
         .build())
-      .set("list_field", "value_1", "value_2")
-      .set("key_field", Key.newBuilder(DatastoreSourceConfigHelper.TEST_PROJECT,
-                                       DatastoreSourceConfigHelper.TEST_KIND, 2).build())
-      .set("lat_lng_field", LatLng.of(10, 5))
+      .putProperties("nested_long_field", Value.newBuilder().setIntegerValue(20L).build())
+      .build();
+    ArrayValue arrayValue = ArrayValue.newBuilder().addAllValues(Arrays.asList(
+      Value.newBuilder().setStringValue("value_1").build(),
+      Value.newBuilder().setStringValue("value_2").build())).build();
+
+    Entity entity = Entity.newBuilder()
+      .setKey(Key.newBuilder().
+        setPartitionId(PartitionId.newBuilder()
+                         .setProjectId(DatastoreSourceConfigHelper.TEST_PROJECT)))
+      .putProperties("string_field", Value.newBuilder().setStringValue("string_value").build())
+      .putProperties("long_field", Value.newBuilder().setIntegerValue(10L).build())
+      .putProperties("double_field", Value.newBuilder().setDoubleValue(10.5D).build())
+      .putProperties("boolean_field", Value.newBuilder().setBooleanValue(true).build())
+      .putProperties("timestamp_field", Value.newBuilder().setTimestampValue(entityTs).build())
+      .putProperties("blob_field", Value.newBuilder().
+        setBlobValue(ByteString.copyFrom(Blob.copyFrom("test_blob".getBytes()).toByteArray())).build())
+      .putProperties("null_field", Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build())
+      .putProperties("entity_field", Value.newBuilder().setEntityValue(nestedEntity).build())
+      .putProperties("list_field", Value.newBuilder().setArrayValue(arrayValue).build())
+      .putProperties("lat_lng_field", Value.newBuilder().setGeoPointValue(
+        LatLng.newBuilder()
+          .setLatitude(10)
+          .setLongitude(5)
+          .build()).build())
+      .putProperties("key_field", Value.newBuilder().setKeyValue(
+        Key.newBuilder()
+          .setPartitionId(PartitionId.newBuilder()
+                            .setProjectId(DatastoreSourceConfigHelper.TEST_PROJECT))
+          .addPath(Key.PathElement.newBuilder()
+                     .setId(2)
+                     .setKind(DatastoreSourceConfigHelper.TEST_KIND).build())
+          .build()
+      ).build())
       .build();
 
     EntityToRecordTransformer transformer = new EntityToRecordTransformer(schema, SourceKeyType.NONE, "key");
@@ -88,7 +116,9 @@ public class EntityToRecordTransformerTest {
     Assert.assertEquals(10.5D, record.get("double_field"), 0);
 
     ZonedDateTime recordTs = record.getTimestamp("timestamp_field");
-    Timestamp actualTs = Timestamp.ofTimeSecondsAndNanos(recordTs.toEpochSecond(), recordTs.getNano());
+    Timestamp actualTs = Timestamp.newBuilder()
+      .setSeconds(time.getEpochSecond())
+      .setNanos(time.getNano()).build();
     Assert.assertEquals(entityTs, actualTs);
 
     Assert.assertTrue(record.get("boolean_field"));
@@ -108,9 +138,15 @@ public class EntityToRecordTransformerTest {
       Schema.Field.of("string_field", Schema.of(Schema.Type.STRING)),
       Schema.Field.of("key", Schema.of(Schema.Type.STRING)));
 
-    Entity entity = Entity.newBuilder(Key.newBuilder(DatastoreSourceConfigHelper.TEST_PROJECT,
-                                                     DatastoreSourceConfigHelper.TEST_KIND, 1).build())
-      .set("string_field", "string_value")
+    Entity entity = Entity.newBuilder()
+      .setKey(Key.newBuilder()
+                .setPartitionId(PartitionId.newBuilder()
+                                  .setProjectId(DatastoreSourceConfigHelper.TEST_PROJECT))
+                .addPath(Key.PathElement.newBuilder()
+                           .setId(1)
+                           .setKind(DatastoreSourceConfigHelper.TEST_KIND).build())
+                .build())
+                .putProperties("string_field", Value.newBuilder().setStringValue("string_value").build())
       .build();
 
     EntityToRecordTransformer transformer = new EntityToRecordTransformer(schema, SourceKeyType.KEY_LITERAL, "key");
@@ -126,17 +162,29 @@ public class EntityToRecordTransformerTest {
       Schema.Field.of("string_field", Schema.of(Schema.Type.STRING)),
       Schema.Field.of("key", Schema.of(Schema.Type.STRING)));
 
-    Key key = Key.newBuilder(DatastoreSourceConfigHelper.TEST_PROJECT, DatastoreSourceConfigHelper.TEST_KIND, 1)
+    Key key = Key.newBuilder()
+      .addPath(Key.PathElement.newBuilder()
+                 .setId(1)
+                 .setKind(DatastoreSourceConfigHelper.TEST_KIND).build())
       .build();
-    Entity entity = Entity.newBuilder(key)
-      .set("string_field", "string_value")
+
+    Entity entity = Entity.newBuilder()
+      .setKey(key)
+      .putProperties("string_field", Value.newBuilder().setStringValue("string_value").build())
       .build();
+
 
     EntityToRecordTransformer transformer = new EntityToRecordTransformer(schema, SourceKeyType.URL_SAFE_KEY, "key");
     StructuredRecord record = transformer.transformEntity(entity);
 
     Assert.assertEquals("string_value", record.get("string_field"));
-    Assert.assertEquals(key.toUrlSafe(), record.get("key"));
+    String encodedKey = "";
+    try {
+      encodedKey = URLEncoder.encode(key.toString(), StandardCharsets.UTF_8.name());
+    } catch (UnsupportedEncodingException e) {
+      Assert.fail(String.format("Failed to encode key: %s", e));
+    }
+    Assert.assertEquals(encodedKey, record.get("key"));
   }
 
   @Test
@@ -144,9 +192,15 @@ public class EntityToRecordTransformerTest {
     Schema schema = Schema.recordOf("schema",
       Schema.Field.of("string_field", Schema.of(Schema.Type.STRING)));
 
-    Entity entity = Entity.newBuilder(Key.newBuilder(DatastoreSourceConfigHelper.TEST_PROJECT,
-                                                     DatastoreSourceConfigHelper.TEST_KIND, 1).build())
-      .set("string_field", "string_value")
+    Entity entity = Entity.newBuilder()
+      .setKey(Key.newBuilder()
+                .setPartitionId(PartitionId.newBuilder()
+                                  .setProjectId(DatastoreSourceConfigHelper.TEST_PROJECT))
+                .addPath(Key.PathElement.newBuilder()
+                           .setId(1)
+                           .setKind(DatastoreSourceConfigHelper.TEST_KIND).build())
+                .build())
+      .putProperties("string_field", Value.newBuilder().setStringValue("string_value").build())
       .build();
 
     EntityToRecordTransformer transformer = new EntityToRecordTransformer(schema, SourceKeyType.NONE, "key");
@@ -161,9 +215,15 @@ public class EntityToRecordTransformerTest {
     Schema schema = Schema.recordOf("schema",
                                     Schema.Field.of(fieldName, Schema.of(Schema.Type.STRING)));
 
-    Entity entity = Entity.newBuilder(Key.newBuilder(DatastoreSourceConfigHelper.TEST_PROJECT,
-                                                     DatastoreSourceConfigHelper.TEST_KIND, 1).build())
-      .setNull(fieldName)
+    Entity entity = Entity.newBuilder()
+      .setKey(Key.newBuilder()
+                .setPartitionId(PartitionId.newBuilder()
+                                  .setProjectId(DatastoreSourceConfigHelper.TEST_PROJECT))
+                .addPath(Key.PathElement.newBuilder()
+                           .setId(1)
+                           .setKind(DatastoreSourceConfigHelper.TEST_KIND).build())
+                .build())
+      .putProperties(fieldName, Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build())
       .build();
 
     thrown.expect(UnexpectedFormatException.class);
@@ -179,9 +239,15 @@ public class EntityToRecordTransformerTest {
        Schema.Field.of("string_field", Schema.of(Schema.Type.STRING)),
        Schema.Field.of("missing_field", Schema.nullableOf(Schema.of(Schema.Type.STRING))));
 
-    Entity entity = Entity.newBuilder(Key.newBuilder(DatastoreSourceConfigHelper.TEST_PROJECT,
-                                                     DatastoreSourceConfigHelper.TEST_KIND, 1).build())
-      .set("string_field", "string_value")
+    Entity entity = Entity.newBuilder()
+      .setKey(Key.newBuilder()
+                .setPartitionId(PartitionId.newBuilder()
+                                  .setProjectId(DatastoreSourceConfigHelper.TEST_PROJECT))
+                .addPath(Key.PathElement.newBuilder()
+                           .setId(1)
+                           .setKind(DatastoreSourceConfigHelper.TEST_KIND).build())
+                .build())
+      .putProperties("string_field", Value.newBuilder().setStringValue("string_value").build())
       .build();
 
     EntityToRecordTransformer transformer = new EntityToRecordTransformer(schema, SourceKeyType.NONE, "key");
@@ -196,9 +262,15 @@ public class EntityToRecordTransformerTest {
     Schema schema = Schema.recordOf("schema",
       Schema.Field.of("field", Schema.of(Schema.Type.LONG)));
 
-    Entity entity = Entity.newBuilder(Key.newBuilder(DatastoreSourceConfigHelper.TEST_PROJECT,
-                                                     DatastoreSourceConfigHelper.TEST_KIND, 1).build())
-      .set("field", "field_value")
+    Entity entity = Entity.newBuilder()
+      .setKey(Key.newBuilder()
+                .setPartitionId(PartitionId.newBuilder()
+                                  .setProjectId(DatastoreSourceConfigHelper.TEST_PROJECT))
+                .addPath(Key.PathElement.newBuilder()
+                           .setId(1)
+                           .setKind(DatastoreSourceConfigHelper.TEST_KIND).build())
+                .build())
+      .putProperties("field", Value.newBuilder().setStringValue("field_value").build())
       .build();
 
     thrown.expect(UnexpectedFormatException.class);
@@ -213,8 +285,14 @@ public class EntityToRecordTransformerTest {
     Schema schema = Schema.recordOf("schema",
       Schema.Field.of(keyField, Schema.of(Schema.Type.STRING)));
 
-    Entity entity = Entity.newBuilder(Key.newBuilder(DatastoreSourceConfigHelper.TEST_PROJECT,
-                                                     DatastoreSourceConfigHelper.TEST_KIND, 1).build())
+    Entity entity = Entity.newBuilder()
+      .setKey(Key.newBuilder()
+                .setPartitionId(PartitionId.newBuilder()
+                                  .setProjectId(DatastoreSourceConfigHelper.TEST_PROJECT))
+                .addPath(Key.PathElement.newBuilder()
+                           .setId(1)
+                           .setKind(DatastoreSourceConfigHelper.TEST_KIND).build())
+                .build())
       .build();
 
     EntityToRecordTransformer transformer = new EntityToRecordTransformer(schema, SourceKeyType.KEY_LITERAL, keyField);
@@ -225,10 +303,21 @@ public class EntityToRecordTransformerTest {
 
   @Test
   public void testTransformKeyToKeyStringKeyLiteral() {
-    Key key = Key.newBuilder(DatastoreSourceConfigHelper.TEST_PROJECT, "key", 1)
-      .setNamespace(DatastoreSourceConfigHelper.TEST_NAMESPACE)
-      .addAncestor(PathElement.of("A1", 10))
-      .addAncestor(PathElement.of("A2", "N1"))
+    Key key = Key.newBuilder()
+      .setPartitionId(PartitionId.newBuilder()
+                        .setProjectId(DatastoreSourceConfigHelper.TEST_PROJECT))
+      .addPath(Key.PathElement.newBuilder()
+                 .setId(10)
+                 .setKind("A1")
+        .build())
+      .addPath(Key.PathElement.newBuilder()
+                 .setName("N1")
+                 .setKind("A2")
+                 .build())
+      .addPath(Key.PathElement.newBuilder()
+                 .setId(1)
+                 .setKind("key")
+                 .build())
       .build();
 
     EntityToRecordTransformer transformer = new EntityToRecordTransformer(null, SourceKeyType.KEY_LITERAL, "key");
@@ -238,14 +327,29 @@ public class EntityToRecordTransformerTest {
 
   @Test
   public void testTransformKeyToKeyStringUrlSafeKey() {
-    Key key = Key.newBuilder(DatastoreSourceConfigHelper.TEST_PROJECT, "key", 1)
-      .setNamespace(DatastoreSourceConfigHelper.TEST_NAMESPACE)
-      .addAncestor(PathElement.of("A1", 10))
-      .addAncestor(PathElement.of("A2", "N1"))
+    Key key = Key.newBuilder()
+      .setPartitionId(PartitionId.newBuilder()
+                        .setProjectId(DatastoreSourceConfigHelper.TEST_PROJECT)
+                        .setNamespaceId(DatastoreSourceConfigHelper.TEST_NAMESPACE)
+                        .build())
+      .addPath(Key.PathElement.newBuilder()
+                 .setId(10)
+                 .setKind("A1")
+                 .build())
+      .addPath(Key.PathElement.newBuilder()
+                 .setName("N1")
+                 .setKind("A2")
+                 .build())
       .build();
 
     EntityToRecordTransformer transformer = new EntityToRecordTransformer(null, SourceKeyType.URL_SAFE_KEY, "key");
-    Assert.assertEquals(key.toUrlSafe(), transformer.transformKeyToKeyString(key));
+    String encodedKey = "";
+    try {
+      encodedKey = URLEncoder.encode(key.toString(), StandardCharsets.UTF_8.name());
+    } catch (UnsupportedEncodingException e) {
+      Assert.fail(String.format("Failed to encode key: %s", e));
+    }
+    Assert.assertEquals(encodedKey, transformer.transformKeyToKeyString(key));
   }
 
   @Test
@@ -257,12 +361,17 @@ public class EntityToRecordTransformerTest {
         Schema.unionOf(Schema.of(Schema.Type.LONG), Schema.of(Schema.Type.STRING))),
       Schema.Field.of("union_field_null",
         Schema.unionOf(Schema.of(Schema.Type.LONG), Schema.of(Schema.Type.STRING), Schema.of(Schema.Type.NULL))));
-
-    Entity entity = Entity.newBuilder(Key.newBuilder(DatastoreSourceConfigHelper.TEST_PROJECT,
-                                                     DatastoreSourceConfigHelper.TEST_KIND, 1).build())
-      .set("union_field_string", "string_value")
-      .set("union_field_long", 10)
-      .setNull("union_field_null")
+    Entity entity = Entity.newBuilder()
+      .setKey(Key.newBuilder()
+                .setPartitionId(PartitionId.newBuilder()
+                                  .setProjectId(DatastoreSourceConfigHelper.TEST_PROJECT))
+                .addPath(Key.PathElement.newBuilder()
+                           .setId(1)
+                           .setKind(DatastoreSourceConfigHelper.TEST_KIND).build())
+                .build())
+      .putProperties("union_field_string", Value.newBuilder().setStringValue("string_value").build())
+      .putProperties("union_field_long", Value.newBuilder().setIntegerValue(10).build())
+      .putProperties("union_field_null", Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build())
       .build();
 
     EntityToRecordTransformer transformer = new EntityToRecordTransformer(schema, SourceKeyType.NONE, "key");
@@ -277,9 +386,15 @@ public class EntityToRecordTransformerTest {
     Schema schema = Schema.recordOf("schema",
       Schema.Field.of("union_field", Schema.unionOf(Schema.of(Schema.Type.LONG), Schema.of(Schema.Type.STRING))));
 
-    Entity entity = Entity.newBuilder(Key.newBuilder(DatastoreSourceConfigHelper.TEST_PROJECT,
-                                                     DatastoreSourceConfigHelper.TEST_KIND, 1).build())
-      .set("union_field", true)
+    Entity entity = Entity.newBuilder()
+      .setKey(Key.newBuilder()
+                .setPartitionId(PartitionId.newBuilder()
+                                  .setProjectId(DatastoreSourceConfigHelper.TEST_PROJECT))
+                .addPath(Key.PathElement.newBuilder()
+                           .setId(1)
+                           .setKind(DatastoreSourceConfigHelper.TEST_KIND).build())
+                .build())
+      .putProperties("union_field", Value.newBuilder().setBooleanValue(true).build())
       .build();
 
     EntityToRecordTransformer transformer = new EntityToRecordTransformer(schema, SourceKeyType.NONE, "key");
@@ -295,9 +410,21 @@ public class EntityToRecordTransformerTest {
       Schema.Field.of("array_field", Schema.nullableOf(Schema.arrayOf(
         Schema.unionOf(Schema.of(Schema.Type.LONG), Schema.of(Schema.Type.STRING))))));
 
-    Entity entity = Entity.newBuilder(Key.newBuilder(DatastoreSourceConfigHelper.TEST_PROJECT,
-                                                     DatastoreSourceConfigHelper.TEST_KIND, 1).build())
-      .set("array_field", StringValue.of("string_value"), LongValue.of(10), LongValue.of(20))
+    ArrayValue arrayValue = ArrayValue.newBuilder().addAllValues(Arrays.asList(
+      Value.newBuilder().setStringValue("string_value").build(),
+      Value.newBuilder().setIntegerValue(10).build(),
+      Value.newBuilder().setIntegerValue(20).build()))
+      .build();
+    Entity entity = Entity.newBuilder()
+      .setKey(Key.newBuilder().
+        setPartitionId(PartitionId.newBuilder()
+                         .setProjectId(DatastoreSourceConfigHelper.TEST_PROJECT))
+                .addPath(Key.PathElement.newBuilder()
+                 .setId(1)
+                 .setKind(DatastoreSourceConfigHelper.TEST_KIND).build())
+                .build()
+      )
+      .putProperties("array_field", Value.newBuilder().setArrayValue(arrayValue).build())
       .build();
 
     EntityToRecordTransformer transformer = new EntityToRecordTransformer(schema, SourceKeyType.NONE, "key");

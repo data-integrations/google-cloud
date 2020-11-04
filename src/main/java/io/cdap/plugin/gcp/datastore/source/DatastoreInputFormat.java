@@ -15,7 +15,7 @@
  */
 package io.cdap.plugin.gcp.datastore.source;
 
-import com.google.cloud.datastore.Entity;
+import com.google.datastore.v1.Entity;
 import com.google.datastore.v1.PartitionId;
 import com.google.datastore.v1.Query;
 import com.google.datastore.v1.client.Datastore;

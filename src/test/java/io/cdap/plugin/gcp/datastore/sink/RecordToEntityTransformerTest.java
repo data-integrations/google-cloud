@@ -15,13 +15,13 @@
  */
 package io.cdap.plugin.gcp.datastore.sink;
 
-import com.google.cloud.Timestamp;
-import com.google.cloud.datastore.FullEntity;
-import com.google.cloud.datastore.IncompleteKey;
-import com.google.cloud.datastore.Key;
-import com.google.cloud.datastore.KeyFactory;
-import com.google.cloud.datastore.PathElement;
-import com.google.cloud.datastore.Value;
+import com.google.common.primitives.Ints;
+import com.google.datastore.v1.Entity;
+import com.google.datastore.v1.Key;
+import com.google.datastore.v1.PartitionId;
+import com.google.datastore.v1.Value;
+import com.google.datastore.v1.client.DatastoreHelper;
+import com.google.protobuf.TextFormat;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.format.UnexpectedFormatException;
 import io.cdap.cdap.api.data.schema.Schema;
@@ -32,6 +32,9 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.Collections;
@@ -101,55 +104,69 @@ public class RecordToEntityTransformerTest {
                                                                           IndexStrategy.ALL,
                                                                           Collections.emptySet());
 
-    FullEntity<?> outputEntity = transformer.transformStructuredRecord(inputRecord);
+    Entity outputEntity = transformer.transformStructuredRecord(inputRecord);
 
-    Assert.assertEquals("string_value", outputEntity.getString("string_field"));
-    Assert.assertFalse(outputEntity.getValue("string_field").excludeFromIndexes());
+    Value value = outputEntity.getPropertiesOrThrow("string_field");
+    Assert.assertEquals("string_value", DatastoreHelper.getString(value));
+    Assert.assertFalse(value.getExcludeFromIndexes());
 
-    Assert.assertEquals(10L, outputEntity.getLong("long_field"));
-    Assert.assertFalse(outputEntity.getValue("long_field").excludeFromIndexes());
+    value = outputEntity.getPropertiesOrThrow("long_field");
+    Assert.assertEquals(10L, DatastoreHelper.getLong(value));
+    Assert.assertFalse(value.getExcludeFromIndexes());
 
-    Assert.assertEquals(15, outputEntity.getLong("int_field"));
-    Assert.assertFalse(outputEntity.getValue("int_field").excludeFromIndexes());
+    value = outputEntity.getPropertiesOrThrow("int_field");
+    Assert.assertEquals(15,  DatastoreHelper.getLong(value));
+    Assert.assertFalse(value.getExcludeFromIndexes());
 
-    Assert.assertEquals(10.5D, outputEntity.getDouble("double_field"), 0);
-    Assert.assertFalse(outputEntity.getValue("double_field").excludeFromIndexes());
+    value = outputEntity.getPropertiesOrThrow("double_field");
+    Assert.assertEquals(10.5D, DatastoreHelper.getDouble(value), 0);
+    Assert.assertFalse(value.getExcludeFromIndexes());
 
-    Assert.assertEquals(15.5, outputEntity.getDouble("float_field"), 0);
-    Assert.assertFalse(outputEntity.getValue("float_field").excludeFromIndexes());
+    value = outputEntity.getPropertiesOrThrow("float_field");
+    Assert.assertEquals(15.5, DatastoreHelper.getDouble(value), 0);
+    Assert.assertFalse(value.getExcludeFromIndexes());
 
-    Assert.assertEquals(Timestamp.ofTimeSecondsAndNanos(dateTime.toEpochSecond(), dateTime.getNano()),
-                        outputEntity.getTimestamp("timestamp_field"));
-    Assert.assertFalse(outputEntity.getValue("timestamp_field").excludeFromIndexes());
+    value = outputEntity.getPropertiesOrThrow("timestamp_field");
+    Assert.assertEquals(dateTime.toInstant().toEpochMilli() * 1000,
+                        DatastoreHelper.getTimestamp(value));
+    Assert.assertFalse(value.getExcludeFromIndexes());
 
-    Assert.assertTrue(outputEntity.getBoolean("boolean_field"));
-    Assert.assertFalse(outputEntity.getValue("boolean_field").excludeFromIndexes());
+    value = outputEntity.getPropertiesOrThrow("boolean_field");
+    Assert.assertTrue(DatastoreHelper.getBoolean(value));
+    Assert.assertFalse(value.getExcludeFromIndexes());
 
-    Assert.assertEquals("test_blob", new String(outputEntity.getBlob("blob_field").toByteArray()));
-    Assert.assertFalse(outputEntity.getValue("blob_field").excludeFromIndexes());
+    value = outputEntity.getPropertiesOrThrow("blob_field");
+    Assert.assertEquals("test_blob", new String(DatastoreHelper.getByteString(value).toByteArray()));
+    Assert.assertFalse(value.getExcludeFromIndexes());
 
-    Assert.assertNull(outputEntity.getString("null_field"));
-    Assert.assertFalse(outputEntity.getValue("null_field").excludeFromIndexes());
+    value = outputEntity.getPropertiesOrThrow("null_field");
+    Assert.assertEquals(value.getValueTypeCase(), Value.ValueTypeCase.NULL_VALUE);
+    Assert.assertFalse(value.getExcludeFromIndexes());
 
-    FullEntity<IncompleteKey> nestedEntity = outputEntity.getEntity("entity_field");
-    Assert.assertFalse(outputEntity.getValue("entity_field").excludeFromIndexes());
+    //FullEntity<IncompleteKey> nestedEntity = outputEntity.getEntity("entity_field");
+    value = outputEntity.getPropertiesOrThrow("entity_field");
+    Assert.assertFalse(value.getExcludeFromIndexes());
+    Entity nestedEntity = DatastoreHelper.getEntity(value);
+    value = nestedEntity.getPropertiesOrThrow("nested_string_field");
+    Assert.assertEquals("nested_value", DatastoreHelper.getString(value));
+    Assert.assertFalse(value.getExcludeFromIndexes());
 
-    Assert.assertEquals("nested_value", nestedEntity.getString("nested_string_field"));
-    Assert.assertFalse(nestedEntity.getValue("nested_string_field").excludeFromIndexes());
+    value = nestedEntity.getPropertiesOrThrow("nested_long_field");
+    Assert.assertEquals(20L, DatastoreHelper.getLong(value));
+    Assert.assertFalse(value.getExcludeFromIndexes());
 
-    Assert.assertEquals(20L, nestedEntity.getLong("nested_long_field"));
-    Assert.assertFalse(nestedEntity.getValue("nested_long_field").excludeFromIndexes());
-
-    List<Long> actualLongList = outputEntity.getList("array_field").stream()
-      .map(Value::get)
+    value = outputEntity.getPropertiesOrThrow("array_field");
+    List<Long> actualLongList = DatastoreHelper.getList(value).stream()
+      .map(v -> v.getValueTypeCase() == Value.ValueTypeCase.INTEGER_VALUE ? DatastoreHelper.getLong(v) : null)
       .map(Long.class::cast)
       .collect(Collectors.toList());
 
     Assert.assertEquals(longList, actualLongList);
-    Assert.assertFalse(outputEntity.getValue("array_field").excludeFromIndexes());
+    Assert.assertFalse(value.getExcludeFromIndexes());
 
-    Assert.assertEquals(2019L, outputEntity.getLong("union_field"));
-    Assert.assertFalse(outputEntity.getValue("union_field").excludeFromIndexes());
+    value = outputEntity.getPropertiesOrThrow("union_field");
+    Assert.assertEquals(2019L, DatastoreHelper.getLong(value));
+    Assert.assertFalse(value.getExcludeFromIndexes());
   }
 
   @SuppressWarnings("ConstantConditions")
@@ -206,55 +223,69 @@ public class RecordToEntityTransformerTest {
                                                                           IndexStrategy.NONE,
                                                                           Collections.emptySet());
 
-    FullEntity<?> outputEntity = transformer.transformStructuredRecord(inputRecord);
+    Entity outputEntity = transformer.transformStructuredRecord(inputRecord);
 
-    Assert.assertEquals("string_value", outputEntity.getString("string_field"));
-    Assert.assertTrue(outputEntity.getValue("string_field").excludeFromIndexes());
+    Value value = outputEntity.getPropertiesOrThrow("string_field");
+    Assert.assertEquals("string_value", DatastoreHelper.getString(value));
+    Assert.assertTrue(value.getExcludeFromIndexes());
 
-    Assert.assertEquals(10L, outputEntity.getLong("long_field"));
-    Assert.assertTrue(outputEntity.getValue("long_field").excludeFromIndexes());
+    value = outputEntity.getPropertiesOrThrow("long_field");
+    Assert.assertEquals(10L, DatastoreHelper.getLong(value));
+    Assert.assertTrue(value.getExcludeFromIndexes());
 
-    Assert.assertEquals(15, outputEntity.getLong("int_field"));
-    Assert.assertTrue(outputEntity.getValue("int_field").excludeFromIndexes());
+    value = outputEntity.getPropertiesOrThrow("int_field");
+    Assert.assertEquals(15, DatastoreHelper.getLong(value));
+    Assert.assertTrue(value.getExcludeFromIndexes());
 
-    Assert.assertEquals(10.5D, outputEntity.getDouble("double_field"), 0);
-    Assert.assertTrue(outputEntity.getValue("double_field").excludeFromIndexes());
+    value = outputEntity.getPropertiesOrThrow("double_field");
+    Assert.assertEquals(10.5D, DatastoreHelper.getDouble(value), 0);
+    Assert.assertTrue(value.getExcludeFromIndexes());
 
-    Assert.assertEquals(15.5, outputEntity.getDouble("float_field"), 0);
-    Assert.assertTrue(outputEntity.getValue("float_field").excludeFromIndexes());
+    value = outputEntity.getPropertiesOrThrow("float_field");
+    Assert.assertEquals(15.5, DatastoreHelper.getDouble(value), 0);
+    Assert.assertTrue(value.getExcludeFromIndexes());
 
-    Assert.assertEquals(Timestamp.ofTimeSecondsAndNanos(dateTime.toEpochSecond(), dateTime.getNano()),
-                        outputEntity.getTimestamp("timestamp_field"));
-    Assert.assertTrue(outputEntity.getValue("timestamp_field").excludeFromIndexes());
+    value = outputEntity.getPropertiesOrThrow("timestamp_field");
+    Assert.assertEquals(dateTime.toInstant().toEpochMilli() * 1000,
+                        DatastoreHelper.getTimestamp(value));
+    Assert.assertTrue(value.getExcludeFromIndexes());
 
-    Assert.assertTrue(outputEntity.getBoolean("boolean_field"));
-    Assert.assertTrue(outputEntity.getValue("boolean_field").excludeFromIndexes());
+    value = outputEntity.getPropertiesOrThrow("boolean_field");
+    Assert.assertTrue(DatastoreHelper.getBoolean(value));
+    Assert.assertTrue(value.getExcludeFromIndexes());
 
-    Assert.assertEquals("test_blob", new String(outputEntity.getBlob("blob_field").toByteArray()));
-    Assert.assertTrue(outputEntity.getValue("blob_field").excludeFromIndexes());
+    value = outputEntity.getPropertiesOrThrow("blob_field");
+    Assert.assertEquals("test_blob", new String(DatastoreHelper.getByteString(value).toByteArray()));
+    Assert.assertTrue(value.getExcludeFromIndexes());
 
-    Assert.assertNull(outputEntity.getString("null_field"));
-    Assert.assertTrue(outputEntity.getValue("null_field").excludeFromIndexes());
+    value = outputEntity.getPropertiesOrThrow("null_field");
+    Assert.assertEquals(value.getValueTypeCase(), Value.ValueTypeCase.NULL_VALUE);
+    Assert.assertTrue(value.getExcludeFromIndexes());
 
-    FullEntity<IncompleteKey> nestedEntity = outputEntity.getEntity("entity_field");
-    Assert.assertTrue(outputEntity.getValue("entity_field").excludeFromIndexes());
+    value = outputEntity.getPropertiesOrThrow("entity_field");
+    Assert.assertTrue(value.getExcludeFromIndexes());
+    Entity nestedEntity = DatastoreHelper.getEntity(value);
+    value = nestedEntity.getPropertiesOrThrow("nested_string_field");
+    Assert.assertEquals("nested_value", DatastoreHelper.getString(value));
+    Assert.assertTrue(value.getExcludeFromIndexes());
 
-    Assert.assertEquals("nested_value", nestedEntity.getString("nested_string_field"));
-    Assert.assertTrue(nestedEntity.getValue("nested_string_field").excludeFromIndexes());
+    value = nestedEntity.getPropertiesOrThrow("nested_long_field");
+    Assert.assertEquals(20L, DatastoreHelper.getLong(value));
+    Assert.assertTrue(value.getExcludeFromIndexes());
 
-    Assert.assertEquals(20L, nestedEntity.getLong("nested_long_field"));
-    Assert.assertTrue(nestedEntity.getValue("nested_long_field").excludeFromIndexes());
-
-    List<Long> actualLongList = outputEntity.getList("array_field").stream()
-      .map(Value::get)
+    value = outputEntity.getPropertiesOrThrow("array_field");
+    List<Long> actualLongList = DatastoreHelper.getList(value).stream()
+      .map(v -> v.getValueTypeCase() == Value.ValueTypeCase.INTEGER_VALUE ? DatastoreHelper.getLong(v) : null)
       .map(Long.class::cast)
       .collect(Collectors.toList());
 
     Assert.assertEquals(longList, actualLongList);
-    Assert.assertFalse(outputEntity.getValue("array_field").excludeFromIndexes());
+    Assert.assertFalse(value.getExcludeFromIndexes());
 
-    Assert.assertEquals("union_string_value", outputEntity.getString("union_field"));
-    Assert.assertTrue(outputEntity.getValue("union_field").excludeFromIndexes());
+    value = outputEntity.getPropertiesOrThrow("union_field");
+    Assert.assertEquals("union_string_value", DatastoreHelper.getString(value));
+    Assert.assertTrue(value.getExcludeFromIndexes());
+
   }
 
   @Test
@@ -277,13 +308,15 @@ public class RecordToEntityTransformerTest {
                                                                           IndexStrategy.CUSTOM,
                                                                           Collections.singleton("string_field"));
 
-    FullEntity<?> outputEntity = transformer.transformStructuredRecord(inputRecord);
+    Entity outputEntity = transformer.transformStructuredRecord(inputRecord);
+    Value value = outputEntity.getPropertiesOrThrow("string_field");
 
-    Assert.assertEquals("string_value", outputEntity.getString("string_field"));
-    Assert.assertFalse(outputEntity.getValue("string_field").excludeFromIndexes());
+    Assert.assertEquals("string_value", DatastoreHelper.getString(value));
+    Assert.assertFalse(value.getExcludeFromIndexes());
 
-    Assert.assertEquals(200L, outputEntity.getLong("long_field"));
-    Assert.assertTrue(outputEntity.getValue("long_field").excludeFromIndexes());
+    value = outputEntity.getPropertiesOrThrow("long_field");
+    Assert.assertEquals(200L, DatastoreHelper.getLong(value));
+    Assert.assertTrue(value.getExcludeFromIndexes());
   }
 
   @Test
@@ -308,14 +341,18 @@ public class RecordToEntityTransformerTest {
                                                                           IndexStrategy.ALL,
                                                                           Collections.emptySet());
 
-    FullEntity<?> outputEntity = transformer.transformStructuredRecord(inputRecord);
+    Entity outputEntity = transformer.transformStructuredRecord(inputRecord);
+    Value value = outputEntity.getPropertiesOrThrow("string_field");
 
-    Assert.assertEquals("string_value", outputEntity.getString("string_field"));
+    Assert.assertEquals("string_value", DatastoreHelper.getString(value));
 
-    Key expectedKey = Key.newBuilder(DatastoreSinkConfigHelper.TEST_PROJECT,
-                                     DatastoreSinkConfigHelper.TEST_KIND,
-                                     "custom_string_key_value")
-      .setNamespace(DatastoreSinkConfigHelper.TEST_NAMESPACE)
+    Key expectedKey = Key.newBuilder()
+      .setPartitionId(PartitionId.newBuilder()
+                        .setProjectId(DatastoreSinkConfigHelper.TEST_PROJECT)
+                        .setNamespaceId(DatastoreSinkConfigHelper.TEST_NAMESPACE))
+      .addPath(Key.PathElement.newBuilder()
+                 .setName("custom_string_key_value")
+                 .setKind(DatastoreSinkConfigHelper.TEST_KIND))
       .build();
     Assert.assertEquals(expectedKey, outputEntity.getKey());
   }
@@ -342,14 +379,18 @@ public class RecordToEntityTransformerTest {
                                                                           IndexStrategy.ALL,
                                                                           Collections.emptySet());
 
-    FullEntity<?> outputEntity = transformer.transformStructuredRecord(inputRecord);
+    Entity outputEntity = transformer.transformStructuredRecord(inputRecord);
+    Value value = outputEntity.getPropertiesOrThrow("string_field");
 
-    Assert.assertEquals("string_value", outputEntity.getString("string_field"));
+    Assert.assertEquals("string_value", DatastoreHelper.getString(value));
 
-    Key expectedKey = Key.newBuilder(DatastoreSinkConfigHelper.TEST_PROJECT,
-                                     DatastoreSinkConfigHelper.TEST_KIND,
-                                     380L)
-      .setNamespace(DatastoreSinkConfigHelper.TEST_NAMESPACE)
+    Key expectedKey = Key.newBuilder()
+      .setPartitionId(PartitionId.newBuilder()
+                        .setProjectId(DatastoreSinkConfigHelper.TEST_PROJECT)
+                        .setNamespaceId(DatastoreSinkConfigHelper.TEST_NAMESPACE))
+      .addPath(Key.PathElement.newBuilder()
+                 .setId(380L)
+                 .setKind(DatastoreSinkConfigHelper.TEST_KIND))
       .build();
     Assert.assertEquals(expectedKey, outputEntity.getKey());
   }
@@ -367,25 +408,35 @@ public class RecordToEntityTransformerTest {
       .set(keyAlias, 380L)
       .build();
 
+    Key.PathElement pathElement = Key.PathElement.newBuilder()
+      .setKind("A")
+      .setId(100)
+      .build();
     RecordToEntityTransformer transformer = new RecordToEntityTransformer(DatastoreSinkConfigHelper.TEST_PROJECT,
                                                                           DatastoreSinkConfigHelper.TEST_NAMESPACE,
                                                                           DatastoreSinkConfigHelper.TEST_KIND,
                                                                           SinkKeyType.CUSTOM_NAME,
                                                                           keyAlias,
-                                                                          Collections.singletonList(
-                                                                            PathElement.of("A", 100)),
+                                                                          Collections.singletonList(pathElement),
                                                                           IndexStrategy.ALL,
                                                                           Collections.emptySet());
 
-    FullEntity<?> outputEntity = transformer.transformStructuredRecord(inputRecord);
+    Entity outputEntity = transformer.transformStructuredRecord(inputRecord);
+    Value value = outputEntity.getPropertiesOrThrow("string_field");
 
-    Assert.assertEquals("string_value", outputEntity.getString("string_field"));
+    Assert.assertEquals("string_value", DatastoreHelper.getString(value));
 
-    Key expectedKey = new KeyFactory(DatastoreSinkConfigHelper.TEST_PROJECT)
-      .setKind(DatastoreSinkConfigHelper.TEST_KIND)
-      .setNamespace(DatastoreSinkConfigHelper.TEST_NAMESPACE)
-      .addAncestor(PathElement.of("A", 100))
-      .newKey(380L);
+    Key expectedKey = Key.newBuilder()
+      .setPartitionId(PartitionId.newBuilder()
+                        .setProjectId(DatastoreSinkConfigHelper.TEST_PROJECT)
+                        .setNamespaceId(DatastoreSinkConfigHelper.TEST_NAMESPACE))
+      .addPath(Key.PathElement.newBuilder()
+                 .setId(100)
+                 .setKind("A"))
+      .addPath(Key.PathElement.newBuilder()
+                 .setId(380L)
+                 .setKind(DatastoreSinkConfigHelper.TEST_KIND))
+      .build();
     Assert.assertEquals(expectedKey, outputEntity.getKey());
   }
 
@@ -411,15 +462,22 @@ public class RecordToEntityTransformerTest {
                                                                           IndexStrategy.ALL,
                                                                           Collections.emptySet());
 
-    FullEntity<?> outputEntity = transformer.transformStructuredRecord(inputRecord);
+    Entity outputEntity = transformer.transformStructuredRecord(inputRecord);
 
-    Assert.assertEquals("string_value", outputEntity.getString("string_field"));
+    Value value = outputEntity.getPropertiesOrThrow("string_field");
+    Assert.assertEquals("string_value", DatastoreHelper.getString(value));
 
-    Key expectedKey = new KeyFactory(DatastoreSinkConfigHelper.TEST_PROJECT)
-      .setKind(DatastoreSinkConfigHelper.TEST_KIND)
-      .setNamespace(DatastoreSinkConfigHelper.TEST_NAMESPACE)
-      .addAncestor(PathElement.of("A", 100))
-      .newKey("test_string_id");
+    Key expectedKey = Key.newBuilder()
+      .setPartitionId(PartitionId.newBuilder()
+                        .setProjectId(DatastoreSinkConfigHelper.TEST_PROJECT)
+                        .setNamespaceId(DatastoreSinkConfigHelper.TEST_NAMESPACE))
+      .addPath(Key.PathElement.newBuilder()
+                 .setId(100)
+                 .setKind("A"))
+      .addPath(Key.PathElement.newBuilder()
+                 .setName("test_string_id")
+                 .setKind(DatastoreSinkConfigHelper.TEST_KIND))
+      .build();
     Assert.assertEquals(expectedKey, outputEntity.getKey());
   }
 
@@ -431,15 +489,26 @@ public class RecordToEntityTransformerTest {
                                     Schema.Field.of("string_field", Schema.of(Schema.Type.STRING)),
                                     Schema.Field.of(keyAlias, Schema.of(Schema.Type.STRING)));
 
-    Key expectedKey = new KeyFactory(DatastoreSinkConfigHelper.TEST_PROJECT)
-      .setKind(DatastoreSinkConfigHelper.TEST_KIND)
-      .setNamespace(DatastoreSinkConfigHelper.TEST_NAMESPACE)
-      .addAncestor(PathElement.of("A", 100))
-      .newKey("test_string_id");
+    Key expectedKey = Key.newBuilder()
+      .setPartitionId(PartitionId.newBuilder()
+                        .setProjectId(DatastoreSinkConfigHelper.TEST_PROJECT)
+                        .setNamespaceId(DatastoreSinkConfigHelper.TEST_NAMESPACE))
+      .addPath(Key.PathElement.newBuilder()
+                 .setId(100)
+                 .setKind("A"))
+      .addPath(Key.PathElement.newBuilder()
+                 .setName("test_string_id")
+                 .setKind(DatastoreSinkConfigHelper.TEST_KIND)).build();
 
+    String urlSafeKey = "";
+    try {
+      urlSafeKey = URLEncoder.encode(TextFormat.printToString(expectedKey), StandardCharsets.UTF_8.name());
+    } catch (UnsupportedEncodingException e) {
+      Assert.fail(String.format("URL encoding failed unexpectedly: %s", e.getMessage()));
+    }
     StructuredRecord inputRecord = StructuredRecord.builder(schema)
       .set("string_field", "string_value")
-      .set(keyAlias, expectedKey.toUrlSafe())
+      .set(keyAlias, urlSafeKey)
       .build();
 
     RecordToEntityTransformer transformer = new RecordToEntityTransformer(DatastoreSinkConfigHelper.TEST_PROJECT,
@@ -451,9 +520,62 @@ public class RecordToEntityTransformerTest {
                                                                           IndexStrategy.ALL,
                                                                           Collections.emptySet());
 
-    FullEntity<?> outputEntity = transformer.transformStructuredRecord(inputRecord);
+    Entity outputEntity = transformer.transformStructuredRecord(inputRecord);
 
-    Assert.assertEquals("string_value", outputEntity.getString("string_field"));
+    Value value = outputEntity.getPropertiesOrThrow("string_field");
+    Assert.assertEquals("string_value", DatastoreHelper.getString(value));
+    Assert.assertEquals(expectedKey, outputEntity.getKey());
+  }
+
+  @Test
+  public void testTransformWithAutogeneratedKey() {
+    String keyAlias = "key";
+
+    Schema schema = Schema.recordOf("schema",
+                                    Schema.Field.of("string_field", Schema.of(Schema.Type.STRING)),
+                                    Schema.Field.of(keyAlias, Schema.of(Schema.Type.STRING)));
+
+    Key expectedKey = Key.newBuilder()
+      .setPartitionId(PartitionId.newBuilder()
+                        .setProjectId(DatastoreSinkConfigHelper.TEST_PROJECT)
+                        .setNamespaceId(DatastoreSinkConfigHelper.TEST_NAMESPACE))
+      .addPath(Key.PathElement.newBuilder()
+                 .setKind("A")
+                 .setId(100))
+      .addPath(Key.PathElement.newBuilder()
+                 .setKind(DatastoreSinkConfigHelper.TEST_KIND))
+      .build();
+
+    Key.PathElement pathElement = Key.PathElement.newBuilder()
+      .setKind("A")
+      .setId(100)
+      .build();
+
+
+    String urlSafeKey = "";
+    try {
+      urlSafeKey = URLEncoder.encode(TextFormat.printToString(expectedKey), StandardCharsets.UTF_8.name());
+    } catch (UnsupportedEncodingException e) {
+      Assert.fail(String.format("URL encoding failed unexpectedly: %s", e.getMessage()));
+    }
+    StructuredRecord inputRecord = StructuredRecord.builder(schema)
+      .set("string_field", "string_value")
+      .set(keyAlias, urlSafeKey)
+      .build();
+
+    RecordToEntityTransformer transformer = new RecordToEntityTransformer(DatastoreSinkConfigHelper.TEST_PROJECT,
+                                                                          DatastoreSinkConfigHelper.TEST_NAMESPACE,
+                                                                          DatastoreSinkConfigHelper.TEST_KIND,
+                                                                          SinkKeyType.AUTO_GENERATED_KEY,
+                                                                          keyAlias,
+                                                                          Collections.singletonList(pathElement),
+                                                                          IndexStrategy.ALL,
+                                                                          Collections.emptySet());
+
+    Entity outputEntity = transformer.transformStructuredRecord(inputRecord);
+
+    Value value = outputEntity.getPropertiesOrThrow("string_field");
+    Assert.assertEquals("string_value", DatastoreHelper.getString(value));
     Assert.assertEquals(expectedKey, outputEntity.getKey());
   }
 
@@ -475,14 +597,12 @@ public class RecordToEntityTransformerTest {
                                                                           IndexStrategy.ALL,
                                                                           Collections.emptySet());
 
-    FullEntity<?> outputEntity = transformer.transformStructuredRecord(inputRecord);
+    Entity outputEntity = transformer.transformStructuredRecord(inputRecord);
+    Value value = outputEntity.getPropertiesOrThrow("array_field");
 
-    List<Value<Boolean>> actual = outputEntity.getList("array_field");
-
-    List<Boolean> actualList = actual.stream()
-      .map(Value::get)
+    List<Boolean> actualList = DatastoreHelper.getList(value).stream()
+      .map(DatastoreHelper::getBoolean)
       .collect(Collectors.toList());
-
     Assert.assertEquals(Collections.emptyList(), actualList);
   }
 
@@ -506,15 +626,43 @@ public class RecordToEntityTransformerTest {
                                                                           IndexStrategy.ALL,
                                                                           Collections.emptySet());
 
-    FullEntity<?> outputEntity = transformer.transformStructuredRecord(inputRecord);
+    Entity outputEntity = transformer.transformStructuredRecord(inputRecord);
+    Value value = outputEntity.getPropertiesOrThrow("array_field");
 
-    List<Value<String>> actual = outputEntity.getList("array_field");
-
-    List<String> actualList = actual.stream()
-      .map(Value::get)
+    List<String> actualList = DatastoreHelper.getList(value).stream()
+      .map(v -> v.getValueTypeCase() == Value.ValueTypeCase.STRING_VALUE ? DatastoreHelper.getString(v) : null)
       .collect(Collectors.toList());
 
     Assert.assertEquals(Arrays.asList(stringArray), actualList);
+  }
+
+  @Test
+  public void testTransformIntArray() {
+    Schema schema = Schema.recordOf("schema",
+                                    Schema.Field.of("array_field",
+                                                    Schema.arrayOf(Schema.nullableOf(Schema.of(Schema.Type.INT)))));
+    int[] intArray = new int[] {1, 2, 3};
+    StructuredRecord inputRecord = StructuredRecord.builder(schema)
+      .set("array_field", intArray)
+      .build();
+
+    RecordToEntityTransformer transformer = new RecordToEntityTransformer(DatastoreSinkConfigHelper.TEST_PROJECT,
+                                                                          DatastoreSinkConfigHelper.TEST_NAMESPACE,
+                                                                          DatastoreSinkConfigHelper.TEST_KIND,
+                                                                          SinkKeyType.AUTO_GENERATED_KEY,
+                                                                          "id",
+                                                                          Collections.emptyList(),
+                                                                          IndexStrategy.ALL,
+                                                                          Collections.emptySet());
+
+    Entity outputEntity = transformer.transformStructuredRecord(inputRecord);
+    Value value = outputEntity.getPropertiesOrThrow("array_field");
+
+    List<Integer> actualList = DatastoreHelper.getList(value).stream()
+      .map(DatastoreHelper::getLong)
+      .map(Long::intValue)
+      .collect(Collectors.toList());
+    Assert.assertEquals(Ints.asList(intArray), actualList);
   }
 
   @Test
@@ -547,15 +695,17 @@ public class RecordToEntityTransformerTest {
                                                                           IndexStrategy.ALL,
                                                                           Collections.emptySet());
 
-    FullEntity<?> outputEntityS = transformer.transformStructuredRecord(inputRecordS);
-    Assert.assertEquals("a", outputEntityS.getString("union_field"));
+    Entity outputEntityS = transformer.transformStructuredRecord(inputRecordS);
+    Value value = outputEntityS.getPropertiesOrThrow("union_field");
+    Assert.assertEquals("a", DatastoreHelper.getString(value));
 
-    FullEntity<?> outputEntityB = transformer.transformStructuredRecord(inputRecordB);
-    Assert.assertTrue(outputEntityB.getBoolean("union_field"));
+    Entity outputEntityB = transformer.transformStructuredRecord(inputRecordB);
+    value = outputEntityB.getPropertiesOrThrow("union_field");
+    Assert.assertTrue(DatastoreHelper.getBoolean(value));
 
-    FullEntity<?> outputEntityN = transformer.transformStructuredRecord(inputRecordN);
-    Value<?> actualN = outputEntityN.getValue("union_field");
-    Assert.assertNull(actualN.get());
+    Entity outputEntityN = transformer.transformStructuredRecord(inputRecordN);
+    value = outputEntityN.getPropertiesOrThrow("union_field");
+    Assert.assertEquals(Value.ValueTypeCase.NULL_VALUE, value.getValueTypeCase());
   }
 
   @Test

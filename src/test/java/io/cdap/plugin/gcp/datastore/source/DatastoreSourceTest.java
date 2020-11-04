@@ -15,16 +15,18 @@
  */
 package io.cdap.plugin.gcp.datastore.source;
 
-import com.google.cloud.Timestamp;
 import com.google.cloud.datastore.Blob;
-import com.google.cloud.datastore.Entity;
-import com.google.cloud.datastore.Key;
-import com.google.cloud.datastore.LatLng;
-import com.google.cloud.datastore.ListValue;
-import com.google.cloud.datastore.LongValue;
-import com.google.cloud.datastore.NullValue;
-import com.google.cloud.datastore.StringValue;
+import com.google.datastore.v1.ArrayValue;
+import com.google.datastore.v1.Entity;
+import com.google.datastore.v1.Key;
+import com.google.datastore.v1.PartitionId;
+import com.google.datastore.v1.Value;
+import com.google.protobuf.ByteString;
+import com.google.protobuf.NullValue;
+import com.google.protobuf.Timestamp;
+import com.google.type.LatLng;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.etl.mock.validation.MockFailureCollector;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -33,6 +35,8 @@ import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.junit.MockitoJUnitRunner;
 
+import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -49,9 +53,16 @@ public class DatastoreSourceTest {
 
   @Test
   public void testGetSchemaIsIncludeKeyTrue() {
-    Entity entity = Entity.newBuilder(Key.newBuilder(DatastoreSourceConfigHelper.TEST_PROJECT,
-                                                     DatastoreSourceConfigHelper.TEST_KIND, 1).build())
-      .set("string_field", "string_value")
+
+    Entity entity = Entity.newBuilder()
+      .setKey(Key.newBuilder()
+                .setPartitionId(PartitionId.newBuilder()
+                                  .setProjectId(DatastoreSourceConfigHelper.TEST_PROJECT))
+                .addPath(Key.PathElement.newBuilder()
+                           .setId(1)
+                           .setKind(DatastoreSourceConfigHelper.TEST_KIND).build())
+                .build())
+      .putProperties("string_field", Value.newBuilder().setStringValue("string_value").build())
       .build();
 
     Schema schemaWithKey = datastoreSource.constructSchema(entity, true, "key");
@@ -65,23 +76,46 @@ public class DatastoreSourceTest {
 
   @Test
   public void testGetSchemaIsIncludeKeyFalse() {
-    Entity entity = Entity.newBuilder(Key.newBuilder(DatastoreSourceConfigHelper.TEST_PROJECT,
-                                                     DatastoreSourceConfigHelper.TEST_KIND, 1).build())
-      .set("string_field", "string_value")
-      .set("long_field", 10L)
-      .set("double_field", 10.5D)
-      .set("boolean_field", true)
-      .set("timestamp_field", Timestamp.now())
-      .set("blob_field", Blob.copyFrom("test_blob".getBytes()))
-      .setNull("null_field")
-      .set("entity_field", Entity.newBuilder()
-        .set("nested_string_field", "nested_value")
-        .set("nested_long_field", 20L)
+    Instant time = Instant.now();
+    Timestamp entityTs = Timestamp.newBuilder().setSeconds(time.getEpochSecond())
+      .setNanos(time.getNano()).build();
+    Entity nestedEntity = Entity.newBuilder()
+      .putProperties("nested_string_field", Value.newBuilder().setStringValue("nested_value")
         .build())
-      .set("list_field", "value_1", "value_2")
-      .set("key_field", Key.newBuilder(DatastoreSourceConfigHelper.TEST_PROJECT,
-                                       DatastoreSourceConfigHelper.TEST_KIND, 2).build())
-      .set("lat_lng_field", LatLng.of(10, 5))
+      .putProperties("nested_long_field", Value.newBuilder().setIntegerValue(20L).build())
+      .build();
+    ArrayValue arrayValue = ArrayValue.newBuilder().addAllValues(Arrays.asList(
+      Value.newBuilder().setStringValue("value_1").build(),
+      Value.newBuilder().setStringValue("value_2").build())).build();
+
+    Entity entity = Entity.newBuilder()
+      .setKey(Key.newBuilder().
+        setPartitionId(PartitionId.newBuilder()
+                         .setProjectId(DatastoreSourceConfigHelper.TEST_PROJECT)))
+      .putProperties("string_field", Value.newBuilder().setStringValue("string_value").build())
+      .putProperties("long_field", Value.newBuilder().setIntegerValue(10L).build())
+      .putProperties("double_field", Value.newBuilder().setDoubleValue(10.5D).build())
+      .putProperties("boolean_field", Value.newBuilder().setBooleanValue(true).build())
+      .putProperties("timestamp_field", Value.newBuilder().setTimestampValue(entityTs).build())
+      .putProperties("blob_field", Value.newBuilder().
+        setBlobValue(ByteString.copyFrom(Blob.copyFrom("test_blob".getBytes()).toByteArray())).build())
+      .putProperties("null_field", Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build())
+      .putProperties("entity_field", Value.newBuilder().setEntityValue(nestedEntity).build())
+      .putProperties("list_field", Value.newBuilder().setArrayValue(arrayValue).build())
+      .putProperties("lat_lng_field", Value.newBuilder().setGeoPointValue(
+        LatLng.newBuilder()
+          .setLatitude(10)
+          .setLongitude(5)
+          .build()).build())
+      .putProperties("key_field", Value.newBuilder().setKeyValue(
+        Key.newBuilder()
+          .setPartitionId(PartitionId.newBuilder()
+                            .setProjectId(DatastoreSourceConfigHelper.TEST_PROJECT))
+          .addPath(Key.PathElement.newBuilder()
+                     .setId(2)
+                     .setKind(DatastoreSourceConfigHelper.TEST_KIND).build())
+          .build()
+      ).build())
       .build();
 
     Schema schema = datastoreSource.constructSchema(entity, false, "key");
@@ -113,23 +147,69 @@ public class DatastoreSourceTest {
 
   @Test
   public void testGetSchemaArrayWithComplexUnion() {
-    LongValue longValue1 = LongValue.of(10);
-    LongValue longValue2 = LongValue.of(20);
-    StringValue stringValue1 = StringValue.of("string_value_1");
-    StringValue stringValue2 = StringValue.of("string_value_2");
-
-    Entity entity = Entity.newBuilder(Key.newBuilder(DatastoreSourceConfigHelper.TEST_PROJECT,
-                                                     DatastoreSourceConfigHelper.TEST_KIND, 1).build())
-      .set("array_field", longValue1, longValue2, stringValue1, stringValue2)
-      .set("array_field_null", NullValue.of(), NullValue.of())
-      .set("array_field_empty", ListValue.newBuilder().build())
+    ArrayValue arrayFieldValue = ArrayValue.newBuilder().addAllValues(Arrays.asList(
+      Value.newBuilder().setIntegerValue(10).build(),
+      Value.newBuilder().setIntegerValue(20).build(),
+      Value.newBuilder().setStringValue("string_value_1").build(),
+      Value.newBuilder().setStringValue("string_value_1").build()))
       .build();
 
-    Schema schema = datastoreSource.constructSchema(entity, false, "key");
+    Value nullValue = Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build();
+    ArrayValue arrayNullValue = ArrayValue.newBuilder().addAllValues(Arrays.asList(
+      nullValue, nullValue)).build();
+
+    ArrayValue emptyValue = ArrayValue.newBuilder().build();
+
+      Entity entity = Entity.newBuilder()
+      .setKey(Key.newBuilder()
+                .setPartitionId(PartitionId.newBuilder()
+                                  .setProjectId(DatastoreSourceConfigHelper.TEST_PROJECT))
+                .addPath(Key.PathElement.newBuilder()
+                           .setId(1)
+                           .setKind(DatastoreSourceConfigHelper.TEST_KIND).build())
+                .build())
+      .putProperties("array_field", Value.newBuilder().setArrayValue(arrayFieldValue).build())
+        .putProperties("array_field_null", Value.newBuilder().setArrayValue(arrayNullValue).build())
+        .putProperties("array_field_empty", Value.newBuilder().setArrayValue(emptyValue).build())
+        .build();
+
+      Schema schema = datastoreSource.constructSchema(entity, false, "key");
     checkField("array_field", schema, Schema.nullableOf(Schema.arrayOf(Schema.unionOf(
       Schema.of(Schema.Type.LONG), Schema.of(Schema.Type.STRING), Schema.of(Schema.Type.NULL)))));
     checkField("array_field_null", schema, Schema.nullableOf(Schema.arrayOf(Schema.of(Schema.Type.NULL))));
     checkField("array_field_empty", schema, Schema.nullableOf(Schema.arrayOf(Schema.of(Schema.Type.NULL))));
+  }
+
+  @Test
+  public void testConstructAncestorWithIdKey() {
+    String ancestor = "Key(A,100,B,'bId',`C C C`, 123)";
+
+    MockFailureCollector collector = new MockFailureCollector();
+    DatastoreSourceConfig config = DatastoreSourceConfigHelper.newConfigBuilder().setAncestor(ancestor).build();
+    Key key = datastoreSource.constructAncestorKey(config, collector);
+    Assert.assertEquals(config.getProject(), key.getPartitionId().getProjectId());
+    Assert.assertEquals(config.getNamespace(), key.getPartitionId().getNamespaceId());
+    Assert.assertEquals(config.getAncestor(collector), key.getPathList().subList(0, key.getPathCount()));
+  }
+
+  @Test
+  public void testConstructAncestorWithNameKey() {
+    String ancestor = "Key(A,100,B,'bId',`C C C`, 'cId')";
+
+    MockFailureCollector collector = new MockFailureCollector();
+    DatastoreSourceConfig config = DatastoreSourceConfigHelper.newConfigBuilder().setAncestor(ancestor).build();
+    Key key = datastoreSource.constructAncestorKey(config, collector);
+    Assert.assertEquals(config.getProject(), key.getPartitionId().getProjectId());
+    Assert.assertEquals(config.getNamespace(), key.getPartitionId().getNamespaceId());
+    Assert.assertEquals(config.getAncestor(collector), key.getPathList().subList(0, key.getPathCount()));
+  }
+
+  @Test
+  public void testConstructAncestorWithNoAncestor() {
+    String ancestor = "Key(`C C C`, 'cId')";
+    MockFailureCollector collector = new MockFailureCollector();
+    DatastoreSourceConfig config = DatastoreSourceConfigHelper.newConfigBuilder().setAncestor(ancestor).build();
+    Assert.assertNull(datastoreSource.constructAncestorKey(config, collector));
   }
 
   private void checkField(String name, Schema schema, Schema fieldSchema) {

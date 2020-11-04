@@ -15,7 +15,7 @@
  */
 package io.cdap.plugin.gcp.datastore.sink;
 
-import com.google.cloud.datastore.FullEntity;
+import com.google.datastore.v1.Entity;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
@@ -46,7 +46,7 @@ import java.util.stream.Collectors;
 @Name(DatastoreSink.PLUGIN_NAME)
 @Description("CDAP Google Cloud Datastore Batch Sink takes the structured record from the input source and writes "
   + "to Google Cloud Datastore.")
-public class DatastoreSink extends BatchSink<StructuredRecord, NullWritable, FullEntity<?>> {
+public class DatastoreSink extends BatchSink<StructuredRecord, NullWritable, Entity> {
 
   private static final Logger LOG = LoggerFactory.getLogger(DatastoreSink.class);
 
@@ -111,8 +111,8 @@ public class DatastoreSink extends BatchSink<StructuredRecord, NullWritable, Ful
   }
 
   @Override
-  public void transform(StructuredRecord record, Emitter<KeyValue<NullWritable, FullEntity<?>>> emitter) {
-    FullEntity<?> fullEntity = recordToEntityTransformer.transformStructuredRecord(record);
-    emitter.emit(new KeyValue<>(null, fullEntity));
+  public void transform(StructuredRecord record, Emitter<KeyValue<NullWritable, Entity>> emitter) {
+    Entity entity = recordToEntityTransformer.transformStructuredRecord(record);
+    emitter.emit(new KeyValue<>(null, entity));
   }
 }

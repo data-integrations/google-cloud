@@ -17,12 +17,13 @@ package io.cdap.plugin.gcp.datastore.util;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
-import com.google.cloud.datastore.Datastore;
-import com.google.cloud.datastore.DatastoreOptions;
 import com.google.common.base.Strings;
+import com.google.datastore.v1.client.Datastore;
 import com.google.datastore.v1.client.DatastoreFactory;
-import io.cdap.plugin.gcp.common.GCPUtils;
+import com.google.datastore.v1.client.DatastoreOptions;
 import io.cdap.plugin.gcp.datastore.exception.DatastoreInitializationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
@@ -34,48 +35,24 @@ import javax.annotation.Nullable;
  * Utility class that provides methods to connect to Datastore instance.
  */
 public class DatastoreUtil {
+  private static final Logger LOG = LoggerFactory.getLogger(DatastoreUtil.class);
 
   /**
-   * Connects to Datastore instance using given credentials in JSON file and project ID.
+   * Connects to Datastore V1 instance using given credentials in JSON file and project ID.
    *
    * @param serviceAccount path to credentials defined in JSON file
    * @param isServiceAccountFilePath indicator if provided service account if file path or JSON
    * @param projectId Google Cloud project ID
    * @return Datastore service
-   */
-  public static Datastore getDatastore(@Nullable String serviceAccount,
-                                       @Nullable Boolean isServiceAccountFilePath, String projectId) {
-    try {
-      DatastoreOptions.Builder optionsBuilder = DatastoreOptions.newBuilder()
-        .setProjectId(projectId);
-
-      if (!Strings.isNullOrEmpty(serviceAccount)) {
-        optionsBuilder.setCredentials(GCPUtils.loadServiceAccountCredentials(serviceAccount,
-                                                                             isServiceAccountFilePath));
-      }
-
-      return optionsBuilder.build().getService();
-    } catch (IOException e) {
-      throw new DatastoreInitializationException("Unable to connect to Datastore", e);
-    }
-  }
-
-  /**
-   * Connects to Datastore V1 instance using given credentials in JSON file and project ID.
-   *
-   * @param serviceAccount path to credentials defined in JSON file or JSON content
-   * @param isServiceAccountFilePath indicator whether service account is file path or JSON
-   * @param projectId Google Cloud project ID
-   * @return Datastore service
    * @throws DatastoreInitializationException when unable to connect to Datastore
    */
-  public static com.google.datastore.v1.client.Datastore getDatastoreV1(@Nullable String serviceAccount,
-                                                                        @Nullable Boolean isServiceAccountFilePath,
-                                                                        String projectId) {
+  public static Datastore getDatastoreV1(@Nullable String serviceAccount,
+                                         @Nullable Boolean isServiceAccountFilePath,
+                                         String projectId) {
     try {
       final Credential credential = getCredential(serviceAccount, isServiceAccountFilePath);
-      com.google.datastore.v1.client.DatastoreOptions options =
-        new com.google.datastore.v1.client.DatastoreOptions.Builder()
+      DatastoreOptions options =
+        new DatastoreOptions.Builder()
           .credential(credential)
           .projectId(projectId)
           .build();
@@ -107,7 +84,7 @@ public class DatastoreUtil {
     } else {
       credential = GoogleCredential.getApplicationDefault();
     }
-    return credential.createScoped(com.google.datastore.v1.client.DatastoreOptions.SCOPES);
+    return credential.createScoped(DatastoreOptions.SCOPES);
   }
 
   /**

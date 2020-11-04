@@ -15,9 +15,9 @@
  */
 package io.cdap.plugin.gcp.datastore.sink;
 
-import com.google.cloud.datastore.PathElement;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
+import com.google.datastore.v1.Key;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
@@ -157,7 +157,7 @@ public class DatastoreSinkConfig extends GCPReferenceSinkConfig {
     return DatastorePropertyUtil.getKeyAlias(keyAlias);
   }
 
-  public List<PathElement> getAncestor(FailureCollector collector) {
+  public List<Key.PathElement> getAncestor(FailureCollector collector) {
     try {
       return DatastorePropertyUtil.parseKeyLiteral(ancestor);
     } catch (IllegalArgumentException e) {
@@ -302,7 +302,7 @@ public class DatastoreSinkConfig extends GCPReferenceSinkConfig {
       return;
     }
     try {
-      DatastoreUtil.getDatastore(getServiceAccount(), isServiceAccountFilePath(), getProject());
+      DatastoreUtil.getDatastoreV1(getServiceAccount(), isServiceAccountFilePath(), getProject());
     } catch (DatastoreInitializationException e) {
       collector.addFailure(e.getMessage(), "Ensure properties like project, service account file path are correct.")
         .withConfigProperty(DatastoreSinkConstants.PROPERTY_SERVICE_FILE_PATH)

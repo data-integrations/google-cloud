@@ -15,7 +15,7 @@
  */
 package io.cdap.plugin.gcp.datastore.sink;
 
-import com.google.cloud.datastore.FullEntity;
+import com.google.datastore.v1.Entity;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.OutputCommitter;
@@ -23,15 +23,17 @@ import org.apache.hadoop.mapreduce.OutputFormat;
 import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
+import java.io.IOException;
+
 /**
  * An OutputFormat that sends the output of a Hadoop job to the Datastore. DatastoreOutputFormat accepts key,
  * value pairs, but the returned {@link DatastoreRecordWriter} writes only the value to the database as each
  * Datastore entity already contains a Datastore key.
  */
-public class DatastoreOutputFormat extends OutputFormat<NullWritable, FullEntity<?>> {
+public class DatastoreOutputFormat extends OutputFormat<NullWritable, Entity> {
 
   @Override
-  public RecordWriter<NullWritable, FullEntity<?>> getRecordWriter(TaskAttemptContext taskAttemptContext) {
+  public RecordWriter<NullWritable, Entity> getRecordWriter(TaskAttemptContext taskAttemptContext) throws IOException {
     return new DatastoreRecordWriter(taskAttemptContext);
   }
 

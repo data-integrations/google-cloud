@@ -15,7 +15,7 @@
  */
 package io.cdap.plugin.gcp.datastore.util;
 
-import com.google.cloud.datastore.PathElement;
+import com.google.datastore.v1.Key.PathElement;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * Tests method {@link DatastorePropertyUtil#parseKeyLiteral(String)} positive cases.
+ * Tests method {@link DatastorePropertyUtil#parseKeyLiteral(String)} (String)} positive cases.
  */
 @RunWith(value = Parameterized.class)
 public class ParseKeyLiteralPositiveTest {
@@ -52,22 +52,24 @@ public class ParseKeyLiteralPositiveTest {
     return Stream.of(
       new Object[]{null, Collections.emptyList()},
       new Object[]{"", Collections.emptyList()},
-      new Object[]{"key(A, 100)", Collections.singletonList(PathElement.of("A", 100))},
+      new Object[]{"key(A, 100)", Collections.singletonList(PathElement.newBuilder().setKind("A").setId(100).build())},
       new Object[]{"   key    (    A   , 100    )   ", Collections.singletonList(
-        PathElement.of("A", 100))},
+        PathElement.newBuilder().setKind("A").setId(100).build())},
 
       new Object[]{"Key(A, 'stringId')", Collections.singletonList(
-        PathElement.of("A", "stringId"))},
+        PathElement.newBuilder().setKind("A").setName("stringId").build())},
+
 
       new Object[]{"KEY(`A A A`, 'stringId')", Collections.singletonList(
-        PathElement.of("A A A", "stringId"))},
+        PathElement.newBuilder().setKind("A A A").setName("stringId").build())},
+
 
       new Object[]{"key(A, 'stringId', B, 100, c, 200, `D D`, 'V a l u e')", Arrays.asList(
-        PathElement.of("A", "stringId"),
-        PathElement.of("B", 100),
-        PathElement.of("c", 200),
-        PathElement.of("D D", "V a l u e"))}
-    ).collect(Collectors.toList());
+        PathElement.newBuilder().setKind("A").setName("stringId").build(),
+        PathElement.newBuilder().setKind("B").setId(100).build(),
+        PathElement.newBuilder().setKind("c").setId(200).build(),
+        PathElement.newBuilder().setKind("D D").setName("V a l u e").build())}
+        ).collect(Collectors.toList());
   }
 
 }
