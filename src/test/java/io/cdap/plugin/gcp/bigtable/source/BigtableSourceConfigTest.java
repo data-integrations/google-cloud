@@ -35,6 +35,7 @@ public class BigtableSourceConfigTest {
   private static final String VALID_COLUMN_MAPPING = "test-family:id=id";
   private static final String VALID_BIGTABLE_OPTIONS = "";
   private static final String VALID_PROJECT = "test-project";
+  private static final String VALID_SERVICE_ACCOUNT_TYPE = "filePath";
   private static final String VALID_ACCOUNT_FILE_PATH =
     BigtableSourceConfigTest.class.getResource("/credentials.json").getPath();
   private static final String VALID_KEY_ALIAS = "test-alias";
@@ -168,6 +169,7 @@ public class BigtableSourceConfigTest {
       .setTable(VALID_TABLE)
       .setInstance(VALID_INSTANCE)
       .setProject(VALID_PROJECT)
+      .setServiceAccountType(VALID_SERVICE_ACCOUNT_TYPE)
       .setServiceFilePath(VALID_ACCOUNT_FILE_PATH)
       .setScanRowStart(VALID_SCAN_ROW_START)
       .setScanRowStop(VALID_SCAN_ROW_STOP)
