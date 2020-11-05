@@ -21,8 +21,6 @@ import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
-import com.google.cloud.bigquery.LegacySQLTypeName;
-import com.google.cloud.bigquery.StandardSQLTypeName;
 import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableDefinition.Type;
@@ -60,9 +58,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.time.DateTimeException;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -96,7 +92,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
 
     // if any of the require properties have macros or the service account can't be auto-detected
     // or the dataset project isn't set and the project can't be auto-detected
-    if (!config.canConnect() || config.autoServiceAccountUnavailable() ||
+    if (!config.canConnect() || (config.isServiceAccountFilePath() && config.autoServiceAccountUnavailable()) ||
       (config.tryGetProject() == null && config.getDatasetProject() == null)) {
       stageConfigurer.setOutputSchema(configuredSchema);
       return;
@@ -128,14 +124,15 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
 
     Schema configuredSchema = getOutputSchema(collector);
 
-    String serviceAccountPath = config.getServiceAccountFilePath();
-    Credentials credentials = serviceAccountPath == null ?
-      null : GCPUtils.loadServiceAccountCredentials(serviceAccountPath);
+    String serviceAccount = config.getServiceAccount();
+    Credentials credentials = serviceAccount == null ?
+      null : GCPUtils.loadServiceAccountCredentials(serviceAccount, config.isServiceAccountFilePath());
     BigQuery bigQuery = GCPUtils.getBigQuery(config.getDatasetProject(), credentials);
 
     uuid = UUID.randomUUID();
     String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
-    configuration = BigQueryUtil.getBigQueryConfig(config.getServiceAccountFilePath(), config.getProject(), cmekKey);
+    configuration = BigQueryUtil.getBigQueryConfig(serviceAccount, config.getProject(), cmekKey,
+                                                   config.getServiceAccountType());
 
     String bucket = config.getBucket();
     if (bucket == null) {
@@ -154,8 +151,9 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     configuration.setBoolean("fs.gs.impl.disable.cache", true);
     configuration.setBoolean("fs.gs.metadata.cache.enable", false);
 
-    if (config.getServiceAccountFilePath() != null) {
-      configuration.set(BigQueryConstants.CONFIG_SERVICE_ACCOUNT_FILE_PATH, config.getServiceAccountFilePath());
+    if (config.getServiceAccount() != null) {
+      configuration.set(BigQueryConstants.CONFIG_SERVICE_ACCOUNT, config.getServiceAccount());
+      configuration.setBoolean(BigQueryConstants.CONFIG_SERVICE_ACCOUNT_IS_FILE, config.isServiceAccountFilePath());
     }
     if (config.getPartitionFrom() != null) {
       configuration.set(BigQueryConstants.CONFIG_PARTITION_FROM_DATE, config.getPartitionFrom());
@@ -265,12 +263,13 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
   }
 
   private com.google.cloud.bigquery.Schema getBQSchema(FailureCollector collector) {
-    String serviceAccountPath = config.getServiceAccountFilePath();
+    String serviceAccount = config.getServiceAccount();
     String dataset = config.getDataset();
     String tableName = config.getTable();
     String project = config.getDatasetProject();
 
-    Table table = BigQueryUtil.getBigQueryTable(project, dataset, tableName, serviceAccountPath, collector);
+    Table table = BigQueryUtil.getBigQueryTable(project, dataset, tableName, serviceAccount,
+                                                config.isServiceAccountFilePath(), collector);
     if (table == null) {
       // Table does not exist
       collector.addFailure(String.format("BigQuery table '%s:%s.%s' does not exist.", project, dataset, tableName),
@@ -302,8 +301,8 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     String project = config.getDatasetProject();
     String dataset = config.getDataset();
     String tableName = config.getTable();
-    Table sourceTable = BigQueryUtil.getBigQueryTable(project, dataset, tableName,
-                                                      config.getServiceAccountFilePath(), collector);
+    Table sourceTable = BigQueryUtil.getBigQueryTable(project, dataset, tableName, config.getServiceAccount(),
+                                                      config.isServiceAccountFilePath(), collector);
     if (sourceTable == null) {
       return;
     }

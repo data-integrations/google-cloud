@@ -330,13 +330,14 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     String project = getDatasetProject();
     String dataset = getDataset();
     String tableName = getTable();
-    String serviceAccountPath = getServiceAccountFilePath();
+    String serviceAccount = getServiceAccount();
 
-    if (project == null || dataset == null || tableName == null || serviceAccountPath == null) {
+    if (project == null || dataset == null || tableName == null || serviceAccount == null) {
       return;
     }
 
-    Table table = BigQueryUtil.getBigQueryTable(project, dataset, tableName, serviceAccountPath, collector);
+    Table table = BigQueryUtil.getBigQueryTable(project, dataset, tableName, serviceAccount,
+                                                isServiceAccountFilePath(), collector);
     if (table != null) {
       StandardTableDefinition tableDefinition = table.getDefinition();
       TimePartitioning timePartitioning = tableDefinition.getTimePartitioning();
@@ -610,7 +611,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   boolean shouldConnect() {
     return !containsMacro(BigQuerySinkConfig.NAME_DATASET) &&
       !containsMacro(BigQuerySinkConfig.NAME_TABLE) &&
-      !containsMacro(BigQuerySinkConfig.NAME_SERVICE_ACCOUNT_FILE_PATH) &&
+      !(containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH) || containsMacro(NAME_SERVICE_ACCOUNT_JSON)) &&
       !containsMacro(BigQuerySinkConfig.NAME_PROJECT) &&
       !containsMacro(BigQuerySinkConfig.DATASET_PROJECT_ID) &&
       !containsMacro(BigQuerySinkConfig.NAME_SCHEMA);
