@@ -24,6 +24,7 @@ import com.google.datastore.v1.client.DatastoreFactory;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.datastore.exception.DatastoreInitializationException;
 
+import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -37,17 +38,20 @@ public class DatastoreUtil {
   /**
    * Connects to Datastore instance using given credentials in JSON file and project ID.
    *
-   * @param serviceAccountFilePath path to credentials defined in JSON file
+   * @param serviceAccount path to credentials defined in JSON file
+   * @param isServiceAccountFilePath indicator if provided service account if file path or JSON
    * @param projectId Google Cloud project ID
    * @return Datastore service
    */
-  public static Datastore getDatastore(@Nullable String serviceAccountFilePath, String projectId) {
+  public static Datastore getDatastore(@Nullable String serviceAccount,
+                                       @Nullable Boolean isServiceAccountFilePath, String projectId) {
     try {
       DatastoreOptions.Builder optionsBuilder = DatastoreOptions.newBuilder()
         .setProjectId(projectId);
 
-      if (!Strings.isNullOrEmpty(serviceAccountFilePath)) {
-        optionsBuilder.setCredentials(GCPUtils.loadServiceAccountCredentials(serviceAccountFilePath));
+      if (!Strings.isNullOrEmpty(serviceAccount)) {
+        optionsBuilder.setCredentials(GCPUtils.loadServiceAccountCredentials(serviceAccount,
+                                                                             isServiceAccountFilePath));
       }
 
       return optionsBuilder.build().getService();
@@ -59,17 +63,20 @@ public class DatastoreUtil {
   /**
    * Connects to Datastore V1 instance using given credentials in JSON file and project ID.
    *
-   * @param serviceAccountFilePath path to credentials defined in JSON file
+   * @param serviceAccount path to credentials defined in JSON file or JSON content
+   * @param isServiceAccountFilePath indicator whether service account is file path or JSON
    * @param projectId Google Cloud project ID
    * @return Datastore service
    * @throws DatastoreInitializationException when unable to connect to Datastore
    */
-  public static com.google.datastore.v1.client.Datastore getDatastoreV1(@Nullable String serviceAccountFilePath,
+  public static com.google.datastore.v1.client.Datastore getDatastoreV1(@Nullable String serviceAccount,
+                                                                        @Nullable Boolean isServiceAccountFilePath,
                                                                         String projectId) {
     try {
+      final Credential credential = getCredential(serviceAccount, isServiceAccountFilePath);
       com.google.datastore.v1.client.DatastoreOptions options =
         new com.google.datastore.v1.client.DatastoreOptions.Builder()
-          .credential(getCredential(serviceAccountFilePath))
+          .credential(credential)
           .projectId(projectId)
           .build();
 
@@ -83,19 +90,47 @@ public class DatastoreUtil {
    * Obtains Google Cloud credential from given JSON file.
    * If give path is null or empty, obtains application default credentials.
    *
-   * @param serviceAccountFilePath path to credentials defined in JSON file
+   * @param serviceAccount path to credentials defined in JSON file
+   * @param isServiceAccountFilePath indicator whether service account is file path or JSON
    * @return Google Cloud credential
    * @throws IOException if the credential cannot be created in the current environment
    */
-  private static Credential getCredential(@Nullable String serviceAccountFilePath) throws IOException {
+  private static Credential getCredential(@Nullable String serviceAccount,
+                                          @Nullable Boolean isServiceAccountFilePath) throws IOException {
     GoogleCredential credential;
-    if (!Strings.isNullOrEmpty(serviceAccountFilePath)) {
-      try (InputStream inputStream = new FileInputStream(serviceAccountFilePath)) {
-        credential = GoogleCredential.fromStream(inputStream);
+    if (!Strings.isNullOrEmpty(serviceAccount)) {
+      if (!isServiceAccountFilePath) {
+        credential = loadCredentialFromStream(serviceAccount);
+      } else {
+        credential = loadCredentialFromFile(serviceAccount);
       }
     } else {
       credential = GoogleCredential.getApplicationDefault();
     }
     return credential.createScoped(com.google.datastore.v1.client.DatastoreOptions.SCOPES);
+  }
+
+  /**
+   * Generate credentials from JSON key
+   * @param serviceAccountFilePath path to service account file
+   * @return Google Cloud credential
+   * @throws IOException if the credential cannot be created in the current environment
+   */
+  private static GoogleCredential loadCredentialFromFile(@Nullable String serviceAccountFilePath) throws IOException {
+    try (InputStream inputStream = new FileInputStream(serviceAccountFilePath)) {
+      return GoogleCredential.fromStream(inputStream);
+    }
+  }
+
+  /**
+   * Generate credentials from JSON key
+   * @param serviceAccount contents of service account JSON
+   * @return Google Cloud credential
+   * @throws IOException if the credential cannot be created in the current environment
+   */
+  private static GoogleCredential loadCredentialFromStream(@Nullable String serviceAccount) throws IOException {
+    try (InputStream jsonInputStream = new ByteArrayInputStream(serviceAccount.getBytes())) {
+      return GoogleCredential.fromStream(jsonInputStream);
+    }
   }
 }

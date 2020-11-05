@@ -29,8 +29,8 @@ public class DatastoreInputFormatProvider implements InputFormatProvider {
 
   private final Map<String, String> configMap;
 
-  public DatastoreInputFormatProvider(String project, String serviceAccountPath, String namespace, String kind,
-                                      String query, String spits) {
+  public DatastoreInputFormatProvider(String project, String serviceAccountPath, Boolean isServiceAccountFilePath,
+                                      String namespace, String kind, String query, String spits) {
     ImmutableMap.Builder<String, String> builder = new ImmutableMap.Builder<String, String>()
       .put(DatastoreSourceConstants.CONFIG_PROJECT, project)
       .put(DatastoreSourceConstants.CONFIG_NAMESPACE, namespace)
@@ -38,7 +38,8 @@ public class DatastoreInputFormatProvider implements InputFormatProvider {
       .put(DatastoreSourceConstants.CONFIG_QUERY, query)
       .put(DatastoreSourceConstants.CONFIG_NUM_SPLITS, spits);
     if (Objects.nonNull(serviceAccountPath)) {
-      builder.put(DatastoreSourceConstants.CONFIG_SERVICE_ACCOUNT_FILE_PATH, serviceAccountPath);
+      builder.put(DatastoreSourceConstants.CONFIG_SERVICE_ACCOUNT, serviceAccountPath);
+      builder.put(DatastoreSourceConstants.CONFIG_SERVICE_ACCOUNT_IS_FILE, isServiceAccountFilePath.toString());
     }
     this.configMap = builder.build();
   }
