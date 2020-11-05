@@ -23,6 +23,7 @@ import com.google.cloud.speech.v1.SpeechClient;
 import com.google.cloud.speech.v1.SpeechRecognitionAlternative;
 import com.google.cloud.speech.v1.SpeechRecognitionResult;
 import com.google.cloud.speech.v1.SpeechSettings;
+import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
@@ -30,7 +31,6 @@ import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
-import io.cdap.cdap.api.plugin.PluginConfig;
 import io.cdap.cdap.etl.api.Emitter;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
@@ -86,6 +86,11 @@ public class SpeechToTextTransform extends Transform<StructuredRecord, Structure
     super.initialize(context);
     outputSchema = context.getOutputSchema();
     setRecognitionConfig();
+    if (config.isServiceAccountFilePath() == null) {
+      context.getFailureCollector().addFailure("Service account type is undefined.",
+                                               "Must be `filePath` or `JSON`");
+      context.getFailureCollector().getOrThrowException();
+    }
     speech = SpeechClient.create(getSettings());
   }
 
@@ -173,8 +178,9 @@ public class SpeechToTextTransform extends Transform<StructuredRecord, Structure
 
   private SpeechSettings getSettings() throws IOException {
     SpeechSettings.Builder builder = SpeechSettings.newBuilder();
-    if (config.getServiceAccountFilePath() != null) {
-      builder.setCredentialsProvider(() -> GCPUtils.loadServiceAccountCredentials(config.getServiceAccountFilePath()));
+    if (!Strings.isNullOrEmpty(config.getServiceAccount())) {
+      builder.setCredentialsProvider(() -> GCPUtils.loadServiceAccountCredentials(config.getServiceAccount(),
+                                                                                  config.isServiceAccountFilePath()));
     }
     return builder.build();
   }
@@ -226,7 +232,7 @@ public class SpeechToTextTransform extends Transform<StructuredRecord, Structure
     }
   }
 
-  private static class SpeechTransformConfig extends PluginConfig {
+  private static class SpeechTransformConfig extends GCPConfig {
     private static final String NAME_AUDIOFIELD = "audiofield";
     private static final String NAME_TRANS_PART = "transcriptionPartsField";
     private static final String NAME_TRANS_TEXT = "transcriptionTextField";
@@ -273,23 +279,6 @@ public class SpeechToTextTransform extends Transform<StructuredRecord, Structure
     @Description("If a field name is specified then the transcription with highest confidence score will be stored " +
       "as text.")
     private String transcriptionTextField;
-
-    @Macro
-    @Nullable
-    @Name("serviceFilePath")
-    @Description("Path on the local file system of the service account key used for authorization. Can be set to " +
-      "'auto-detect' when running on a Dataproc cluster. When running on other clusters, the file must be present on " +
-      "every node in the cluster.")
-    private String serviceAccountFilePath;
-
-    @Nullable
-    public String getServiceAccountFilePath() {
-      if (containsMacro("serviceFilePath") || serviceAccountFilePath == null ||
-        serviceAccountFilePath.isEmpty() || GCPConfig.AUTO_DETECT.equals(serviceAccountFilePath)) {
-        return null;
-      }
-      return serviceAccountFilePath;
-    }
 
     @Nullable
     public String getPartsField() {
