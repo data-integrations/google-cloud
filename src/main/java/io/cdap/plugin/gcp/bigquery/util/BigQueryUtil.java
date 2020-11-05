@@ -61,6 +61,7 @@ public final class BigQueryUtil {
   public static final String BUCKET_PATTERN = "[a-z0-9._-]+";
   public static final String DATASET_PATTERN = "[A-Za-z0-9_]+";
   public static final String TABLE_PATTERN = "[A-Za-z0-9_]+";
+  public static final String MAP_REDUCE_JSON_KEY_PREFIX = "mapred.bq";
 
   // array of arrays and map of arrays are not supported by big query
   public static final Set<Schema.Type> UNSUPPORTED_ARRAY_TYPES = ImmutableSet.of(Schema.Type.ARRAY, Schema.Type.MAP);
@@ -115,14 +116,15 @@ public final class BigQueryUtil {
   /**
    * Get Bigquery {@link Configuration}.
    *
-   * @param serviceAccountFilePath service account file path
+   * @param serviceAccountInfo service account file path or JSON content
    * @param projectId BigQuery project ID
    * @param cmekKey the name of the cmek key
-   * @return {@link Configuration} with config set for BigQuery
+   * @param serviceAccountType type of the service account
+   * @return indicator for whether service account is file or json
    * @throws IOException if not able to get credentials
    */
-  public static Configuration getBigQueryConfig(@Nullable String serviceAccountFilePath, String projectId,
-                                                @Nullable String cmekKey)
+  public static Configuration getBigQueryConfig(@Nullable String serviceAccountInfo, String projectId,
+                                                @Nullable String cmekKey, String serviceAccountType)
     throws IOException {
     Job job = Job.getInstance();
 
@@ -136,9 +138,12 @@ public final class BigQueryUtil {
 
     Configuration configuration = job.getConfiguration();
     configuration.clear();
-    if (serviceAccountFilePath != null) {
-      configuration.set("mapred.bq.auth.service.account.json.keyfile", serviceAccountFilePath);
-      configuration.set("google.cloud.auth.service.account.json.keyfile", serviceAccountFilePath);
+    if (serviceAccountInfo != null) {
+      final Map<String, String> authProperties = GCPUtils.generateAuthProperties(serviceAccountInfo,
+                                                                                 serviceAccountType,
+                                                                                 MAP_REDUCE_JSON_KEY_PREFIX,
+                                                                                 GCPUtils.CLOUD_JSON_KEYFILE_PREFIX);
+      authProperties.forEach(configuration::set);
     }
     configuration.set("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
     configuration.set("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
@@ -442,15 +447,32 @@ public final class BigQueryUtil {
   @Nullable
   public static Table getBigQueryTable(String projectId, String datasetId, String tableName,
                                        @Nullable String serviceAccountPath) {
+    return getBigQueryTable(projectId, datasetId, tableName, serviceAccountPath, true);
+  }
+
+  /**
+   * Get BigQuery table.
+   *
+   * @param projectId BigQuery project ID
+   * @param datasetId BigQuery dataset ID
+   * @param tableName BigQuery table name
+   * @param serviceAccount service account file path or JSON content
+   * @param isServiceAccountFilePath indicator for whether service account is file or json
+   * @return BigQuery table
+   */
+  @Nullable
+  public static Table getBigQueryTable(String projectId, String datasetId, String tableName,
+                                       @Nullable String serviceAccount, boolean isServiceAccountFilePath) {
     TableId tableId = TableId.of(projectId, datasetId, tableName);
 
     com.google.auth.Credentials credentials = null;
-    if (serviceAccountPath != null) {
+    if (serviceAccount != null) {
       try {
-        credentials = GCPUtils.loadServiceAccountCredentials(serviceAccountPath);
+        credentials = GCPUtils.loadServiceAccountCredentials(serviceAccount, isServiceAccountFilePath);
       } catch (IOException e) {
         throw new InvalidConfigPropertyException(
-          String.format("Unable to load credentials from %s", serviceAccountPath), "serviceFilePath");
+          String.format("Unable to load credentials from %s", isServiceAccountFilePath ? serviceAccount : " JSON."),
+          "serviceFilePath");
       }
     }
     BigQuery bigQuery = GCPUtils.getBigQuery(projectId, credentials);
@@ -478,13 +500,31 @@ public final class BigQueryUtil {
   @Nullable
   public static Table getBigQueryTable(String projectId, String datasetId, String tableName,
                                        @Nullable String serviceAccountPath, FailureCollector collector) {
+    return getBigQueryTable(projectId, datasetId, tableName, serviceAccountPath, true, collector);
+  }
+
+  /**
+   * Get BigQuery table.
+   *
+   * @param projectId BigQuery project ID
+   * @param datasetId BigQuery dataset ID
+   * @param tableName BigQuery table name
+   * @param serviceAccount service account file path or JSON content
+   * @param isServiceAccountFilePath indicator for whether service account is file or json
+   * @param collector failure collector
+   * @return BigQuery table
+   */
+  public static Table getBigQueryTable(String projectId, String datasetId, String tableName,
+                                       @Nullable String serviceAccount, @Nullable Boolean isServiceAccountFilePath,
+                                       FailureCollector collector) {
     TableId tableId = TableId.of(projectId, datasetId, tableName);
     com.google.auth.Credentials credentials = null;
-    if (serviceAccountPath != null) {
+    if (serviceAccount != null) {
       try {
-        credentials = GCPUtils.loadServiceAccountCredentials(serviceAccountPath);
+        credentials = GCPUtils.loadServiceAccountCredentials(serviceAccount, isServiceAccountFilePath);
       } catch (IOException e) {
-        collector.addFailure(String.format("Unable to load credentials from %s.", serviceAccountPath),
+        collector.addFailure(String.format("Unable to load credentials from %s.",
+                                           isServiceAccountFilePath ? serviceAccount : "provided JSON key"),
                              "Ensure the service account file is available on the local filesystem.")
           .withConfigProperty(GCPConfig.NAME_SERVICE_ACCOUNT_FILE_PATH);
         throw collector.getOrThrowException();

@@ -77,8 +77,9 @@ public final class BigQueryArgumentSetter extends AbstractBigQueryAction {
     JobId jobId = JobId.newBuilder().setRandomJob().build();
 
     // API request - starts the query.
-    Credentials credentials = config.getServiceAccountFilePath() == null ?
-      null : GCPUtils.loadServiceAccountCredentials(config.getServiceAccountFilePath());
+    Credentials credentials = config.getServiceAccount() == null ?
+      null : GCPUtils.loadServiceAccountCredentials(config.getServiceAccount(),
+                                                    config.isServiceAccountFilePath());
     BigQuery bigQuery = GCPUtils.getBigQuery(config.getProject(), credentials);
     Job queryJob = bigQuery.create(JobInfo.newBuilder(queryConfig).setJobId(jobId).build());
 
