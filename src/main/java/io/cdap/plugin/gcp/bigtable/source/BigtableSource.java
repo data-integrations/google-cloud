@@ -17,6 +17,7 @@
 package io.cdap.plugin.gcp.bigtable.source;
 
 import com.google.cloud.bigtable.hbase.BigtableConfiguration;
+import com.google.cloud.bigtable.hbase.BigtableOptionsFactory;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
@@ -159,6 +160,16 @@ public final class BigtableSource extends BatchSource<ImmutableBytesWritable, Re
 
   private Configuration getConfiguration(FailureCollector collector) throws IOException {
     Configuration conf = new Configuration();
+    String serviceAccount = config.getServiceAccount();
+    if (serviceAccount != null) {
+      conf.setBoolean(BigtableOptionsFactory.BIGTABLE_USE_SERVICE_ACCOUNTS_KEY,
+                      BigtableOptionsFactory.BIGTABLE_USE_SERVICE_ACCOUNTS_DEFAULT);
+      if (config.isServiceAccountFilePath()) {
+        conf.set(BigtableOptionsFactory.BIGTABLE_SERVICE_ACCOUNT_JSON_KEYFILE_LOCATION_KEY, serviceAccount);
+      } else {
+        conf.set(BigtableOptionsFactory.BIGTABLE_SERVICE_ACCOUNT_JSON_VALUE_KEY, serviceAccount);
+      }
+    }
     BigtableConfiguration.configure(conf, config.getProject(), config.instance);
     conf.setBoolean(TableInputFormat.SHUFFLE_MAPS, true);
     conf.set(TableInputFormat.INPUT_TABLE, config.table);
