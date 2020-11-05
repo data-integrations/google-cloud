@@ -19,8 +19,10 @@ package io.cdap.plugin.gcp.publisher.source;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.services.pubsub.PubsubScopes;
+import com.google.common.base.Strings;
 import org.apache.spark.streaming.pubsub.SparkGCPCredentials;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -33,24 +35,32 @@ import javax.annotation.Nullable;
  * used by this project.
  */
 public class GCPCredentialsProvider implements SparkGCPCredentials {
-  private final String serviceAccountFilePath;
+  private final String serviceAccount;
+  private final boolean isServiceAccountFilePath;
   private transient Credential credential;
 
-  public GCPCredentialsProvider(@Nullable String serviceAccountFilePath) {
-    this.serviceAccountFilePath = serviceAccountFilePath;
+  public GCPCredentialsProvider(@Nullable String serviceAccount, boolean isServiceAccountFilePath) {
+    this.serviceAccount = serviceAccount;
+    this.isServiceAccountFilePath = isServiceAccountFilePath;
   }
 
   @Override
   public Credential provider() {
     if (credential == null) {
-      if (serviceAccountFilePath != null) {
-        loadFromFile(serviceAccountFilePath);
-      } else {
+      if (!Strings.isNullOrEmpty(serviceAccount)) {
+        if (isServiceAccountFilePath) {
+          loadFromFile(serviceAccount);
+        } else {
+          credential = loadFromJSONContent(serviceAccount);
+        }
+      } else if (isServiceAccountFilePath) {
         try {
           credential = GoogleCredential.getApplicationDefault();
         } catch (IOException e) {
           throw new IllegalArgumentException("Unable to load credentials from environment", e);
         }
+      } else {
+        throw new IllegalArgumentException("Unable to load credentials from environment");
       }
     }
     return credential;
@@ -67,19 +77,34 @@ public class GCPCredentialsProvider implements SparkGCPCredentials {
     }
   }
 
+  private GoogleCredential loadFromJSONContent(String jsonContent) {
+    InputStream jsonInputStream = new ByteArrayInputStream(jsonContent.getBytes());
+    try {
+      return GoogleCredential.fromStream(jsonInputStream).createScoped(PubsubScopes.all());
+    } catch (IOException e) {
+      throw new IllegalArgumentException("Unable to load credentials ", e);
+    }
+  }
+
   /**
    * Builds credentials.
    */
   public static class Builder {
     private String serviceAccountFilePath;
+    private boolean isServiceAccountFilePath;
 
     public Builder jsonServiceAccount(String serviceAccountFilePath) {
       this.serviceAccountFilePath = serviceAccountFilePath;
       return this;
     }
 
+    public Builder setIsServiceAccountFilePath(boolean isServiceAccountFilePath) {
+      this.isServiceAccountFilePath = isServiceAccountFilePath;
+      return this;
+    }
+
     public GCPCredentialsProvider build() {
-      return new GCPCredentialsProvider(serviceAccountFilePath);
+      return new GCPCredentialsProvider(serviceAccountFilePath, isServiceAccountFilePath);
     }
   }
 }
