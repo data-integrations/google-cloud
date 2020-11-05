@@ -274,6 +274,7 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   public boolean canConnect() {
     return !containsMacro(NAME_SCHEMA) && !containsMacro(NAME_DATASET) && !containsMacro(NAME_TABLE) &&
       !containsMacro(NAME_DATASET_PROJECT) &&
+      !containsMacro(NAME_SERVICE_ACCOUNT_TYPE) &&
       !(containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH) || containsMacro(NAME_SERVICE_ACCOUNT_JSON)) &&
       !containsMacro(NAME_PROJECT);
   }

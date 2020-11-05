@@ -101,14 +101,19 @@ public class GCPUtils {
                                                            String serviceAccountType,
                                                            String... keyPrefix) throws IOException {
     Map<String, String> properties = new HashMap<>();
+    if (serviceAccountType == null) {
+      return properties;
+    }
     String privateKeyData = null;
     properties.put(SERVICE_ACCOUNT_TYPE, serviceAccountType);
 
     boolean isServiceAccountFilePath = SERVICE_ACCOUNT_TYPE_FILE_PATH.equals(serviceAccountType);
 
     for (String prefix : keyPrefix) {
-      if (isServiceAccountFilePath && serviceAccount != null) {
-        properties.put(String.format("%s.%s", prefix, CLOUD_JSON_KEYFILE_SUFFIX), serviceAccount);
+      if (isServiceAccountFilePath) {
+        if (serviceAccount != null) {
+          properties.put(String.format("%s.%s", prefix, CLOUD_JSON_KEYFILE_SUFFIX), serviceAccount);
+        }
         continue;
       }
       ServiceAccountCredentials credentials = loadServiceAccountCredentials(serviceAccount, false);

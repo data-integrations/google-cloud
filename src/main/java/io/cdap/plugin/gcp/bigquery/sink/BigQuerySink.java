@@ -86,7 +86,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
 
     config.validate(inputSchema, configuredSchema, collector);
 
-    if (config.tryGetProject() == null ||
+    if (config.tryGetProject() == null || config.getServiceAccountType() == null ||
       (config.isServiceAccountFilePath() && config.autoServiceAccountUnavailable())) {
       return;
     }
