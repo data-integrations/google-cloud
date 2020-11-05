@@ -244,7 +244,7 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
     BigQueryUtils.waitForJobCompletion(
       bigQueryHelper.getRawBigquery(), projectId, jobReference, progressable);
     if (bigQueryHelper.tableExists(tableRef)) {
-      long expirationMillis = System.currentTimeMillis() + TimeUnit.DAYS.toMillis(1);
+      long expirationMillis = System.currentTimeMillis() + TimeUnit.HOURS.toMillis(1);
       Table table = bigQueryHelper.getTable(tableRef).setExpirationTime(expirationMillis);
       bigQueryHelper.getRawBigquery().tables().update(tableRef.getProjectId(), tableRef.getDatasetId(),
                                                       tableRef.getTableId(), table).execute();
