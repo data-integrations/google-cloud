@@ -92,8 +92,8 @@ public class GoogleSubscriber extends StreamingSource<StructuredRecord> {
 
   @Override
   public JavaDStream<StructuredRecord> getStream(StreamingContext streamingContext) {
-    String serviceAccountFilePath = config.getServiceAccountFilePath();
-    SparkGCPCredentials credentials = new GCPCredentialsProvider(serviceAccountFilePath);
+    String serviceAccount = config.getServiceAccount();
+    SparkGCPCredentials credentials = new GCPCredentialsProvider(serviceAccount, config.isServiceAccountFilePath());
 
     JavaReceiverInputDStream<SparkPubsubMessage> pubSubMessages =
       PubsubUtils.createStream(streamingContext.getSparkStreamingContext(), config.getProject(), config.topic,
