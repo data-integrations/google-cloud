@@ -98,8 +98,16 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
   public void prepareRun(BatchSinkContext context) throws Exception {
     super.prepareRun(context);
     String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
-    Credentials credentials = config.getServiceAccountFilePath() == null ?
-                                null : GCPUtils.loadServiceAccountCredentials(config.getServiceAccountFilePath());
+
+    Boolean isServiceAccountFilePath = config.isServiceAccountFilePath();
+    if (isServiceAccountFilePath == null) {
+      context.getFailureCollector().addFailure("Service account type is undefined.",
+                                               "Must be `filePath` or `JSON`");
+      context.getFailureCollector().getOrThrowException();
+      return;
+    }
+    Credentials credentials = config.getServiceAccount() == null ?
+      null : GCPUtils.loadServiceAccountCredentials(config.getServiceAccount(), isServiceAccountFilePath);
     Storage storage = GCPUtils.getStorage(config.getProject(), credentials);
     Bucket bucket;
     try {
@@ -151,7 +159,8 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     }
 
     try {
-      StorageClient storageClient = StorageClient.create(config.getProject(), config.getServiceAccountFilePath());
+      StorageClient storageClient = StorageClient.create(config.getProject(), config.getServiceAccount(),
+                                                         config.isServiceAccountFilePath());
       storageClient.mapMetaDataForAllBlobs(getPrefixPath(), new MetricsEmitter(context.getMetrics())::emitMetrics);
     } catch (Exception e) {
       LOG.warn("Metrics for the number of affected rows in GCS Sink maybe incorrect.", e);

@@ -55,9 +55,13 @@ The delimiter will be ignored if the format is anything other than 'delimited'.
 
 **Location:** The location where the gcs buckets will get created. This value is ignored if the bucket already exists.
 
-**Service Account File Path:** Path on the local file system of the service account key used for
+**Service Account**  - service account key used for authorization
+
+* **File Path**: Path on the local file system of the service account key used for
 authorization. Can be set to 'auto-detect' when running on a Dataproc cluster.
 When running on other clusters, the file must be present on every node in the cluster.
+
+* **JSON**: Contents of the service account JSON file.
 
 **Codec:** The codec to use when writing data. Must be 'none', 'snappy', 'gzip' or 'deflate', defaults to 'none'. 
 The 'avro' supports 'snappy' and 'deflate'. The parquet supports 'snappy' and 'gzip'. 
