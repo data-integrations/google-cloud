@@ -285,6 +285,7 @@ public final class BigtableSourceConfig extends GCPReferenceSourceConfig {
     return !containsMacro(INSTANCE) && Strings.isNullOrEmpty(instance)
       && !containsMacro(NAME_PROJECT) && Strings.isNullOrEmpty(project)
       && !containsMacro(TABLE) && Strings.isNullOrEmpty(table)
+      && !containsMacro(NAME_SERVICE_ACCOUNT_TYPE)
       && !(containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH) || containsMacro(NAME_SERVICE_ACCOUNT_JSON));
   }
 

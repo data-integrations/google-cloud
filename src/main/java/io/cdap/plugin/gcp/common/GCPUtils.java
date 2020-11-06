@@ -101,6 +101,9 @@ public class GCPUtils {
                                                            String serviceAccountType,
                                                            String... keyPrefix) throws IOException {
     Map<String, String> properties = new HashMap<>();
+    if (serviceAccountType == null) {
+      return properties;
+    }
     String privateKeyData = null;
     properties.put(SERVICE_ACCOUNT_TYPE, serviceAccountType);
 
@@ -108,7 +111,9 @@ public class GCPUtils {
 
     for (String prefix : keyPrefix) {
       if (isServiceAccountFilePath) {
-        properties.put(String.format("%s.%s", prefix, CLOUD_JSON_KEYFILE_SUFFIX), serviceAccount);
+        if (serviceAccount != null) {
+          properties.put(String.format("%s.%s", prefix, CLOUD_JSON_KEYFILE_SUFFIX), serviceAccount);
+        }
         continue;
       }
       ServiceAccountCredentials credentials = loadServiceAccountCredentials(serviceAccount, false);

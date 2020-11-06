@@ -143,6 +143,7 @@ public final class BigQueryArgumentSetterConfig extends AbstractBigQueryActionCo
     return !containsMacro(NAME_DATASET)
       && !containsMacro(NAME_TABLE)
       && !containsMacro(NAME_DATASET_PROJECT)
+      && !containsMacro(NAME_SERVICE_ACCOUNT_TYPE)
       && !(containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH) || containsMacro(NAME_SERVICE_ACCOUNT_JSON))
       && !containsMacro(NAME_PROJECT)
       && !containsMacro(NAME_ARGUMENT_SELECTION_CONDITIONS)
