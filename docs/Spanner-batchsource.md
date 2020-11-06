@@ -38,9 +38,11 @@ Every table is defined by a schema that describes the column names, data types, 
 
 **Import Query**: The SELECT query to use to import data from the specified table.
 
-**Service Account File Path**: Path on the local file system of the service account key used for
+**Service Account**  - service account key used for authorization
+* **File Path**: Path on the local file system of the service account key used for
 authorization. Can be set to 'auto-detect' when running on a Dataproc cluster.
 When running on other clusters, the file must be present on every node in the cluster.
+* **JSON**: Contents of the service account JSON file.
 
 **Max Partitions**: Maximum number of partitions. This may be set to the number of map tasks desired.
 The maximum value is currently 200,000. This is only a hint.
