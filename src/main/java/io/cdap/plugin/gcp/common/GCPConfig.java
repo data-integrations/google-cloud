@@ -89,18 +89,24 @@ public class GCPConfig extends PluginConfig {
     return serviceAccountJson;
   }
 
+  /**
+   * @return Service Account Type, defaults to filePath.
+   */
+  @Nullable
   public String getServiceAccountType() {
-    if (containsMacro(NAME_SERVICE_ACCOUNT_TYPE) || Strings.isNullOrEmpty(serviceAccountType)) {
+    if (containsMacro(NAME_SERVICE_ACCOUNT_TYPE)) {
       return null;
     }
-    return serviceAccountType;
+    return Strings.isNullOrEmpty(serviceAccountType) ? SERVICE_ACCOUNT_FILE_PATH : serviceAccountType;
   }
 
+  @Nullable
   public Boolean isServiceAccountJson() {
     String serviceAccountType = getServiceAccountType();
     return Strings.isNullOrEmpty(serviceAccountType) ? null : serviceAccountType.equals(SERVICE_ACCOUNT_JSON);
   }
 
+  @Nullable
   public Boolean isServiceAccountFilePath() {
     String serviceAccountType = getServiceAccountType();
     return Strings.isNullOrEmpty(serviceAccountType) ? null : serviceAccountType.equals(SERVICE_ACCOUNT_FILE_PATH);

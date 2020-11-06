@@ -402,6 +402,7 @@ public class DatastoreSinkConfig extends GCPReferenceSinkConfig {
   public boolean shouldConnect() {
     return !(containsMacro(DatastoreSourceConfig.NAME_SERVICE_ACCOUNT_FILE_PATH) ||
       containsMacro(DatastoreSourceConfig.NAME_SERVICE_ACCOUNT_JSON)) &&
+      !containsMacro(NAME_SERVICE_ACCOUNT_TYPE) &&
       !containsMacro(DatastoreSourceConfig.NAME_PROJECT) &&
       tryGetProject() != null &&
       !autoServiceAccountUnavailable();
