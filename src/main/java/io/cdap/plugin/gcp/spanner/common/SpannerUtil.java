@@ -37,10 +37,11 @@ public class SpannerUtil {
   /**
    * Construct and return the {@link Spanner} service for the provided credentials and projectId
    */
-  public static Spanner getSpannerService(String serviceAccountFilePath, String projectId) throws IOException {
+  public static Spanner getSpannerService(String serviceAccount, boolean isServiceAccountFilePath, String projectId)
+    throws IOException {
     SpannerOptions.Builder optionsBuilder = SpannerOptions.newBuilder();
-    if (serviceAccountFilePath != null) {
-      optionsBuilder.setCredentials(GCPUtils.loadServiceAccountCredentials(serviceAccountFilePath));
+    if (serviceAccount != null) {
+      optionsBuilder.setCredentials(GCPUtils.loadServiceAccountCredentials(serviceAccount, isServiceAccountFilePath));
     }
     optionsBuilder.setProjectId(projectId);
     return optionsBuilder.build().getService();
