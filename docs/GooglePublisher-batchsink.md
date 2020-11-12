@@ -1,4 +1,4 @@
-# Google Cloud PubSub Sink
+# Google Cloud Pub/Sub Sink
 
 Description
 -----------
@@ -26,7 +26,7 @@ Properties
 **Project ID**: Google Cloud Project ID, which uniquely identifies a project.
 It can be found on the Dashboard in the Google Cloud Platform Console.
 
-**Topic**: Name of the Google Cloud PubSub topic to publish to.
+**Topic**: Name of the Google Cloud Pub/Sub topic to publish to.
 
 **Service Account**  - service account key used for authorization
 * **File Path**: Path on the local file system of the service account key used for

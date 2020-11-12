@@ -1,4 +1,4 @@
-# Google Cloud PubSub Streaming Source
+# Google Cloud Pub/Sub Streaming Source
 
 Description
 -----------
@@ -26,7 +26,7 @@ Properties
 **Project ID**: Google Cloud Project ID, which uniquely identifies a project.
 It can be found on the Dashboard in the Google Cloud Platform Console.
 
-**Subscription**: Name of the Google Cloud PubSub subscription to subscribe.
+**Subscription**: Name of the Google Cloud Pub/Sub subscription to subscribe.
 If the subscription needs to be created then the topic to which the subscription will belong must be provided.
 [Naming Convention](https://cloud.google.com/pubsub/docs/admin#resource_names) for Subscription:   
                         
@@ -48,7 +48,7 @@ If the subscription needs to be created then the topic to which the subscription
        However, you must ensure that any other special characters are properly encoded/decoded when used in URLs. 
        For example, mi-tópico is an invalid subscription-name. However, mi-t%C3%B3pico is valid.
 
-**Topic**: Name of the Google Cloud PubSub topic to subscribe to. If a topic is provided and the given subscriber
+**Topic**: Name of the Google Cloud Pub/Sub topic to subscribe to. If a topic is provided and the given subscriber
 does not exists it will be created. If a subscriber does not exists and is created only the messages arrived after
 the creation of subscriber will be received.
 
@@ -57,3 +57,6 @@ the creation of subscriber will be received.
 authorization. Can be set to 'auto-detect' when running on a Dataproc cluster.
 When running on other clusters, the file must be present on every node in the cluster.
 * **JSON**: Contents of the service account JSON file.
+
+**Number of readers**: Number of Pub/Sub reader workers to run in parallel for this source. Each reader 
+requires a worker in the cluster. The default number of readers per Pub/Sub Streaming Source is 1.
