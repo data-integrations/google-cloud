@@ -28,7 +28,6 @@ import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TableId;
 import io.cdap.cdap.api.data.schema.Schema;
-import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.validation.ValidationException;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
@@ -120,7 +119,7 @@ public class BigQuerySinkTest {
     BigQuerySink sink = getSinkToTest(mockJob);
     MockStageMetrics mockStageMetrics = Mockito.spy(new MockStageMetrics("test"));
     BatchSinkContext context = getContextWithMetrics(mockStageMetrics);
-    sink.onRunFinish(true, context);
+    sink.recordMetric(true, context);
     if (expectedCount > -1) {
       Assert.assertEquals(expectedCount, mockStageMetrics.getCount(AbstractBigQuerySink.RECORDS_UPDATED_METRIC));
     }

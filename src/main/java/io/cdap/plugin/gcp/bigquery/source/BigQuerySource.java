@@ -49,6 +49,7 @@ import io.cdap.plugin.gcp.common.GCPUtils;
 import org.apache.avro.generic.GenericData;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
@@ -139,7 +140,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
                             cmekKey);
     }
 
-    configuration.set("fs.gs.system.bucket", bucket);
+    configuration.set("fs.default.name", String.format("gs://%s/%s/", bucket, uuid));
     configuration.setBoolean("fs.gs.impl.disable.cache", true);
     configuration.setBoolean("fs.gs.metadata.cache.enable", false);
 
@@ -163,7 +164,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
       configuration.set(BigQueryConstants.CONFIG_VIEW_MATERIALIZATION_DATASET, config.getViewMaterializationDataset());
     }
 
-    String temporaryGcsPath = String.format("gs://%s/hadoop/input/%s", bucket, uuid);
+    String temporaryGcsPath = String.format("gs://%s/%s/hadoop/input/%s", bucket, uuid, uuid);
     PartitionedBigQueryInputFormat.setTemporaryCloudStorageDirectory(configuration, temporaryGcsPath);
     BigQueryConfiguration.configureBigQueryInput(configuration, config.getDatasetProject(),
                                                  config.getDataset(), config.getTable());
@@ -202,16 +203,21 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
 
   @Override
   public void onRunFinish(boolean succeeded, BatchSourceContext context) {
-    org.apache.hadoop.fs.Path gcsPath = new org.apache.hadoop.fs.Path(String.format("gs://%s", uuid.toString()));
+    org.apache.hadoop.fs.Path gcsPath = null;
+    String bucket = config.getBucket();
+    if (bucket == null) {
+      gcsPath = new Path(String.format("gs://%s/%s", uuid, uuid));
+    } else {
+      gcsPath = new Path(String.format("gs://%s/%s", bucket, uuid));
+    }
     try {
-      if (config.getBucket() == null) {
-        FileSystem fs = gcsPath.getFileSystem(configuration);
-        if (fs.exists(gcsPath)) {
-          fs.delete(gcsPath, true);
-        }
+      FileSystem fs = gcsPath.getFileSystem(configuration);
+      if (fs.exists(gcsPath)) {
+        fs.delete(gcsPath, true);
+        LOG.debug("Deleted temporary directory '{}'", gcsPath);
       }
     } catch (IOException e) {
-      LOG.warn("Failed to delete bucket " + gcsPath.toUri().getPath() + ", " + e.getMessage());
+      LOG.warn("Failed to delete temporary directory '{}': {}", gcsPath, e.getMessage());
     }
   }
 
