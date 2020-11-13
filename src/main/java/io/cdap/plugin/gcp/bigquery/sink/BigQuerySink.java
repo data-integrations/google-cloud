@@ -131,7 +131,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
     }
   }
 
-  private void recordMetric(boolean succeeded, BatchSinkContext context) {
+  void recordMetric(boolean succeeded, BatchSinkContext context) {
     if (!succeeded) {
       return;
     }
