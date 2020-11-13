@@ -106,12 +106,12 @@ public final class GCSArgumentSetter extends Action {
   }
 
   private static Storage getStorage(GCSArgumentSetterConfig config) throws IOException {
-    return StorageOptions.newBuilder()
-      .setProjectId(config.getProject())
-      .setCredentials(GCPUtils.loadServiceAccountCredentials(config.getServiceAccount(),
-                                                             config.isServiceAccountFilePath()))
-      .build()
-      .getService();
+    String serviceAccount = config.getServiceAccount();
+    StorageOptions.Builder builder = StorageOptions.newBuilder().setProjectId(config.getProject());
+    if (serviceAccount != null) {
+      builder.setCredentials(GCPUtils.loadServiceAccountCredentials(serviceAccount, config.isServiceAccountFilePath()));
+    }
+    return builder.build().getService();
   }
 
   public static String getContent(GCSArgumentSetterConfig config) throws IOException {
