@@ -96,6 +96,43 @@
           "widget-attributes": {
             "placeholder": "Google Cloud Storage bucket for temporary data"
           }
+        },
+        {
+          "name": "Authentication",
+          "widget-type": "radio-group",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "privatekey-select",
+            "options": [
+              {
+                "id": "privatekey-select",
+                "label": "PrivateKey"
+              },
+              {
+                "id": "password-select",
+                "label": "Password"
+              }
+            ]
+          }
+        },
+        {
+          "name": "tempUnits",
+          "label": "Temporary Table Expiration Units",
+          "widget-type": "select",
+          "widget-attributes": {
+            "default": "Day",
+            "values": ["Day", "Hour"]
+          }
+        },
+        {
+          "name": "tempLength",
+          "label": "Temporary Table Expiration Length",
+          "widget-type": "number",
+          "widget-attributes": {
+            "default": "1",
+            "min": "1",
+            "max": "100"
+          }
         }
       ]
     },

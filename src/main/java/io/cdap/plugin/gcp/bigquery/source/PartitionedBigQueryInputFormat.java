@@ -47,6 +47,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<LongWritable, GenericData.Record> {
   private static final String DEFAULT_COLUMN_NAME = "_PARTITIONTIME";
+  private static BigQuerySourceConfig config;
 
   private InputFormat<LongWritable, GenericData.Record> delegateInputFormat =
     new AvroBigQueryInputFormat();
@@ -201,6 +202,14 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
     return tableReference;
   }
 
+  private static long getTempTableExpirationTime() {
+   if (config.getTempTableExpirUnit().equals("Day")) {
+     return TimeUnit.DAYS.toMillis(config.getTempTableExpirNum());
+   } else {
+     return TimeUnit.HOURS.toMillis(config.getTempTableExpirNum());
+   }
+  }
+
   private static void runQuery(
     BigQueryHelper bigQueryHelper, String projectId, TableReference tableRef, String query, String location)
     throws IOException, InterruptedException {
@@ -240,11 +249,14 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
       }
     };
 
+    //Get Temp Table Expiration Configuration Time
+    long expireTime = getTempTableExpirationTime();
+
     // Poll until job is complete.
     BigQueryUtils.waitForJobCompletion(
       bigQueryHelper.getRawBigquery(), projectId, jobReference, progressable);
     if (bigQueryHelper.tableExists(tableRef)) {
-      long expirationMillis = System.currentTimeMillis() + TimeUnit.HOURS.toMillis(1);
+      long expirationMillis = System.currentTimeMillis() + expireTime;
       Table table = bigQueryHelper.getTable(tableRef).setExpirationTime(expirationMillis);
       bigQueryHelper.getRawBigquery().tables().update(tableRef.getProjectId(), tableRef.getDatasetId(),
                                                       tableRef.getTableId(), table).execute();

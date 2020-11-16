@@ -32,6 +32,7 @@ import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
 
 import java.io.IOException;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
 /**
@@ -55,6 +56,8 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   public static final String NAME_ENABLE_QUERYING_VIEWS = "enableQueryingViews";
   public static final String NAME_VIEW_MATERIALIZATION_PROJECT = "viewMaterializationProject";
   public static final String NAME_VIEW_MATERIALIZATION_DATASET = "viewMaterializationDataset";
+  public static final String TEMP_TABLE_EXPIR_UNIT = "tempTableExpirationTimeUnit";
+  public static final String TEMP_TABLE_EXPIR_NUM = "tempTableExpirationTimeNum";
 
   @Name(NAME_DATASET)
   @Macro
@@ -135,6 +138,13 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
     + "Defaults to the same dataset in which the view is located.")
   private String viewMaterializationDataset;
 
+  @Name(TEMP_TABLE_EXPIR_UNIT)
+  @Description("Amount of time before expiration of a temp table created to filter BigQuery")
+  private String tempTableExpirationTimeUnit;
+
+  @Name(TEMP_TABLE_EXPIR_NUM)
+  @Description("Amount of time before expiration of a temp table created to filter BigQuery")
+  private int tempTableExpirationTimeNumber;
 
   public String getDataset() {
     return dataset;
@@ -164,6 +174,14 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
       return ServiceOptions.getDefaultProjectId();
     }
     return Strings.isNullOrEmpty(datasetProject) ? getProject() : datasetProject;
+  }
+
+  public String getTempTableExpirUnit() {
+    return tempTableExpirationTimeUnit;
+  }
+
+  public int getTempTableExpirNum() {
+    return tempTableExpirationTimeNumber;
   }
 
   public void validate(FailureCollector collector) {
