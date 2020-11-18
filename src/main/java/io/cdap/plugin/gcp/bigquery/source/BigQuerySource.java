@@ -106,7 +106,11 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
       return;
     }
 
-    validateConfiguredSchema(configuredSchema, collector);
+    if (validateConfiguredSchemaOverwrite(configuredSchema, collector)) {
+      stageConfigurer.setOutputSchema(schema);
+      return;
+    }
+
     stageConfigurer.setOutputSchema(configuredSchema);
   }
 
@@ -230,7 +234,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
 
   /**
    * Validate output schema. This is needed because its possible that output schema is set without using
-   * {@link #getSchema} method.
+   *  {@link #getSchema} method.
    */
   private void validateConfiguredSchema(Schema configuredSchema, FailureCollector collector) {
     String dataset = config.getDataset();
@@ -254,12 +258,39 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
       } catch (IllegalArgumentException e) {
         // this means that the field is not present in BigQuery table.
         collector.addFailure(
-          String.format("Field '%s' is not present in table '%s:%s.%s'.", field.getName(), project, dataset, tableName),
+          String.format("Field '%s' is not present in table '%s:%s.%s'.", field.getName(),
+          project, dataset, tableName),
           String.format("Remove field '%s' from the output schema.", field.getName()))
           .withOutputSchemaField(field.getName());
       }
     }
     collector.getOrThrowException();
+  }
+
+  /**
+   * Validate output schema with getSchema and Validate.  If the configured schema provided does not
+   * match with what is in BigQuery a true flag is returned and outputSchema is overwritten with BQSchema.
+   */
+  private boolean validateConfiguredSchemaOverwrite(Schema configuredSchema, FailureCollector collector) {
+    String dataset = config.getDataset();
+    String tableName = config.getTable();
+    com.google.cloud.bigquery.Schema bqSchema = getBQSchema(collector);
+    FieldList fields = bqSchema.getFields();
+    boolean flag = false;
+
+    // Match output schema field type with bigquery column type
+    for (Schema.Field field : configuredSchema.getFields()) {
+      try {
+        Field bqField = fields.get(field.getName());
+          BigQueryUtil.validateFieldSchemaMatches(bqField, field, dataset, tableName,
+            BigQuerySourceConfig.SUPPORTED_TYPES, collector);
+      } catch (Exception e) {
+        flag = true;
+        break;
+      }
+    }
+    collector.getOrThrowException();
+    return flag;
   }
 
   private com.google.cloud.bigquery.Schema getBQSchema(FailureCollector collector) {
