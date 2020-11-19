@@ -234,7 +234,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
 
   /**
    * Validate output schema. This is needed because its possible that output schema is set without using
-   *  {@link #getSchema} method.
+   * {@link #getSchema} method.
    */
   private void validateConfiguredSchema(Schema configuredSchema, FailureCollector collector) {
     String dataset = config.getDataset();
@@ -258,8 +258,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
       } catch (IllegalArgumentException e) {
         // this means that the field is not present in BigQuery table.
         collector.addFailure(
-          String.format("Field '%s' is not present in table '%s:%s.%s'.", field.getName(),
-          project, dataset, tableName),
+          String.format("Field '%s' is not present in table '%s:%s.%s'.", field.getName(), project, dataset, tableName),
           String.format("Remove field '%s' from the output schema.", field.getName()))
           .withOutputSchemaField(field.getName());
       }
