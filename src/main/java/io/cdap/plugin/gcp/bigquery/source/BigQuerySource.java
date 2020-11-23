@@ -170,6 +170,12 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     if (config.getViewMaterializationDataset() != null) {
       configuration.set(BigQueryConstants.CONFIG_VIEW_MATERIALIZATION_DATASET, config.getViewMaterializationDataset());
     }
+    if (config.getTempTableExpirUnit() != null) {
+      configuration.set(BigQueryConstants.CONFIG_TEMP_TABLE_EXPIRATION_TIME_UNIT, config.getTempTableExpirUnit());
+    }
+    if (config.getTempTableExpirNum() != null) {
+      configuration.set(BigQueryConstants.CONFIG_TEMP_TABLE_EXPIRATION_TIME_NUMBER, config.getTempTableExpirNum());
+    }
 
     String temporaryGcsPath = String.format("gs://%s/hadoop/input/%s", bucket, uuid);
     PartitionedBigQueryInputFormat.setTemporaryCloudStorageDirectory(configuration, temporaryGcsPath);

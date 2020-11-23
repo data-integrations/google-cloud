@@ -64,6 +64,15 @@ It will be automatically created if it does not exist, but will not be automatic
 Temporary data will be deleted after it has been read. If it is not provided, a unique bucket will be
 created and then deleted after the run finishes.
 
+**Temporary Table Expiration Units**: Filtering or partitioning BigQuery causes a Temporary Table to be created. 
+This field sets the Unit of time for expiration of the Temp Table created. Units can be Day or Hour. 
+Consideration should be for how long the job will need to run when setting time for table expiration. 
+
+
+**Temporary Table Expiration Length**: Filtering or partitioning BigQuery causes a Temporary Table to be created. 
+ This field sets the Length of time for expiration of the Temp Table created. Length can be any integer and goes along with
+ the units field above to create the full Time Unit for table expiration.
+
 **Service Account**  - service account key used for authorization
 
 * **File Path**: Path on the local file system of the service account key used for

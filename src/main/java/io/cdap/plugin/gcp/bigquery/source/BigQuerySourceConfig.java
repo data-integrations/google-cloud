@@ -144,7 +144,7 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
 
   @Name(TEMP_TABLE_EXPIR_NUM)
   @Description("Amount of time before expiration of a temp table created to filter BigQuery")
-  private int tempTableExpirationTimeNumber;
+  private String tempTableExpirationTimeNumber;
 
   public String getDataset() {
     return dataset;
@@ -180,7 +180,7 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
     return tempTableExpirationTimeUnit;
   }
 
-  public int getTempTableExpirNum() {
+  public String getTempTableExpirNum() {
     return tempTableExpirationTimeNumber;
   }
 

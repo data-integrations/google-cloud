@@ -94,6 +94,8 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
     String partitionFromDate = configuration.get(BigQueryConstants.CONFIG_PARTITION_FROM_DATE, null);
     String partitionToDate = configuration.get(BigQueryConstants.CONFIG_PARTITION_TO_DATE, null);
     String filter = configuration.get(BigQueryConstants.CONFIG_FILTER, null);
+    String timeUnit = configuration.get(BigQueryConstants.CONFIG_TEMP_TABLE_EXPIRATION_TIME_UNIT, "Day");
+    String timeNumber = configuration.get(BigQueryConstants.CONFIG_TEMP_TABLE_EXPIRATION_TIME_NUMBER, "1");
 
     com.google.cloud.bigquery.Table bigQueryTable =
       BigQueryUtil.getBigQueryTable(inputProjectId, datasetId, tableName, serviceAccount, isServiceAccountFilePath);
@@ -114,7 +116,7 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
       String temporaryTableName = String.format("%s_%s", tableName, UUID.randomUUID().toString().replaceAll("-", "_"));
       TableReference exportTableReference = createExportTableReference(type, inputProjectId, datasetId,
                                                                        temporaryTableName, configuration);
-      runQuery(bigQueryHelper, inputProjectId, exportTableReference, query, location);
+      runQuery(bigQueryHelper, inputProjectId, exportTableReference, query, location, timeUnit, timeNumber);
       if (type == Type.VIEW || type == Type.MATERIALIZED_VIEW) {
         configuration.set(BigQueryConfiguration.INPUT_PROJECT_ID_KEY,
                           configuration.get(BigQueryConstants.CONFIG_VIEW_MATERIALIZATION_PROJECT));
@@ -202,16 +204,9 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
     return tableReference;
   }
 
-  private static long getTempTableExpirationTime() {
-   if (config.getTempTableExpirUnit().equals("Day")) {
-     return TimeUnit.DAYS.toMillis(config.getTempTableExpirNum());
-   } else {
-     return TimeUnit.HOURS.toMillis(config.getTempTableExpirNum());
-   }
-  }
-
   private static void runQuery(
-    BigQueryHelper bigQueryHelper, String projectId, TableReference tableRef, String query, String location)
+    BigQueryHelper bigQueryHelper, String projectId, TableReference tableRef, String query,
+    String location, String timeUnit, String timeNumber)
     throws IOException, InterruptedException {
 
     // Create a query statement and query request object.
@@ -249,14 +244,14 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
       }
     };
 
-    //Get Temp Table Expiration Configuration Time
-    long expireTime = getTempTableExpirationTime();
+    long expirationTime = timeUnit.equals("Day") ?
+      TimeUnit.DAYS.toMillis(Integer.parseInt(timeNumber)) : TimeUnit.HOURS.toMillis(Integer.parseInt(timeNumber));
 
     // Poll until job is complete.
     BigQueryUtils.waitForJobCompletion(
       bigQueryHelper.getRawBigquery(), projectId, jobReference, progressable);
     if (bigQueryHelper.tableExists(tableRef)) {
-      long expirationMillis = System.currentTimeMillis() + expireTime;
+      long expirationMillis = System.currentTimeMillis() + expirationTime;
       Table table = bigQueryHelper.getTable(tableRef).setExpirationTime(expirationMillis);
       bigQueryHelper.getRawBigquery().tables().update(tableRef.getProjectId(), tableRef.getDatasetId(),
                                                       tableRef.getTableId(), table).execute();
