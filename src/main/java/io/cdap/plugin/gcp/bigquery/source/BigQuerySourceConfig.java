@@ -138,10 +138,12 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   private String viewMaterializationDataset;
 
   @Name(TEMP_TABLE_EXPIR_UNIT)
+  @Nullable
   @Description("Amount of time before expiration of a temp table created to filter BigQuery")
   private String tempTableExpirationTimeUnit;
 
   @Name(TEMP_TABLE_EXPIR_NUM)
+  @Nullable
   @Description("Amount of time before expiration of a temp table created to filter BigQuery")
   private String tempTableExpirationTimeNumber;
 
