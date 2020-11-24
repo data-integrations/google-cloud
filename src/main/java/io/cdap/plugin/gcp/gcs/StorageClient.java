@@ -329,6 +329,5 @@ public class StorageClient {
       LOG.debug("Successfully deleted {}.", toPath(sourceBlob.getBlobId()));
       return moved;
     }
-
   }
 }
