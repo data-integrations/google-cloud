@@ -1,0 +1,88 @@
+{
+    "artifact": {
+        "name": "cdap-data-pipeline",
+        "scope": "SYSTEM"
+    },
+    "description": "A GCS move action that moves blobs from a gs source path to a gs destination path. Upon a successful run, a done file is generated in the gs destination path.",
+    "name": "gcs_move_with_done_file_marker",
+    "config": {
+        "resources": {
+            "memoryMB": 2048,
+            "virtualCores": 1
+        },
+        "driverResources": {
+            "memoryMB": 2048,
+            "virtualCores": 1
+        },
+        "connections": [],
+        "comments": [],
+        "postActions": [
+            {
+                "name": "GCSDoneFileMarker-1",
+                "id": "GCSDoneFileMarker0eef7b37-9df4-4f22-ab09-cc6402eb2629",
+                "plugin": {
+                    "name": "GCSDoneFileMarker",
+                    "type": "postaction",
+                    "artifact": {
+                        "name": "google-cloud",
+                        "version": "0.16.0-SNAPSHOT",
+                        "scope": "USER"
+                    },
+                    "properties": {
+                        "project": "${project_id}",
+                        "runCondition": "success",
+                        "serviceAccountType": "filePath",
+                        "serviceFilePath": "${service_account_file_path}",
+                        "path": "${gs_done_file_path}"
+                    }
+                },
+                "description": "Creates a \"done\" or \"success\" file after the pipeline is finished."
+            }
+        ],
+        "properties": {
+            "system.spark.service_account_file_path": "/example",
+            "system.spark.gs_done_file_path": "gs://adaptive_scale_test_bucket/cdf_test/input/DONE",
+            "system.spark.project_id": "adaptivescale-178418",
+            "system.spark.gs_source_path": "/example/source",
+            "system.spark.gs_destination_path": "/example/destination"
+        },
+        "processTimingEnabled": true,
+        "stageLoggingEnabled": false,
+        "stages": [
+            {
+                "name": "GCS Move",
+                "plugin": {
+                    "name": "GCSMove",
+                    "type": "action",
+                    "label": "GCS Move",
+                    "artifact": {
+                        "name": "google-cloud",
+                        "version": "0.16.0-SNAPSHOT",
+                        "scope": "USER"
+                    },
+                    "properties": {
+                        "project": "${project_id}",
+                        "recursive": "false",
+                        "overwrite": "false",
+                        "serviceAccountType": "filePath",
+                        "serviceFilePath": "${service_account_file_path}",
+                        "sourcePath": "${gs_source_path}",
+                        "destPath": "${gs_destination_path}"
+                    }
+                },
+                "outputSchema": [
+                    {
+                        "name": "etlSchemaBody",
+                        "schema": ""
+                    }
+                ],
+                "id": "GCS-Move"
+            }
+        ],
+        "schedule": "0 * * * *",
+        "engine": "spark",
+        "numOfRecordsPreview": 100,
+        "description": "Data Pipeline Application",
+        "maxConcurrentRuns": 1
+    }
+}
