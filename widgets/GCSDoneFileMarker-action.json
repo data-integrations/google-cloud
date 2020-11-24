@@ -18,6 +18,27 @@
       ]
     },
     {
+      "widget-type": "select",
+      "label": "Run Condition",
+      "name": "runCondition",
+      "widget-attributes": {
+        "values": [
+          "completion",
+          "success",
+          "failure"
+        ],
+        "default": "success"
+      }
+    },
+    {
+      "widget-type": "textbox",
+      "label": "Path",
+      "name": "path",
+      "widget-attributes": {
+        "placeholder": "gs://<bucket>/path/to/configuration.json"
+      }
+    },
+    {
       "label" : "Credentials",
       "properties" : [
         {
