@@ -31,6 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -329,6 +330,27 @@ public class StorageClient {
       LOG.debug("Successfully deleted {}.", toPath(sourceBlob.getBlobId()));
       return moved;
     }
+  }
 
+  public void createDoneFileMarker(GCSPath path) {
+    Bucket sourceBucket = null;
+    String bucketName = path.getBucket();
+    String objectName = path.getName();
+    try {
+      sourceBucket = storage.get(bucketName);
+    } catch (StorageException e) {
+
+      throw new RuntimeException(
+              String.format("Unable to access bucket %s. ", bucketName)
+                      + "Ensure you entered the correct bucket path.", e);
+    }
+    if (sourceBucket == null) {
+      throw new IllegalArgumentException(
+              String.format("Bucket '%s' does not exist.", bucketName));
+    }
+
+    BlobId blobId = BlobId.of(bucketName, objectName);
+    BlobInfo blobInfo = BlobInfo.newBuilder(blobId).build();
+    storage.create(blobInfo, "".getBytes(StandardCharsets.UTF_8));
   }
 }
