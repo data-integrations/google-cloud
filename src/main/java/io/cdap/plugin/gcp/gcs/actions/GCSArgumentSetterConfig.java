@@ -56,7 +56,8 @@ public final class GCSArgumentSetterConfig extends GCPConfig {
       }
     }
 
-    if (isServiceAccountJson()
+    Boolean isServiceAccountJson = isServiceAccountJson();
+    if (isServiceAccountJson != null && isServiceAccountJson
       && !containsMacro(NAME_SERVICE_ACCOUNT_JSON)
       && Strings.isNullOrEmpty(getServiceAccountJson())) {
       collector
