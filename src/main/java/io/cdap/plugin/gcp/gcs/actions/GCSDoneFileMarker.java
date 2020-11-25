@@ -7,24 +7,24 @@ import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
-import io.cdap.cdap.etl.api.action.Action;
+import io.cdap.cdap.etl.api.batch.BatchActionContext;
+import io.cdap.cdap.etl.api.batch.PostAction;
 import io.cdap.cdap.etl.api.action.ActionContext;
 import io.cdap.plugin.common.batch.action.Condition;
 import io.cdap.plugin.common.batch.action.ConditionConfig;
 import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 import io.cdap.plugin.gcp.gcs.StorageClient;
-
 import java.io.IOException;
 
 
 /**
- * An action plugin that creates a DONE file in case of a succeeded, failed or completed pipeline.
+ * An post action plugin that creates a DONE file in case of a succeeded, failed or completed pipeline.
  */
-@Plugin(type = Action.PLUGIN_TYPE)
+@Plugin(type = PostAction.PLUGIN_TYPE)
 @Name(GCSDoneFileMarker.NAME)
-@Description("Creates a \"done\" or \"success\" indication in the form of a file in GCS.")
-public class GCSDoneFileMarker extends Action {
+@Description("Creates a \"done\" or \"success\" file after the pipeline is finished.")
+public class GCSDoneFileMarker extends PostAction {
     public static final String NAME = "GCSDoneFileMarker";
     private Config config;
 
@@ -34,7 +34,7 @@ public class GCSDoneFileMarker extends Action {
     }
 
     @Override
-    public void run(ActionContext context) throws IOException {
+    public void run(BatchActionContext context) throws IOException {
         config.validate(context.getFailureCollector());
 
         Boolean isServiceAccountFilePath = config.isServiceAccountFilePath();
@@ -68,23 +68,26 @@ public class GCSDoneFileMarker extends Action {
             this.runCondition = Condition.SUCCESS.name();
         }
 
-
         public GCSPath getPath() {
             return GCSPath.from(path);
         }
 
-
         void validate(FailureCollector collector) {
-            if (!this.containsMacro("runCondition")) {
+            if (!this.containsMacro(RUN_CONDITION)) {
                 try {
                     (new ConditionConfig(this.runCondition)).validate();
                 } catch (IllegalArgumentException var3) {
-                    collector.addFailure(var3.getMessage(), (String) null).withConfigProperty("runCondition");
+                    collector.addFailure(var3.getMessage(), (String) null).withConfigProperty(RUN_CONDITION);
                 }
             }
 
+            if (!containsMacro(NAME_PATH)) {
+                try {
+                    getPath();
+                } catch (IllegalArgumentException e) {
+                    collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_PATH);
+                }
+            }
         }
-
     }
-
 }
