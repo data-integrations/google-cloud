@@ -9,12 +9,12 @@ import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchActionContext;
 import io.cdap.cdap.etl.api.batch.PostAction;
-import io.cdap.cdap.etl.api.action.ActionContext;
 import io.cdap.plugin.common.batch.action.Condition;
 import io.cdap.plugin.common.batch.action.ConditionConfig;
 import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 import io.cdap.plugin.gcp.gcs.StorageClient;
+
 import java.io.IOException;
 
 
@@ -60,11 +60,12 @@ public class GCSDoneFileMarker extends PostAction {
         private String path;
 
         @Name(RUN_CONDITION)
-        @Description("Creates a done file marker on pipeline completion/success/failure. By default it takes completion as an option.")
+        @Description("Creates a done file marker on pipeline completion/success/failure. By default it takes" +
+                " completion as an option.")
         @Macro
         private String runCondition;
 
-        public Config() {
+        Config() {
             this.runCondition = Condition.SUCCESS.name();
         }
 
@@ -77,7 +78,7 @@ public class GCSDoneFileMarker extends PostAction {
                 try {
                     (new ConditionConfig(this.runCondition)).validate();
                 } catch (IllegalArgumentException var3) {
-                    collector.addFailure(var3.getMessage(), (String) null).withConfigProperty(RUN_CONDITION);
+                    collector.addFailure(var3.getMessage(), (   String) null).withConfigProperty(RUN_CONDITION);
                 }
             }
 
