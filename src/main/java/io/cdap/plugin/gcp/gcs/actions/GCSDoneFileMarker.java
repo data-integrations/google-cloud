@@ -26,7 +26,7 @@ import java.io.IOException;
 @Description("Creates a \"done\" or \"success\" file after the pipeline is finished.")
 public class GCSDoneFileMarker extends PostAction {
     public static final String NAME = "GCSDoneFileMarker";
-    private Config config;
+    public Config config;
 
     @Override
     public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
@@ -50,7 +50,7 @@ public class GCSDoneFileMarker extends PostAction {
         storageClient.createDoneFileMarker(config.getPath());
     }
 
-    private abstract class Config extends GCPConfig {
+    private static class Config extends GCPConfig {
         public static final String NAME_PATH = "path";
         public static final String RUN_CONDITION = "runCondition";
 
@@ -66,6 +66,7 @@ public class GCSDoneFileMarker extends PostAction {
         private String runCondition;
 
         Config() {
+            super();
             this.runCondition = Condition.SUCCESS.name();
         }
 
