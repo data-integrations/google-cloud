@@ -22,10 +22,10 @@ must be readable by all users running the job.
 
 Properties
 ----------
-**Run Condition:** When to run the action. Must be 'completion', 'success', or 'failure'. Defaults to 'completion'.
-If set to 'completion', the action will be executed regardless of whether the pipeline run succeeded or failed.
-If set to 'success', the action will only be executed if the pipeline run succeeded.
-If set to 'failure', the action will only be executed if the pipeline run failed.
+**Run Condition:** When to run the action. Must be *completion*, *success*, or *failure*. Defaults to *completion*.
+If set to *completion*, the action will be executed regardless of whether the pipeline run succeeded or failed.
+If set to *success*, the action will only be executed if the pipeline run succeeded.
+If set to *failure*, the action will only be executed if the pipeline run failed.
 
 **Project ID**: Google Cloud Project ID, which uniquely identifies a project.
 It can be found on the Dashboard in the Google Cloud Platform Console.
