@@ -406,7 +406,7 @@ public final class BigQueryUtil {
   }
 
   /**
-   * Validates schema of type array. BigQuery does not allow nullable arrays or nullable type within array.
+   * Validates schema of type array. BigQuery does not allow nullable type within array.
    *
    * @param arraySchema schema of array field
    * @param name name of the array field
@@ -415,12 +415,8 @@ public final class BigQueryUtil {
    */
   @Nullable
   public static ValidationFailure validateArraySchema(Schema arraySchema, String name, FailureCollector collector) {
-    if (arraySchema.isNullable()) {
-      return collector.addFailure(String.format("Field '%s' is of type array.", name),
-                                  "Change the field to be non-nullable.");
-    }
-
-    Schema componentSchema = arraySchema.getComponentSchema();
+    Schema nonNullableSchema = arraySchema.isNullable() ? arraySchema.getNonNullable() : arraySchema;
+    Schema componentSchema = nonNullableSchema.getComponentSchema();
     if (componentSchema.isNullable()) {
       return collector.addFailure(String.format("Field '%s' contains null values in its array.", name),
                                   "Change the array component type to be non-nullable.");
