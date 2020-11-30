@@ -523,9 +523,11 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
   }
 
   private Field.Mode getMode(Schema schema) {
-    if (schema.isNullable()) {
+    boolean isNullable = schema.isNullable();
+    Schema.Type nonNullableType = isNullable ? schema.getNonNullable().getType() : schema.getType();
+    if (isNullable && nonNullableType != Schema.Type.ARRAY) {
       return Field.Mode.NULLABLE;
-    } else if (schema.getType() == Schema.Type.ARRAY) {
+    } else if (nonNullableType == Schema.Type.ARRAY) {
       return Field.Mode.REPEATED;
     }
     return Field.Mode.REQUIRED;
