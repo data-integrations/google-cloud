@@ -118,7 +118,7 @@ public class DatastoreRecordWriter extends RecordWriter<NullWritable, Entity> {
         .build();
       builder.addMutations(DatastoreHelper.makeInsert(fullEntity).build());
     } else {
-      builder.addMutations(DatastoreHelper.makeInsert(entity).build());
+      builder.addMutations(DatastoreHelper.makeUpsert(entity).build());
     }
     ++totalCount;
     ++numberOfRecordsInBatch;
