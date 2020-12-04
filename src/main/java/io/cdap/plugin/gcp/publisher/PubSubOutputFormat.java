@@ -25,7 +25,18 @@ import com.google.cloud.pubsub.v1.Publisher;
 import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.ProjectTopicName;
 import com.google.pubsub.v1.PubsubMessage;
+import io.cdap.cdap.api.data.format.StructuredRecord;
+import io.cdap.cdap.format.StructuredRecordStringConverter;
+import io.cdap.cdap.format.io.StructuredRecordDatumWriter;
+import io.cdap.plugin.format.avro.StructuredToAvroTransformer;
+import io.cdap.plugin.gcp.bigtable.sink.BigtableSinkConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
+import io.cdap.plugin.gcp.gcs.actions.GCSBucketCreate;
+import org.apache.avro.generic.GenericDatumWriter;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.BinaryEncoder;
+import org.apache.avro.io.DatumWriter;
+import org.apache.avro.io.EncoderFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
@@ -38,6 +49,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.threeten.bp.Duration;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -48,7 +60,7 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * OutputFormat to write to Pub/Sub topic.
  */
-public class PubSubOutputFormat extends OutputFormat<NullWritable, Text> {
+public class PubSubOutputFormat extends OutputFormat<NullWritable, StructuredRecord> {
   private static final Logger LOG = LoggerFactory.getLogger(PubSubOutputFormat.class);
 
   private static final String SERVICE_ACCOUNT = "service.account";
@@ -66,6 +78,8 @@ public class PubSubOutputFormat extends OutputFormat<NullWritable, Text> {
   public static void configure(Configuration configuration, GooglePublisher.Config config) {
 
     String serviceAccount = config.getServiceAccount();
+    String format = config.getFormat();
+    String delimiter = config.getDelimiter();
     if (serviceAccount != null) {
       configuration.set(SERVICE_ACCOUNT_TYPE, config.getServiceAccountType());
       configuration.set(SERVICE_ACCOUNT, config.getServiceAccount());
@@ -78,15 +92,22 @@ public class PubSubOutputFormat extends OutputFormat<NullWritable, Text> {
     configuration.set(DELAY_THRESHOLD, String.valueOf(config.getPublishDelayThresholdMillis()));
     configuration.set(ERROR_THRESHOLD, String.valueOf(config.getErrorThreshold()));
     configuration.set(RETRY_TIMEOUT_SECONDS, String.valueOf(config.getRetryTimeoutSeconds()));
+    configuration.set(PubSubConstants.FORMAT, format);
+    if (delimiter != null) {
+      configuration.set(PubSubConstants.DELIMITER, config.getDelimiter());
+    }
   }
 
   @Override
-  public RecordWriter<NullWritable, Text> getRecordWriter(TaskAttemptContext taskAttemptContext) throws IOException {
+  public RecordWriter<NullWritable, StructuredRecord> getRecordWriter(TaskAttemptContext taskAttemptContext)
+    throws IOException {
     Configuration config = taskAttemptContext.getConfiguration();
     String serviceAccount = config.get(SERVICE_ACCOUNT);
     boolean isServiceAccountFilePath = SERVICE_ACCOUNT_TYPE_FILE_PATH.equals(config.get(SERVICE_ACCOUNT_TYPE));
     String projectId = config.get(PROJECT);
     String topic = config.get(TOPIC);
+    String format = config.get(PubSubConstants.FORMAT);
+    String delimiter = config.get(PubSubConstants.DELIMITER);
     long countSize = Long.parseLong(config.get(COUNT_BATCH_SIZE));
     long bytesThreshold = Long.parseLong(config.get(REQUEST_BYTES_THRESHOLD));
     long delayThreshold = Long.parseLong(config.get(DELAY_THRESHOLD));
@@ -101,7 +122,7 @@ public class PubSubOutputFormat extends OutputFormat<NullWritable, Text> {
                                                                                     isServiceAccountFilePath));
     }
 
-    return new PubSubRecordWriter(publisher.build(), errorThreshold);
+    return new PubSubRecordWriter(publisher.build(), format, delimiter, errorThreshold);
   }
 
   private RetrySettings getRetrySettings(int maxRetryTimeout) {
@@ -129,26 +150,29 @@ public class PubSubOutputFormat extends OutputFormat<NullWritable, Text> {
    * batching and retrying are performed by Publisher based on how it is configured, If publishing a message fails
    * we maintain error count and we throw exception when this error count exceeds a threshold.
    */
-  public class PubSubRecordWriter extends RecordWriter<NullWritable, Text> {
+  public class PubSubRecordWriter extends RecordWriter<NullWritable, StructuredRecord> {
     private final Publisher publisher;
     private final AtomicLong failures;
     private final AtomicReference<Throwable> error;
     private final long errorThreshold;
     private final Set<ApiFuture> futures;
+    private final String format;
+    private final String delimiter;
 
-    public PubSubRecordWriter(Publisher publisher, long errorThreshold) throws IOException {
+    public PubSubRecordWriter(Publisher publisher, String format, String delimiter, long errorThreshold) {
       this.publisher = publisher;
       this.error = new AtomicReference<>();
       this.errorThreshold = errorThreshold;
       this.failures = new AtomicLong(0);
       this.futures = ConcurrentHashMap.newKeySet();
+      this.format = format;
+      this.delimiter = delimiter;
     }
 
     @Override
-    public void write(NullWritable key, Text value) throws IOException {
+    public void write(NullWritable key, StructuredRecord value) throws IOException {
       handleErrorIfAny();
-      ByteString data = ByteString.copyFromUtf8(value.toString());
-      PubsubMessage message = PubsubMessage.newBuilder().setData(data).build();
+      PubsubMessage message = getPubSubMessage(value);
       ApiFuture future = publisher.publish(message);
       futures.add(future);
       ApiFutures.addCallback(future, new ApiFutureCallback<String>() {
@@ -164,6 +188,68 @@ public class PubSubOutputFormat extends OutputFormat<NullWritable, Text> {
           futures.remove(future);
         }
       });
+    }
+
+    private PubsubMessage getPubSubMessage(StructuredRecord value) throws IOException {
+      String payload;
+      ByteString data;
+      PubsubMessage message = null;
+
+      switch (format) {
+        case PubSubConstants.AVRO:
+        case PubSubConstants.PARQUET: {
+
+          final StructuredToAvroTransformer structuredToAvroTransformer =
+            new StructuredToAvroTransformer(value.getSchema());
+          final GenericRecord transform = structuredToAvroTransformer.transform(value);
+
+          final org.apache.avro.Schema avroSchema = new org.apache.avro.Schema.Parser().
+            parse(String.valueOf(value.getSchema()));
+
+          final byte[] serializedBytes;
+          DatumWriter<GenericRecord> datumWriter = new GenericDatumWriter<>(avroSchema);
+          ByteArrayOutputStream out = new ByteArrayOutputStream();
+          BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(out, null);
+          datumWriter.write(transform, encoder);
+          encoder.flush();
+          out.close();
+          serializedBytes = out.toByteArray();
+          data = ByteString.copyFrom(serializedBytes);
+          message = PubsubMessage.newBuilder().setData(data).build();
+          break;
+        }
+        case PubSubConstants.TEXT:
+        case PubSubConstants.BLOB: {
+          data = ByteString.copyFromUtf8(String.valueOf(value));
+          message = PubsubMessage.newBuilder().setData(data).build();
+          break;
+        }
+        case PubSubConstants.JSON: {
+          payload = StructuredRecordStringConverter.toJsonString(value);
+          data = ByteString.copyFromUtf8(payload);
+          message = PubsubMessage.newBuilder().setData(data).build();
+          break;
+        }
+        case PubSubConstants.CSV: {
+          payload = StructuredRecordStringConverter.toDelimitedString(value, ",");
+          data = ByteString.copyFromUtf8(payload);
+          message = PubsubMessage.newBuilder().setData(data).build();
+          break;
+        }
+        case PubSubConstants.DELIMITED: {
+          payload = StructuredRecordStringConverter.toDelimitedString(value, delimiter);
+          data = ByteString.copyFromUtf8(payload);
+          message = PubsubMessage.newBuilder().setData(data).build();
+          break;
+        }
+        case PubSubConstants.TSV: {
+          payload = StructuredRecordStringConverter.toDelimitedString(value, "\t");
+          data = ByteString.copyFromUtf8(payload);
+          message = PubsubMessage.newBuilder().setData(data).build();
+          break;
+        }
+      }
+      return message;
     }
 
     private void handleErrorIfAny() throws IOException {
@@ -191,6 +277,14 @@ public class PubSubOutputFormat extends OutputFormat<NullWritable, Text> {
           LOG.debug("Exception while shutting down publisher ", e);
         }
       }
+    }
+
+    public String getFormat() {
+      return format;
+    }
+
+    public String getDelimiter() {
+      return delimiter;
     }
   }
 

@@ -30,6 +30,32 @@
           "widget-attributes" : {
             "placeholder": "Topic to publish to"
           }
+        },
+        {
+          "widget-type": "select",
+          "label": "Format",
+          "name": "format",
+          "widget-attributes": {
+            "values": [
+              "avro",
+              "blob",
+              "tsv",
+              "csv",
+              "delimited",
+              "json",
+              "parquet",
+              "text"
+            ],
+            "default": "text"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Delimiter",
+          "name": "delimiter",
+          "widget-attributes": {
+            "placeholder": "Delimiter if the format is 'delimited'"
+          }
         }
       ]
     },
@@ -138,6 +164,18 @@
         {
           "type": "property",
           "name": "serviceAccountJSON"
+        }
+      ]
+    },
+    {
+      "name": "Delimiter",
+      "condition": {
+        "expression": "format == 'delimited'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "delimiter"
         }
       ]
     }
