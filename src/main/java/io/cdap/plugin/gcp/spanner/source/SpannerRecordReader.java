@@ -41,6 +41,7 @@ public class SpannerRecordReader extends RecordReader<NullWritable, ResultSet> {
   private static final Logger LOG = LoggerFactory.getLogger(SpannerRecordReader.class);
   private final BatchTransactionId batchTransactionId;
   private ResultSet resultSet;
+  private Spanner spanner;
 
   public SpannerRecordReader(BatchTransactionId batchTransactionId) {
     this.batchTransactionId = batchTransactionId;
@@ -54,7 +55,7 @@ public class SpannerRecordReader extends RecordReader<NullWritable, ResultSet> {
       Configuration configuration = taskAttemptContext.getConfiguration();
       boolean isServiceAccountFilePath = SpannerConstants.SERVICE_ACCOUNT_TYPE_FILE_PATH
         .equals(configuration.get(SpannerConstants.SERVICE_ACCOUNT_TYPE));
-      Spanner spanner = SpannerUtil.getSpannerService(configuration.get(SpannerConstants.SERVICE_ACCOUNT),
+      spanner = SpannerUtil.getSpannerService(configuration.get(SpannerConstants.SERVICE_ACCOUNT),
                                                       isServiceAccountFilePath,
                                                       configuration.get(SpannerConstants.PROJECT_ID));
       BatchClient batchClient = spanner.getBatchClient(
@@ -91,5 +92,8 @@ public class SpannerRecordReader extends RecordReader<NullWritable, ResultSet> {
   public void close() throws IOException {
     LOG.trace("Closing Record reader");
     resultSet.close();
+    if (spanner != null) {
+      spanner.close();
+    }
   }
 }
