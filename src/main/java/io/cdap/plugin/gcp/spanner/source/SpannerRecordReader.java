@@ -45,6 +45,7 @@ public class SpannerRecordReader extends RecordReader<NullWritable, ResultSet> {
   private final BatchTransactionId batchTransactionId;
   private ResultSet resultSet;
   private Counter bytesRead;
+  private Spanner spanner;
   BytesCounter counter;
 
   public SpannerRecordReader(BatchTransactionId batchTransactionId) {
@@ -61,7 +62,7 @@ public class SpannerRecordReader extends RecordReader<NullWritable, ResultSet> {
         .equals(configuration.get(SpannerConstants.SERVICE_ACCOUNT_TYPE));
       bytesRead = context.getCounter(FileInputFormatCounter.BYTES_READ);
       counter = new BytesCounter();
-      Spanner spanner = SpannerUtil.getSpannerServiceWithReadInterceptor(
+      spanner = SpannerUtil.getSpannerServiceWithReadInterceptor(
         configuration.get(SpannerConstants.SERVICE_ACCOUNT),
         isServiceAccountFilePath,
         configuration.get(SpannerConstants.PROJECT_ID),
@@ -101,5 +102,8 @@ public class SpannerRecordReader extends RecordReader<NullWritable, ResultSet> {
     LOG.trace("Closing Record reader");
     bytesRead.increment(counter.getValue());
     resultSet.close();
+    if (spanner != null) {
+      spanner.close();
+    }
   }
 }
