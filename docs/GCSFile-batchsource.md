@@ -53,6 +53,14 @@ When running on other clusters, the file must be present on every node in the cl
 Smaller partitions will increase the level of parallelism, but will require more resources and overhead.
 The default value is 128MB.
 
+**Regex Path Filter:** Regular expression that file paths must match in order to be included in the input.
+The full file path is compared, not just the file name.
+If no value is given, no file filtering will be done.
+For example, a regex of .+\.csv will read only files that end in '.csv'.
+
+See https://docs.oracle.com/javase/8/docs/api/java/util/regex/Pattern.html for more information about 
+the regular expression syntax
+
 **Path Field:** Output field to place the path of the file that the record was read from.
 If not specified, the file path will not be included in output records.
 If specified, the field must exist in the output schema as a string.
