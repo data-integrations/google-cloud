@@ -63,8 +63,7 @@ public class GCPConfig extends PluginConfig {
   @Nullable
   public String tryGetProject() {
     if (containsMacro(NAME_PROJECT) && Strings.isNullOrEmpty(project)) {
-      // macro substitution has not been performed yet, so return raw value for validation
-      return getRawProperties().getProperties().get(NAME_PROJECT);
+      return null;
     }
     String projectId = project;
     if (Strings.isNullOrEmpty(project) || AUTO_DETECT.equals(project)) {

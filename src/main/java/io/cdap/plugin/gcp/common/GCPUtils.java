@@ -28,6 +28,7 @@ import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 
+import io.cdap.plugin.gcp.gcs.actions.GCSArgumentSetterConfig;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -140,9 +141,13 @@ public class GCPUtils {
     }
     properties.put("fs.gs.impl", GoogleHadoopFileSystem.class.getName());
     properties.put("fs.AbstractFileSystem.gs.impl", GoogleHadoopFS.class.getName());
-    String projectId = config.getProject();
-    properties.put(FS_GS_PROJECT_ID, projectId);
-    properties.put("fs.gs.system.bucket", GCSPath.from(path).getBucket());
+    if (!config.containsMacro(GCPConfig.NAME_PROJECT)) {
+      String projectId = config.getProject();
+      properties.put(FS_GS_PROJECT_ID, projectId);
+    }
+    if (!config.containsMacro(GCSArgumentSetterConfig.NAME_PATH) && path != null) {
+      properties.put("fs.gs.system.bucket", GCSPath.from(path).getBucket());
+    }
     properties.put("fs.gs.path.encoding", "uri-path");
     properties.put("fs.gs.working.dir", GCSPath.ROOT_DIR);
     properties.put("fs.gs.impl.disable.cache", "true");
