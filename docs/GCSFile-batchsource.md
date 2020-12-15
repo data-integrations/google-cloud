@@ -32,7 +32,9 @@ It can be found on the Dashboard in the Google Cloud Platform Console.
 For example, `gs://<bucket>/path/to/directory/`.
 
 **Format:** Format of the data to read.
-The format must be one of 'avro', 'blob', 'csv', 'delimited', 'json', 'parquet', 'text', or 'tsv'.
+The format must be one of 'avro', 'blob', 'csv', 'delimited', 'json', 'parquet', 'text', 'tsv', or the
+name of any format plugin that you have deployed to your environment.
+If the format is a macro, only the pre-packaged formats can be used.
 If the format is 'blob', every input file will be read into a separate record.
 The 'blob' format also requires a schema that contains a field named 'body' of type 'bytes'.
 If the format is 'text', the schema must contain a field named 'body' of type 'string'.
