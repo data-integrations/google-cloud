@@ -16,6 +16,12 @@
 
 package io.cdap.plugin.gcp.bigtable.sink;
 
+import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.TableNotEnabledException;
+import org.apache.hadoop.hbase.TableNotFoundException;
+import org.apache.hadoop.hbase.client.Admin;
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.mapreduce.TableOutputFormat;
 import org.apache.hadoop.mapreduce.JobContext;
@@ -59,6 +65,38 @@ public class BigtableOutputFormat<KEY> extends TableOutputFormat<KEY> {
     // setting configuration properties (including credentials) before `ConnectionFactory.createConnection` is called
     // in order to prevent null pointer exception during connection creation.
     setConf(context.getConfiguration());
-    super.checkOutputSpecs(context);
+
+    //Copied from org.apache.hadoop.hbase.mapreduce.TableOutputFormat because connection was not closed properly.
+    //See https://cdap.atlassian.net/browse/PLUGIN-234 for more details
+    //Changes: admin.close() from AbstractBigtableAdmin.class was not closing the connection
+    //so we had to close it from Connection.class
+
+    Connection connection = ConnectionFactory.createConnection(this.getConf());
+    Admin admin = connection.getAdmin();
+    Throwable throwable = null;
+
+    try {
+      TableName tableName = TableName.valueOf(getConf().get("hbase.mapred.outputtable"));
+      if (!admin.tableExists(tableName)) {
+        throw new TableNotFoundException("Can't write, table does not exist:" + tableName.getNameAsString());
+      }
+
+      if (!admin.isTableEnabled(tableName)) {
+        throw new TableNotEnabledException("Can't write, table is not enabled: " + tableName.getNameAsString());
+      }
+    } catch (Throwable var12) {
+      throwable = var12;
+      throw var12;
+    } finally {
+      if (throwable != null) {
+        try {
+          connection.close();
+        } catch (Throwable var11) {
+          throwable.addSuppressed(var11);
+        }
+      } else {
+        connection.close();
+      }
+    }
   }
 }
