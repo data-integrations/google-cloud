@@ -312,7 +312,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
         try {
           new SimpleDateFormat(suffix);
         } catch (IllegalArgumentException e) {
-          collector.addFailure("Invalid suffix : " + e.getMessage(), null)
+          collector.addFailure("Invalid suffix.", "Ensure provided suffix is valid.")
             .withConfigProperty(NAME_SUFFIX).withStacktrace(e.getStackTrace());
         }
       }
