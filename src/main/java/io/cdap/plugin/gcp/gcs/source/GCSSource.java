@@ -94,7 +94,8 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
   @Override
   protected boolean shouldGetSchema() {
     return !config.containsMacro(GCSSourceConfig.NAME_PROJECT) && !config.containsMacro(GCSSourceConfig.NAME_PATH) &&
-      !config.containsMacro(GCSSourceConfig.NAME_FORMAT) &&
+      !config.containsMacro(GCSSourceConfig.NAME_FORMAT) && !config.containsMacro(GCSSourceConfig.NAME_DELIMITER) &&
+      !config.containsMacro(GCSSourceConfig.NAME_FILE_SYSTEM_PROPERTIES) &&
       !config.containsMacro(GCSSourceConfig.NAME_SERVICE_ACCOUNT_FILE_PATH) &&
       !config.containsMacro(GCSSourceConfig.NAME_SERVICE_ACCOUNT_JSON);
   }
@@ -108,6 +109,7 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
     private static final String NAME_FILE_SYSTEM_PROPERTIES = "fileSystemProperties";
     private static final String NAME_FILE_REGEX = "fileRegex";
     private static final String NAME_FORMAT = "format";
+    private static final String NAME_DELIMITER = "delimiter";
 
     private static final String DEFAULT_ENCRYPTED_METADATA_SUFFIX = ".metadata";
 
