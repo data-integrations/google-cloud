@@ -91,6 +91,14 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
                                                      config.isEncrypted() ? " and decrypt " : " "), outputFields);
   }
 
+  @Override
+  protected boolean shouldGetSchema() {
+    return !config.containsMacro(GCSSourceConfig.NAME_PROJECT) && !config.containsMacro(GCSSourceConfig.NAME_PATH) &&
+      !config.containsMacro(GCSSourceConfig.NAME_FORMAT) &&
+      !config.containsMacro(GCSSourceConfig.NAME_SERVICE_ACCOUNT_FILE_PATH) &&
+      !config.containsMacro(GCSSourceConfig.NAME_SERVICE_ACCOUNT_JSON);
+  }
+
   /**
    * Config for the plugin.
    */
