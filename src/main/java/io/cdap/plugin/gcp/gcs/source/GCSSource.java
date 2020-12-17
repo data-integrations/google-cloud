@@ -24,6 +24,7 @@ import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.api.plugin.PluginProperties;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchSource;
@@ -335,5 +336,11 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
       }
       return GSON.fromJson(fileSystemProperties, MAP_STRING_STRING_TYPE);
     }
+  }
+
+  @Override
+  protected boolean shouldGetSchema() {
+    PluginProperties rawProperties = config.getRawProperties();
+    return rawProperties == null || rawProperties.getProperties().isEmpty();
   }
 }
