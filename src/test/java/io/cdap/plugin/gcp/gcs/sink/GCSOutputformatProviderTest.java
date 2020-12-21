@@ -46,9 +46,9 @@ public class GCSOutputformatProviderTest {
   @Test
   public void testGCSOutputCommitter() throws IOException, URISyntaxException {
     FileOutputCommitter fileOutputCommitter = Mockito.mock(FileOutputCommitter.class);
-    GCSOutputFormatProvider.GCSOutputCommitter committer = new GCSOutputFormatProvider.GCSOutputCommitter(
+    GCSOutputCommitter committer = new GCSOutputCommitter(
       fileOutputCommitter);
-    GCSOutputFormatProvider.GCSOutputCommitter committerToTest = Mockito.spy(committer);
+    GCSOutputCommitter committerToTest = Mockito.spy(committer);
     JobContext mockJobContext = Mockito.mock(JobContext.class);
     JobStatus.State mockJobState = JobStatus.State.SUCCEEDED;
     TaskAttemptContext mockContext = Mockito.mock(TaskAttemptContext.class);
