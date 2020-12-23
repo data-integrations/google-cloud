@@ -29,7 +29,7 @@
           "name": "project",
           "widget-attributes": {
             "default": "auto-detect"
-          },
+          }
         },
         {
           "widget-type": "textbox",
@@ -45,6 +45,16 @@
           "name": "format",
           "widget-attributes": {
             "plugin-type": "validatingInputFormat"
+          },
+          "plugin-function": {
+            "method": "POST",
+            "widget": "outputSchema",
+            "label": "Get Schema Value",
+            "required-fields": [
+              "path"
+            ],
+            "missing-required-fields-message": "Please provide path field",
+            "plugin-method": "getSchema"
           }
         },
         {
