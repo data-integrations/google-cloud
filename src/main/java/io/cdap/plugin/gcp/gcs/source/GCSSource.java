@@ -30,8 +30,10 @@ import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.format.FileFormat;
+import io.cdap.plugin.format.charset.fixedlength.FixedLengthCharset;
 import io.cdap.plugin.format.input.PathTrackingInputFormat;
 import io.cdap.plugin.format.plugin.AbstractFileSource;
+import io.cdap.plugin.format.plugin.AbstractFileSourceConfig;
 import io.cdap.plugin.format.plugin.FileSourceProperties;
 import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
@@ -72,6 +74,10 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
                                                                       new HashMap<>(config.getFileSystemProperties()));
     if (config.isCopyHeader()) {
       properties.put(PathTrackingInputFormat.COPY_HEADER, Boolean.TRUE.toString());
+    }
+    if (config.getFileEncoding() != null
+      && !config.getFileEncoding().equalsIgnoreCase(AbstractFileSourceConfig.DEFAULT_FILE_ENCODING)) {
+      properties.put(PathTrackingInputFormat.SOURCE_FILE_ENCODING, config.getFileEncoding());
     }
     if (config.getMinSplitSize() != null) {
       properties.put("mapreduce.input.fileinputformat.split.minsize", String.valueOf(config.getMinSplitSize()));
@@ -172,8 +178,13 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
     @Macro
     @Nullable
     @Description("Whether to skip the first line of each file. Supported formats are 'text', 'csv', 'tsv', " +
-                   "'delimited'. Default value is false.")
+      "'delimited'. Default value is false.")
     private Boolean skipHeader;
+
+    @Macro
+    @Nullable
+    @Description("File encoding for the source files. The default encoding is 'UTF-8'")
+    private String fileEncoding;
 
     // this is a hidden property that only exists for wrangler's parse-as-csv that uses the header as the schema
     // when this is true and the format is text, the header will be the first record returned by every record reader
@@ -233,6 +244,12 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
           collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_FORMAT)
             .withStacktrace(e.getStackTrace());
         }
+      }
+
+      if (fileEncoding != null && !fileEncoding.equals(AbstractFileSourceConfig.DEFAULT_FILE_ENCODING)
+        && !FixedLengthCharset.isValidEncoding(fileEncoding)) {
+        collector.addFailure("Specified file encoding is not valid.",
+                             "Use one of the supported file encodings.");
       }
     }
 
@@ -318,6 +335,11 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
     @Override
     public boolean skipHeader() {
       return skipHeader == null ? false : skipHeader;
+    }
+
+    @Nullable
+    public String getFileEncoding() {
+      return fileEncoding;
     }
 
     public boolean isEncrypted() {
