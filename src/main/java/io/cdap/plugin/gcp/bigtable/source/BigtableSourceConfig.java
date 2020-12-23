@@ -89,7 +89,6 @@ public final class BigtableSourceConfig extends GCPReferenceSourceConfig {
   @Description("Mappings from Bigtable column name to record field. " +
     "Column names must be formatted as <family>:<qualifier>.")
   @Macro
-  @Nullable
   final String columnMappings;
 
   @Name(SCAN_ROW_START)
