@@ -560,12 +560,14 @@ public class DatastoreSourceConfig extends GCPReferenceSourceConfig {
   boolean shouldConnect() {
     return !containsMacro(DatastoreSourceConstants.PROPERTY_SCHEMA) &&
       !containsMacro(NAME_SERVICE_ACCOUNT_TYPE) &&
-      !(containsMacro(DatastoreSourceConfig.NAME_SERVICE_ACCOUNT_FILE_PATH) ||
-        containsMacro(DatastoreSourceConfig.NAME_SERVICE_ACCOUNT_JSON)) &&
+      !containsMacro(DatastoreSourceConfig.NAME_SERVICE_ACCOUNT_FILE_PATH) &&
+      !containsMacro(DatastoreSourceConfig.NAME_SERVICE_ACCOUNT_JSON) &&
       !containsMacro(DatastoreSourceConfig.NAME_PROJECT) &&
       !containsMacro(DatastoreSourceConstants.PROPERTY_KIND) &&
       !containsMacro(DatastoreSourceConstants.PROPERTY_NAMESPACE) &&
       !containsMacro(DatastoreSourceConstants.PROPERTY_ANCESTOR) &&
+      !containsMacro(DatastoreSourceConstants.PROPERTY_KEY_TYPE) &&
+      !containsMacro(DatastoreSourceConstants.PROPERTY_KEY_ALIAS) &&
       tryGetProject() != null &&
       !autoServiceAccountUnavailable();
   }
