@@ -104,9 +104,11 @@ public class GCSPath {
       bucket = path.substring(0, idx);
     }
 
-    if (!Pattern.matches("[a-zA-Z0-9-_.]+", bucket)) {
-      throw new IllegalArgumentException(String.format("Invalid bucket name in path '%s'. Bucket name should only " +
-                                                         "contain alphanumeric, '-'. '_' and '.'.", path));
+    if (!Pattern.matches("[a-z0-9-_.]+", bucket)) {
+      throw new IllegalArgumentException(
+        String.format("Invalid bucket name in path '%s'. Bucket name should only contain lower case alphanumeric, " +
+                        "'-'. '_' and '.'. Please follow GCS naming convention: " +
+                        "https://cloud.google.com/storage/docs/naming-buckets", path));
     }
 
     String file = idx > 0 ? path.substring(idx).replaceAll("^/", "") : "";
