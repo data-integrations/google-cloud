@@ -29,6 +29,7 @@ import io.cdap.plugin.gcp.datastore.sink.util.DatastoreSinkConstants;
 import io.cdap.plugin.gcp.datastore.sink.util.IndexStrategy;
 import io.cdap.plugin.gcp.datastore.sink.util.SinkKeyType;
 import io.cdap.plugin.gcp.datastore.source.DatastoreSourceConfig;
+import io.cdap.plugin.gcp.datastore.source.util.DatastoreSourceConstants;
 import io.cdap.plugin.gcp.datastore.util.DatastorePropertyUtil;
 import io.cdap.plugin.gcp.datastore.util.DatastoreUtil;
 
@@ -50,7 +51,7 @@ public class DatastoreSinkConfig extends GCPReferenceSinkConfig {
   @Macro
   @Nullable
   @Description("Namespace of the entities to write. A namespace partitions entities into a subset of Cloud Datastore."
-    + "If no value is provided, the [default] namespace will be used.")
+    + "If no value is provided, the `default` namespace will be used.")
   private String namespace;
 
   @Name(DatastoreSinkConstants.PROPERTY_KIND)
@@ -404,6 +405,9 @@ public class DatastoreSinkConfig extends GCPReferenceSinkConfig {
       containsMacro(DatastoreSourceConfig.NAME_SERVICE_ACCOUNT_JSON)) &&
       !containsMacro(NAME_SERVICE_ACCOUNT_TYPE) &&
       !containsMacro(DatastoreSourceConfig.NAME_PROJECT) &&
+      !containsMacro(DatastoreSourceConstants.PROPERTY_KIND) &&
+      !containsMacro(DatastoreSourceConstants.PROPERTY_NAMESPACE) &&
+      !containsMacro(DatastoreSourceConstants.PROPERTY_ANCESTOR) &&
       tryGetProject() != null &&
       !autoServiceAccountUnavailable();
   }
