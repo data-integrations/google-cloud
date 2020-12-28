@@ -21,7 +21,7 @@ Properties
 **Reference Name:** Name used to uniquely identify this sink for lineage, annotating metadata, etc.
 
 **Namespace:** Namespace of the entities to write. A namespace partitions entities into a subset of Cloud Datastore. 
-If no value is provided, the `[default]` namespace will be used. 
+If no value is provided, the `default` namespace will be used. 
 
 **Kind:** Kind of entities to write. Kinds are used to categorize entities in Cloud Datastore. 
 A kind is equivalent to the relational database table notion.
