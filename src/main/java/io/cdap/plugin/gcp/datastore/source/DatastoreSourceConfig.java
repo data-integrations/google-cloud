@@ -62,7 +62,7 @@ public class DatastoreSourceConfig extends GCPReferenceSourceConfig {
   @Macro
   @Nullable
   @Description("Namespace of the entities to read. A namespace partitions entities into a subset of Cloud Datastore. "
-    + "If no value is provided, the `[default]` namespace will be used.")
+    + "If no value is provided, the `default` namespace will be used.")
   private String namespace;
 
   @Name(DatastoreSourceConstants.PROPERTY_KIND)
@@ -564,6 +564,9 @@ public class DatastoreSourceConfig extends GCPReferenceSourceConfig {
       !(containsMacro(DatastoreSourceConfig.NAME_SERVICE_ACCOUNT_FILE_PATH) ||
         containsMacro(DatastoreSourceConfig.NAME_SERVICE_ACCOUNT_JSON)) &&
       !containsMacro(DatastoreSourceConfig.NAME_PROJECT) &&
+      !containsMacro(DatastoreSourceConstants.PROPERTY_KIND) &&
+      !containsMacro(DatastoreSourceConstants.PROPERTY_NAMESPACE) &&
+      !containsMacro(DatastoreSourceConstants.PROPERTY_ANCESTOR) &&
       tryGetProject() != null &&
       !autoServiceAccountUnavailable();
   }
