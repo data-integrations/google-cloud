@@ -77,6 +77,7 @@ public class SpannerSinkConfig extends GCPReferenceSinkConfig {
   private String keys;
 
   @Name(NAME_SCHEMA)
+  @Nullable
   @Description("Schema of the Spanner table.")
   @Macro
   private String schema;
