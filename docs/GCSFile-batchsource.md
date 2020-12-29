@@ -74,6 +74,8 @@ The default value is false.
 
 **File System Properties:** Additional properties to use with the InputFormat when reading the data.
 
+**File Encoding:** The character encoding for the file(s) to be read. The default encoding is UTF-8.
+
 **Schema:** Output schema. If a Path Field is set, it must be present in the schema as a string.
 
 **Data File Encrypted:** Whether files are encrypted. The default value is false. 
