@@ -34,6 +34,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 /**
  * Transforms CDAP {@link StructuredRecord} to Google Spanner {@link Mutation}.
@@ -42,14 +43,15 @@ public class RecordToMutationTransformer {
   private final String tableName;
   private final Schema schema;
 
-  public RecordToMutationTransformer(String tableName, Schema schema) {
+  // schema can be null if not provided, this class will use the record schema instead
+  public RecordToMutationTransformer(String tableName, @Nullable Schema schema) {
     this.tableName = tableName;
     this.schema = schema;
   }
 
   public Mutation transform(StructuredRecord record) {
     Mutation.WriteBuilder builder = com.google.cloud.spanner.Mutation.newInsertOrUpdateBuilder(tableName);
-    List<Schema.Field> fields = schema.getFields();
+    List<Schema.Field> fields = schema != null ? schema.getFields() : record.getSchema().getFields();
     for (Schema.Field field : fields) {
       String name = field.getName();
       Schema fieldSchema = field.getSchema();

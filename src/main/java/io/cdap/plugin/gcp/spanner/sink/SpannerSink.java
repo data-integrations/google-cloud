@@ -99,7 +99,8 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
     // throw a validation exception if any failures were added to the collector.
     collector.getOrThrowException();
 
-    Schema schema = config.getSchema(collector);
+    Schema configuredSchema = config.getSchema(collector);
+    Schema schema = configuredSchema == null ? context.getInputSchema() : configuredSchema;
     if (!context.isPreviewEnabled()) {
       try (Spanner spanner = SpannerUtil.getSpannerService(config.getServiceAccount(),
                                                            config.isServiceAccountFilePath(), config.getProject())) {
@@ -108,6 +109,11 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
         DatabaseAdminClient dbAdminClient = spanner.getDatabaseAdminClient();
         // create database
         Database database = getOrCreateDatabase(dbAdminClient);
+        if (!isTablePresent(dbClient) && schema == null) {
+          throw new IllegalArgumentException(String.format("Spanner table %s does not exist. To create it from the " +
+                                                             "pipeline, schema must be provided",
+                                                           config.getTable()));
+        }
         // create table
         createTableIfNotPresent(dbClient, database, schema);
       } catch (IOException e) {
@@ -209,9 +215,8 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
     super.initialize(context);
     FailureCollector collector = context.getFailureCollector();
     config.validate(collector);
-    Schema schema = config.getSchema(collector);
     collector.getOrThrowException();
-    transformer = new RecordToMutationTransformer(config.getTable(), schema);
+    transformer = new RecordToMutationTransformer(config.getTable(), config.getSchema(collector));
   }
 
   @Override
