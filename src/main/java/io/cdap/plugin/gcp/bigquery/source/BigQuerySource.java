@@ -24,6 +24,7 @@ import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableDefinition.Type;
+import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TimePartitioning;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import io.cdap.cdap.api.annotation.Description;
@@ -126,8 +127,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     Schema configuredSchema = getOutputSchema(collector);
 
     String serviceAccount = config.getServiceAccount();
-    Credentials credentials = serviceAccount == null ?
-      null : GCPUtils.loadServiceAccountCredentials(serviceAccount, config.isServiceAccountFilePath());
+    Credentials credentials = getCredentials(serviceAccount);
     BigQuery bigQuery = GCPUtils.getBigQuery(config.getDatasetProject(), credentials);
 
     uuid = UUID.randomUUID();
@@ -171,6 +171,9 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     if (config.getViewMaterializationDataset() != null) {
       configuration.set(BigQueryConstants.CONFIG_VIEW_MATERIALIZATION_DATASET, config.getViewMaterializationDataset());
     }
+    String temporaryTableName = String.format("_%s_%s", config.getTable(),
+                                              UUID.randomUUID().toString().replaceAll("-", "_"));
+    configuration.set(BigQueryConstants.CONFIG_TEMPORARY_TABLE_NAME, temporaryTableName);
 
     String temporaryGcsPath = String.format("gs://%s/%s/hadoop/input/%s", bucket, uuid, uuid);
     PartitionedBigQueryInputFormat.setTemporaryCloudStorageDirectory(configuration, temporaryGcsPath);
@@ -211,6 +214,24 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
 
   @Override
   public void onRunFinish(boolean succeeded, BatchSourceContext context) {
+    deleteGcsTemporaryDirectory();
+    deleteBigQueryTemporaryTable();
+  }
+
+  private void deleteBigQueryTemporaryTable() {
+    String temporaryTable = configuration.get(BigQueryConstants.CONFIG_TEMPORARY_TABLE_NAME);
+    try {
+      String serviceAccount = config.getServiceAccount();
+      Credentials credentials = getCredentials(serviceAccount);
+      BigQuery bigQuery = GCPUtils.getBigQuery(config.getDatasetProject(), credentials);
+      bigQuery.delete(TableId.of(config.getProject(), config.getDataset(), temporaryTable));
+      LOG.debug("Deleted temporary table '{}'", temporaryTable);
+    } catch (IOException e) {
+      LOG.error("Failed to load service account credentials: {}", e.getMessage(), e);
+    }
+  }
+
+  private void deleteGcsTemporaryDirectory() {
     org.apache.hadoop.fs.Path gcsPath = null;
     String bucket = config.getBucket();
     if (bucket == null) {
@@ -227,6 +248,12 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     } catch (IOException e) {
       LOG.warn("Failed to delete temporary directory '{}': {}", gcsPath, e.getMessage());
     }
+  }
+
+  @Nullable
+  private Credentials getCredentials(@Nullable String serviceAccount) throws IOException {
+    return serviceAccount == null ?
+            null : GCPUtils.loadServiceAccountCredentials(serviceAccount, config.isServiceAccountFilePath());
   }
 
   public Schema getSchema(FailureCollector collector) {
