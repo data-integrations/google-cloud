@@ -43,7 +43,7 @@ public class DatastorePropertyUtil {
    * @return valid namespace value
    */
   public static String getNamespace(@Nullable String namespace) {
-    return Strings.isNullOrEmpty(namespace) ? DEFAULT_NAMESPACE : namespace;
+    return Strings.isNullOrEmpty(namespace) || namespace.equalsIgnoreCase("default") ? DEFAULT_NAMESPACE : namespace;
   }
 
   /**
