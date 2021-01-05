@@ -183,7 +183,9 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
   @Override
   public void initialize(BatchRuntimeContext context) throws Exception {
     super.initialize(context);
-    schema = context.getOutputSchema();
+    // this will be null if schema is macro enabled or not set at configure time
+    Schema configuredSchema = context.getOutputSchema();
+    schema = configuredSchema == null ? getSchema(context.getFailureCollector()) : configuredSchema;
     transformer = new ResultSetToRecordTransformer(schema);
   }
 
