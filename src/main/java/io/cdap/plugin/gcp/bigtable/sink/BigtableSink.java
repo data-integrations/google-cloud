@@ -174,9 +174,9 @@ public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableByt
   }
 
   private void validateInputSchema(Schema inputSchema, FailureCollector collector) {
-    if (inputSchema.getField(config.keyAlias) == null) {
+    if (!config.containsMacro(BigtableSinkConfig.KEY_ALIAS) && inputSchema.getField(config.keyAlias) == null) {
       collector.addFailure(
-        String.format("Field '%s' declared as key alias does not exist in input schema", config.keyAlias),
+        String.format("Field '%s' declared as key alias does not exist in input schema.", config.keyAlias),
         "Specify input field name as key alias.").withConfigProperty(BigtableSinkConfig.KEY_ALIAS);
     }
     List<Schema.Field> fields = inputSchema.getFields();
