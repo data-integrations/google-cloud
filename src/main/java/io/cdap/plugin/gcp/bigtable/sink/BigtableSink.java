@@ -53,9 +53,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**
@@ -184,7 +186,9 @@ public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableByt
       collector.addFailure("Input schema must contain fields.", null);
       throw collector.getOrThrowException();
     }
+    Set<String> fieldNames = new HashSet<>();
     for (Schema.Field field : fields) {
+      fieldNames.add(field.getName());
       Schema nonNullableSchema = field.getSchema().isNullable() ?
         field.getSchema().getNonNullable() : field.getSchema();
       if (!SUPPORTED_FIELD_TYPES.contains(nonNullableSchema.getType()) ||
@@ -201,6 +205,14 @@ public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableByt
           .withInputSchemaField(field.getName());
       }
     }
+
+    config.getColumnMappings(collector).keySet().forEach(column -> {
+      if (!fieldNames.contains(column)) {
+        collector.addFailure(
+          String.format("Column '%s' in column mappings does not exist in the input schema.", column),
+          String.format("Remove or modify column '%s' from column mappings.", column));
+      }
+    });
   }
 
   private void createTable(Connection connection, TableName tableName, FailureCollector collector) {
