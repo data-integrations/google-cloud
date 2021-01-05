@@ -92,7 +92,9 @@ public final class BigQuerySink extends AbstractBigQuerySink {
     }
     // validate schema with underlying table
     Schema schema = configuredSchema == null ? inputSchema : configuredSchema;
-    validateConfiguredSchema(schema, collector);
+    if (schema != null) {
+      validateConfiguredSchema(schema, collector);
+    }
   }
 
   @Override
