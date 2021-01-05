@@ -58,7 +58,8 @@ public class RecordToHBaseMutationTransformer {
     Put put = new Put(rowKeyBytes);
     for (Schema.Field field : fields) {
       String fieldName = field.getName();
-      if (fieldName.equals(keyAlias)) {
+      // if column mappings does not contain the field name, just ignore it and write the rest fields
+      if (fieldName.equals(keyAlias) || !columnMappings.containsKey(fieldName)) {
         continue;
       }
       HBaseColumn column = columnMappings.get(fieldName);
