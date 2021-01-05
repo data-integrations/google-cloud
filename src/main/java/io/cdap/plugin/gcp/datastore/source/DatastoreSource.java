@@ -104,9 +104,9 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
       return;
     }
 
-    Schema schema = getSchema(collector);
     if (configuredSchema == null) {
-      stageConfigurer.setOutputSchema(schema);
+      configuredSchema = getSchema(collector);
+      stageConfigurer.setOutputSchema(configuredSchema);
       return;
     }
 
