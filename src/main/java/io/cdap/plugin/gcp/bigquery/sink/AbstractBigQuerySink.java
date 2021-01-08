@@ -333,14 +333,14 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
     return BigQueryUtil.getTableSchema(bqSchema, collector);
   }
 
-  protected void validateInsertSchema(Table table, Schema tableSchema, FailureCollector collector) {
+  protected void validateInsertSchema(Table table, @Nullable Schema tableSchema, FailureCollector collector) {
     com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
     if (bqSchema == null || bqSchema.getFields().isEmpty()) {
       // Table is created without schema, so no further validation is required.
       return;
     }
 
-    if (getConfig().isTruncateTableSet()) {
+    if (getConfig().isTruncateTableSet() || tableSchema == null) {
       //no validation required for schema if truncate table is set.
       // BQ will overwrite the schema for normal tables when write disposition is WRITE_TRUNCATE
       //note - If write to single partition is supported in future, schema validation will be necessary
@@ -389,10 +389,10 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
   protected void validateSchema(
     String tableName,
     com.google.cloud.bigquery.Schema bqSchema,
-    Schema tableSchema,
+    @Nullable Schema tableSchema,
     boolean allowSchemaRelaxation,
     FailureCollector collector) {
-    if (bqSchema == null || bqSchema.getFields().isEmpty()) {
+    if (bqSchema == null || bqSchema.getFields().isEmpty() || tableSchema == null) {
       // Table is created without schema, so no further validation is required.
       return;
     }
