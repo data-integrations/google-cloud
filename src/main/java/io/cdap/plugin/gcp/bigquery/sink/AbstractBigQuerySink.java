@@ -71,7 +71,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
 
   private static final Logger LOG = LoggerFactory.getLogger(AbstractBigQuerySink.class);
 
-  private static final String gcsPathFormat = "gs://%s";
+  private static final String gcsPathFormat = "gs://%s/%s";
   private static final String temporaryBucketFormat = gcsPathFormat + "/input/%s-%s";
   public static final String RECORDS_UPDATED_METRIC = "records.updated";
 
@@ -112,17 +112,21 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
 
   @Override
   public void onRunFinish(boolean succeeded, BatchSinkContext context) {
-    if (getConfig().getBucket() == null) {
-      Path gcsPath = new Path(String.format(gcsPathFormat, uuid.toString()));
-      try {
-        FileSystem fs = gcsPath.getFileSystem(baseConfiguration);
-        if (fs.exists(gcsPath)) {
-          fs.delete(gcsPath, true);
-          LOG.debug("Deleted temporary bucket '{}'", gcsPath);
-        }
-      } catch (IOException e) {
-        LOG.warn("Failed to delete bucket '{}': {}", gcsPath, e.getMessage());
+    Path gcsPath;
+    String bucket = getConfig().getBucket();
+    if (bucket == null) {
+      gcsPath = new Path(String.format(gcsPathFormat, uuid.toString(), uuid.toString()));
+    } else {
+      gcsPath = new Path(String.format(gcsPathFormat, bucket, uuid.toString()));
+    }
+    try {
+      FileSystem fs = gcsPath.getFileSystem(baseConfiguration);
+      if (fs.exists(gcsPath)) {
+        fs.delete(gcsPath, true);
+        LOG.debug("Deleted temporary directory '{}'", gcsPath);
       }
+    } catch (IOException e) {
+      LOG.warn("Failed to delete temporary directory '{}': {}", gcsPath, e.getMessage());
     }
   }
 
@@ -225,7 +229,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
    * @return full path to temporary bucket
    */
   private String getTemporaryGcsPath(String bucket, String tableName) {
-    return String.format(temporaryBucketFormat, bucket, tableName, uuid);
+    return String.format(temporaryBucketFormat, bucket, uuid, tableName, uuid);
   }
 
   /**
@@ -242,7 +246,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
       // So enable it only when bucket name is not provided.
       baseConfiguration.setBoolean("fs.gs.bucket.delete.enable", true);
     }
-    baseConfiguration.set("fs.gs.system.bucket", bucket);
+    baseConfiguration.set("fs.default.name", String.format(gcsPathFormat, bucket, uuid));
     baseConfiguration.setBoolean("fs.gs.impl.disable.cache", true);
     baseConfiguration.setBoolean("fs.gs.metadata.cache.enable", false);
     return bucket;
