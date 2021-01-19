@@ -29,7 +29,7 @@
           "name": "project",
           "widget-attributes": {
             "default": "auto-detect"
-          },
+          }
         },
         {
           "widget-type": "textbox",
@@ -48,11 +48,51 @@
           }
         },
         {
+          "widget-type": "number",
+          "label": "Sample Size",
+          "name": "sampleSize",
+          "widget-attributes": {
+            "default": "1000",
+            "minimum": "1"
+          }
+        },
+        {
+          "widget-type": "keyvalue-dropdown",
+          "label": "Override",
+          "name": "override",
+          "widget-attributes": {
+            "key-placeholder": "Field Name",
+            "value-placeholder": "Data Type",
+            "dropdownOptions": [
+              "boolean",
+              "bytes",
+              "double",
+              "float",
+              "int",
+              "long",
+              "string",
+              "date",
+              "time",
+              "timestamp"
+            ]
+          }
+        },
+        {
           "widget-type": "textbox",
           "label": "Delimiter",
           "name": "delimiter",
           "widget-attributes": {
             "placeholder": "Delimiter if the format is 'delimited'"
+          },
+          "plugin-function": {
+            "method": "POST",
+            "widget": "outputSchema",
+            "label": "Get Schema Value",
+            "required-fields": [
+              "path"
+            ],
+            "missing-required-fields-message": "Please provide path field",
+            "plugin-method": "getSchema"
           }
         },
         {
