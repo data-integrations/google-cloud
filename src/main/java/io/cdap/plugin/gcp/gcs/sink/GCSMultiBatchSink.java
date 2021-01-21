@@ -95,7 +95,6 @@ public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable,
     collector.getOrThrowException();
 
     Map<String, String> baseProperties = GCPUtils.getFileSystemProperties(config, config.getPath(), new HashMap<>());
-
     Map<String, String> argumentCopy = new HashMap<>(context.getArguments().asMap());
 
     String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
@@ -137,7 +136,7 @@ public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable,
       outputProperties.putAll(RecordFilterOutputFormat.configure(validatingOutputFormat.getOutputFormatClassName(),
                                                                  config.splitField, name, schema));
       outputProperties.put(FileOutputFormat.OUTDIR, config.getOutputDir(context.getLogicalStartTime(), name));
-
+      outputProperties.put(GCSBatchSink.CONTENT_TYPE, config.getContentType());
       context.addOutput(Output.of(
         config.getReferenceName() + "_" + name,
         new SinkOutputFormatProvider(RecordFilterOutputFormat.class.getName(), outputProperties)));
