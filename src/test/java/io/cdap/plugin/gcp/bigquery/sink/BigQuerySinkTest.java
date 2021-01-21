@@ -229,6 +229,24 @@ public class BigQuerySinkTest {
     Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
+  @Test
+  public void testSchemaValidationNullInputSchema() throws NoSuchFieldException {
+    BigQuerySink sink = getValidationTestSink(false);
+    MockFailureCollector collector = new MockFailureCollector("bqsink");
+    Table table = getTestSchema();
+    sink.validateSchema(
+      table.getTableId().getTable(),
+      table.getDefinition().getSchema(),
+      null,
+      true,
+      collector);
+    sink.validateInsertSchema(
+      table,
+      null,
+      collector);
+    Assert.assertEquals(0, collector.getValidationFailures().size());
+  }
+
   private Table getTestSchema() {
     Table table = mock(Table.class);
     TableId tableId = TableId.of("test", "testds", "testtab");
