@@ -59,7 +59,7 @@ import javax.annotation.Nullable;
   "flexibility, and reliability of enterprise message-oriented middleware to the cloud. By providing many-to-many, " +
   "asynchronous messaging that decouples senders and receivers, it allows for secure and highly available " +
   "communication between independently written applications")
-public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, Text> {
+public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, StructuredRecord> {
   private final Config config;
 
   @SuppressWarnings("unused")
@@ -139,9 +139,9 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, T
   }
 
   @Override
-  public void transform(StructuredRecord input, Emitter<KeyValue<NullWritable, Text>> emitter) throws Exception {
-    String body = StructuredRecordStringConverter.toJsonString(input);
-    emitter.emit(new KeyValue<>(NullWritable.get(), new Text(body)));
+  public void transform(StructuredRecord input, Emitter<KeyValue<NullWritable, StructuredRecord>> emitter)
+    throws Exception {
+    emitter.emit(new KeyValue<>(NullWritable.get(), input));
   }
 
   /**
@@ -157,6 +157,18 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, T
     @Description("Cloud Pub/Sub topic to publish records to")
     @Macro
     private String topic;
+
+    @Macro
+    @Nullable
+    @Description("Format of the data to read. Supported formats are 'avro', 'blob', 'tsv', 'csv', 'delimited', 'json', "
+      + "'parquet' and 'text'.")
+    private String format;
+
+    @Description("The delimiter to use if the format is 'delimited'. The delimiter will be ignored if the format "
+      + "is anything other than 'delimited'.")
+    @Macro
+    @Nullable
+    private String delimiter;
 
     // batching options
     @Description("Maximum count of messages in a batch. The default value is 100.")
@@ -224,6 +236,12 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, T
                              "Ensure the value is a positive number.")
           .withConfigProperty(NAME_RETRY_TIMEOUT_SECONDS);
       }
+      if (!containsMacro(PubSubConstants.DELIMITER) && (!containsMacro(PubSubConstants.FORMAT) &&
+        getFormat().equalsIgnoreCase(PubSubConstants.DELIMITED) && delimiter == null)) {
+        collector.addFailure(String.format("Delimiter is required when format is set to %s.", format),
+                             "Ensure the delimiter is provided.")
+          .withConfigProperty(delimiter);
+      }
       collector.getOrThrowException();
     }
 
@@ -249,6 +267,14 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, T
 
     public String getTopic() {
       return topic;
+    }
+
+    public String getFormat() {
+      return Strings.isNullOrEmpty(format) ? PubSubConstants.TEXT : format;
+    }
+
+    public String getDelimiter() {
+      return delimiter;
     }
 
     @Nullable
