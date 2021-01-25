@@ -15,13 +15,10 @@
  */
 package io.cdap.plugin.gcp.publisher.source;
 
-import com.google.auth.Credentials;
 import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.StreamingContext;
 import org.apache.spark.streaming.dstream.ReceiverInputDStream;
 import org.apache.spark.streaming.receiver.Receiver;
-
-import javax.annotation.Nullable;
 
 /**
  * Input Stream used to subscribe to a Pub/Sub topic and pull messages.

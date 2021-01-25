@@ -40,7 +40,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.net.HttpURLConnection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;

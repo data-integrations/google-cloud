@@ -1,5 +1,5 @@
 /*
- * Copyright © 2020 Cask Data, Inc.
+ * Copyright © 2021 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -13,6 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
+
 package io.cdap.plugin.gcp.publisher.source;
 
 import io.cdap.cdap.api.annotation.Description;
@@ -32,20 +33,20 @@ public class PubSubSubscriberConfig extends GCPReferenceSourceConfig implements 
     "exist, it will be automatically created if a topic is specified. Messages published before the subscription " +
     "was created will not be read.")
   @Macro
-  private String subscription;
+  protected String subscription;
 
   @Description("Cloud Pub/Sub topic to create a subscription on. This is only used when the specified  " +
     "subscription does not already exist and needs to be automatically created. If the specified " +
     "subscription already exists, this value is ignored.")
   @Macro
   @Nullable
-  private String topic;
+  protected String topic;
 
   @Description("Set the number of readers to run in parallel. There need to be enough workers in the " +
     "cluster to run all receivers. By default, 1 reader is running per Pub/Sub Source.")
   @Macro
   @Nullable
-  private Integer numberOfReaders;
+  protected Integer numberOfReaders;
 
   public void validate(FailureCollector collector) {
     super.validate(collector);

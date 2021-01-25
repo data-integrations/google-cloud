@@ -16,12 +16,13 @@
 package io.cdap.plugin.gcp.publisher.source;
 
 import java.io.Serializable;
-import java.util.function.Function;
+import java.util.function.BiFunction;
 
 /**
- * Interface used to make a Java.util.function.Function serializable.
- * @param <T> Function input class
- * @param <U> Function output class
+ * Interface used to make a Java.util.function.BiFunction serializable.
+ * @param <T> the type of the first argument to the function
+ * @param <U> the type of the second argument to the function
+ * @param <R> the type of the result of the function
  */
-public interface SerializableFunction<T, U> extends Function<T, U>, Serializable {
+public interface SerializableBiFunction<T, U, R> extends BiFunction<T, U, R>, Serializable {
 }
