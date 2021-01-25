@@ -29,6 +29,7 @@ import io.cdap.cdap.etl.api.streaming.StreamingSourceContext;
 import io.cdap.cdap.format.StructuredRecordStringConverter;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.format.avro.AvroToStructuredTransformer;
+import io.cdap.plugin.gcp.common.MappingException;
 import io.cdap.plugin.gcp.publisher.PubSubConstants;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
@@ -68,6 +69,14 @@ public class GoogleSubscriber extends PubSubSubscriber<StructuredRecord> {
 
   private GoogleSubscriberConfig config;
 
+  public GoogleSubscriber(GoogleSubscriberConfig config) {
+    super(config);
+    this.config = config;
+
+    //Set mapping function for output records.
+    super.setMappingFunction(pubSubMessageToStructuredRecordMappingFunction);
+  }
+
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     super.configurePipeline(pipelineConfigurer);
@@ -91,10 +100,14 @@ public class GoogleSubscriber extends PubSubSubscriber<StructuredRecord> {
     }
   }
 
-  private static final
-  SerializableBiFunction<PubSubMessage, PubSubSubscriberConfig, StructuredRecord> MAPPING_BIFUNCTION =
-    (SerializableBiFunction<PubSubMessage, PubSubSubscriberConfig, StructuredRecord>) (pubSubMessage, conf) -> {
-      GoogleSubscriberConfig config = (GoogleSubscriberConfig) conf;
+  /**
+   * Converts a PubSubMessage into a StructuredRecord based on the specified schema.
+   * If no schema is specified, the default schema is used.
+   */
+  private final SerializableFunction<PubSubMessage, StructuredRecord> pubSubMessageToStructuredRecordMappingFunction =
+    (SerializableFunction<PubSubMessage, StructuredRecord>) (pubSubMessage) -> {
+
+      Schema customMessageSchema = getCustomMessageSchema();
       final Schema outputSchema = config.getSchema();
       final String format = config.getFormat();
 
@@ -105,7 +118,7 @@ public class GoogleSubscriber extends PubSubSubscriber<StructuredRecord> {
       }
 
       try {
-        StructuredRecord payload = getStructuredRecord(config, DEFAULT_SCHEMA, format, pubSubMessage);
+        StructuredRecord payload = getStructuredRecord(config, customMessageSchema, format, pubSubMessage);
 
         return StructuredRecord.builder(outputSchema)
           .set("message", (format.equalsIgnoreCase(PubSubConstants.TEXT) ||
@@ -116,7 +129,7 @@ public class GoogleSubscriber extends PubSubSubscriber<StructuredRecord> {
           .set("attributes", hashMap)
           .build();
       } catch (IOException ioe) {
-        throw new RuntimeException("Unable to map field using schema", ioe);
+        throw new MappingException(ioe);
       }
     };
 
@@ -147,7 +160,6 @@ public class GoogleSubscriber extends PubSubSubscriber<StructuredRecord> {
         break;
       }
       case PubSubConstants.DELIMITED: {
-        assert config.getDelimiter() != null;
         payload = StructuredRecordStringConverter.fromDelimitedString(data, config.getDelimiter(),
                                                                       customMessageSchema);
         break;
@@ -177,11 +189,6 @@ public class GoogleSubscriber extends PubSubSubscriber<StructuredRecord> {
     return messageField.getSchema();
   }
 
-  public GoogleSubscriber(GoogleSubscriberConfig config) {
-    super(config, config.getSchema(), MAPPING_BIFUNCTION);
-    this.config = config;
-  }
-
   /**
    * Extension to the PubSubSubscriberConfig class with additional fields related to record schema.
    */
@@ -208,13 +215,6 @@ public class GoogleSubscriber extends PubSubSubscriber<StructuredRecord> {
     public void validate(FailureCollector collector) {
       super.validate(collector);
 
-      if (!containsMacro(PubSubConstants.DELIMITER) && (!containsMacro(PubSubConstants.FORMAT) &&
-        getFormat().equalsIgnoreCase(PubSubConstants.DELIMITED) && delimiter == null)) {
-        collector.addFailure(String.format("Delimiter is required when format is set to %s.", getFormat()),
-                             "Ensure the delimiter is provided.")
-          .withConfigProperty(delimiter);
-      }
-
       final Schema outputSchema = getSchema();
       final ArrayList<String> defaultSchemaFields = getFieldsOfDefaultSchema();
       ArrayList<String> outputSchemaFields = new ArrayList<>();
@@ -224,7 +224,7 @@ public class GoogleSubscriber extends PubSubSubscriber<StructuredRecord> {
           outputSchemaFields.add(field.getName());
         }
 
-        for (Schema.Field field : Objects.requireNonNull(recordSchema.getFields())) {
+        for (Schema.Field field : Objects.requireNonNull(DEFAULT_SCHEMA.getFields())) {
           if (!outputSchemaFields.contains(field.getName())) {
             collector.addFailure("Some required fields are missing from the schema.",
                                  String.format("You should use the existing fields of default schema %s.",
@@ -265,20 +265,28 @@ public class GoogleSubscriber extends PubSubSubscriber<StructuredRecord> {
           }
         }
       }
+
+      if (!containsMacro(PubSubConstants.DELIMITER) && (!containsMacro(PubSubConstants.FORMAT) &&
+        getFormat().equalsIgnoreCase(PubSubConstants.DELIMITED) && delimiter == null)) {
+        collector.addFailure(String.format("Delimiter is required when format is set to %s.", getFormat()),
+                             "Ensure the delimiter is provided.")
+          .withConfigProperty(delimiter);
+      }
+
+      collector.getOrThrowException();
     }
 
     public String getFormat() {
       return Strings.isNullOrEmpty(format) ? PubSubConstants.TEXT : format;
     }
 
-    @Nullable
     public String getDelimiter() {
       return delimiter;
     }
 
     public ArrayList<String> getFieldsOfDefaultSchema() {
       ArrayList<String> outputSchemaAttributes = new ArrayList<>();
-      for (Schema.Field field : Objects.requireNonNull(recordSchema.getFields())) {
+      for (Schema.Field field : Objects.requireNonNull(DEFAULT_SCHEMA.getFields())) {
         outputSchemaAttributes.add(field.getName());
       }
       return outputSchemaAttributes;
@@ -289,7 +297,7 @@ public class GoogleSubscriber extends PubSubSubscriber<StructuredRecord> {
         if (containsMacro(SCHEMA)) {
           return null;
         }
-        return Strings.isNullOrEmpty(schema) ? recordSchema : Schema.parseJson(schema);
+        return Strings.isNullOrEmpty(schema) ? DEFAULT_SCHEMA : Schema.parseJson(schema);
       } catch (Exception e) {
         throw new IllegalArgumentException(String.format("Unable to parse schema with error %s, %s",
                                                          e.getMessage(), e));
