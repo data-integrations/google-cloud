@@ -78,7 +78,8 @@ public class RecordFilterOutputFormat extends OutputFormat<NullWritable, Structu
 
   @Override
   public OutputCommitter getOutputCommitter(TaskAttemptContext context) throws IOException, InterruptedException {
-    return getDelegateFormat(context.getConfiguration()).getOutputCommitter(context);
+    OutputCommitter outputCommitter = getDelegateFormat(context.getConfiguration()).getOutputCommitter(context);
+    return new GCSOutputCommitter(outputCommitter);
   }
 
   private OutputFormat getDelegateFormat(Configuration hConf) throws IOException {

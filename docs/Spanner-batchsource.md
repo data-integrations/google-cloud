@@ -52,4 +52,5 @@ The actual number of partitions returned may be smaller or larger than this maxi
 This is only a hint. The actual size of each partition may be smaller or larger than this size request.
 More information about partition options can be found at https://cloud.google.com/spanner/docs/reference/rest/v1/PartitionOptions
 
-**Schema**: Schema of the Spanner table to read.
+**Schema**: Schema of the Spanner table to read. When *import query* is used and column name is not in the metadata table
+the field will be nullable.

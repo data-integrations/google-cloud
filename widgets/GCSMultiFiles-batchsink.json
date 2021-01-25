@@ -150,6 +150,29 @@
           "widget-attributes": {
             "default": "us"
           }
+        },
+        {
+          "widget-type": "select",
+          "label": "Content Type",
+          "name": "contentType",
+          "widget-attributes": {
+            "values": [
+              "application/octet-stream",
+              "application/json",
+              "application/avro",
+              "application/csv",
+              "text/plain",
+              "text/csv",
+              "text/tab-separated-values",
+              "other"
+            ],
+            "default": "application/octet-stream"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Custom Content Type",
+          "name": "customContentType"
         }
       ]
     }
@@ -194,6 +217,18 @@
         {
           "type": "property",
           "name": "serviceAccountJSON"
+        }
+      ]
+    },
+    {
+      "name": "CustomContentType",
+      "condition": {
+        "expression": "contentType == 'other'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "customContentType"
         }
       ]
     }

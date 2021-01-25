@@ -38,6 +38,32 @@
           "widget-attributes": {
             "placeholder": "Topic to create the subscription from if it does not already exist"
           }
+        },
+        {
+          "widget-type": "select",
+          "label": "Format",
+          "name": "format",
+          "widget-attributes": {
+            "values": [
+              "avro",
+              "blob",
+              "tsv",
+              "csv",
+              "delimited",
+              "json",
+              "parquet",
+              "text"
+            ],
+            "default": "text"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Delimiter",
+          "name": "delimiter",
+          "widget-attributes": {
+            "placeholder": "Delimiter if the format is 'delimited'"
+          }
         }
       ]
     },
@@ -117,39 +143,54 @@
           "name": "serviceAccountJSON"
         }
       ]
+    },
+    {
+      "name": "Delimiter",
+      "condition": {
+        "expression": "format == 'delimited'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "delimiter"
+        }
+      ]
     }
   ],
   "outputs": [
     {
-      "widget-type": "non-editable-schema-editor",
-      "schema": {
-        "name": "etlSchemaBody",
-        "type": "record",
-        "fields": [
-          {
-            "name": "message",
-            "type": "bytes"
-          },
-          {
-            "name": "id",
-            "type": "string"
-          },
-          {
-            "name": "timestamp",
-            "type": {
-              "type": "long",
-              "logicalType": "timestamp-micros"
+      "name": "schema",
+      "widget-type": "schema",
+      "widget-attributes": {
+        "default-schema": {
+          "name": "etlSchemaBody",
+          "type": "record",
+          "fields": [
+            {
+              "name": "message",
+              "type": "bytes"
+            },
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "timestamp",
+              "type": {
+                "type": "long",
+                "logicalType": "timestamp-micros"
+              }
+            },
+            {
+              "name": "attributes",
+              "type": {
+                "type": "map",
+                "keys": "string",
+                "values": "string"
+              }
             }
-          },
-          {
-            "name": "attributes",
-            "type": {
-              "type": "map",
-              "keys": "string",
-              "values": "string"
-            }
-          }
-        ]
+          ]
+        }
       }
     }
   ],
