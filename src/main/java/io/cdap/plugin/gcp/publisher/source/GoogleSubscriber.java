@@ -15,7 +15,6 @@
  */
 package io.cdap.plugin.gcp.publisher.source;
 
-import com.google.cloud.Timestamp;
 import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
@@ -25,33 +24,22 @@ import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
-import io.cdap.cdap.etl.api.streaming.StreamingContext;
 import io.cdap.cdap.etl.api.streaming.StreamingSource;
 import io.cdap.cdap.etl.api.streaming.StreamingSourceContext;
 import io.cdap.cdap.format.StructuredRecordStringConverter;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.format.avro.AvroToStructuredTransformer;
-import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
+import io.cdap.plugin.gcp.common.MappingException;
 import io.cdap.plugin.gcp.publisher.PubSubConstants;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DecoderFactory;
-import org.apache.spark.storage.StorageLevel;
-import org.apache.spark.streaming.api.java.JavaDStream;
-import org.apache.spark.streaming.api.java.JavaReceiverInputDStream;
-import org.apache.spark.streaming.dstream.ReceiverInputDStream;
-import org.apache.spark.streaming.pubsub.PubsubUtils;
-import org.apache.spark.streaming.pubsub.SparkGCPCredentials;
-import org.apache.spark.streaming.pubsub.SparkPubsubMessage;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import scala.Option;
-import scala.reflect.ClassTag;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.Serializable;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
@@ -68,8 +56,7 @@ import javax.annotation.Nullable;
 @Plugin(type = StreamingSource.PLUGIN_TYPE)
 @Name("GoogleSubscriber")
 @Description("Streaming Source to read messages from Google PubSub.")
-public class GoogleSubscriber extends StreamingSource<StructuredRecord> {
-  private static final Logger LOG = LoggerFactory.getLogger(GoogleSubscriber.class);
+public class GoogleSubscriber extends PubSubSubscriber<StructuredRecord> {
   private static final String SCHEMA = "schema";
   private static final Schema DEFAULT_SCHEMA =
     Schema.recordOf("event",
@@ -77,13 +64,17 @@ public class GoogleSubscriber extends StreamingSource<StructuredRecord> {
                     Schema.Field.of("id", Schema.of(Schema.Type.STRING)),
                     Schema.Field.of("timestamp", Schema.of(Schema.LogicalType.TIMESTAMP_MICROS)),
                     Schema.Field.of("attributes", Schema.mapOf(Schema.of(Schema.Type.STRING),
-                            Schema.of(Schema.Type.STRING)))
+                                                               Schema.of(Schema.Type.STRING)))
     );
 
-  private SubscriberConfig config;
+  private GoogleSubscriberConfig config;
 
-  public GoogleSubscriber(SubscriberConfig conf) {
-    this.config = conf;
+  public GoogleSubscriber(GoogleSubscriberConfig config) {
+    super(config);
+    this.config = config;
+
+    //Set mapping function for output records.
+    super.setMappingFunction(pubSubMessageToStructuredRecordMappingFunction);
   }
 
   @Override
@@ -109,50 +100,47 @@ public class GoogleSubscriber extends StreamingSource<StructuredRecord> {
     }
   }
 
-  @Override
-  public JavaDStream<StructuredRecord> getStream(StreamingContext streamingContext) {
-    String serviceAccount = config.getServiceAccount();
-    SparkGCPCredentials credentials = new GCPCredentialsProvider(serviceAccount, config.isServiceAccountFilePath());
+  /**
+   * Converts a PubSubMessage into a StructuredRecord based on the specified schema.
+   * If no schema is specified, the default schema is used.
+   */
+  private final SerializableFunction<PubSubMessage, StructuredRecord> pubSubMessageToStructuredRecordMappingFunction =
+    (SerializableFunction<PubSubMessage, StructuredRecord>) (pubSubMessage) -> {
 
-    boolean autoAcknowledge = true;
-    if (streamingContext.isPreviewEnabled()) {
-      autoAcknowledge = false;
-    }
-    Option<String> topic = Option.apply(config.topic);
-    ReceiverInputDStream<SparkPubsubMessage> stream =
-      PubsubUtils.createStream(streamingContext.getSparkStreamingContext().ssc(), config.getProject(),
-                               topic, config.subscription, credentials,
-                               StorageLevel.MEMORY_ONLY(), autoAcknowledge);
-    ClassTag<SparkPubsubMessage> tag = scala.reflect.ClassTag$.MODULE$.apply(SparkPubsubMessage.class);
-    JavaReceiverInputDStream<SparkPubsubMessage> pubSubMessages = new JavaReceiverInputDStream<>(stream, tag);
+      Schema customMessageSchema = getCustomMessageSchema();
+      final Schema outputSchema = config.getSchema();
+      final String format = config.getFormat();
 
-    Schema customMessageSchema = getCustomMessageSchema();
-    final Schema outputSchema = config.getSchema();
-    final String format = config.getFormat().toLowerCase();
-
-    return pubSubMessages.map(pubSubMessage -> {
       // Convert to a HashMap because com.google.api.client.util.ArrayMap is not serializable.
       HashMap<String, String> hashMap = new HashMap<>();
       if (pubSubMessage.getAttributes() != null) {
         hashMap.putAll(pubSubMessage.getAttributes());
       }
-      StructuredRecord payload = getStructuredRecord(customMessageSchema, format, pubSubMessage);
 
-      return StructuredRecord.builder(outputSchema)
-        .set("message", (format.equalsIgnoreCase(PubSubConstants.TEXT) ||
-          format.equalsIgnoreCase(PubSubConstants.BLOB)) ?
-          pubSubMessage.getData() : payload)
-        .set("id", pubSubMessage.getMessageId())
-        .setTimestamp("timestamp", getTimestamp(pubSubMessage.getPublishTime()))
-        .set("attributes", hashMap)
-        .build();
-    });
+      try {
+        StructuredRecord payload = getStructuredRecord(config, customMessageSchema, format, pubSubMessage);
+
+        return StructuredRecord.builder(outputSchema)
+          .set("message", (format.equalsIgnoreCase(PubSubConstants.TEXT) ||
+            format.equalsIgnoreCase(PubSubConstants.BLOB)) ?
+            pubSubMessage.getData() : payload)
+          .set("id", pubSubMessage.getMessageId())
+          .setTimestamp("timestamp", getTimestamp(pubSubMessage.getPublishTime()))
+          .set("attributes", hashMap)
+          .build();
+      } catch (IOException ioe) {
+        throw new MappingException(ioe);
+      }
+    };
+
+  private static ZonedDateTime getTimestamp(Instant instant) {
+    return ZonedDateTime.ofInstant(instant, ZoneId.ofOffset("UTC", ZoneOffset.UTC));
   }
 
-  private StructuredRecord getStructuredRecord(Schema customMessageSchema, String format,
-                                               SparkPubsubMessage pubSubMessage) throws IOException {
+  private static StructuredRecord getStructuredRecord(GoogleSubscriberConfig config, Schema customMessageSchema,
+                                                      String format, PubSubMessage pubSubMessage) throws IOException {
     StructuredRecord payload = null;
-    final String data = new String(pubSubMessage.getData());
+    final String data = pubSubMessage.getData() != null ? new String(pubSubMessage.getData()) : "";
 
     switch (format) {
       case PubSubConstants.AVRO:
@@ -172,7 +160,7 @@ public class GoogleSubscriber extends StreamingSource<StructuredRecord> {
         break;
       }
       case PubSubConstants.DELIMITED: {
-        payload = StructuredRecordStringConverter.fromDelimitedString(data, config.delimiter,
+        payload = StructuredRecordStringConverter.fromDelimitedString(data, config.getDelimiter(),
                                                                       customMessageSchema);
         break;
       }
@@ -200,57 +188,35 @@ public class GoogleSubscriber extends StreamingSource<StructuredRecord> {
     }
     return messageField.getSchema();
   }
-  private ZonedDateTime getTimestamp(String publishTime) {
-    Timestamp timestamp = Timestamp.parseTimestamp(publishTime);
-    // https://cloud.google.com/pubsub/docs/reference/rest/v1/PubsubMessage
-    // Google cloud pubsub message timestamp is in RFC3339 UTC "Zulu" format, accurate to nanoseconds.
-    // CDAP Schema only supports microsecond level precision so handle the case
-    Instant instant = Instant.ofEpochSecond(timestamp.getSeconds()).plusNanos(timestamp.getNanos());
-    return ZonedDateTime.ofInstant(instant, ZoneId.ofOffset("UTC", ZoneOffset.UTC));
-  }
 
   /**
-   * Configuration class for the subscriber source.
+   * Extension to the PubSubSubscriberConfig class with additional fields related to record schema.
    */
-  public static class SubscriberConfig extends GCPReferenceSourceConfig {
-
-    @Description("Cloud Pub/Sub subscription to read from. If a subscription with the specified name does not " +
-      "exist, it will be automatically created if a topic is specified. Messages published before the subscription " +
-      "was created will not be read.")
-    @Macro
-    private String subscription;
-
-    @Description("Cloud Pub/Sub topic to create a subscription on. This is only used when the specified  " +
-      "subscription does not already exist and needs to be automatically created. If the specified " +
-      "subscription already exists, this value is ignored.")
-    @Macro
-    @Nullable
-    private String topic;
+  public class GoogleSubscriberConfig extends PubSubSubscriberConfig implements Serializable {
 
     @Macro
     @Nullable
     @Description("Format of the data to read. Supported formats are 'avro', 'blob', 'tsv', 'csv', 'delimited', 'json', "
       + "'parquet' and 'text'.")
-    private String format;
+    protected String format;
 
     @Description("The delimiter to use if the format is 'delimited'. The delimiter will be ignored if the format "
       + "is anything other than 'delimited'.")
     @Macro
     @Nullable
-    private String delimiter;
+    protected String delimiter;
 
     @Name(SCHEMA)
     @Macro
     @Nullable
-    private String schema;
+    protected String schema;
 
+    @Override
     public void validate(FailureCollector collector) {
       super.validate(collector);
+
       final Schema outputSchema = getSchema();
       final ArrayList<String> defaultSchemaFields = getFieldsOfDefaultSchema();
-      String regAllowedChars = "[A-Za-z0-9-.%~+_]*$";
-      String regStartWithLetter = "[A-Za-z]";
-
       ArrayList<String> outputSchemaFields = new ArrayList<>();
 
       if (outputSchema != null) {
@@ -300,27 +266,6 @@ public class GoogleSubscriber extends StreamingSource<StructuredRecord> {
         }
       }
 
-      if (!getSubscription().matches(regAllowedChars)) {
-        collector.addFailure("Subscription Name does not match naming convention.",
-          "Unexpected Character. Check Plugin documentation for naming convention.")
-          .withConfigProperty(subscription);
-      }
-      if (getSubscription().startsWith("goog")) {
-        collector.addFailure("Subscription Name does not match naming convention.",
-          " Cannot Start with String goog. Check Plugin documentation for naming convention.")
-          .withConfigProperty(subscription);
-      }
-      if (!getSubscription().substring(0, 1).matches(regStartWithLetter)) {
-        collector.addFailure("Subscription Name does not match naming convention.",
-          "Name must start with a letter. Check Plugin documentation for naming convention.")
-          .withConfigProperty(subscription);
-      }
-      if (getSubscription().length() < 3  || getSubscription().length() > 255) {
-        collector.addFailure("Subscription Name does not match naming convention.",
-          "Character Length must be between 3 and 255 characters. Check Plugin documentation for naming convention.")
-          .withConfigProperty(subscription);
-      }
-
       if (!containsMacro(PubSubConstants.DELIMITER) && (!containsMacro(PubSubConstants.FORMAT) &&
         getFormat().equalsIgnoreCase(PubSubConstants.DELIMITED) && delimiter == null)) {
         collector.addFailure(String.format("Delimiter is required when format is set to %s.", getFormat()),
@@ -331,12 +276,12 @@ public class GoogleSubscriber extends StreamingSource<StructuredRecord> {
       collector.getOrThrowException();
     }
 
-    public String getSubscription() {
-      return subscription;
-    }
-
     public String getFormat() {
       return Strings.isNullOrEmpty(format) ? PubSubConstants.TEXT : format;
+    }
+
+    public String getDelimiter() {
+      return delimiter;
     }
 
     public ArrayList<String> getFieldsOfDefaultSchema() {

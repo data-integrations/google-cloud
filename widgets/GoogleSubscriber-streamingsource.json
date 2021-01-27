@@ -103,6 +103,20 @@
           "name": "serviceAccountJSON"
         }
       ]
+    },
+    {
+      "label": "Advanced",
+      "properties": [
+        {
+          "widget-type": "number",
+          "label": "Number of Readers",
+          "name": "numberOfReaders",
+          "widget-attributes": {
+            "default": "1",
+            "min": "1"
+          }
+        }
+      ]
     }
   ],
   "filters": [
