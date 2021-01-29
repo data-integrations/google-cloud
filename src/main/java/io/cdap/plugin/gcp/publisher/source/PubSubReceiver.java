@@ -146,14 +146,14 @@ public class PubSubReceiver extends Receiver<PubSubMessage> {
 
     //Configure properties
     this.project = config.getProject();
-    this.topic = TopicName.format(config.getProject(), config.getTopic());
     this.subscription = ProjectSubscriptionName.format(config.getProject(), config.getSubscription());
 
     // Try to initialize credentials.
     this.credentials = createCredentials();
 
     //Create subscription if the topic is specified.
-    if (topic != null) {
+    if (config.getTopic() != null) {
+      this.topic = TopicName.format(config.getProject(), config.getTopic());
       createSubscription();
     }
 
