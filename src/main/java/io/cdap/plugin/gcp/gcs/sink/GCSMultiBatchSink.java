@@ -1,5 +1,5 @@
 /*
- * Copyright © 2015-2020 Cask Data, Inc.
+ * Copyright © 2015-2021 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -21,6 +21,7 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
 import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
+import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.batch.Output;
@@ -45,6 +46,7 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import javax.annotation.Nullable;
 
 
@@ -54,7 +56,7 @@ import javax.annotation.Nullable;
 @Plugin(type = BatchSink.PLUGIN_TYPE)
 @Name("GCSMultiFiles")
 @Description("Writes records to one or more Avro, ORC, Parquet or Delimited format files in a directory " +
-        "on Google Cloud Storage.")
+  "on Google Cloud Storage.")
 public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable, StructuredRecord> {
   private static final String TABLE_PREFIX = "multisink.";
   private static final String FORMAT_PLUGIN_ID = "format";
@@ -74,9 +76,14 @@ public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable,
 
     FileFormat format = config.getFormat();
     // add schema as a macro since we don't know it until runtime
-    PluginProperties formatProperties = PluginProperties.builder()
-      .addAll(config.getProperties().getProperties())
-      .add("schema", String.format("${%s}", SCHEMA_MACRO)).build();
+    PluginProperties.Builder formatPropertiesBuilder = PluginProperties.builder()
+      .addAll(config.getProperties().getProperties());
+
+    if (!config.getAllowFlexibleSchema()) {
+      formatPropertiesBuilder.add("schema", String.format("${%s}", SCHEMA_MACRO));
+    }
+
+    PluginProperties formatProperties = formatPropertiesBuilder.build();
 
     OutputFormatProvider outputFormatProvider =
       pipelineConfigurer.usePlugin(ValidatingOutputFormat.PLUGIN_TYPE, format.name().toLowerCase(),
@@ -119,6 +126,26 @@ public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable,
           + "Ensure you entered the correct bucket path and have permissions for it.", e);
     }
 
+    if (config.getAllowFlexibleSchema()) {
+      //Configure MultiSink with support for flexible schemas.
+      configureSchemalessMultiSink(context, baseProperties, argumentCopy);
+    } else {
+      //Configure MultiSink with fixed schemas based on arguments.
+      configureMultiSinkWithSchema(context, baseProperties, argumentCopy);
+    }
+  }
+
+  @Override
+  public void transform(StructuredRecord input,
+                        Emitter<KeyValue<NullWritable, StructuredRecord>> emitter) {
+    emitter.emit(new KeyValue<>(NullWritable.get(), input));
+  }
+
+  private void configureMultiSinkWithSchema(BatchSinkContext context,
+                                            Map<String, String> baseProperties,
+                                            Map<String, String> argumentCopy)
+    throws IOException, InstantiationException {
+
     for (Map.Entry<String, String> argument : argumentCopy.entrySet()) {
       String key = argument.getKey();
       if (!key.startsWith(TABLE_PREFIX)) {
@@ -143,16 +170,28 @@ public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable,
     }
   }
 
-  @Override
-  public void transform(StructuredRecord input,
-                        Emitter<KeyValue<NullWritable, StructuredRecord>> emitter) {
-    emitter.emit(new KeyValue<>(NullWritable.get(), input));
+  private void configureSchemalessMultiSink(BatchSinkContext context,
+                                            Map<String, String> baseProperties,
+                                            Map<String, String> argumentCopy) throws InstantiationException {
+    ValidatingOutputFormat validatingOutputFormat = context.newPluginInstance(FORMAT_PLUGIN_ID);
+
+    Map<String, String> outputProperties = new HashMap<>(baseProperties);
+    outputProperties.putAll(validatingOutputFormat.getOutputFormatConfiguration());
+    outputProperties.putAll(DelegatingGCSOutputFormat.configure(validatingOutputFormat.getOutputFormatClassName(),
+                                                                config.splitField,
+                                                                config.getOutputBaseDir(),
+                                                                config.getOutputSuffix(context.getLogicalStartTime())));
+    outputProperties.put(GCSBatchSink.CONTENT_TYPE, config.getContentType());
+    context.addOutput(Output.of(
+      config.getReferenceName(),
+      new SinkOutputFormatProvider(DelegatingGCSOutputFormat.class.getName(), outputProperties)));
   }
 
   /**
    * Sink configuration.
    */
   public static class GCSMultiBatchSinkConfig extends GCSBatchSink.GCSBatchSinkConfig {
+    private static final String NAME_ALLOW_FLEXIBLE_SCHEMA = "allowFlexibleSchema";
 
     @Description("The codec to use when writing data. " +
       "The 'avro' format supports 'snappy' and 'deflate'. The parquet format supports 'snappy' and 'gzip'. " +
@@ -163,10 +202,28 @@ public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable,
     @Description("The name of the field that will be used to determine which directory to write to.")
     private String splitField = "tablename";
 
+    @Name(NAME_ALLOW_FLEXIBLE_SCHEMA)
+    @Macro
+    @Nullable
+    @Description("Allow Flexible Schemas in output. If disabled, only records with schemas set as " +
+      "arguments will be processed. If enabled, all records will be written as-is.")
+    private Boolean allowFlexibleSchema;
+
     protected String getOutputDir(long logicalStartTime, String context) {
+      return String.format("%s/%s/%s", getOutputBaseDir(), context, getOutputSuffix(logicalStartTime));
+    }
+
+    protected String getOutputBaseDir() {
+      return getPath();
+    }
+
+    protected String getOutputSuffix(long logicalStartTime) {
       boolean suffixOk = !Strings.isNullOrEmpty(getSuffix());
-      String timeSuffix = suffixOk ? new SimpleDateFormat(getSuffix()).format(logicalStartTime) : "";
-      return String.format("%s/%s/%s", getPath(), context, timeSuffix);
+      return suffixOk ? new SimpleDateFormat(getSuffix()).format(logicalStartTime) : "";
+    }
+
+    public Boolean getAllowFlexibleSchema() {
+      return allowFlexibleSchema != null ? allowFlexibleSchema : false;
     }
   }
 }

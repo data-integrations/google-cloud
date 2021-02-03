@@ -71,7 +71,7 @@ Other formats does not support compression.
 Defaults to 'tablename'.
 
 **Schema:** Schema of the data to write.
-The 'avro' and 'parquet' abd 'orc' formats require a schema but other formats do not.
+The 'avro' and 'parquet' and 'orc' formats require a schema but other formats do not.
 
 Example
 -------
