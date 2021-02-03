@@ -129,6 +129,22 @@
           }
         },
         {
+          "widget-type": "toggle",
+          "label" : "Allow flexible schemas in Output",
+          "name" : "allowFlexibleSchema",
+          "widget-attributes": {
+            "on": {
+              "value": "true",
+              "label": "Yes"
+            },
+            "off": {
+              "value": "false",
+              "label": "No"
+            },
+            "default": "off"
+          }
+        },
+        {
           "widget-type": "hidden",
           "label": "Output File Prefix",
           "name": "outputFileNameBase"
