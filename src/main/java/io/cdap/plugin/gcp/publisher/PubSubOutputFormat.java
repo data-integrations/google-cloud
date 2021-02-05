@@ -219,11 +219,7 @@ public class PubSubOutputFormat extends OutputFormat<NullWritable, StructuredRec
           break;
         }
         case PubSubConstants.TEXT:
-        case PubSubConstants.BLOB: {
-          data = ByteString.copyFromUtf8(String.valueOf(value));
-          message = PubsubMessage.newBuilder().setData(data).build();
-          break;
-        }
+        case PubSubConstants.BLOB:
         case PubSubConstants.JSON: {
           payload = StructuredRecordStringConverter.toJsonString(value);
           data = ByteString.copyFromUtf8(payload);
