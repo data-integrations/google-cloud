@@ -28,8 +28,8 @@ import java.io.IOException;
  */
 public class DelegatingGCSOutputUtils {
 
-  @SuppressWarnings("unchecked,rawtypes")
-  public static OutputFormat getDelegateFormat(Configuration hConf) throws IOException {
+  @SuppressWarnings("unchecked")
+  public static OutputFormat<NullWritable, StructuredRecord> getDelegateFormat(Configuration hConf) throws IOException {
     String delegateClassName = hConf.get(DelegatingGCSOutputFormat.DELEGATE_CLASS);
     try {
       Class<OutputFormat<NullWritable, StructuredRecord>> delegateClass =
