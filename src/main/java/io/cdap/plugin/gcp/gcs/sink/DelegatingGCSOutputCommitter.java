@@ -17,6 +17,7 @@
 package io.cdap.plugin.gcp.gcs.sink;
 
 import org.apache.hadoop.mapreduce.JobContext;
+import org.apache.hadoop.mapreduce.JobStatus;
 import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.OutputFormat;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
@@ -101,17 +102,42 @@ public class DelegatingGCSOutputCommitter extends OutputCommitter {
 
   @Override
   public void abortTask(TaskAttemptContext taskAttemptContext) throws IOException {
-    IOException ioe = new IOException("Exception when aborting task.");
+    IOException ioe = null;
 
     for (OutputCommitter committer : committerMap.values()) {
       try {
         committer.abortTask(taskAttemptContext);
       } catch (IOException e) {
-        ioe.addSuppressed(e);
+        if (ioe == null) {
+          ioe = e;
+        } else {
+          ioe.addSuppressed(e);
+        }
       }
     }
 
-    if (ioe.getSuppressed().length > 0) {
+    if (ioe != null) {
+      throw ioe;
+    }
+  }
+
+  @Override
+  public void abortJob(JobContext jobContext, JobStatus.State state) throws IOException {
+    IOException ioe = null;
+
+    for (OutputCommitter committer : committerMap.values()) {
+      try {
+        committer.abortJob(jobContext, state);
+      } catch (IOException e) {
+        if (ioe == null) {
+          ioe = e;
+        } else {
+          ioe.addSuppressed(e);
+        }
+      }
+    }
+
+    if (ioe != null) {
       throw ioe;
     }
   }
