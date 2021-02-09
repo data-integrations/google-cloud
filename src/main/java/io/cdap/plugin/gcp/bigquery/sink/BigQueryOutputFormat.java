@@ -60,14 +60,14 @@ import com.google.cloud.hadoop.util.ConfigurationUtil;
 import com.google.cloud.hadoop.util.ResilientOperation;
 import com.google.cloud.hadoop.util.RetryDeterminer;
 import com.google.common.base.Strings;
+import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
-import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.mapred.AvroKey;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.JobStatus;
 import org.apache.hadoop.mapreduce.OutputCommitter;
+import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.util.Progressable;
 import org.slf4j.Logger;
@@ -92,7 +92,7 @@ import javax.annotation.Nullable;
  * This is added to override BigQueryUtils.waitForJobCompletion error message with more useful error message.
  * See CDAP-15289 for more information.
  */
-public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<AvroKey<GenericRecord>, NullWritable> {
+public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<StructuredRecord, NullWritable> {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryOutputFormat.class);
 
   private static final String SOURCE_DATA_QUERY = "(SELECT * FROM (SELECT row_number() OVER (PARTITION BY %s%s) " +
@@ -103,6 +103,23 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
   private static final List<String> COMPARISON_OPERATORS = Arrays.asList("=", "<", ">", "<=", ">=", "!=", "<>",
           "LIKE", "NOT LIKE", "BETWEEN", "NOT BETWEEN", "IN", "NOT IN", "IS NULL", "IS NOT NULL",
           "IS TRUE", "IS NOT TRUE", "IS FALSE", "IS NOT FALSE");
+
+  @Override
+  public RecordWriter<StructuredRecord, NullWritable> getRecordWriter(TaskAttemptContext taskAttemptContext)
+    throws IOException, InterruptedException {
+    Configuration configuration = taskAttemptContext.getConfiguration();
+    return new BigQueryRecordWriter(getDelegate(configuration).getRecordWriter(taskAttemptContext),
+                                    BigQueryOutputConfiguration.getFileFormat(configuration),
+                                    getOutputSchema(configuration));
+  }
+
+  private io.cdap.cdap.api.data.schema.Schema getOutputSchema(Configuration configuration) throws IOException {
+    String schemaJson = configuration.get(BigQueryConstants.CDAP_BQ_SINK_OUTPUT_SCHEMA);
+    if (schemaJson == null) {
+      return null;
+    }
+    return io.cdap.cdap.api.data.schema.Schema.parseJson(schemaJson);
+  }
 
   @Override
   public OutputCommitter createCommitter(TaskAttemptContext context) throws IOException {

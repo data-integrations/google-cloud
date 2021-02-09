@@ -84,14 +84,14 @@ corresponding CDAP data type for each BigQuery type.
 | bool          | boolean                               |
 | bytes         | bytes                                 |
 | date          | date                                  |
-| datetime      | string, eg. 2020-04-06T18:06:54.371637|
+| datetime      | datetime, string                      |
 | float64       | double                                |
 | geo           | unsupported                           |
 | int64         | long                                  |
 | numeric       | decimal (38 digits, 9 decimal places) |
 | record        | record                                |
 | repeated      | array                                 |
-| string        | string                                |
+| string        | string, datetime(Should be ISO 8601 format)|
 | struct        | record                                |
 | time          | time (microseconds)                   |
 | timestamp     | timestamp (microseconds)              |

@@ -73,8 +73,8 @@ public final class BigQueryUtil {
     .put(LegacySQLTypeName.BOOLEAN, "boolean")
     .put(LegacySQLTypeName.BYTES, "bytes")
     .put(LegacySQLTypeName.RECORD, "record")
-    .put(LegacySQLTypeName.STRING, "string")
-    .put(LegacySQLTypeName.DATETIME, "string")
+    .put(LegacySQLTypeName.STRING, "string or datetime")
+    .put(LegacySQLTypeName.DATETIME, "datetime or string")
     .put(LegacySQLTypeName.DATE, "date")
     .put(LegacySQLTypeName.TIME, "time")
     .put(LegacySQLTypeName.TIMESTAMP, "timestamp")
@@ -93,14 +93,15 @@ public final class BigQueryUtil {
     .put(Schema.Type.RECORD, ImmutableSet.of(LegacySQLTypeName.RECORD))
     .build();
 
-  private static final Map<Schema.LogicalType, LegacySQLTypeName> LOGICAL_TYPE_MAP =
-    ImmutableMap.<Schema.LogicalType, LegacySQLTypeName>builder()
-      .put(Schema.LogicalType.DATE, LegacySQLTypeName.DATE)
-      .put(Schema.LogicalType.TIME_MILLIS, LegacySQLTypeName.TIME)
-      .put(Schema.LogicalType.TIME_MICROS, LegacySQLTypeName.TIME)
-      .put(Schema.LogicalType.TIMESTAMP_MILLIS, LegacySQLTypeName.TIMESTAMP)
-      .put(Schema.LogicalType.TIMESTAMP_MICROS, LegacySQLTypeName.TIMESTAMP)
-      .put(Schema.LogicalType.DECIMAL, LegacySQLTypeName.NUMERIC)
+  private static final Map<Schema.LogicalType, Set<LegacySQLTypeName>> LOGICAL_TYPE_MAP =
+    ImmutableMap.<Schema.LogicalType, Set<LegacySQLTypeName>>builder()
+      .put(Schema.LogicalType.DATE, ImmutableSet.of(LegacySQLTypeName.DATE))
+      .put(Schema.LogicalType.DATETIME, ImmutableSet.of(LegacySQLTypeName.DATETIME, LegacySQLTypeName.STRING))
+      .put(Schema.LogicalType.TIME_MILLIS, ImmutableSet.of(LegacySQLTypeName.TIME))
+      .put(Schema.LogicalType.TIME_MICROS, ImmutableSet.of(LegacySQLTypeName.TIME))
+      .put(Schema.LogicalType.TIMESTAMP_MILLIS, ImmutableSet.of(LegacySQLTypeName.TIMESTAMP))
+      .put(Schema.LogicalType.TIMESTAMP_MICROS, ImmutableSet.of(LegacySQLTypeName.TIMESTAMP))
+      .put(Schema.LogicalType.DECIMAL, ImmutableSet.of(LegacySQLTypeName.NUMERIC))
       .build();
 
   /**
@@ -233,8 +234,10 @@ public final class BigQueryUtil {
     } else if (value == StandardSQLTypeName.INT64) {
       // int is a int64, so corresponding type becomes long
       schema = Schema.of(Schema.Type.LONG);
-    } else if (value == StandardSQLTypeName.STRING || value == StandardSQLTypeName.DATETIME) {
+    } else if (value == StandardSQLTypeName.STRING) {
       schema = Schema.of(Schema.Type.STRING);
+    } else if (value == StandardSQLTypeName.DATETIME) {
+      schema = Schema.of(Schema.LogicalType.DATETIME);
     } else if (value == StandardSQLTypeName.BYTES) {
       schema = Schema.of(Schema.Type.BYTES);
     } else if (value == StandardSQLTypeName.TIME) {
@@ -302,7 +305,7 @@ public final class BigQueryUtil {
                         supportedTypes.stream().map(t -> t.name().toLowerCase()).collect(Collectors.joining(", "))));
       }
 
-      if (LOGICAL_TYPE_MAP.get(logicalType) != bqField.getType()) {
+      if (!LOGICAL_TYPE_MAP.get(logicalType).contains(bqField.getType())) {
         return collector.addFailure(
           String.format("Field '%s' of type '%s' has incompatible type with column '%s' in BigQuery table '%s.%s'.",
                         name, fieldSchema.getDisplayName(), bqField.getName(), dataset, table),

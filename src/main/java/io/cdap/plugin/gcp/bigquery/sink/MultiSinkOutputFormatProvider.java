@@ -16,10 +16,10 @@
 package io.cdap.plugin.gcp.bigquery.sink;
 
 import io.cdap.cdap.api.data.batch.OutputFormatProvider;
+import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
-import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
@@ -39,7 +39,6 @@ public class MultiSinkOutputFormatProvider implements OutputFormatProvider {
 
   private static final String FILTER_FIELD = "bq.multi.record.filter.field";
   private static final String FILTER_VALUE = "bq.multi.record.filter.value";
-  private static final String SCHEMA = "bq.multi.record.schema";
 
   private final Configuration config;
 
@@ -50,7 +49,7 @@ public class MultiSinkOutputFormatProvider implements OutputFormatProvider {
     this.config = new Configuration(config);
     this.config.set(FILTER_VALUE, tableName);
     this.config.set(FILTER_FIELD, filterField);
-    this.config.set(SCHEMA, tableSchema.toString());
+    this.config.set(BigQueryConstants.CDAP_BQ_SINK_OUTPUT_SCHEMA, tableSchema.toString());
   }
 
   @Override
@@ -69,23 +68,23 @@ public class MultiSinkOutputFormatProvider implements OutputFormatProvider {
    * Uses {@link BigQueryOutputFormat} as delegate and creates {@link FilterRecordWriter}
    * to output values based on filter and its value and schema.
    */
-  public static class MultiSinkOutputFormatDelegate extends OutputFormat<AvroKey<GenericRecord>, NullWritable> {
+  public static class MultiSinkOutputFormatDelegate extends OutputFormat<StructuredRecord, NullWritable> {
 
-    private final OutputFormat delegate;
+    private final OutputFormat<StructuredRecord, NullWritable> delegate;
 
     public MultiSinkOutputFormatDelegate() {
       this.delegate = new BigQueryOutputFormat();
     }
 
     @Override
-    public RecordWriter<AvroKey<GenericRecord>, NullWritable> getRecordWriter(TaskAttemptContext taskAttemptContext)
+    public RecordWriter<StructuredRecord, NullWritable> getRecordWriter(TaskAttemptContext taskAttemptContext)
       throws IOException, InterruptedException {
       Configuration conf = taskAttemptContext.getConfiguration();
       String filterField = conf.get(FILTER_FIELD);
       String filterValue = conf.get(FILTER_VALUE);
-      Schema schema = Schema.parseJson(conf.get(SCHEMA));
+      Schema schema = Schema.parseJson(conf.get(BigQueryConstants.CDAP_BQ_SINK_OUTPUT_SCHEMA));
       @SuppressWarnings("unchecked")
-      RecordWriter<AvroKey<GenericRecord>, NullWritable> recordWriter = delegate.getRecordWriter(taskAttemptContext);
+      RecordWriter<StructuredRecord, NullWritable> recordWriter = delegate.getRecordWriter(taskAttemptContext);
       return new FilterRecordWriter(filterField, filterValue, schema, recordWriter);
     }
 
@@ -104,18 +103,18 @@ public class MultiSinkOutputFormatProvider implements OutputFormatProvider {
   /**
    * Filters records before writing them out using a delegate based on filter and its value and given schema.
    */
-  public static class FilterRecordWriter extends RecordWriter<AvroKey<GenericRecord>, NullWritable> {
+  public static class FilterRecordWriter extends RecordWriter<StructuredRecord, NullWritable> {
 
     private final String filterField;
     private final String filterValue;
     private final Schema schema;
-    private final RecordWriter<AvroKey<GenericRecord>, NullWritable> delegate;
+    private final RecordWriter<StructuredRecord, NullWritable> delegate;
 
 
     public FilterRecordWriter(String filterField,
                               String filterValue,
                               Schema schema,
-                              RecordWriter<AvroKey<GenericRecord>, NullWritable> delegate) {
+                              RecordWriter<StructuredRecord, NullWritable> delegate) {
       this.filterField = filterField;
       this.filterValue = filterValue;
       this.schema = schema;
@@ -123,8 +122,8 @@ public class MultiSinkOutputFormatProvider implements OutputFormatProvider {
     }
 
     @Override
-    public void write(AvroKey<GenericRecord> key, NullWritable value) throws IOException, InterruptedException {
-      Object objectValue = key.datum().get(filterField);
+    public void write(StructuredRecord key, NullWritable value) throws IOException, InterruptedException {
+      Object objectValue = key.get(filterField);
       if (objectValue == null) {
         return;
       }
@@ -137,16 +136,14 @@ public class MultiSinkOutputFormatProvider implements OutputFormatProvider {
         return;
       }
 
-      org.apache.avro.Schema avroSchema = getAvroSchema(schema);
-      GenericRecordBuilder recordBuilder = new GenericRecordBuilder(avroSchema);
+      StructuredRecord.Builder builder = StructuredRecord.builder(schema);
 
-      key.datum().getSchema().getFields().stream()
-        .filter(entry -> !filterField.equals(entry.name()))
-        .filter(entry -> schema.getField(entry.name()) != null)
-        .forEach(entry -> recordBuilder.set(entry.name(), key.datum().get(entry.name())));
+      key.getSchema().getFields().stream()
+        .filter(entry -> !filterField.equals(entry.getName()))
+        .filter(entry -> schema.getField(entry.getName()) != null)
+        .forEach(entry -> builder.set(entry.getName(), key.get(entry.getName())));
 
-      AvroKey<GenericRecord> object = new AvroKey<>(recordBuilder.build());
-      delegate.write(object, value);
+      delegate.write(builder.build(), value);
     }
 
     private org.apache.avro.Schema getAvroSchema(Schema cdapSchema) {

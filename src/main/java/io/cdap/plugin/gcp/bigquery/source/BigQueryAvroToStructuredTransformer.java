@@ -26,7 +26,9 @@ import org.apache.avro.generic.GenericRecord;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -51,7 +53,7 @@ public class BigQueryAvroToStructuredTransformer extends RecordConverter<Generic
     StructuredRecord.Builder builder = StructuredRecord.builder(structuredSchema);
     for (Schema.Field field : structuredSchema.getFields()) {
       String fieldName = field.getName();
-      Object value = convertField(genericRecord.get(fieldName), field.getSchema());
+      Object value = convertField(genericRecord.get(fieldName), field);
       builder.set(fieldName, value);
     }
     return builder.build();
@@ -59,11 +61,12 @@ public class BigQueryAvroToStructuredTransformer extends RecordConverter<Generic
 
   @Override
   @Nullable
-  protected Object convertField(Object field, Schema fieldSchema) throws IOException {
+  protected Object convertField(Object field, Schema.Field schemaField) throws IOException {
     if (field == null) {
       return null;
     }
 
+    Schema fieldSchema = schemaField.getSchema();
     // Union schema expected to be nullable schema. Underlying non-nullable type should always be a supported type
     fieldSchema = fieldSchema.isNullable() ? fieldSchema.getNonNullable() : fieldSchema;
     Schema.Type fieldType = fieldSchema.getType();
@@ -84,6 +87,19 @@ public class BigQueryAvroToStructuredTransformer extends RecordConverter<Generic
           case TIMESTAMP_MILLIS:
           case TIMESTAMP_MICROS:
             return field;
+          case DATETIME:
+            try {
+              LocalDateTime.parse(field.toString());
+            } catch (DateTimeParseException exception) {
+              throw new UnexpectedFormatException(
+                String.format("Field '%s' of type '%s' with value '%s' is not in ISO-8601 format.",
+                              schemaField.getName(),
+                              fieldSchema.getDisplayName(),
+                              field.toString()),
+                exception);
+            }
+            //If properly formatted return the string
+            return field.toString();
           case DECIMAL:
             ByteBuffer value = (ByteBuffer) field;
             byte[] bytes = new byte[value.remaining()];

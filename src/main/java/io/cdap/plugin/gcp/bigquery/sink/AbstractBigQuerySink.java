@@ -38,22 +38,22 @@ import io.cdap.cdap.api.data.batch.Output;
 import io.cdap.cdap.api.data.batch.OutputFormatProvider;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.api.dataset.lib.KeyValue;
+import io.cdap.cdap.etl.api.Emitter;
 import io.cdap.cdap.etl.api.FailureCollector;
-import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.plugin.common.LineageRecorder;
-import io.cdap.plugin.format.avro.StructuredToAvroTransformer;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
-import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.mapred.AvroKey;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,19 +69,19 @@ import javax.annotation.Nullable;
 /**
  * Base class for Big Query batch sink plugins.
  */
-public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, AvroKey<GenericRecord>, NullWritable> {
+public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, StructuredRecord, NullWritable> {
 
   private static final Logger LOG = LoggerFactory.getLogger(AbstractBigQuerySink.class);
 
   private static final String gcsPathFormat = "gs://%s/%s";
   private static final String temporaryBucketFormat = gcsPathFormat + "/input/%s-%s";
   public static final String RECORDS_UPDATED_METRIC = "records.updated";
+  private static final String DATETIME = "DATETIME";
 
   // UUID for the run. Will be used as bucket name if bucket is not provided.
   // UUID is used since GCS bucket names must be globally unique.
   private final UUID uuid = UUID.randomUUID();
   protected Configuration baseConfiguration;
-  private StructuredToAvroTransformer avroTransformer;
   protected BigQuery bigQuery;
 
   /**
@@ -134,15 +134,8 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
   }
 
   @Override
-  public void initialize(BatchRuntimeContext context) throws Exception {
-    avroTransformer = new StructuredToAvroTransformer(null);
-  }
-
-  /**
-   * Transform the given {@link StructuredRecord} into avro {@link GenericRecord} with the same schema.
-   */
-  protected final GenericRecord toAvroRecord(StructuredRecord record) throws IOException {
-    return avroTransformer.transform(record, record.getSchema());
+  public void transform(StructuredRecord input, Emitter<KeyValue<StructuredRecord, NullWritable>> emitter) {
+    emitter.emit(new KeyValue<>(input, NullWritable.get()));
   }
 
   /**
@@ -163,7 +156,6 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
     List<BigQueryTableFieldSchema> fields = getBigQueryTableFields(bigQuery, tableName, tableSchema,
                                                                    getConfig().isAllowSchemaRelaxation(), collector);
     Configuration configuration = getOutputConfiguration(bucket, tableName, fields);
-
     // Both emitLineage and setOutputFormat internally try to create an external dataset if it does not already exist.
     // We call emitLineage before since it creates the dataset with schema which is used.
     List<String> fieldNames = fields.stream()
@@ -556,15 +548,32 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
       outputTableSchema.setFields(fields);
     }
 
+    BigQueryFileFormat fileFormat = getFileFormat(fields);
     BigQueryOutputConfiguration.configure(
       configuration,
       String.format("%s:%s.%s", getConfig().getDatasetProject(), getConfig().getDataset(), tableName),
       outputTableSchema,
       temporaryGcsPath,
-      BigQueryFileFormat.AVRO,
-      AvroOutputFormat.class);
+      fileFormat,
+      getOutputFormat(fileFormat));
 
     return configuration;
+  }
+
+  private BigQueryFileFormat getFileFormat(List<BigQueryTableFieldSchema> fields) {
+    for (BigQueryTableFieldSchema field : fields) {
+      if (DATETIME.equals(field.getType())) {
+        return BigQueryFileFormat.NEWLINE_DELIMITED_JSON;
+      }
+    }
+    return BigQueryFileFormat.AVRO;
+  }
+
+  private Class<? extends FileOutputFormat> getOutputFormat(BigQueryFileFormat fileFormat) {
+    if (fileFormat == BigQueryFileFormat.NEWLINE_DELIMITED_JSON) {
+      return TextOutputFormat.class;
+    }
+    return AvroOutputFormat.class;
   }
 
   private void recordLineage(BatchSinkContext context,
@@ -594,6 +603,8 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
           return LegacySQLTypeName.TIMESTAMP;
         case DECIMAL:
           return LegacySQLTypeName.NUMERIC;
+        case DATETIME:
+          return LegacySQLTypeName.DATETIME;
         default:
           throw new IllegalStateException("Unsupported type " + logicalType.getToken());
       }
