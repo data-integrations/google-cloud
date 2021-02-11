@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -305,6 +306,11 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
         return;
       }
 
+      List<String> schemaFields = Objects.requireNonNull(schema.getFields()).stream().
+        map(Schema.Field::getName).map(String::toLowerCase).collect(Collectors.toList());
+
+      final Set<String> duplicatedFields = getDuplicatedFields(schemaFields);
+
       for (Schema.Field field : outputSchema.getFields()) {
         String name = field.getName();
         // BigQuery column names only allow alphanumeric characters and _
@@ -321,8 +327,29 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
             "Change the field to be nullable.")
             .withOutputSchemaField(name);
         }
+
+        // check if field is duplicated -> case insensitive
+        if (duplicatedFields.contains(name.toLowerCase())) {
+          collector.addFailure(
+            String.format("Output field '%s' is duplicated.", name),
+            "BigQuery is case insensitive and does not allow two fields with the same name.")
+            .withOutputSchemaField(name);
+        }
       }
     }
+  }
+  /**
+   * Returns list of duplicated fields (case insensitive)
+   */
+  private Set<String> getDuplicatedFields(List<String> schemaFields) {
+    final Set<String> duplicatedFields = new HashSet<>();
+    final Set<String> set = new HashSet<>();
+    for (String field : schemaFields) {
+      if (!set.add(field)) {
+        duplicatedFields.add(field);
+      }
+    }
+    return duplicatedFields;
   }
 
   private void validatePartitionProperties(@Nullable Schema schema, FailureCollector collector) {
