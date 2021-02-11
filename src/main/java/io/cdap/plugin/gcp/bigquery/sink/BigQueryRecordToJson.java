@@ -17,6 +17,7 @@
 package io.cdap.plugin.gcp.bigquery.sink;
 
 import com.google.gson.stream.JsonWriter;
+import io.cdap.cdap.api.common.Bytes;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
@@ -24,6 +25,7 @@ import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -32,6 +34,7 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -137,6 +140,10 @@ public final class BigQueryRecordToJson {
         case DECIMAL:
           writer.value(Objects.requireNonNull(getDecimal(name, (byte[]) object, schema)).toPlainString());
           break;
+        case DATETIME:
+          //datetime should be already an ISO-8601 string
+          writer.value(Objects.requireNonNull(object.toString()));
+          break;
         default:
           throw new IllegalStateException(
             String.format("Field '%s' is of unsupported type '%s'", name, logicalType.getToken()));
@@ -160,7 +167,16 @@ public final class BigQueryRecordToJson {
       case STRING:
         writer.value(object.toString());
         break;
-      // TODO CDAP-15342 write byte type to json writer
+      case BYTES:
+        if (object instanceof byte[]) {
+          writer.value(Base64.getEncoder().encodeToString((byte[]) object));
+        } else if (object instanceof ByteBuffer) {
+          writer.value(Base64.getEncoder().encodeToString(Bytes.toBytes((ByteBuffer) object)));
+        } else {
+          throw new IllegalStateException(String.format("Expected value of Field '%s' to be bytes but got '%s'",
+                                                        name, object.getClass().getSimpleName()));
+        }
+        break;
       default:
         throw new IllegalStateException(String.format("Field '%s' is of unsupported type '%s'",
                                                       name, schema.getType()));

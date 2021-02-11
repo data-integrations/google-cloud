@@ -27,7 +27,11 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
@@ -43,13 +47,22 @@ public class BigQueryRecordToJsonTest {
       "record",
       Schema.Field.of("int", Schema.of(Schema.Type.INT)),
       Schema.Field.of("double", Schema.of(Schema.Type.DOUBLE)),
-      Schema.Field.of("array", Schema.arrayOf(Schema.of(Schema.Type.STRING)))
+      Schema.Field.of("array", Schema.arrayOf(Schema.of(Schema.Type.STRING))),
+      Schema.Field.of("bytes1", Schema.of(Schema.Type.BYTES)),
+      Schema.Field.of("bytes2", Schema.of(Schema.Type.BYTES)),
+      Schema.Field.of("datetime", Schema.of(Schema.LogicalType.DATETIME))
     );
 
+    byte[] bytes = "test1".getBytes();
+    LocalDateTime localDateTime = LocalDateTime.now();
     StructuredRecord record = StructuredRecord.builder(schema)
       .set("int", 1)
       .set("double", 1.1d)
-      .set("array", ImmutableList.of("1", "2", "3")).build();
+      .set("array", ImmutableList.of("1", "2", "3"))
+      .set("bytes1", "test".getBytes())
+      .set("bytes2", ByteBuffer.wrap(bytes))
+      .setDateTime("datetime", localDateTime)
+      .build();
 
     try (JsonTreeWriter writer = new JsonTreeWriter()) {
       writer.beginObject();
@@ -64,6 +77,10 @@ public class BigQueryRecordToJsonTest {
       JsonObject actual = writer.get().getAsJsonObject();
       Assert.assertEquals(1, actual.get("int").getAsInt());
       Assert.assertEquals(1.1d, actual.get("double").getAsDouble(), 0);
+      Assert.assertEquals("test", new String(Base64.getDecoder().decode(actual.get("bytes1").getAsString())));
+      Assert.assertEquals("test1", new String(Base64.getDecoder().decode(actual.get("bytes2").getAsString())));
+      Assert.assertEquals(localDateTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+                          actual.get("datetime").getAsString());
       Iterator<JsonElement> itr = actual.get("array").getAsJsonArray().iterator();
       List<String> actualArray = new ArrayList<>();
 
@@ -71,6 +88,29 @@ public class BigQueryRecordToJsonTest {
         actualArray.add(itr.next().getAsString());
       }
       Assert.assertEquals(ImmutableList.of("1", "2", "3"), actualArray);
+    }
+  }
+
+  @Test(expected = IllegalStateException.class)
+  public void testInvalidBytes() throws IOException {
+    Schema schema = Schema.recordOf(
+      "record",
+      Schema.Field.of("bytes", Schema.of(Schema.Type.BYTES))
+    );
+
+    StructuredRecord record = StructuredRecord.builder(schema)
+      .set("bytes", "test")
+      .build();
+
+    try (JsonTreeWriter writer = new JsonTreeWriter()) {
+      writer.beginObject();
+      for (Schema.Field recordField : Objects.requireNonNull(record.getSchema().getFields())) {
+        if (schema.getField(recordField.getName()) != null) {
+          BigQueryRecordToJson.write(writer, recordField.getName(), record.get(recordField.getName()),
+                                     recordField.getSchema());
+        }
+      }
+      writer.endObject();
     }
   }
 

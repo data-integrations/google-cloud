@@ -146,13 +146,14 @@ corresponding BigQuery data type for each CDAP type, for updates and upserts.
 | boolean        | bool          |
 | bytes          | bytes         |
 | date           | date          |
+| datetime       | datetime, string|
 | decimal        | numeric       |
 | double / float | float64       |
 | enum           | unsupported   |
 | int / long     | int64         |
 | map            | unsupported   |
 | record         | struct        |
-| string         | string        |
+| string         | string, datetime(Should be ISO 8601 format)|
 | time           | time          |
 | timestamp      | timestamp     |
 | union          | unsupported   |
