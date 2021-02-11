@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.bigquery.util;
 
+import com.google.api.client.googleapis.media.MediaHttpUploader;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.Field;
@@ -577,6 +578,27 @@ public final class BigQueryUtil {
     // Allowed character validation for table name as per https://cloud.google.com/bigquery/docs/tables
     String errorMessage = "Table name can only contain letters (lower or uppercase), numbers and '_'.";
     match(table, tablePropertyName, TABLE_PATTERN, collector, errorMessage);
+  }
+
+  /**
+   * Validates allowed GCS Upload Request Chunk Size.
+   *
+   * @param chunkSize provided chunk size
+   * @param chunkSizePropertyName GCS chunk size name property
+   * @param collector failure collector
+   */
+  public static void validateGCSChunkSize(String chunkSize, String chunkSizePropertyName, FailureCollector collector) {
+    String errorMessage1 = String.format("Value must be a multiple of %s", MediaHttpUploader.MINIMUM_CHUNK_SIZE);
+    String errorMessage2 = "Error parsing the provided value";
+    if (!Strings.isNullOrEmpty(chunkSize)) {
+      try {
+        if (Integer.parseInt(chunkSize) % MediaHttpUploader.MINIMUM_CHUNK_SIZE != 0) {
+          collector.addFailure(errorMessage1, null).withConfigProperty(chunkSizePropertyName);
+        }
+      } catch (NumberFormatException e) {
+        collector.addFailure(errorMessage2, null).withConfigProperty(chunkSizePropertyName);
+      }
+    }
   }
 
   /**

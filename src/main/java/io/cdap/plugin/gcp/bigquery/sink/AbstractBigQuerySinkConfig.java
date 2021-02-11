@@ -159,7 +159,9 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
     if (!containsMacro(NAME_BUCKET)) {
       BigQueryUtil.validateBucket(bucket, NAME_BUCKET, collector);
     }
-
+    if (!containsMacro(NAME_GCS_CHUNK_SIZE)) {
+      BigQueryUtil.validateGCSChunkSize(gcsChunkSize, NAME_GCS_CHUNK_SIZE, collector);
+    }
     if (!containsMacro(NAME_DATASET)) {
       BigQueryUtil.validateDataset(dataset, NAME_DATASET, collector);
     }
