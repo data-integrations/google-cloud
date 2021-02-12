@@ -30,7 +30,7 @@ import java.util.Map;
 
 /**
  * Record Writer which delegates writes to other Record Writers based on the record's Table name.
- *
+ * <p>
  * This Record Writer will initialize record writes and Output Committers as needed.
  */
 public class DelegatingGCSRecordWriter extends RecordWriter<NullWritable, StructuredRecord> {
@@ -50,26 +50,25 @@ public class DelegatingGCSRecordWriter extends RecordWriter<NullWritable, Struct
   }
 
   @Override
-  @SuppressWarnings("unchecked,rawtypes")
   public void write(NullWritable key, StructuredRecord record) throws IOException, InterruptedException {
-    String val = record.get(partitionField);
+    String tableName = record.get(partitionField);
 
-    RecordWriter<NullWritable, StructuredRecord> delegate =
-      delegateMap.computeIfAbsent(val, (tableName) -> {
-        try {
-          //Get output format from configuration.
-          OutputFormat format = DelegatingGCSOutputUtils.getDelegateFormat(context.getConfiguration());
+    RecordWriter<NullWritable, StructuredRecord> delegate;
 
-          //Initialize GCS Output Committer for this format.
-          delegatingGCSOutputCommitter.addGCSOutputCommitterFromOutputFormat(format, context, tableName);
+    if (delegateMap.containsKey(tableName)) {
+      delegate = delegateMap.get(tableName);
+    } else {
+      //Get output format from configuration.
+      OutputFormat<NullWritable, StructuredRecord> format =
+        DelegatingGCSOutputUtils.getDelegateFormat(context.getConfiguration());
 
-          //Add record writer to delegate map.
-          return format.getRecordWriter(context);
-        } catch (IOException | InterruptedException e) {
-          LOG.error("Unable to instantiate delegate class.", e);
-          throw new RuntimeException(e);
-        }
-      });
+      //Initialize GCS Output Committer for this format.
+      delegatingGCSOutputCommitter.addGCSOutputCommitterFromOutputFormat(format, context, tableName);
+
+      //Add record writer to delegate map.
+      delegate = format.getRecordWriter(context);
+      delegateMap.put(tableName, delegate);
+    }
 
     delegate.write(key, record);
   }
