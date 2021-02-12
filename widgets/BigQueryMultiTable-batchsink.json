@@ -2,7 +2,7 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name" : "BigQuery Multi Table",
+  "display-name": "BigQuery Multi Table",
   "configuration-groups": [
     {
       "label": "Basic",
@@ -11,7 +11,7 @@
           "widget-type": "textbox",
           "label": "Reference Name",
           "name": "referenceName",
-          "widget-attributes" : {
+          "widget-attributes": {
             "placeholder": "Name used to identify this sink for lineage"
           }
         },
@@ -19,7 +19,7 @@
           "widget-type": "textbox",
           "label": "Project ID",
           "name": "project",
-          "widget-attributes" : {
+          "widget-attributes": {
             "default": "auto-detect"
           }
         },
@@ -35,7 +35,7 @@
           "widget-type": "textbox",
           "label": "Dataset",
           "name": "dataset",
-          "widget-attributes" : {
+          "widget-attributes": {
             "placeholder": "Dataset the tables belong to"
           }
         },
@@ -58,8 +58,8 @@
       ]
     },
     {
-      "label" : "Credentials",
-      "properties" : [
+      "label": "Credentials",
+      "properties": [
         {
           "name": "serviceAccountType",
           "label": "Service Account Type",
@@ -83,7 +83,7 @@
           "widget-type": "textbox",
           "label": "Service Account File Path",
           "name": "serviceFilePath",
-          "widget-attributes" : {
+          "widget-attributes": {
             "default": "auto-detect"
           }
         },
@@ -95,13 +95,13 @@
       ]
     },
     {
-      "label" : "Advanced",
-      "properties" : [
+      "label": "Advanced",
+      "properties": [
         {
           "widget-type": "textbox",
           "label": "Temporary Bucket Name",
           "name": "bucket",
-          "widget-attributes" : {
+          "widget-attributes": {
             "placeholder": "Google Cloud Storage bucket for temporary data"
           }
         },
@@ -109,7 +109,7 @@
           "widget-type": "textbox",
           "label": "GCS Upload Request Chunk Size",
           "name": "gcsChunkSize",
-          "widget-attributes" : {
+          "widget-attributes": {
             "placeholder": "GCS upload request chunk size in bytes"
           }
         },
@@ -119,6 +119,22 @@
           "name": "splitField",
           "widget-attributes": {
             "placeholder": "Field used to determine which table to write to"
+          }
+        },
+        {
+          "widget-type": "toggle",
+          "label": "Allow flexible schemas in Output",
+          "name": "allowFlexibleSchema",
+          "widget-attributes": {
+            "on": {
+              "value": "true",
+              "label": "Yes"
+            },
+            "off": {
+              "value": "false",
+              "label": "No"
+            },
+            "default": "off"
           }
         },
         {

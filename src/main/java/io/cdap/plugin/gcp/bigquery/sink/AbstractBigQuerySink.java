@@ -22,7 +22,6 @@ import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetInfo;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
-import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
@@ -52,8 +51,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
-import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,9 +71,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
   private static final Logger LOG = LoggerFactory.getLogger(AbstractBigQuerySink.class);
 
   private static final String gcsPathFormat = "gs://%s/%s";
-  private static final String temporaryBucketFormat = gcsPathFormat + "/input/%s-%s";
   public static final String RECORDS_UPDATED_METRIC = "records.updated";
-  private static final String DATETIME = "DATETIME";
 
   // UUID for the run. Will be used as bucket name if bucket is not provided.
   // UUID is used since GCS bucket names must be globally unique.
@@ -236,7 +231,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
    * @return full path to temporary bucket
    */
   private String getTemporaryGcsPath(String bucket, String tableName) {
-    return String.format(temporaryBucketFormat, bucket, uuid, tableName, uuid);
+    return BigQuerySinkUtils.getTemporaryGcsPath(bucket, tableName, uuid.toString());
   }
 
   /**
@@ -495,44 +490,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
       throw collector.getOrThrowException();
     }
 
-    List<Schema.Field> inputFields = Objects.requireNonNull(tableSchema.getFields(), "Schema must have fields");
-    return inputFields.stream()
-      .map(this::generateTableFieldSchema)
-      .collect(Collectors.toList());
-  }
-
-  private BigQueryTableFieldSchema generateTableFieldSchema(Schema.Field field) {
-    BigQueryTableFieldSchema fieldSchema = new BigQueryTableFieldSchema();
-    fieldSchema.setName(field.getName());
-    fieldSchema.setMode(getMode(field.getSchema()).name());
-    LegacySQLTypeName type = getTableDataType(field.getSchema());
-    fieldSchema.setType(type.name());
-    if (type == LegacySQLTypeName.RECORD) {
-      List<Schema.Field> schemaFields;
-      if (Schema.Type.ARRAY == field.getSchema().getType()) {
-        schemaFields = Objects.requireNonNull(field.getSchema().getComponentSchema()).getFields();
-      } else {
-        schemaFields = field.getSchema().isNullable()
-          ? field.getSchema().getNonNullable().getFields()
-          : field.getSchema().getFields();
-      }
-      fieldSchema.setFields(Objects.requireNonNull(schemaFields).stream()
-                              .map(this::generateTableFieldSchema)
-                              .collect(Collectors.toList()));
-
-    }
-    return fieldSchema;
-  }
-
-  private Field.Mode getMode(Schema schema) {
-    boolean isNullable = schema.isNullable();
-    Schema.Type nonNullableType = isNullable ? schema.getNonNullable().getType() : schema.getType();
-    if (isNullable && nonNullableType != Schema.Type.ARRAY) {
-      return Field.Mode.NULLABLE;
-    } else if (nonNullableType == Schema.Type.ARRAY) {
-      return Field.Mode.REPEATED;
-    }
-    return Field.Mode.REQUIRED;
+    return BigQuerySinkUtils.getBigQueryTableFieldsFromSchema(tableSchema);
   }
 
   /**
@@ -549,37 +507,24 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
     Configuration configuration = new Configuration(baseConfiguration);
     String temporaryGcsPath = getTemporaryGcsPath(bucket, tableName);
 
-    BigQueryTableSchema outputTableSchema = new BigQueryTableSchema();
-    if (!fields.isEmpty()) {
-      outputTableSchema.setFields(fields);
-    }
-
-    BigQueryFileFormat fileFormat = getFileFormat(fields);
-    BigQueryOutputConfiguration.configure(
-      configuration,
-      String.format("%s:%s.%s", getConfig().getDatasetProject(), getConfig().getDataset(), tableName),
-      outputTableSchema,
-      temporaryGcsPath,
-      fileFormat,
-      getOutputFormat(fileFormat));
+    BigQuerySinkUtils.configureBigQueryOutput(configuration,
+                                              getConfig().getDatasetProject(),
+                                              getConfig().getDataset(),
+                                              tableName,
+                                              temporaryGcsPath,
+                                              fields);
 
     return configuration;
   }
 
-  private BigQueryFileFormat getFileFormat(List<BigQueryTableFieldSchema> fields) {
-    for (BigQueryTableFieldSchema field : fields) {
-      if (DATETIME.equals(field.getType())) {
-        return BigQueryFileFormat.NEWLINE_DELIMITED_JSON;
-      }
-    }
-    return BigQueryFileFormat.AVRO;
-  }
-
-  private Class<? extends FileOutputFormat> getOutputFormat(BigQueryFileFormat fileFormat) {
-    if (fileFormat == BigQueryFileFormat.NEWLINE_DELIMITED_JSON) {
-      return TextOutputFormat.class;
-    }
-    return AvroOutputFormat.class;
+  /**
+   * Creates Hadoop configuration instance
+   *
+   * @return Hadoop configuration
+   */
+  protected Configuration getOutputConfiguration() throws IOException {
+    Configuration configuration = new Configuration(baseConfiguration);
+    return configuration;
   }
 
   private void recordLineage(BatchSinkContext context,
@@ -590,52 +535,6 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
     lineageRecorder.createExternalDataset(tableSchema);
     if (!fieldNames.isEmpty()) {
       lineageRecorder.recordWrite("Write", "Wrote to BigQuery table.", fieldNames);
-    }
-  }
-
-  private LegacySQLTypeName getTableDataType(Schema schema) {
-    schema = BigQueryUtil.getNonNullableSchema(schema);
-    Schema.LogicalType logicalType = schema.getLogicalType();
-
-    if (logicalType != null) {
-      switch (logicalType) {
-        case DATE:
-          return LegacySQLTypeName.DATE;
-        case TIME_MILLIS:
-        case TIME_MICROS:
-          return LegacySQLTypeName.TIME;
-        case TIMESTAMP_MILLIS:
-        case TIMESTAMP_MICROS:
-          return LegacySQLTypeName.TIMESTAMP;
-        case DECIMAL:
-          return LegacySQLTypeName.NUMERIC;
-        case DATETIME:
-          return LegacySQLTypeName.DATETIME;
-        default:
-          throw new IllegalStateException("Unsupported type " + logicalType.getToken());
-      }
-    }
-
-    Schema.Type type = schema.getType();
-    switch (type) {
-      case INT:
-      case LONG:
-        return LegacySQLTypeName.INTEGER;
-      case STRING:
-        return LegacySQLTypeName.STRING;
-      case FLOAT:
-      case DOUBLE:
-        return LegacySQLTypeName.FLOAT;
-      case BOOLEAN:
-        return LegacySQLTypeName.BOOLEAN;
-      case BYTES:
-        return LegacySQLTypeName.BYTES;
-      case ARRAY:
-        return getTableDataType(schema.getComponentSchema());
-      case RECORD:
-        return LegacySQLTypeName.RECORD;
-      default:
-        throw new IllegalStateException("Unsupported type " + type);
     }
   }
 

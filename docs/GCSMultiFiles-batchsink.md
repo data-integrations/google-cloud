@@ -67,6 +67,10 @@ When running on other clusters, the file must be present on every node in the cl
 The 'avro' supports 'snappy' and 'deflate'. The parquet supports 'snappy' and 'gzip'. 
 Other formats does not support compression.
 
+**Allow flexible schemas in Output**: When enabled, this sink will write out records with arbitrary schemas. 
+Records may not have a well defined schema depending on the source.
+When enabled, the format must be one of 'avro', 'json', 'csv', 'tsv', 'delimited'.
+
 **Split Field:** The name of the field that will be used to determine which directory to write to. 
 Defaults to 'tablename'.
 

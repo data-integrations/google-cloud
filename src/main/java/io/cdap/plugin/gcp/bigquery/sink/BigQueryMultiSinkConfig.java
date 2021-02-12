@@ -18,6 +18,7 @@ package io.cdap.plugin.gcp.bigquery.sink;
 import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
+import io.cdap.cdap.api.annotation.Name;
 
 import javax.annotation.Nullable;
 
@@ -27,14 +28,25 @@ import javax.annotation.Nullable;
 public class BigQueryMultiSinkConfig extends AbstractBigQuerySinkConfig {
 
   private static final String SPLIT_FIELD_DEFAULT = "tablename";
+  private static final String NAME_ALLOW_FLEXIBLE_SCHEMA = "allowFlexibleSchema";
 
   @Macro
   @Nullable
   @Description("The name of the field that will be used to determine which table to write to.")
   private String splitField;
 
+  @Name(NAME_ALLOW_FLEXIBLE_SCHEMA)
+  @Macro
+  @Nullable
+  @Description("Allow Flexible Schemas in output. If disabled, only records with schemas set as " +
+    "arguments will be processed. If enabled, all records will be written as-is.")
+  private Boolean allowFlexibleSchema;
+
   public String getSplitField() {
     return Strings.isNullOrEmpty(splitField) ? SPLIT_FIELD_DEFAULT : splitField;
   }
 
+  public Boolean getAllowFlexibleSchema() {
+    return allowFlexibleSchema != null ? allowFlexibleSchema : false;
+  }
 }

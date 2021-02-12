@@ -67,6 +67,9 @@ In this case, those fields in the BigQuery schema will be modified to become nul
                          
 Incompatible schema changes will result in pipeline failure.
 
+**Allow flexible schemas in Output**: When enabled, this sink will write out records with arbitrary schemas. 
+Records may not have a well defined schema depending on the source.
+
 **Service Account**  - service account key used for authorization
 
 * **File Path**: Path on the local file system of the service account key used for
