@@ -588,15 +588,16 @@ public final class BigQueryUtil {
    * @param collector failure collector
    */
   public static void validateGCSChunkSize(String chunkSize, String chunkSizePropertyName, FailureCollector collector) {
-    String errorMessage1 = String.format("Value must be a multiple of %s", MediaHttpUploader.MINIMUM_CHUNK_SIZE);
-    String errorMessage2 = "Error parsing the provided value";
     if (!Strings.isNullOrEmpty(chunkSize)) {
       try {
         if (Integer.parseInt(chunkSize) % MediaHttpUploader.MINIMUM_CHUNK_SIZE != 0) {
-          collector.addFailure(errorMessage1, null).withConfigProperty(chunkSizePropertyName);
+          collector.addFailure(
+            String.format("Value must be a multiple of %s.", MediaHttpUploader.MINIMUM_CHUNK_SIZE), null)
+            .withConfigProperty(chunkSizePropertyName);
         }
       } catch (NumberFormatException e) {
-        collector.addFailure(errorMessage2, null).withConfigProperty(chunkSizePropertyName);
+        collector.addFailure(e.getMessage(), "Input value must be a valid number.")
+          .withConfigProperty(chunkSizePropertyName);
       }
     }
   }
