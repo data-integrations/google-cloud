@@ -61,12 +61,11 @@ public class BigQueryAvroToStructuredTransformer extends RecordConverter<Generic
 
   @Override
   @Nullable
-  protected Object convertField(Object field, Schema.Field schemaField) throws IOException {
+  protected Object convertField(Object field, Schema fieldSchema) throws IOException {
     if (field == null) {
       return null;
     }
 
-    Schema fieldSchema = schemaField.getSchema();
     // Union schema expected to be nullable schema. Underlying non-nullable type should always be a supported type
     fieldSchema = fieldSchema.isNullable() ? fieldSchema.getNonNullable() : fieldSchema;
     Schema.Type fieldType = fieldSchema.getType();
@@ -92,8 +91,7 @@ public class BigQueryAvroToStructuredTransformer extends RecordConverter<Generic
               LocalDateTime.parse(field.toString());
             } catch (DateTimeParseException exception) {
               throw new UnexpectedFormatException(
-                String.format("Field '%s' of type '%s' with value '%s' is not in ISO-8601 format.",
-                              schemaField.getName(),
+                String.format("Datetime field with value '%s' is not in ISO-8601 format.",
                               fieldSchema.getDisplayName(),
                               field.toString()),
                 exception);

@@ -77,6 +77,8 @@ public class RecordToMutationTransformer {
             ZonedDateTime ts = record.getTimestamp(fieldName);
             Timestamp spannerTs = Timestamp.ofTimeSecondsAndNanos(ts.toEpochSecond(), ts.getNano());
             return Value.timestamp(spannerTs);
+          case DATETIME:
+            return Value.string(record.get(fieldName));
           default:
             throw new IllegalStateException(
               String.format("Field '%s' is of unsupported logical type '%s'", fieldName, logicalType.getToken()));

@@ -35,6 +35,7 @@ import org.junit.rules.ExpectedException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.Collections;
@@ -180,6 +181,7 @@ public class RecordToEntityTransformerTest {
       Schema.Field.of("float_field", Schema.nullableOf(Schema.of(Schema.Type.FLOAT))),
       Schema.Field.of("boolean_field", Schema.nullableOf(Schema.of(Schema.Type.BOOLEAN))),
       Schema.Field.of("timestamp_field", Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))),
+      Schema.Field.of("datetime_field", Schema.nullableOf(Schema.of(Schema.LogicalType.DATETIME))),
       Schema.Field.of("blob_field", Schema.nullableOf(Schema.of(Schema.Type.BYTES))),
       Schema.Field.of("null_field", Schema.nullableOf(Schema.of(Schema.Type.STRING))),
       Schema.Field.of("entity_field",
@@ -194,6 +196,7 @@ public class RecordToEntityTransformerTest {
     );
 
     ZonedDateTime dateTime = ZonedDateTime.now();
+    LocalDateTime localDateTime = LocalDateTime.now();
     List<Long> longList = Arrays.asList(1L, null, 2L, null, 3L);
 
     StructuredRecord inputRecord = StructuredRecord.builder(schema)
@@ -204,6 +207,7 @@ public class RecordToEntityTransformerTest {
       .set("float_field", 15.5F)
       .set("boolean_field", true)
       .setTimestamp("timestamp_field", dateTime)
+      .setDateTime("datetime_field", localDateTime)
       .set("blob_field", "test_blob".getBytes())
       .set("null_field", null)
       .set("entity_field", StructuredRecord.builder(schema.getField("entity_field").getSchema().getNonNullable())
@@ -248,6 +252,10 @@ public class RecordToEntityTransformerTest {
     value = outputEntity.getPropertiesOrThrow("timestamp_field");
     Assert.assertEquals(dateTime.toInstant().toEpochMilli() * 1000,
                         DatastoreHelper.getTimestamp(value));
+    Assert.assertTrue(value.getExcludeFromIndexes());
+
+    value = outputEntity.getPropertiesOrThrow("datetime_field");
+    Assert.assertEquals(localDateTime.toString(), DatastoreHelper.getString(value));
     Assert.assertTrue(value.getExcludeFromIndexes());
 
     value = outputEntity.getPropertiesOrThrow("boolean_field");

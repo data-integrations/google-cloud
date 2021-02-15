@@ -284,6 +284,9 @@ public class RecordToEntityTransformer {
           return DatastoreHelper.makeValue(Date.from(ts.toInstant()))
             .setExcludeFromIndexes(excludeFromIndex)
             .build();
+        //write datetime value as string - this will be handled by the next block
+        case DATETIME:
+          break;
         default:
           throw new IllegalStateException(
             String.format("Record type '%s' is not supported for field '%s'", logicalType.getToken(), fieldName));

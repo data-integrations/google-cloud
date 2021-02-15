@@ -18,7 +18,6 @@ package io.cdap.plugin.gcp.bigquery;
 
 import com.google.common.collect.ImmutableList;
 import io.cdap.cdap.api.data.format.StructuredRecord;
-import io.cdap.cdap.api.data.format.UnexpectedFormatException;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.plugin.gcp.bigquery.source.BigQueryAvroToStructuredTransformer;
 import org.apache.avro.generic.GenericRecord;
@@ -176,7 +175,7 @@ public class AvroToStructuredRecordTest {
     Assert.assertEquals(expected, actual);
   }
 
-  @Test(expected = UnexpectedFormatException.class)
+  @Test(expected = IllegalArgumentException.class)
   public void testUnionTypeUnsupported() throws Exception {
     Schema schema = Schema.recordOf("record",
                                     Schema.Field.of("id", Schema.of(Schema.Type.LONG)),

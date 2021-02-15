@@ -38,6 +38,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
 
@@ -58,6 +59,7 @@ public class EntityToRecordTransformerTest {
       Schema.Field.of("double_field", Schema.nullableOf(Schema.of(Schema.Type.DOUBLE))),
       Schema.Field.of("boolean_field", Schema.nullableOf(Schema.of(Schema.Type.BOOLEAN))),
       Schema.Field.of("timestamp_field", Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))),
+      Schema.Field.of("datetime_field", Schema.nullableOf(Schema.of(Schema.LogicalType.DATETIME))),
       Schema.Field.of("blob_field", Schema.nullableOf(Schema.of(Schema.Type.BYTES))),
       Schema.Field.of("null_field", Schema.nullableOf(Schema.of(Schema.Type.STRING))),
       Schema.Field.of("entity_field", Schema.nullableOf(Schema.recordOf("entity_field",
@@ -78,6 +80,7 @@ public class EntityToRecordTransformerTest {
       Value.newBuilder().setStringValue("value_1").build(),
       Value.newBuilder().setStringValue("value_2").build())).build();
 
+    LocalDateTime currentDateTime = LocalDateTime.now();
     Entity entity = Entity.newBuilder()
       .setKey(Key.newBuilder().
         setPartitionId(PartitionId.newBuilder()
@@ -87,6 +90,7 @@ public class EntityToRecordTransformerTest {
       .putProperties("double_field", Value.newBuilder().setDoubleValue(10.5D).build())
       .putProperties("boolean_field", Value.newBuilder().setBooleanValue(true).build())
       .putProperties("timestamp_field", Value.newBuilder().setTimestampValue(entityTs).build())
+      .putProperties("datetime_field", Value.newBuilder().setStringValue(currentDateTime.toString()).build())
       .putProperties("blob_field", Value.newBuilder().
         setBlobValue(ByteString.copyFrom(Blob.copyFrom("test_blob".getBytes()).toByteArray())).build())
       .putProperties("null_field", Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build())
@@ -120,6 +124,7 @@ public class EntityToRecordTransformerTest {
       .setSeconds(time.getEpochSecond())
       .setNanos(time.getNano()).build();
     Assert.assertEquals(entityTs, actualTs);
+    Assert.assertEquals(currentDateTime, record.getDateTime("datetime_field"));
 
     Assert.assertTrue(record.get("boolean_field"));
     Assert.assertEquals("test_blob", new String((byte[]) record.get("blob_field")));
@@ -434,4 +439,21 @@ public class EntityToRecordTransformerTest {
     Assert.assertEquals(Arrays.asList("string_value", 10, 20).toString(), fieldValue.toString());
   }
 
+  @Test
+  public void testInvalidDateTime() {
+    Schema testSchema = Schema
+      .recordOf("record", Schema.Field.of("datetime_field", Schema.of(Schema.LogicalType.DATETIME)));
+    Entity entity = Entity.newBuilder()
+      .setKey(Key.newBuilder()
+                .setPartitionId(PartitionId.newBuilder()
+                                  .setProjectId(DatastoreSourceConfigHelper.TEST_PROJECT))
+                .addPath(Key.PathElement.newBuilder()
+                           .setId(1)
+                           .setKind(DatastoreSourceConfigHelper.TEST_KIND).build())
+                .build())
+      .putProperties("datetime_field", Value.newBuilder().setStringValue("2020-10-10 10:10:10").build())
+      .build();
+    thrown.expect(UnexpectedFormatException.class);
+    new EntityToRecordTransformer(testSchema, SourceKeyType.NONE, "key").transformEntity(entity);
+  }
 }
