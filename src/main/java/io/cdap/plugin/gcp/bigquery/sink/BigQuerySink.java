@@ -274,7 +274,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
                                                 config.getServiceAccount(), config.isServiceAccountFilePath(),
                                                 collector);
 
-    if (table != null) {
+    if (table != null && !config.containsMacro(AbstractBigQuerySinkConfig.NAME_UPDATE_SCHEMA)) {
       // if table already exists, validate schema against underlying bigquery table
       com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
       if (config.getOperation().equals(Operation.INSERT)) {
