@@ -356,6 +356,24 @@ public final class BigQueryUtil {
   }
 
   /**
+   * Check the mode of the output schema fields against big query table fields.
+   *
+   * @param bigQueryField schema fields
+   * @param field bigquery table fields
+   * @param collector failure collector
+   */
+  public static void validateFieldModeMatches(Field bigQueryField, Schema.Field field, boolean allowSchemaRelaxation,
+                                              FailureCollector collector) {
+    boolean isBqFieldNullable = bigQueryField.getMode().equals(Field.Mode.NULLABLE);
+    if (!allowSchemaRelaxation && field.getSchema().isNullable() != isBqFieldNullable) {
+      collector.addFailure(String.format("Field '%s' cannot be %s.", bigQueryField.getName(),
+                                         isBqFieldNullable ? "required" : "nullable"),
+                           String.format("Change the field to be %s.", isBqFieldNullable ? "nullable" : "required"))
+        .withOutputSchemaField(field.getName());
+    }
+  }
+
+  /**
    * Get difference of schema fields and big query table fields. The operation is equivalent to
    * (Names of schema fields - Names of bigQuery table fields).
    *
