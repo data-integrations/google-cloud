@@ -46,7 +46,7 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
   public static final String NAME_TRUNCATE_TABLE = "truncateTable";
   public static final String NAME_LOCATION = "location";
   private static final String NAME_GCS_CHUNK_SIZE = "gcsChunkSize";
-  private static final String NAME_UPDATE_SCHEMA = "allowSchemaRelaxation";
+  protected static final String NAME_UPDATE_SCHEMA = "allowSchemaRelaxation";
 
   @Name(DATASET_PROJECT_ID)
   @Macro
