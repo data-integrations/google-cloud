@@ -377,6 +377,18 @@
           "name": "serviceAccountJSON"
         }
       ]
+    },
+    {
+      "name": "TruncateTableOption",
+      "condition": {
+        "expression": "operation == 'insert'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "truncateTable"
+        }
+      ]
     }
   ],
   "jump-config": {
