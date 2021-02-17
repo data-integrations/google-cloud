@@ -76,11 +76,13 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
     baseConfiguration.set(BigQueryConstants.CONFIG_OPERATION, Operation.INSERT.name());
     Map<String, String> arguments = new HashMap<>(context.getArguments().asMap());
     FailureCollector collector = context.getFailureCollector();
+    boolean hasMultiSinkPrefix = false;
     for (Map.Entry<String, String> argument : arguments.entrySet()) {
       String key = argument.getKey();
       if (!key.startsWith(TABLE_PREFIX)) {
         continue;
       }
+      hasMultiSinkPrefix = true;
       String tableName = key.substring(TABLE_PREFIX.length());
       // remove the database prefix, as BigQuery doesn't allow dots
       String[] split = tableName.split("\\.");
@@ -113,6 +115,10 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
       } catch (IOException e) {
         collector.addFailure("Invalid schema: " + e.getMessage(), null);
       }
+    }
+    if (!hasMultiSinkPrefix) {
+      collector.addFailure("Invalid configuration.",
+                           "At least one runtime argument starting with 'multisink.' prefix is required.");
     }
     collector.getOrThrowException();
   }
