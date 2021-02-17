@@ -40,6 +40,7 @@ import org.apache.hadoop.io.NullWritable;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * This plugin allows users to write {@link StructuredRecord} entries to multiple Google Big Query tables.
@@ -51,7 +52,7 @@ import java.util.Map;
   + "Data is first written to a temporary location on Google Cloud Storage, then loaded into BigQuery from there.")
 public class BigQueryMultiSink extends AbstractBigQuerySink {
   private static final String TABLE_PREFIX = "multisink.";
-
+  private static final String OUTPUT_PATTERN = "[A-Za-z0-9_-]+";
   private final BigQueryMultiSinkConfig config;
 
   public BigQueryMultiSink(BigQueryMultiSinkConfig config) {
@@ -113,12 +114,25 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
         }
 
         String outputName = String.format("%s-%s", config.getReferenceName(), tableName);
+        outputName = sanitizeOutputName(outputName);
         initOutput(context, bigQuery, outputName, tableName, tableSchema, bucket, context.getFailureCollector());
       } catch (IOException e) {
         collector.addFailure("Invalid schema: " + e.getMessage(), null);
       }
     }
     collector.getOrThrowException();
+  }
+
+  /**
+   * This method sanitizes outputName when there is an un-allowed special character in dataset
+   * For example: If we have a dataset with outputName testtable$2020, this method will sanitize it to testtable_2020
+   */
+  private String sanitizeOutputName(String outputName) {
+    // Output name before regex: testtable$2020
+    final Pattern compilePattern = Pattern.compile(OUTPUT_PATTERN);
+    final boolean validatePattern = compilePattern.matcher(outputName).matches();
+    // Output name after regex: testtable_2020
+    return (!validatePattern) ? outputName.replaceAll("[^\\p{Alpha}\\p{Digit}-]+", "_") : outputName;
   }
 
   @Override
