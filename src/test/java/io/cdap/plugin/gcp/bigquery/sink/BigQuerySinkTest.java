@@ -247,6 +247,42 @@ public class BigQuerySinkTest {
     Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
+  @Test
+  public void testBigQuerySinkConfigValidChunkSize() {
+    Schema schema = Schema.recordOf("record",
+                                    Schema.Field.of("id", Schema.of(Schema.Type.LONG)),
+                                    Schema.Field.of("name", Schema.of(Schema.Type.STRING)),
+                                    Schema.Field.of("price", Schema.of(Schema.Type.DOUBLE)),
+                                    Schema.Field.of("dt", Schema.nullableOf(Schema.of(Schema.LogicalType.DATE))),
+                                    Schema.Field.of("bytedata", Schema.of(Schema.Type.BYTES)),
+                                    Schema.Field.of("timestamp",
+                                                    Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))));
+
+    BigQuerySinkConfig config = new BigQuerySinkConfig("44", "ds", "tb", "bucket", schema.toString(),
+                                                       "INTEGER", 0L, 100L, 10L, "2097152");
+    MockFailureCollector collector = new MockFailureCollector("bqsink");
+    config.validate(collector);
+    Assert.assertEquals(0, collector.getValidationFailures().size());
+  }
+
+  @Test
+  public void testBigQuerySinkConfigInvalidChunkSize() {
+    Schema schema = Schema.recordOf("record",
+                                    Schema.Field.of("id", Schema.of(Schema.Type.LONG)),
+                                    Schema.Field.of("name", Schema.of(Schema.Type.STRING)),
+                                    Schema.Field.of("price", Schema.of(Schema.Type.DOUBLE)),
+                                    Schema.Field.of("dt", Schema.nullableOf(Schema.of(Schema.LogicalType.DATE))),
+                                    Schema.Field.of("bytedata", Schema.of(Schema.Type.BYTES)),
+                                    Schema.Field.of("timestamp",
+                                                    Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))));
+
+    BigQuerySinkConfig config = new BigQuerySinkConfig("44", "ds", "tb", "bucket", schema.toString(),
+                                                       "INTEGER", 0L, 100L, 10L, "120000");
+    MockFailureCollector collector = new MockFailureCollector("bqsink");
+    config.validate(collector);
+    Assert.assertEquals(1, collector.getValidationFailures().size());
+  }
+
   private Table getTestSchema() {
     Table table = mock(Table.class);
     TableId tableId = TableId.of("test", "testds", "testtab");
