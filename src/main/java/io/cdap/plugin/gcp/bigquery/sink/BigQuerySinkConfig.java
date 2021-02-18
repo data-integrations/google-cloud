@@ -167,7 +167,8 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
 
   public BigQuerySinkConfig(String referenceName, String dataset, String table,
                             @Nullable String bucket, @Nullable String schema, @Nullable String partitioningType,
-                            @Nullable Long rangeStart, @Nullable Long rangeEnd, @Nullable Long rangeInterval) {
+                            @Nullable Long rangeStart, @Nullable Long rangeEnd, @Nullable Long rangeInterval,
+                            @Nullable String gcsChunkSize) {
     this.referenceName = referenceName;
     this.dataset = dataset;
     this.table = table;
@@ -177,6 +178,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     this.rangeStart = rangeStart;
     this.rangeEnd = rangeEnd;
     this.rangeInterval = rangeInterval;
+    this.gcsChunkSize = gcsChunkSize;
   }
 
   public String getTable() {
