@@ -31,6 +31,8 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
@@ -133,14 +135,25 @@ public class EntityToRecordTransformer {
     Schema.LogicalType logicalType = fieldSchema.getLogicalType();
     if (logicalType != null) {
       // GC timestamp supports nano second level precision, CDAP only micro second level precision
-      if (logicalType == Schema.LogicalType.TIMESTAMP_MICROS) {
-        Timestamp timestamp = (Timestamp) castValue(value, Value.ValueTypeCase.TIMESTAMP_VALUE, fieldName);
-        Instant zonedInstant = Instant.ofEpochSecond(timestamp.getSeconds()).plusNanos(timestamp.getNanos());
-        long micros = TimeUnit.SECONDS.toMicros(zonedInstant.getEpochSecond());
-        return Math.addExact(micros, TimeUnit.NANOSECONDS.toMicros(zonedInstant.getNano()));
+      switch (logicalType) {
+        case TIMESTAMP_MICROS:
+          Timestamp timestamp = (Timestamp) castValue(value, Value.ValueTypeCase.TIMESTAMP_VALUE, fieldName);
+          Instant zonedInstant = Instant.ofEpochSecond(timestamp.getSeconds()).plusNanos(timestamp.getNanos());
+          long micros = TimeUnit.SECONDS.toMicros(zonedInstant.getEpochSecond());
+          return Math.addExact(micros, TimeUnit.NANOSECONDS.toMicros(zonedInstant.getNano()));
+        case DATETIME:
+          try {
+            LocalDateTime.parse(value.getStringValue());
+          } catch (DateTimeParseException exception) {
+            throw new UnexpectedFormatException(
+              String.format("Datetime field '%s' with value '%s' is not in ISO-8601 format.", fieldName,
+                            value.getStringValue()), exception);
+          }
+          return value.getStringValue();
+        default:
+          throw new IllegalStateException(
+            String.format("Field '%s' is of unsupported type '%s'", fieldName, logicalType.getToken()));
       }
-      throw new IllegalStateException(
-        String.format("Field '%s' is of unsupported type '%s'", fieldName, logicalType.getToken()));
     }
     Schema.Type fieldType = fieldSchema.getType();
     switch (fieldType) {

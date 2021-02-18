@@ -54,7 +54,7 @@ public class Schemas {
       Schema trueNonNullable = isTrueFieldNullable ? trueFieldSchema.getNonNullable() : trueFieldSchema;
       Schema providedNonNullable = isProvidedFieldNullable ? providedFieldSchema.getNonNullable() : providedFieldSchema;
 
-      if (trueNonNullable.getLogicalType() != providedNonNullable.getLogicalType() ||
+      if (incompatibleLogicalTypes(trueNonNullable, providedNonNullable) ||
         trueNonNullable.getType() != providedNonNullable.getType()) {
         failureCollector.addFailure(String.format("Field '%s' is of unexpected type '%s'.",
                                                   field.getName(), providedNonNullable.getDisplayName()),
@@ -67,5 +67,13 @@ public class Schemas {
           .withOutputSchemaField(field.getName());
       }
     }
+  }
+
+  private static boolean incompatibleLogicalTypes(Schema trueNonNullable, Schema providedNonNullable) {
+    //Allow true schema string to be matched to datetime type
+    if (providedNonNullable.getLogicalType() == Schema.LogicalType.DATETIME) {
+      return trueNonNullable.getType() != Schema.Type.STRING;
+    }
+    return trueNonNullable.getLogicalType() != providedNonNullable.getLogicalType();
   }
 }

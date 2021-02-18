@@ -42,8 +42,8 @@ public class SpannerUtilTest {
       Schema.Field.of("bytes_array", Schema.arrayOf(Schema.nullableOf(Schema.of(Schema.Type.BYTES)))),
       Schema.Field.of("timestamp_array",
                       Schema.arrayOf(Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS)))),
-      Schema.Field.of("date_array", Schema.arrayOf(Schema.nullableOf(Schema.of(Schema.LogicalType.DATE))))
-
+      Schema.Field.of("date_array", Schema.arrayOf(Schema.nullableOf(Schema.of(Schema.LogicalType.DATE)))),
+      Schema.Field.of("datetime_field", Schema.nullableOf(Schema.of(Schema.LogicalType.DATETIME)))
     );
 
     Assert.assertEquals("CREATE TABLE table (id INT64 NOT NULL, name STRING(MAX) NOT NULL, " +
@@ -51,7 +51,7 @@ public class SpannerUtilTest {
                           "int_array ARRAY<INT64> NOT NULL, string_array ARRAY<STRING(MAX)> NOT NULL, " +
                           "bool_array ARRAY<BOOL> NOT NULL, float_array ARRAY<FLOAT64> NOT NULL, " +
                           "bytes_array ARRAY<BYTES(MAX)> NOT NULL, timestamp_array ARRAY<TIMESTAMP> NOT NULL, " +
-                          "date_array ARRAY<DATE> NOT NULL) PRIMARY KEY (id, name)",
+                          "date_array ARRAY<DATE> NOT NULL, datetime_field STRING(MAX)) PRIMARY KEY (id, name)",
                         SpannerUtil.convertSchemaToCreateStatement("table", "id, name", schema));
   }
 }

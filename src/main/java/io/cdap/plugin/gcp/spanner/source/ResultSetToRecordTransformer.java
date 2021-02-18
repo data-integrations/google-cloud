@@ -27,9 +27,11 @@ import io.cdap.cdap.api.data.schema.Schema;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -66,7 +68,10 @@ public class ResultSetToRecordTransformer {
           builder.set(fieldName, resultSet.getDouble(fieldName));
           break;
         case STRING:
-          builder.set(fieldName, resultSet.getString(fieldName));
+          String value = resultSet.getString(fieldName);
+          validateDateTime(field.getSchema().isNullable() ? field.getSchema().getNonNullable() : field.getSchema(),
+                           fieldName, value);
+          builder.set(fieldName, value);
           break;
         case BYTES:
           ByteArray byteArray = resultSet.getBytes(fieldName);
@@ -93,6 +98,19 @@ public class ResultSetToRecordTransformer {
     }
 
     return builder.build();
+  }
+
+  private void validateDateTime(Schema schema, String fieldName, String value) {
+    if (schema.getLogicalType() == Schema.LogicalType.DATETIME) {
+      try {
+        LocalDateTime.parse(value);
+      } catch (DateTimeParseException exception) {
+        throw new UnexpectedFormatException(
+          String
+            .format("Datetime field '%s' with value '%s' is not in ISO-8601 format.", fieldName, value.toString()),
+          exception);
+      }
+    }
   }
 
   private List<?> transformArrayToList(ResultSet resultSet, String fieldName, Schema fieldSchema,

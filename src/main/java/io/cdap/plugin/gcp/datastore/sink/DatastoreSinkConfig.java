@@ -236,6 +236,8 @@ public class DatastoreSinkConfig extends GCPReferenceSinkConfig {
         // timestamps in CDAP are represented as LONG with TIMESTAMP_MICROS logical type
         case TIMESTAMP_MICROS:
         case TIMESTAMP_MILLIS:
+          // datetime type is a string
+        case DATETIME:
           break;
         default:
           collector.addFailure(String.format("Field '%s' is of unsupported type '%s'",

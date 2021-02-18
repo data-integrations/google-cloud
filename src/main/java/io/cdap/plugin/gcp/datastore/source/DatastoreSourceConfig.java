@@ -18,6 +18,7 @@ package io.cdap.plugin.gcp.datastore.source;
 import com.google.cloud.Timestamp;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableSet;
 import com.google.datastore.v1.Filter;
 import com.google.datastore.v1.Key.PathElement;
 import com.google.datastore.v1.KindExpression;
@@ -46,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -57,6 +59,11 @@ import javax.annotation.Nullable;
  */
 public class DatastoreSourceConfig extends GCPReferenceSourceConfig {
   private static final KeyValueListParser KV_PARSER = new KeyValueListParser(";", "\\|");
+  // timestamps in CDAP are represented as LONG with TIMESTAMP_MICROS logical type
+  // datetime logical type is represented as a string with ISO-8601 format
+  private static final Set<Schema.LogicalType> supportedLogicalTypes = new ImmutableSet.Builder<Schema.LogicalType>()
+    .add(Schema.LogicalType.DATETIME, Schema.LogicalType.TIMESTAMP_MICROS)
+    .build();
 
   @Name(DatastoreSourceConstants.PROPERTY_NAMESPACE)
   @Macro
@@ -308,8 +315,7 @@ public class DatastoreSourceConfig extends GCPReferenceSourceConfig {
   private void validateFieldSchema(String fieldName, Schema fieldSchema, FailureCollector collector) {
     Schema.LogicalType logicalType = fieldSchema.getLogicalType();
     if (logicalType != null) {
-      // timestamps in CDAP are represented as LONG with TIMESTAMP_MICROS logical type
-      if (logicalType != Schema.LogicalType.TIMESTAMP_MICROS) {
+      if (!supportedLogicalTypes.contains(logicalType)) {
         collector.addFailure(String.format("Field '%s' is of unsupported type '%s'",
                                            fieldName, fieldSchema.getDisplayName()),
                              "Supported types are: string, double, boolean, bytes, long, record, " +

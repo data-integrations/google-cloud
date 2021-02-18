@@ -500,4 +500,22 @@ public class DatastoreSinkConfigTest {
     Assert.assertEquals("array_of_array", collector.getValidationFailures().get(0).getCauses().get(0)
       .getAttribute(CauseAttributes.INPUT_SCHEMA_FIELD));
   }
+
+  @Test
+  public void testValidateDatetimeSchema() {
+    Schema schema = Schema.recordOf("record",
+                                    Schema.Field
+                                      .of("dt_field", Schema.nullableOf(Schema.of(Schema.LogicalType.DATETIME))));
+
+    DatastoreSinkConfig config = Mockito.spy(DatastoreSinkConfigHelper.newConfigBuilder()
+                                               .setKeyType(SinkKeyType.AUTO_GENERATED_KEY.getValue())
+                                               .setServiceFilePath(null)
+                                               .setBatchSize(25)
+                                               .setIndexStrategy(IndexStrategy.ALL.getValue())
+                                               .build());
+    MockFailureCollector collector = new MockFailureCollector();
+    Mockito.doNothing().when(config).validateDatastoreConnection(collector);
+    config.validate(schema, collector);
+    Assert.assertEquals(0, collector.getValidationFailures().size());
+  }
 }

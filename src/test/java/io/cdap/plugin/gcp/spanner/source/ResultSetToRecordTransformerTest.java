@@ -23,6 +23,7 @@ import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Type;
 import com.google.common.base.Charsets;
 import io.cdap.cdap.api.data.format.StructuredRecord;
+import io.cdap.cdap.api.data.format.UnexpectedFormatException;
 import io.cdap.cdap.api.data.schema.Schema;
 import org.junit.Assert;
 import org.junit.Test;
@@ -30,6 +31,7 @@ import org.mockito.Mockito;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
@@ -49,7 +51,8 @@ public class ResultSetToRecordTransformerTest {
     Schema.Field.of("int_array", Schema.arrayOf(Schema.of(Schema.Type.LONG))),
     Schema.Field.of("float_array", Schema.arrayOf(Schema.of(Schema.Type.DOUBLE))),
     Schema.Field.of("string_array", Schema.arrayOf(Schema.of(Schema.Type.STRING))),
-    Schema.Field.of("bytes_array", Schema.arrayOf(Schema.of(Schema.Type.BYTES)))
+    Schema.Field.of("bytes_array", Schema.arrayOf(Schema.of(Schema.Type.BYTES))),
+    Schema.Field.of("datetime_field", Schema.of(Schema.LogicalType.DATETIME))
   );
 
   @Test
@@ -123,6 +126,10 @@ public class ResultSetToRecordTransformerTest {
       null)
     );
 
+    LocalDateTime datetime = LocalDateTime.now();
+    Mockito.when(rsMock.getColumnType("datetime_field")).thenReturn(Type.string());
+    Mockito.when(rsMock.getString("datetime_field")).thenReturn(datetime.toString());
+
     ResultSetToRecordTransformer transformer = new ResultSetToRecordTransformer(TEST_SCHEMA);
     StructuredRecord record = transformer.transform(rsMock);
 
@@ -138,5 +145,17 @@ public class ResultSetToRecordTransformerTest {
     Assert.assertArrayEquals(expectedFloatList.toArray(), record.get("float_array"));
     Assert.assertArrayEquals(expectedStringList.toArray(), record.get("string_array"));
     Assert.assertArrayEquals(new byte[][]{"1".getBytes(), "2".getBytes(), null}, record.get("bytes_array"));
+    Assert.assertEquals(datetime.toString(), record.get("datetime_field"));
+  }
+
+  @Test(expected = UnexpectedFormatException.class)
+  public void testInvalidDateTime() {
+    Schema testSchema = Schema
+      .recordOf("record", Schema.Field.of("datetime_field", Schema.of(Schema.LogicalType.DATETIME)));
+    ResultSet rsMock = Mockito.mock(ResultSet.class);
+    Mockito.when(rsMock.getColumnType("datetime_field")).thenReturn(Type.string());
+    //date time not in ISO-8601 format
+    Mockito.when(rsMock.getString("datetime_field")).thenReturn("2020-10-10 09:08:10");
+    new ResultSetToRecordTransformer(testSchema).transform(rsMock);
   }
 }

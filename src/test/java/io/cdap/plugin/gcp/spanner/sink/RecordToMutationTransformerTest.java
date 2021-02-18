@@ -29,6 +29,7 @@ import org.junit.Test;
 import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -229,6 +230,17 @@ public class RecordToMutationTransformerTest {
   public void testToCollectionFromListObjects() {
     Collection<Integer> collection = Arrays.asList(1, 2, 3);
     testToCollection(collection, collection);
+  }
+
+  @Test
+  public void testDateTime() {
+    LocalDateTime localDateTime = LocalDateTime.now();
+    Schema schema = Schema.recordOf("record",
+                                    Schema.Field.of("DT", Schema.nullableOf(Schema.of(Schema.LogicalType.DATETIME))));
+    RecordToMutationTransformer transformer = new RecordToMutationTransformer("test", schema);
+    StructuredRecord record = StructuredRecord.builder(schema).setDateTime("DT", localDateTime).build();
+    Assert.assertEquals(Value.string(localDateTime.toString()),
+                        transformer.convertToValue("DT", schema.getField("DT").getSchema(), record));
   }
 
   public void testToCollection(Collection expected, Object object) {

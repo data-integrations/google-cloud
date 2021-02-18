@@ -48,7 +48,7 @@ import java.util.stream.Collectors;
  */
 public class SpannerUtil {
   private static final Set<Schema.LogicalType> SUPPORTED_LOGICAL_TYPES =
-    ImmutableSet.of(Schema.LogicalType.DATE, Schema.LogicalType.TIMESTAMP_MICROS);
+    ImmutableSet.of(Schema.LogicalType.DATE, Schema.LogicalType.TIMESTAMP_MICROS, Schema.LogicalType.DATETIME);
 
   /**
    * Construct and return the {@link Spanner} service for the provided credentials and projectId
@@ -181,7 +181,7 @@ public class SpannerUtil {
       if (logicalType != null && !SUPPORTED_LOGICAL_TYPES.contains(logicalType)) {
         collector.addFailure(
           String.format("Field '%s' is of unsupported type '%s'.", field.getName(), fieldSchema.getDisplayName()),
-          "Change the type to be a date or timestamp.").withOutputSchemaField(field.getName());
+          "Change the type to be a date, timestamp or datetime.").withOutputSchemaField(field.getName());
       }
 
       if (logicalType == null) {
@@ -189,7 +189,7 @@ public class SpannerUtil {
         if (!supportedTypes.contains(type)) {
           collector.addFailure(
             String.format("Field '%s' is of unsupported type '%s'.", field.getName(), fieldSchema.getDisplayName()),
-            String.format("Supported types are: %s, date and timestamp.",
+            String.format("Supported types are: %s, date, datetime and timestamp.",
                           supportedTypes.stream().map(t -> t.name().toLowerCase()).collect(Collectors.joining(", "))))
             .withOutputSchemaField(field.getName());
         }
@@ -224,6 +224,9 @@ public class SpannerUtil {
           case TIMESTAMP_MILLIS:
           case TIMESTAMP_MICROS:
             spannerType = "TIMESTAMP";
+            break;
+          case DATETIME:
+            spannerType = "STRING(MAX)";
             break;
           default:
             // this should not happen

@@ -363,6 +363,7 @@ public class DatastoreSourceConfigTest {
       Schema.Field.of("double_field", Schema.of(Schema.Type.DOUBLE)),
       Schema.Field.of("boolean_field", Schema.nullableOf(Schema.of(Schema.Type.BOOLEAN))),
       Schema.Field.of("timestamp_field", Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))),
+      Schema.Field.of("datetime_field", Schema.nullableOf(Schema.of(Schema.LogicalType.DATETIME))),
       Schema.Field.of("blob_field", Schema.of(Schema.Type.BYTES)),
       Schema.Field.of("record_field",
       Schema.recordOf("record",
