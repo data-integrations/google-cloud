@@ -37,6 +37,7 @@ import io.cdap.cdap.etl.mock.validation.MockFailureCollector;
 import io.cdap.cdap.etl.spark.batch.SparkBatchSinkContext;
 import org.junit.Assert;
 import org.junit.Test;
+import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.internal.util.reflection.FieldSetter;
 
@@ -245,6 +246,23 @@ public class BigQuerySinkTest {
       null,
       collector);
     Assert.assertEquals(0, collector.getValidationFailures().size());
+  }
+
+  //Mocks used to configure testDatasetWithSpecialCharacters
+  @Mock
+  BigQueryMultiSinkConfig bigQueryMultiSinkConfig;
+
+  @Test
+  public void testDatasetWithSpecialCharacters() {
+    BigQueryMultiSink multiSink = new BigQueryMultiSink(bigQueryMultiSinkConfig);
+    Assert.assertEquals("table", multiSink.sanitizeOutputName("table"));
+    Assert.assertEquals("sink_table", multiSink.sanitizeOutputName("sink_table"));
+    Assert.assertEquals("table-2020", multiSink.sanitizeOutputName("table-2020"));
+    Assert.assertEquals("table_2020", multiSink.sanitizeOutputName("table$2020"));
+    Assert.assertEquals("new_table_2020", multiSink.sanitizeOutputName("new#table$2020"));
+    Assert.assertEquals("new-table_2020", multiSink.sanitizeOutputName("new-table,2020"));
+    Assert.assertEquals("new_table_2020", multiSink.sanitizeOutputName("new!table?2020"));
+    Assert.assertEquals("new_table_2020", multiSink.sanitizeOutputName("new^table|2020"));
   }
 
   private Table getTestSchema() {
