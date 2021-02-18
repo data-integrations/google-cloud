@@ -366,6 +366,9 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
         if (failure != null) {
           failure.withInputSchemaField(fieldName).withOutputSchemaField(fieldName);
         }
+        BigQueryUtil.validateFieldModeMatches(bqFields.get(fieldName), field,
+                                              getConfig().isAllowSchemaRelaxation(),
+                                              collector);
       }
     }
     collector.getOrThrowException();
@@ -448,9 +451,12 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
           ValidationFailure failure = BigQueryUtil.validateFieldSchemaMatches(
             bqFields.get(field.getName()), field, getConfig().getDataset(), tableName,
             AbstractBigQuerySinkConfig.SUPPORTED_TYPES, collector);
-        if (failure != null) {
+          if (failure != null) {
             failure.withInputSchemaField(fieldName).withOutputSchemaField(fieldName);
           }
+          BigQueryUtil.validateFieldModeMatches(bqFields.get(fieldName), field,
+                                                allowSchemaRelaxation,
+                                                collector);
         }
       }
     }
