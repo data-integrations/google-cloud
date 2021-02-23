@@ -230,6 +230,13 @@
           <groupId>org.apache.hbase</groupId>
           <artifactId>hbase-server</artifactId>
         </exclusion>
+        <!-- bigtable-hbase-1.x-mapreduce version 1.17.1 has a dependency on hbase-common:1.4.12
+        which masks the shaded dependencies below . Exclude this dependency.
+        All the classes should be present in the shaded jars-->
+        <exclusion>
+          <groupId>org.apache.hbase</groupId>
+          <artifactId>hbase-common</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
     <dependency>
