@@ -40,6 +40,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 
 /**
@@ -81,6 +82,7 @@ public class EntityToRecordTransformerTest {
       Value.newBuilder().setStringValue("value_2").build())).build();
 
     LocalDateTime currentDateTime = LocalDateTime.now();
+    String formattedDt = currentDateTime.format(DateTimeFormatter.ISO_DATE_TIME);
     Entity entity = Entity.newBuilder()
       .setKey(Key.newBuilder().
         setPartitionId(PartitionId.newBuilder()
@@ -90,7 +92,7 @@ public class EntityToRecordTransformerTest {
       .putProperties("double_field", Value.newBuilder().setDoubleValue(10.5D).build())
       .putProperties("boolean_field", Value.newBuilder().setBooleanValue(true).build())
       .putProperties("timestamp_field", Value.newBuilder().setTimestampValue(entityTs).build())
-      .putProperties("datetime_field", Value.newBuilder().setStringValue(currentDateTime.toString()).build())
+      .putProperties("datetime_field", Value.newBuilder().setStringValue(formattedDt).build())
       .putProperties("blob_field", Value.newBuilder().
         setBlobValue(ByteString.copyFrom(Blob.copyFrom("test_blob".getBytes()).toByteArray())).build())
       .putProperties("null_field", Value.newBuilder().setNullValue(NullValue.NULL_VALUE).build())

@@ -33,6 +33,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
@@ -239,7 +240,7 @@ public class RecordToMutationTransformerTest {
                                     Schema.Field.of("DT", Schema.nullableOf(Schema.of(Schema.LogicalType.DATETIME))));
     RecordToMutationTransformer transformer = new RecordToMutationTransformer("test", schema);
     StructuredRecord record = StructuredRecord.builder(schema).setDateTime("DT", localDateTime).build();
-    Assert.assertEquals(Value.string(localDateTime.toString()),
+    Assert.assertEquals(Value.string(localDateTime.format(DateTimeFormatter.ISO_DATE_TIME)),
                         transformer.convertToValue("DT", schema.getField("DT").getSchema(), record));
   }
 

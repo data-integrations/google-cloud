@@ -22,6 +22,8 @@ import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -76,7 +78,16 @@ public class HBaseResultToRecordTransformer {
     }
     switch (fieldSchema.getType()) {
       case STRING:
-        return Bytes.toString(bytes);
+        String stringValue = Bytes.toString(bytes);
+        if (fieldSchema.getLogicalType() == Schema.LogicalType.DATETIME) {
+          try {
+            LocalDateTime.parse(stringValue);
+          } catch (DateTimeParseException exception) {
+            throw new UnexpectedFormatException(
+              String.format("Datetime field with value '%s' is not in ISO-8601 format.", stringValue), exception);
+          }
+        }
+        return stringValue;
       case BYTES:
         return bytes;
       case INT:

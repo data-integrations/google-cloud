@@ -29,6 +29,8 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
@@ -39,6 +41,8 @@ public class HBaseResultToRecordTransformerTest {
 
   @Test
   public void testTransformAllTypes() {
+    LocalDateTime now = LocalDateTime.now();
+    String formatted = now.format(DateTimeFormatter.ISO_DATE_TIME);
     List<Cell> cellList = ImmutableList.of(
       createCell("boolean_column", Bytes.toBytes(true)),
       createCell("bytes_column", Bytes.toBytes("bytes")),
@@ -46,7 +50,8 @@ public class HBaseResultToRecordTransformerTest {
       createCell("float_column", Bytes.toBytes(10.5F)),
       createCell("int_column", Bytes.toBytes(1)),
       createCell("long_column", Bytes.toBytes(10L)),
-      createCell("string_column", Bytes.toBytes("string"))
+      createCell("string_column", Bytes.toBytes("string")),
+      createCell("datetime_column", Bytes.toBytes(formatted))
     );
     Result result = Result.create(cellList);
 
@@ -58,7 +63,8 @@ public class HBaseResultToRecordTransformerTest {
                       Schema.Field.of("float_column", Schema.of(Schema.Type.FLOAT)),
                       Schema.Field.of("double_column", Schema.of(Schema.Type.DOUBLE)),
                       Schema.Field.of("bytes_column", Schema.of(Schema.Type.BYTES)),
-                      Schema.Field.of("string_column", Schema.of(Schema.Type.STRING))
+                      Schema.Field.of("string_column", Schema.of(Schema.Type.STRING)),
+                      Schema.Field.of("datetime_column", Schema.of(Schema.LogicalType.DATETIME))
       );
 
     Map<String, String> columnMappings = ImmutableMap.<String, String>builder()
@@ -69,6 +75,7 @@ public class HBaseResultToRecordTransformerTest {
       .put("test:double_column", "double_column")
       .put("test:bytes_column", "bytes_column")
       .put("test:string_column", "string_column")
+      .put("test:datetime_column", "datetime_column")
       .build();
 
     HBaseResultToRecordTransformer transformer = new HBaseResultToRecordTransformer(schema, null, columnMappings);
@@ -81,6 +88,7 @@ public class HBaseResultToRecordTransformerTest {
     Assert.assertEquals(10.5D, record.get("double_column"), 0);
     Assert.assertEquals("bytes", new String((byte[]) record.get("bytes_column")));
     Assert.assertEquals("string", record.get("string_column"));
+    Assert.assertEquals(formatted, record.get("datetime_column"));
   }
 
   @Test

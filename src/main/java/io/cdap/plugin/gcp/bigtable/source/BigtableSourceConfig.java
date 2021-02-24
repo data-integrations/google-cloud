@@ -237,14 +237,15 @@ public final class BigtableSourceConfig extends GCPReferenceSourceConfig {
             field.getSchema().getNonNullable() : field.getSchema();
 
           if (!SUPPORTED_FIELD_TYPES.contains(nonNullableSchema.getType()) ||
-            nonNullableSchema.getLogicalType() != null) {
+            (nonNullableSchema.getLogicalType() != Schema.LogicalType.DATETIME &&
+              nonNullableSchema.getLogicalType() != null)) {
             String supportedTypes = SUPPORTED_FIELD_TYPES.stream()
               .map(Enum::name)
               .map(String::toLowerCase)
               .collect(Collectors.joining(", "));
             String errorMessage = String.format("Field '%s' is of unsupported type '%s'.",
                                                 field.getName(), nonNullableSchema.getDisplayName());
-            collector.addFailure(errorMessage, String.format("Supported types are: %s.", supportedTypes))
+            collector.addFailure(errorMessage, String.format("Supported types are: datetime, %s.", supportedTypes))
               .withOutputSchemaField(field.getName());
           }
         }

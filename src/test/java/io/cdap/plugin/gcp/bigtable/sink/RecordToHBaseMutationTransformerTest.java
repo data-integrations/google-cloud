@@ -26,6 +26,8 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Map;
 
 public class RecordToHBaseMutationTransformerTest {
@@ -43,9 +45,11 @@ public class RecordToHBaseMutationTransformerTest {
       Schema.Field.of("long_column", Schema.nullableOf(Schema.of(Schema.Type.LONG))),
       Schema.Field.of("float_column", Schema.nullableOf(Schema.of(Schema.Type.FLOAT))),
       Schema.Field.of("double_column", Schema.nullableOf(Schema.of(Schema.Type.DOUBLE))),
-      Schema.Field.of("boolean_column", Schema.nullableOf(Schema.of(Schema.Type.BOOLEAN)))
+      Schema.Field.of("boolean_column", Schema.nullableOf(Schema.of(Schema.Type.BOOLEAN))),
+      Schema.Field.of("datetime_column", Schema.nullableOf(Schema.of(Schema.LogicalType.DATETIME)))
     );
 
+    LocalDateTime now = LocalDateTime.now();
     StructuredRecord inputRecord = StructuredRecord.builder(schema)
       .set("id", 1)
       .set("string_column", "string_value")
@@ -55,6 +59,7 @@ public class RecordToHBaseMutationTransformerTest {
       .set("float_column", 15.5F)
       .set("double_column", 10.5D)
       .set("boolean_column", true)
+      .setDateTime("datetime_column", now)
       .build();
 
     Map<String, HBaseColumn> columnMappings = ImmutableMap.<String, HBaseColumn>builder()
@@ -66,6 +71,7 @@ public class RecordToHBaseMutationTransformerTest {
       .put("double_column", HBaseColumn.fromFamilyAndQualifier(TEST_FAMILY_STRING, "double_column"))
       .put("bytes_column", HBaseColumn.fromFamilyAndQualifier(TEST_FAMILY_STRING, "bytes_column"))
       .put("string_column", HBaseColumn.fromFamilyAndQualifier(TEST_FAMILY_STRING, "string_column"))
+      .put("datetime_column", HBaseColumn.fromFamilyAndQualifier(TEST_FAMILY_STRING, "datetime_column"))
       .build();
 
     RecordToHBaseMutationTransformer transformer =
@@ -80,6 +86,8 @@ public class RecordToHBaseMutationTransformerTest {
     Assert.assertTrue(put.has(TEST_FAMILY, Bytes.toBytes("float_column"), Bytes.toBytes(15.5F)));
     Assert.assertTrue(put.has(TEST_FAMILY, Bytes.toBytes("double_column"), Bytes.toBytes(10.5D)));
     Assert.assertTrue(put.has(TEST_FAMILY, Bytes.toBytes("boolean_column"), Bytes.toBytes(true)));
+    Assert.assertTrue(put.has(TEST_FAMILY, Bytes.toBytes("datetime_column"),
+                              Bytes.toBytes(now.format(DateTimeFormatter.ISO_DATE_TIME))));
   }
 
   @Test
