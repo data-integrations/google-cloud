@@ -34,6 +34,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
 
@@ -127,8 +128,9 @@ public class ResultSetToRecordTransformerTest {
     );
 
     LocalDateTime datetime = LocalDateTime.now();
+    String formattedDatetime = datetime.format(DateTimeFormatter.ISO_DATE_TIME);
     Mockito.when(rsMock.getColumnType("datetime_field")).thenReturn(Type.string());
-    Mockito.when(rsMock.getString("datetime_field")).thenReturn(datetime.toString());
+    Mockito.when(rsMock.getString("datetime_field")).thenReturn(formattedDatetime);
 
     ResultSetToRecordTransformer transformer = new ResultSetToRecordTransformer(TEST_SCHEMA);
     StructuredRecord record = transformer.transform(rsMock);
@@ -145,7 +147,7 @@ public class ResultSetToRecordTransformerTest {
     Assert.assertArrayEquals(expectedFloatList.toArray(), record.get("float_array"));
     Assert.assertArrayEquals(expectedStringList.toArray(), record.get("string_array"));
     Assert.assertArrayEquals(new byte[][]{"1".getBytes(), "2".getBytes(), null}, record.get("bytes_array"));
-    Assert.assertEquals(datetime.toString(), record.get("datetime_field"));
+    Assert.assertEquals(formattedDatetime, record.get("datetime_field"));
   }
 
   @Test(expected = UnexpectedFormatException.class)

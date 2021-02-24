@@ -37,6 +37,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -255,7 +256,7 @@ public class RecordToEntityTransformerTest {
     Assert.assertTrue(value.getExcludeFromIndexes());
 
     value = outputEntity.getPropertiesOrThrow("datetime_field");
-    Assert.assertEquals(localDateTime.toString(), DatastoreHelper.getString(value));
+    Assert.assertEquals(localDateTime.format(DateTimeFormatter.ISO_DATE_TIME), DatastoreHelper.getString(value));
     Assert.assertTrue(value.getExcludeFromIndexes());
 
     value = outputEntity.getPropertiesOrThrow("boolean_field");

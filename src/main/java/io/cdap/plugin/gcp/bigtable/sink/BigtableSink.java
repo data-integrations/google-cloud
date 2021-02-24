@@ -57,7 +57,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**
@@ -192,7 +191,8 @@ public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableByt
       Schema nonNullableSchema = field.getSchema().isNullable() ?
         field.getSchema().getNonNullable() : field.getSchema();
       if (!SUPPORTED_FIELD_TYPES.contains(nonNullableSchema.getType()) ||
-        nonNullableSchema.getLogicalType() != null) {
+        (nonNullableSchema.getLogicalType() != Schema.LogicalType.DATETIME &&
+          nonNullableSchema.getLogicalType() != null)) {
 
         String supportedTypes = SUPPORTED_FIELD_TYPES.stream()
           .map(Enum::name)
@@ -201,7 +201,7 @@ public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableByt
 
         String errorMessage = String.format("Field '%s' is of unsupported type '%s'.",
                                             field.getName(), nonNullableSchema.getDisplayName());
-        collector.addFailure(errorMessage, String.format("Supported types are: %s.", supportedTypes))
+        collector.addFailure(errorMessage, String.format("Supported types are: datetime, %s.", supportedTypes))
           .withInputSchemaField(field.getName());
       }
     }
