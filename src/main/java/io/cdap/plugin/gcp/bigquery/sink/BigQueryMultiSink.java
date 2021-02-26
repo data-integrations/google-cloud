@@ -21,6 +21,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
+import io.cdap.cdap.api.data.batch.Output;
 import io.cdap.cdap.api.data.batch.OutputFormatProvider;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
@@ -77,6 +78,23 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
     baseConfiguration.set(BigQueryConstants.CONFIG_OPERATION, Operation.INSERT.name());
     Map<String, String> arguments = new HashMap<>(context.getArguments().asMap());
     FailureCollector collector = context.getFailureCollector();
+
+    if (config.getAllowFlexibleSchema()) {
+      //Configure MultiSink with support for flexible schemas.
+      configureSchemalessOutput(context, bucket);
+    } else {
+      //Configure MultiSink with fixed schemas based on arguments.
+      configureOutputSchemas(context, bigQuery, bucket, arguments, collector);
+    }
+
+    collector.getOrThrowException();
+  }
+
+  protected void configureOutputSchemas(BatchSinkContext context,
+                                        BigQuery bigQuery,
+                                        String bucket,
+                                        Map<String, String> arguments,
+                                        FailureCollector collector) {
     for (Map.Entry<String, String> argument : arguments.entrySet()) {
       String key = argument.getKey();
       if (!key.startsWith(TABLE_PREFIX)) {
@@ -115,7 +133,18 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
         collector.addFailure("Invalid schema: " + e.getMessage(), null);
       }
     }
-    collector.getOrThrowException();
+  }
+
+  protected void configureSchemalessOutput(BatchSinkContext context,
+                                           String bucket) throws IOException {
+    Configuration conf = getOutputConfiguration();
+    String splitField = config.getSplitField();
+    String bucketName = config.getBucket();
+    String projectName = config.getDatasetProject();
+    String datasetName = config.getDataset();
+    context.addOutput(Output.of(config.getReferenceName(),
+                                new DelegatingMultiSinkOutputFormatProvider(conf, splitField, bucketName,
+                                                                            projectName, datasetName)));
   }
 
   /**

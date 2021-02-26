@@ -52,6 +52,7 @@ public class BigQueryRecordWriter extends RecordWriter<StructuredRecord, NullWri
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public void write(StructuredRecord structuredRecord, NullWritable nullWriter) throws IOException,
     InterruptedException {
     delegate.write(recordConverter.transform(structuredRecord, outputSchema), nullWriter);

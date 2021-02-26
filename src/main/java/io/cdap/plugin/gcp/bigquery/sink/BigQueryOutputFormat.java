@@ -108,9 +108,24 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
   public RecordWriter<StructuredRecord, NullWritable> getRecordWriter(TaskAttemptContext taskAttemptContext)
     throws IOException, InterruptedException {
     Configuration configuration = taskAttemptContext.getConfiguration();
+    return getRecordWriter(taskAttemptContext,
+                           getOutputSchema(configuration));
+  }
+
+  /**
+   * Get a Record Writer instance which uses a supplied schema to write output records.
+   *
+   * @param taskAttemptContext the execution context
+   * @param schema             output schema
+   * @return Record Writer Instance
+   */
+  public RecordWriter<StructuredRecord, NullWritable> getRecordWriter(TaskAttemptContext taskAttemptContext,
+                                                                      io.cdap.cdap.api.data.schema.Schema schema)
+    throws IOException, InterruptedException {
+    Configuration configuration = taskAttemptContext.getConfiguration();
     return new BigQueryRecordWriter(getDelegate(configuration).getRecordWriter(taskAttemptContext),
                                     BigQueryOutputConfiguration.getFileFormat(configuration),
-                                    getOutputSchema(configuration));
+                                    schema);
   }
 
   private io.cdap.cdap.api.data.schema.Schema getOutputSchema(Configuration configuration) throws IOException {
