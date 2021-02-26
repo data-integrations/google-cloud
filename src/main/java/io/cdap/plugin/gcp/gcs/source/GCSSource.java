@@ -192,6 +192,17 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
       + "The default is '" + DEFAULT_ENCRYPTED_METADATA_SUFFIX + "'.")
     private String encryptedMetadataSuffix;
 
+    @Macro
+    @Nullable
+    @Description("A list of columns with the corresponding data types for whom the automatic data type detection gets" +
+      " skipped.")
+    private String override;
+
+    @Macro
+    @Nullable
+    @Description("The maximum number of rows that will get investigated for automatic data type detection.")
+    private Long sampleSize;
+
     public GCSSourceConfig() {
       this.maxSplitSize = 128L * 1024 * 1024;
       this.recursive = false;
