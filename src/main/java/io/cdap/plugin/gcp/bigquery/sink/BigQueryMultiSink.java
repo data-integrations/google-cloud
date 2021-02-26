@@ -17,6 +17,7 @@ package io.cdap.plugin.gcp.bigquery.sink;
 
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.Table;
+import com.google.common.annotations.VisibleForTesting;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
@@ -126,7 +127,8 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
    * This method sanitizes outputName when there is an un-allowed special character in dataset
    * For example: If we have a dataset with outputName testtable$2020, this method will sanitize it to testtable_2020
    */
-  private String sanitizeOutputName(String outputName) {
+  @VisibleForTesting
+  String sanitizeOutputName(String outputName) {
     // Output name before regex: testtable$2020
     final Pattern compilePattern = Pattern.compile(OUTPUT_PATTERN);
     final boolean validatePattern = compilePattern.matcher(outputName).matches();
