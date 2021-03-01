@@ -86,6 +86,26 @@ public class BigQuerySinkTest {
   }
 
   @Test
+  public void testBigQueryTimePartitionConfig() {
+    Schema schema = Schema.recordOf("record",
+            Schema.Field.of("id", Schema.of(Schema.Type.LONG)),
+            Schema.Field.of("name", Schema.of(Schema.Type.STRING)),
+            Schema.Field.of("price", Schema.of(Schema.Type.DOUBLE)),
+            Schema.Field.of("dt", Schema.nullableOf(Schema.of(Schema.LogicalType.DATE))),
+            Schema.Field.of("bytedata", Schema.of(Schema.Type.BYTES)),
+            Schema.Field.of("timestamp",
+                    Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))));
+
+    BigQuerySinkConfig config = new BigQuerySinkConfig("44", "ds", "tb", "bucket", schema.toString(),
+            "TIME", 0L, 100L, 10L, null);
+    config.partitionByField = "dt";
+    
+    MockFailureCollector collector = new MockFailureCollector("bqsink");
+    config.validate(collector);
+    Assert.assertEquals(0, collector.getValidationFailures().size());
+  }
+
+  @Test
   public void testBigQuerySinkMetricInsert() throws Exception {
     Job mockJob = getMockLoadJob(10L);
     testMetric(mockJob, 10L, 1);
