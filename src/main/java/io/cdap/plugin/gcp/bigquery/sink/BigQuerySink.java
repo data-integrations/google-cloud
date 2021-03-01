@@ -107,6 +107,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
   protected void prepareRunValidation(BatchSinkContext context) {
     FailureCollector collector = context.getFailureCollector();
     config.validate(context.getInputSchema(), config.getSchema(collector), collector);
+    collector.getOrThrowException();
   }
 
   @Override
