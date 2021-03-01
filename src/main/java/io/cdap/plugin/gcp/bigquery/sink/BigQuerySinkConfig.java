@@ -389,7 +389,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
       validateColumnForPartition(partitionByField, schema, collector);
       return;
     }
-    if (!shouldCreatePartitionedTable()) {
+    if (shouldCreatePartitionedTable()) {
       validateColumnForPartition(partitionByField, schema, collector);
     }
   }
@@ -433,7 +433,16 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
 
   private void validateColumnForPartition(@Nullable String columnName, @Nullable Schema schema,
                                           FailureCollector collector) {
-    if (columnName == null || schema == null) {
+    if (containsMacro(NAME_PARTITION_BY_FIELD) || containsMacro(NAME_PARTITIONING_TYPE) || schema == null) {
+      return;
+    }
+    PartitionType partitioningType = getPartitioningType();
+    if (Strings.isNullOrEmpty(columnName)) {
+      if (partitioningType == PartitionType.INTEGER) {
+        collector.addFailure("Partition column not provided.",
+                             "Set the column for integer partitioning.")
+          .withConfigProperty(NAME_PARTITION_BY_FIELD);
+      }
       return;
     }
     Schema.Field field = schema.getField(columnName);
@@ -445,7 +454,6 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     }
     Schema fieldSchema = field.getSchema();
     fieldSchema = fieldSchema.isNullable() ? fieldSchema.getNonNullable() : fieldSchema;
-    PartitionType partitioningType = getPartitioningType();
     if (partitioningType == PartitionType.TIME) {
       validateTimePartitioningColumn(columnName, collector, fieldSchema);
     } else if (partitioningType == PartitionType.INTEGER) {
