@@ -40,11 +40,21 @@
           }
         },
         {
-          "widget-type": "plugin-list",
+          "widget-type": "select",
           "label": "Format",
           "name": "format",
           "widget-attributes": {
-            "plugin-type": "validatingInputFormat"
+            "values": [
+              "avro",
+              "blob",
+              "csv",
+              "delimited",
+              "json",
+              "parquet",
+              "text",
+              "tsv"
+            ],
+            "default": "text"
           }
         },
         {
