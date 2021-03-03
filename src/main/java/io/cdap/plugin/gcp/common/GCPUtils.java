@@ -130,7 +130,7 @@ public class GCPUtils {
     return properties;
   }
 
-  public static Map<String, String> getFileSystemProperties(GCPConfig config, String path,
+  public static Map<String, String> getFileSystemProperties(GCPConfig config, @Nullable String path,
                                                             Map<String, String> properties) {
     try {
       properties.putAll(generateAuthProperties(config.getServiceAccount(), config.getServiceAccountType(),
@@ -142,7 +142,9 @@ public class GCPUtils {
     properties.put("fs.AbstractFileSystem.gs.impl", GoogleHadoopFS.class.getName());
     String projectId = config.getProject();
     properties.put(FS_GS_PROJECT_ID, projectId);
-    properties.put("fs.gs.system.bucket", GCSPath.from(path).getBucket());
+    if (path != null) {
+      properties.put("fs.gs.system.bucket", GCSPath.from(path).getBucket());
+    }
     properties.put("fs.gs.path.encoding", "uri-path");
     properties.put("fs.gs.working.dir", GCSPath.ROOT_DIR);
     properties.put("fs.gs.impl.disable.cache", "true");
