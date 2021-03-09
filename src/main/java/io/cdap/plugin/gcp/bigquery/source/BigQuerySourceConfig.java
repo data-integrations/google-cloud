@@ -56,18 +56,8 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   public static final String NAME_VIEW_MATERIALIZATION_PROJECT = "viewMaterializationProject";
   public static final String NAME_VIEW_MATERIALIZATION_DATASET = "viewMaterializationDataset";
 
-  @Name(NAME_DATASET)
-  @Macro
-  @Description("The dataset the table belongs to. A dataset is contained within a specific project. "
-    + "Datasets are top-level containers that are used to organize and control access to tables and views.")
-  private String dataset;
 
-  @Name(NAME_TABLE)
-  @Macro
-  @Description("The table to read from. A table contains individual records organized in rows. "
-    + "Each record is composed of columns (also called fields). "
-    + "Every table is defined by a schema that describes the column names, data types, and other information.")
-  private String table;
+  private BigQueryConnection connection;
 
   @Name(NAME_BUCKET)
   @Macro
@@ -135,13 +125,29 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
     + "Defaults to the same dataset in which the view is located.")
   private String viewMaterializationDataset;
 
+  public BigQuerySourceConfig(BigQueryConnection conn, @Nullable String bucket, @Nullable String schema,
+                              @Nullable String datasetProject, @Nullable String partitionFrom,
+                              @Nullable String partitionTo, @Nullable String filter,
+                              @Nullable String enableQueryingViews, @Nullable String viewMaterializationProject,
+                              @Nullable String viewMaterializationDataset) {
+    this.connection = conn;
+    this.bucket = bucket;
+    this.schema = schema;
+    this.datasetProject = datasetProject;
+    this.partitionFrom = partitionFrom;
+    this.partitionTo = partitionTo;
+    this.filter = filter;
+    this.enableQueryingViews = enableQueryingViews;
+    this.viewMaterializationProject = viewMaterializationProject;
+    this.viewMaterializationDataset = viewMaterializationDataset;
+  }
 
   public String getDataset() {
-    return dataset;
+    return connection.getDataset();
   }
 
   public String getTable() {
-    return table;
+    return connection.getTable();
   }
 
   @Nullable
@@ -175,7 +181,7 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
     }
 
     if (!containsMacro(NAME_DATASET)) {
-      BigQueryUtil.validateDataset(dataset, NAME_DATASET, collector);
+      BigQueryUtil.validateDataset(getDataset(), NAME_DATASET, collector);
     }
 
     if (!containsMacro(NAME_TABLE)) {
@@ -184,13 +190,13 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   }
 
   private void validateTable(FailureCollector collector) {
-    BigQueryUtil.validateTable(table, NAME_TABLE, collector);
+    BigQueryUtil.validateTable(getTable(), NAME_TABLE, collector);
 
     if (canConnect()) {
       Type definition = getSourceTableType();
       if (definition != null && definition == Type.VIEW && !isEnableQueryingViews()) {
         collector.addFailure(
-          String.format("'%s' is a 'View' :", table),
+          String.format("'%s' is a 'View' :", getTable()),
           "In order to enable query views, please enable 'Enable Querying Views'");
       }
     }
@@ -204,7 +210,7 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   public Type getSourceTableType() {
     Table sourceTable =
       BigQueryUtil.getBigQueryTable(
-        getDatasetProject(), getDataset(), table, getServiceAccount(), isServiceAccountFilePath());
+        getDatasetProject(), getDataset(), getTable(), getServiceAccount(), isServiceAccountFilePath());
     return sourceTable != null ? sourceTable.getDefinition().getType() : null;
   }
 

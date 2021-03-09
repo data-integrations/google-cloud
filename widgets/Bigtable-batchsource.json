@@ -17,18 +17,18 @@
         },
         {
           "widget-type": "textbox",
-          "label": "Project ID",
+          "label": "Connector Namespace",
           "name": "project",
           "widget-attributes" : {
-            "default": "auto-detect"
+            "placeholder": "Namespace the connection is in"
           }
         },
         {
           "widget-type": "textbox",
-          "label": "Instance ID",
+          "label": "Connection ID",
           "name": "instance",
           "widget-attributes" : {
-            "placeholder": "Bigtable instance id"
+            "placeholder": "Connection name for this bigquery source"
           }
         },
         {

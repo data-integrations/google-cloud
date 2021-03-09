@@ -101,6 +101,7 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
                                 null : GCPUtils.loadServiceAccountCredentials(config.getServiceAccount(),
                                                                               config.isServiceAccountFilePath());
     BigQuery bigQuery = GCPUtils.getBigQuery(config.getProject(), credentials);
+    bigQuery.listDatasets();
     Job queryJob = bigQuery.create(JobInfo.newBuilder(queryConfig).setJobId(jobId).build());
 
     LOG.info("Executing SQL as job {}.", jobId.getJob());
