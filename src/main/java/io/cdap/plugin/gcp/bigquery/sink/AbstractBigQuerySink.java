@@ -115,7 +115,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
     Path gcsPath;
     String bucket = getConfig().getBucket();
     if (bucket == null) {
-      gcsPath = new Path(String.format(gcsPathFormat, uuid.toString(), uuid.toString()));
+      gcsPath = new Path(String.format("gs://%s", uuid.toString()));
     } else {
       gcsPath = new Path(String.format(gcsPathFormat, bucket, uuid.toString()));
     }
