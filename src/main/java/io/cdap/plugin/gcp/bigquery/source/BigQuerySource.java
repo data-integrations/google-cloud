@@ -235,7 +235,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     org.apache.hadoop.fs.Path gcsPath = null;
     String bucket = config.getBucket();
     if (bucket == null) {
-      gcsPath = new Path(String.format("gs://%s/%s", uuid, uuid));
+      gcsPath = new Path(String.format("gs://%s", uuid));
     } else {
       gcsPath = new Path(String.format("gs://%s/%s", bucket, uuid));
     }
