@@ -53,6 +53,8 @@ The format must be one of 'avro', 'parquet', 'orc' or 'delimited'.
 **Delimiter:** Delimiter to use if the format is 'delimited'.
 The delimiter will be ignored if the format is anything other than 'delimited'.
 
+**Write Header:** Whether to write a header to each file if the format is 'delimited', 'csv', or 'tsv'.
+
 **Location:** The location where the gcs buckets will get created. This value is ignored if the bucket already exists.
 
 **Service Account**  - service account key used for authorization
