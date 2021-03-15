@@ -286,6 +286,12 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     @Nullable
     private String delimiter;
 
+    @Macro
+    @Nullable
+    @Description("Whether a header should be written to each output file. This only applies to the delimited, csv, " +
+      "and tsv formats.")
+    private Boolean writeHeader;
+
     @Description("The schema of the data to write. The 'avro' and 'parquet' formats require a schema but other "
       + "formats do not.")
     @Macro
