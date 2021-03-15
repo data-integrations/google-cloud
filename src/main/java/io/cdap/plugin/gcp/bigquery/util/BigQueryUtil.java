@@ -365,7 +365,8 @@ public final class BigQueryUtil {
    */
   public static void validateFieldModeMatches(Field bigQueryField, Schema.Field field, boolean allowSchemaRelaxation,
                                               FailureCollector collector) {
-    boolean isBqFieldNullable = bigQueryField.getMode().equals(Field.Mode.NULLABLE);
+    Field.Mode mode = bigQueryField.getMode();
+    boolean isBqFieldNullable = mode == null || mode.equals(Field.Mode.NULLABLE);
     if (!allowSchemaRelaxation && field.getSchema().isNullable() != isBqFieldNullable) {
       collector.addFailure(String.format("Field '%s' cannot be %s.", bigQueryField.getName(),
                                          isBqFieldNullable ? "required" : "nullable"),
