@@ -69,6 +69,7 @@ public final class GCSBucketCreate extends Action {
     String projectId = config.getProject();
     configuration.set("fs.gs.project.id", projectId);
     configuration.set("fs.gs.path.encoding", "uri-path");
+    configuration.set("fs.gs.proxy.address", "http://10.109.122.29:8080");
 
     configuration.setBoolean("fs.gs.impl.disable.cache", true);
     configuration.setBoolean("fs.gs.metadata.cache.enable", false);

@@ -50,6 +50,7 @@ public class GCPUtils {
     if (serviceAccountFilePath != null) {
       properties.put("google.cloud.auth.service.account.json.keyfile", serviceAccountFilePath);
     }
+    
     properties.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
     properties.put("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
     String projectId = config.getProject();
@@ -58,6 +59,9 @@ public class GCPUtils {
     properties.put("fs.gs.path.encoding", "uri-path");
     properties.put("fs.gs.working.dir", GCSPath.ROOT_DIR);
     properties.put("fs.gs.impl.disable.cache", "true");
+    
+    //properties.put("fs.gs.proxy.address", "localhost:3128");
+    properties.put("fs.gs.proxy.address", "http://10.109.122.29:8080");
     return properties;
   }
 

@@ -121,6 +121,7 @@ public final class BigQueryUtil {
     configuration.set("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
     configuration.set("fs.gs.project.id", projectId);
     configuration.set("fs.gs.working.dir", GCSPath.ROOT_DIR);
+    configuration.set("fs.gs.proxy.address", "http://10.109.122.29:8080");
     configuration.set(BigQueryConfiguration.PROJECT_ID_KEY, projectId);
     return configuration;
   }

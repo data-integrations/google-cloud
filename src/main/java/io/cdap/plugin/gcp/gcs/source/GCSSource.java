@@ -78,6 +78,7 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
     properties.put("fs.gs.path.encoding", "uri-path");
     properties.put("fs.gs.working.dir", GCSPath.ROOT_DIR);
     properties.put("fs.gs.impl.disable.cache", "true");
+    properties.put("fs.gs.proxy.address", "http://10.109.122.29:8080");
     if (config.copyHeader) {
       properties.put(PathTrackingInputFormat.COPY_HEADER, "true");
     }
