@@ -55,6 +55,8 @@ When running on other clusters, the file must be present on every node in the cl
 Smaller partitions will increase the level of parallelism, but will require more resources and overhead.
 The default value is 128MB.
 
+**Minimum Split Size:** Minimum size in bytes for each input partition.
+
 **Regex Path Filter:** Regular expression that file paths must match in order to be included in the input.
 The full file path is compared, not just the file name.
 If no value is given, no file filtering will be done.
