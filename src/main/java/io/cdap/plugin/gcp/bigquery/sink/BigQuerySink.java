@@ -185,7 +185,12 @@ public final class BigQuerySink extends AbstractBigQuerySink {
 
       @Override
       public Map<String, String> getOutputFormatConfiguration() {
-        return BigQueryUtil.configToMap(configuration);
+        Map<String, String> configToMap = BigQueryUtil.configToMap(configuration);
+        if (tableSchema != null) {
+          configToMap
+            .put(BigQueryConstants.CDAP_BQ_SINK_OUTPUT_SCHEMA, tableSchema.toString());
+        }
+        return configToMap;
       }
     };
   }
@@ -244,15 +249,17 @@ public final class BigQuerySink extends AbstractBigQuerySink {
                                                 config.getServiceAccount(),
                                                 config.isServiceAccountFilePath());
     baseConfiguration.setBoolean(BigQueryConstants.CONFIG_DESTINATION_TABLE_EXISTS, table != null);
-    List<String> tableFieldsNames;
+    List<String> tableFieldsNames = null;
     if (table != null) {
        tableFieldsNames = Objects.requireNonNull(table.getDefinition().getSchema()).getFields().stream()
         .map(Field::getName).collect(Collectors.toList());
-    } else {
+    } else if (schema != null) {
       tableFieldsNames = schema.getFields().stream()
         .map(Schema.Field::getName).collect(Collectors.toList());
     }
-    baseConfiguration.set(BigQueryConstants.CONFIG_TABLE_FIELDS, String.join(",", tableFieldsNames));
+    if (tableFieldsNames != null) {
+      baseConfiguration.set(BigQueryConstants.CONFIG_TABLE_FIELDS, String.join(",", tableFieldsNames));
+    }
   }
 
   private void validateConfiguredSchema(Schema schema, FailureCollector collector) {
