@@ -7,18 +7,29 @@ import com.google.cloud.pubsub.v1.SubscriptionAdminClient;
 import com.google.cloud.pubsub.v1.stub.SubscriberStub;
 import com.google.pubsub.v1.PushConfig;
 import com.google.pubsub.v1.Subscription;
+import io.cdap.cdap.api.macro.Macros;
+import io.cdap.cdap.api.plugin.PluginConfig;
+import io.cdap.cdap.api.plugin.PluginProperties;
+import io.cdap.cdap.etl.mock.validation.MockFailureCollector;
+import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
 import org.apache.spark.api.java.StorageLevels;
 import org.apache.spark.storage.StorageLevel;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.internal.util.reflection.FieldSetter;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -88,6 +99,34 @@ public class PubSubReceiverSubscriptionTest {
     when(backoffConfig.getInitialBackoffMs()).thenReturn(100);
     when(backoffConfig.getBackoffFactor()).thenReturn(2.0);
     when(backoffConfig.getMaximumBackoffMs()).thenReturn(10000);
+  }
+
+  @Test
+  public void testPubSubSubscriptionMacro() throws Exception {
+    PubSubSubscriberConfig config = new PubSubSubscriberConfig();
+
+    Set<String> macroFields = new HashSet<>();
+    macroFields.add(PubSubSubscriberConfig.NAME_SUBSCRIPTION);
+    Set<String> lookupProperties = new HashSet<>();
+    lookupProperties.add("subscription");
+    Map<String, String> properties = new HashMap<>();
+    properties.put(PubSubSubscriberConfig.NAME_SUBSCRIPTION, "${subscription}");
+    Macros macros = new Macros(lookupProperties, null);
+
+    PluginProperties rawProperties = PluginProperties.builder()
+      .addAll(properties)
+      .build()
+      .setMacros(macros);
+
+    FieldSetter.setField(config, GCPReferenceSourceConfig.class.getDeclaredField("referenceName"),
+                         "pubsub_source");
+    FieldSetter.setField(config, PluginConfig.class.getDeclaredField("rawProperties"), rawProperties);
+    FieldSetter.setField(config, PluginConfig.class.getDeclaredField("macroFields"), macroFields);
+
+    MockFailureCollector collector = new MockFailureCollector();
+    config.validate(collector);
+
+    Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
   @Test
