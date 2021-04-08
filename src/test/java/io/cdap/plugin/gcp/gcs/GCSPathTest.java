@@ -66,6 +66,19 @@ public class GCSPathTest {
   }
 
   @Test
+  public void testGetObject() {
+    Assert.assertEquals("csvExample.csv", GCSPath.from("gs://my-bucket/csvExample.csv").getName());
+    Assert.assertEquals("textExample.txt", GCSPath.from("my-bucket/textExample.txt").getName());
+    Assert.assertEquals("jsonExample.json", GCSPath.from("/my-bucket/jsonExample.json").getName());
+    Assert.assertEquals("avroExample.avro", GCSPath.from("gs://my-bucket/avroExample.avro").getName());
+    Assert.assertEquals("parquetExample.parquet",
+                        GCSPath.from("my-bucket/parquetExample.parquet").getName());
+    Assert.assertEquals("blobExample.blb", GCSPath.from("/my-bucket/blobExample.blb").getName());
+
+    assertFailure(() -> GCSPath.from(""));
+  }
+
+  @Test
   public void testSlashes() {
     for (String path : new String[] { "gs://b0/n0", "b0/n0", "/b0/n0" }) {
       GCSPath gcsPath = GCSPath.from(path);
