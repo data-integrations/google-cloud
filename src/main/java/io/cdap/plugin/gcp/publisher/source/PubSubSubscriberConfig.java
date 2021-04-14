@@ -29,6 +29,8 @@ import javax.annotation.Nullable;
  */
 public class PubSubSubscriberConfig extends GCPReferenceSourceConfig implements Serializable {
 
+  public static final String NAME_SUBSCRIPTION = "subscription";
+
   @Description("Cloud Pub/Sub subscription to read from. If a subscription with the specified name does not " +
     "exist, it will be automatically created if a topic is specified. Messages published before the subscription " +
     "was created will not be read.")
@@ -50,6 +52,11 @@ public class PubSubSubscriberConfig extends GCPReferenceSourceConfig implements 
 
   public void validate(FailureCollector collector) {
     super.validate(collector);
+
+    if (containsMacro(NAME_SUBSCRIPTION)) {
+      return;
+    }
+
     String regAllowedChars = "[A-Za-z0-9-.%~+_]*$";
     String regStartWithLetter = "[A-Za-z]";
     if (!getSubscription().matches(regAllowedChars)) {
