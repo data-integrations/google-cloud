@@ -48,22 +48,20 @@
           }
         },
         {
-          "widget-type": "ds-multiplevalues",
+          "widget-type": "keyvalue",
           "label": "Argument Selection Conditions",
           "name": "argumentSelectionConditions",
           "widget-attributes" : {
             "delimiter": ";",
-            "values-delimiter": "=",
-            "placeholders": [
-              "Column name for identifying the argument to run a pipeline",
-              "Column value for identifying the argument to run a pipeline"
-            ]
+            "kv-delimiter": "=",
+            "key-placeholder": "Column name",
+            "value-placeholder": "Value"
           }
         },
         {
           "name": "argumentsColumns",
-          "label": "Arguments Columns",
-          "widget-type": "CSV",
+          "label": "Argument Columns",
+          "widget-type": "csv",
           "widget-attributes" : {
             "delimiter": ",",
             "placeholder": "The name of the column that contains the arguments for this run."
