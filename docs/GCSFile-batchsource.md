@@ -30,6 +30,8 @@ It can be found on the Dashboard in the Google Cloud Platform Console.
 
 **Path:** Path to file(s) to be read. If a directory is specified, terminate the path name with a '/'.
 For example, `gs://<bucket>/path/to/directory/`.
+An asterisk ("\*") can be used as a wildcard to match a filename pattern.
+If no files are found or matched, the pipeline will fail.
 
 **Format:** Format of the data to read.
 The format must be one of 'avro', 'blob', 'csv', 'delimited', 'json', 'parquet', 'text', 'tsv', or the
