@@ -16,6 +16,8 @@
 
 package io.cdap.plugin.gcp.bigquery.action;
 
+import com.google.common.base.Splitter;
+import com.google.gson.Gson;
 import io.cdap.cdap.etl.api.validation.CauseAttributes;
 import io.cdap.cdap.etl.api.validation.ValidationException;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
@@ -23,12 +25,23 @@ import io.cdap.cdap.etl.mock.validation.MockFailureCollector;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.EnumMap;
+import java.util.Map;
+
 public class BigQueryArgumentSetterConfigTest {
 
   private static final String VALID_DATASET = "dataset";
   private static final String VALID_TABLE = "table";
   private static final String VALID_ARGUMENT_SELECTION_CONDITIONS = "feed=10;id=0";
   private static final String VALID_ARGUMENT_COLUMN = "name";
+
+  @Test
+  public void test() {
+    Map<Person, String> enumMap = new EnumMap<>(Person.class);
+    enumMap.put(Person.A, "");
+
+    System.out.println(new Gson().toJson(enumMap));
+  }
 
   @Test
   public void testValidateMissingArgumentSelectionConditions() {

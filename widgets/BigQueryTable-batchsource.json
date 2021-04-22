@@ -5,6 +5,35 @@
   "display-name": "BigQuery",
   "configuration-groups": [
     {
+      "label": "Connection",
+      "properties": [
+        {
+          "widget-type": "toggle",
+          "label": "Use connection",
+          "name": "useConnection",
+          "widget-attributes": {
+            "on": {
+              "value": "true",
+              "label": "YES"
+            },
+            "off": {
+              "value": "false",
+              "label": "NO"
+            },
+            "default": "false"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Connection",
+          "name": "connection",
+          "widget-attributes": {
+            "placeholder": "connection id"
+          }
+        }
+      ]
+    },
+    {
       "label": "Basic",
       "properties": [
         {
@@ -13,6 +42,14 @@
           "name": "referenceName",
           "widget-attributes": {
             "placeholder": "Name used to identify this source for lineage"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "ABCD",
+          "name": "abcd",
+          "widget-attributes": {
+            "placeholder": "abcd"
           }
         },
         {
@@ -224,6 +261,46 @@
         {
           "type": "property",
           "name": "serviceAccountJSON"
+        }
+      ]
+    },
+    {
+      "name": "ViewConnectionProperties",
+      "condition": {
+        "expression": "useConnection == false "
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "project"
+        },
+        {
+          "type": "property",
+          "name": "datasetProject"
+        },
+        {
+          "type": "property",
+          "name": "serviceAccountType"
+        },
+        {
+          "type": "property",
+          "name": "serviceFilePath"
+        },
+        {
+          "type": "property",
+          "name": "serviceAccountJSON"
+        }
+      ]
+    },
+    {
+      "name": "ViewConnectionId",
+      "condition": {
+        "expression": "useConnection == true "
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "connection"
         }
       ]
     }

@@ -27,7 +27,6 @@ public class GCPConfig extends PluginConfig {
   @Description("Google Cloud Project ID, which uniquely identifies a project. "
     + "It can be found on the Dashboard in the Google Cloud Platform Console.")
   @Macro
-  @Nullable
   protected String project;
 
   @Name(NAME_SERVICE_ACCOUNT_TYPE)

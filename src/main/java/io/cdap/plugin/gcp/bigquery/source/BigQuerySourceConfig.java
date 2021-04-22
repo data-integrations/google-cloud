@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.bigquery.source;
 
+import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.ServiceOptions;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableDefinition.Type;
@@ -25,19 +26,21 @@ import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.api.plugin.PluginConfig;
 import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.plugin.common.Constants;
+import io.cdap.plugin.common.IdUtils;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
-import io.cdap.plugin.gcp.common.GCPConfig;
-import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
 
 import java.io.IOException;
 import java.util.Set;
 import javax.annotation.Nullable;
 
+
 /**
  * Holds configuration required for configuring {@link BigQuerySource}.
  */
-public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
+public final class BigQuerySourceConfig extends PluginConfig {
   private static final String SCHEME = "gs://";
   private static final String WHERE = "WHERE";
   public static final Set<Schema.Type> SUPPORTED_TYPES =
@@ -55,9 +58,37 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   public static final String NAME_ENABLE_QUERYING_VIEWS = "enableQueryingViews";
   public static final String NAME_VIEW_MATERIALIZATION_PROJECT = "viewMaterializationProject";
   public static final String NAME_VIEW_MATERIALIZATION_DATASET = "viewMaterializationDataset";
+  public static final String CONNECTION = "connection";
 
+  @Name(Constants.Reference.REFERENCE_NAME)
+  @Description("This will be used to uniquely identify this source for lineage, annotating metadata, etc.")
+  public String referenceName;
 
+  @Name("connection")
+  @Macro
+  @Nullable
+  @Description("Connection id to use connection")
   private BigQueryConnection connection;
+
+  @Name("useConnection")
+  @Description("Use connection or not")
+  @Nullable
+  private Boolean useConnection;
+
+  @Name(BigQuerySourceConfig.NAME_DATASET)
+  @Macro
+  @Description("The dataset the table belongs to. A dataset is contained within a specific project. "
+                 + "Datasets are top-level containers that are used to organize and contro" +
+                 "l access to tables and views.")
+  private String dataset;
+
+  @Name(BigQuerySourceConfig.NAME_TABLE)
+  @Macro
+  @Description("The table to read from. A table contains individual records organized in rows. "
+                 + "Each record is composed of columns (also called fields). "
+                 + "Every table is defined by a schema that describes the column names, data " +
+                 "types, and other information.")
+  private String table;
 
   @Name(NAME_BUCKET)
   @Macro
@@ -75,13 +106,13 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   @Description("The schema of the table to read.")
   private String schema;
 
-  @Name(NAME_DATASET_PROJECT)
-  @Macro
-  @Nullable
-  @Description("The project the dataset belongs to. This is only required if the dataset is not "
-    + "in the same project that the BigQuery job will run in. If no value is given, it will default to the configured "
-    + "project ID.")
-  private String datasetProject;
+//  @Name(NAME_DATASET_PROJECT)
+//  @Macro
+//  @Nullable
+//  @Description("The project the dataset belongs to. This is only required if the dataset is not "
+//    + "in the same project that the BigQuery job will run in. If no value is given, it will default to the configured"
+//    + "project ID.")
+//  private String datasetProject;
 
   @Name(NAME_PARTITION_FROM)
   @Macro
@@ -133,7 +164,7 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
     this.connection = conn;
     this.bucket = bucket;
     this.schema = schema;
-    this.datasetProject = datasetProject;
+  //  this.datasetProject = datasetProject;
     this.partitionFrom = partitionFrom;
     this.partitionTo = partitionTo;
     this.filter = filter;
@@ -143,11 +174,11 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   }
 
   public String getDataset() {
-    return connection.getDataset();
+    return dataset;
   }
 
   public String getTable() {
-    return connection.getTable();
+    return table;
   }
 
   @Nullable
@@ -166,14 +197,24 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   }
 
   public String getDatasetProject() {
-    if (GCPConfig.AUTO_DETECT.equalsIgnoreCase(datasetProject)) {
-      return ServiceOptions.getDefaultProjectId();
+    return getProject();
+//    if (GCPConfig.AUTO_DETECT.equalsIgnoreCase(datasetProject)) {
+//      return ServiceOptions.getDefaultProjectId();
+//    }
+//    return Strings.isNullOrEmpty(datasetProject) ? getProject() : datasetProject;
+  }
+
+  public String getProject() {
+    String projectId = tryGetProject();
+    if (projectId == null) {
+      throw new IllegalArgumentException(
+        "Could not detect Google Cloud project id from the environment. Please specify a project id.");
     }
-    return Strings.isNullOrEmpty(datasetProject) ? getProject() : datasetProject;
+    return projectId;
   }
 
   public void validate(FailureCollector collector) {
-    super.validate(collector);
+    IdUtils.validateReferenceName(referenceName, collector);
     String bucket = getBucket();
 
     if (!containsMacro(NAME_BUCKET)) {
@@ -280,8 +321,93 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   public boolean canConnect() {
     return !containsMacro(NAME_SCHEMA) && !containsMacro(NAME_DATASET) && !containsMacro(NAME_TABLE) &&
       !containsMacro(NAME_DATASET_PROJECT) &&
-      !containsMacro(NAME_SERVICE_ACCOUNT_TYPE) &&
-      !(containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH) || containsMacro(NAME_SERVICE_ACCOUNT_JSON)) &&
-      !containsMacro(NAME_PROJECT);
+      !containsMacro(BigQueryConnection.NAME_SERVICE_ACCOUNT_TYPE) &&
+      !(containsMacro(BigQueryConnection.NAME_SERVICE_ACCOUNT_FILE_PATH)
+          || containsMacro(BigQueryConnection.NAME_SERVICE_ACCOUNT_JSON)) &&
+      !containsMacro(BigQueryConnection.NAME_PROJECT) && !containsMacro(CONNECTION);
+  }
+
+  @Nullable
+  public String tryGetProject() {
+    if (containsMacro(CONNECTION)) {
+      return null;
+    }
+    String projectId = connection.project;
+    if (Strings.isNullOrEmpty(connection.project) || BigQueryConnection.AUTO_DETECT.equals(connection.project)) {
+      projectId = ServiceOptions.getDefaultProjectId();
+    }
+    return projectId;
+  }
+
+  @Nullable
+  public String getServiceAccountFilePath() {
+    if (containsMacro(CONNECTION) || connection.serviceFilePath == null ||
+          connection.serviceFilePath.isEmpty() || BigQueryConnection.AUTO_DETECT.equals(connection.serviceFilePath)) {
+      return null;
+    }
+    return connection.serviceFilePath;
+  }
+
+  @Nullable
+  public String getServiceAccountJson() {
+    if (containsMacro(CONNECTION) ||
+          Strings.isNullOrEmpty(connection.serviceAccountJson)) {
+      return null;
+    }
+    return connection.serviceAccountJson;
+  }
+
+  /**
+   * @return Service Account Type, defaults to filePath.
+   */
+  @Nullable
+  public String getServiceAccountType() {
+    if (containsMacro(CONNECTION)) {
+      return null;
+    }
+    return Strings.isNullOrEmpty(connection.serviceAccountType) ? BigQueryConnection.SERVICE_ACCOUNT_FILE_PATH :
+             connection.serviceAccountType;
+  }
+
+  @Nullable
+  public Boolean isServiceAccountJson() {
+    String serviceAccountType = getServiceAccountType();
+    return Strings.isNullOrEmpty(serviceAccountType) ? null :
+             serviceAccountType.equals(BigQueryConnection.SERVICE_ACCOUNT_JSON);
+  }
+
+  @Nullable
+  public Boolean isServiceAccountFilePath() {
+    String serviceAccountType = getServiceAccountType();
+    return Strings.isNullOrEmpty(serviceAccountType) ? null :
+             serviceAccountType.equals(BigQueryConnection.SERVICE_ACCOUNT_FILE_PATH);
+  }
+
+  @Nullable
+  public String getServiceAccount() {
+    Boolean serviceAccountJson = isServiceAccountJson();
+    if (serviceAccountJson == null) {
+      return null;
+    }
+    return serviceAccountJson ? getServiceAccountJson() : getServiceAccountFilePath();
+  }
+
+  /**
+   * Return true if the service account is set to auto-detect but it can't be fetched from the environment.
+   * This shouldn't result in a deployment failure, as the credential could be detected at runtime if the pipeline
+   * runs on dataproc. This should primarily be used to check whether certain validation logic should be skipped.
+   *
+   * @return true if the service account is set to auto-detect but it can't be fetched from the environment.
+   */
+  public boolean autoServiceAccountUnavailable() {
+    if (getServiceAccountFilePath() == null &&
+          BigQueryConnection.SERVICE_ACCOUNT_FILE_PATH.equals(getServiceAccountType())) {
+      try {
+        ServiceAccountCredentials.getApplicationDefault();
+      } catch (IOException e) {
+        return true;
+      }
+    }
+    return false;
   }
 }
