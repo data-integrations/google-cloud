@@ -18,6 +18,7 @@ package io.cdap.plugin.gcp.bigquery.action;
 
 import com.google.auth.Credentials;
 import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.EncryptionConfiguration;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldValueList;
@@ -42,6 +43,7 @@ import io.cdap.plugin.gcp.common.GCPUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import javax.annotation.Nullable;
 
 /**
@@ -152,7 +154,7 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
   /**
    * Config for the plugin.
    */
-  public final class Config extends AbstractBigQueryActionConfig {
+  public static final class Config extends AbstractBigQueryActionConfig {
     private static final String MODE = "mode";
     private static final String SQL = "sql";
     private static final String DATASET = "dataset";
@@ -207,6 +209,12 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     @Macro
     private String rowAsArguments;
 
+    public Config(String dialect, String sql, String mode) {
+      this.dialect = dialect;
+      this.sql = sql;
+      this.mode = mode;
+    }
+
     public boolean isLegacySQL() {
       return dialect.equalsIgnoreCase("legacy");
     }
@@ -253,8 +261,17 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
         }
       }
 
-      if (!containsMacro(SQL) && Strings.isNullOrEmpty(sql)) {
-        failureCollector.addFailure("SQL not specified. Please specify a SQL to execute", null).withConfigProperty(SQL);
+      if (!containsMacro(SQL)) {
+        if (Strings.isNullOrEmpty(sql)) {
+          failureCollector.addFailure("SQL not specified.", "Please specify a SQL to execute")
+            .withConfigProperty(SQL);
+        } else {
+          if (tryGetProject() != null && !containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH)
+            && !containsMacro(NAME_SERVICE_ACCOUNT_JSON)) {
+            BigQuery bigquery = getBigQuery(failureCollector);
+            validateSQLSyntax(failureCollector, bigquery);
+          }
+        }
       }
 
       // validates that either they are null together or not null together
@@ -273,6 +290,28 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
       }
 
       failureCollector.getOrThrowException();
+    }
+
+    public void validateSQLSyntax(FailureCollector failureCollector, BigQuery bigQuery) {
+      QueryJobConfiguration queryJobConfiguration = QueryJobConfiguration.newBuilder(sql).setDryRun(true).build();
+      try {
+        bigQuery.create(JobInfo.of(queryJobConfiguration));
+      } catch (BigQueryException e) {
+        failureCollector.addFailure(String.format("%s.", e.getMessage()), "Please specify a valid query.")
+          .withConfigProperty(SQL);
+      }
+    }
+
+    private BigQuery getBigQuery(FailureCollector failureCollector) {
+      Credentials credentials = null;
+      try {
+        credentials = getServiceAccount() == null ?
+          null : GCPUtils.loadServiceAccountCredentials(getServiceAccount(), isServiceAccountFilePath());
+      } catch (IOException e) {
+        failureCollector.addFailure(e.getMessage(), null);
+        failureCollector.getOrThrowException();
+      }
+      return GCPUtils.getBigQuery(getProject(), credentials);
     }
   }
 }
