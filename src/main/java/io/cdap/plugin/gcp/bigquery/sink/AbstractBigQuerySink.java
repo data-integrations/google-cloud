@@ -25,10 +25,7 @@ import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
-import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
-import com.google.cloud.hadoop.io.bigquery.output.BigQueryOutputConfiguration;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
-import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableSchema;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
@@ -55,6 +52,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -271,7 +269,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
     AbstractBigQuerySinkConfig config = getConfig();
 
     if (!config.isAllowSchemaRelaxation()) {
-      Schema tableSchema = getTableSchema(tableName, bqSchema, collector);
+      Schema tableSchema = getTableSchema(tableName, bqSchema, collector, configuredSchema);
       // We use GCS buckets to write AVRO files and import them in BigQuery.
       // Avro is a self describing format and BigQuery overwrites table schema with AVRO record
       // schema.
@@ -296,7 +294,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
   private Schema getTableSchema(
     String tableName,
     @Nullable com.google.cloud.bigquery.Schema bqSchema,
-    FailureCollector collector) {
+    FailureCollector collector, Schema configuredSchema) {
     if (bqSchema == null) {
       AbstractBigQuerySinkConfig config = getConfig();
       Table table = BigQueryUtil.getBigQueryTable(
@@ -321,7 +319,28 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
       LOG.info("Table [%s] doesn't have a schema. Using input schema for writing records.", tableName);
       return null;
     }
-    return BigQueryUtil.getTableSchema(bqSchema, collector);
+    return getOrderedSchema(bqSchema, configuredSchema);
+  }
+
+  private Schema getOrderedSchema(com.google.cloud.bigquery.Schema bqSchema, Schema configuredSchema) {
+    if (configuredSchema == null) {
+      return null;
+    }
+
+    List<Schema.Field> reOrderedFields = new ArrayList<>();
+    FieldList fields = bqSchema.getFields();
+    for (Field field : fields) {
+      Schema.Field schemaField = configuredSchema.getField(field.getName(), true);
+      //all fields in table may not be present in configured schema
+      if (schemaField == null) {
+        continue;
+      }
+      reOrderedFields.add(schemaField);
+    }
+    if (reOrderedFields.isEmpty()) {
+      return null;
+    }
+    return Schema.recordOf(configuredSchema.getRecordName(), reOrderedFields);
   }
 
   protected void validateInsertSchema(Table table, @Nullable Schema tableSchema, FailureCollector collector) {
