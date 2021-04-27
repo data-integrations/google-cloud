@@ -25,10 +25,7 @@ import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
-import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
-import com.google.cloud.hadoop.io.bigquery.output.BigQueryOutputConfiguration;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
-import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableSchema;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
@@ -252,76 +249,6 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
     baseConfiguration.setBoolean("fs.gs.impl.disable.cache", true);
     baseConfiguration.setBoolean("fs.gs.metadata.cache.enable", false);
     return bucket;
-  }
-
-  /**
-   * Adjusts output format schema depending on allowSchemaRelaxation setting to avoid unexpected
-   * schema changes to the underlying bigQuery table.
-   * @param configuredSchema Schema configured for output format.
-   * @param bqSchema Optional BigQuery table schema to avoid duplicate calls.
-   * @param tableName BigQuery table name for writing record.
-   * @param collector Failure collector to report failures to the client.
-   * @return
-   */
-  protected final Schema overrideOutputSchemaWithTableSchemaIfNeeded(
-    String tableName,
-    Schema configuredSchema,
-    @Nullable com.google.cloud.bigquery.Schema bqSchema,
-    FailureCollector collector) {
-    AbstractBigQuerySinkConfig config = getConfig();
-
-    if (!config.isAllowSchemaRelaxation()) {
-      Schema tableSchema = getTableSchema(tableName, bqSchema, collector);
-      // We use GCS buckets to write AVRO files and import them in BigQuery.
-      // Avro is a self describing format and BigQuery overwrites table schema with AVRO record
-      // schema.
-      // If table schema relaxation is not allowed then AVRO records will be normalized and
-      // written to GCS using table schema to avoid any table schema changes.
-      if (tableSchema != null) {
-        LOG.info("Output schema updated to use table schema");
-        return tableSchema;
-      }
-    }
-    return configuredSchema;
-  }
-
-  /**
-   * Returns Bigtable schema in a CDAP schema format.
-   * @param tableName BigQuery table name for writing record.
-   * @param bqSchema Optional BigQuery table schema to avoid duplicate calls.
-   * @param collector Failure collector to report failures to the client.
-   * @return
-   */
-  @Nullable
-  private Schema getTableSchema(
-    String tableName,
-    @Nullable com.google.cloud.bigquery.Schema bqSchema,
-    FailureCollector collector) {
-    if (bqSchema == null) {
-      AbstractBigQuerySinkConfig config = getConfig();
-      Table table = BigQueryUtil.getBigQueryTable(
-        config.getProject(),
-        config.getDataset(),
-        tableName,
-        config.getServiceAccount(),
-        config.isServiceAccountFilePath(),
-        collector);
-
-      if (table == null) {
-        LOG.info("Table [%s] doesn't exist yet. Using input schema for writing records.",
-          tableName);
-        return null;
-      }
-
-      bqSchema = table.getDefinition().getSchema();
-    }
-
-    if (bqSchema == null || bqSchema.getFields().isEmpty()) {
-      // Table is created without schema, so no further validation is required.
-      LOG.info("Table [%s] doesn't have a schema. Using input schema for writing records.", tableName);
-      return null;
-    }
-    return BigQueryUtil.getTableSchema(bqSchema, collector);
   }
 
   protected void validateInsertSchema(Table table, @Nullable Schema tableSchema, FailureCollector collector) {
