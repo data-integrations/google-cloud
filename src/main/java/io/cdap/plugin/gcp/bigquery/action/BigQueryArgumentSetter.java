@@ -73,7 +73,7 @@ public final class BigQueryArgumentSetter extends AbstractBigQueryAction {
   public void run(ActionContext context) throws Exception {
     config.validate(context.getFailureCollector());
 
-    QueryJobConfiguration queryConfig = config.getQueryJobConfiguration();
+    QueryJobConfiguration queryConfig = config.getQueryJobConfiguration(context.getFailureCollector());
     JobId jobId = JobId.newBuilder().setRandomJob().build();
 
     // API request - starts the query.
