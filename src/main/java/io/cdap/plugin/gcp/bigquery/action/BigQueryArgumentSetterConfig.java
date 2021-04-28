@@ -182,7 +182,7 @@ public final class BigQueryArgumentSetterConfig extends AbstractBigQueryActionCo
   }
 
   public QueryJobConfiguration getQueryJobConfiguration() {
-    Table sourceTable = BigQueryUtil.getBigQueryTable(project, dataset, table, getServiceAccount(),
+    Table sourceTable = BigQueryUtil.getBigQueryTable(getProject(), dataset, table, getServiceAccount(),
                                                       isServiceAccountFilePath());
 
     StandardTableDefinition tableDefinition = Objects.requireNonNull(sourceTable).getDefinition();
