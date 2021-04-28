@@ -117,11 +117,7 @@ public final class BigQueryArgumentSetterConfig extends AbstractBigQueryActionCo
     validateProperties(collector);
 
     if (canConnect()) {
-      try {
-        getQueryJobConfiguration();
-      } catch (Exception e) {
-        collector.addFailure(e.getMessage(), "");
-      }
+      getQueryJobConfiguration(collector);
     }
   }
 
@@ -181,9 +177,17 @@ public final class BigQueryArgumentSetterConfig extends AbstractBigQueryActionCo
     }
   }
 
-  public QueryJobConfiguration getQueryJobConfiguration() {
+  public QueryJobConfiguration getQueryJobConfiguration(FailureCollector collector) {
     Table sourceTable = BigQueryUtil.getBigQueryTable(getProject(), dataset, table, getServiceAccount(),
-                                                      isServiceAccountFilePath());
+                                                      isServiceAccountFilePath(), collector);
+
+    if (sourceTable == null) {
+      // Table does not exist
+      collector.addFailure(String.format("BigQuery table '%s:%s.%s' does not exist.", getProject(), dataset, table),
+              "Ensure correct table name is provided.")
+              .withConfigProperty(NAME_TABLE);
+      throw collector.getOrThrowException();
+    }
 
     StandardTableDefinition tableDefinition = Objects.requireNonNull(sourceTable).getDefinition();
     FieldList fields = Objects.requireNonNull(tableDefinition.getSchema()).getFields();
