@@ -110,8 +110,6 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
 
           validateSchema(tableName, bqSchema, configuredSchema, config.allowSchemaRelaxation, collector);
 
-          tableSchema = overrideOutputSchemaWithTableSchemaIfNeeded(
-            tableName, configuredSchema, bqSchema, collector);
         }
 
         String outputName = String.format("%s-%s", config.getReferenceName(), tableName);
