@@ -16,7 +16,6 @@
 
 package io.cdap.plugin.gcp.bigquery.source;
 
-import com.google.cloud.ServiceOptions;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableDefinition.Type;
 import com.google.common.base.Strings;
@@ -26,9 +25,8 @@ import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.plugin.gcp.bigquery.common.BigQueryBaseConfig;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
-import io.cdap.plugin.gcp.common.GCPConfig;
-import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
 
 import java.io.IOException;
 import java.util.Set;
@@ -37,16 +35,13 @@ import javax.annotation.Nullable;
 /**
  * Holds configuration required for configuring {@link BigQuerySource}.
  */
-public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
-  private static final String SCHEME = "gs://";
+public final class BigQuerySourceConfig extends BigQueryBaseConfig {
   private static final String WHERE = "WHERE";
   public static final Set<Schema.Type> SUPPORTED_TYPES =
     ImmutableSet.of(Schema.Type.LONG, Schema.Type.STRING, Schema.Type.DOUBLE, Schema.Type.BOOLEAN, Schema.Type.BYTES,
                     Schema.Type.ARRAY, Schema.Type.RECORD);
 
-  public static final String NAME_DATASET = "dataset";
   public static final String NAME_TABLE = "table";
-  public static final String NAME_BUCKET = "bucket";
   public static final String NAME_SCHEMA = "schema";
   public static final String NAME_DATASET_PROJECT = "datasetProject";
   public static final String NAME_PARTITION_FROM = "partitionFrom";
@@ -56,12 +51,6 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
   public static final String NAME_VIEW_MATERIALIZATION_PROJECT = "viewMaterializationProject";
   public static final String NAME_VIEW_MATERIALIZATION_DATASET = "viewMaterializationDataset";
 
-  @Name(NAME_DATASET)
-  @Macro
-  @Description("The dataset the table belongs to. A dataset is contained within a specific project. "
-    + "Datasets are top-level containers that are used to organize and control access to tables and views.")
-  private String dataset;
-
   @Name(NAME_TABLE)
   @Macro
   @Description("The table to read from. A table contains individual records organized in rows. "
@@ -69,29 +58,11 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
     + "Every table is defined by a schema that describes the column names, data types, and other information.")
   private String table;
 
-  @Name(NAME_BUCKET)
-  @Macro
-  @Nullable
-  @Description("The Google Cloud Storage bucket to store temporary data in. "
-    + "It will be automatically created if it does not exist, but will not be automatically deleted. "
-    + "Temporary data will be deleted after it has been read. "
-    + "If it is not provided, a unique bucket will be created and then deleted after the run finishes. "
-    + "The service account must have permission to create buckets in the configured project.")
-  private String bucket;
-
   @Name(NAME_SCHEMA)
   @Macro
   @Nullable
   @Description("The schema of the table to read.")
   private String schema;
-
-  @Name(NAME_DATASET_PROJECT)
-  @Macro
-  @Nullable
-  @Description("The project the dataset belongs to. This is only required if the dataset is not "
-    + "in the same project that the BigQuery job will run in. If no value is given, it will default to the configured "
-    + "project ID.")
-  private String datasetProject;
 
   @Name(NAME_PARTITION_FROM)
   @Macro
@@ -135,35 +106,8 @@ public final class BigQuerySourceConfig extends GCPReferenceSourceConfig {
     + "Defaults to the same dataset in which the view is located.")
   private String viewMaterializationDataset;
 
-
-  public String getDataset() {
-    return dataset;
-  }
-
   public String getTable() {
     return table;
-  }
-
-  @Nullable
-  public String getBucket() {
-    if (bucket != null) {
-      bucket = bucket.trim();
-      if (bucket.isEmpty()) {
-        return null;
-      }
-      // remove the gs:// scheme from the bucket name
-      if (bucket.startsWith(SCHEME)) {
-        bucket = bucket.substring(SCHEME.length());
-      }
-    }
-    return bucket;
-  }
-
-  public String getDatasetProject() {
-    if (GCPConfig.AUTO_DETECT.equalsIgnoreCase(datasetProject)) {
-      return ServiceOptions.getDefaultProjectId();
-    }
-    return Strings.isNullOrEmpty(datasetProject) ? getProject() : datasetProject;
   }
 
   public void validate(FailureCollector collector) {

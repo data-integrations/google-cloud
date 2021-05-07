@@ -172,22 +172,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
   protected OutputFormatProvider getOutputFormatProvider(Configuration configuration,
                                                          String tableName,
                                                          Schema tableSchema) {
-    return new OutputFormatProvider() {
-      @Override
-      public String getOutputFormatClassName() {
-        return BigQueryOutputFormat.class.getName();
-      }
-
-      @Override
-      public Map<String, String> getOutputFormatConfiguration() {
-        Map<String, String> configToMap = BigQueryUtil.configToMap(configuration);
-        if (tableSchema != null) {
-          configToMap
-            .put(BigQueryConstants.CDAP_BQ_SINK_OUTPUT_SCHEMA, tableSchema.toString());
-        }
-        return configToMap;
-      }
-    };
+    return new BigQueryOutputFormatProvider(configuration, tableSchema);
   }
 
   /**

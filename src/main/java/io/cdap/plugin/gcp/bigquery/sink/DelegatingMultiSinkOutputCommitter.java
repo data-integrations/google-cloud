@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.bigquery.sink;
 
+import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
 import io.cdap.cdap.api.data.schema.Schema;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.JobStatus;
@@ -24,6 +25,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -155,13 +157,14 @@ public class DelegatingMultiSinkOutputCommitter extends OutputCommitter {
 
   public void configureContext(JobContext context, String tableName) throws IOException {
     Schema schema = schemaMap.get(tableName);
+    List<BigQueryTableFieldSchema> fields = BigQuerySinkUtils.getBigQueryTableFieldsFromSchema(schema);
 
-    BigQuerySinkUtils.configureBigQueryOutputForMultiSink(context,
-                                                          projectName,
-                                                          datasetName,
-                                                          bucketName,
-                                                          bucketPathUniqueId,
-                                                          tableName,
-                                                          schema);
+    BigQuerySinkUtils.configureMultiSinkOutput(context.getConfiguration(),
+                                               projectName,
+                                               datasetName,
+                                               bucketName,
+                                               bucketPathUniqueId,
+                                               tableName,
+                                               fields);
   }
 }

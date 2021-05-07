@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.bigquery.sink;
 
+import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import org.apache.hadoop.io.NullWritable;
@@ -25,6 +26,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -94,13 +96,15 @@ public class DelegatingMultiSinkRecordWriter extends RecordWriter<StructuredReco
   public RecordWriter<StructuredRecord, NullWritable> getRecordWriterDelegate(String tableName, Schema schema)
     throws IOException, InterruptedException {
     // Configure output.
-    BigQuerySinkUtils.configureBigQueryOutputForMultiSink(initialContext,
-                                                          projectName,
-                                                          datasetName,
-                                                          bucketName,
-                                                          bucketPathUniqueId,
-                                                          tableName,
-                                                          schema);
+    List<BigQueryTableFieldSchema> fields = BigQuerySinkUtils.getBigQueryTableFieldsFromSchema(schema);
+
+    BigQuerySinkUtils.configureMultiSinkOutput(initialContext.getConfiguration(),
+                                               projectName,
+                                               datasetName,
+                                               bucketName,
+                                               bucketPathUniqueId,
+                                               tableName,
+                                               fields);
 
     BigQueryOutputFormat bqOutputFormat = new BigQueryOutputFormat();
 

@@ -21,6 +21,7 @@ import com.google.cloud.bigquery.RangePartitioning;
 import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TimePartitioning;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.annotation.Description;
@@ -166,6 +167,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
           "This value is ignored if operation is not UPDATE or UPSERT.")
   protected String partitionFilter;
 
+  @VisibleForTesting
   public BigQuerySinkConfig(String referenceName, String dataset, String table,
                             @Nullable String bucket, @Nullable String schema, @Nullable String partitioningType,
                             @Nullable Long rangeStart, @Nullable Long rangeEnd, @Nullable Long rangeInterval,
