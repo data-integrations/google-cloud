@@ -362,11 +362,12 @@ public final class BigQueryUtil {
    */
   public static void validateFieldModeMatches(Field bigQueryField, Schema.Field field, boolean allowSchemaRelaxation,
                                               FailureCollector collector) {
-    boolean isBqFieldNullable = bigQueryField.getMode().equals(Field.Mode.NULLABLE);
-    if (!allowSchemaRelaxation && field.getSchema().isNullable() != isBqFieldNullable) {
-      collector.addFailure(String.format("Field '%s' cannot be %s.", bigQueryField.getName(),
-                                         isBqFieldNullable ? "required" : "nullable"),
-                           String.format("Change the field to be %s.", isBqFieldNullable ? "nullable" : "required"))
+    Field.Mode mode = bigQueryField.getMode();
+    boolean isBqFieldNullable = mode == null || mode.equals(Field.Mode.NULLABLE);
+    if (!allowSchemaRelaxation && field.getSchema().isNullable() && !isBqFieldNullable) {
+      // Nullable output schema field is incompatible with required BQ table field
+      collector.addFailure(String.format("Field '%s' cannot be nullable.", bigQueryField.getName()),
+                           "Change the field to be required.")
         .withOutputSchemaField(field.getName());
     }
   }
