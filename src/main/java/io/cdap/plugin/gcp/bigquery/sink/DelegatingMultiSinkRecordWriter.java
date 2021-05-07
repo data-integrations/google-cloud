@@ -94,13 +94,13 @@ public class DelegatingMultiSinkRecordWriter extends RecordWriter<StructuredReco
   public RecordWriter<StructuredRecord, NullWritable> getRecordWriterDelegate(String tableName, Schema schema)
     throws IOException, InterruptedException {
     // Configure output.
-    BigQuerySinkUtils.configureBigQueryOutputForMultiSink(initialContext,
-                                                          projectName,
-                                                          datasetName,
-                                                          bucketName,
-                                                          bucketPathUniqueId,
-                                                          tableName,
-                                                          schema);
+    BigQuerySinkUtils.configureMultiSinkOutput(initialContext,
+                                               projectName,
+                                               datasetName,
+                                               bucketName,
+                                               bucketPathUniqueId,
+                                               tableName,
+                                               schema);
 
     BigQueryOutputFormat bqOutputFormat = new BigQueryOutputFormat();
 

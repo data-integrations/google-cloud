@@ -156,12 +156,12 @@ public class DelegatingMultiSinkOutputCommitter extends OutputCommitter {
   public void configureContext(JobContext context, String tableName) throws IOException {
     Schema schema = schemaMap.get(tableName);
 
-    BigQuerySinkUtils.configureBigQueryOutputForMultiSink(context,
-                                                          projectName,
-                                                          datasetName,
-                                                          bucketName,
-                                                          bucketPathUniqueId,
-                                                          tableName,
-                                                          schema);
+    BigQuerySinkUtils.configureMultiSinkOutput(context,
+                                               projectName,
+                                               datasetName,
+                                               bucketName,
+                                               bucketPathUniqueId,
+                                               tableName,
+                                               schema);
   }
 }

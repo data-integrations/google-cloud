@@ -75,12 +75,12 @@ final class BigQuerySinkUtils {
     Configuration configuration = new Configuration(baseConfiguration);
     String temporaryGcsPath = getTemporaryGcsPath(bucket, pathPrefix, tableName);
 
-    BigQuerySinkUtils.configureBigQueryOutput(configuration,
-                                              config.getDatasetProject(),
-                                              config.getDataset(),
-                                              tableName,
-                                              temporaryGcsPath,
-                                              fields);
+    configureOutput(configuration,
+                    config.getDatasetProject(),
+                    config.getDataset(),
+                    tableName,
+                    temporaryGcsPath,
+                    fields);
 
     return configuration;
   }
@@ -159,12 +159,12 @@ final class BigQuerySinkUtils {
     }
   }
 
-  public static void configureBigQueryOutput(Configuration configuration,
-                                             String projectName,
-                                             String datasetName,
-                                             String tableName,
-                                             String temporaryGCSPath,
-                                             List<BigQueryTableFieldSchema> fields) throws IOException {
+  private static void configureOutput(Configuration configuration,
+                                      String projectName,
+                                      String datasetName,
+                                      String tableName,
+                                      String temporaryGCSPath,
+                                      List<BigQueryTableFieldSchema> fields) throws IOException {
     BigQueryTableSchema outputTableSchema = new BigQueryTableSchema();
     if (!fields.isEmpty()) {
       outputTableSchema.setFields(fields);
@@ -180,25 +180,25 @@ final class BigQuerySinkUtils {
       getOutputFormat(fileFormat));
   }
 
-  public static void configureBigQueryOutputForMultiSink(JobContext context,
-                                                         String projectName,
-                                                         String datasetName,
-                                                         String bucketName,
-                                                         String bucketPathPrefix,
-                                                         String tableName,
-                                                         Schema schema) throws IOException {
+  public static void configureMultiSinkOutput(JobContext context,
+                                              String projectName,
+                                              String datasetName,
+                                              String bucketName,
+                                              String bucketPathPrefix,
+                                              String tableName,
+                                              Schema schema) throws IOException {
     Configuration configuration = context.getConfiguration();
     String temporaryGcsPath = BigQuerySinkUtils.getTemporaryGcsPath(bucketName, bucketPathPrefix, tableName);
     List<BigQueryTableFieldSchema> fields = BigQuerySinkUtils.getBigQueryTableFieldsFromSchema(schema);
 
-    BigQuerySinkUtils.configureBigQueryOutput(configuration,
-                                              projectName,
-                                              datasetName,
-                                              tableName,
-                                              temporaryGcsPath,
-                                              fields);
+    configureOutput(configuration,
+                    projectName,
+                    datasetName,
+                    tableName,
+                    temporaryGcsPath,
+                    fields);
 
-    //Set operation as Insertion. Currently the BQ MultiSink can only support the insertion operation.
+    // Set operation as Insertion. Currently the BQ MultiSink can only support the insertion operation.
     configuration.set(BigQueryConstants.CONFIG_OPERATION, Operation.INSERT.name());
   }
 
