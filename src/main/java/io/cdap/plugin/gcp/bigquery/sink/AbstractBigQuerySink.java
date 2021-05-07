@@ -141,8 +141,15 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
 
     List<BigQueryTableFieldSchema> fields = getBigQueryTableFields(bigQuery, tableName, tableSchema,
                                                                    getConfig().isAllowSchemaRelaxation(), collector);
-    Configuration configuration = BigQuerySinkUtils.getOutputConfiguration(baseConfiguration, getConfig(), bucket,
-                                                                           runUUID.toString(), tableName, fields);
+
+    Configuration configuration = new Configuration(baseConfiguration);
+    BigQuerySinkUtils.configureOutput(configuration,
+                                      getConfig().getDatasetProject(),
+                                      getConfig().getDataset(),
+                                      bucket,
+                                      runUUID.toString(),
+                                      tableName,
+                                      fields);
     // Both emitLineage and setOutputFormat internally try to create an external dataset if it does not already exist.
     // We call emitLineage before since it creates the dataset with schema which is used.
     List<String> fieldNames = fields.stream()
