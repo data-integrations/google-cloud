@@ -24,6 +24,7 @@ import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.plugin.gcp.bigquery.common.BigQueryBaseConfig;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.common.GCPReferenceSinkConfig;
@@ -34,41 +35,15 @@ import javax.annotation.Nullable;
 /**
  * Base class for Big Query batch sink configs.
  */
-public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig {
-  private static final String SCHEME = "gs://";
+public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
   public static final Set<Schema.Type> SUPPORTED_TYPES =
     ImmutableSet.of(Schema.Type.INT, Schema.Type.LONG, Schema.Type.STRING, Schema.Type.FLOAT, Schema.Type.DOUBLE,
                     Schema.Type.BOOLEAN, Schema.Type.BYTES, Schema.Type.ARRAY, Schema.Type.RECORD);
 
-  public static final String DATASET_PROJECT_ID = "datasetProject";
-  public static final String NAME_DATASET = "dataset";
-  public static final String NAME_BUCKET = "bucket";
   public static final String NAME_TRUNCATE_TABLE = "truncateTable";
   public static final String NAME_LOCATION = "location";
   private static final String NAME_GCS_CHUNK_SIZE = "gcsChunkSize";
   protected static final String NAME_UPDATE_SCHEMA = "allowSchemaRelaxation";
-
-  @Name(DATASET_PROJECT_ID)
-  @Macro
-  @Nullable
-  @Description("The project in which the dataset is located/should be created."
-    + " Defaults to the project specified in the Project Id property.")
-  private String datasetProject;
-
-  @Name(NAME_DATASET)
-  @Macro
-  @Description("The dataset to write to. A dataset is contained within a specific project. "
-    + "Datasets are top-level containers that are used to organize and control access to tables and views.")
-  protected String dataset;
-
-  @Name(NAME_BUCKET)
-  @Macro
-  @Nullable
-  @Description("The Google Cloud Storage bucket to store temporary data in. "
-    + "It will be automatically created if it does not exist, but will not be automatically deleted. "
-    + "Cloud Storage data will be deleted after it is loaded into BigQuery. "
-    + "If it is not provided, a unique bucket will be created and then deleted after the run finishes.")
-  protected String bucket;
 
   @Name(NAME_GCS_CHUNK_SIZE)
   @Macro
@@ -107,36 +82,9 @@ public abstract class AbstractBigQuerySinkConfig extends GCPReferenceSinkConfig 
     return null;
   }
 
-  public String getDataset() {
-    return dataset;
-  }
-
-  @Nullable
-  public String getDatasetProject() {
-    if (GCPConfig.AUTO_DETECT.equalsIgnoreCase(datasetProject)) {
-      return ServiceOptions.getDefaultProjectId();
-    }
-    return Strings.isNullOrEmpty(datasetProject) ? getProject() : datasetProject;
-  }
-
   @Nullable
   public String getGcsChunkSize() {
     return gcsChunkSize;
-  }
-
-  @Nullable
-  public String getBucket() {
-    if (bucket != null) {
-      bucket = bucket.trim();
-      if (bucket.isEmpty()) {
-        return null;
-      }
-      // remove the gs:// scheme from the bucket name
-      if (bucket.startsWith(SCHEME)) {
-        bucket = bucket.substring(SCHEME.length());
-      }
-    }
-    return bucket;
   }
 
   public boolean isAllowSchemaRelaxation() {

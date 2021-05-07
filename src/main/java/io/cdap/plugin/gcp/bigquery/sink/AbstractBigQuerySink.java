@@ -18,17 +18,12 @@ package io.cdap.plugin.gcp.bigquery.sink;
 import com.google.auth.Credentials;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
-import com.google.cloud.bigquery.Dataset;
-import com.google.cloud.bigquery.DatasetInfo;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
-import com.google.cloud.storage.Bucket;
-import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageException;
 import com.google.common.base.Strings;
 import io.cdap.cdap.api.data.batch.Output;
 import io.cdap.cdap.api.data.batch.OutputFormatProvider;
@@ -56,7 +51,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
@@ -72,7 +66,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
 
   // UUID for the run. Will be used as bucket name if bucket is not provided.
   // UUID is used since GCS bucket names must be globally unique.
-  private final UUID uuid = UUID.randomUUID();
+  private final UUID runUUID = UUID.randomUUID();
   protected Configuration baseConfiguration;
   protected BigQuery bigQuery;
 
@@ -98,8 +92,8 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
     baseConfiguration = getBaseConfiguration(cmekKey);
     String bucket = configureBucket();
     if (!context.isPreviewEnabled()) {
-      createResources(bigQuery, GCPUtils.getStorage(project, credentials), config.getDataset(), bucket,
-                      config.getLocation(), cmekKey);
+      BigQuerySinkUtils.createResources(bigQuery, GCPUtils.getStorage(project, credentials), config.getDataset(),
+                                        bucket, config.getLocation(), cmekKey);
     }
 
     prepareRunInternal(context, bigQuery, bucket);
@@ -110,9 +104,9 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
     Path gcsPath;
     String bucket = getConfig().getBucket();
     if (bucket == null) {
-      gcsPath = new Path(String.format("gs://%s", uuid.toString()));
+      gcsPath = new Path(String.format("gs://%s", runUUID.toString()));
     } else {
-      gcsPath = new Path(String.format(gcsPathFormat, bucket, uuid.toString()));
+      gcsPath = new Path(String.format(gcsPathFormat, bucket, runUUID.toString()));
     }
     try {
       FileSystem fs = gcsPath.getFileSystem(baseConfiguration);
@@ -147,7 +141,8 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
 
     List<BigQueryTableFieldSchema> fields = getBigQueryTableFields(bigQuery, tableName, tableSchema,
                                                                    getConfig().isAllowSchemaRelaxation(), collector);
-    Configuration configuration = getOutputConfiguration(bucket, tableName, fields);
+    Configuration configuration = BigQuerySinkUtils.getOutputConfiguration(baseConfiguration, getConfig(), bucket,
+                                                                           runUUID.toString(), tableName, fields);
     // Both emitLineage and setOutputFormat internally try to create an external dataset if it does not already exist.
     // We call emitLineage before since it creates the dataset with schema which is used.
     List<String> fieldNames = fields.stream()
@@ -221,17 +216,6 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
   }
 
   /**
-   * Generates full path to temporary bucket based on given bucket and table names.
-   *
-   * @param bucket bucket name
-   * @param tableName table name
-   * @return full path to temporary bucket
-   */
-  private String getTemporaryGcsPath(String bucket, String tableName) {
-    return BigQuerySinkUtils.getTemporaryGcsPath(bucket, tableName, uuid.toString());
-  }
-
-  /**
    * Updates {@link #baseConfiguration} with bucket details.
    * Uses provided bucket, otherwise generates random.
    *
@@ -240,12 +224,12 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
   private String configureBucket() {
     String bucket = getConfig().getBucket();
     if (bucket == null) {
-      bucket = uuid.toString();
+      bucket = runUUID.toString();
       // By default, this option is false, meaning the job can not delete the bucket.
       // So enable it only when bucket name is not provided.
       baseConfiguration.setBoolean("fs.gs.bucket.delete.enable", true);
     }
-    baseConfiguration.set("fs.default.name", String.format(gcsPathFormat, bucket, uuid));
+    baseConfiguration.set("fs.default.name", String.format(gcsPathFormat, bucket, runUUID));
     baseConfiguration.setBoolean("fs.gs.impl.disable.cache", true);
     baseConfiguration.setBoolean("fs.gs.metadata.cache.enable", false);
     return bucket;
@@ -421,30 +405,6 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
   }
 
   /**
-   * Creates Hadoop configuration for the given table and its fields.
-   *
-   * @param bucket bucket name
-   * @param tableName table name
-   * @param fields list of Big Query fields
-   * @return Hadoop configuration
-   */
-  private Configuration getOutputConfiguration(String bucket,
-                                               String tableName,
-                                               List<BigQueryTableFieldSchema> fields) throws IOException {
-    Configuration configuration = new Configuration(baseConfiguration);
-    String temporaryGcsPath = getTemporaryGcsPath(bucket, tableName);
-
-    BigQuerySinkUtils.configureBigQueryOutput(configuration,
-                                              getConfig().getDatasetProject(),
-                                              getConfig().getDataset(),
-                                              tableName,
-                                              temporaryGcsPath,
-                                              fields);
-
-    return configuration;
-  }
-
-  /**
    * Creates Hadoop configuration instance
    *
    * @return Hadoop configuration
@@ -465,77 +425,4 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
     }
   }
 
-  /**
-   * Creates the given dataset and bucket if they do not already exist. If the dataset already exists but the
-   * bucket does not, the bucket will be created in the same location as the dataset. If the bucket already exists
-   * but the dataset does not, the dataset will attempt to be created in the same location. This may fail if the bucket
-   * is in a location that BigQuery does not yet support.
-   *
-   * @param bigQuery the bigquery client for the project
-   * @param storage the storage client for the project
-   * @param datasetName the name of the dataset
-   * @param bucketName the name of the bucket
-   * @param location the location of the resources, this is only applied if both the bucket and dataset do not exist
-   * @param cmekKey the name of the cmek key
-   * @throws IOException if there was an error creating or fetching any GCP resource
-   */
-  private static void createResources(BigQuery bigQuery, Storage storage,
-                                     String datasetName, String bucketName, @Nullable String location,
-                                     @Nullable String cmekKey) throws IOException {
-    Dataset dataset = bigQuery.getDataset(datasetName);
-    Bucket bucket = storage.get(bucketName);
-
-    if (dataset == null && bucket == null) {
-      createBucket(storage, bucketName, location, cmekKey,
-                   () -> String.format("Unable to create Cloud Storage bucket '%s'", bucketName));
-      createDataset(bigQuery, datasetName, location,
-                    () -> String.format("Unable to create BigQuery dataset '%s'", datasetName));
-    } else if (bucket == null) {
-      createBucket(
-        storage, bucketName, dataset.getLocation(), cmekKey,
-        () -> String.format(
-          "Unable to create Cloud Storage bucket '%s' in the same location ('%s') as BigQuery dataset '%s'. "
-            + "Please use a bucket that is in the same location as the dataset.",
-          bucketName, dataset.getLocation(), datasetName));
-    } else if (dataset == null) {
-      createDataset(
-        bigQuery, datasetName, bucket.getLocation(),
-        () -> String.format(
-          "Unable to create BigQuery dataset '%s' in the same location ('%s') as Cloud Storage bucket '%s'. "
-            + "Please use a bucket that is in a supported location.",
-          datasetName, bucket.getLocation(), bucketName));
-    }
-  }
-
-  private static void createDataset(BigQuery bigQuery, String dataset, @Nullable String location,
-                                    Supplier<String> errorMessage) throws IOException {
-    DatasetInfo.Builder builder = DatasetInfo.newBuilder(dataset);
-    if (location != null) {
-      builder.setLocation(location);
-    }
-    try {
-      bigQuery.create(builder.build());
-    } catch (BigQueryException e) {
-      if (e.getCode() != 409) {
-        // A conflict means the dataset already exists (https://cloud.google.com/bigquery/troubleshooting-errors)
-        // This most likely means multiple stages in the same pipeline are trying to create the same dataset.
-        // Ignore this and move on, since all that matters is that the dataset exists.
-        throw new IOException(errorMessage.get(), e);
-      }
-    }
-  }
-
-  private static void createBucket(Storage storage, String bucket, @Nullable String location,
-                                   @Nullable String cmekKey, Supplier<String> errorMessage) throws IOException {
-    try {
-      GCPUtils.createBucket(storage, bucket, location, cmekKey);
-    } catch (StorageException e) {
-      if (e.getCode() != 409) {
-        // A conflict means the bucket already exists
-        // This most likely means multiple stages in the same pipeline are trying to create the same dataset.
-        // Ignore this and move on, since all that matters is that the dataset exists.
-        throw new IOException(errorMessage.get(), e);
-      }
-    }
-  }
 }
