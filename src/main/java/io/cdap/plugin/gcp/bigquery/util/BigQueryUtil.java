@@ -439,11 +439,17 @@ public final class BigQueryUtil {
                                               FailureCollector collector) {
     Field.Mode mode = bigQueryField.getMode();
     boolean isBqFieldNullable = mode == null || mode.equals(Field.Mode.NULLABLE);
-    if (!allowSchemaRelaxation && field.getSchema().isNullable() && !isBqFieldNullable) {
+
+    Schema fieldSchema = field.getSchema();
+    if (!allowSchemaRelaxation && fieldSchema.isNullable() && !isBqFieldNullable) {
       // Nullable output schema field is incompatible with required BQ table field
-      collector.addFailure(String.format("Field '%s' cannot be nullable.", bigQueryField.getName()),
-                           "Change the field to be required.")
-        .withOutputSchemaField(field.getName());
+
+      // In case of arrays, BigQuery handles null arrays and convert them to empty arrays at insert
+      if (!getNonNullableSchema(fieldSchema).getType().equals(Schema.Type.ARRAY)) {
+        collector.addFailure(String.format("Field '%s' cannot be nullable.", bigQueryField.getName()),
+                "Change the field to be required.")
+                .withOutputSchemaField(field.getName());
+      }
     }
   }
 
@@ -510,8 +516,9 @@ public final class BigQueryUtil {
    */
   @Nullable
   public static ValidationFailure validateArraySchema(Schema arraySchema, String name, FailureCollector collector) {
-    Schema nonNullableSchema = arraySchema.isNullable() ? arraySchema.getNonNullable() : arraySchema;
+    Schema nonNullableSchema = getNonNullableSchema(arraySchema);
     Schema componentSchema = nonNullableSchema.getComponentSchema();
+
     if (componentSchema.isNullable()) {
       return collector.addFailure(String.format("Field '%s' contains null values in its array.", name),
                                   "Change the array component type to be non-nullable.");
