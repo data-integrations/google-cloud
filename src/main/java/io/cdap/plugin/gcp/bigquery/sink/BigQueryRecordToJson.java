@@ -188,44 +188,43 @@ public final class BigQueryRecordToJson {
                                  String name,
                                  @Nullable Object value,
                                  Schema fieldSchema) throws IOException {
-    if (value == null) {
-      throw new RuntimeException(
-        String.format("Field '%s' is of value null, which is not a valid value for BigQuery type array.", name));
-    }
-
-    Collection collection;
-    if (value instanceof Collection) {
-      collection = (Collection) value;
-    } else if (value instanceof Object[]) {
-      collection = Arrays.asList((Object[]) value);
-    } else {
-      throw new IllegalArgumentException(String.format(
-        "A value for the field '%s' is of type '%s' when it is expected to be a Collection or array.",
-        name, value.getClass().getSimpleName()));
-    }
-
-    Schema componentSchema = BigQueryUtil.getNonNullableSchema(
-      Objects.requireNonNull(fieldSchema.getComponentSchema()));
-    if (BigQueryUtil.UNSUPPORTED_ARRAY_TYPES.contains(componentSchema.getType())) {
-      throw new IllegalArgumentException(String.format("Field '%s' is an array of '%s', " +
-                                                         "which is not a valid BigQuery type.",
-                                                       name, componentSchema));
-    }
-
     writer.name(name);
     writer.beginArray();
 
-    for (Object element : collection) {
-      // BigQuery does not allow null values in array items
-      if (element == null) {
-        throw new IllegalArgumentException(String.format("Field '%s' contains null values in its array, " +
-                                                           "which is not allowed by BigQuery.", name));
-      }
-      if (element instanceof StructuredRecord) {
-        StructuredRecord record = (StructuredRecord) element;
-        processRecord(writer, record, Objects.requireNonNull(record.getSchema().getFields()));
+    // If it's a null array, handle it as an empty array
+    if (value != null) {
+      Collection collection;
+      if (value instanceof Collection) {
+        collection = (Collection) value;
+      } else if (value instanceof Object[]) {
+        collection = Arrays.asList((Object[]) value);
       } else {
-        write(writer, name, true, element, componentSchema);
+        throw new IllegalArgumentException(String.format(
+                "A value for the field '%s' is of type '%s' when it is expected to be a Collection or array.",
+                name, value.getClass().getSimpleName()));
+      }
+
+      Schema componentSchema = BigQueryUtil.getNonNullableSchema(
+              Objects.requireNonNull(fieldSchema.getComponentSchema()));
+      if (BigQueryUtil.UNSUPPORTED_ARRAY_TYPES.contains(componentSchema.getType())) {
+        throw new IllegalArgumentException(String.format("Field '%s' is an array of '%s', " +
+                        "which is not a valid BigQuery type.",
+                name, componentSchema));
+      }
+
+
+      for (Object element : collection) {
+        // BigQuery does not allow null values in array items
+        if (element == null) {
+          throw new IllegalArgumentException(String.format("Field '%s' contains null values in its array, " +
+                  "which is not allowed by BigQuery.", name));
+        }
+        if (element instanceof StructuredRecord) {
+          StructuredRecord record = (StructuredRecord) element;
+          processRecord(writer, record, Objects.requireNonNull(record.getSchema().getFields()));
+        } else {
+          write(writer, name, true, element, componentSchema);
+        }
       }
     }
     writer.endArray();
