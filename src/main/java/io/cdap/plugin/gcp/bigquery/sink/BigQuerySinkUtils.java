@@ -251,9 +251,17 @@ public final class BigQuerySinkUtils {
       List<Schema.Field> schemaFields;
 
       if (fieldIsArray(field)) {
-        Schema nonNullableSchema = fieldSchema.isNullable() ? fieldSchema.getNonNullable() : fieldSchema;
+        // In case of NULLABLES array of records
+        Schema nonNullableSchema = fieldSchema.isNullable()
+                ? fieldSchema.getNonNullable()
+                : fieldSchema;
         Schema componentSchema = nonNullableSchema.getComponentSchema();
-        schemaFields = Objects.requireNonNull(componentSchema).getFields();
+
+        // In case of array of NULLABLE records
+        Schema nonNullableComponentSchema = componentSchema.isNullable()
+                ? componentSchema.getNonNullable()
+                : componentSchema;
+        schemaFields = Objects.requireNonNull(nonNullableComponentSchema).getFields();
       } else {
         schemaFields = field.getSchema().isNullable()
           ? field.getSchema().getNonNullable().getFields()
