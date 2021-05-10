@@ -50,10 +50,10 @@ import javax.annotation.Nullable;
  * The logic in this class has been extracted from the {@link AbstractBigQuerySink} in order to make this functionality
  * available to other classes in this package.
  */
-final class BigQuerySinkUtils {
+public final class BigQuerySinkUtils {
 
-  private static final String gcsPathFormat = "gs://%s/%s";
-  private static final String temporaryBucketFormat = gcsPathFormat + "/input/%s-%s";
+  public static final String GS_PATH_FORMAT = "gs://%s/%s";
+  private static final String TEMPORARY_BUCKET_FORMAT = GS_PATH_FORMAT + "/input/%s-%s";
   private static final String DATETIME = "DATETIME";
 
   /**
@@ -98,6 +98,14 @@ final class BigQuerySinkUtils {
     }
   }
 
+  /**
+   * Creates a Dataset in the specified location using the supplied BigQuery client.
+   * @param bigQuery the bigQuery client.
+   * @param dataset the name of the dataset to create.
+   * @param location Location for this dataset.
+   * @param errorMessage Supplier for the error message to output if the dataset could not be created.
+   * @throws IOException if the dataset could not be created.
+   */
   private static void createDataset(BigQuery bigQuery, String dataset, @Nullable String location,
                                     Supplier<String> errorMessage) throws IOException {
     DatasetInfo.Builder builder = DatasetInfo.newBuilder(dataset);
@@ -116,6 +124,15 @@ final class BigQuerySinkUtils {
     }
   }
 
+  /**
+   * Creates the specified GCS bucket using the supplied GCS client.
+   * @param storage GCS Client.
+   * @param bucket Bucket Name.
+   * @param location Location for this bucket.
+   * @param cmekKey CMEK key to use for this bucket.
+   * @param errorMessage Supplier for the error message to output if the bucket could not be created.
+   * @throws IOException if the bucket could not be created.
+   */
   private static void createBucket(Storage storage, String bucket, @Nullable String location,
                                    @Nullable String cmekKey, Supplier<String> errorMessage) throws IOException {
     try {
@@ -131,26 +148,41 @@ final class BigQuerySinkUtils {
   }
 
   /**
+   * Updates {@link Configuration} with bucket details.
+   * Uses provided bucket, otherwise uses provided runId as a bucket name.
+   *
+   * @return bucket name
+   */
+  public static String configureBucket(Configuration baseConfiguration, @Nullable String bucket, String runId) {
+    if (bucket == null) {
+      bucket = runId;
+      // By default, this option is false, meaning the job can not delete the bucket.
+      // So enable it only when bucket name is not provided.
+      baseConfiguration.setBoolean("fs.gs.bucket.delete.enable", true);
+    }
+    baseConfiguration.set("fs.default.name", String.format(GS_PATH_FORMAT, bucket, runId));
+    baseConfiguration.setBoolean("fs.gs.impl.disable.cache", true);
+    baseConfiguration.setBoolean("fs.gs.metadata.cache.enable", false);
+    return bucket;
+  }
+
+  /**
    * Configures output for Sink
    *
    * @param configuration Hadoop configuration instance
    * @param projectName name of the project to use
    * @param datasetName name of the dataset to use
-   * @param bucketName name of the bucket to use
-   * @param bucketPathPrefix prefix for the path in this bucket
    * @param tableName name of the table to use
+   * @param gcsPath GCS path to use for output
    * @param fields list of BigQuery table fields
    * @throws IOException if the output cannot be configured
    */
   public static void configureOutput(Configuration configuration,
-                                              String projectName,
-                                              String datasetName,
-                                              String bucketName,
-                                              String bucketPathPrefix,
-                                              String tableName,
-                                              List<BigQueryTableFieldSchema> fields) throws IOException {
-    // Build GCS storage path for this bucket output.
-    String temporaryGcsPath = getTemporaryGcsPath(bucketName, bucketPathPrefix, tableName);
+                                     String projectName,
+                                     String datasetName,
+                                     String tableName,
+                                     String gcsPath,
+                                     List<BigQueryTableFieldSchema> fields) throws IOException {
 
     // Set up table schema
     BigQueryTableSchema outputTableSchema = new BigQueryTableSchema();
@@ -163,7 +195,7 @@ final class BigQuerySinkUtils {
       configuration,
       String.format("%s:%s.%s", projectName, datasetName, tableName),
       outputTableSchema,
-      temporaryGcsPath,
+      gcsPath,
       fileFormat,
       getOutputFormat(fileFormat));
   }
@@ -174,25 +206,22 @@ final class BigQuerySinkUtils {
    * @param configuration Hadoop configuration instance
    * @param projectName name of the project to use
    * @param datasetName name of the dataset to use
-   * @param bucketName name of the bucket to use
-   * @param bucketPathPrefix prefix for the path in this bucket
    * @param tableName name of the table to use
+   * @param gcsPath GCS path to use for output
    * @param fields list of BigQuery table fields
    * @throws IOException if the output cannot be configured
    */
   public static void configureMultiSinkOutput(Configuration configuration,
                                               String projectName,
                                               String datasetName,
-                                              String bucketName,
-                                              String bucketPathPrefix,
                                               String tableName,
+                                              String gcsPath,
                                               List<BigQueryTableFieldSchema> fields) throws IOException {
     configureOutput(configuration,
                     projectName,
                     datasetName,
-                    bucketName,
-                    bucketPathPrefix,
                     tableName,
+                    gcsPath,
                     fields);
 
     // Set operation as Insertion. Currently the BQ MultiSink can only support the insertion operation.
@@ -200,7 +229,7 @@ final class BigQuerySinkUtils {
   }
 
   public static String getTemporaryGcsPath(String bucket, String pathPrefix, String tableName) {
-    return String.format(temporaryBucketFormat, bucket, pathPrefix, tableName, pathPrefix);
+    return String.format(TEMPORARY_BUCKET_FORMAT, bucket, pathPrefix, tableName, pathPrefix);
   }
 
   public static List<BigQueryTableFieldSchema> getBigQueryTableFieldsFromSchema(Schema tableSchema) {

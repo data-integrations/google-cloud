@@ -159,12 +159,13 @@ public class DelegatingMultiSinkOutputCommitter extends OutputCommitter {
     Schema schema = schemaMap.get(tableName);
     List<BigQueryTableFieldSchema> fields = BigQuerySinkUtils.getBigQueryTableFieldsFromSchema(schema);
 
+    String gcsPath = BigQuerySinkUtils.getTemporaryGcsPath(bucketName, bucketPathUniqueId,  tableName);
+
     BigQuerySinkUtils.configureMultiSinkOutput(context.getConfiguration(),
                                                projectName,
                                                datasetName,
-                                               bucketName,
-                                               bucketPathUniqueId,
                                                tableName,
+                                               gcsPath,
                                                fields);
   }
 }
