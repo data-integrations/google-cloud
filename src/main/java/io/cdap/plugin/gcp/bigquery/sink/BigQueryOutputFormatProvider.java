@@ -35,8 +35,7 @@ public class BigQueryOutputFormatProvider implements OutputFormatProvider {
   protected Schema tableSchema;
 
   /**
-   * @param configuration Hadoop Configuration object, must be set up by using
-   *                      {@link BigQuerySinkUtils#getOutputConfiguration}
+   * @param configuration Hadoop Configuration object, must be set up by using {@link BigQuerySinkUtils#configureOutput}
    * @param tableSchema CDAP Schema for the output table.
    */
   public BigQueryOutputFormatProvider(Configuration configuration,

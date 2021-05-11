@@ -90,7 +90,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
     bigQuery = GCPUtils.getBigQuery(datasetProjectId, credentials);
     String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
     baseConfiguration = getBaseConfiguration(cmekKey);
-    String bucket = configureBucket();
+    String bucket = BigQuerySinkUtils.configureBucket(baseConfiguration, config.getBucket(), runUUID.toString());
     if (!context.isPreviewEnabled()) {
       BigQuerySinkUtils.createResources(bigQuery, GCPUtils.getStorage(project, credentials), config.getDataset(),
                                         bucket, config.getLocation(), cmekKey);
@@ -143,12 +143,14 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
                                                                    getConfig().isAllowSchemaRelaxation(), collector);
 
     Configuration configuration = new Configuration(baseConfiguration);
+
+    // Build GCS storage path for this bucket output.
+    String temporaryGcsPath = BigQuerySinkUtils.getTemporaryGcsPath(bucket, runUUID.toString(), tableName);
     BigQuerySinkUtils.configureOutput(configuration,
                                       getConfig().getDatasetProject(),
                                       getConfig().getDataset(),
-                                      bucket,
-                                      runUUID.toString(),
                                       tableName,
+                                      temporaryGcsPath,
                                       fields);
     // Both emitLineage and setOutputFormat internally try to create an external dataset if it does not already exist.
     // We call emitLineage before since it creates the dataset with schema which is used.
@@ -220,26 +222,6 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
     }
     baseConfiguration.set("fs.gs.outputstream.upload.chunk.size", gcsChunkSize);
     return baseConfiguration;
-  }
-
-  /**
-   * Updates {@link #baseConfiguration} with bucket details.
-   * Uses provided bucket, otherwise generates random.
-   *
-   * @return bucket name
-   */
-  private String configureBucket() {
-    String bucket = getConfig().getBucket();
-    if (bucket == null) {
-      bucket = runUUID.toString();
-      // By default, this option is false, meaning the job can not delete the bucket.
-      // So enable it only when bucket name is not provided.
-      baseConfiguration.setBoolean("fs.gs.bucket.delete.enable", true);
-    }
-    baseConfiguration.set("fs.default.name", String.format(gcsPathFormat, bucket, runUUID));
-    baseConfiguration.setBoolean("fs.gs.impl.disable.cache", true);
-    baseConfiguration.setBoolean("fs.gs.metadata.cache.enable", false);
-    return bucket;
   }
 
   protected void validateInsertSchema(Table table, @Nullable Schema tableSchema, FailureCollector collector) {
