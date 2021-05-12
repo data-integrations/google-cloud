@@ -112,8 +112,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
     FailureCollector collector = context.getFailureCollector();
 
     Schema configSchema = config.getSchema(collector);
-    Schema outputSchema = overrideOutputSchemaWithTableSchemaIfNeeded(
-      config.getTable(), configSchema == null ? context.getInputSchema() : configSchema, null, collector);
+    Schema outputSchema = configSchema == null ? context.getInputSchema() : configSchema;
 
     configureTable(outputSchema);
     configureBigQuerySink();
@@ -185,12 +184,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
 
       @Override
       public Map<String, String> getOutputFormatConfiguration() {
-        Map<String, String> configToMap = BigQueryUtil.configToMap(configuration);
-        if (tableSchema != null) {
-          configToMap
-            .put(BigQueryConstants.CDAP_BQ_SINK_OUTPUT_SCHEMA, tableSchema.toString());
-        }
-        return configToMap;
+        return BigQueryUtil.configToMap(configuration);
       }
     };
   }
