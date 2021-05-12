@@ -18,20 +18,16 @@ package io.cdap.plugin.gcp.bigquery.source;
 
 import com.google.auth.Credentials;
 import com.google.cloud.bigquery.BigQuery;
-import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableDefinition.Type;
-import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TimePartitioning;
-import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.batch.Input;
-import io.cdap.cdap.api.data.batch.InputFormatProvider;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
@@ -49,19 +45,12 @@ import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import org.apache.avro.generic.GenericData;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.Job;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.time.DateTimeException;
 import java.time.LocalDate;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -82,7 +71,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
   private Configuration configuration;
   private final BigQueryAvroToStructuredTransformer transformer = new BigQueryAvroToStructuredTransformer();
   // UUID for the run. Will be used as bucket name if bucket is not provided.
-  private UUID uuid;
+  private String bucketPath;
 
   @Override
   public void configurePipeline(PipelineConfigurer configurer) {
@@ -126,63 +115,42 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
 
     Schema configuredSchema = getOutputSchema(collector);
 
+    // Create BigQuery client
     String serviceAccount = config.getServiceAccount();
-    Credentials credentials = getCredentials(serviceAccount);
+    Credentials credentials = BigQuerySourceUtils.getCredentials(config);
     BigQuery bigQuery = GCPUtils.getBigQuery(config.getDatasetProject(), credentials);
 
-    uuid = UUID.randomUUID();
+    // Get Configuration for this run
+    bucketPath = UUID.randomUUID().toString();
     String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
     configuration = BigQueryUtil.getBigQueryConfig(serviceAccount, config.getProject(), cmekKey,
                                                    config.getServiceAccountType());
 
-    String bucket = config.getBucket();
-    if (bucket == null) {
-      bucket = uuid.toString();
-      // By default, this option is false, meaning the job can not delete the bucket. So enable it only when bucket name
-      // is not provided.
-      configuration.setBoolean("fs.gs.bucket.delete.enable", true);
+    // Configure GCS Bucket to use
+    String bucket = BigQuerySourceUtils.getOrCreateBucket(configuration,
+                                                          config,
+                                                          bigQuery,
+                                                          credentials,
+                                                          bucketPath,
+                                                          cmekKey);
+    BigQuerySourceUtils.configureBucket(configuration, bucket, bucketPath);
 
-      // the dataset existence is validated before, so this cannot be null
-      Dataset dataset = bigQuery.getDataset(config.getDataset());
-      GCPUtils.createBucket(GCPUtils.getStorage(config.getProject(), credentials), bucket, dataset.getLocation(),
-                            cmekKey);
-    }
+    // Configure Service account credentials
+    BigQuerySourceUtils.configureServiceAccount(configuration, config);
 
-    configuration.set("fs.default.name", String.format("gs://%s/%s/", bucket, uuid));
-    configuration.setBoolean("fs.gs.impl.disable.cache", true);
-    configuration.setBoolean("fs.gs.metadata.cache.enable", false);
+    // Configure BQ Source
+    configureBigQuerySource();
 
-    if (config.getServiceAccount() != null) {
-      configuration.set(BigQueryConstants.CONFIG_SERVICE_ACCOUNT, config.getServiceAccount());
-      configuration.setBoolean(BigQueryConstants.CONFIG_SERVICE_ACCOUNT_IS_FILE, config.isServiceAccountFilePath());
-    }
-    if (config.getPartitionFrom() != null) {
-      configuration.set(BigQueryConstants.CONFIG_PARTITION_FROM_DATE, config.getPartitionFrom());
-    }
-    if (config.getPartitionTo() != null) {
-      configuration.set(BigQueryConstants.CONFIG_PARTITION_TO_DATE, config.getPartitionTo());
-    }
-    if (config.getFilter() != null) {
-      configuration.set(BigQueryConstants.CONFIG_FILTER, config.getFilter());
-    }
-    if (config.getViewMaterializationProject() != null) {
-      configuration.set(BigQueryConstants.CONFIG_VIEW_MATERIALIZATION_PROJECT, config.getViewMaterializationProject());
-    }
-    if (config.getViewMaterializationDataset() != null) {
-      configuration.set(BigQueryConstants.CONFIG_VIEW_MATERIALIZATION_DATASET, config.getViewMaterializationDataset());
-    }
-    String temporaryTableName = String.format("_%s_%s", config.getTable(),
-                                              UUID.randomUUID().toString().replaceAll("-", "_"));
-    configuration.set(BigQueryConstants.CONFIG_TEMPORARY_TABLE_NAME, temporaryTableName);
+    // Set up temporary table name. This will be used if the source table is a view
+    BigQuerySourceUtils.configureTemporaryTableName(configuration, config.getTable());
 
-    String temporaryGcsPath = String.format("gs://%s/%s/hadoop/input/%s", bucket, uuid, uuid);
-    PartitionedBigQueryInputFormat.setTemporaryCloudStorageDirectory(configuration, temporaryGcsPath);
-    BigQueryConfiguration.configureBigQueryInput(configuration, config.getDatasetProject(),
-                                                 config.getDataset(), config.getTable());
-
-    Job job = Job.getInstance(configuration);
-    job.setOutputKeyClass(LongWritable.class);
-    job.setOutputKeyClass(Text.class);
+    // Configure BigQuery input format.
+    String temporaryGcsPath = BigQuerySourceUtils.getTemporaryGcsPath(bucket, bucketPath, bucketPath);
+    BigQuerySourceUtils.configureBigQueryInput(configuration,
+                                               config.getDatasetProject(),
+                                               config.getDataset(),
+                                               config.getTable(),
+                                               temporaryGcsPath);
 
     // Both emitLineage and setOutputFormat internally try to create an external dataset if it does not already exists.
     // We call emitLineage before since it creates the dataset with schema.
@@ -214,46 +182,26 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
 
   @Override
   public void onRunFinish(boolean succeeded, BatchSourceContext context) {
-    deleteGcsTemporaryDirectory();
-    deleteBigQueryTemporaryTable();
+    BigQuerySourceUtils.deleteGcsTemporaryDirectory(configuration, config, bucketPath);
+    BigQuerySourceUtils.deleteBigQueryTemporaryTable(configuration, config);
   }
 
-  private void deleteBigQueryTemporaryTable() {
-    String temporaryTable = configuration.get(BigQueryConstants.CONFIG_TEMPORARY_TABLE_NAME);
-    try {
-      String serviceAccount = config.getServiceAccount();
-      Credentials credentials = getCredentials(serviceAccount);
-      BigQuery bigQuery = GCPUtils.getBigQuery(config.getDatasetProject(), credentials);
-      bigQuery.delete(TableId.of(config.getProject(), config.getDataset(), temporaryTable));
-      LOG.debug("Deleted temporary table '{}'", temporaryTable);
-    } catch (IOException e) {
-      LOG.error("Failed to load service account credentials: {}", e.getMessage(), e);
+  private void configureBigQuerySource() {
+    if (config.getPartitionFrom() != null) {
+      configuration.set(BigQueryConstants.CONFIG_PARTITION_FROM_DATE, config.getPartitionFrom());
     }
-  }
-
-  private void deleteGcsTemporaryDirectory() {
-    org.apache.hadoop.fs.Path gcsPath = null;
-    String bucket = config.getBucket();
-    if (bucket == null) {
-      gcsPath = new Path(String.format("gs://%s", uuid));
-    } else {
-      gcsPath = new Path(String.format("gs://%s/%s", bucket, uuid));
+    if (config.getPartitionTo() != null) {
+      configuration.set(BigQueryConstants.CONFIG_PARTITION_TO_DATE, config.getPartitionTo());
     }
-    try {
-      FileSystem fs = gcsPath.getFileSystem(configuration);
-      if (fs.exists(gcsPath)) {
-        fs.delete(gcsPath, true);
-        LOG.debug("Deleted temporary directory '{}'", gcsPath);
-      }
-    } catch (IOException e) {
-      LOG.warn("Failed to delete temporary directory '{}': {}", gcsPath, e.getMessage());
+    if (config.getFilter() != null) {
+      configuration.set(BigQueryConstants.CONFIG_FILTER, config.getFilter());
     }
-  }
-
-  @Nullable
-  private Credentials getCredentials(@Nullable String serviceAccount) throws IOException {
-    return serviceAccount == null ?
-            null : GCPUtils.loadServiceAccountCredentials(serviceAccount, config.isServiceAccountFilePath());
+    if (config.getViewMaterializationProject() != null) {
+      configuration.set(BigQueryConstants.CONFIG_VIEW_MATERIALIZATION_PROJECT, config.getViewMaterializationProject());
+    }
+    if (config.getViewMaterializationDataset() != null) {
+      configuration.set(BigQueryConstants.CONFIG_VIEW_MATERIALIZATION_DATASET, config.getViewMaterializationDataset());
+    }
   }
 
   public Schema getSchema(FailureCollector collector) {
@@ -379,21 +327,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
   }
 
   private void setInputFormat(BatchSourceContext context) {
-    context.setInput(Input.of(config.referenceName, new InputFormatProvider() {
-      @Override
-      public String getInputFormatClassName() {
-        return PartitionedBigQueryInputFormat.class.getName();
-      }
-
-      @Override
-      public Map<String, String> getInputFormatConfiguration() {
-        Map<String, String> config = new HashMap<>();
-        for (Map.Entry<String, String> entry : configuration) {
-          config.put(entry.getKey(), entry.getValue());
-        }
-        return config;
-      }
-    }));
+    context.setInput(Input.of(config.referenceName, new BigQueryInputFormatProvider(configuration)));
   }
 
   private void emitLineage(BatchSourceContext context, Schema schema, Type sourceTableType,
