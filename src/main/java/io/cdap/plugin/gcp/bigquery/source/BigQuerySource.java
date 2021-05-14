@@ -133,16 +133,12 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
                                                           credentials,
                                                           bucketPath,
                                                           cmekKey);
-    BigQuerySourceUtils.configureBucket(configuration, bucket, bucketPath);
 
     // Configure Service account credentials
     BigQuerySourceUtils.configureServiceAccount(configuration, config);
 
     // Configure BQ Source
     configureBigQuerySource();
-
-    // Set up temporary table name. This will be used if the source table is a view
-    BigQuerySourceUtils.configureTemporaryTableName(configuration, config.getTable());
 
     // Configure BigQuery input format.
     String temporaryGcsPath = BigQuerySourceUtils.getTemporaryGcsPath(bucket, bucketPath, bucketPath);

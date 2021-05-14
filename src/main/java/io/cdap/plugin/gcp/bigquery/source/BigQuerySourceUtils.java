@@ -90,23 +90,6 @@ public class BigQuerySourceUtils {
   }
 
   /**
-   * Updates {@link Configuration} with the object storage path for the supplied bucket and path.
-   */
-  public static void configureBucket(Configuration configuration, String bucket, String path) {
-    configureBucket(configuration, String.format(GS_PATH_FORMAT, bucket, path));
-  }
-
-  /**
-   * Updates {@link Configuration} with the object storage path for the supplied path in a GCS bucket.
-   */
-  public static void configureBucket(Configuration configuration, String gcsPath) {
-    LOG.debug("Using GCS path {} as source.", gcsPath);
-    configuration.set("fs.default.name", gcsPath);
-    configuration.setBoolean("fs.gs.impl.disable.cache", true);
-    configuration.setBoolean("fs.gs.metadata.cache.enable", false);
-  }
-
-  /**
    * Sets up service account credentials into supplied Hadoop configuration.
    *
    * @param configuration Hadoop Configuration instance.
@@ -123,37 +106,35 @@ public class BigQuerySourceUtils {
    * Configure BigQuery input using the supplied configuration and GCS path.
    *
    * @param configuration Hadoop configuration instance.
-   * @param datasetProject the project to use.
+   * @param project the project to use.
    * @param dataset the dataset to use.
+   * @param table the name of the table to pull from.
    * @param gcsPath Path to use to store output files.
-   * @param tableName the name of the table to pull from.
    * @throws IOException if the BigQuery input could not be configured.
    */
   public static void configureBigQueryInput(Configuration configuration,
-                                            String datasetProject,
+                                            String project,
                                             String dataset,
-                                            String tableName,
+                                            String table,
                                             String gcsPath) throws IOException {
+    // Configure GCS bucket path
+    LOG.debug("Using GCS path {} as temp storage for table {}.", gcsPath, table);
+    configuration.set("fs.default.name", gcsPath);
+    configuration.setBoolean("fs.gs.impl.disable.cache", true);
+    configuration.setBoolean("fs.gs.metadata.cache.enable", false);
+
+    // Set up temporary table name. This will be used if the source table is a view
+    String temporaryTableName = String.format("_%s_%s", table,
+                                              UUID.randomUUID().toString().replaceAll("-", "_"));
+    configuration.set(BigQueryConstants.CONFIG_TEMPORARY_TABLE_NAME, temporaryTableName);
+
+    // Configure BigQuery input format.
     PartitionedBigQueryInputFormat.setTemporaryCloudStorageDirectory(configuration,
                                                                      gcsPath);
     BigQueryConfiguration.configureBigQueryInput(configuration,
-                                                 datasetProject,
+                                                 project,
                                                  dataset,
-                                                 tableName);
-  }
-
-  /**
-   * Sets up configuration property for temporary table names.
-   *
-   * This is used if the source table is a View.
-   *
-   * @param configuration Hadoop configuration.
-   * @param tableName name of the table/view to extract from BQ.
-   */
-  public static void configureTemporaryTableName(Configuration configuration, String tableName) {
-    String temporaryTableName = String.format("_%s_%s", tableName,
-                                              UUID.randomUUID().toString().replaceAll("-", "_"));
-    configuration.set(BigQueryConstants.CONFIG_TEMPORARY_TABLE_NAME, temporaryTableName);
+                                                 table);
   }
 
   /**
