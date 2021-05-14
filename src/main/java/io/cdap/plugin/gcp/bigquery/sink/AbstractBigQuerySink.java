@@ -34,15 +34,18 @@ import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
 import com.google.common.base.Strings;
+import com.google.gson.Gson;
 import io.cdap.cdap.api.data.batch.Output;
 import io.cdap.cdap.api.data.batch.OutputFormatProvider;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.plugin.common.LineageRecorder;
+import io.cdap.plugin.format.avro.StructuredToAvroTransformer;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
@@ -74,11 +77,13 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
   private static final String gcsPathFormat = "gs://%s/%s";
   private static final String temporaryBucketFormat = gcsPathFormat + "/input/%s-%s";
   public static final String RECORDS_UPDATED_METRIC = "records.updated";
+  private static final Gson GSON = new Gson();
 
   // UUID for the run. Will be used as bucket name if bucket is not provided.
   // UUID is used since GCS bucket names must be globally unique.
   private final UUID uuid = UUID.randomUUID();
   protected Configuration baseConfiguration;
+  private StructuredToAvroTransformer avroTransformer;
   protected BigQuery bigQuery;
 
   /**
@@ -130,6 +135,19 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
     }
   }
 
+  @Override
+  public void initialize(BatchRuntimeContext context) throws Exception {
+    Schema schema = GSON.fromJson(context.getArguments().get(BigQueryConstants.CDAP_BQ_SINK_TABLE), Schema.class);
+    avroTransformer = new StructuredToAvroTransformer(schema);
+  }
+
+  /**
+   * Transform the given {@link StructuredRecord} into avro {@link GenericRecord} with the same schema.
+   */
+  protected final GenericRecord toAvroRecord(StructuredRecord record) throws IOException {
+    return avroTransformer.transform(record);
+  }
+
   /**
    * Initializes output along with lineage recording for given table and its schema.
    *
@@ -155,6 +173,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
       .map(BigQueryTableFieldSchema::getName)
       .collect(Collectors.toList());
     recordLineage(context, outputName, tableSchema, fieldNames);
+    context.getArguments().set(BigQueryConstants.CDAP_BQ_SINK_TABLE, GSON.toJson(tableSchema));
     context.addOutput(Output.of(outputName, getOutputFormatProvider(configuration, tableName, tableSchema)));
   }
 
@@ -250,76 +269,6 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, A
     baseConfiguration.setBoolean("fs.gs.impl.disable.cache", true);
     baseConfiguration.setBoolean("fs.gs.metadata.cache.enable", false);
     return bucket;
-  }
-
-  /**
-   * Adjusts output format schema depending on allowSchemaRelaxation setting to avoid unexpected
-   * schema changes to the underlying bigQuery table.
-   * @param configuredSchema Schema configured for output format.
-   * @param bqSchema Optional BigQuery table schema to avoid duplicate calls.
-   * @param tableName BigQuery table name for writing record.
-   * @param collector Failure collector to report failures to the client.
-   * @return
-   */
-  protected final Schema overrideOutputSchemaWithTableSchemaIfNeeded(
-    String tableName,
-    Schema configuredSchema,
-    @Nullable com.google.cloud.bigquery.Schema bqSchema,
-    FailureCollector collector) {
-    AbstractBigQuerySinkConfig config = getConfig();
-
-    if (!config.isAllowSchemaRelaxation()) {
-      Schema tableSchema = getTableSchema(tableName, bqSchema, collector);
-      // We use GCS buckets to write AVRO files and import them in BigQuery.
-      // Avro is a self describing format and BigQuery overwrites table schema with AVRO record
-      // schema.
-      // If table schema relaxation is not allowed then AVRO records will be normalized and
-      // written to GCS using table schema to avoid any table schema changes.
-      if (tableSchema != null) {
-        LOG.info("Output schema updated to use table schema");
-        return tableSchema;
-      }
-    }
-    return configuredSchema;
-  }
-
-  /**
-   * Returns Bigtable schema in a CDAP schema format.
-   * @param tableName BigQuery table name for writing record.
-   * @param bqSchema Optional BigQuery table schema to avoid duplicate calls.
-   * @param collector Failure collector to report failures to the client.
-   * @return
-   */
-  @Nullable
-  private Schema getTableSchema(
-    String tableName,
-    @Nullable com.google.cloud.bigquery.Schema bqSchema,
-    FailureCollector collector) {
-    if (bqSchema == null) {
-      AbstractBigQuerySinkConfig config = getConfig();
-      Table table = BigQueryUtil.getBigQueryTable(
-        config.getProject(),
-        config.getDataset(),
-        tableName,
-        config.getServiceAccount(),
-        config.isServiceAccountFilePath(),
-        collector);
-
-      if (table == null) {
-        LOG.info("Table [%s] doesn't exist yet. Using input schema for writing records.",
-          tableName);
-        return null;
-      }
-
-      bqSchema = table.getDefinition().getSchema();
-    }
-
-    if (bqSchema == null || bqSchema.getFields().isEmpty()) {
-      // Table is created without schema, so no further validation is required.
-      LOG.info("Table [%s] doesn't have a schema. Using input schema for writing records.", tableName);
-      return null;
-    }
-    return BigQueryUtil.getTableSchema(bqSchema, collector);
   }
 
   protected void validateInsertSchema(Table table, @Nullable Schema tableSchema, FailureCollector collector) {

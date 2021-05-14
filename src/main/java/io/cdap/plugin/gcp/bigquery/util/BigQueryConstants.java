@@ -43,4 +43,5 @@ public interface BigQueryConstants {
   String CONFIG_PARTITION_INTEGER_RANGE_END = "cdap.bq.sink.partition.integer.range.end";
   String CONFIG_PARTITION_INTEGER_RANGE_INTERVAL = "cdap.bq.sink.partition.integer.range.interval";
   String CONFIG_TEMPORARY_TABLE_NAME = "cdap.bq.source.temporary.table.name";
+  String CDAP_BQ_SINK_TABLE = "cdap.bq.sink.output.schema";
 }

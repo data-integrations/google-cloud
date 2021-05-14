@@ -115,8 +115,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
     FailureCollector collector = context.getFailureCollector();
 
     Schema configSchema = config.getSchema(collector);
-    Schema outputSchema = overrideOutputSchemaWithTableSchemaIfNeeded(
-      config.getTable(), configSchema == null ? context.getInputSchema() : configSchema, null, collector);
+    Schema outputSchema = configSchema == null ? context.getInputSchema() : configSchema;
 
     configureTable(outputSchema);
     configureBigQuerySink();

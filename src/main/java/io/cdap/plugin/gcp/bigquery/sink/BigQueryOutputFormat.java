@@ -251,7 +251,13 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
       }
       // Create load conf with minimal requirements.
       JobConfigurationLoad loadConfig = new JobConfigurationLoad();
-      loadConfig.setSchema(schema);
+      // If schema change is not allowed and if the destination table already exists, use the destination table schema
+      // See PLUGIN-395
+      if (!allowSchemaRelaxation && tableExists) {
+        loadConfig.setSchema(bigQueryHelper.getTable(tableRef).getSchema());
+      } else {
+        loadConfig.setSchema(schema);
+      }
       loadConfig.setSourceFormat(sourceFormat.getFormatIdentifier());
       loadConfig.setSourceUris(gcsPaths);
       loadConfig.setWriteDisposition(writeDisposition);
@@ -335,12 +341,12 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Avr
         loadConfig.setDestinationEncryptionConfiguration(new EncryptionConfiguration().setKmsKeyName(kmsKeyName));
       }
 
-      // Auto detect the schema if we're not given one, otherwise use the passed schema.
-      if (schema == null) {
+      // Auto detect the schema if we're not given one, otherwise use the set schema.
+      if (loadConfig.getSchema() == null) {
         LOG.info("No import schema provided, auto detecting schema.");
         loadConfig.setAutodetect(true);
       } else {
-        LOG.info("Using provided import schema '{}'.", schema.toString());
+        LOG.info("Using schema '{}' for the load job config.", loadConfig.getSchema());
       }
 
       JobConfiguration config = new JobConfiguration();
