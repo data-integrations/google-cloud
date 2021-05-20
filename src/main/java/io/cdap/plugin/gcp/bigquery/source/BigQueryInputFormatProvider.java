@@ -31,6 +31,13 @@ public class BigQueryInputFormatProvider implements InputFormatProvider {
 
   protected Map<String, String> inputFormatConfiguration;
 
+  /**
+   * This constructor is only used when Spark serializes this class.
+   */
+  protected BigQueryInputFormatProvider() {
+    // no-op
+  }
+
   public BigQueryInputFormatProvider(Configuration configuration) {
     this.inputFormatConfiguration = StreamSupport
       .stream(configuration.spliterator(), false)

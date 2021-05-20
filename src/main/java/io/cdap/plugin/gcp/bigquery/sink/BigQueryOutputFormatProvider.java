@@ -35,6 +35,13 @@ public class BigQueryOutputFormatProvider implements OutputFormatProvider {
   protected Schema tableSchema;
 
   /**
+   * This constructor is only used when Spark serializes this class.
+   */
+  protected BigQueryOutputFormatProvider() {
+    // no-op
+  }
+
+  /**
    * @param configuration Hadoop Configuration object, must be set up by using {@link BigQuerySinkUtils#configureOutput}
    * @param tableSchema CDAP Schema for the output table.
    */
