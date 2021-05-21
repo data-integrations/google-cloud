@@ -6,6 +6,7 @@ import com.google.api.services.bigquery.model.JobConfigurationQuery;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
+import com.google.cloud.bigquery.JobId;
 import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.TableDefinition.Type;
@@ -113,7 +114,7 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
       String temporaryTableName = configuration.get(BigQueryConstants.CONFIG_TEMPORARY_TABLE_NAME);
       TableReference exportTableReference = createExportTableReference(type, inputProjectId, datasetId,
                                                                        temporaryTableName, configuration);
-      runQuery(bigQueryHelper, inputProjectId, exportTableReference, query, location);
+      runQuery(configuration, bigQueryHelper, inputProjectId, exportTableReference, query, location);
       if (type == Type.VIEW || type == Type.MATERIALIZED_VIEW) {
         configuration.set(BigQueryConfiguration.INPUT_PROJECT_ID_KEY,
                           configuration.get(BigQueryConstants.CONFIG_VIEW_MATERIALIZATION_PROJECT));
@@ -201,8 +202,12 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
     return tableReference;
   }
 
-  private static void runQuery(
-    BigQueryHelper bigQueryHelper, String projectId, TableReference tableRef, String query, String location)
+  private static void runQuery(Configuration configuration,
+                               BigQueryHelper bigQueryHelper,
+                               String projectId,
+                               TableReference tableRef,
+                               String query,
+                               String location)
     throws IOException, InterruptedException {
 
     // Create a query statement and query request object.
@@ -222,8 +227,7 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
     JobConfiguration config = new JobConfiguration();
     config.setQuery(queryConfig);
 
-    JobReference jobReference =
-      bigQueryHelper.createJobReference(projectId, "querybasedexport", location);
+    JobReference jobReference = getJobReference(configuration, bigQueryHelper, projectId, location);
 
     Job job = new Job();
     job.setConfiguration(config);
@@ -249,6 +253,28 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
       bigQueryHelper.getRawBigquery().tables().update(tableRef.getProjectId(), tableRef.getDatasetId(),
                                                       tableRef.getTableId(), table).execute();
     }
+  }
+
+  /**
+   * Gets the Job Reference for the BQ job to execute.
+   *
+   * If a Job ID is pre-configured, use this value.
+   *
+   * Otherwise, a new Job ID is generated with the "querybasedexport" prefix.
+   *
+   * @param conf Hadoop configuration.
+   * @param bigQueryHelper Big Query Helper instance
+   * @param projectId Project ID
+   * @param location Location
+   * @return Job Reference for the job to execute.
+   */
+  private static JobReference getJobReference(Configuration conf, BigQueryHelper bigQueryHelper,
+                                              String projectId, @Nullable String location) {
+    String savedJobId = conf.get(BigQueryConstants.CONFIG_JOB_ID);
+    if (savedJobId == null || savedJobId.isEmpty()) {
+      return bigQueryHelper.createJobReference(projectId, "querybasedexport", location);
+    }
+    return new JobReference().setProjectId(projectId).setJobId(savedJobId).setLocation(location);
   }
 
   private String generateTimePartitionCondition(StandardTableDefinition tableDefinition,

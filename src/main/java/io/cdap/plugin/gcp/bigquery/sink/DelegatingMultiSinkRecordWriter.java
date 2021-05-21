@@ -98,12 +98,13 @@ public class DelegatingMultiSinkRecordWriter extends RecordWriter<StructuredReco
     // Configure output.
     List<BigQueryTableFieldSchema> fields = BigQuerySinkUtils.getBigQueryTableFieldsFromSchema(schema);
 
+    String gcsPath = BigQuerySinkUtils.getTemporaryGcsPath(bucketName, bucketPathUniqueId,  tableName);
+
     BigQuerySinkUtils.configureMultiSinkOutput(initialContext.getConfiguration(),
                                                projectName,
                                                datasetName,
-                                               bucketName,
-                                               bucketPathUniqueId,
                                                tableName,
+                                               gcsPath,
                                                fields);
 
     BigQueryOutputFormat bqOutputFormat = new BigQueryOutputFormat();
