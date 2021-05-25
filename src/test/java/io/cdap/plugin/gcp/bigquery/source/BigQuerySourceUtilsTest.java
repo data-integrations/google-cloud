@@ -19,7 +19,7 @@ package io.cdap.plugin.gcp.bigquery.source;
 import com.google.auth.Credentials;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.Dataset;
-import io.cdap.plugin.gcp.bigquery.common.BigQueryBaseConfig;
+import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnectorConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Assert;
@@ -28,6 +28,8 @@ import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+
+import java.lang.reflect.Field;
 
 import static org.mockito.ArgumentMatchers.eq;
 import static org.powermock.api.mockito.PowerMockito.mock;
@@ -38,12 +40,18 @@ import static org.powermock.api.mockito.PowerMockito.when;
 public class BigQuerySourceUtilsTest {
 
   @Test
-  public void getOrCreateBucket() {
+  public void getOrCreateBucket() throws InstantiationException, IllegalAccessException, NoSuchFieldException {
     PowerMockito.mockStatic(GCPUtils.class);
 
     Configuration configuration = new Configuration();
-    BigQueryBaseConfig config = mock(BigQueryBaseConfig.class);
-    when(config.getDataset()).thenReturn("some-ds");
+    BigQuerySourceConfig config = new BigQuerySourceConfig();
+    Field dataset = BigQuerySourceConfig.class.getDeclaredField("dataset");
+    dataset.setAccessible(true);
+    dataset.set(config, "some-ds");
+
+    Field connection = BigQuerySourceConfig.class.getDeclaredField("connection");
+    connection.setAccessible(true);
+    connection.set(config, new BigQueryConnectorConfig());
 
     Dataset ds = mock(Dataset.class);
     BigQuery bq = mock(BigQuery.class);
@@ -52,12 +60,13 @@ public class BigQuerySourceUtilsTest {
     Credentials credentials = mock(Credentials.class);
 
     // Test with no bucket specified
-    when(config.getBucket()).thenReturn(null);
     String bucket1 = BigQuerySourceUtils.getOrCreateBucket(configuration, config, bq, credentials, "some-path", null);
     Assert.assertEquals("bq-source-bucket-some-path", bucket1);
 
     // Test with a bucket specified
-    when(config.getBucket()).thenReturn("a-bucket");
+    Field bucket = BigQuerySourceConfig.class.getDeclaredField("bucket");
+    bucket.setAccessible(true);
+    bucket.set(config, "a-bucket");
     String bucket2 = BigQuerySourceUtils.getOrCreateBucket(configuration, config, bq, credentials, "some-path", null);
     Assert.assertEquals("a-bucket", bucket2);
   }

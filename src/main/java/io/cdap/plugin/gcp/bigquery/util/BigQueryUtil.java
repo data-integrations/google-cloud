@@ -172,7 +172,7 @@ public final class BigQueryUtil {
    * @param collector Failure collector to collect failure messages for the client.
    * @return CDAP schema object
    */
-  public static Schema getTableSchema(com.google.cloud.bigquery.Schema bqSchema, FailureCollector collector) {
+  public static Schema getTableSchema(com.google.cloud.bigquery.Schema bqSchema, @Nullable FailureCollector collector) {
     FieldList fields = bqSchema.getFields();
     List<Schema.Field> schemafields = new ArrayList<>();
 
@@ -185,7 +185,7 @@ public final class BigQueryUtil {
       }
       schemafields.add(schemaField);
     }
-    if (schemafields.isEmpty() && !collector.getValidationFailures().isEmpty()) {
+    if (schemafields.isEmpty() && collector != null && !collector.getValidationFailures().isEmpty()) {
       // throw if there was validation failure(s) added to the collector
       collector.getOrThrowException();
     }
@@ -202,7 +202,7 @@ public final class BigQueryUtil {
    * @return A CDAP schema field
    */
   @Nullable
-  public static Schema.Field getSchemaField(Field field, FailureCollector collector) {
+  public static Schema.Field getSchemaField(Field field, @Nullable FailureCollector collector) {
     Schema schema = convertFieldType(field, collector);
     if (schema == null) {
       return null;
@@ -219,7 +219,12 @@ public final class BigQueryUtil {
       default:
         // this should not happen, unless newer bigquery versions introduces new mode that is not supported by this
         // plugin.
-        collector.addFailure(String.format("Field '%s' has unsupported mode '%s'.", field.getName(), mode), null);
+        String error = String.format("Field '%s' has unsupported mode '%s'.", field.getName(), mode);
+        if (collector != null) {
+          collector.addFailure(error, null);
+        } else {
+          throw new RuntimeException(error);
+        }
     }
     return null;
   }
@@ -231,7 +236,7 @@ public final class BigQueryUtil {
    * @return A CDAP field schema
    */
   @Nullable
-  public static Schema convertFieldType(Field field, FailureCollector collector) {
+  public static Schema convertFieldType(Field field, @Nullable FailureCollector collector) {
     LegacySQLTypeName type = field.getType();
     Schema schema = null;
     StandardSQLTypeName value = type.getStandardType();
@@ -276,10 +281,15 @@ public final class BigQueryUtil {
         schema = Schema.recordOf(field.getName(), schemafields);
       }
     } else {
-      collector.addFailure(
-          String.format("BigQuery column '%s' is of unsupported type '%s'.", field.getName(), value.name()),
-          String.format("Supported column types are: %s.", BigQueryUtil.BQ_TYPE_MAP.keySet().stream()
-              .map(t -> t.getStandardType().name()).collect(Collectors.joining(", "))));
+      String error = String.format("BigQuery column '%s' is of unsupported type '%s'.", field.getName(), value.name());
+      String action = String.format("Supported column types are: %s.",
+        BigQueryUtil.BQ_TYPE_MAP.keySet().stream().map(t -> t.getStandardType().name())
+          .collect(Collectors.joining(", ")));
+      if (collector != null) {
+        collector.addFailure(error, action);
+      } else {
+        throw new RuntimeException(error + action);
+      }
     }
     return schema;
   }

@@ -117,7 +117,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
 
     // Create BigQuery client
     String serviceAccount = config.getServiceAccount();
-    Credentials credentials = BigQuerySourceUtils.getCredentials(config);
+    Credentials credentials = BigQuerySourceUtils.getCredentials(config.getConnection());
     BigQuery bigQuery = GCPUtils.getBigQuery(config.getDatasetProject(), credentials);
 
     // Get Configuration for this run
@@ -135,7 +135,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
                                                           cmekKey);
 
     // Configure Service account credentials
-    BigQuerySourceUtils.configureServiceAccount(configuration, config);
+    BigQuerySourceUtils.configureServiceAccount(configuration, config.getConnection());
 
     // Configure BQ Source
     configureBigQuerySource();
@@ -178,7 +178,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
 
   @Override
   public void onRunFinish(boolean succeeded, BatchSourceContext context) {
-    BigQuerySourceUtils.deleteGcsTemporaryDirectory(configuration, config, bucketPath);
+    BigQuerySourceUtils.deleteGcsTemporaryDirectory(configuration, config.getBucket(), bucketPath);
     BigQuerySourceUtils.deleteBigQueryTemporaryTable(configuration, config);
   }
 

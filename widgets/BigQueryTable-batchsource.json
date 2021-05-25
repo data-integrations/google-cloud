@@ -5,6 +5,35 @@
   "display-name": "BigQuery",
   "configuration-groups": [
     {
+      "label": "Connection",
+      "properties": [
+        {
+          "widget-type": "toggle",
+          "label": "Use connection",
+          "name": "useConnection",
+          "widget-attributes": {
+            "on": {
+              "value": "true",
+              "label": "YES"
+            },
+            "off": {
+              "value": "false",
+              "label": "NO"
+            },
+            "default": "false"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Connection",
+          "name": "connection",
+          "widget-attributes": {
+            "placeholder": "connection id"
+          }
+        }
+      ]
+    },
+    {
       "label": "Basic",
       "properties": [
         {
@@ -16,6 +45,7 @@
           }
         },
         {
+          "label": "browse",
           "widget-type": "connection-browser",
           "widget-category": "plugin",
           "widget-attributes": {
@@ -206,7 +236,7 @@
     {
       "name": "ServiceAuthenticationTypeFilePath",
       "condition": {
-        "expression": "serviceAccountType == 'filePath'"
+        "expression": "useConnection == false && serviceAccountType == 'filePath'"
       },
       "show": [
         {
@@ -218,12 +248,44 @@
     {
       "name": "ServiceAuthenticationTypeJSON",
       "condition": {
-        "expression": "serviceAccountType == 'JSON'"
+        "expression": "useConnection == false && serviceAccountType == 'JSON'"
       },
       "show": [
         {
           "type": "property",
           "name": "serviceAccountJSON"
+        }
+      ]
+    },
+    {
+      "name": "showConnectionProperties ",
+      "condition": {
+        "expression": "useConnection == false"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "project"
+        },
+        {
+          "type": "property",
+          "name": "datasetProject"
+        },
+        {
+          "type": "property",
+          "name": "serviceAccountType"
+        }
+      ]
+    },
+    {
+      "name": "showConnectionId",
+      "condition": {
+        "expression": "useConnection == true"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "connection"
         }
       ]
     }
