@@ -37,13 +37,18 @@ import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySink;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySource;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceConfig;
+import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceUtils;
 import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -59,6 +64,9 @@ import javax.annotation.Nullable;
  * Common Util class for big query plugins such as {@link BigQuerySource} and {@link BigQuerySink}
  */
 public final class BigQueryUtil {
+
+  private static final Logger LOG = LoggerFactory.getLogger(BigQueryUtil.class);
+
   public static final String BUCKET_PATTERN = "[a-z0-9._-]+";
   public static final String DATASET_PATTERN = "[A-Za-z0-9_]+";
   public static final String TABLE_PATTERN = "[A-Za-z0-9_]+";
@@ -641,6 +649,21 @@ public final class BigQueryUtil {
       if (!p.matcher(text).matches()) {
         collector.addFailure(errorMessage, null).withConfigProperty(propertyName);
       }
+    }
+  }
+
+  /**
+   * Deletes temporary directory.
+   *
+   * @param configuration Hadoop Configuration.
+   * @param dir directory to delete
+   */
+  public static void deleteTemporaryDirectory(Configuration configuration, String dir) throws IOException {
+    Path path = new Path(dir);
+    FileSystem fs = path.getFileSystem(configuration);
+    if (fs.exists(path)) {
+      fs.delete(path, true);
+      LOG.debug("Deleted temporary directory '{}'", path);
     }
   }
 }

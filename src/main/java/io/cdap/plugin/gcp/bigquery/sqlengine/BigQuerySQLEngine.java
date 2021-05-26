@@ -1,0 +1,352 @@
+/*
+ * Copyright © 2021 Cask Data, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+
+package io.cdap.plugin.gcp.bigquery.sqlengine;
+
+import com.google.auth.Credentials;
+import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryException;
+import com.google.cloud.bigquery.Job;
+import com.google.cloud.bigquery.TableId;
+import com.google.cloud.storage.Storage;
+import io.cdap.cdap.api.RuntimeContext;
+import io.cdap.cdap.api.annotation.Description;
+import io.cdap.cdap.api.annotation.Name;
+import io.cdap.cdap.api.annotation.Plugin;
+import io.cdap.cdap.api.data.format.StructuredRecord;
+import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.etl.api.PipelineConfigurer;
+import io.cdap.cdap.etl.api.engine.sql.BatchSQLEngine;
+import io.cdap.cdap.etl.api.engine.sql.SQLEngineException;
+import io.cdap.cdap.etl.api.engine.sql.dataset.SQLDataset;
+import io.cdap.cdap.etl.api.engine.sql.dataset.SQLPullDataset;
+import io.cdap.cdap.etl.api.engine.sql.dataset.SQLPushDataset;
+import io.cdap.cdap.etl.api.engine.sql.request.SQLJoinDefinition;
+import io.cdap.cdap.etl.api.engine.sql.request.SQLJoinRequest;
+import io.cdap.cdap.etl.api.engine.sql.request.SQLPullRequest;
+import io.cdap.cdap.etl.api.engine.sql.request.SQLPushRequest;
+import io.cdap.cdap.etl.api.join.JoinCondition;
+import io.cdap.cdap.etl.api.join.JoinStage;
+import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
+import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
+import io.cdap.plugin.gcp.common.GCPUtils;
+import org.apache.avro.generic.GenericData;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.NullWritable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.stream.Collectors;
+import javax.annotation.Nullable;
+
+/**
+ * SQL Engine implementation using BigQuery as the execution engine.
+ */
+@Plugin(type = BatchSQLEngine.PLUGIN_TYPE)
+@Name(BigQuerySQLEngine.NAME)
+@Description("BigQuery SQLEngine implementation, used to push down certain pipeline steps into BigQuery. "
+  + "A GCS bucket is used as staging for the read/write operations performed by this engine. "
+  + "BigQuery is Google's serverless, highly scalable, enterprise data warehouse.")
+public class BigQuerySQLEngine
+  extends BatchSQLEngine<LongWritable, GenericData.Record, StructuredRecord, NullWritable> {
+
+  private static final Logger LOG = LoggerFactory.getLogger(BigQuerySQLEngine.class);
+
+  public static final String NAME = "BigQueryPushdownEngine";
+
+  private final BigQuerySQLEngineConfig config;
+  private BigQuery bigQuery;
+  private Storage storage;
+  private Configuration configuration;
+  private String project;
+  private String location;
+  private String dataset;
+  private String bucket;
+  private String runId;
+  private Map<String, String> tableNames;
+  private Map<String, BigQuerySQLDataset> datasets;
+
+  @SuppressWarnings("unused")
+  public BigQuerySQLEngine(BigQuerySQLEngineConfig config) {
+    this.config = config;
+  }
+
+  @Override
+  public void prepareRun(RuntimeContext context) throws Exception {
+    super.prepareRun(context);
+
+    runId = BigQuerySQLEngineUtils.getIdentifier();
+    tableNames = new HashMap<>();
+    datasets = new HashMap<>();
+
+    String serviceAccount = config.getServiceAccount();
+    Credentials credentials = serviceAccount == null ?
+      null : GCPUtils.loadServiceAccountCredentials(serviceAccount, config.isServiceAccountFilePath());
+    project = config.getProject();
+    dataset = config.getDataset();
+    bucket = config.getBucket() != null ? config.getBucket() : "bqpushdown-" + runId;
+    location = config.getLocation();
+
+    // Initialize BQ and GCS clients.
+    bigQuery = GCPUtils.getBigQuery(project, credentials);
+    storage = GCPUtils.getStorage(project, credentials);
+
+    String cmekKey = context.getRuntimeArguments().get(GCPUtils.CMEK_KEY);
+    configuration = BigQueryUtil.getBigQueryConfig(config.getServiceAccount(), config.getProject(),
+                                                   cmekKey, config.getServiceAccountType());
+    BigQuerySinkUtils.createResources(bigQuery, storage, dataset, bucket, config.getLocation(), cmekKey);
+  }
+
+  @Override
+  public SQLPushDataset<StructuredRecord, StructuredRecord, NullWritable> getPushProvider(SQLPushRequest sqlPushRequest)
+    throws SQLEngineException {
+    try {
+      BigQueryPushDataset pushDataset =
+        BigQueryPushDataset.getInstance(sqlPushRequest,
+                                        configuration,
+                                        bigQuery,
+                                        project,
+                                        dataset,
+                                        bucket,
+                                        runId);
+
+      LOG.info("Executing Push operation for dataset {} stored in table {}",
+               sqlPushRequest.getDatasetName(),
+               pushDataset.getBigQueryTableName());
+
+      datasets.put(sqlPushRequest.getDatasetName(), pushDataset);
+      return pushDataset;
+    } catch (IOException ioe) {
+      throw new SQLEngineException(ioe);
+    }
+  }
+
+  @Override
+  public SQLPullDataset<StructuredRecord, LongWritable, GenericData.Record> getPullProvider(
+    SQLPullRequest sqlPullRequest) throws SQLEngineException {
+    if (!datasets.containsKey(sqlPullRequest.getDatasetName())) {
+      throw new SQLEngineException(String.format("Trying to pull non-existing dataset: '%s",
+                                                 sqlPullRequest.getDatasetName()));
+    }
+
+    String table = datasets.get(sqlPullRequest.getDatasetName()).getBigQueryTableName();
+
+    LOG.info("Executing Pull operation for dataset {} stored in table {}", sqlPullRequest.getDatasetName(), table);
+
+    try {
+      return BigQueryPullDataset.getInstance(sqlPullRequest,
+                                             configuration,
+                                             bigQuery,
+                                             project,
+                                             dataset,
+                                             table,
+                                             bucket,
+                                             runId);
+    } catch (IOException ioe) {
+      throw new SQLEngineException(ioe);
+    }
+  }
+
+  @Override
+  public boolean exists(String datasetName) throws SQLEngineException {
+    return datasets.containsKey(datasetName);
+  }
+
+  @Override
+  public boolean canJoin(SQLJoinDefinition sqlJoinDefinition) {
+    // TODO: remove when expression joins are supported.
+    if (sqlJoinDefinition.getJoinDefinition().getCondition().getOp() != JoinCondition.Op.KEY_EQUALITY) {
+      return false;
+    }
+
+    //Ensure none of the schemas contains unsupported types.
+    for (JoinStage inputStage : sqlJoinDefinition.getJoinDefinition().getStages()) {
+      if (!supportsSchema(inputStage.getSchema())) {
+        return false;
+      }
+    }
+
+    if (!supportsSchema(sqlJoinDefinition.getJoinDefinition().getOutputSchema())) {
+      return false;
+    }
+
+    return true;
+  }
+
+  @Override
+  public SQLDataset join(SQLJoinRequest sqlJoinRequest) throws SQLEngineException {
+    BigQueryJoinDataset joinDataset = BigQueryJoinDataset.getInstance(sqlJoinRequest,
+                                                                      getStageNameToBQTableNameMap(),
+                                                                      bigQuery,
+                                                                      location,
+                                                                      project,
+                                                                      dataset,
+                                                                      runId);
+
+    datasets.put(sqlJoinRequest.getDatasetName(), joinDataset);
+
+    return joinDataset;
+  }
+
+  @Override
+  public void cleanup(String datasetName) throws SQLEngineException {
+    BigQuerySQLDataset bqDataset = datasets.get(datasetName);
+    if (bqDataset == null) {
+      return;
+    }
+
+    SQLEngineException ex = null;
+
+    // Cancel BQ job
+    try {
+      cancelJob(datasetName, bqDataset);
+    } catch (BigQueryException e) {
+      LOG.error("Exception when cancelling BigQuery job '{}' for stage '{}': {}",
+                bqDataset.getJobId(), datasetName, e.getMessage());
+      ex = new SQLEngineException(String.format("Exception when executing cleanup for stage '%s'", datasetName), e);
+    }
+
+    // Delete BQ Table
+    try {
+      deleteTable(datasetName, bqDataset);
+    } catch (BigQueryException e) {
+      LOG.error("Exception when deleting BigQuery table '{}' for stage '{}': {}",
+                bqDataset.getBigQueryTableName(), datasetName, e.getMessage());
+      if (ex == null) {
+        ex = new SQLEngineException(String.format("Exception when executing cleanup for stage '%s'", datasetName), e);
+      } else {
+        ex.addSuppressed(e);
+      }
+    }
+
+    // Delete temporary folder
+    try {
+      deleteTempFolder(bqDataset);
+    } catch (IOException e) {
+      LOG.error("Failed to delete temporary directory '{}' for stage '{}': {}",
+                bqDataset.getGCSPath(), datasetName, e.getMessage());
+      if (ex == null) {
+        ex = new SQLEngineException(String.format("Exception when executing cleanup for stage '%s'", datasetName), e);
+      } else {
+        ex.addSuppressed(e);
+      }
+    }
+
+    // Throw all collected exceptions, if any.
+    if (ex != null) {
+      throw ex;
+    }
+  }
+
+  /**
+   * Get a map that contains stage names as keys and BigQuery tables as Values.
+   *
+   * @return map representing all stages currently pushed to BQ.
+   */
+  protected Map<String, String> getStageNameToBQTableNameMap() {
+    return datasets.entrySet()
+      .stream()
+      .collect(Collectors.toMap(
+        Map.Entry::getKey,
+        e -> e.getValue().getBigQueryTableName()
+      ));
+  }
+
+  /**
+   * Stops the running job for the supplied dataset
+   *
+   * @param stageName the name of the stage in CDAP
+   * @param bqDataset the BigQuery Dataset Instance
+   */
+  protected void cancelJob(String stageName, BigQuerySQLDataset bqDataset) throws BigQueryException {
+    String jobId = bqDataset.getJobId();
+
+    // If this dataset does not specify a job ID, there's no need to cancel any job
+    if (jobId == null) {
+      return;
+    }
+
+    String tableName = bqDataset.getBigQueryTableName();
+    Job job = bigQuery.getJob(jobId);
+
+    if (job == null) {
+      return;
+    }
+
+    if (!job.cancel()) {
+      LOG.error("Unable to cancel BigQuery job '{}' for table '{}' and stage '{}'", jobId, tableName, stageName);
+    }
+  }
+
+  /**
+   * Deletes the BigQuery table for the supplied dataset
+   *
+   * @param stageName the name of the stage in CDAP
+   * @param bqDataset the BigQuery Dataset Instance
+   */
+  protected void deleteTable(String stageName, BigQuerySQLDataset bqDataset) throws BigQueryException {
+    String tableName = bqDataset.getBigQueryTableName();
+    TableId tableId = TableId.of(project, dataset, tableName);
+
+    if (!bigQuery.delete(tableId)) {
+      LOG.error("Unable to delete BigQuery table '{}' for stage '{}'",  tableName, stageName);
+    }
+  }
+
+  /**
+   * Deletes the temporary folder used by a certain BQ dataset.
+   * @param bqDataset the BigQuery Dataset Instance
+   */
+  protected void deleteTempFolder(BigQuerySQLDataset bqDataset) throws IOException {
+    String gcsPath = bqDataset.getGCSPath();
+
+    // If this dataset does not use temporary storage, skip this step
+    if (gcsPath == null) {
+      return;
+    }
+
+    BigQueryUtil.deleteTemporaryDirectory(configuration, gcsPath);
+  }
+
+  /**
+   * Validate that this schema is supported in BigQuery.
+   *
+   * We don't support CDAP types ENUM, MAP and UNION in BigQuery.
+   *
+   * @param schema input schema
+   * @return boolean determining if this schema is supported in BQ.
+   */
+  protected boolean supportsSchema(@Nullable Schema schema) {
+    // If the schema cannot be determined, this join should not be executed in the SQL engine.
+    if (schema == null) {
+      return false;
+    }
+
+    for (Schema.Field field : schema.getFields()) {
+      if (field.getSchema().getType() == Schema.Type.ENUM || field.getSchema().getType() == Schema.Type.MAP
+        || field.getSchema().getType() == Schema.Type.UNION) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+}

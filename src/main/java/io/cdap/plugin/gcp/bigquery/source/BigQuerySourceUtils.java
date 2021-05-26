@@ -23,10 +23,9 @@ import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import io.cdap.plugin.gcp.bigquery.common.BigQueryBaseConfig;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
+import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -177,22 +176,19 @@ public class BigQuerySourceUtils {
   public static void deleteGcsTemporaryDirectory(Configuration configuration,
                                                  BigQueryBaseConfig config,
                                                  String runId) {
-    Path gcsPath = null;
+    String gcsPath;
     String bucket = config.getBucket();
     // If the bucket was created for this run, delete it.
     if (bucket == null) {
-      gcsPath = new Path(String.format(GCS_BUCKET_FORMAT, runId));
+      gcsPath = String.format(GCS_BUCKET_FORMAT, runId);
     } else {
-      gcsPath = new Path(String.format(GS_PATH_FORMAT, bucket, runId));
+      gcsPath = String.format(GS_PATH_FORMAT, bucket, runId);
     }
+
     try {
-      FileSystem fs = gcsPath.getFileSystem(configuration);
-      if (fs.exists(gcsPath)) {
-        fs.delete(gcsPath, true);
-        LOG.debug("Deleted temporary directory '{}'", gcsPath);
-      }
+      BigQueryUtil.deleteTemporaryDirectory(configuration, gcsPath);
     } catch (IOException e) {
-      LOG.warn("Failed to delete temporary directory '{}': {}", gcsPath, e.getMessage());
+      LOG.error("Failed to delete temporary directory '{}': {}", gcsPath, e.getMessage());
     }
   }
 }
