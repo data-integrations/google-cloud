@@ -18,17 +18,14 @@ package io.cdap.plugin.gcp.bigquery.sqlengine;
 
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.Job;
-import com.google.cloud.bigquery.JobConfiguration;
 import com.google.cloud.bigquery.JobId;
 import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.bigquery.QueryJobConfiguration;
-import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.engine.sql.SQLEngineException;
 import io.cdap.cdap.etl.api.engine.sql.dataset.SQLDataset;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLJoinRequest;
-import io.cdap.cdap.etl.api.join.JoinCondition;
 import io.cdap.cdap.etl.api.join.JoinDefinition;
 import io.cdap.plugin.gcp.bigquery.sqlengine.builder.BigQuerySQLBuilder;
 import org.slf4j.Logger;
@@ -52,7 +49,7 @@ public class BigQueryJoinDataset implements SQLDataset, BigQuerySQLDataset {
   private final String bqDataset;
   private final String bqTable;
   private final String jobId;
-  private final BigQuerySQLBuilder helper;
+  private final BigQuerySQLBuilder queryBuilder;
   private Long numRows;
 
   private BigQueryJoinDataset(String datasetName,
@@ -72,7 +69,7 @@ public class BigQueryJoinDataset implements SQLDataset, BigQuerySQLDataset {
     this.bqDataset = bqDataset;
     this.bqTable = bqTable;
     this.jobId = jobId;
-    this.helper = new BigQuerySQLBuilder(this.project, this.bqDataset, stageToTableNameMap);
+    this.queryBuilder = new BigQuerySQLBuilder(this.joinDefinition, this.project, this.bqDataset, stageToTableNameMap);
   }
 
   public static BigQueryJoinDataset getInstance(SQLJoinRequest joinRequest,
@@ -105,7 +102,7 @@ public class BigQueryJoinDataset implements SQLDataset, BigQuerySQLDataset {
   private void executeJoin() {
     TableId destinationTable = TableId.of(project, bqDataset, bqTable);
 
-    String query = getQuery(joinDefinition);
+    String query = queryBuilder.getQuery();
     LOG.info("Creating table `{}` using job: {} with SQL statement: {}", bqTable, jobId, query);
 
     // Run BigQuery job with generated SQL statement, store results in a new table, and set priority to BATCH
@@ -137,15 +134,6 @@ public class BigQueryJoinDataset implements SQLDataset, BigQuerySQLDataset {
     }
 
     LOG.info("Created BigQuery table `{}` using Job: {}", bqTable, jobId);
-  }
-
-  protected String getQuery(JoinDefinition joinDefinition) {
-    if (joinDefinition.getCondition().getOp() == JoinCondition.Op.KEY_EQUALITY) {
-      return helper.getFieldEqualityQuery(joinDefinition);
-    } else {
-      //TODO: implement
-      throw new SQLEngineException("Advanced joins not currently supported");
-    }
   }
 
   @Override

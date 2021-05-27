@@ -22,13 +22,13 @@ import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.Job;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.storage.Storage;
+import com.google.common.annotations.VisibleForTesting;
 import io.cdap.cdap.api.RuntimeContext;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
-import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.engine.sql.BatchSQLEngine;
 import io.cdap.cdap.etl.api.engine.sql.SQLEngineException;
 import io.cdap.cdap.etl.api.engine.sql.dataset.SQLDataset;
@@ -39,6 +39,7 @@ import io.cdap.cdap.etl.api.engine.sql.request.SQLJoinRequest;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLPullRequest;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLPushRequest;
 import io.cdap.cdap.etl.api.join.JoinCondition;
+import io.cdap.cdap.etl.api.join.JoinDefinition;
 import io.cdap.cdap.etl.api.join.JoinStage;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
@@ -51,7 +52,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -171,23 +174,105 @@ public class BigQuerySQLEngine
 
   @Override
   public boolean canJoin(SQLJoinDefinition sqlJoinDefinition) {
-    // TODO: remove when expression joins are supported.
-    if (sqlJoinDefinition.getJoinDefinition().getCondition().getOp() != JoinCondition.Op.KEY_EQUALITY) {
-      return false;
+    return isValidJoinDefinition(sqlJoinDefinition);
+  }
+
+  @VisibleForTesting
+  protected static boolean isValidJoinDefinition(SQLJoinDefinition sqlJoinDefinition) {
+    List<String> validationProblems = new ArrayList<>();
+
+    JoinDefinition joinDefinition = sqlJoinDefinition.getJoinDefinition();
+
+    // Ensure none of the input schemas contains unsupported types or invalid stage names.
+    for (JoinStage inputStage : joinDefinition.getStages()) {
+      // Validate input stage schema and identifier
+      validateInputStage(inputStage, validationProblems);
     }
 
-    //Ensure none of the schemas contains unsupported types.
-    for (JoinStage inputStage : sqlJoinDefinition.getJoinDefinition().getStages()) {
-      if (!supportsSchema(inputStage.getSchema())) {
-        return false;
+    // Ensure the output schema doesn't contain unsupported types
+    validateOutputSchema(joinDefinition.getOutputSchema(), validationProblems);
+
+    // Ensure expression joins have valid aliases
+    if (joinDefinition.getCondition().getOp() == JoinCondition.Op.EXPRESSION) {
+      validateOnExpressionJoinCondition((JoinCondition.OnExpression) joinDefinition.getCondition(),
+                                        validationProblems);
+    }
+
+    if (!validationProblems.isEmpty()) {
+      LOG.warn("Join operation for stage '{}' could not be executed in BigQuery. Issues found: {}.",
+               sqlJoinDefinition.getDatasetName(),
+               String.join("; ", validationProblems));
+    }
+
+    return validationProblems.isEmpty();
+  }
+
+  /**
+   * Validate input stage schema. Any errors will be added to the supplied list of validation issues.
+   *
+   * @param inputStage Input Stage
+   * @param validationProblems List of validation problems to use to append messages
+   */
+  private static void validateInputStage(JoinStage inputStage, List<String> validationProblems) {
+    String stageName = inputStage.getStageName();
+
+    if (inputStage.getSchema() == null) {
+      // Null schemas are not supported.
+      validationProblems.add(String.format("Input schema from stage '%s' is null", stageName));
+    } else {
+      // Validate schema
+      SchemaValidation schemaValidation = validateSchema(inputStage.getSchema());
+      if (!schemaValidation.isSupported()) {
+        validationProblems.add(
+          String.format("Input schema from stage '%s' contains unsupported field types for the following fields: %s",
+                        stageName,
+                        String.join(", ", schemaValidation.getInvalidFields())));
       }
     }
 
-    if (!supportsSchema(sqlJoinDefinition.getJoinDefinition().getOutputSchema())) {
-      return false;
+    if (!isValidIdentifier(stageName)) {
+      validationProblems.add(
+        String.format("Unsupported stage name '%s'. Stage names cannot contain backtick ` or backslash \\ ",
+                      stageName));
     }
+  }
 
-    return true;
+
+  /**
+   * Validate output stage schema. Any errors will be added to the supplied list of validation issues.
+   *
+   * @param outputSchema the schema to validate
+   * @param validationProblems List of validation problems to use to append messages
+   */
+  private static void validateOutputSchema(@Nullable Schema outputSchema, List<String> validationProblems) {
+    if (outputSchema == null) {
+      // Null schemas are not supported.
+      validationProblems.add("Output Schema is null");
+    } else {
+      // Validate schema
+      SchemaValidation schemaValidation = validateSchema(outputSchema);
+      if (!schemaValidation.isSupported()) {
+        validationProblems.add(
+          String.format("Output schema contains unsupported field types for the following fields: %s",
+                        String.join(", ", schemaValidation.getInvalidFields())));
+      }
+    }
+  }
+
+  /**
+   * Validate on expression join condition
+   *
+   * @param onExpression Join Condition to validate
+   * @param validationProblems List of validation problems to use to append messages
+   */
+  private static void validateOnExpressionJoinCondition(JoinCondition.OnExpression onExpression,
+                                                        List<String> validationProblems) {
+    for (Map.Entry<String, String> alias : onExpression.getDatasetAliases().entrySet()) {
+      if (!isValidIdentifier(alias.getValue())) {
+        validationProblems.add(
+          String.format("Unsupported alias '%s' for stage '%s'", alias.getValue(), alias.getKey()));
+      }
+    }
   }
 
   @Override
@@ -306,12 +391,13 @@ public class BigQuerySQLEngine
     TableId tableId = TableId.of(project, dataset, tableName);
 
     if (!bigQuery.delete(tableId)) {
-      LOG.error("Unable to delete BigQuery table '{}' for stage '{}'",  tableName, stageName);
+      LOG.error("Unable to delete BigQuery table '{}' for stage '{}'", tableName, stageName);
     }
   }
 
   /**
    * Deletes the temporary folder used by a certain BQ dataset.
+   *
    * @param bqDataset the BigQuery Dataset Instance
    */
   protected void deleteTempFolder(BigQuerySQLDataset bqDataset) throws IOException {
@@ -327,26 +413,66 @@ public class BigQuerySQLEngine
 
   /**
    * Validate that this schema is supported in BigQuery.
-   *
-   * We don't support CDAP types ENUM, MAP and UNION in BigQuery.
+   * <p>
+   * We don't support CDAP types ENUM, MAP and UNION in BigQuery. However, we do support Unions
    *
    * @param schema input schema
    * @return boolean determining if this schema is supported in BQ.
    */
-  protected boolean supportsSchema(@Nullable Schema schema) {
-    // If the schema cannot be determined, this join should not be executed in the SQL engine.
-    if (schema == null) {
-      return false;
-    }
+  @VisibleForTesting
+  protected static SchemaValidation validateSchema(Schema schema) {
+    List<String> invalidFields = new ArrayList<>();
 
     for (Schema.Field field : schema.getFields()) {
-      if (field.getSchema().getType() == Schema.Type.ENUM || field.getSchema().getType() == Schema.Type.MAP
-        || field.getSchema().getType() == Schema.Type.UNION) {
-        return false;
+      Schema fieldSchema = field.getSchema();
+
+      // For nullable types, check the underlying type.
+      if (fieldSchema.isNullable()) {
+        fieldSchema = fieldSchema.getNonNullable();
+      }
+
+      if (fieldSchema.getType() == Schema.Type.ENUM || fieldSchema.getType() == Schema.Type.MAP
+        || fieldSchema.getType() == Schema.Type.UNION) {
+        invalidFields.add(field.getName());
       }
     }
 
-    return true;
+    return new SchemaValidation(invalidFields.isEmpty(), invalidFields);
   }
 
+  /**
+   * Ensure the Stage name is valid for execution in BQ pushdown.
+   *
+   * Due to differences in character escaping rules in Spark and BigQuery, identifiers that are accepted in Spark
+   * might not be valid in BigQuery. Due to this limitation, we don't support stage names or aliases containing
+   * backslash \ or backtick ` characters at this time.
+   *
+   * @param identifier stage name or alias to validate
+   * @return whether this stage name is valid for BQ Pushdown.
+   */
+  @VisibleForTesting
+  protected static boolean isValidIdentifier(String identifier) {
+    return identifier != null && !identifier.contains("\\") && !identifier.contains("`");
+  }
+
+  /**
+   * Used to return Schema Validation results.
+   */
+  protected static final class SchemaValidation {
+    private final boolean isSupported;
+    private final List<String> invalidFields;
+
+    public SchemaValidation(boolean isSupported, List<String> invalidFields) {
+      this.isSupported = isSupported;
+      this.invalidFields = invalidFields;
+    }
+
+    public boolean isSupported() {
+      return isSupported;
+    }
+
+    public List<String> getInvalidFields() {
+      return invalidFields;
+    }
+  }
 }
