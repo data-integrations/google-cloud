@@ -163,4 +163,12 @@ public class BigQueryConnectorConfig extends PluginConfig {
       !containsMacro(NAME_PROJECT);
   }
 
+  public BigQueryConnectorConfig(@Nullable String project, @Nullable String datasetProject,
+    @Nullable String serviceAccountType, @Nullable String serviceFilePath, @Nullable String serviceAccountJson) {
+    this.project = project;
+    this.datasetProject = datasetProject;
+    this.serviceAccountType = serviceAccountType;
+    this.serviceFilePath = serviceFilePath;
+    this.serviceAccountJson = serviceAccountJson;
+  }
 }

@@ -20,18 +20,13 @@ package io.cdap.plugin.gcp.bigquery.connector;
 import com.google.api.gax.paging.Page;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetId;
-import com.google.cloud.bigquery.Field;
-import com.google.cloud.bigquery.FieldList;
-import com.google.cloud.bigquery.FieldValue;
-import com.google.cloud.bigquery.FieldValueList;
 import com.google.cloud.bigquery.Job;
 import com.google.cloud.bigquery.JobId;
 import com.google.cloud.bigquery.JobInfo;
-import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.QueryJobConfiguration;
-import com.google.cloud.bigquery.StandardSQLTypeName;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableResult;
@@ -39,7 +34,6 @@ import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.format.StructuredRecord;
-import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.connector.BrowseDetail;
 import io.cdap.cdap.etl.api.connector.BrowseEntity;
@@ -51,22 +45,13 @@ import io.cdap.cdap.etl.api.connector.DirectConnector;
 import io.cdap.cdap.etl.api.connector.SampleRequest;
 import io.cdap.cdap.etl.api.validation.ValidationException;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceConfig;
-import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
+import io.cdap.plugin.gcp.bigquery.util.BigQueryDataParser;
 import io.cdap.plugin.gcp.common.GCPUtils;
 
 import java.io.IOException;
-import java.math.BigDecimal;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
 
 /**
  * BigQuery Connector Plugin
@@ -79,26 +64,22 @@ public final class BigQueryConnector implements DirectConnector {
   public static final String NAME = "BigQuery";
   public static final String ENTITY_TYPE_DATASET = "dataset";
   public static final String ENTITY_TYPE_TABLE = "table";
+  private static final int ERROR_CODE_NOT_FOUND = 404;
   private BigQueryConnectorConfig config;
+
+  BigQueryConnector(BigQueryConnectorConfig config) {
+    this.config = config;
+  }
 
   @Override
   public List<StructuredRecord> sample(SampleRequest sampleRequest) throws IOException {
-    String path = sampleRequest.getPath();
-    String[] parts = parsePath(path);
-    if (parts.length != 2) {
-      throw new IllegalArgumentException(
-        String.format("Path %s is invalid. Should contain dataset and table name.", path));
+    BigQueryPath path = new BigQueryPath(sampleRequest.getPath());
+    String dataset = path.getDataset();
+    String table = path.getTable();
+    if (table == null) {
+      throw new IllegalArgumentException("Path should contain both dataset and table name.");
     }
-    String dataset = parts[0];
-    if (dataset.isEmpty()) {
-      throw new IllegalArgumentException(String.format("Path %s is invalid. Dataset name is empty.", path));
-    }
-    String table = parts[1];
-    if (table.isEmpty()) {
-      throw new IllegalArgumentException(String.format("Path %s is invalid. Table name is empty.", path));
-    }
-
-    return getData(getBigQuery(), dataset, table, sampleRequest.getLimit());
+    return getTableData(getBigQuery(), dataset, table, sampleRequest.getLimit());
   }
 
   @Override
@@ -143,25 +124,17 @@ public final class BigQueryConnector implements DirectConnector {
 
   @Override
   public BrowseDetail browse(BrowseRequest browseRequest) throws IOException {
-    String path = browseRequest.getPath();
-    String[] parts = parsePath(path);
+    BigQueryPath path = new BigQueryPath(browseRequest.getPath());
 
     BigQuery bigQuery = getBigQuery();
-    if ("/".equals(path) || path.isEmpty()) {
+    if (path.isRoot()) {
       // browse project to list all datasets
       return listDatasets(bigQuery, browseRequest.getLimit());
     }
-    String dataset = parts[0];
-    if (parts.length == 1) {
-      // browse project to list all tables
-      if (dataset.isEmpty()) {
-        throw new IllegalArgumentException(String.format("Path %s is invalid. Dataset name is empty.", path));
-      }
+    String dataset = path.getDataset();
+    String table = path.getTable();
+    if (table == null) {
       return listTables(bigQuery, dataset, browseRequest.getLimit());
-    }
-    String table = parts[1];
-    if (table.isEmpty()) {
-      throw new IllegalArgumentException(String.format("Path %s is invalid. Table name is empty.", path));
     }
     return getTable(bigQuery, dataset, table);
   }
@@ -169,33 +142,27 @@ public final class BigQueryConnector implements DirectConnector {
   private BrowseDetail getTable(BigQuery bigQuery, String dataset, String table) {
     Table result = bigQuery.getTable(TableId.of(dataset, table));
     if (result == null) {
-      throw new IllegalArgumentException(String.format("Cannot find such table: %s.%s.", dataset, table));
+      throw new IllegalArgumentException(String.format("Cannot find table: %s.%s.", dataset, table));
     }
     return BrowseDetail.builder()
       .addEntity(BrowseEntity.builder(table, "/" + dataset + "/" + table, ENTITY_TYPE_TABLE).canSample(true).build())
-      .build();
+      .setTotalCount(1).build();
   }
 
-  private String[] parsePath(String originalPath) {
-    String path = originalPath;
-    if (originalPath.startsWith("/")) {
-      path = originalPath.substring(1);
-    }
-    String[] parts = path.split("/");
-    // path should contains at most two part : dataset and table
-    if (parts.length > 2) {
-      throw new IllegalArgumentException(
-        String.format("Path %s is invalid. Path should at most contain two parts.", originalPath));
-    }
-    return parts;
-  }
-
-  private BrowseDetail listTables(BigQuery bigQuery, String dataset, Integer limit) {
+  private BrowseDetail listTables(BigQuery bigQuery, String dataset, @Nullable Integer limit) {
     int countLimit = limit == null ? Integer.MAX_VALUE : limit;
     int count = 0;
     BrowseDetail.Builder browseDetailBuilder = BrowseDetail.builder();
     DatasetId datasetId = DatasetId.of(dataset);
-    Page<Table> tablePage = bigQuery.listTables(datasetId);
+    Page<Table> tablePage = null;
+    try {
+      tablePage = bigQuery.listTables(datasetId);
+    } catch (BigQueryException e) {
+      if (e.getCode() == ERROR_CODE_NOT_FOUND) {
+        throw new IllegalArgumentException(String.format("Cannot find dataset: %s.", dataset), e);
+      }
+      throw e;
+    }
     String parentPath = "/" + dataset + "/";
     for (Table table : tablePage.iterateAll()) {
       String name = table.getTableId().getTable();
@@ -233,27 +200,27 @@ public final class BigQueryConnector implements DirectConnector {
       credentials =
         GCPUtils.loadServiceAccountCredentials(config.getServiceAccount(), config.isServiceAccountFilePath());
     }
-    ;
     return GCPUtils.getBigQuery(config.getDatasetProject(), credentials);
   }
 
-  private List<StructuredRecord> getData(BigQuery bigQuery, String dataset, String table, int limit)
+  private List<StructuredRecord> getTableData(BigQuery bigQuery, String dataset, String table, int limit)
     throws IOException {
-    String query = String.format("SELECT * FROM `%s.%s.%s` LIMIT %d", config.getDatasetProject(), dataset, table,
-      limit);
+    String query =
+      String.format("SELECT * FROM `%s.%s.%s` LIMIT %d", config.getDatasetProject(), dataset, table, limit);
     QueryJobConfiguration queryConfig = QueryJobConfiguration.newBuilder(query).build();
-    JobId jobId = JobId.of(UUID.randomUUID().toString());
+    String id = UUID.randomUUID().toString();
+    JobId jobId = JobId.of(id);
     Job queryJob = bigQuery.create(JobInfo.newBuilder(queryConfig).setJobId(jobId).build());
     // Wait for the job to finish
     try {
       queryJob = queryJob.waitFor();
     } catch (InterruptedException e) {
-      throw new IOException("Query job interrupted.", e);
+      throw new IOException(String.format("Query job %s interrupted.", id), e);
     }
 
     // check for errors
     if (queryJob == null) {
-      throw new IOException("Job no longer exists.");
+      throw new IOException(String.format("Job %s no longer exists.", id));
     } else if (queryJob.getStatus().getError() != null) {
       throw new IOException(String.format("Failed to query table : %s", queryJob.getStatus().getError().toString()));
     }
@@ -265,106 +232,19 @@ public final class BigQueryConnector implements DirectConnector {
     } catch (InterruptedException e) {
       throw new IOException("Query results interrupted.", e);
     }
-    List<StructuredRecord> samples = new ArrayList<>();
-
-    com.google.cloud.bigquery.Schema schema = result.getSchema();
-    Schema cdapSchema = BigQueryUtil.getTableSchema(schema, null);
-
-    FieldList fields = schema.getFields();
-    for (FieldValueList fieldValues : result.iterateAll()) {
-      StructuredRecord.Builder recordBuilder = StructuredRecord.builder(cdapSchema);
-      for (Field field : fields) {
-        String fieldName = field.getName();
-        FieldValue fieldValue = fieldValues.get(fieldName);
-        FieldValue.Attribute attribute = fieldValue.getAttribute();
-        LegacySQLTypeName type = field.getType();
-        StandardSQLTypeName standardType = type.getStandardType();
-        if (fieldValue.isNull()) {
-          recordBuilder.set(fieldName, null);
-          continue;
-        }
-
-        if (attribute == FieldValue.Attribute.REPEATED) {
-          List<Object> list = new ArrayList<>();
-          for (FieldValue value : fieldValue.getRepeatedValue()) {
-            list.add(getValue(standardType, value));
-          }
-          recordBuilder.set(fieldName, list);
-        } else {
-          Object value = getValue(standardType, fieldValue);
-          if (value instanceof ZonedDateTime) {
-            recordBuilder.setTimestamp(fieldName, (ZonedDateTime) value);
-          } else if (value instanceof LocalTime) {
-            recordBuilder.setTime(fieldName, (LocalTime) value);
-          } else if (value instanceof LocalDate) {
-            recordBuilder.setDate(fieldName, (LocalDate) value);
-          } else if (value instanceof LocalDateTime) {
-            recordBuilder.setDateTime(fieldName, (LocalDateTime) value);
-          } else if (value instanceof BigDecimal) {
-            recordBuilder.setDecimal(fieldName, (BigDecimal) value);
-          } else {
-            recordBuilder.set(fieldName, value);
-          }
-        }
-      }
-      samples.add(recordBuilder.build());
-    }
-    return samples;
+    return BigQueryDataParser.parse(result);
   }
 
-  private Object getValue(StandardSQLTypeName standardType, FieldValue fieldValue) {
-    switch (standardType) {
-      case TIME:
-        return LocalTime.parse(fieldValue.getStringValue());
-      case DATE:
-        return LocalDate.parse(fieldValue.getStringValue());
-      case TIMESTAMP:
-        long tsMicroValue = fieldValue.getTimestampValue();
-        return getZonedDateTime(tsMicroValue);
-      case NUMERIC:
-        BigDecimal decimal = fieldValue.getNumericValue();
-        if (decimal.scale() < 9) {
-          // scale up the big decimal. this is because structured record expects scale to be exactly same as schema
-          // Big Query supports maximum unscaled value up to 38 digits. so scaling up should still be <= max
-          // precision
-          decimal = decimal.setScale(9);
-        }
-        return decimal;
-
-      case DATETIME:
-        return LocalDateTime.parse(fieldValue.getStringValue());
-      case STRING:
-        return fieldValue.getStringValue();
-      case BOOL:
-        return fieldValue.getBooleanValue();
-      case FLOAT64:
-        return fieldValue.getDoubleValue();
-      case INT64:
-        return fieldValue.getLongValue();
-      case BYTES:
-        return fieldValue.getBytesValue();
-      default:
-        throw new RuntimeException(String.format("BigQuery type %s is not supported.", standardType));
-    }
-  }
-
-  private ZonedDateTime getZonedDateTime(long microTs) {
-    long tsInSeconds = TimeUnit.MICROSECONDS.toSeconds(microTs);
-    long mod = TimeUnit.MICROSECONDS.convert(1, TimeUnit.SECONDS);
-    int fraction = (int) (microTs % mod);
-    Instant instant = Instant.ofEpochSecond(tsInSeconds, TimeUnit.MICROSECONDS.toNanos(fraction));
-    return ZonedDateTime.ofInstant(instant, ZoneId.ofOffset("UTC", ZoneOffset.UTC));
-  }
 
   @Override
   public ConnectorSpec generateSpec(ConnectorSpecRequest connectorSpecRequest) {
-    String path = connectorSpecRequest.getPath();
-    String[] parts = parsePath(path);
-    if (parts.length != 2) {
-      throw new IllegalArgumentException(
-        String.format("Path %s is invalid. Should contain dataset and table name.", path));
+    BigQueryPath path = new BigQueryPath(connectorSpecRequest.getPath());
+    String dataset = path.getDataset();
+    String table = path.getTable();
+    if (table == null) {
+      throw new IllegalArgumentException("Path should contain both dataset and table name.");
     }
-    return ConnectorSpec.builder().addProperty(BigQuerySourceConfig.NAME_DATASET, parts[0])
-      .addProperty(BigQuerySourceConfig.NAME_TABLE, parts[1]).build();
+    return ConnectorSpec.builder().addProperty(BigQuerySourceConfig.NAME_DATASET, dataset)
+      .addProperty(BigQuerySourceConfig.NAME_TABLE, table).build();
   }
 }

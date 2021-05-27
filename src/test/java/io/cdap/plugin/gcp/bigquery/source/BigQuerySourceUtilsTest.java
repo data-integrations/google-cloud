@@ -30,6 +30,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.lang.reflect.Field;
+import java.util.Date;
 
 import static org.mockito.ArgumentMatchers.eq;
 import static org.powermock.api.mockito.PowerMockito.mock;
@@ -41,6 +42,7 @@ public class BigQuerySourceUtilsTest {
 
   @Test
   public void getOrCreateBucket() throws InstantiationException, IllegalAccessException, NoSuchFieldException {
+    System.out.println(new Date().getTime());
     PowerMockito.mockStatic(GCPUtils.class);
 
     Configuration configuration = new Configuration();
@@ -51,7 +53,7 @@ public class BigQuerySourceUtilsTest {
 
     Field connection = BigQuerySourceConfig.class.getDeclaredField("connection");
     connection.setAccessible(true);
-    connection.set(config, new BigQueryConnectorConfig());
+    connection.set(config, new BigQueryConnectorConfig(null, null, null, null, null));
 
     Dataset ds = mock(Dataset.class);
     BigQuery bq = mock(BigQuery.class);

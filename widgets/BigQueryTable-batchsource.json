@@ -24,7 +24,7 @@
           }
         },
         {
-          "widget-type": "textbox",
+          "widget-type": "connection-select",
           "label": "Connection",
           "name": "connection",
           "widget-attributes": {

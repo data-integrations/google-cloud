@@ -37,7 +37,6 @@ import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySink;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySource;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceConfig;
-import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceUtils;
 import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.GCSPath;
@@ -238,60 +237,63 @@ public final class BigQueryUtil {
   @Nullable
   public static Schema convertFieldType(Field field, @Nullable FailureCollector collector) {
     LegacySQLTypeName type = field.getType();
-    Schema schema = null;
-    StandardSQLTypeName value = type.getStandardType();
-    if (value == StandardSQLTypeName.FLOAT64) {
-      // float is a float64, so corresponding type becomes double
-      schema = Schema.of(Schema.Type.DOUBLE);
-    } else if (value == StandardSQLTypeName.BOOL) {
-      schema = Schema.of(Schema.Type.BOOLEAN);
-    } else if (value == StandardSQLTypeName.INT64) {
-      // int is a int64, so corresponding type becomes long
-      schema = Schema.of(Schema.Type.LONG);
-    } else if (value == StandardSQLTypeName.STRING) {
-      schema = Schema.of(Schema.Type.STRING);
-    } else if (value == StandardSQLTypeName.DATETIME) {
-      schema = Schema.of(Schema.LogicalType.DATETIME);
-    } else if (value == StandardSQLTypeName.BYTES) {
-      schema = Schema.of(Schema.Type.BYTES);
-    } else if (value == StandardSQLTypeName.TIME) {
-      schema = Schema.of(Schema.LogicalType.TIME_MICROS);
-    } else if (value == StandardSQLTypeName.DATE) {
-      schema = Schema.of(Schema.LogicalType.DATE);
-    } else if (value == StandardSQLTypeName.TIMESTAMP) {
-      schema = Schema.of(Schema.LogicalType.TIMESTAMP_MICROS);
-    } else if (value == StandardSQLTypeName.NUMERIC) {
-      // bigquery has 38 digits of precision and 9 digits of scale.
-      // https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro#logical_types
-      schema = Schema.decimalOf(38, 9);
-    } else if (value == StandardSQLTypeName.STRUCT) {
-      FieldList fields = field.getSubFields();
-      List<Schema.Field> schemafields = new ArrayList<>();
-      for (Field f : fields) {
-        Schema.Field schemaField = getSchemaField(f, collector);
-        // if schema field is null, that means that there was a validation error. We will still continue in order to
-        // collect more errors
-        if (schemaField == null) {
-          continue;
+    StandardSQLTypeName standardType = type.getStandardType();
+    switch (standardType) {
+      case FLOAT64:
+        // float is a float64, so corresponding type becomes double
+        return Schema.of(Schema.Type.DOUBLE);
+      case BOOL:
+        return Schema.of(Schema.Type.BOOLEAN);
+      case INT64:
+        // int is a int64, so corresponding type becomes long
+        return Schema.of(Schema.Type.LONG);
+      case STRING:
+        return Schema.of(Schema.Type.STRING);
+      case DATETIME:
+        return Schema.of(Schema.LogicalType.DATETIME);
+      case BYTES:
+        return Schema.of(Schema.Type.BYTES);
+      case TIME:
+        return Schema.of(Schema.LogicalType.TIME_MICROS);
+      case DATE:
+        return Schema.of(Schema.LogicalType.DATE);
+      case TIMESTAMP:
+        return Schema.of(Schema.LogicalType.TIMESTAMP_MICROS);
+      case NUMERIC:
+        // bigquery has 38 digits of precision and 9 digits of scale for NUMERIC.
+        // https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#decimal_types
+        return Schema.decimalOf(38, 9);
+      case STRUCT:
+        FieldList fields = field.getSubFields();
+        List<Schema.Field> schemafields = new ArrayList<>();
+        for (Field f : fields) {
+          Schema.Field schemaField = getSchemaField(f, collector);
+          // if schema field is null, that means that there was a validation error. We will still continue in order to
+          // collect more errors
+          if (schemaField == null) {
+            continue;
+          }
+          schemafields.add(schemaField);
         }
-        schemafields.add(schemaField);
-      }
-      // do not return schema for the struct field if none of the nested fields are of supported types
-      if (!schemafields.isEmpty()) {
-        schema = Schema.recordOf(field.getName(), schemafields);
-      }
-    } else {
-      String error = String.format("BigQuery column '%s' is of unsupported type '%s'.", field.getName(), value.name());
-      String action = String.format("Supported column types are: %s.",
-        BigQueryUtil.BQ_TYPE_MAP.keySet().stream().map(t -> t.getStandardType().name())
-          .collect(Collectors.joining(", ")));
-      if (collector != null) {
-        collector.addFailure(error, action);
-      } else {
-        throw new RuntimeException(error + action);
-      }
+        // do not return schema for the struct field if none of the nested fields are of supported types
+        if (!schemafields.isEmpty()) {
+          return Schema.recordOf(field.getName(), schemafields);
+        } else {
+          return null;
+        }
+      default:
+        String error =
+          String.format("BigQuery column '%s' is of unsupported type '%s'.", field.getName(), standardType.name());
+        String action = String.format("Supported column types are: %s.",
+          BigQueryUtil.BQ_TYPE_MAP.keySet().stream().map(t -> t.getStandardType().name())
+            .collect(Collectors.joining(", ")));
+        if (collector != null) {
+          collector.addFailure(error, action);
+        } else {
+          throw new RuntimeException(error + action);
+        }
+        return null;
     }
-    return schema;
   }
 
   /**
