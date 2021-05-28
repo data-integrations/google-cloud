@@ -1,5 +1,4 @@
 /*
- *
  * Copyright © 2021 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
@@ -21,6 +20,14 @@ import javax.annotation.Nullable;
 
 /**
  * BigQuery Path that parses the path in the request of connection service
+ * A valid path can start with/without a slash, e.g. "/" , "", "/dataset/table", "dataset/table" are all valid.
+ * A valid path can end with/without a slash, e.g. "/", "", "/dataset/table/", "dataset/table/" are all valid.
+ * A valid path should contain at most two parts separated by slash, the first part is dataset name and the second
+ * part is table name. Both of them are optional. e.g. "/" , "/dataset" , "/dataset/table".
+ * Consecutive slashes are not valid , it will be parsed as there is an empty string part between the slashes. e.g.
+ * "//a" will be parsed as dataset name as empty and table name as "a". Similarly "/a//" will be parsed as dataset
+ * name as "a" and table name as empty.
+ *
  */
 public class BigQueryPath {
   private String dataset;

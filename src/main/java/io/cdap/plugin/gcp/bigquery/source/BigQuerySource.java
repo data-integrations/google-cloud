@@ -25,6 +25,8 @@ import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableDefinition.Type;
 import com.google.cloud.bigquery.TimePartitioning;
 import io.cdap.cdap.api.annotation.Description;
+import io.cdap.cdap.api.annotation.Metadata;
+import io.cdap.cdap.api.annotation.MetadataProperty;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.batch.Input;
@@ -38,8 +40,10 @@ import io.cdap.cdap.etl.api.StageConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
+import io.cdap.cdap.etl.api.connector.Connector;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.plugin.common.LineageRecorder;
+import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnector;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
@@ -58,11 +62,12 @@ import javax.annotation.Nullable;
 /**
  * Class description here.
  */
-@Plugin(type = "batchsource")
+@Plugin(type = BatchSource.PLUGIN_TYPE)
 @Name(BigQuerySource.NAME)
 @Description("This source reads the entire contents of a BigQuery table. "
   + "BigQuery is Google's serverless, highly scalable, enterprise data warehouse."
   + "Data is first written to a temporary location on Google Cloud Storage, then read into the pipeline from there.")
+@Metadata(properties = {@MetadataProperty(key = Connector.PLUGIN_TYPE, value = BigQueryConnector.NAME)})
 public final class BigQuerySource extends BatchSource<LongWritable, GenericData.Record, StructuredRecord> {
   private static final Logger LOG = LoggerFactory.getLogger(BigQuerySource.class);
   public static final String NAME = "BigQueryTable";

@@ -1,5 +1,4 @@
 /*
- *
  * Copyright © 2021 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
@@ -28,13 +27,16 @@ import com.google.cloud.bigquery.JobId;
 import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.Table;
+import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableResult;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.format.StructuredRecord;
+import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.connector.BrowseDetail;
 import io.cdap.cdap.etl.api.connector.BrowseEntity;
 import io.cdap.cdap.etl.api.connector.BrowseRequest;
@@ -42,14 +44,19 @@ import io.cdap.cdap.etl.api.connector.Connector;
 import io.cdap.cdap.etl.api.connector.ConnectorSpec;
 import io.cdap.cdap.etl.api.connector.ConnectorSpecRequest;
 import io.cdap.cdap.etl.api.connector.DirectConnector;
+import io.cdap.cdap.etl.api.connector.PluginSpec;
 import io.cdap.cdap.etl.api.connector.SampleRequest;
 import io.cdap.cdap.etl.api.validation.ValidationException;
+import io.cdap.plugin.gcp.bigquery.source.BigQuerySource;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceConfig;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryDataParser;
+import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import javax.annotation.Nullable;
 
@@ -62,8 +69,10 @@ import javax.annotation.Nullable;
   "tables. BigQuery is Google's serverless, highly scalable, enterprise data warehouse.")
 public final class BigQueryConnector implements DirectConnector {
   public static final String NAME = "BigQuery";
-  public static final String ENTITY_TYPE_DATASET = "dataset";
-  public static final String ENTITY_TYPE_TABLE = "table";
+  public static final String ENTITY_TYPE_DATASET = "DATASET";
+  public static final String ENTITY_TYPE_TABLE = TableDefinition.Type.TABLE.name();
+  public static final String ENTITY_TYPE_VIEW = TableDefinition.Type.VIEW.name();
+  public static final String ENTITY_TYPE_MATERIALIZED_VIEW = TableDefinition.Type.MATERIALIZED_VIEW.name();
   private static final int ERROR_CODE_NOT_FOUND = 404;
   private BigQueryConnectorConfig config;
 
@@ -84,11 +93,6 @@ public final class BigQueryConnector implements DirectConnector {
 
   @Override
   public void test(FailureCollector failureCollector) throws ValidationException {
-    // Should not happen
-    if (config == null) {
-      failureCollector.addFailure("Connector config is null!", "Please instantiate connector with a valid config.");
-      return;
-    }
     // validate project ID
     String project = config.tryGetProject();
     if (project == null) {
@@ -136,21 +140,26 @@ public final class BigQueryConnector implements DirectConnector {
     if (table == null) {
       return listTables(bigQuery, dataset, browseRequest.getLimit());
     }
-    return getTable(bigQuery, dataset, table);
+    return getTableDetail(bigQuery, dataset, table);
   }
 
-  private BrowseDetail getTable(BigQuery bigQuery, String dataset, String table) {
-    Table result = bigQuery.getTable(TableId.of(dataset, table));
-    if (result == null) {
-      throw new IllegalArgumentException(String.format("Cannot find table: %s.%s.", dataset, table));
+  private BrowseDetail getTableDetail(BigQuery bigQuery, String datasetName, String tableName) {
+    Table table = getTable(bigQuery, datasetName, tableName);
+    return BrowseDetail.builder().addEntity(
+      BrowseEntity.builder(tableName, "/" + datasetName + "/" + tableName, table.getDefinition().getType().name())
+        .canSample(true).build()).setTotalCount(1).build();
+  }
+
+  private Table getTable(BigQuery bigQuery, String datasetName, String tableName) {
+    Table table = bigQuery.getTable(TableId.of(datasetName, tableName));
+    if (table == null) {
+      throw new IllegalArgumentException(String.format("Cannot find tableName: %s.%s.", datasetName, tableName));
     }
-    return BrowseDetail.builder()
-      .addEntity(BrowseEntity.builder(table, "/" + dataset + "/" + table, ENTITY_TYPE_TABLE).canSample(true).build())
-      .setTotalCount(1).build();
+    return table;
   }
 
   private BrowseDetail listTables(BigQuery bigQuery, String dataset, @Nullable Integer limit) {
-    int countLimit = limit == null ? Integer.MAX_VALUE : limit;
+    int countLimit = limit == null || limit <= 0 ? Integer.MAX_VALUE : limit;
     int count = 0;
     BrowseDetail.Builder browseDetailBuilder = BrowseDetail.builder();
     DatasetId datasetId = DatasetId.of(dataset);
@@ -165,30 +174,29 @@ public final class BigQueryConnector implements DirectConnector {
     }
     String parentPath = "/" + dataset + "/";
     for (Table table : tablePage.iterateAll()) {
-      String name = table.getTableId().getTable();
-      browseDetailBuilder
-        .addEntity(BrowseEntity.builder(name, parentPath + name, ENTITY_TYPE_TABLE).canSample(true).build());
-      count++;
-      if (count == countLimit) {
-        break;
+      if (count < countLimit) {
+        String name = table.getTableId().getTable();
+        browseDetailBuilder.addEntity(
+          BrowseEntity.builder(name, parentPath + name, table.getDefinition().getType().name()).canSample(true)
+            .build());
       }
+      count++;
     }
     return browseDetailBuilder.setTotalCount(count).build();
   }
 
   private BrowseDetail listDatasets(BigQuery bigQuery, Integer limit) {
     Page<Dataset> datasetPage = bigQuery.listDatasets(BigQuery.DatasetListOption.all());
-    int countLimit = limit == null ? Integer.MAX_VALUE : limit;
+    int countLimit = limit == null || limit <= 0 ? Integer.MAX_VALUE : limit;
     int count = 0;
     BrowseDetail.Builder browseDetailBuilder = BrowseDetail.builder();
     for (Dataset dataset : datasetPage.iterateAll()) {
-      String name = dataset.getDatasetId().getDataset();
-      browseDetailBuilder
-        .addEntity(BrowseEntity.builder(name, "/" + name, ENTITY_TYPE_DATASET).canBrowse(true).build());
-      count++;
-      if (count == countLimit) {
-        break;
+      if (count < countLimit) {
+        String name = dataset.getDatasetId().getDataset();
+        browseDetailBuilder
+          .addEntity(BrowseEntity.builder(name, "/" + name, ENTITY_TYPE_DATASET).canBrowse(true).build());
       }
+      count++;
     }
     return browseDetailBuilder.setTotalCount(count).build();
   }
@@ -237,14 +245,25 @@ public final class BigQueryConnector implements DirectConnector {
 
 
   @Override
-  public ConnectorSpec generateSpec(ConnectorSpecRequest connectorSpecRequest) {
+  public ConnectorSpec generateSpec(ConnectorSpecRequest connectorSpecRequest) throws IOException {
     BigQueryPath path = new BigQueryPath(connectorSpecRequest.getPath());
-    String dataset = path.getDataset();
-    String table = path.getTable();
-    if (table == null) {
+    String datasetName = path.getDataset();
+    String tableName = path.getTable();
+    if (tableName == null) {
       throw new IllegalArgumentException("Path should contain both dataset and table name.");
     }
-    return ConnectorSpec.builder().addProperty(BigQuerySourceConfig.NAME_DATASET, dataset)
-      .addProperty(BigQuerySourceConfig.NAME_TABLE, table).build();
+
+    Map<String, String> properties = new HashMap<>();
+    properties.put(BigQuerySourceConfig.NAME_DATASET, datasetName);
+    properties.put(BigQuerySourceConfig.NAME_TABLE, tableName);
+    Table table = getTable(getBigQuery(), datasetName, tableName);
+    TableDefinition definition = table.getDefinition();
+    Schema schema = BigQueryUtil.getTableSchema(definition.getSchema(), null);
+    if (definition.getType() != TableDefinition.Type.TABLE) {
+      properties.put(BigQuerySourceConfig.NAME_ENABLE_QUERYING_VIEWS, "true");
+    }
+    return ConnectorSpec.builder()
+      .addRelatedPlugin(new PluginSpec(BigQuerySource.NAME, BatchSource.PLUGIN_TYPE, properties)).setSchema(schema)
+      .build();
   }
 }

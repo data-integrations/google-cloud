@@ -1,5 +1,4 @@
 /*
- *
  * Copyright © 2021 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
@@ -27,8 +26,10 @@ import com.google.common.io.BaseEncoding;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import joptsimple.internal.Strings;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.powermock.api.mockito.PowerMockito;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.math.BigDecimal;
@@ -41,18 +42,13 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.powermock.api.mockito.PowerMockito.mock;
-import static org.powermock.api.mockito.PowerMockito.when;
 
 @RunWith(PowerMockRunner.class)
 public class BigQueryDataParserTest {
 
   @Test
   public void testParse() {
-    TableResult tableResult = mock(TableResult.class);
+    TableResult tableResult = PowerMockito.mock(TableResult.class);
 
     List<Field> fieldList = new ArrayList<>();
     Field boolField = Field.newBuilder("bool", StandardSQLTypeName.BOOL).build();
@@ -78,7 +74,7 @@ public class BigQueryDataParserTest {
 
 
     com.google.cloud.bigquery.Schema bqSchema = com.google.cloud.bigquery.Schema.of(fieldList);
-    when(tableResult.getSchema()).thenReturn(bqSchema);
+    PowerMockito.when(tableResult.getSchema()).thenReturn(bqSchema);
     List<FieldValue> valueList = new ArrayList<>();
     FieldValue boolValue = FieldValue.of(FieldValue.Attribute.PRIMITIVE, "true");
     valueList.add(boolValue);
@@ -108,7 +104,7 @@ public class BigQueryDataParserTest {
 
     List<FieldValueList> rows = Arrays.asList(FieldValueList.of(valueList, FieldList.of(fieldList)));
 
-    when(tableResult.iterateAll()).thenReturn(rows);
+    PowerMockito.when(tableResult.iterateAll()).thenReturn(rows);
     List<StructuredRecord> result = BigQueryDataParser.parse(tableResult);
 
     List<Schema.Field> cdapFieldList = new ArrayList<>();
@@ -138,21 +134,22 @@ public class BigQueryDataParserTest {
     Schema expectedSchema = Schema.recordOf("output", cdapFieldList);
 
 
-    assertEquals(rows.size(), result.size());
+    Assert.assertEquals(rows.size(), result.size());
     StructuredRecord record = result.get(0);
     Schema cdapSchema = record.getSchema();
-    assertEquals(expectedSchema, cdapSchema);
-    assertTrue(record.get("bool"));
-    assertArrayEquals("bytes".getBytes(), record.get("bytes"));
-    assertEquals(Integer.valueOf((int) LocalDate.parse("2021-05-26").toEpochDay()), record.get("date"));
-    assertArrayEquals(new BigDecimal("2021052610.15301").setScale(9).unscaledValue().toByteArray(),
+    Assert.assertEquals(expectedSchema, cdapSchema);
+    Assert.assertTrue(record.get("bool"));
+    Assert.assertArrayEquals("bytes".getBytes(), record.get("bytes"));
+    Assert.assertEquals(Integer.valueOf((int) LocalDate.parse("2021-05-26").toEpochDay()), record.get("date"));
+    Assert.assertArrayEquals(new BigDecimal("2021052610.15301").setScale(9).unscaledValue().toByteArray(),
       record.get("numeric"));
-    assertEquals(Double.valueOf(12.12), record.get("float64"));
-    assertEquals(Long.valueOf(1212), record.get("int64"));
-    assertEquals("string", record.get("string"));
-    assertEquals(Long.valueOf(TimeUnit.NANOSECONDS.toMicros(LocalTime.parse("10:15:30").toNanoOfDay())),
+    Assert.assertEquals(Double.valueOf(12.12), record.get("float64"));
+    Assert.assertEquals(Long.valueOf(1212), record.get("int64"));
+    Assert.assertEquals("string", record.get("string"));
+    Assert.assertEquals(Long.valueOf(TimeUnit.NANOSECONDS.toMicros(LocalTime.parse("10:15:30").toNanoOfDay())),
       record.get("time"));
-    assertEquals(Long.valueOf(timestamp.toEpochSecond() * 1000000 + TimeUnit.NANOSECONDS.toMicros(timestamp.getNano())),
+    Assert.assertEquals(
+      Long.valueOf(timestamp.toEpochSecond() * 1000000 + TimeUnit.NANOSECONDS.toMicros(timestamp.getNano())),
       record.get("timestamp"));
   }
 

@@ -1,5 +1,4 @@
 /*
- *
  * Copyright © 2021 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
@@ -18,91 +17,83 @@
 package io.cdap.plugin.gcp.bigquery.connector;
 
 import joptsimple.internal.Strings;
+import org.junit.Assert;
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-
 public class BigQueryPathTest {
-
 
   @Test
   public void testValidPath() {
     //empty path
     BigQueryPath path = new BigQueryPath("");
-    assertNull(path.getDataset());
-    assertNull(path.getTable());
-    assertTrue(path.isRoot());
+    Assert.assertNull(path.getDataset());
+    Assert.assertNull(path.getTable());
+    Assert.assertTrue(path.isRoot());
 
     //root path
     path = new BigQueryPath("/");
-    assertNull(path.getDataset());
-    assertNull(path.getTable());
-    assertTrue(path.isRoot());
+    Assert.assertNull(path.getDataset());
+    Assert.assertNull(path.getTable());
+    Assert.assertTrue(path.isRoot());
 
     //dataset path
     path = new BigQueryPath("/dataset");
-    assertEquals("dataset", path.getDataset());
-    assertNull(path.getTable());
-    assertFalse(path.isRoot());
+    Assert.assertEquals("dataset", path.getDataset());
+    Assert.assertNull(path.getTable());
+    Assert.assertFalse(path.isRoot());
 
     //dataset path
     path = new BigQueryPath("/dataset/");
-    assertEquals("dataset", path.getDataset());
-    assertNull(path.getTable());
-    assertFalse(path.isRoot());
+    Assert.assertEquals("dataset", path.getDataset());
+    Assert.assertNull(path.getTable());
+    Assert.assertFalse(path.isRoot());
 
     //table path
     path = new BigQueryPath("/dataset/table");
-    assertEquals("dataset", path.getDataset());
-    assertEquals("table", path.getTable());
-    assertFalse(path.isRoot());
+    Assert.assertEquals("dataset", path.getDataset());
+    Assert.assertEquals("table", path.getTable());
+    Assert.assertFalse(path.isRoot());
 
     //table path
     path = new BigQueryPath("/dataset/table/");
-    assertEquals("dataset", path.getDataset());
-    assertEquals("table", path.getTable());
-    assertFalse(path.isRoot());
+    Assert.assertEquals("dataset", path.getDataset());
+    Assert.assertEquals("table", path.getTable());
+    Assert.assertFalse(path.isRoot());
   }
 
 
   @Test
   public void testInvalidPath() {
     //null path
-    assertThrows("Path should not be null.", IllegalArgumentException.class, () -> new BigQueryPath(null));
+    Assert.assertThrows("Path should not be null.", IllegalArgumentException.class, () -> new BigQueryPath(null));
 
     //more than two parts in the path
-    assertThrows("Path should at most contain two parts.", IllegalArgumentException.class,
+    Assert.assertThrows("Path should at most contain two parts.", IllegalArgumentException.class,
       () -> new BigQueryPath("/a/b/c"));
 
     //empty dataset
-    assertThrows("Dataset should not be empty.", IllegalArgumentException.class, () -> new BigQueryPath("//"));
+    Assert.assertThrows("Dataset should not be empty.", IllegalArgumentException.class, () -> new BigQueryPath("//"));
 
     //dataset exceeds max length
-    assertThrows("Dataset is invalid, it should contain at most 1024 characters.", IllegalArgumentException.class,
-      () -> new BigQueryPath("/" + Strings.repeat('a', 1025)));
+    Assert
+      .assertThrows("Dataset is invalid, it should contain at most 1024 characters.", IllegalArgumentException.class,
+        () -> new BigQueryPath("/" + Strings.repeat('a', 1025)));
 
     //dataset contains invalid character
-    assertThrows("Dataset is invalid, it should contain only letters, numbers, and underscores.",
-      IllegalArgumentException.class,
-      () -> new BigQueryPath("/a%"));
+    Assert.assertThrows("Dataset is invalid, it should contain only letters, numbers, and underscores.",
+      IllegalArgumentException.class, () -> new BigQueryPath("/a%"));
 
 
     //empty table
-    assertThrows("Table should not be empty.", IllegalArgumentException.class, () -> new BigQueryPath("dataset//"));
+    Assert
+      .assertThrows("Table should not be empty.", IllegalArgumentException.class, () -> new BigQueryPath("dataset//"));
 
     //table exceeds max length
-    assertThrows("Table is invalid, it should contain at most 1024 characters.", IllegalArgumentException.class,
+    Assert.assertThrows("Table is invalid, it should contain at most 1024 characters.", IllegalArgumentException.class,
       () -> new BigQueryPath("/b/" + Strings.repeat('a', 1025)));
 
     //table contains invalid character
-    assertThrows("Dataset is invalid, it should contain only letters, numbers, and underscores.",
-      IllegalArgumentException.class,
-      () -> new BigQueryPath("/a/%"));
-
-
+    Assert.assertThrows("Dataset is invalid, it should contain only letters, numbers, and underscores.",
+      IllegalArgumentException.class, () -> new BigQueryPath("/a/%"));
   }
 }

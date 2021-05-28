@@ -1,5 +1,4 @@
 /*
- *
  * Copyright © 2021 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
@@ -19,14 +18,19 @@ package io.cdap.plugin.gcp.bigquery.connector;
 
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.connector.BrowseDetail;
 import io.cdap.cdap.etl.api.connector.BrowseEntity;
 import io.cdap.cdap.etl.api.connector.BrowseRequest;
 import io.cdap.cdap.etl.api.connector.ConnectorSpec;
 import io.cdap.cdap.etl.api.connector.ConnectorSpecRequest;
+import io.cdap.cdap.etl.api.connector.PluginSpec;
 import io.cdap.cdap.etl.api.connector.SampleRequest;
 import io.cdap.cdap.etl.api.validation.ValidationException;
 import io.cdap.cdap.etl.validation.SimpleFailureCollector;
+import io.cdap.plugin.gcp.bigquery.source.BigQuerySource;
+import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -37,23 +41,14 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
-
-import static io.cdap.plugin.gcp.bigquery.connector.BigQueryConnectorConfig.SERVICE_ACCOUNT_JSON;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeFalse;
+import java.util.Set;
 
 /**
- * BigQuery Connector integration test. This test will only be run when below property is provided:
- * project.id -- the name of the project where temporary table or staging bucket may be created. It will default to
- * active google project if you have google cloud client installed.
- * dataset.project -- optional, the name of the project where the dataset is
- * dataset.name -- the name of the dataset
- * table.name -- the name of the table
- * service.account.file-- the path to the service account key file
+ * BigQuery Connector integration test. This test will only be run when below property is provided: project.id -- the
+ * name of the project where temporary table or staging bucket may be created. It will default to active google project
+ * if you have google cloud client installed. dataset.project -- optional, the name of the project where the dataset is
+ * dataset.name -- the name of the dataset table.name -- the name of the table service.account.file-- the path to the
+ * service account key file
  */
 public class BigQueryConnectorTest {
   private static String serviceAccountKey;
@@ -77,19 +72,19 @@ public class BigQueryConnectorTest {
     if (project == null) {
       project = System.getProperty("GCLOUD_PROJECT");
     }
-    assumeFalse(String.format(messageTemplate, "project id"), project == null);
+    Assume.assumeFalse(String.format(messageTemplate, "project id"), project == null);
     System.setProperty("GCLOUD_PROJECT", project);
 
-    datasetProject =  System.getProperty("dataset.project");
+    datasetProject = System.getProperty("dataset.project");
 
     dataset = System.getProperty("dataset.name");
-    assumeFalse(String.format(messageTemplate, "dataset name"), dataset == null);
+    Assume.assumeFalse(String.format(messageTemplate, "dataset name"), dataset == null);
 
     table = System.getProperty("table.name");
-    assumeFalse(String.format(messageTemplate, "table name"), table == null);
+    Assume.assumeFalse(String.format(messageTemplate, "table name"), table == null);
 
     serviceAccountFilePath = System.getProperty("service.account.file");
-    assumeFalse(String.format(messageTemplate, "service account key file"), serviceAccountFilePath == null);
+    Assume.assumeFalse(String.format(messageTemplate, "service account key file"), serviceAccountFilePath == null);
 
     serviceAccountKey = new String(Files.readAllBytes(Paths.get(new File(serviceAccountFilePath).getAbsolutePath())),
       StandardCharsets.UTF_8);
@@ -97,15 +92,16 @@ public class BigQueryConnectorTest {
 
   @Test
   public void testServiceAccountPath() throws IOException {
-    BigQueryConnectorConfig config = new BigQueryConnectorConfig(project, datasetProject, null,
-      serviceAccountFilePath, null);
+    BigQueryConnectorConfig config =
+      new BigQueryConnectorConfig(project, datasetProject, null, serviceAccountFilePath, null);
     test(config);
   }
 
   @Test
   public void testServiceAccountJson() throws IOException {
-    BigQueryConnectorConfig config = new BigQueryConnectorConfig(project, datasetProject, SERVICE_ACCOUNT_JSON,
-      null, serviceAccountKey);
+    BigQueryConnectorConfig config =
+      new BigQueryConnectorConfig(project, datasetProject, BigQueryConnectorConfig.SERVICE_ACCOUNT_JSON, null,
+        serviceAccountKey);
     test(config);
   }
 
@@ -117,75 +113,84 @@ public class BigQueryConnectorTest {
     testGenerateSpec(connector);
   }
 
-  private void testGenerateSpec(BigQueryConnector connector) {
+  private void testGenerateSpec(BigQueryConnector connector) throws IOException {
     ConnectorSpec connectorSpec =
       connector.generateSpec(ConnectorSpecRequest.builder().setPath(dataset + "/" + table).build());
-    Map<String, String> properties = connectorSpec.getProperties();
-    assertEquals(dataset, properties.get("dataset"));
-    assertEquals(table, properties.get("table"));
+    Schema schema = connectorSpec.getSchema();
+    for (Schema.Field field : schema.getFields()) {
+      Assert.assertNotNull(field.getSchema());
+    }
+    Set<PluginSpec> relatedPlugins = connectorSpec.getRelatedPlugins();
+    Assert.assertEquals(1, relatedPlugins.size());
+    PluginSpec pluginSpec = relatedPlugins.iterator().next();
+    Assert.assertEquals(BigQuerySource.NAME, pluginSpec.getName());
+    Assert.assertEquals(BatchSource.PLUGIN_TYPE, pluginSpec.getType());
+
+    Map<String, String> properties = pluginSpec.getProperties();
+    Assert.assertEquals(dataset, properties.get("dataset"));
+    Assert.assertEquals(table, properties.get("table"));
   }
 
   private void testSample(BigQueryConnector connector) throws IOException {
     List<StructuredRecord> sample = connector.sample(SampleRequest.builder(1).setPath(dataset + "/" + table).build());
-    assertEquals(1, sample.size());
+    Assert.assertEquals(1, sample.size());
     StructuredRecord record = sample.get(0);
     Schema schema = record.getSchema();
-    assertNotNull(schema);
+    Assert.assertNotNull(schema);
     for (Schema.Field field : schema.getFields()) {
-      assertNotNull(field.getSchema());
-      assertTrue(record.get(field.getName()) != null || field.getSchema().isNullable());
+      Assert.assertNotNull(field.getSchema());
+      Assert.assertTrue(record.get(field.getName()) != null || field.getSchema().isNullable());
     }
 
     //invalid path
-    assertThrows(IllegalArgumentException.class,
+    Assert.assertThrows(IllegalArgumentException.class,
       () -> connector.sample(SampleRequest.builder(1).setPath("a/b/c").build()));
 
     //sample dataset
-    assertThrows(IllegalArgumentException.class,
+    Assert.assertThrows(IllegalArgumentException.class,
       () -> connector.sample(SampleRequest.builder(1).setPath(dataset).build()));
   }
 
   private void testBrowse(BigQueryConnector connector) throws IOException {
     // browse project
     BrowseDetail detail = connector.browse(BrowseRequest.builder("/").build());
-    assertTrue(detail.getTotalCount() > 0);
-    assertTrue(detail.getEntities().size() > 0);
+    Assert.assertTrue(detail.getTotalCount() > 0);
+    Assert.assertTrue(detail.getEntities().size() > 0);
     for (BrowseEntity entity : detail.getEntities()) {
-      assertEquals(BigQueryConnector.ENTITY_TYPE_DATASET, entity.getType());
-      assertTrue(entity.canBrowse());
-      assertFalse(entity.canSample());
+      Assert.assertEquals(BigQueryConnector.ENTITY_TYPE_DATASET, entity.getType());
+      Assert.assertTrue(entity.canBrowse());
+      Assert.assertFalse(entity.canSample());
     }
 
     // browse dataset
     detail = connector.browse(BrowseRequest.builder(dataset).build());
-    assertTrue(detail.getTotalCount() > 0);
-    assertTrue(detail.getEntities().size() > 0);
+    Assert.assertTrue(detail.getTotalCount() > 0);
+    Assert.assertTrue(detail.getEntities().size() > 0);
     for (BrowseEntity entity : detail.getEntities()) {
-      assertEquals(BigQueryConnector.ENTITY_TYPE_TABLE, entity.getType());
-      assertFalse(entity.canBrowse());
-      assertTrue(entity.canSample());
+      Assert.assertEquals(BigQueryConnector.ENTITY_TYPE_TABLE, entity.getType());
+      Assert.assertFalse(entity.canBrowse());
+      Assert.assertTrue(entity.canSample());
     }
 
     // browse table
     detail = connector.browse(BrowseRequest.builder(dataset + "/" + table).build());
-    assertEquals(1, detail.getTotalCount());
-    assertEquals(1, detail.getEntities().size());
+    Assert.assertEquals(1, detail.getTotalCount());
+    Assert.assertEquals(1, detail.getEntities().size());
     for (BrowseEntity entity : detail.getEntities()) {
-      assertEquals(BigQueryConnector.ENTITY_TYPE_TABLE, entity.getType());
-      assertFalse(entity.canBrowse());
-      assertTrue(entity.canSample());
+      Assert.assertEquals(BigQueryConnector.ENTITY_TYPE_TABLE, entity.getType());
+      Assert.assertFalse(entity.canBrowse());
+      Assert.assertTrue(entity.canSample());
     }
 
     // invalid path
-    assertThrows(IllegalArgumentException.class,
-      () -> connector.browse(BrowseRequest.builder("a/b/c").build()));
+    Assert.assertThrows(IllegalArgumentException.class, () -> connector.browse(BrowseRequest.builder("a/b/c").build()));
 
     // not existing dataset
-    assertThrows(IllegalArgumentException.class,
+    Assert.assertThrows(IllegalArgumentException.class,
       () -> connector.browse(BrowseRequest.builder("/notexisting").build()));
 
     // not existing table
-    assertThrows(IllegalArgumentException.class,
+    Assert.assertThrows(IllegalArgumentException.class,
       () -> connector.browse(BrowseRequest.builder(dataset + "/notexisting").build()));
   }
 
@@ -193,7 +198,7 @@ public class BigQueryConnectorTest {
     SimpleFailureCollector collector = new SimpleFailureCollector();
     connector.test(collector);
     ValidationException validationException = collector.getOrThrowException();
-    assertTrue(validationException.getFailures().isEmpty());
+    Assert.assertTrue(validationException.getFailures().isEmpty());
   }
 
 }

@@ -30,6 +30,54 @@
           "widget-attributes": {
             "placeholder": "connection id"
           }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Project ID",
+          "name": "project",
+          "widget-attributes": {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Dataset Project ID",
+          "name": "datasetProject",
+          "widget-attributes": {
+            "placeholder": "Project the dataset belongs to, if different from the Project ID."
+          }
+        },
+        {
+          "name": "serviceAccountType",
+          "label": "Service Account Type",
+          "widget-type": "radio-group",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "filePath",
+            "options": [
+              {
+                "id": "filePath",
+                "label": "File Path"
+              },
+              {
+                "id": "JSON",
+                "label": "JSON"
+              }
+            ]
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes": {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Service Account JSON",
+          "name": "serviceAccountJSON"
         }
       ]
     },
@@ -51,22 +99,6 @@
           "widget-attributes": {
             "connectionType": "BIGQUERY",
             "label": "Browse"
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Project ID",
-          "name": "project",
-          "widget-attributes": {
-            "default": "auto-detect"
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Dataset Project ID",
-          "name": "datasetProject",
-          "widget-attributes": {
-            "placeholder": "Project the dataset belongs to, if different from the Project ID."
           }
         },
         {
@@ -157,43 +189,6 @@
           "widget-type": "textbox",
           "label": "View Materialization Dataset",
           "name": "viewMaterializationDataset"
-        }
-      ]
-    },
-    {
-      "label": "Credentials",
-      "properties": [
-        {
-          "name": "serviceAccountType",
-          "label": "Service Account Type",
-          "widget-type": "radio-group",
-          "widget-attributes": {
-            "layout": "inline",
-            "default": "filePath",
-            "options": [
-              {
-                "id": "filePath",
-                "label": "File Path"
-              },
-              {
-                "id": "JSON",
-                "label": "JSON"
-              }
-            ]
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Service Account File Path",
-          "name": "serviceFilePath",
-          "widget-attributes": {
-            "default": "auto-detect"
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Service Account JSON",
-          "name": "serviceAccountJSON"
         }
       ]
     }
