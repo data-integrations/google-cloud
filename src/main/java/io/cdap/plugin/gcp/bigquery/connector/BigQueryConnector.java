@@ -30,6 +30,7 @@ import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableResult;
+import io.cdap.cdap.api.annotation.Category;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
@@ -65,6 +66,7 @@ import javax.annotation.Nullable;
  */
 @Plugin(type = Connector.PLUGIN_TYPE)
 @Name(BigQueryConnector.NAME)
+@Category("Google Cloud Platform")
 @Description("This connector creates connections to BigQuery, browses BigQuery datasets and tables, sample BigQuery " +
   "tables. BigQuery is Google's serverless, highly scalable, enterprise data warehouse.")
 public final class BigQueryConnector implements DirectConnector {
@@ -247,23 +249,26 @@ public final class BigQueryConnector implements DirectConnector {
   @Override
   public ConnectorSpec generateSpec(ConnectorSpecRequest connectorSpecRequest) throws IOException {
     BigQueryPath path = new BigQueryPath(connectorSpecRequest.getPath());
-    String datasetName = path.getDataset();
-    String tableName = path.getTable();
-    if (tableName == null) {
-      throw new IllegalArgumentException("Path should contain both dataset and table name.");
-    }
-
+    ConnectorSpec.Builder specBuilder = ConnectorSpec.builder();
     Map<String, String> properties = new HashMap<>();
-    properties.put(BigQuerySourceConfig.NAME_DATASET, datasetName);
-    properties.put(BigQuerySourceConfig.NAME_TABLE, tableName);
-    Table table = getTable(getBigQuery(), datasetName, tableName);
-    TableDefinition definition = table.getDefinition();
-    Schema schema = BigQueryUtil.getTableSchema(definition.getSchema(), null);
-    if (definition.getType() != TableDefinition.Type.TABLE) {
-      properties.put(BigQuerySourceConfig.NAME_ENABLE_QUERYING_VIEWS, "true");
+    properties.put(BigQuerySourceConfig.NAME_USE_CONNECTION, "true");
+    properties.put(BigQuerySourceConfig.NAME_CONNECTION, connectorSpecRequest.getConnectionWithMacro());
+    String datasetName = path.getDataset();
+    if (datasetName != null) {
+      properties.put(BigQuerySourceConfig.NAME_DATASET, datasetName);
     }
-    return ConnectorSpec.builder()
-      .addRelatedPlugin(new PluginSpec(BigQuerySource.NAME, BatchSource.PLUGIN_TYPE, properties)).setSchema(schema)
+    String tableName = path.getTable();
+    if (tableName != null) {
+      properties.put(BigQuerySourceConfig.NAME_TABLE, tableName);
+      Table table = getTable(getBigQuery(), datasetName, tableName);
+      TableDefinition definition = table.getDefinition();
+      Schema schema = BigQueryUtil.getTableSchema(definition.getSchema(), null);
+      specBuilder.setSchema(schema);
+      if (definition.getType() != TableDefinition.Type.TABLE) {
+        properties.put(BigQuerySourceConfig.NAME_ENABLE_QUERYING_VIEWS, "true");
+      }
+    }
+    return specBuilder.addRelatedPlugin(new PluginSpec(BigQuerySource.NAME, BatchSource.PLUGIN_TYPE, properties))
       .build();
   }
 }

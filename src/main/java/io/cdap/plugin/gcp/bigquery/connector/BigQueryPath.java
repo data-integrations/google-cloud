@@ -58,6 +58,10 @@ public class BigQueryPath {
 
     // path should contain at most two part : dataset and table
     // if path ends with / , it's allowed and the last part will be empty string
+    // the reason I don't want to remove the ending / first is because I want to parse and validate the dataset
+    // in the same way. For example, if the path is "//" , then after I remove the beginning slash, it becomes "/"
+    // if I remove the ending slash again , then it becomes "" , thus I can not use "/" to split it and parse dataset
+    // in the same way, I have to write some other if else to deal with the special case.
     if (parts.length == 3 && !parts[2].isEmpty() || parts.length > 3) {
       throw new IllegalArgumentException("Path should at most contain two parts.");
     }
