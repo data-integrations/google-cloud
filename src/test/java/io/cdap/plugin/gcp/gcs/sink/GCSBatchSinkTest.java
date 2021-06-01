@@ -73,9 +73,6 @@ public class GCSBatchSinkTest {
     FieldSetter
       .setField(config, GCSBatchSink.GCSBatchSinkConfig.class.getDeclaredField("format"),
                 "csv");
-    FieldSetter
-      .setField(config, GCSBatchSink.GCSBatchSinkConfig.class.getDeclaredField("contentType"),
-                "application/csv");
     config.validate(collector);
     FieldSetter
       .setField(config, GCSBatchSink.GCSBatchSinkConfig.class.getDeclaredField("format"),

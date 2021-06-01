@@ -53,8 +53,8 @@ Defaults to 'application/octet-stream'. The following table shows valid content 
 | Format type   | Content type                                                                               |
 |---------------|--------------------------------------------------------------------------------------------|
 | avro          | application/avro, application/octet-stream                                                 |
-| csv           | text/csv, application/csv, text/plain, application/octet-stream                            |
-| delimited     | text/csv, application/csv, text/tab-separated-values, text/plain, application/octet-stream |
+| csv           | text/csv, text/plain, application/octet-stream                            |
+| delimited     | text/csv, text/tab-separated-values, text/plain, application/octet-stream |
 | json          | application/json, text/plain, application/octet-stream                                     |
 | orc           | application/octet-stream                                                                   |
 | parquet       | application/octet-stream                                                                   |

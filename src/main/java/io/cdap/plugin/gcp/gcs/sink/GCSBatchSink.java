@@ -250,7 +250,6 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     private static final String CONTENT_TYPE_OTHER = "other";
     private static final String CONTENT_TYPE_APPLICATION_JSON = "application/json";
     private static final String CONTENT_TYPE_APPLICATION_AVRO = "application/avro";
-    private static final String CONTENT_TYPE_APPLICATION_CSV = "application/csv";
     private static final String CONTENT_TYPE_TEXT_PLAIN = "text/plain";
     private static final String CONTENT_TYPE_TEXT_CSV = "text/csv";
     private static final String CONTENT_TYPE_TEXT_TSV = "text/tab-separated-values";
@@ -406,11 +405,10 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
           }
           break;
         case FORMAT_CSV:
-          if (!contentType.equalsIgnoreCase(CONTENT_TYPE_APPLICATION_CSV)
-            && !contentType.equalsIgnoreCase(CONTENT_TYPE_TEXT_CSV)
+          if (!contentType.equalsIgnoreCase(CONTENT_TYPE_TEXT_CSV)
             && !contentType.equalsIgnoreCase(CONTENT_TYPE_TEXT_PLAIN)) {
             failureCollector.addFailure(String.format(
-              "Valid content types for csv are %s, %s, %s, %s.", CONTENT_TYPE_APPLICATION_CSV,
+              "Valid content types for csv are %s, %s, %s.", 
               CONTENT_TYPE_TEXT_PLAIN, CONTENT_TYPE_TEXT_CSV, DEFAULT_CONTENT_TYPE), null
             ).withConfigProperty(NAME_CONTENT_TYPE);
           }
@@ -418,11 +416,10 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
         case FORMAT_DELIMITED:
           if (!contentType.equalsIgnoreCase(CONTENT_TYPE_TEXT_PLAIN)
             && !contentType.equalsIgnoreCase(CONTENT_TYPE_TEXT_CSV)
-            && !contentType.equalsIgnoreCase(CONTENT_TYPE_APPLICATION_CSV)
             && !contentType.equalsIgnoreCase(CONTENT_TYPE_TEXT_TSV)) {
             failureCollector.addFailure(String.format(
-              "Valid content types for delimited are %s, %s, %s, %s, %s.", CONTENT_TYPE_TEXT_PLAIN,
-              CONTENT_TYPE_TEXT_CSV, CONTENT_TYPE_APPLICATION_CSV, CONTENT_TYPE_TEXT_TSV, DEFAULT_CONTENT_TYPE), null
+              "Valid content types for delimited are %s, %s, %s, %s.", CONTENT_TYPE_TEXT_PLAIN,
+              CONTENT_TYPE_TEXT_CSV, CONTENT_TYPE_TEXT_TSV, DEFAULT_CONTENT_TYPE), null
             ).withConfigProperty(NAME_CONTENT_TYPE);
           }
           break;
@@ -496,8 +493,8 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
      *
      *  avro -> application/avro, application/octet-stream
      *  json -> application/json, text/plain, application/octet-stream
-     *  csv -> application/csv, text/csv, text/plain, application/octet-stream
-     *  delimited -> application/csv, text/csv, text/plain, text/tsv, application/octet-stream
+     *  csv -> text/csv, text/plain, application/octet-stream
+     *  delimited -> text/csv, text/plain, text/tsv, application/octet-stream
      *  orc -> application/octet-stream
      *  parquet -> application/octet-stream
      *  tsv -> text/tab-separated-values, application/octet-stream
