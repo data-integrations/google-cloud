@@ -72,9 +72,6 @@ import javax.annotation.Nullable;
 public final class BigQueryConnector implements DirectConnector {
   public static final String NAME = "BigQuery";
   public static final String ENTITY_TYPE_DATASET = "DATASET";
-  public static final String ENTITY_TYPE_TABLE = TableDefinition.Type.TABLE.name();
-  public static final String ENTITY_TYPE_VIEW = TableDefinition.Type.VIEW.name();
-  public static final String ENTITY_TYPE_MATERIALIZED_VIEW = TableDefinition.Type.MATERIALIZED_VIEW.name();
   private static final int ERROR_CODE_NOT_FOUND = 404;
   private BigQueryConnectorConfig config;
 

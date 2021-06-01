@@ -167,7 +167,7 @@ public class BigQueryConnectorTest {
     Assert.assertTrue(detail.getTotalCount() > 0);
     Assert.assertTrue(detail.getEntities().size() > 0);
     for (BrowseEntity entity : detail.getEntities()) {
-      Assert.assertEquals(BigQueryConnector.ENTITY_TYPE_TABLE, entity.getType());
+      Assert.assertEquals("TABLE", entity.getType());
       Assert.assertFalse(entity.canBrowse());
       Assert.assertTrue(entity.canSample());
     }
@@ -177,7 +177,7 @@ public class BigQueryConnectorTest {
     Assert.assertEquals(1, detail.getTotalCount());
     Assert.assertEquals(1, detail.getEntities().size());
     for (BrowseEntity entity : detail.getEntities()) {
-      Assert.assertEquals(BigQueryConnector.ENTITY_TYPE_TABLE, entity.getType());
+      Assert.assertEquals("TABLE", entity.getType());
       Assert.assertFalse(entity.canBrowse());
       Assert.assertTrue(entity.canSample());
     }
