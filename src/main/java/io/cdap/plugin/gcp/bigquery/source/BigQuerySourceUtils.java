@@ -21,7 +21,7 @@ import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
-import io.cdap.plugin.gcp.bigquery.common.BigQueryBaseConfig;
+import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnectorConfig;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
@@ -44,7 +44,7 @@ public class BigQuerySourceUtils {
   private static final String TEMPORARY_BUCKET_FORMAT = GS_PATH_FORMAT + "/hadoop/input/%s";
 
   @Nullable
-  public static Credentials getCredentials(BigQueryBaseConfig config) throws IOException {
+  public static Credentials getCredentials(BigQueryConnectorConfig config) throws IOException {
     return config.getServiceAccount() == null ?
       null : GCPUtils.loadServiceAccountCredentials(config.getServiceAccount(), config.isServiceAccountFilePath());
   }
@@ -56,7 +56,7 @@ public class BigQuerySourceUtils {
    * to auto-delete this bucket on completion.
    *
    * @param configuration Hadoop configuration instance.
-   * @param config BigQuery configuration.
+   * @param config BigQuery Source configuration.
    * @param bigQuery BigQuery client.
    * @param credentials Google Cloud Credentials.
    * @param bucketPath bucket path to use. Will be used as a bucket name if needed..
@@ -64,7 +64,7 @@ public class BigQuerySourceUtils {
    * @return Bucket name.
    */
   public static String getOrCreateBucket(Configuration configuration,
-                                         BigQueryBaseConfig config,
+                                         BigQuerySourceConfig config,
                                          BigQuery bigQuery,
                                          Credentials credentials,
                                          String bucketPath,
@@ -92,9 +92,9 @@ public class BigQuerySourceUtils {
    * Sets up service account credentials into supplied Hadoop configuration.
    *
    * @param configuration Hadoop Configuration instance.
-   * @param config Big Query configuration.
+   * @param config BigQuery connection configuration.
    */
-  public static void configureServiceAccount(Configuration configuration, BigQueryBaseConfig config) {
+  public static void configureServiceAccount(Configuration configuration, BigQueryConnectorConfig config) {
     if (config.getServiceAccount() != null) {
       configuration.set(BigQueryConstants.CONFIG_SERVICE_ACCOUNT, config.getServiceAccount());
       configuration.setBoolean(BigQueryConstants.CONFIG_SERVICE_ACCOUNT_IS_FILE, config.isServiceAccountFilePath());
@@ -152,12 +152,12 @@ public class BigQuerySourceUtils {
    * Deletes temporary BigQuery table used to export records from views.
    *
    * @param configuration Hadoop Configuration.
-   * @param config BigQuery configuration.
+   * @param config BigQuery source configuration.
    */
-  public static void deleteBigQueryTemporaryTable(Configuration configuration, BigQueryBaseConfig config) {
+  public static void deleteBigQueryTemporaryTable(Configuration configuration, BigQuerySourceConfig config) {
     String temporaryTable = configuration.get(BigQueryConstants.CONFIG_TEMPORARY_TABLE_NAME);
     try {
-      Credentials credentials = getCredentials(config);
+      Credentials credentials = getCredentials(config.getConnection());
       BigQuery bigQuery = GCPUtils.getBigQuery(config.getDatasetProject(), credentials);
       bigQuery.delete(TableId.of(config.getProject(), config.getDataset(), temporaryTable));
       LOG.debug("Deleted temporary table '{}'", temporaryTable);
@@ -170,14 +170,13 @@ public class BigQuerySourceUtils {
    * Deletes temporary GCS directory.
    *
    * @param configuration Hadoop Configuration.
-   * @param config BigQuery configuration.
+   * @param bucket the bucket name
    * @param runId the run ID
    */
   public static void deleteGcsTemporaryDirectory(Configuration configuration,
-                                                 BigQueryBaseConfig config,
+                                                 String bucket,
                                                  String runId) {
     String gcsPath;
-    String bucket = config.getBucket();
     // If the bucket was created for this run, delete it.
     if (bucket == null) {
       gcsPath = String.format(GCS_BUCKET_FORMAT, runId);
