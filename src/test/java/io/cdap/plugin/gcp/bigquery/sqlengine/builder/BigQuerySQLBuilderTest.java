@@ -16,7 +16,11 @@
 
 package io.cdap.plugin.gcp.bigquery.sqlengine.builder;
 
+import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.engine.sql.SQLEngineException;
+import io.cdap.cdap.etl.api.join.JoinCondition;
+import io.cdap.cdap.etl.api.join.JoinDefinition;
+import io.cdap.cdap.etl.api.join.JoinField;
 import io.cdap.cdap.etl.api.join.JoinKey;
 import io.cdap.cdap.etl.api.join.JoinStage;
 import org.junit.Assert;
@@ -28,29 +32,31 @@ import org.mockito.junit.MockitoJUnitRunner;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.powermock.api.mockito.PowerMockito.doAnswer;
+import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.powermock.api.mockito.PowerMockito.spy;
+import static org.powermock.api.mockito.PowerMockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
 public class BigQuerySQLBuilderTest {
-  StringBuilder builder;
-  BigQuerySQLBuilder helper;
-  Map<String, String> stageToBQTableNameMap;
-  Map<String, String> stageToFullTableNameMap;
-  Map<String, String> stageToTableAliasMap;
-  String project;
-  String dataset;
+  private JoinDefinition joinDefinition;
+  private StringBuilder builder;
+  private Map<String, String> stageToBQTableNameMap;
+  private Map<String, String> stageToFullTableNameMap;
+  private Map<String, String> stageToTableAliasMap;
+  private String project;
+  private String dataset;
+  private BigQuerySQLBuilder helper;
 
   @Before
   public void setUp() {
+    joinDefinition = mock(JoinDefinition.class);
     builder = new StringBuilder();
     stageToBQTableNameMap = new HashMap<>();
     stageToBQTableNameMap.put("leftStage", "bqLeft");
@@ -79,8 +85,161 @@ public class BigQuerySQLBuilderTest {
     project = "project";
     dataset = "dataset";
 
-    helper = spy(new BigQuerySQLBuilder(builder, project, dataset,
-                                        stageToBQTableNameMap, stageToFullTableNameMap, stageToTableAliasMap));
+    helper = spy(new BigQuerySQLBuilder(joinDefinition,
+                                        project,
+                                        dataset,
+                                        stageToBQTableNameMap,
+                                        stageToFullTableNameMap,
+                                        stageToTableAliasMap,
+                                        builder));
+  }
+
+  @Test
+  public void testFieldEqualityQuery() {
+    // Inner join as both sides are required
+    JoinStage users = JoinStage.builder("Users", null).setRequired(true).build();
+    JoinStage purchases = JoinStage.builder("Purchases", null).setRequired(true).build();
+
+    // Non null safe
+    JoinCondition condition = JoinCondition.onKeys()
+      .addKey(new JoinKey("Users", Arrays.asList("id")))
+      .addKey(new JoinKey("Purchases", Arrays.asList("user_id")))
+      .setNullSafe(false)
+      .build();
+
+    JoinDefinition joinDefinition = JoinDefinition.builder()
+      .select(new JoinField("Users", "id", "user_id"),
+              new JoinField("Purchases", "id", "purchase_id"))
+      .from(users, purchases)
+      .on(condition)
+      .build();
+
+    Map<String, String> stateToBqTableNames = new HashMap<>();
+    stateToBqTableNames.put("Users", "u");
+    stateToBqTableNames.put("Purchases", "p");
+
+    BigQuerySQLBuilder helper =
+      new BigQuerySQLBuilder(joinDefinition, "my-project", "MY_DS", stateToBqTableNames);
+
+    Assert.assertEquals(
+      "SELECT `Users`.id AS `user_id` , `Purchases`.id AS `purchase_id` "
+        + "FROM `my-project.MY_DS.u` AS `Users` "
+        + "INNER JOIN `my-project.MY_DS.p` AS `Purchases` ON `Users`.id = `Purchases`.user_id",
+      helper.getQuery());
+  }
+
+  @Test
+  public void testFieldEqualityQueryMultipleTables() {
+    // First join is a right join, second join is a left join
+    JoinStage shipments = JoinStage.builder("Shipments", null).setRequired(false).build();
+    JoinStage fromAddresses = JoinStage.builder("FromAddresses", null).setRequired(true).build();
+    JoinStage toAddresses = JoinStage.builder("ToAddresses", null).setRequired(false).build();
+
+    // null safe
+    JoinCondition condition = JoinCondition.onKeys()
+      .addKey(new JoinKey("Shipments", Arrays.asList("id")))
+      .addKey(new JoinKey("FromAddresses", Arrays.asList("shipment_id")))
+      .addKey(new JoinKey("ToAddresses", Arrays.asList("shipment_id")))
+      .setNullSafe(true)
+      .build();
+
+    JoinDefinition joinDefinition = JoinDefinition.builder()
+      .select(new JoinField("Shipments", "id", "shipment_id"),
+              new JoinField("FromAddresses", "zip", "from_zip"),
+              new JoinField("ToAddresses", "zip", "to_zip"))
+      .from(shipments, fromAddresses, toAddresses)
+      .on(condition)
+      .build();
+
+    Map<String, String> stateToBqTableNames = new HashMap<>();
+    stateToBqTableNames.put("Shipments", "shipments");
+    stateToBqTableNames.put("FromAddresses", "from-addr");
+    stateToBqTableNames.put("ToAddresses", "to-addr");
+
+    BigQuerySQLBuilder helper =
+      new BigQuerySQLBuilder(joinDefinition, "my-project", "MY_DS", stateToBqTableNames);
+
+    Assert.assertEquals(
+      "SELECT `Shipments`.id AS `shipment_id` , `FromAddresses`.zip AS `from_zip` , `ToAddresses`.zip AS `to_zip` "
+        + "FROM `my-project.MY_DS.shipments` AS `Shipments` "
+        + "RIGHT OUTER JOIN `my-project.MY_DS.from-addr` AS `FromAddresses` "
+        // Null safe join keys
+        + "ON (`Shipments`.id = `FromAddresses`.shipment_id "
+        + "OR (`Shipments`.id IS NULL AND `FromAddresses`.shipment_id IS NULL)) "
+        + "LEFT OUTER JOIN `my-project.MY_DS.to-addr` AS `ToAddresses` "
+        // Null safe join keys
+        + "ON (`FromAddresses`.shipment_id = `ToAddresses`.shipment_id "
+        + "OR (`FromAddresses`.shipment_id IS NULL AND `ToAddresses`.shipment_id IS NULL))",
+      helper.getQuery());
+  }
+
+  @Test
+  public void testOnExpressionQuery() {
+    Schema usersSchema = Schema.recordOf("Users",
+                                         Schema.Field.of("id", Schema.of(Schema.Type.INT)));
+    Schema purchasesSchema = Schema.recordOf("Purchases",
+                                             Schema.Field.of("id", Schema.of(Schema.Type.INT)),
+                                             Schema.Field.of("user_id", Schema.of(Schema.Type.INT)),
+                                             Schema.Field.of("price", Schema.of(Schema.Type.INT)));
+
+    // Inner join as both sides are required
+    JoinStage users = JoinStage.builder("Users", usersSchema).setRequired(true).build();
+    JoinStage purchases = JoinStage.builder("Purchases", purchasesSchema).setRequired(true).build();
+
+    // Non null safe
+    JoinCondition condition = JoinCondition.onExpression()
+      .setExpression("Users.id = purch.user_id and `purch`.price > 100")
+      .addDatasetAlias("Purchases", "purch")
+      .build();
+
+    JoinDefinition joinDefinition = JoinDefinition.builder()
+      .select(new JoinField("Users", "id", "user_id"),
+              new JoinField("Purchases", "id", "purchase_id"),
+              new JoinField("Purchases", "price"))
+      .from(users, purchases)
+      .on(condition)
+      .build();
+
+    Map<String, String> stateToBqTableNames = new HashMap<>();
+    stateToBqTableNames.put("Users", "u");
+    stateToBqTableNames.put("Purchases", "p");
+
+    BigQuerySQLBuilder helper =
+      new BigQuerySQLBuilder(joinDefinition, "my-project", "MY_DS", stateToBqTableNames);
+
+    Assert.assertEquals(
+      "SELECT `Users`.id AS `user_id` , `purch`.id AS `purchase_id` , `purch`.price "
+        + "FROM `my-project.MY_DS.u` AS `Users` "
+        + "INNER JOIN `my-project.MY_DS.p` AS `purch` "
+        + "ON Users.id = purch.user_id and `purch`.price > 100",
+      helper.getQuery());
+  }
+
+  @Test
+  public void testBuildSelectedFields() {
+    JoinField joinField1 = new JoinField("leftStage", "field1");
+    JoinField joinField2 = new JoinField("rightStage", "field2", "alias2");
+    JoinField joinField3 = new JoinField("rightStage", "field3");
+    JoinField joinField4 = new JoinField("leftStage", "field4", "alias4");
+
+    when(joinDefinition.getSelectedFields()).thenReturn(Arrays.asList(joinField1, joinField2, joinField3, joinField4));
+
+    Assert.assertEquals("LEFT.field1 , RIGHT.field2 AS `alias2` , RIGHT.field3 , LEFT.field4 AS `alias4`",
+                        helper.getSelectedFields());
+  }
+
+  @Test
+  public void testBuildSelectedField() {
+    JoinField joinField = new JoinField("leftStage", "field");
+    Assert.assertEquals("LEFT.field",
+                        helper.buildSelectedField(joinField));
+  }
+
+  @Test
+  public void testBuildSelectedFieldWithAlias() {
+    JoinField joinField = new JoinField("rightStage", "field", "alias");
+    Assert.assertEquals("RIGHT.field AS `alias`",
+                        helper.buildSelectedField(joinField));
   }
 
   @Test
@@ -198,32 +357,32 @@ public class BigQuerySQLBuilderTest {
   }
 
   @Test
-  public void testBuildJoinStatementSingleColumn() {
+  public void testBuildJoinOnKeyStatementSingleColumn() {
     JoinKey leftJoinKey = new JoinKey("anyTable", Collections.singletonList("left_a"));
     JoinKey rightJoinKey = new JoinKey("anyOtherTable", Collections.singletonList("right_x"));
 
-    helper.appendJoinOnKeyStatement("leftTable", leftJoinKey, "rightTable", rightJoinKey, false);
+    helper.appendJoinOnKeyClause("leftTable", leftJoinKey, "rightTable", rightJoinKey, false);
     Assert.assertEquals("leftTable.left_a = rightTable.right_x",
                         builder.toString());
   }
 
   @Test
-  public void testBuildJoinStatementSingleColumnNullSafe() {
+  public void testBuildJoinOnKeyStatementSingleColumnNullSafe() {
     JoinKey leftJoinKey = new JoinKey("anyTable", Collections.singletonList("left_a"));
     JoinKey rightJoinKey = new JoinKey("anyOtherTable", Collections.singletonList("right_x"));
 
-    helper.appendJoinOnKeyStatement("leftTable", leftJoinKey, "rightTable", rightJoinKey, true);
+    helper.appendJoinOnKeyClause("leftTable", leftJoinKey, "rightTable", rightJoinKey, true);
     Assert.assertEquals(
       "(leftTable.left_a = rightTable.right_x OR (leftTable.left_a IS NULL AND rightTable.right_x IS NULL))",
       builder.toString());
   }
 
   @Test
-  public void testBuildJoinStatementMultipleColumns() {
+  public void testBuildJoinOnKeyStatementMultipleColumns() {
     JoinKey leftJoinKey = new JoinKey("anyTable", Arrays.asList("left_a", "left_b", "left_c"));
     JoinKey rightJoinKey = new JoinKey("anyOtherTable", Arrays.asList("right_x", "right_y", "right_z"));
 
-    helper.appendJoinOnKeyStatement("leftTable", leftJoinKey, "rightTable", rightJoinKey, true);
+    helper.appendJoinOnKeyClause("leftTable", leftJoinKey, "rightTable", rightJoinKey, true);
     Assert.assertEquals(
       "(leftTable.left_a = rightTable.right_x OR (leftTable.left_a IS NULL AND rightTable.right_x IS NULL)) AND "
         + "(leftTable.left_b = rightTable.right_y OR (leftTable.left_b IS NULL AND rightTable.right_y IS NULL)) AND "
@@ -255,36 +414,18 @@ public class BigQuerySQLBuilderTest {
   }
 
   @Test
+  public void testQuoteAlias() {
+    Assert.assertEquals("`stage`", helper.quoteAlias("stage"));
+    Assert.assertEquals("`Some_stage`", helper.quoteAlias("Some_stage"));
+    Assert.assertEquals("`Some-other.Stage`", helper.quoteAlias("Some-other.Stage"));
+  }
+
+  @Test
   public void testGetBQTableName() {
     Assert.assertEquals("bqLeft",
                         helper.getBQTableName("leftStage"));
     Assert.assertEquals("bqRight",
                         helper.getBQTableName("rightStage"));
-  }
-
-  @Test
-  public void testBuildTableAlias() {
-    Assert.assertEquals("A", helper.buildTableAlias(0));
-    Assert.assertEquals("Z", helper.buildTableAlias(25));
-    Assert.assertEquals("AA", helper.buildTableAlias(26));
-    Assert.assertEquals("AB", helper.buildTableAlias(27));
-    Assert.assertEquals("AY", helper.buildTableAlias(50));
-    Assert.assertEquals("AZ", helper.buildTableAlias(51));
-    Assert.assertEquals("BA", helper.buildTableAlias(52));
-    Assert.assertEquals("BB", helper.buildTableAlias(53));
-    Assert.assertEquals("BB", helper.buildTableAlias(53));
-    Assert.assertEquals("ZY", helper.buildTableAlias(700));
-    Assert.assertEquals("ZZ", helper.buildTableAlias(701));
-    Assert.assertEquals("AAA", helper.buildTableAlias(702));
-    Assert.assertEquals("AAB", helper.buildTableAlias(703));
-
-    //Validate no collisions occur when generating aliases.
-    Set<String> aliases = new HashSet<>();
-    for (int i = 0; i < 2000; i++) {
-      String alias = helper.buildTableAlias(i);
-      Assert.assertFalse("Collision detected when generating aliases.", aliases.contains(alias));
-      aliases.add(alias);
-    }
   }
 
   @Test(expected = SQLEngineException.class)
@@ -299,11 +440,11 @@ public class BigQuerySQLBuilderTest {
       return null;
     })
       .when(helper)
-      .appendJoinOnKeyStatement(anyString(),
-                                any(JoinKey.class),
-                                anyString(),
-                                any(JoinKey.class),
-                                anyBoolean());
+      .appendJoinOnKeyClause(anyString(),
+                             any(JoinKey.class),
+                             anyString(),
+                             any(JoinKey.class),
+                             anyBoolean());
 
     JoinKey leftJoinKey = new JoinKey("leftTable", Collections.singletonList("left_a"));
     JoinKey rightJoinKey = new JoinKey("rightTable", Collections.singletonList("right_x"));

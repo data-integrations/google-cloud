@@ -24,15 +24,38 @@ import io.cdap.cdap.etl.api.join.JoinField;
 import io.cdap.cdap.etl.api.join.JoinKey;
 import io.cdap.cdap.etl.api.join.JoinStage;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
- * Helper class used to generate BigQuery SQL Statements
+ * Helper class used to generate BigQuery SQL Statements for Joins.
+ * <p>
+ * Many methods in this class have proteced visibility for the purposes of testing.
  */
 public class BigQuerySQLBuilder {
+
+  private static final String SELECT = "SELECT ";
+  private static final String FROM = " FROM ";
+  private static final String SPACE = " ";
+  private static final String JOIN = " JOIN ";
+  private static final String AS = " AS ";
+  private static final String ON = " ON ";
+  private static final String EQ = " = ";
+  private static final String AND = " AND ";
+  private static final String OR = " OR ";
+  private static final String DOT = ".";
+  private static final String COMMA = " , ";
+  private static final String IS_NULL = " IS NULL";
+  private static final String OPEN_GROUP = "(";
+  private static final String CLOSE_GROUP = ")";
+
+  private final JoinDefinition joinDefinition;
   private final StringBuilder builder;
   private final String project;
   private final String dataset;
@@ -40,17 +63,28 @@ public class BigQuerySQLBuilder {
   private final Map<String, String> stageToFullTableNameMap;
   private final Map<String, String> stageToTableAliasMap;
 
-  public BigQuerySQLBuilder(String project, String dataset, Map<String, String> stageToBQTableNameMap) {
-    this(new StringBuilder(), project, dataset, stageToBQTableNameMap, new HashMap<>(), new HashMap<>());
+  public BigQuerySQLBuilder(JoinDefinition joinDefinition,
+                            String project,
+                            String dataset,
+                            Map<String, String> stageToBQTableNameMap) {
+    this(joinDefinition,
+         project,
+         dataset,
+         stageToBQTableNameMap,
+         new HashMap<>(),
+         new HashMap<>(),
+         new StringBuilder());
   }
 
   @VisibleForTesting
-  protected BigQuerySQLBuilder(StringBuilder builder,
+  protected BigQuerySQLBuilder(JoinDefinition joinDefinition,
                                String project,
                                String dataset,
                                Map<String, String> stageToBQTableNameMap,
                                Map<String, String> stageToFullTableNameMap,
-                               Map<String, String> stageToTableAliasMap) {
+                               Map<String, String> stageToTableAliasMap,
+                               StringBuilder builder) {
+    this.joinDefinition = joinDefinition;
     this.builder = builder;
     this.project = project;
     this.dataset = dataset;
@@ -59,42 +93,68 @@ public class BigQuerySQLBuilder {
     this.stageToTableAliasMap = stageToTableAliasMap;
   }
 
-  public String getFieldEqualityQuery(JoinDefinition joinDefinition) {
+  public String getQuery() {
+    if (joinDefinition.getCondition().getOp() == JoinCondition.Op.KEY_EQUALITY) {
+      return getFieldEqualityQuery();
+    } else {
+      return getExpressionQuery();
+    }
+  }
+
+  private String getFieldEqualityQuery() {
     // Build aliases for all tables.
-    addTableNamesAndAliasesForJoinDefinition(joinDefinition);
+    addTableNamesAndAliasesForJoinDefinition();
 
-    //Reset builder
-    builder.setLength(0);
-
-    builder.append("SELECT ").append(getSelectedFields(joinDefinition));
-    builder.append(" FROM ");
-    appendFieldEqualityClause(joinDefinition);
+    appendSelectStatement();
+    appendFieldEqualityClause();
 
     return builder.toString();
   }
 
-  protected String getSelectedFields(JoinDefinition joinDefinition) {
-    return joinDefinition.getSelectedFields().stream()
-      .map(this::buildSelectedField)
-      .collect(Collectors.joining(" , "));
+  private String getExpressionQuery() {
+    JoinCondition.OnExpression onExpression = (JoinCondition.OnExpression) joinDefinition.getCondition();
+    // Build aliases for all tables.
+    addTableNamesAndAliasesForJoinDefinition(onExpression.getDatasetAliases());
+
+    appendSelectStatement();
+    appendOnExpressionClause();
+
+    return builder.toString();
   }
 
+  /**
+   * Appends Select columns and From statement
+   * <p>
+   * SELECT <fields> FROM ...
+   */
+  private void appendSelectStatement() {
+    builder.append(SELECT).append(getSelectedFields()).append(FROM);
+  }
+
+  @VisibleForTesting
+  protected String getSelectedFields() {
+    return joinDefinition.getSelectedFields().stream()
+      .map(this::buildSelectedField)
+      .collect(Collectors.joining(COMMA));
+  }
+
+  @VisibleForTesting
   protected String buildSelectedField(JoinField joinField) {
     StringBuilder builder = new StringBuilder();
 
     builder.append(getTableAlias(joinField.getStageName()));
-    builder.append(".");
+    builder.append(DOT);
     builder.append(joinField.getFieldName());
 
     if (joinField.getAlias() != null) {
-      builder.append(" AS ");
-      builder.append(joinField.getAlias());
+      builder.append(AS);
+      builder.append(quoteAlias(joinField.getAlias()));
     }
 
     return builder.toString();
   }
 
-  protected void appendFieldEqualityClause(JoinDefinition joinDefinition) {
+  private void appendFieldEqualityClause() {
     List<JoinStage> stages = joinDefinition.getStages();
 
     Map<String, JoinKey> stageNameToJoinKeyMap = new HashMap<>();
@@ -106,6 +166,7 @@ public class BigQuerySQLBuilder {
     appendFieldEqualityClause(stages, stageNameToJoinKeyMap, joinOnNullKeys);
   }
 
+  @VisibleForTesting
   protected void appendFieldEqualityClause(List<JoinStage> stages,
                                            Map<String, JoinKey> stageNameToJoinKeyMap,
                                            boolean joinOnNullKeys) {
@@ -113,10 +174,9 @@ public class BigQuerySQLBuilder {
 
     for (JoinStage curr : stages) {
       if (prev == null) {
-        String currStage = curr.getStageName();
-        builder.append(getFullTableName(currStage)).append(" AS ").append(getTableAlias(currStage));
+        appendFullTableNameAndAlias(curr.getStageName());
       } else {
-        builder.append(" ");
+        builder.append(SPACE);
         appendJoinOnKeyOperation(prev, curr, stageNameToJoinKeyMap, joinOnNullKeys);
       }
 
@@ -124,10 +184,56 @@ public class BigQuerySQLBuilder {
     }
   }
 
+  private void appendOnExpressionClause() {
+    JoinCondition.OnExpression onExpression = (JoinCondition.OnExpression) joinDefinition.getCondition();
+
+    JoinStage left = joinDefinition.getStages().get(0);
+    JoinStage right = joinDefinition.getStages().get(1);
+
+    // Append Join Statement for these 2 stages
+    // ...<left_table> <join_type> JOIN <left_table> ON ...
+    appendFullTableNameAndAlias(left.getStageName());
+    builder.append(SPACE);
+    appendJoinStatement(left, right);
+    builder.append(onExpression.getExpression());
+  }
+
+  /**
+   * Appends join on key operation
+   *
+   * @param left                  left stage in the join
+   * @param right                 right stage in the join
+   * @param stageNameToJoinKeyMap Map containing all stage names and join keys
+   * @param joinOnNullKeys        whether the join should include null kets
+   */
+  @VisibleForTesting
   protected void appendJoinOnKeyOperation(JoinStage left,
                                           JoinStage right,
                                           Map<String, JoinKey> stageNameToJoinKeyMap,
                                           boolean joinOnNullKeys) {
+    // Append Join Statement for these 2 stages
+    appendJoinStatement(left, right);
+
+    String leftAlias = getTableAlias(left.getStageName());
+    String rightAlias = getTableAlias(right.getStageName());
+
+    JoinKey leftKey = stageNameToJoinKeyMap.get(left.getStageName());
+    JoinKey rightKey = stageNameToJoinKeyMap.get(right.getStageName());
+
+    // Append Join on key conditions
+    appendJoinOnKeyClause(leftAlias, leftKey, rightAlias, rightKey, joinOnNullKeys);
+  }
+
+  /**
+   * Appends join statement between 2 tables
+   * <p>
+   * ... [JOIN_TYPE] JOIN right ON ...
+   *
+   * @param left  left stage in the join
+   * @param right right stage in the join
+   */
+  private void appendJoinStatement(JoinStage left,
+                                   JoinStage right) {
     String joinType;
 
     if (left.isRequired() && right.isRequired()) {
@@ -140,61 +246,97 @@ public class BigQuerySQLBuilder {
       joinType = "FULL OUTER";
     }
 
-    String leftAlias = getTableAlias(left.getStageName());
-    String rightAlias = getTableAlias(right.getStageName());
-    String rightTable = getFullTableName(right.getStageName());
-
     // ... <join_type> JOIN <right_table> ON ...
     builder.append(joinType);
-    builder.append(" JOIN ");
-    builder.append(rightTable);
-    builder.append(" AS ");
-    builder.append(rightAlias);
-    builder.append(" ON ");
-
-    JoinKey leftKey = stageNameToJoinKeyMap.get(left.getStageName());
-    JoinKey rightKey = stageNameToJoinKeyMap.get(right.getStageName());
-
-    appendJoinOnKeyStatement(leftAlias, leftKey, rightAlias, rightKey, joinOnNullKeys);
+    builder.append(JOIN);
+    appendFullTableNameAndAlias(right.getStageName());
+    builder.append(ON);
   }
 
-  protected void appendJoinOnKeyStatement(String leftAlias,
-                                          JoinKey leftKey,
-                                          String rightAlias,
-                                          JoinKey rightKey,
-                                          boolean joinOnNullKeys) {
+  /**
+   * Appends a table name and alias for a given stage.
+   * <p>
+   * ...`project.dataset.bqtable` AS `somealias`...
+   *
+   * @param stageName name of the stage to use.
+   */
+  private void appendFullTableNameAndAlias(String stageName) {
+    builder.append(getFullTableName(stageName)).append(AS).append(getTableAlias(stageName));
+  }
+
+  /**
+   * Append join on key statement
+   * <p>
+   * When not joining on null keys, the result is:
+   * ... left.l1 = right.r1 [AND left.l2 = right.r2 ...]
+   * <p>
+   * When  joining on null keys, the result is:
+   * ... (left.l1 = right.r1 OR (left.l1 IS NULL AND right.r1 IS NULL))
+   * [AND (left.l2 = right.r2 OR (left.l2 IS NULL AND right.r2 IS NULL))  ...]
+   *
+   * @param leftAlias
+   * @param leftKey
+   * @param rightAlias
+   * @param rightKey
+   * @param joinOnNullKeys
+   */
+  @VisibleForTesting
+  protected void appendJoinOnKeyClause(String leftAlias,
+                                       JoinKey leftKey,
+                                       String rightAlias,
+                                       JoinKey rightKey,
+                                       boolean joinOnNullKeys) {
     // ... ON [left.l1 = right.r1]
     appendEquals(leftAlias, leftKey.getFields().get(0), rightAlias, rightKey.getFields().get(0), joinOnNullKeys);
 
     for (int i = 1; i < leftKey.getFields().size(); i++) {
       // ... [AND left.rN = right.rN]
-      builder.append(" AND ");
+      builder.append(AND);
       appendEquals(leftAlias, leftKey.getFields().get(i), rightAlias, rightKey.getFields().get(i), joinOnNullKeys);
     }
   }
 
-  protected void appendEquals(String leftAlias,
+  /**
+   * Appends Equality clause
+   * <p>
+   * When not joining on null keys, the result is:
+   * ... left.l1 = right.r1 ...
+   * <p>
+   * When joining on null keys, the result is:
+   * ... (left.l1 = right.r1 OR (left.l1 IS NULL AND right.r1 IS NULL)) ...
+   *
+   * @param leftTable      Alias for the left table
+   * @param leftField      Alias for the left field
+   * @param rightTable     Alias for the right table
+   * @param rightField     Alias for the right field
+   * @param joinOnNullKeys if null kets should be included
+   */
+  @VisibleForTesting
+  protected void appendEquals(String leftTable,
                               String leftField,
-                              String rightAlias,
+                              String rightTable,
                               String rightField,
                               boolean joinOnNullKeys) {
     if (joinOnNullKeys) {
-      builder.append("(");
+      builder.append(OPEN_GROUP);
     }
 
-    builder.append(leftAlias).append(".").append(leftField);
-    builder.append(" = ");
-    builder.append(rightAlias).append(".").append(rightField);
+    // ...table1.column1 = table2.column2...
+    builder.append(leftTable).append(DOT).append(leftField);
+    builder.append(EQ);
+    builder.append(rightTable).append(DOT).append(rightField);
 
     if (joinOnNullKeys) {
-      builder.append(" OR (");
-      builder.append(leftAlias).append(".").append(leftField).append(" IS NULL");
-      builder.append(" AND ");
-      builder.append(rightAlias).append(".").append(rightField).append(" IS NULL");
-      builder.append(")").append(")");
+      // ... OR (table1.column1 IS NULL AND table2.column2 IS NULL))...
+      builder.append(OR).append(OPEN_GROUP);
+      builder.append(leftTable).append(DOT).append(leftField).append(IS_NULL);
+      builder.append(AND);
+      builder.append(rightTable).append(DOT).append(rightField).append(IS_NULL);
+      builder.append(CLOSE_GROUP).append(CLOSE_GROUP);
     }
   }
 
+  @VisibleForTesting
   protected String getBQTableName(String stageName) {
     String result = stageToBQTableNameMap.get(stageName);
 
@@ -205,7 +347,11 @@ public class BigQuerySQLBuilder {
     return result;
   }
 
-  protected void addTableNamesAndAliasesForJoinDefinition(JoinDefinition joinDefinition) {
+  private void addTableNamesAndAliasesForJoinDefinition() {
+    addTableNamesAndAliasesForJoinDefinition(Collections.emptyMap());
+  }
+
+  private void addTableNamesAndAliasesForJoinDefinition(Map<String, String> aliasOverrides) {
     for (JoinStage stage : joinDefinition.getStages()) {
       String stageName = stage.getStageName();
 
@@ -214,25 +360,44 @@ public class BigQuerySQLBuilder {
       }
 
       if (!stageToTableAliasMap.containsKey(stageName)) {
-        addTableAlias(stageName);
+        addTableAlias(stageName, aliasOverrides.getOrDefault(stageName, stageName));
       }
     }
   }
 
+  /**
+   * Aad the full table name for this table
+   *
+   * @param stageName
+   */
+  @VisibleForTesting
   protected void addFullTableName(String stageName) {
     String bqTableName = getBQTableName(stageName);
     stageToFullTableNameMap.put(stageName,
                                 String.format("`%s.%s.%s`", project, dataset, bqTableName));
   }
 
-  protected void addTableAlias(String stageName) {
-    stageToTableAliasMap.put(stageName,
-                             buildTableAlias(stageToTableAliasMap.size()));
+  private void addTableAlias(String stageName, String alias) {
+    stageToTableAliasMap.put(stageName, quoteAlias(alias));
+  }
+
+  /**
+   * Add backticks to quote aliases for a given table.
+   * <p>
+   * This ensures aliases are escaped and support full unicode characters.
+   *
+   * @param alias alias to escape
+   * @return quoted alias
+   */
+  @VisibleForTesting
+  protected static String quoteAlias(String alias) {
+    return String.format("`%s`", alias);
   }
 
   /**
    * Get fully qualified (quoted) table name for a supplied stage.
    */
+  @VisibleForTesting
   protected String getFullTableName(String stageName) {
     String fullTableName = stageToFullTableNameMap.get(stageName);
 
@@ -246,7 +411,7 @@ public class BigQuerySQLBuilder {
   /**
    * Get table alias for a supplied stage.
    */
-  protected String getTableAlias(String stageName) {
+  private String getTableAlias(String stageName) {
     String tableAlias = stageToTableAliasMap.get(stageName);
 
     if (tableAlias == null) {
@@ -254,28 +419,6 @@ public class BigQuerySQLBuilder {
     }
 
     return tableAlias;
-  }
-
-  /**
-   * Builds a column alias based on an index.
-   *
-   * The resulting Alias follows the spreadsheet column naming convention:
-   * 0 -> A
-   * ...
-   * 25 -> Z
-   * 26 -> AA
-   * 27 -> AB
-   *
-   * @param index the index to generate
-   * @return the table alias for the current index.
-   */
-  protected String buildTableAlias(int index) {
-    // Build all preceding characters in the alias, if needed.
-    if (index / 26 > 0) {
-      return buildTableAlias((index / 26) - 1) + (char) ('A' + index % 26);
-    } else {
-      return String.valueOf((char) ('A' + index));
-    }
   }
 
 }
