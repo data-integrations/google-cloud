@@ -21,10 +21,8 @@ import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
 import io.cdap.cdap.etl.api.Emitter;
 import io.cdap.cdap.etl.api.SerializableTransform;
-import io.cdap.plugin.gcp.bigquery.sqlengine.SQLEngineAvroToStructuredTransformer;
 import org.apache.avro.generic.GenericData;
 import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.NullWritable;
 
 /**
  * Transform used when pulling records from BigQuery.

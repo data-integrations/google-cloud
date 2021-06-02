@@ -26,6 +26,7 @@ import io.cdap.cdap.etl.api.engine.sql.request.SQLPullRequest;
 import io.cdap.plugin.gcp.bigquery.source.BigQueryInputFormatProvider;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceUtils;
 import io.cdap.plugin.gcp.bigquery.sqlengine.transform.PullTransform;
+import io.cdap.plugin.gcp.bigquery.sqlengine.util.BigQuerySQLEngineUtils;
 import org.apache.avro.generic.GenericData;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
