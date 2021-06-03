@@ -14,7 +14,7 @@
  * the License.
  */
 
-package io.cdap.plugin.gcp.bigquery.sqlengine;
+package io.cdap.plugin.gcp.bigquery.sqlengine.transform;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.cdap.cdap.api.data.schema.Schema;

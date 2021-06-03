@@ -28,6 +28,7 @@ import io.cdap.plugin.gcp.bigquery.sink.BigQueryOutputFormatProvider;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
 import io.cdap.plugin.gcp.bigquery.sink.Operation;
 import io.cdap.plugin.gcp.bigquery.sqlengine.transform.PushTransform;
+import io.cdap.plugin.gcp.bigquery.sqlengine.util.BigQuerySQLEngineUtils;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
@@ -77,7 +78,7 @@ public class BigQueryPushDataset extends BigQueryOutputFormatProvider
                                                    String bucket,
                                                    String runId) throws IOException {
     // Get new Job ID for this push operation
-    String jobId = BigQuerySQLEngineUtils.getIdentifier();
+    String jobId = BigQuerySQLEngineUtils.newIdentifier();
 
     // Build new table name for this dataset
     String table = BigQuerySQLEngineUtils.getNewTableName(runId);

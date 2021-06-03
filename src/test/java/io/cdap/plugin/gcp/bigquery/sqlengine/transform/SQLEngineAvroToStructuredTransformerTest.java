@@ -14,7 +14,7 @@
  * the License.
  */
 
-package io.cdap.plugin.gcp.bigquery.sqlengine;
+package io.cdap.plugin.gcp.bigquery.sqlengine.transform;
 
 import io.cdap.cdap.etl.api.engine.sql.SQLEngineException;
 import org.junit.Assert;

@@ -28,6 +28,7 @@ import io.cdap.cdap.etl.api.engine.sql.dataset.SQLDataset;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLJoinRequest;
 import io.cdap.cdap.etl.api.join.JoinDefinition;
 import io.cdap.plugin.gcp.bigquery.sqlengine.builder.BigQuerySQLBuilder;
+import io.cdap.plugin.gcp.bigquery.sqlengine.util.BigQuerySQLEngineUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,7 +82,7 @@ public class BigQueryJoinDataset implements SQLDataset, BigQuerySQLDataset {
                                                 String runId) {
 
     // Get new Job ID for this push operation
-    String jobId = BigQuerySQLEngineUtils.getIdentifier();
+    String jobId = BigQuerySQLEngineUtils.newIdentifier();
 
     // Build new table name for this dataset
     String table = BigQuerySQLEngineUtils.getNewTableName(runId);
