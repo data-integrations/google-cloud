@@ -103,8 +103,4 @@ public class BigQueryPath {
   public String getTable() {
     return table;
   }
-
-  public boolean isRoot() {
-    return dataset == null && table == null;
-  }
 }
