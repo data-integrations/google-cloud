@@ -28,37 +28,31 @@ public class BigQueryPathTest {
     BigQueryPath path = new BigQueryPath("");
     Assert.assertNull(path.getDataset());
     Assert.assertNull(path.getTable());
-    Assert.assertTrue(path.isRoot());
 
     //root path
     path = new BigQueryPath("/");
     Assert.assertNull(path.getDataset());
     Assert.assertNull(path.getTable());
-    Assert.assertTrue(path.isRoot());
 
     //dataset path
     path = new BigQueryPath("/dataset");
     Assert.assertEquals("dataset", path.getDataset());
     Assert.assertNull(path.getTable());
-    Assert.assertFalse(path.isRoot());
 
     //dataset path
     path = new BigQueryPath("/dataset/");
     Assert.assertEquals("dataset", path.getDataset());
     Assert.assertNull(path.getTable());
-    Assert.assertFalse(path.isRoot());
 
     //table path
     path = new BigQueryPath("/dataset/table");
     Assert.assertEquals("dataset", path.getDataset());
     Assert.assertEquals("table", path.getTable());
-    Assert.assertFalse(path.isRoot());
 
     //table path
     path = new BigQueryPath("/dataset/table/");
     Assert.assertEquals("dataset", path.getDataset());
     Assert.assertEquals("table", path.getTable());
-    Assert.assertFalse(path.isRoot());
   }
 
 

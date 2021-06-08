@@ -83,12 +83,13 @@ public final class BigQueryConnector implements DirectConnector {
   @Override
   public List<StructuredRecord> sample(ConnectorContext context, SampleRequest sampleRequest) throws IOException {
     BigQueryPath path = new BigQueryPath(sampleRequest.getPath());
-    String dataset = path.getDataset();
     String table = path.getTable();
     if (table == null) {
       throw new IllegalArgumentException("Path should contain both dataset and table name.");
     }
-    return getTableData(getBigQuery(), dataset, table, sampleRequest.getLimit());
+    String dataset = path.getDataset();
+    return getTableData(getBigQuery(config.getProject()), config.getDatasetProject(), dataset, table,
+      sampleRequest.getLimit());
   }
 
   @Override
@@ -131,39 +132,39 @@ public final class BigQueryConnector implements DirectConnector {
   public BrowseDetail browse(ConnectorContext context, BrowseRequest browseRequest) throws IOException {
     BigQueryPath path = new BigQueryPath(browseRequest.getPath());
 
-    BigQuery bigQuery = getBigQuery();
-    if (path.isRoot()) {
-      // browse project to list all datasets
-      return listDatasets(bigQuery, browseRequest.getLimit());
-    }
     String dataset = path.getDataset();
+    if (dataset == null) {
+      // browse project to list all datasets
+      return listDatasets(getBigQuery(config.getDatasetProject()), browseRequest.getLimit());
+    }
     String table = path.getTable();
     if (table == null) {
-      return listTables(bigQuery, dataset, browseRequest.getLimit());
+      return listTables(getBigQuery(config.getProject()), config.getDatasetProject(), dataset,
+        browseRequest.getLimit());
     }
-    return getTableDetail(bigQuery, dataset, table);
+    return getTableDetail(getBigQuery(config.getProject()), config.getDatasetProject(), dataset, table);
   }
 
-  private BrowseDetail getTableDetail(BigQuery bigQuery, String datasetName, String tableName) {
-    Table table = getTable(bigQuery, datasetName, tableName);
+  private BrowseDetail getTableDetail(BigQuery bigQuery, String datasetProject, String datasetName, String tableName) {
+    Table table = getTable(bigQuery, datasetProject, datasetName, tableName);
     return BrowseDetail.builder().addEntity(
       BrowseEntity.builder(tableName, "/" + datasetName + "/" + tableName, table.getDefinition().getType().name())
         .canSample(true).build()).setTotalCount(1).build();
   }
 
-  private Table getTable(BigQuery bigQuery, String datasetName, String tableName) {
-    Table table = bigQuery.getTable(TableId.of(datasetName, tableName));
+  private Table getTable(BigQuery bigQuery, String datasetProject, String datasetName, String tableName) {
+    Table table = bigQuery.getTable(TableId.of(datasetProject, datasetName, tableName));
     if (table == null) {
       throw new IllegalArgumentException(String.format("Cannot find tableName: %s.%s.", datasetName, tableName));
     }
     return table;
   }
 
-  private BrowseDetail listTables(BigQuery bigQuery, String dataset, @Nullable Integer limit) {
+  private BrowseDetail listTables(BigQuery bigQuery, String datasetProject, String dataset, @Nullable Integer limit) {
     int countLimit = limit == null || limit <= 0 ? Integer.MAX_VALUE : limit;
     int count = 0;
     BrowseDetail.Builder browseDetailBuilder = BrowseDetail.builder();
-    DatasetId datasetId = DatasetId.of(dataset);
+    DatasetId datasetId = DatasetId.of(datasetProject, dataset);
     Page<Table> tablePage = null;
     try {
       tablePage = bigQuery.listTables(datasetId);
@@ -202,20 +203,26 @@ public final class BigQueryConnector implements DirectConnector {
     return browseDetailBuilder.setTotalCount(count).build();
   }
 
-  private BigQuery getBigQuery() throws IOException {
+  /**
+   * Get BigQuery client
+   * @param project the GCP project where BQ dataset is listed and BQ job is run
+   */
+  private BigQuery getBigQuery(String project) throws IOException {
     GoogleCredentials credentials = null;
     //validate service account
     if (config.isServiceAccountJson() || config.getServiceAccountFilePath() != null) {
       credentials =
         GCPUtils.loadServiceAccountCredentials(config.getServiceAccount(), config.isServiceAccountFilePath());
     }
-    return GCPUtils.getBigQuery(config.getDatasetProject(), credentials);
+    // Here project decides where the BQ job is run and under which the datasets is listed
+    return GCPUtils.getBigQuery(project, credentials);
   }
 
-  private List<StructuredRecord> getTableData(BigQuery bigQuery, String dataset, String table, int limit)
+  private List<StructuredRecord> getTableData(BigQuery bigQuery, String datasetProject, String dataset, String table,
+    int limit)
     throws IOException {
     String query =
-      String.format("SELECT * FROM `%s.%s.%s` LIMIT %d", config.getDatasetProject(), dataset, table, limit);
+      String.format("SELECT * FROM `%s.%s.%s` LIMIT %d", datasetProject, dataset, table, limit);
     QueryJobConfiguration queryConfig = QueryJobConfiguration.newBuilder(query).build();
     String id = UUID.randomUUID().toString();
     JobId jobId = JobId.of(id);
@@ -260,7 +267,7 @@ public final class BigQueryConnector implements DirectConnector {
     String tableName = path.getTable();
     if (tableName != null) {
       properties.put(BigQuerySourceConfig.NAME_TABLE, tableName);
-      Table table = getTable(getBigQuery(), datasetName, tableName);
+      Table table = getTable(getBigQuery(config.getProject()), config.getDatasetProject(), datasetName, tableName);
       TableDefinition definition = table.getDefinition();
       Schema schema = BigQueryUtil.getTableSchema(definition.getSchema(), null);
       specBuilder.setSchema(schema);
