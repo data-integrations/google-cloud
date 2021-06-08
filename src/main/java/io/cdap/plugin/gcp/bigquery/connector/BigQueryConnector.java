@@ -42,6 +42,7 @@ import io.cdap.cdap.etl.api.connector.BrowseDetail;
 import io.cdap.cdap.etl.api.connector.BrowseEntity;
 import io.cdap.cdap.etl.api.connector.BrowseRequest;
 import io.cdap.cdap.etl.api.connector.Connector;
+import io.cdap.cdap.etl.api.connector.ConnectorContext;
 import io.cdap.cdap.etl.api.connector.ConnectorSpec;
 import io.cdap.cdap.etl.api.connector.ConnectorSpecRequest;
 import io.cdap.cdap.etl.api.connector.DirectConnector;
@@ -80,7 +81,7 @@ public final class BigQueryConnector implements DirectConnector {
   }
 
   @Override
-  public List<StructuredRecord> sample(SampleRequest sampleRequest) throws IOException {
+  public List<StructuredRecord> sample(ConnectorContext context, SampleRequest sampleRequest) throws IOException {
     BigQueryPath path = new BigQueryPath(sampleRequest.getPath());
     String dataset = path.getDataset();
     String table = path.getTable();
@@ -91,7 +92,8 @@ public final class BigQueryConnector implements DirectConnector {
   }
 
   @Override
-  public void test(FailureCollector failureCollector) throws ValidationException {
+  public void test(ConnectorContext context) throws ValidationException {
+    FailureCollector failureCollector = context.getFailureCollector();
     // validate project ID
     String project = config.tryGetProject();
     if (project == null) {
@@ -126,7 +128,7 @@ public final class BigQueryConnector implements DirectConnector {
 
 
   @Override
-  public BrowseDetail browse(BrowseRequest browseRequest) throws IOException {
+  public BrowseDetail browse(ConnectorContext context, BrowseRequest browseRequest) throws IOException {
     BigQueryPath path = new BigQueryPath(browseRequest.getPath());
 
     BigQuery bigQuery = getBigQuery();
@@ -244,7 +246,8 @@ public final class BigQueryConnector implements DirectConnector {
 
 
   @Override
-  public ConnectorSpec generateSpec(ConnectorSpecRequest connectorSpecRequest) throws IOException {
+  public ConnectorSpec generateSpec(ConnectorContext context,
+                                    ConnectorSpecRequest connectorSpecRequest) throws IOException {
     BigQueryPath path = new BigQueryPath(connectorSpecRequest.getPath());
     ConnectorSpec.Builder specBuilder = ConnectorSpec.builder();
     Map<String, String> properties = new HashMap<>();
