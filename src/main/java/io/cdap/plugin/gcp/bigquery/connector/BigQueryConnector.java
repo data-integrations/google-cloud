@@ -203,6 +203,10 @@ public final class BigQueryConnector implements DirectConnector {
     return browseDetailBuilder.setTotalCount(count).build();
   }
 
+  /**
+   * Get BigQuery client
+   * @param project the GCP project where BQ dataset is listed and BQ job is run
+   */
   private BigQuery getBigQuery(String project) throws IOException {
     GoogleCredentials credentials = null;
     //validate service account

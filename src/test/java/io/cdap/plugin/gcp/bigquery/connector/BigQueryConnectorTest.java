@@ -22,12 +22,14 @@ import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.connector.BrowseDetail;
 import io.cdap.cdap.etl.api.connector.BrowseEntity;
 import io.cdap.cdap.etl.api.connector.BrowseRequest;
+import io.cdap.cdap.etl.api.connector.ConnectorContext;
 import io.cdap.cdap.etl.api.connector.ConnectorSpec;
 import io.cdap.cdap.etl.api.connector.ConnectorSpecRequest;
 import io.cdap.cdap.etl.api.connector.PluginSpec;
 import io.cdap.cdap.etl.api.connector.SampleRequest;
 import io.cdap.cdap.etl.api.validation.ValidationException;
-import io.cdap.cdap.etl.validation.SimpleFailureCollector;
+import io.cdap.cdap.etl.mock.common.MockConnectorConfigurer;
+import io.cdap.cdap.etl.mock.common.MockConnectorContext;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySource;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceConfig;
 import org.junit.Assert;
@@ -64,7 +66,6 @@ public class BigQueryConnectorTest {
   private static String table;
   private static String serviceAccountFilePath;
 
-
   @BeforeClass
   public static void setupTestClass() throws Exception {
     // Certain properties need to be configured otherwise the whole tests will be skipped.
@@ -93,7 +94,8 @@ public class BigQueryConnectorTest {
     Assume.assumeFalse(String.format(messageTemplate, "service account key file"), serviceAccountFilePath == null);
 
     serviceAccountKey = new String(Files.readAllBytes(Paths.get(new File(serviceAccountFilePath).getAbsolutePath())),
-      StandardCharsets.UTF_8);
+                                   StandardCharsets.UTF_8);
+
   }
 
   @Test
@@ -107,7 +109,7 @@ public class BigQueryConnectorTest {
   public void testServiceAccountJson() throws IOException {
     BigQueryConnectorConfig config =
       new BigQueryConnectorConfig(project, datasetProject, BigQueryConnectorConfig.SERVICE_ACCOUNT_JSON, null,
-        serviceAccountKey);
+                                  serviceAccountKey);
     test(config);
   }
 
@@ -120,8 +122,9 @@ public class BigQueryConnectorTest {
   }
 
   private void testGenerateSpec(BigQueryConnector connector) throws IOException {
-    ConnectorSpec connectorSpec = connector.generateSpec(
-      ConnectorSpecRequest.builder().setPath(dataset + "/" + table).setConnection("${conn(connection-id)}").build());
+    ConnectorSpec connectorSpec = connector.generateSpec(new MockConnectorContext(new MockConnectorConfigurer()),
+                                                         ConnectorSpecRequest.builder().setPath(dataset + "/" + table)
+                                                           .setConnection("${conn(connection-id)}").build());
 
     Schema schema = connectorSpec.getSchema();
     for (Schema.Field field : schema.getFields()) {
@@ -141,7 +144,9 @@ public class BigQueryConnectorTest {
   }
 
   private void testSample(BigQueryConnector connector) throws IOException {
-    List<StructuredRecord> sample = connector.sample(SampleRequest.builder(1).setPath(dataset + "/" + table).build());
+    List<StructuredRecord> sample =
+      connector.sample(new MockConnectorContext(new MockConnectorConfigurer()),
+                       SampleRequest.builder(1).setPath(dataset + "/" + table).build());
     Assert.assertEquals(1, sample.size());
     StructuredRecord record = sample.get(0);
     Schema schema = record.getSchema();
@@ -153,16 +158,19 @@ public class BigQueryConnectorTest {
 
     //invalid path
     Assert.assertThrows(IllegalArgumentException.class,
-      () -> connector.sample(SampleRequest.builder(1).setPath("a/b/c").build()));
+                        () -> connector.sample(new MockConnectorContext(new MockConnectorConfigurer()),
+                                               SampleRequest.builder(1).setPath("a/b/c").build()));
 
     //sample dataset
     Assert.assertThrows(IllegalArgumentException.class,
-      () -> connector.sample(SampleRequest.builder(1).setPath(dataset).build()));
+                        () -> connector.sample(new MockConnectorContext(new MockConnectorConfigurer()),
+                                               SampleRequest.builder(1).setPath(dataset).build()));
   }
 
   private void testBrowse(BigQueryConnector connector) throws IOException {
     // browse project
-    BrowseDetail detail = connector.browse(BrowseRequest.builder("/").build());
+    BrowseDetail detail = connector.browse(new MockConnectorContext(new MockConnectorConfigurer()),
+                                           BrowseRequest.builder("/").build());
     Assert.assertTrue(detail.getTotalCount() > 0);
     Assert.assertTrue(detail.getEntities().size() > 0);
     for (BrowseEntity entity : detail.getEntities()) {
@@ -173,7 +181,8 @@ public class BigQueryConnectorTest {
     }
 
     // browse dataset
-    detail = connector.browse(BrowseRequest.builder(dataset).build());
+    detail = connector.browse(new MockConnectorContext(new MockConnectorConfigurer()),
+                              BrowseRequest.builder(dataset).build());
     Assert.assertTrue(detail.getTotalCount() > 0);
     Assert.assertTrue(detail.getEntities().size() > 0);
     for (BrowseEntity entity : detail.getEntities()) {
@@ -184,7 +193,8 @@ public class BigQueryConnectorTest {
     }
 
     // browse table
-    detail = connector.browse(BrowseRequest.builder(dataset + "/" + table).build());
+    detail = connector.browse(new MockConnectorContext(new MockConnectorConfigurer()),
+                              BrowseRequest.builder(dataset + "/" + table).build());
     Assert.assertEquals(1, detail.getTotalCount());
     Assert.assertEquals(1, detail.getEntities().size());
     for (BrowseEntity entity : detail.getEntities()) {
@@ -195,22 +205,25 @@ public class BigQueryConnectorTest {
     }
 
     // invalid path
-    Assert.assertThrows(IllegalArgumentException.class, () -> connector.browse(BrowseRequest.builder("a/b/c").build()));
+    Assert.assertThrows(IllegalArgumentException.class,
+                        () -> connector.browse(new MockConnectorContext(new MockConnectorConfigurer()),
+                                               BrowseRequest.builder("a/b/c").build()));
 
     // not existing dataset
     Assert.assertThrows(IllegalArgumentException.class,
-      () -> connector.browse(BrowseRequest.builder("/notexisting").build()));
+                        () -> connector.browse(new MockConnectorContext(new MockConnectorConfigurer()),
+                                               BrowseRequest.builder("/notexisting").build()));
 
     // not existing table
     Assert.assertThrows(IllegalArgumentException.class,
-      () -> connector.browse(BrowseRequest.builder(dataset + "/notexisting").build()));
+                        () -> connector.browse(new MockConnectorContext(new MockConnectorConfigurer()),
+                                               BrowseRequest.builder(dataset + "/notexisting").build()));
   }
 
   private void testTest(BigQueryConnector connector) {
-    SimpleFailureCollector collector = new SimpleFailureCollector();
-    connector.test(collector);
-    ValidationException validationException = collector.getOrThrowException();
+    ConnectorContext context = new MockConnectorContext(new MockConnectorConfigurer());
+    connector.test(context);
+    ValidationException validationException = context.getFailureCollector().getOrThrowException();
     Assert.assertTrue(validationException.getFailures().isEmpty());
   }
-
 }
