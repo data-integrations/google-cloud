@@ -433,6 +433,9 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
                   tableRef.getTableId(), table)
           .execute();
       }
+
+      LOG.info("Imported into table '{}' from {} paths; path[0] is '{}'",
+               BigQueryStrings.toString(tableRef), gcsPaths.size(), gcsPaths.isEmpty() ? "(empty)" : gcsPaths.get(0));
     }
 
     /**
