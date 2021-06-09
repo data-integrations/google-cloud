@@ -56,7 +56,7 @@
           }
         },
         {
-          "widget-type": "textbox",
+          "widget-type": "textarea",
           "label": "Service Account JSON",
           "name": "serviceAccountJSON"
         }
@@ -68,7 +68,7 @@
     {
       "name": "ServiceAuthenticationTypeFilePath",
       "condition": {
-        "expression": "useConnection == false && serviceAccountType == 'filePath'"
+        "expression": "serviceAccountType == 'filePath'"
       },
       "show": [
         {
@@ -80,7 +80,7 @@
     {
       "name": "ServiceAuthenticationTypeJSON",
       "condition": {
-        "expression": "useConnection == false && serviceAccountType == 'JSON'"
+        "expression": "serviceAccountType == 'JSON'"
       },
       "show": [
         {
