@@ -50,7 +50,7 @@ public class BigQueryConnectorConfig extends PluginConfig {
   @Nullable
   @Description("The project the dataset belongs to. This is only required if the dataset is not " +
     "in the same project that the BigQuery job will run in. If no value is given, it will" +
-    " default to the configured " + "project ID.")
+    " default to the configured project ID.")
   private String datasetProject;
 
   @Name(NAME_SERVICE_ACCOUNT_TYPE)
@@ -76,9 +76,20 @@ public class BigQueryConnectorConfig extends PluginConfig {
 
 
   public String getDatasetProject() {
-    if (datasetProject == null || AUTO_DETECT.equalsIgnoreCase(datasetProject)) {
-      return ServiceOptions.getDefaultProjectId();
+    // if it's "auto-detect" that means we need to detect the default project settings
+    // for sandbox you can use `gcloud config set project my-project-id" to set it
+    // or you start the sandbox by specify the java argument `-DGOOGLE_CLOUD_PROJECT=my-project-id`
+    // or you start the sandbox by specify the java argument `-DGCLOUD_PROJECT=my-project-id`
+    // otherwise we will throw IllegalArgument exception here same as project
+    if (AUTO_DETECT.equalsIgnoreCase(datasetProject)) {
+      String defaultProject = ServiceOptions.getDefaultProjectId();
+      if (defaultProject == null) {
+        throw new IllegalArgumentException(
+          "Could not detect Google Cloud project id from the environment. Please specify a dataset project id.");
+      }
+      return defaultProject;
     }
+    // if it's null or empty that means it should be same as project
     return Strings.isNullOrEmpty(datasetProject) ? getProject() : datasetProject;
   }
 
