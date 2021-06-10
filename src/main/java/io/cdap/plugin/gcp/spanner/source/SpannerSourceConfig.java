@@ -16,13 +16,18 @@
 
 package io.cdap.plugin.gcp.spanner.source;
 
+import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
+import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.api.plugin.PluginConfig;
 import io.cdap.cdap.etl.api.FailureCollector;
-import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
+import io.cdap.plugin.common.Constants;
+import io.cdap.plugin.common.IdUtils;
+import io.cdap.plugin.gcp.common.GCPConnectorConfig;
 import io.cdap.plugin.gcp.spanner.common.SpannerUtil;
 
 import java.io.IOException;
@@ -32,7 +37,7 @@ import javax.annotation.Nullable;
 /**
  * Spanner source config
  */
-public class SpannerSourceConfig extends GCPReferenceSourceConfig {
+public class SpannerSourceConfig extends PluginConfig {
   private static final Set<Schema.Type> SUPPORTED_TYPES = ImmutableSet.of(Schema.Type.BOOLEAN, Schema.Type.STRING,
                                                                           Schema.Type.LONG, Schema.Type.DOUBLE,
                                                                           Schema.Type.BYTES, Schema.Type.ARRAY);
@@ -44,6 +49,12 @@ public class SpannerSourceConfig extends GCPReferenceSourceConfig {
   public static final String NAME_TABLE = "table";
   public static final String NAME_IMPORT_QUERY = "importQuery";
   public static final String NAME_SCHEMA = "schema";
+  public static final String NAME_USE_CONNECTION = "useConnection";
+  public static final String NAME_CONNECTION = "connection";
+
+  @Name(Constants.Reference.REFERENCE_NAME)
+  @Description("This will be used to uniquely identify this source for lineage, annotating metadata, etc.")
+  public String referenceName;
 
   @Description("Maximum number of partitions. This is only a hint. The actual number of partitions may vary")
   @Macro
@@ -78,8 +89,71 @@ public class SpannerSourceConfig extends GCPReferenceSourceConfig {
   @Nullable
   public String schema;
 
+  @Name(NAME_USE_CONNECTION)
+  @Nullable
+  @Description("Whether to use an existing connection.")
+  private Boolean useConnection;
+
+  @Name(NAME_CONNECTION)
+  @Macro
+  @Nullable
+  @Description("The existing connection to use.")
+  private GCPConnectorConfig connection;
+
+  public String getProject() {
+    if (connection == null) {
+      throw new IllegalArgumentException(
+        "Could not get project information, connection should not be null!");
+    }
+    return connection.getProject();
+  }
+
+  @Nullable
+  public String tryGetProject() {
+    return connection == null ? null : connection.tryGetProject();
+  }
+
+  @Nullable
+  public String getServiceAccount() {
+    return connection == null ? null : connection.getServiceAccount();
+  }
+
+  @Nullable
+  public Boolean isServiceAccountFilePath() {
+    return connection == null ? null : connection.isServiceAccountFilePath();
+  }
+
+  @Nullable
+  public String getServiceAccountType() {
+    return connection == null ? null : connection.getServiceAccountType();
+  }
+
+  @Nullable
+  public GCPConnectorConfig getConnection() {
+    return connection;
+  }
+
+  /**
+   * Return true if the service account is set to auto-detect but it can't be fetched from the environment.
+   * This shouldn't result in a deployment failure, as the credential could be detected at runtime if the pipeline
+   * runs on dataproc. This should primarily be used to check whether certain validation logic should be skipped.
+   *
+   * @return true if the service account is set to auto-detect but it can't be fetched from the environment.
+   */
+  public boolean autoServiceAccountUnavailable() {
+    if (connection == null || connection.getServiceAccountFilePath() == null &&
+      connection.isServiceAccountFilePath()) {
+      try {
+        ServiceAccountCredentials.getApplicationDefault();
+      } catch (IOException e) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   public void validate(FailureCollector collector) {
-    super.validate(collector);
+    IdUtils.validateReferenceName(referenceName, collector);
     Schema schema = getSchema(collector);
     if (!containsMacro(NAME_SCHEMA) && schema != null) {
       SpannerUtil.validateSchema(schema, SUPPORTED_TYPES, collector);
@@ -108,12 +182,9 @@ public class SpannerSourceConfig extends GCPReferenceSourceConfig {
   /**
    * Returns true if spanner table can be connected to or schema is not a macro.
    */
-  public boolean shouldConnect() {
-    return !containsMacro(SpannerSourceConfig.NAME_SCHEMA) && !containsMacro(SpannerSourceConfig.NAME_DATABASE) &&
-      !containsMacro(SpannerSourceConfig.NAME_TABLE) && !containsMacro(SpannerSourceConfig.NAME_INSTANCE) &&
-      !containsMacro(NAME_SERVICE_ACCOUNT_TYPE) &&
-      !(containsMacro(SpannerSourceConfig.NAME_SERVICE_ACCOUNT_FILE_PATH) ||
-        containsMacro(SpannerSourceConfig.NAME_SERVICE_ACCOUNT_JSON)) &&
-      !containsMacro(SpannerSourceConfig.NAME_PROJECT) && !containsMacro(SpannerSourceConfig.NAME_IMPORT_QUERY);
+  public boolean canConnect() {
+    return connection != null && connection.canConnect() && !containsMacro(SpannerSourceConfig.NAME_SCHEMA) &&
+      !containsMacro(SpannerSourceConfig.NAME_DATABASE) && !containsMacro(SpannerSourceConfig.NAME_TABLE) &&
+      !containsMacro(SpannerSourceConfig.NAME_INSTANCE) && !containsMacro(SpannerSourceConfig.NAME_IMPORT_QUERY);
   }
 }

@@ -5,22 +5,30 @@
   "display-name": "Spanner",
   "configuration-groups": [
     {
-      "label" : "Basic",
+      "label" : "Connection",
       "properties" : [
         {
-          "widget-type": "textbox",
-          "label": "Reference Name",
-          "name": "referenceName",
+          "widget-type": "toggle",
+          "label": "Use connection",
+          "name": "useConnection",
           "widget-attributes" : {
-            "placeholder": "Name used to identify this source for lineage"
+            "on": {
+              "value": "true",
+              "label": "YES"
+            },
+            "off": {
+              "value": "false",
+              "label": "NO"
+            },
+            "default": "false"
           }
         },
         {
-          "widget-type": "connection-browser",
-          "widget-category": "plugin",
+          "widget-type": "connection-select",
+          "label": "Connection",
+          "name": "connection",
           "widget-attributes": {
-            "connectionType": "SPANNER",
-            "label": "Browse"
+            "placeholder": "connection id"
           }
         },
         {
@@ -29,6 +37,60 @@
           "name": "project",
           "widget-attributes" : {
             "default": "auto-detect"
+          }
+        },
+        {
+          "name": "serviceAccountType",
+          "label": "Service Account Type",
+          "widget-type": "radio-group",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "filePath",
+            "options": [
+              {
+                "id": "filePath",
+                "label": "File Path"
+              },
+              {
+                "id": "JSON",
+                "label": "JSON"
+              }
+            ]
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes": {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Service Account JSON",
+          "name": "serviceAccountJSON"
+        }
+      ]
+    },
+    {
+      "label": "Basic",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Reference Name",
+          "name": "referenceName",
+          "widget-attributes": {
+            "placeholder": "Name used to identify this source for lineage"
+          }
+        },
+        {
+          "label": "browse",
+          "widget-type": "connection-browser",
+          "widget-category": "plugin",
+          "widget-attributes": {
+            "connectionType": "SPANNER",
+            "label": "Browse"
           }
         },
         {
@@ -76,43 +138,6 @@
       ]
     },
     {
-      "label": "Credentials",
-      "properties": [
-        {
-          "name": "serviceAccountType",
-          "label": "Service Account Type",
-          "widget-type": "radio-group",
-          "widget-attributes": {
-            "layout": "inline",
-            "default": "filePath",
-            "options": [
-              {
-                "id": "filePath",
-                "label": "File Path"
-              },
-              {
-                "id": "JSON",
-                "label": "JSON"
-              }
-            ]
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Service Account File Path",
-          "name": "serviceFilePath",
-          "widget-attributes" : {
-            "default": "auto-detect"
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Service Account JSON",
-          "name": "serviceAccountJSON"
-        }
-      ]
-    },
-    {
       "label": "Advanced",
       "properties": [
         {
@@ -138,7 +163,7 @@
     {
       "name": "ServiceAuthenticationTypeFilePath",
       "condition": {
-        "expression": "serviceAccountType == 'filePath'"
+        "expression": "useConnection == false && serviceAccountType == 'filePath'"
       },
       "show": [
         {
@@ -150,12 +175,44 @@
     {
       "name": "ServiceAuthenticationTypeJSON",
       "condition": {
-        "expression": "serviceAccountType == 'JSON'"
+        "expression": "useConnection == false && serviceAccountType == 'JSON'"
       },
       "show": [
         {
           "type": "property",
           "name": "serviceAccountJSON"
+        }
+      ]
+    },
+    {
+      "name": "showConnectionProperties ",
+      "condition": {
+        "expression": "useConnection == false"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "project"
+        },
+        {
+          "type": "property",
+          "name": "datasetProject"
+        },
+        {
+          "type": "property",
+          "name": "serviceAccountType"
+        }
+      ]
+    },
+    {
+      "name": "showConnectionId",
+      "condition": {
+        "expression": "useConnection == true"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "connection"
         }
       ]
     }

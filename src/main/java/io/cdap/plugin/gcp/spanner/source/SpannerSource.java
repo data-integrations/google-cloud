@@ -32,6 +32,8 @@ import com.google.cloud.spanner.TimestampBound;
 import com.google.cloud.spanner.Type;
 import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
+import io.cdap.cdap.api.annotation.Metadata;
+import io.cdap.cdap.api.annotation.MetadataProperty;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.batch.Input;
@@ -45,13 +47,14 @@ import io.cdap.cdap.etl.api.StageConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
+import io.cdap.cdap.etl.api.connector.Connector;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.common.SourceInputFormatProvider;
 import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.common.Schemas;
-import io.cdap.plugin.gcp.spanner.SpannerArrayConstants;
 import io.cdap.plugin.gcp.spanner.SpannerConstants;
 import io.cdap.plugin.gcp.spanner.common.SpannerUtil;
+import io.cdap.plugin.gcp.spanner.connector.SpannerConnector;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
@@ -79,6 +82,7 @@ import javax.annotation.Nullable;
 @Description("Batch source to read from Cloud Spanner. Cloud Spanner is a fully managed, mission-critical, " +
   "relational database service that offers transactional consistency at global scale, schemas, " +
   "SQL (ANSI 2011 with extensions), and automatic, synchronous replication for high availability.")
+@Metadata(properties = {@MetadataProperty(key = Connector.PLUGIN_TYPE, value = SpannerConnector.NAME)})
 public class SpannerSource extends BatchSource<NullWritable, ResultSet, StructuredRecord> {
   private static final Logger LOG = LoggerFactory.getLogger(SpannerSource.class);
   private static final String TABLE_NAME = "TableName";
@@ -104,7 +108,7 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
     config.validate(collector);
     Schema configuredSchema = config.getSchema(collector);
 
-    if (!config.shouldConnect() || config.tryGetProject() == null
+    if (!config.canConnect() || config.tryGetProject() == null
       || (config.isServiceAccountFilePath() && config.autoServiceAccountUnavailable())) {
       stageConfigurer.setOutputSchema(configuredSchema);
       return;
@@ -247,31 +251,12 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
 
     try (Spanner spanner = SpannerUtil.getSpannerService(config.getServiceAccount(), config.isServiceAccountFilePath(),
                                                          projectId)) {
-      DatabaseClient databaseClient =
-        spanner.getDatabaseClient(DatabaseId.of(projectId, config.instance, config.database));
       if (Strings.isNullOrEmpty(config.importQuery)) {
-        Statement getTableSchemaStatement = SCHEMA_STATEMENT_BUILDER.bind(TABLE_NAME).to(config.table).build();
-        try (ResultSet resultSet = databaseClient.singleUse().executeQuery(getTableSchemaStatement)) {
-          List<Schema.Field> schemaFields = new ArrayList<>();
-          while (resultSet.next()) {
-            String columnName = resultSet.getString("column_name");
-            String spannerType = resultSet.getString("spanner_type");
-            String nullable = resultSet.getString("is_nullable");
-            boolean isNullable = "YES".equals(nullable);
-            Schema typeSchema = parseSchemaFromSpannerTypeString(columnName, spannerType, collector);
-            if (typeSchema == null) {
-              // this means there were failures added to failure collector. Continue to collect more failures
-              continue;
-            }
-            Schema fieldSchema = isNullable ? Schema.nullableOf(typeSchema) : typeSchema;
-            schemaFields.add(Schema.Field.of(columnName, fieldSchema));
-          }
-          if (schemaFields.isEmpty() && !collector.getValidationFailures().isEmpty()) {
-            collector.getOrThrowException();
-          }
-          return Schema.recordOf("outputSchema", schemaFields);
-        }
+        return SpannerUtil.getTableSchema(spanner, projectId, config.instance, config.database,
+                                          config.table, collector);
       } else {
+        DatabaseClient databaseClient =
+          spanner.getDatabaseClient(DatabaseId.of(projectId, config.instance, config.database));
         final Map<String, Boolean> nullableFields = getFieldsNullability(databaseClient);
         Statement importQueryStatement = getStatementForOneRow(config.importQuery);
         List<Schema.Field> schemaFields = new ArrayList<>();
@@ -325,55 +310,6 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
     return Statement.newBuilder(query).build();
   }
 
-  @Nullable
-  private Schema parseSchemaFromSpannerTypeString(String columnName,
-                                                  String spannerType, FailureCollector collector) {
-    if (spannerType.startsWith("ARRAY")) {
-      if (spannerType.startsWith(SpannerArrayConstants.ARRAY_STRING_PREFIX)) {
-        return Schema.arrayOf(Schema.of(Schema.Type.STRING));
-      }
-
-      if (spannerType.startsWith(SpannerArrayConstants.ARRAY_BYTES_PREFIX)) {
-        return Schema.arrayOf(Schema.of(Schema.Type.BYTES));
-      }
-
-      switch (spannerType) {
-        case SpannerArrayConstants.ARRAY_BOOL:
-          return Schema.arrayOf(Schema.of(Schema.Type.BOOLEAN));
-        case SpannerArrayConstants.ARRAY_INT64:
-          return Schema.arrayOf(Schema.of(Schema.Type.LONG));
-        case SpannerArrayConstants.ARRAY_FLOAT64:
-          return Schema.arrayOf(Schema.of(Schema.Type.DOUBLE));
-        case SpannerArrayConstants.ARRAY_DATE:
-          return Schema.arrayOf(Schema.of(Schema.LogicalType.DATE));
-        case SpannerArrayConstants.ARRAY_TIMESTAMP:
-          return Schema.arrayOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS));
-        default:
-          collector.addFailure(String.format("Column '%s' is of unsupported type 'array'.", columnName), null);
-      }
-    } else if (spannerType.startsWith("STRING")) {
-      // STRING and BYTES also have size at the end in the format, example : STRING(1024)
-      return Schema.of(Schema.Type.STRING);
-    } else if (spannerType.startsWith("BYTES")) {
-      return Schema.of(Schema.Type.BYTES);
-    } else {
-      switch (Type.Code.valueOf(spannerType)) {
-        case BOOL:
-          return Schema.of(Schema.Type.BOOLEAN);
-        case INT64:
-          return Schema.of(Schema.Type.LONG);
-        case FLOAT64:
-          return Schema.of(Schema.Type.DOUBLE);
-        case DATE:
-          return Schema.of(Schema.LogicalType.DATE);
-        case TIMESTAMP:
-          return Schema.of(Schema.LogicalType.TIMESTAMP_MICROS);
-        default:
-          collector.addFailure(String.format("Column '%s' has unsupported type '%s'.", columnName, spannerType), null);
-      }
-    }
-    return null;
-  }
 
   @Nullable
   Schema parseSchemaFromSpannerType(Type spannerType, String columnName, FailureCollector collector) {
