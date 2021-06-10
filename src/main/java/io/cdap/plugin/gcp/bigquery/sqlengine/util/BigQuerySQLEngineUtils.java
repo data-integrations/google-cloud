@@ -24,6 +24,8 @@ import io.cdap.cdap.etl.api.engine.sql.SQLEngineException;
 import io.cdap.cdap.etl.api.join.JoinCondition;
 import io.cdap.cdap.etl.api.join.JoinStage;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
@@ -34,6 +36,8 @@ import javax.annotation.Nullable;
  * Utility Class for the BigQuery SQL Engine implementation.
  */
 public class BigQuerySQLEngineUtils {
+
+  private static final Logger LOG = LoggerFactory.getLogger(BigQuerySQLEngineUtils.class);
 
   public static final String GCS_PATH_FORMAT = BigQuerySinkUtils.GS_PATH_FORMAT + "/%s";
   public static final String BQ_TABLE_NAME_FORMAT = "%s_%s";
@@ -79,6 +83,7 @@ public class BigQuerySQLEngineUtils {
    * @return number of rows for this table.
    */
   public static Long getNumRows(BigQuery bigQuery, String project, String dataset, String table) {
+    LOG.debug("Getting number of records stored in table {}", table);
     TableId tableId = TableId.of(project, dataset, table);
     Table bgTable = bigQuery.getTable(tableId);
 
@@ -87,7 +92,10 @@ public class BigQuerySQLEngineUtils {
                                                  table, dataset, project));
     }
 
-    return bgTable.getNumRows().longValue();
+    long numRows = bgTable.getNumRows().longValue();
+
+    LOG.debug("Table {} contains {} records", table, numRows);
+    return numRows;
   }
 
   /**

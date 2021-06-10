@@ -55,21 +55,30 @@ public class SQLEngineAvroToStructuredTransformer extends BigQueryAvroToStructur
       return null;
     }
 
+    // Use this variable in case we need to unbox the nullable type.
+    Schema schema = fieldSchema;
+
+    // For nullable types, check the underlying type.
+    if (schema.isNullable()) {
+      schema = schema.getNonNullable();
+    }
+
     // Handle Int types
-    if (fieldSchema.getType() == Schema.Type.INT) {
+    if (schema.getType() == Schema.Type.INT) {
       return mapInteger(field);
     }
 
     // Handle float types
-    if (fieldSchema.getType() == Schema.Type.FLOAT) {
+    if (schema.getType() == Schema.Type.FLOAT) {
       return mapFloat(field);
     }
 
     // Handle Strings that are stored as a Byte Buffer.
-    if (fieldSchema.getType() == Schema.Type.STRING && field instanceof ByteBuffer) {
+    if (schema.getType() == Schema.Type.STRING && field instanceof ByteBuffer) {
       return StandardCharsets.UTF_8.decode((ByteBuffer) field).toString();
     }
 
+    // Delegate to superclass if none of these exceptions apply.
     return super.convertField(field, fieldSchema);
   }
 

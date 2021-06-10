@@ -173,7 +173,11 @@ public class BigQuerySQLEngine
 
   @Override
   public boolean canJoin(SQLJoinDefinition sqlJoinDefinition) {
-    return isValidJoinDefinition(sqlJoinDefinition);
+    boolean canJoin = isValidJoinDefinition(sqlJoinDefinition);
+    LOG.info("Validating join for stage '{}' can be executed on BigQuery: {}",
+             sqlJoinDefinition.getDatasetName(),
+             canJoin);
+    return canJoin;
   }
 
   @VisibleForTesting
@@ -210,6 +214,8 @@ public class BigQuerySQLEngine
 
   @Override
   public SQLDataset join(SQLJoinRequest sqlJoinRequest) throws SQLEngineException {
+    LOG.info("Executing join operation for dataset {}", sqlJoinRequest.getDatasetName());
+
     BigQueryJoinDataset joinDataset = BigQueryJoinDataset.getInstance(sqlJoinRequest,
                                                                       getStageNameToBQTableNameMap(),
                                                                       bigQuery,
@@ -218,6 +224,8 @@ public class BigQuerySQLEngine
                                                                       dataset,
                                                                       runId);
 
+    LOG.info("Executed join operation for dataset {}", sqlJoinRequest.getDatasetName());
+
     datasets.put(sqlJoinRequest.getDatasetName(), joinDataset);
 
     return joinDataset;
@@ -225,10 +233,13 @@ public class BigQuerySQLEngine
 
   @Override
   public void cleanup(String datasetName) throws SQLEngineException {
+
     BigQuerySQLDataset bqDataset = datasets.get(datasetName);
     if (bqDataset == null) {
       return;
     }
+
+    LOG.info("Cleaning up dataset {}", datasetName);
 
     SQLEngineException ex = null;
 
