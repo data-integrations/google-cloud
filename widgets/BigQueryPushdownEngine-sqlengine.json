@@ -26,6 +26,14 @@
         },
         {
           "widget-type": "textbox",
+          "label": "Dataset Project ID",
+          "name": "datasetProject",
+          "widget-attributes": {
+            "placeholder": "The project in which the dataset is located/should be created. Defaults to the project specified in the Project Id property."
+          }
+        },
+        {
+          "widget-type": "textbox",
           "label": "Dataset",
           "name": "dataset",
           "widget-attributes": {
@@ -84,6 +92,36 @@
           "widget-type": "textbox",
           "label": "Service Account JSON",
           "name": "serviceAccountJSON"
+        }
+      ]
+    },
+    {
+      "label": "Advanced",
+      "properties": [
+        {
+          "widget-type": "toggle",
+          "label": "Retain BigQuery tables after completion",
+          "name": "retainTables",
+          "widget-attributes": {
+            "on": {
+              "value": "true",
+              "label": "YES"
+            },
+            "off": {
+              "value": "false",
+              "label": "NO"
+            },
+            "default": "false"
+          }
+        },
+        {
+          "name": "tempTableTTLHours",
+          "widget-type": "number",
+          "label": "Temporary Table TTL (in Hours)",
+          "widget-attributes": {
+            "min": "1",
+            "default": "72"
+          }
         }
       ]
     }

@@ -29,6 +29,8 @@ import javax.annotation.Nullable;
 public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
 
   public static final String NAME_LOCATION = "location";
+  public static final String NAME_RETAIN_TABLES = "retainTables";
+  public static final String NAME_TEMP_TABLE_TTL_HOURS = "tempTableTTLHours";
 
   @Name(NAME_LOCATION)
   @Macro
@@ -37,9 +39,30 @@ public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
     "This value is ignored if the dataset or temporary bucket already exist.")
   protected String location;
 
+  @Name(NAME_RETAIN_TABLES)
+  @Macro
+  @Nullable
+  @Description("Select this option if the pipeline should retain all temporary BigQuery tables created during the " +
+    "execution of the pipeline.")
+  protected Boolean retainTables;
+
+  @Name(NAME_TEMP_TABLE_TTL_HOURS)
+  @Macro
+  @Nullable
+  @Description("Set table TTL for temporary BigQuery tables, in number of hours. Tables will be deleted " +
+    "automatically on pipeline completion.")
+  protected Integer tempTableTTLHours;
+
   @Nullable
   public String getLocation() {
     return location;
   }
 
+  public Boolean shouldRetainTables() {
+    return retainTables != null ? retainTables : false;
+  }
+
+  public Integer getTempTableTTLHours() {
+    return tempTableTTLHours != null && tempTableTTLHours > 0 ? tempTableTTLHours : 72;
+  }
 }

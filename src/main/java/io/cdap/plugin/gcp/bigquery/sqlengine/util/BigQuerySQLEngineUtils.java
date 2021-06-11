@@ -17,19 +17,25 @@
 package io.cdap.plugin.gcp.bigquery.sqlengine.util;
 
 import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.Table;
+import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TableId;
+import com.google.cloud.bigquery.TableInfo;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.engine.sql.SQLEngineException;
 import io.cdap.cdap.etl.api.join.JoinCondition;
 import io.cdap.cdap.etl.api.join.JoinStage;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
+import io.cdap.plugin.gcp.bigquery.sqlengine.BigQuerySQLEngineConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
 /**
@@ -48,8 +54,9 @@ public class BigQuerySQLEngineUtils {
 
   /**
    * Build GCS path using a Bucket, Run ID and Table ID
-   * @param bucket bucket name
-   * @param runId run ID
+   *
+   * @param bucket  bucket name
+   * @param runId   run ID
    * @param tableId table ID
    * @return GCS path with prefix
    */
@@ -59,6 +66,7 @@ public class BigQuerySQLEngineUtils {
 
   /**
    * Get new table/run identifier.
+   *
    * @return
    */
   public static String newIdentifier() {
@@ -67,6 +75,7 @@ public class BigQuerySQLEngineUtils {
 
   /**
    * Build new BQ Table name.
+   *
    * @param runId run ID to create a new table for.
    * @return new table name for BQ Table.
    */
@@ -76,10 +85,11 @@ public class BigQuerySQLEngineUtils {
 
   /**
    * Get the number of rows for a BQ table.
+   *
    * @param bigQuery BigQuery client
-   * @param project Project Name
-   * @param dataset Dataset Name
-   * @param table Table Name
+   * @param project  Project Name
+   * @param dataset  Dataset Name
+   * @param table    Table Name
    * @return number of rows for this table.
    */
   public static Long getNumRows(BigQuery bigQuery, String project, String dataset, String table) {
@@ -99,9 +109,45 @@ public class BigQuerySQLEngineUtils {
   }
 
   /**
+   * Creates an empty table with an empty schema to store records.
+   * <p>
+   * If the Engine Configuration specifies a TTL for tables, the table is created with the specified TTL.
+   *
+   * @param config   BigQuery SQL Engine Config instance
+   * @param bigQuery BigQuery client
+   * @param project  Project Name
+   * @param dataset  Dataset Name
+   * @param table    Table Name
+   */
+  public static void createEmptyTable(BigQuerySQLEngineConfig config,
+                                      BigQuery bigQuery,
+                                      String project,
+                                      String dataset,
+                                      String table) {
+
+    LOG.debug("Creating empty table {} in dataset {} and project {}", table, dataset, project);
+
+    // Define table name and create builder.
+    TableId tableId = TableId.of(project, dataset, table);
+    TableDefinition tableDefinition = StandardTableDefinition.of(com.google.cloud.bigquery.Schema.of());
+    TableInfo.Builder tableInfoBuilder = TableInfo.newBuilder(tableId, tableDefinition);
+
+    // Set TTL for table if needed.
+    if (!config.shouldRetainTables() && config.getTempTableTTLHours() > 0) {
+      long ttlMillis = TimeUnit.MILLISECONDS.convert(config.getTempTableTTLHours(), TimeUnit.HOURS);
+      long expirationTime = Instant.now().toEpochMilli() + ttlMillis;
+      tableInfoBuilder.setExpirationTime(expirationTime);
+    }
+
+    bigQuery.create(tableInfoBuilder.build());
+
+    LOG.debug("Created empty table {} in dataset {} and project {}", table, dataset, project);
+  }
+
+  /**
    * Validate input stage schema. Any errors will be added to the supplied list of validation issues.
    *
-   * @param inputStage Input Stage
+   * @param inputStage         Input Stage
    * @param validationProblems List of validation problems to use to append messages
    */
   public static void validateInputStage(JoinStage inputStage, List<String> validationProblems) {
@@ -132,7 +178,7 @@ public class BigQuerySQLEngineUtils {
   /**
    * Validate output stage schema. Any errors will be added to the supplied list of validation issues.
    *
-   * @param outputSchema the schema to validate
+   * @param outputSchema       the schema to validate
    * @param validationProblems List of validation problems to use to append messages
    */
   public static void validateOutputSchema(@Nullable Schema outputSchema, List<String> validationProblems) {
@@ -153,11 +199,11 @@ public class BigQuerySQLEngineUtils {
   /**
    * Validate on expression join condition
    *
-   * @param onExpression Join Condition to validate
+   * @param onExpression       Join Condition to validate
    * @param validationProblems List of validation problems to use to append messages
    */
   public static void validateOnExpressionJoinCondition(JoinCondition.OnExpression onExpression,
-                                                List<String> validationProblems) {
+                                                       List<String> validationProblems) {
     for (Map.Entry<String, String> alias : onExpression.getDatasetAliases().entrySet()) {
       if (!isValidIdentifier(alias.getValue())) {
         validationProblems.add(
@@ -168,7 +214,7 @@ public class BigQuerySQLEngineUtils {
 
   /**
    * Ensure the Stage name is valid for execution in BQ pushdown.
-   *
+   * <p>
    * Due to differences in character escaping rules in Spark and BigQuery, identifiers that are accepted in Spark
    * might not be valid in BigQuery. Due to this limitation, we don't support stage names or aliases containing
    * backslash \ or backtick ` characters at this time.
