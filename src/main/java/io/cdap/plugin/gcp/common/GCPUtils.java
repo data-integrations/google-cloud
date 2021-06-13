@@ -132,16 +132,27 @@ public class GCPUtils {
 
   public static Map<String, String> getFileSystemProperties(GCPConfig config, String path,
                                                             Map<String, String> properties) {
+    return getFileSystemProperties(config.getProject(), config.getServiceAccount(), config.getServiceAccountType(),
+                                   path, properties);
+  }
+
+  public static Map<String, String> getFileSystemProperties(GCPConnectorConfig config, String path,
+                                                            Map<String, String> properties) {
+    return getFileSystemProperties(config.getProject(), config.getServiceAccount(), config.getServiceAccountType(),
+                                   path, properties);
+  }
+
+  private static Map<String, String> getFileSystemProperties(String project, String serviceAccount,
+                                                             String serviceAccountType, String path,
+                                                             Map<String, String> properties) {
     try {
-      properties.putAll(generateAuthProperties(config.getServiceAccount(), config.getServiceAccountType(),
-                                               CLOUD_JSON_KEYFILE_PREFIX));
+      properties.putAll(generateAuthProperties(serviceAccount, serviceAccountType, CLOUD_JSON_KEYFILE_PREFIX));
     } catch (Exception ignored) {
 
     }
     properties.put("fs.gs.impl", GoogleHadoopFileSystem.class.getName());
     properties.put("fs.AbstractFileSystem.gs.impl", GoogleHadoopFS.class.getName());
-    String projectId = config.getProject();
-    properties.put(FS_GS_PROJECT_ID, projectId);
+    properties.put(FS_GS_PROJECT_ID, project);
     properties.put("fs.gs.system.bucket", GCSPath.from(path).getBucket());
     properties.put("fs.gs.path.encoding", "uri-path");
     properties.put("fs.gs.working.dir", GCSPath.ROOT_DIR);

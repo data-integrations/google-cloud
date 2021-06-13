@@ -186,14 +186,15 @@ public class SpannerConnector implements DirectConnector {
     int count = 0;
     BrowseDetail.Builder browseDetailBuilder = BrowseDetail.builder();
     for (Instance instance : page.iterateAll()) {
-      if (count < countLimit) {
-        String name = instance.getId().getInstance();
-        browseDetailBuilder
-          .addEntity(BrowseEntity.builder(name, "/" + name, ENTITY_TYPE_INSTANCE).canBrowse(true).build());
+      if (count >= countLimit) {
+        break;
       }
+      String name = instance.getId().getInstance();
+      browseDetailBuilder
+        .addEntity(BrowseEntity.builder(name, "/" + name, ENTITY_TYPE_INSTANCE).canBrowse(true).build());
       count++;
     }
-    return browseDetailBuilder.setTotalCount(countLimit).build();
+    return browseDetailBuilder.setTotalCount(count).build();
   }
 
   private BrowseDetail listDatabases(Spanner spanner, String instance, Integer limit) {
@@ -203,14 +204,15 @@ public class SpannerConnector implements DirectConnector {
     BrowseDetail.Builder browseDetailBuilder = BrowseDetail.builder();
     String pathPrefix = "/" + instance + "/";
     for (Database database : page.iterateAll()) {
-      if (count < countLimit) {
-        String name = database.getId().getDatabase();
-        browseDetailBuilder
-          .addEntity(BrowseEntity.builder(name, pathPrefix + name, ENTITY_TYPE_DATABASE).canBrowse(true).build());
+      if (count >= countLimit) {
+        break;
       }
+      String name = database.getId().getDatabase();
+      browseDetailBuilder
+        .addEntity(BrowseEntity.builder(name, pathPrefix + name, ENTITY_TYPE_DATABASE).canBrowse(true).build());
       count++;
     }
-    return browseDetailBuilder.setTotalCount(countLimit).build();
+    return browseDetailBuilder.setTotalCount(count).build();
   }
 
   private BrowseDetail listTables(Spanner spanner, String instance, String database, Integer limit) {
@@ -221,11 +223,15 @@ public class SpannerConnector implements DirectConnector {
     BrowseDetail.Builder browseDetailBuilder = BrowseDetail.builder();
     String pathPrefix = "/" + instance + "/" + database + "/";
     while (resultSet.next()) {
+      if (count >= countLimit) {
+        break;
+      }
       String name = resultSet.getString("table_name");
       browseDetailBuilder
         .addEntity(BrowseEntity.builder(name, pathPrefix + name, ENTITY_TYPE_TABLE).canSample(true).build());
+      count++;
     }
-    return browseDetailBuilder.setTotalCount(countLimit).build();
+    return browseDetailBuilder.setTotalCount(count).build();
   }
 
   private BrowseDetail getTableDetail(Spanner spanner, String instance, String database, String table) {
