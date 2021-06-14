@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.gcs;
 
+import com.google.common.base.Strings;
 import com.google.common.net.UrlEscapers;
 
 import java.net.URI;
@@ -86,7 +87,7 @@ public class GCSPath {
    * @throws IllegalArgumentException if the path string is invalid
    */
   public static GCSPath from(String path) {
-    if (path.isEmpty()) {
+    if (Strings.isNullOrEmpty(path)) {
       throw new IllegalArgumentException("GCS path can not be empty. The path must be of form " +
                                            "'gs://<bucket-name>/path'.");
     }
