@@ -75,6 +75,7 @@ public class BigQueryJoinDataset implements SQLDataset, BigQuerySQLDataset {
 
   public static BigQueryJoinDataset getInstance(SQLJoinRequest joinRequest,
                                                 Map<String, String> bqTableNamesMap,
+                                                BigQuerySQLEngineConfig sqlEngineConfig,
                                                 BigQuery bigQuery,
                                                 String location,
                                                 String project,
@@ -86,6 +87,9 @@ public class BigQueryJoinDataset implements SQLDataset, BigQuerySQLDataset {
 
     // Build new table name for this dataset
     String table = BigQuerySQLEngineUtils.getNewTableName(runId);
+
+    // Create empty table to store join results.
+    BigQuerySQLEngineUtils.createEmptyTable(sqlEngineConfig, bigQuery, project, dataset, table);
 
     BigQueryJoinDataset instance = new BigQueryJoinDataset(joinRequest.getDatasetName(),
                                                            joinRequest.getJoinDefinition(),
@@ -100,7 +104,7 @@ public class BigQueryJoinDataset implements SQLDataset, BigQuerySQLDataset {
     return instance;
   }
 
-  private void executeJoin() {
+  public void executeJoin() {
     TableId destinationTable = TableId.of(project, bqDataset, bqTable);
 
     String query = queryBuilder.getQuery();
@@ -111,6 +115,8 @@ public class BigQueryJoinDataset implements SQLDataset, BigQuerySQLDataset {
     QueryJobConfiguration queryConfig =
       QueryJobConfiguration.newBuilder(query)
         .setDestinationTable(destinationTable)
+        .setCreateDisposition(JobInfo.CreateDisposition.CREATE_NEVER)
+        .setWriteDisposition(JobInfo.WriteDisposition.WRITE_TRUNCATE)
         .setPriority(QueryJobConfiguration.Priority.BATCH)
         .build();
 

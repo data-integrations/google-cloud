@@ -71,6 +71,7 @@ public class BigQueryPushDataset extends BigQueryOutputFormatProvider
   }
 
   protected static BigQueryPushDataset getInstance(SQLPushRequest pushRequest,
+                                                   BigQuerySQLEngineConfig sqlEngineConfig,
                                                    Configuration baseConfiguration,
                                                    BigQuery bigQuery,
                                                    String project,
@@ -86,9 +87,11 @@ public class BigQueryPushDataset extends BigQueryOutputFormatProvider
     // Clone configuration object
     Configuration configuration = new Configuration(baseConfiguration);
 
-    // Set required configuration properties.
+    // Set required configuration properties. Note that the table will be created before the upload takes place.
     configuration.set(BigQueryConstants.CONFIG_JOB_ID, jobId);
     configuration.set(BigQueryConstants.CONFIG_OPERATION, Operation.INSERT.name());
+    configuration.setBoolean(BigQueryConstants.CONFIG_DESTINATION_TABLE_EXISTS, true);
+    configuration.setBoolean(BigQueryConstants.CONFIG_ALLOW_SCHEMA_RELAXATION, true);
 
     // Configure output.
     String gcsPath = BigQuerySQLEngineUtils.getGCSPath(bucket, runId, table);
@@ -96,6 +99,9 @@ public class BigQueryPushDataset extends BigQueryOutputFormatProvider
       BigQuerySinkUtils.getBigQueryTableFieldsFromSchema(pushRequest.getDatasetSchema());
     BigQuerySinkUtils.configureBucket(configuration, bucket, runId);
     BigQuerySinkUtils.configureOutput(configuration, project, dataset, table, gcsPath, fields);
+
+    // Create empty table to store uploaded records.
+    BigQuerySQLEngineUtils.createEmptyTable(sqlEngineConfig, bigQuery, project, dataset, table);
 
     //Build new Instance
     return new BigQueryPushDataset(pushRequest.getDatasetName(),

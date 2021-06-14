@@ -73,7 +73,7 @@ public class BigQuerySQLEngine
 
   public static final String NAME = "BigQueryPushdownEngine";
 
-  private final BigQuerySQLEngineConfig config;
+  private final BigQuerySQLEngineConfig sqlEngineConfig;
   private BigQuery bigQuery;
   private Storage storage;
   private Configuration configuration;
@@ -86,8 +86,8 @@ public class BigQuerySQLEngine
   private Map<String, BigQuerySQLDataset> datasets;
 
   @SuppressWarnings("unused")
-  public BigQuerySQLEngine(BigQuerySQLEngineConfig config) {
-    this.config = config;
+  public BigQuerySQLEngine(BigQuerySQLEngineConfig sqlEngineConfig) {
+    this.sqlEngineConfig = sqlEngineConfig;
   }
 
   @Override
@@ -98,22 +98,22 @@ public class BigQuerySQLEngine
     tableNames = new HashMap<>();
     datasets = new HashMap<>();
 
-    String serviceAccount = config.getServiceAccount();
+    String serviceAccount = sqlEngineConfig.getServiceAccount();
     Credentials credentials = serviceAccount == null ?
-      null : GCPUtils.loadServiceAccountCredentials(serviceAccount, config.isServiceAccountFilePath());
-    project = config.getProject();
-    dataset = config.getDataset();
-    bucket = config.getBucket() != null ? config.getBucket() : "bqpushdown-" + runId;
-    location = config.getLocation();
+      null : GCPUtils.loadServiceAccountCredentials(serviceAccount, sqlEngineConfig.isServiceAccountFilePath());
+    project = sqlEngineConfig.getProject();
+    dataset = sqlEngineConfig.getDataset();
+    bucket = sqlEngineConfig.getBucket() != null ? sqlEngineConfig.getBucket() : "bqpushdown-" + runId;
+    location = sqlEngineConfig.getLocation();
 
     // Initialize BQ and GCS clients.
     bigQuery = GCPUtils.getBigQuery(project, credentials);
     storage = GCPUtils.getStorage(project, credentials);
 
     String cmekKey = context.getRuntimeArguments().get(GCPUtils.CMEK_KEY);
-    configuration = BigQueryUtil.getBigQueryConfig(config.getServiceAccount(), config.getProject(),
-                                                   cmekKey, config.getServiceAccountType());
-    BigQuerySinkUtils.createResources(bigQuery, storage, dataset, bucket, config.getLocation(), cmekKey);
+    configuration = BigQueryUtil.getBigQueryConfig(sqlEngineConfig.getServiceAccount(), sqlEngineConfig.getProject(),
+                                                   cmekKey, sqlEngineConfig.getServiceAccountType());
+    BigQuerySinkUtils.createResources(bigQuery, storage, dataset, bucket, sqlEngineConfig.getLocation(), cmekKey);
   }
 
   @Override
@@ -122,6 +122,7 @@ public class BigQuerySQLEngine
     try {
       BigQueryPushDataset pushDataset =
         BigQueryPushDataset.getInstance(sqlPushRequest,
+                                        sqlEngineConfig,
                                         configuration,
                                         bigQuery,
                                         project,
@@ -218,6 +219,7 @@ public class BigQuerySQLEngine
 
     BigQueryJoinDataset joinDataset = BigQueryJoinDataset.getInstance(sqlJoinRequest,
                                                                       getStageNameToBQTableNameMap(),
+                                                                      sqlEngineConfig,
                                                                       bigQuery,
                                                                       location,
                                                                       project,
@@ -305,6 +307,11 @@ public class BigQuerySQLEngine
    * @param bqDataset the BigQuery Dataset Instance
    */
   protected void cancelJob(String stageName, BigQuerySQLDataset bqDataset) throws BigQueryException {
+    // Skip cancellation if tables need to be retained.
+    if (sqlEngineConfig.shouldRetainTables()) {
+      return;
+    }
+
     String jobId = bqDataset.getJobId();
 
     // If this dataset does not specify a job ID, there's no need to cancel any job
@@ -331,6 +338,11 @@ public class BigQuerySQLEngine
    * @param bqDataset the BigQuery Dataset Instance
    */
   protected void deleteTable(String stageName, BigQuerySQLDataset bqDataset) throws BigQueryException {
+    // Skip deletion if tables need to be retained.
+    if (sqlEngineConfig.shouldRetainTables()) {
+      return;
+    }
+
     String tableName = bqDataset.getBigQueryTableName();
     TableId tableId = TableId.of(project, dataset, tableName);
 
