@@ -16,9 +16,11 @@
 
 package io.cdap.plugin.gcp.bigquery.sqlengine;
 
+import com.google.cloud.bigquery.QueryJobConfiguration;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
+import io.cdap.cdap.etl.api.engine.sql.SQLEngineException;
 import io.cdap.plugin.gcp.bigquery.common.BigQueryBaseConfig;
 
 import javax.annotation.Nullable;
@@ -31,6 +33,11 @@ public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
   public static final String NAME_LOCATION = "location";
   public static final String NAME_RETAIN_TABLES = "retainTables";
   public static final String NAME_TEMP_TABLE_TTL_HOURS = "tempTableTTLHours";
+  public static final String NAME_JOB_PRIORITY = "jobPriority";
+
+  // Job priority options
+  public static final String PRIORITY_BATCH = "batch";
+  public static final String PRIORITY_INTERACTIVE = "interactive";
 
   @Name(NAME_LOCATION)
   @Macro
@@ -53,6 +60,16 @@ public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
     "automatically on pipeline completion.")
   protected Integer tempTableTTLHours;
 
+  @Name(NAME_JOB_PRIORITY)
+  @Macro
+  @Nullable
+  @Description("Priority used to execute BigQuery Jobs. The value must be 'batch' or 'interactive'. " +
+    "An interactive job is executed as soon as possible and counts towards the concurrent rate " +
+    "limit and the daily rate limit. A batch job is queued and started as soon as idle resources " +
+    "are available, usually within a few minutes. If the job hasn't started within 3 hours, " +
+    "its priority is changed to 'interactive'")
+  private String jobPriority;
+
   @Nullable
   public String getLocation() {
     return location;
@@ -64,5 +81,22 @@ public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
 
   public Integer getTempTableTTLHours() {
     return tempTableTTLHours != null && tempTableTTLHours > 0 ? tempTableTTLHours : 72;
+  }
+
+  public QueryJobConfiguration.Priority getJobPriority() {
+    String priority = jobPriority != null ? jobPriority : "batch";
+    return QueryJobConfiguration.Priority.valueOf(priority.toUpperCase());
+  }
+
+  /**
+   * Validates configuration properties
+   */
+  public void validate() {
+    // Ensure value for the job priority configuration property is valid
+    if (jobPriority != null && !containsMacro(NAME_JOB_PRIORITY)
+      && !PRIORITY_BATCH.equalsIgnoreCase(jobPriority)
+      && !PRIORITY_INTERACTIVE.equalsIgnoreCase(jobPriority)) {
+      throw new SQLEngineException("Property 'jobPriority' must be 'batch' or 'interactive'");
+    }
   }
 }

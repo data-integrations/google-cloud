@@ -44,6 +44,7 @@ public class BigQueryJoinDataset implements SQLDataset, BigQuerySQLDataset {
 
   private final String datasetName;
   private final JoinDefinition joinDefinition;
+  private final BigQuerySQLEngineConfig sqlEngineConfig;
   private final BigQuery bigQuery;
   private final String location;
   private final String project;
@@ -55,6 +56,7 @@ public class BigQueryJoinDataset implements SQLDataset, BigQuerySQLDataset {
 
   private BigQueryJoinDataset(String datasetName,
                               JoinDefinition joinDefinition,
+                              BigQuerySQLEngineConfig sqlEngineConfig,
                               Map<String, String> stageToTableNameMap,
                               BigQuery bigQuery,
                               String location,
@@ -64,6 +66,7 @@ public class BigQueryJoinDataset implements SQLDataset, BigQuerySQLDataset {
                               String jobId) {
     this.datasetName = datasetName;
     this.joinDefinition = joinDefinition;
+    this.sqlEngineConfig = sqlEngineConfig;
     this.bigQuery = bigQuery;
     this.location = location;
     this.project = project;
@@ -93,6 +96,7 @@ public class BigQueryJoinDataset implements SQLDataset, BigQuerySQLDataset {
 
     BigQueryJoinDataset instance = new BigQueryJoinDataset(joinRequest.getDatasetName(),
                                                            joinRequest.getJoinDefinition(),
+                                                           sqlEngineConfig,
                                                            bqTableNamesMap,
                                                            bigQuery,
                                                            location,
@@ -117,7 +121,7 @@ public class BigQueryJoinDataset implements SQLDataset, BigQuerySQLDataset {
         .setDestinationTable(destinationTable)
         .setCreateDisposition(JobInfo.CreateDisposition.CREATE_NEVER)
         .setWriteDisposition(JobInfo.WriteDisposition.WRITE_TRUNCATE)
-        .setPriority(QueryJobConfiguration.Priority.BATCH)
+        .setPriority(sqlEngineConfig.getJobPriority())
         .build();
 
     // Create a job ID so that we can safely retry.
