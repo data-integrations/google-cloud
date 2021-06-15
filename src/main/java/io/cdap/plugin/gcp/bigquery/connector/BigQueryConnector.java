@@ -176,12 +176,13 @@ public final class BigQueryConnector implements DirectConnector {
     }
     String parentPath = "/" + dataset + "/";
     for (Table table : tablePage.iterateAll()) {
-      if (count < countLimit) {
-        String name = table.getTableId().getTable();
-        browseDetailBuilder.addEntity(
-          BrowseEntity.builder(name, parentPath + name, table.getDefinition().getType().name()).canSample(true)
-            .build());
+      if (count >= countLimit) {
+        break;
       }
+      String name = table.getTableId().getTable();
+      browseDetailBuilder.addEntity(
+        BrowseEntity.builder(name, parentPath + name, table.getDefinition().getType().name()).canSample(true)
+          .build());
       count++;
     }
     return browseDetailBuilder.setTotalCount(count).build();
@@ -193,11 +194,12 @@ public final class BigQueryConnector implements DirectConnector {
     int count = 0;
     BrowseDetail.Builder browseDetailBuilder = BrowseDetail.builder();
     for (Dataset dataset : datasetPage.iterateAll()) {
-      if (count < countLimit) {
-        String name = dataset.getDatasetId().getDataset();
-        browseDetailBuilder
-          .addEntity(BrowseEntity.builder(name, "/" + name, ENTITY_TYPE_DATASET).canBrowse(true).build());
+      if (count >= countLimit) {
+        break;
       }
+      String name = dataset.getDatasetId().getDataset();
+      browseDetailBuilder
+        .addEntity(BrowseEntity.builder(name, "/" + name, ENTITY_TYPE_DATASET).canBrowse(true).build());
       count++;
     }
     return browseDetailBuilder.setTotalCount(count).build();
