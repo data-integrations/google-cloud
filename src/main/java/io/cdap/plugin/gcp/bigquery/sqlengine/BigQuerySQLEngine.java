@@ -28,6 +28,7 @@ import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.format.StructuredRecord;
+import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.engine.sql.BatchSQLEngine;
 import io.cdap.cdap.etl.api.engine.sql.SQLEngineException;
 import io.cdap.cdap.etl.api.engine.sql.dataset.SQLDataset;
@@ -91,8 +92,19 @@ public class BigQuerySQLEngine
   }
 
   @Override
+  public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
+    super.configurePipeline(pipelineConfigurer);
+
+    // Validate configuration and throw exception if the supplied configuration is invalid.
+    sqlEngineConfig.validate();
+  }
+
+  @Override
   public void prepareRun(RuntimeContext context) throws Exception {
     super.prepareRun(context);
+
+    // Validate configuration and throw exception if the supplied configuration is invalid.
+    sqlEngineConfig.validate();
 
     runId = BigQuerySQLEngineUtils.newIdentifier();
     tableNames = new HashMap<>();
