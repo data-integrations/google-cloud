@@ -15,19 +15,17 @@
  */
 package io.cdap.plugin.gcp.bigquery.sink;
 
-import com.google.cloud.ServiceOptions;
 import com.google.cloud.bigquery.JobInfo;
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.plugin.common.Constants;
+import io.cdap.plugin.common.IdUtils;
 import io.cdap.plugin.gcp.bigquery.common.BigQueryBaseConfig;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
-import io.cdap.plugin.gcp.common.GCPConfig;
-import io.cdap.plugin.gcp.common.GCPReferenceSinkConfig;
 
 import java.util.Set;
 import javax.annotation.Nullable;
@@ -44,6 +42,10 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
   public static final String NAME_LOCATION = "location";
   private static final String NAME_GCS_CHUNK_SIZE = "gcsChunkSize";
   protected static final String NAME_UPDATE_SCHEMA = "allowSchemaRelaxation";
+
+  @Name(Constants.Reference.REFERENCE_NAME)
+  @Description(Constants.Reference.REFERENCE_NAME_DESCRIPTION)
+  protected String referenceName;
 
   @Name(NAME_GCS_CHUNK_SIZE)
   @Macro
@@ -71,6 +73,10 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
   @Description("The location where the big query dataset will get created. " +
                  "This value is ignored if the dataset or temporary bucket already exist.")
   protected String location;
+
+  public String getReferenceName() {
+    return referenceName;
+  }
 
   @Nullable
   public String getLocation() {
@@ -100,9 +106,9 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
     return truncateTable != null && truncateTable;
   }
 
-  @Override
   public void validate(FailureCollector collector) {
-    super.validate(collector);
+    IdUtils.validateReferenceName(referenceName, collector);
+
     String bucket = getBucket();
     if (!containsMacro(NAME_BUCKET)) {
       BigQueryUtil.validateBucket(bucket, NAME_BUCKET, collector);
