@@ -38,10 +38,6 @@ public class BigQueryBaseConfig extends GCPConfig {
   public static final String NAME_DATASET = "dataset";
   public static final String NAME_BUCKET = "bucket";
 
-  @Name(Constants.Reference.REFERENCE_NAME)
-  @Description("This will be used to uniquely identify this source for lineage, annotating metadata, etc.")
-  public String referenceName;
-
   @Name(DATASET_PROJECT_ID)
   @Macro
   @Nullable
@@ -64,17 +60,6 @@ public class BigQueryBaseConfig extends GCPConfig {
     + "If it is not provided, a unique bucket will be created and then deleted after the run finishes. "
     + "The service account must have permission to create buckets in the configured project.")
   protected String bucket;
-
-  /**
-   * Validates the given referenceName to consists of characters allowed to represent a dataset.
-   */
-  public void validate(FailureCollector collector) {
-    IdUtils.validateReferenceName(referenceName, collector);
-  }
-
-  public String getReferenceName() {
-    return referenceName;
-  }
 
   @Nullable
   public String getDatasetProject() {
