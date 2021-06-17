@@ -9,51 +9,10 @@
       "properties": [
         {
           "widget-type": "textbox",
-          "label": "Reference Name",
-          "name": "referenceName",
-          "widget-attributes": {
-            "placeholder": "Name used to identify this source for lineage",
-            "default": "bqpushdown"
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Project ID",
-          "name": "project",
-          "widget-attributes": {
-            "default": "auto-detect"
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Dataset Project ID",
-          "name": "datasetProject",
-          "widget-attributes": {
-            "placeholder": "The project in which the dataset is located/should be created. Defaults to the project specified in the Project Id property."
-          }
-        },
-        {
-          "widget-type": "textbox",
           "label": "Dataset",
           "name": "dataset",
           "widget-attributes": {
             "placeholder": "Dataset that will be used to store tables when the pipeline is executed."
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Temporary Bucket Name",
-          "name": "bucket",
-          "widget-attributes": {
-            "placeholder": "Google Cloud Storage bucket for temporary data"
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Location",
-          "name": "location",
-          "widget-attributes": {
-            "default": "US"
           }
         }
       ]
@@ -98,6 +57,38 @@
     {
       "label": "Advanced",
       "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Project ID",
+          "name": "project",
+          "widget-attributes": {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Dataset Project ID",
+          "name": "datasetProject",
+          "widget-attributes": {
+            "placeholder": "The project in which the dataset is located/should be created. Defaults to the project specified in the Project Id property."
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Temporary Bucket Name",
+          "name": "bucket",
+          "widget-attributes": {
+            "placeholder": "Google Cloud Storage bucket for temporary data"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Location",
+          "name": "location",
+          "widget-attributes": {
+            "default": "US"
+          }
+        },
         {
           "widget-type": "toggle",
           "label": "Retain BigQuery tables after completion",
