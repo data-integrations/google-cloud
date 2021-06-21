@@ -113,6 +113,25 @@
             "min": "1",
             "default": "72"
           }
+        },
+        {
+          "widget-type": "radio-group",
+          "label": "Job Priority",
+          "name": "jobPriority",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "batch",
+            "options": [
+              {
+                "id": "batch",
+                "label": "Batch"
+              },
+              {
+                "id": "interactive",
+                "label": "Interactive"
+              }
+            ]
+          }
         }
       ]
     }
