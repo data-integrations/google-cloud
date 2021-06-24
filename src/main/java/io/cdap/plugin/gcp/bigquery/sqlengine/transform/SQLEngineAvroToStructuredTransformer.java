@@ -64,17 +64,17 @@ public class SQLEngineAvroToStructuredTransformer extends BigQueryAvroToStructur
     }
 
     // Handle Int types
-    if (schema.getType() == Schema.Type.INT) {
+    if (schema.getType() == Schema.Type.INT && schema.getLogicalType() == null) {
       return mapInteger(field);
     }
 
     // Handle float types
-    if (schema.getType() == Schema.Type.FLOAT) {
+    if (schema.getType() == Schema.Type.FLOAT && schema.getLogicalType() == null) {
       return mapFloat(field);
     }
 
     // Handle Strings that are stored as a Byte Buffer.
-    if (schema.getType() == Schema.Type.STRING && field instanceof ByteBuffer) {
+    if (schema.getType() == Schema.Type.STRING && schema.getLogicalType() == null && field instanceof ByteBuffer) {
       return StandardCharsets.UTF_8.decode((ByteBuffer) field).toString();
     }
 
