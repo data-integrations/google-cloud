@@ -92,6 +92,7 @@ public class BigQueryPushDataset extends BigQueryOutputFormatProvider
     configuration.set(BigQueryConstants.CONFIG_OPERATION, Operation.INSERT.name());
     configuration.setBoolean(BigQueryConstants.CONFIG_DESTINATION_TABLE_EXISTS, true);
     configuration.setBoolean(BigQueryConstants.CONFIG_ALLOW_SCHEMA_RELAXATION, true);
+    configuration.setBoolean(BigQueryConstants.CONFIG_ALLOW_SCHEMA_RELAXATION_ON_EMPTY_OUTPUT, true);
 
     // Configure output.
     String gcsPath = BigQuerySQLEngineUtils.getGCSPath(bucket, runId, table);
