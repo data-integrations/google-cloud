@@ -21,6 +21,7 @@ package io.cdap.plugin.gcp.bigquery.util;
 public interface BigQueryConstants {
 
   String CONFIG_ALLOW_SCHEMA_RELAXATION = "cdap.bq.sink.allow.schema.relaxation";
+  String CONFIG_ALLOW_SCHEMA_RELAXATION_ON_EMPTY_OUTPUT = "cdap.bq.sink.allow.schema.relaxationoemptyoutput";
   String CONFIG_DESTINATION_TABLE_EXISTS = "cdap.bq.sink.destination.table.exists";
   String CONFIG_PARTITION_BY_FIELD = "cdap.bq.sink.partition.by.field";
   String CONFIG_REQUIRE_PARTITION_FILTER = "cdap.bq.sink.require.partition.filter";
