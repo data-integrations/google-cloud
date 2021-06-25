@@ -159,6 +159,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
     private String partitionFilter;
 
     private boolean allowSchemaRelaxation;
+    private boolean allowSchemaRelaxationOnEmptyOutput;
 
     BigQueryOutputCommitter(TaskAttemptContext context, OutputCommitter delegate) throws IOException {
       super(context, delegate);
@@ -187,6 +188,8 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
       List<String> sourceUris = getOutputFileURIs();
 
       allowSchemaRelaxation = conf.getBoolean(BigQueryConstants.CONFIG_ALLOW_SCHEMA_RELAXATION, false);
+      allowSchemaRelaxationOnEmptyOutput =
+        conf.getBoolean(BigQueryConstants.CONFIG_ALLOW_SCHEMA_RELAXATION_ON_EMPTY_OUTPUT, false);
       LOG.debug("Allow schema relaxation: '{}'", allowSchemaRelaxation);
       PartitionType partitionType = conf.getEnum(BigQueryConstants.CONFIG_PARTITION_TYPE, PartitionType.NONE);
       LOG.debug("Create Partitioned Table type: '{}'", partitionType);
@@ -277,6 +280,14 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
           table.setSchema(schema);
           table.setTableReference(tableRef);
           bigQueryHelper.getRawBigquery().tables().insert(tableRef.getProjectId(), tableRef.getDatasetId(), table)
+            .execute();
+        } else if (allowSchemaRelaxationOnEmptyOutput) {
+          // If the table requires a schema update, apply if even when there are no records to write.
+          Table table = new Table();
+          table.setSchema(schema);
+          table.setTableReference(tableRef);
+          bigQueryHelper.getRawBigquery().tables()
+            .update(tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId(), table)
             .execute();
         }
         return;
