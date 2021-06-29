@@ -32,6 +32,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -224,5 +226,18 @@ public class BigQuerySQLEngineUtils {
    */
   public static boolean isValidIdentifier(String identifier) {
     return identifier != null && !identifier.contains("\\") && !identifier.contains("`");
+  }
+
+  /**
+   * Get tags for BQ Pushdown tags
+   * @param operation the current operation that is being executed
+   * @return Map containing tags for a job.
+   */
+  public static Map<String, String> getJobTags(String operation) {
+    Map<String, String> labels = new HashMap<>();
+    labels.put("job_source", "cdap");
+    labels.put("type", "bq_pushdown");
+    labels.put("pushdown_operation", operation);
+    return Collections.unmodifiableMap(labels);
   }
 }

@@ -32,6 +32,7 @@ import io.cdap.plugin.gcp.bigquery.sqlengine.util.BigQuerySQLEngineUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
 
@@ -122,6 +123,7 @@ public class BigQueryJoinDataset implements SQLDataset, BigQuerySQLDataset {
         .setCreateDisposition(JobInfo.CreateDisposition.CREATE_NEVER)
         .setWriteDisposition(JobInfo.WriteDisposition.WRITE_TRUNCATE)
         .setPriority(sqlEngineConfig.getJobPriority())
+        .setLabels(BigQuerySQLEngineUtils.getJobTags("join"))
         .build();
 
     // Create a job ID so that we can safely retry.
