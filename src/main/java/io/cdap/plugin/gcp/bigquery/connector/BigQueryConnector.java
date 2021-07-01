@@ -72,7 +72,7 @@ import javax.annotation.Nullable;
   "tables. BigQuery is Google's serverless, highly scalable, enterprise data warehouse.")
 public final class BigQueryConnector implements DirectConnector {
   public static final String NAME = "BigQuery";
-  public static final String ENTITY_TYPE_DATASET = "DATASET";
+  public static final String ENTITY_TYPE_DATASET = "dataset";
   private static final int ERROR_CODE_NOT_FOUND = 404;
   private BigQueryConnectorConfig config;
 
@@ -181,8 +181,8 @@ public final class BigQueryConnector implements DirectConnector {
       }
       String name = table.getTableId().getTable();
       browseDetailBuilder.addEntity(
-        BrowseEntity.builder(name, parentPath + name, table.getDefinition().getType().name()).canSample(true)
-          .build());
+        BrowseEntity.builder(name, parentPath + name, table.getDefinition().getType().name().toLowerCase())
+          .canSample(true).build());
       count++;
     }
     return browseDetailBuilder.setTotalCount(count).build();
