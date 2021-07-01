@@ -67,9 +67,9 @@ import java.util.stream.Collectors;
   "tables. Spanner is Google's fully managed relational database with unlimited scale and strong consistency.")
 public class SpannerConnector implements DirectConnector {
   public static final String NAME = "Spanner";
-  public static final String ENTITY_TYPE_INSTANCE = "INSTANCE";
-  public static final String ENTITY_TYPE_DATABASE = "DATABASE";
-  public static final String ENTITY_TYPE_TABLE = "TABLE";
+  public static final String ENTITY_TYPE_INSTANCE = "instance";
+  public static final String ENTITY_TYPE_DATABASE = "database";
+  public static final String ENTITY_TYPE_TABLE = "table";
   // Spanner queries for listing tables and listing schema of table are documented at
   // https://cloud.google.com/spanner/docs/information-schema
   private static final Statement LIST_TABLES_STATEMENT =
