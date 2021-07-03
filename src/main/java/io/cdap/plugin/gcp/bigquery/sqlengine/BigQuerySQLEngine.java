@@ -20,6 +20,9 @@ import com.google.auth.Credentials;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.Job;
+import com.google.cloud.bigquery.JobId;
+import com.google.cloud.bigquery.JobInfo;
+import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.storage.Storage;
 import com.google.common.annotations.VisibleForTesting;
@@ -38,6 +41,7 @@ import io.cdap.cdap.etl.api.engine.sql.request.SQLJoinDefinition;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLJoinRequest;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLPullRequest;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLPushRequest;
+import io.cdap.cdap.etl.api.engine.sql.request.SQLWriteRequest;
 import io.cdap.cdap.etl.api.join.JoinCondition;
 import io.cdap.cdap.etl.api.join.JoinDefinition;
 import io.cdap.cdap.etl.api.join.JoinStage;
@@ -243,6 +247,53 @@ public class BigQuerySQLEngine
     datasets.put(sqlJoinRequest.getDatasetName(), joinDataset);
 
     return joinDataset;
+  }
+
+  @Override
+  public boolean write(SQLWriteRequest writeRequest) throws SQLEngineException {
+    if (!getClass().getName().equals(writeRequest.getOutput().getSqlEngineClassName())) {
+      LOG.debug("Got output for another SQL engine {}, skipping", writeRequest.getOutput().getSqlEngineClassName());
+      return false;
+    }
+    String jobId = runId + "_" + writeRequest.getOutput().getName();
+    String sourceTable = datasets.get(writeRequest.getDatasetName()).getBigQueryTableName();
+    String destinationDataset = writeRequest.getOutput().getArguments().get("dataset");
+    String destinationTable = writeRequest.getOutput().getArguments().get("table");
+    TableId destinationTableId = TableId.of(project, destinationDataset, destinationTable);
+
+    String query = String.format("select * from `%s.%s.%s`", project, dataset, sourceTable);
+    LOG.info("Copying data from {} to {} using sql statement: {} ", sourceTable, destinationTable, query);
+
+    QueryJobConfiguration queryConfig =
+      QueryJobConfiguration.newBuilder(query)
+        .setDestinationTable(destinationTableId)
+        .setCreateDisposition(JobInfo.CreateDisposition.CREATE_IF_NEEDED)
+        .setWriteDisposition(JobInfo.WriteDisposition.WRITE_TRUNCATE)
+        .setPriority(sqlEngineConfig.getJobPriority())
+        .setLabels(BigQuerySQLEngineUtils.getJobTags("copy"))
+        .build();
+    // Create a job ID so that we can safely retry.
+    JobId bqJobId = JobId.newBuilder().setJob(jobId).setLocation(location).setProject(project).build();
+    Job queryJob = bigQuery.create(JobInfo.newBuilder(queryConfig).setJobId(bqJobId).build());
+
+    // Wait for the query to complete.
+    try {
+      queryJob = queryJob.waitFor();
+    } catch (InterruptedException ie) {
+      throw new SQLEngineException("Interrupted exception when executing Write operation", ie);
+    }
+
+    // Check for errors
+    if (queryJob == null) {
+      throw new SQLEngineException("BigQuery job not found: " + jobId);
+    } else if (queryJob.getStatus().getError() != null) {
+      throw new SQLEngineException(String.format(
+        "Error executing BigQuery Job: '%s' in Project '%s', Dataset '%s', Location'%s' : %s",
+        jobId, project, dataset, location, queryJob.getStatus().getError().toString()));
+    }
+
+    LOG.info("Copied data from {} to {}", sourceTable, destinationTable);
+    return true;
   }
 
   @Override
