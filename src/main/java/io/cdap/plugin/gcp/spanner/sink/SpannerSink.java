@@ -33,6 +33,7 @@ import com.google.spanner.admin.database.v1.UpdateDatabaseDdlMetadata;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
+import io.cdap.cdap.api.annotation.Requirements;
 import io.cdap.cdap.api.data.batch.Output;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
@@ -73,6 +74,7 @@ import javax.annotation.Nullable;
 @Description("Batch sink to write to Cloud Spanner. Cloud Spanner is a fully managed, mission-critical, " +
   "relational database service that offers transactional consistency at global scale, schemas, " +
   "SQL (ANSI 2011 with extensions), and automatic, synchronous replication for high availability.")
+@Requirements(capabilities = "bypass_cmek_check")
 public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable, Mutation> {
   private static final Logger LOG = LoggerFactory.getLogger(SpannerSink.class);
   public static final String NAME = "Spanner";
