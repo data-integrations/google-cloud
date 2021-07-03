@@ -22,6 +22,7 @@ import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
+import io.cdap.cdap.api.annotation.Requirements;
 import io.cdap.cdap.api.data.batch.Output;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
@@ -68,6 +69,7 @@ import java.util.stream.Collectors;
 @Name(BigtableSink.NAME)
 @Description("This sink writes data to Google Cloud Bigtable. " +
   "Cloud Bigtable is Google's NoSQL Big Data database service.")
+@Requirements(capabilities = "bypass_cmek_check")
 public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableBytesWritable, Mutation> {
   private static final Logger LOG = LoggerFactory.getLogger(BigtableSink.class);
   public static final String NAME = "Bigtable";
