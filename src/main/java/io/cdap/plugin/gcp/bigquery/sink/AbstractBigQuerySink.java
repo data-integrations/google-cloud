@@ -145,8 +145,9 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
 
     // Build GCS storage path for this bucket output.
     String temporaryGcsPath = BigQuerySinkUtils.getTemporaryGcsPath(bucket, runUUID.toString(), tableName);
+    String datasetProject = getConfig().getDatasetProject();
     BigQuerySinkUtils.configureOutput(configuration,
-                                      getConfig().getDatasetProject(),
+                                      datasetProject,
                                       getConfig().getDataset(),
                                       tableName,
                                       temporaryGcsPath,
@@ -158,9 +159,14 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
       .collect(Collectors.toList());
     recordLineage(context, outputName, tableSchema, fieldNames);
     context.addOutput(Output.of(outputName, getOutputFormatProvider(configuration, tableName, tableSchema)));
+    ImmutableMap.Builder<String, String> arguments = new ImmutableMap.Builder<String, String>()
+      .put("table", tableName)
+      .put("dataset", getConfig().getDataset());
+    if (datasetProject != null && !datasetProject.isEmpty()) {
+      arguments.put("project", datasetProject);
+    }
     context.addOutput(new SQLEngineOutput(outputName, BigQuerySQLEngine.class.getName(),
-                                          ImmutableMap.of("table", tableName,
-                                                          "dataset", getConfig().getDataset())));
+                                          arguments.build()));
   }
 
   /**

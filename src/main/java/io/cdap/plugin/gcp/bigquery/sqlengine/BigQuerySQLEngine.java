@@ -286,7 +286,8 @@ public class BigQuerySQLEngine
     String sourceTable = datasets.get(writeRequest.getDatasetName()).getBigQueryTableName();
     String destinationDataset = writeRequest.getOutput().getArguments().get("dataset");
     String destinationTable = writeRequest.getOutput().getArguments().get("table");
-    TableId destinationTableId = TableId.of(project, destinationDataset, destinationTable);
+    String destinationProject = writeRequest.getOutput().getArguments().getOrDefault("project", project);
+    TableId destinationTableId = TableId.of(destinationProject, destinationDataset, destinationTable);
 
     String query = String.format("select * from `%s.%s.%s`", project, dataset, sourceTable);
     LOG.info("Copying data from {} to {} using sql statement: {} ", sourceTable, destinationTable, query);
