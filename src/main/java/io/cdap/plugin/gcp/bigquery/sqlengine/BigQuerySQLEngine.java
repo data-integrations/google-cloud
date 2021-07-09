@@ -237,7 +237,6 @@ public class BigQuerySQLEngine
                                                                       getStageNameToBQTableNameMap(),
                                                                       sqlEngineConfig,
                                                                       bigQuery,
-                                                                      location,
                                                                       project,
                                                                       dataset,
                                                                       runId);
