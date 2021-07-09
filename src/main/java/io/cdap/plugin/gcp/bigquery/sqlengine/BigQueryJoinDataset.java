@@ -17,6 +17,8 @@
 package io.cdap.plugin.gcp.bigquery.sqlengine;
 
 import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.Dataset;
+import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.Job;
 import com.google.cloud.bigquery.JobId;
 import com.google.cloud.bigquery.JobInfo;
@@ -47,7 +49,6 @@ public class BigQueryJoinDataset implements SQLDataset, BigQuerySQLDataset {
   private final JoinDefinition joinDefinition;
   private final BigQuerySQLEngineConfig sqlEngineConfig;
   private final BigQuery bigQuery;
-  private final String location;
   private final String project;
   private final String bqDataset;
   private final String bqTable;
@@ -60,7 +61,6 @@ public class BigQueryJoinDataset implements SQLDataset, BigQuerySQLDataset {
                               BigQuerySQLEngineConfig sqlEngineConfig,
                               Map<String, String> stageToTableNameMap,
                               BigQuery bigQuery,
-                              String location,
                               String project,
                               String bqDataset,
                               String bqTable,
@@ -69,7 +69,6 @@ public class BigQueryJoinDataset implements SQLDataset, BigQuerySQLDataset {
     this.joinDefinition = joinDefinition;
     this.sqlEngineConfig = sqlEngineConfig;
     this.bigQuery = bigQuery;
-    this.location = location;
     this.project = project;
     this.bqDataset = bqDataset;
     this.bqTable = bqTable;
@@ -81,7 +80,6 @@ public class BigQueryJoinDataset implements SQLDataset, BigQuerySQLDataset {
                                                 Map<String, String> bqTableNamesMap,
                                                 BigQuerySQLEngineConfig sqlEngineConfig,
                                                 BigQuery bigQuery,
-                                                String location,
                                                 String project,
                                                 String dataset,
                                                 String runId) {
@@ -100,7 +98,6 @@ public class BigQueryJoinDataset implements SQLDataset, BigQuerySQLDataset {
                                                            sqlEngineConfig,
                                                            bqTableNamesMap,
                                                            bigQuery,
-                                                           location,
                                                            project,
                                                            dataset,
                                                            table,
@@ -111,6 +108,11 @@ public class BigQueryJoinDataset implements SQLDataset, BigQuerySQLDataset {
 
   public void executeJoin() {
     TableId destinationTable = TableId.of(project, bqDataset, bqTable);
+
+    // Get location for target dataset. This way, the job will run in the same location as the dataset
+    DatasetId destinationDataset = DatasetId.of(project, bqDataset);
+    Dataset dataset = bigQuery.getDataset(destinationDataset);
+    String location = dataset.getLocation();
 
     String query = queryBuilder.getQuery();
     LOG.info("Creating table `{}` using job: {} with SQL statement: {}", bqTable, jobId, query);
