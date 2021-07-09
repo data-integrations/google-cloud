@@ -221,7 +221,8 @@ public class GCSConnector extends AbstractFileConnector<GCPConnectorConfig> {
     }
 
     Credentials credentials =
-      GCPUtils.loadServiceAccountCredentials(config.getServiceAccount(), serviceAccountFilePath);
+      config.getServiceAccount() == null ? null :
+        GCPUtils.loadServiceAccountCredentials(config.getServiceAccount(), serviceAccountFilePath);
     return GCPUtils.getStorage(config.getProject(), credentials);
   }
 
