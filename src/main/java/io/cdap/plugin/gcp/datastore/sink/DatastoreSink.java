@@ -19,6 +19,7 @@ import com.google.datastore.v1.Entity;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
+import io.cdap.cdap.api.annotation.Requirements;
 import io.cdap.cdap.api.data.batch.Output;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
@@ -46,6 +47,7 @@ import java.util.stream.Collectors;
 @Name(DatastoreSink.PLUGIN_NAME)
 @Description("CDAP Google Cloud Datastore Batch Sink takes the structured record from the input source and writes "
   + "to Google Cloud Datastore.")
+@Requirements(capabilities = "bypass_cmek_check")
 public class DatastoreSink extends BatchSink<StructuredRecord, NullWritable, Entity> {
 
   private static final Logger LOG = LoggerFactory.getLogger(DatastoreSink.class);
