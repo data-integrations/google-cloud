@@ -47,6 +47,7 @@ public class BigQuerySQLBuilder {
   private static final String AS = " AS ";
   private static final String ON = " ON ";
   private static final String EQ = " = ";
+  private static final String IS_NOT_DISTINCT_FROM = " IS NOT DISTINCT FROM ";
   private static final String AND = " AND ";
   private static final String OR = " OR ";
   private static final String DOT = ".";
@@ -317,23 +318,17 @@ public class BigQuerySQLBuilder {
                               String rightTable,
                               String rightField,
                               boolean joinOnNullKeys) {
-    if (joinOnNullKeys) {
-      builder.append(OPEN_GROUP);
-    }
-
-    // ...table1.column1 = table2.column2...
     builder.append(leftTable).append(DOT).append(leftField);
-    builder.append(EQ);
-    builder.append(rightTable).append(DOT).append(rightField);
 
     if (joinOnNullKeys) {
-      // ... OR (table1.column1 IS NULL AND table2.column2 IS NULL))...
-      builder.append(OR).append(OPEN_GROUP);
-      builder.append(leftTable).append(DOT).append(leftField).append(IS_NULL);
-      builder.append(AND);
-      builder.append(rightTable).append(DOT).append(rightField).append(IS_NULL);
-      builder.append(CLOSE_GROUP).append(CLOSE_GROUP);
+      // ...table1.column1 IS NOT DISTINCT FROM table2.column2...
+      builder.append(IS_NOT_DISTINCT_FROM);
+    } else {
+      // ...table1.column1 = table2.column2...
+      builder.append(EQ);
     }
+
+    builder.append(rightTable).append(DOT).append(rightField);
   }
 
   @VisibleForTesting

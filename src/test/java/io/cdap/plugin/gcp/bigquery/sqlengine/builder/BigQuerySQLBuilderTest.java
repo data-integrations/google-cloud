@@ -164,12 +164,10 @@ public class BigQuerySQLBuilderTest {
         + "FROM `my-project.MY_DS.shipments` AS `Shipments` "
         + "RIGHT OUTER JOIN `my-project.MY_DS.from-addr` AS `FromAddresses` "
         // Null safe join keys
-        + "ON (`Shipments`.id = `FromAddresses`.shipment_id "
-        + "OR (`Shipments`.id IS NULL AND `FromAddresses`.shipment_id IS NULL)) "
+        + "ON `Shipments`.id IS NOT DISTINCT FROM `FromAddresses`.shipment_id "
         + "LEFT OUTER JOIN `my-project.MY_DS.to-addr` AS `ToAddresses` "
         // Null safe join keys
-        + "ON (`FromAddresses`.shipment_id = `ToAddresses`.shipment_id "
-        + "OR (`FromAddresses`.shipment_id IS NULL AND `ToAddresses`.shipment_id IS NULL))",
+        + "ON `FromAddresses`.shipment_id IS NOT DISTINCT FROM `ToAddresses`.shipment_id",
       helper.getQuery());
   }
 
@@ -297,10 +295,10 @@ public class BigQuerySQLBuilderTest {
     helper.appendFieldEqualityClause(stages, stageNameToJoinKeyMap, true);
 
     Assert.assertEquals("`bq.stage.1` AS T1"
-                          + " LEFT OUTER JOIN `bq.stage.2` AS T2 ON (T1.a = T2.b OR (T1.a IS NULL AND T2.b IS NULL))"
-                          + " FULL OUTER JOIN `bq.stage.3` AS T3 ON (T2.b = T3.c OR (T2.b IS NULL AND T3.c IS NULL))"
-                          + " RIGHT OUTER JOIN `bq.stage.4` AS T4 ON (T3.c = T4.d OR (T3.c IS NULL AND T4.d IS NULL))"
-                          + " INNER JOIN `bq.stage.5` AS T5 ON (T4.d = T5.e OR (T4.d IS NULL AND T5.e IS NULL))",
+                          + " LEFT OUTER JOIN `bq.stage.2` AS T2 ON T1.a IS NOT DISTINCT FROM T2.b"
+                          + " FULL OUTER JOIN `bq.stage.3` AS T3 ON T2.b IS NOT DISTINCT FROM T3.c"
+                          + " RIGHT OUTER JOIN `bq.stage.4` AS T4 ON T3.c IS NOT DISTINCT FROM T4.d"
+                          + " INNER JOIN `bq.stage.5` AS T5 ON T4.d IS NOT DISTINCT FROM T5.e",
                         builder.toString());
   }
 
@@ -373,7 +371,7 @@ public class BigQuerySQLBuilderTest {
 
     helper.appendJoinOnKeyClause("leftTable", leftJoinKey, "rightTable", rightJoinKey, true);
     Assert.assertEquals(
-      "(leftTable.left_a = rightTable.right_x OR (leftTable.left_a IS NULL AND rightTable.right_x IS NULL))",
+      "leftTable.left_a IS NOT DISTINCT FROM rightTable.right_x",
       builder.toString());
   }
 
@@ -384,9 +382,9 @@ public class BigQuerySQLBuilderTest {
 
     helper.appendJoinOnKeyClause("leftTable", leftJoinKey, "rightTable", rightJoinKey, true);
     Assert.assertEquals(
-      "(leftTable.left_a = rightTable.right_x OR (leftTable.left_a IS NULL AND rightTable.right_x IS NULL)) AND "
-        + "(leftTable.left_b = rightTable.right_y OR (leftTable.left_b IS NULL AND rightTable.right_y IS NULL)) AND "
-        + "(leftTable.left_c = rightTable.right_z OR (leftTable.left_c IS NULL AND rightTable.right_z IS NULL))",
+      "leftTable.left_a IS NOT DISTINCT FROM rightTable.right_x AND "
+        + "leftTable.left_b IS NOT DISTINCT FROM rightTable.right_y AND "
+        + "leftTable.left_c IS NOT DISTINCT FROM rightTable.right_z",
       builder.toString());
   }
 
@@ -400,8 +398,7 @@ public class BigQuerySQLBuilderTest {
   @Test
   public void testBuildEqualsNullSafe() {
     helper.appendEquals("leftTable", "leftField", "rightTable", "rightField", true);
-    Assert.assertEquals("(leftTable.leftField = rightTable.rightField OR " +
-                          "(leftTable.leftField IS NULL AND rightTable.rightField IS NULL))",
+    Assert.assertEquals("leftTable.leftField IS NOT DISTINCT FROM rightTable.rightField",
                         builder.toString());
   }
 
