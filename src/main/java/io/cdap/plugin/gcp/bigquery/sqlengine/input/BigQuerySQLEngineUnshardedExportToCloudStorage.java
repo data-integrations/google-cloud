@@ -26,6 +26,7 @@ import com.google.cloud.hadoop.io.bigquery.BigQueryStrings;
 import com.google.cloud.hadoop.io.bigquery.ExportFileFormat;
 import com.google.cloud.hadoop.io.bigquery.UnshardedExportToCloudStorage;
 import io.cdap.plugin.gcp.bigquery.sqlengine.util.BigQuerySQLEngineUtils;
+import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,7 +49,8 @@ public class BigQuerySQLEngineUnshardedExportToCloudStorage extends UnshardedExp
   }
 
   /**
-   * Copy of {@link UnshardedExportToCloudStorage#beginExport()} with logic added to enable Snappy compression.
+   * Copy of {@link com.google.cloud.hadoop.io.bigquery.AbstractExportToCloudStorage#beginExport()} with logic added
+   * to enable Snappy compression.
    */
   @Override
   public void beginExport() throws IOException {
@@ -62,8 +64,9 @@ public class BigQuerySQLEngineUnshardedExportToCloudStorage extends UnshardedExp
     extractConfig.setDestinationUris(getExportPaths());
     extractConfig.set(DESTINATION_FORMAT_KEY, fileFormat.getFormatIdentifier());
 
-    // Set compression for Avro exports
-    if (fileFormat == ExportFileFormat.AVRO) {
+    // Change from overridden method. Set Snappy compression for Avro exports if compression is enabled
+    if (configuration.getBoolean(BigQueryConstants.CONFIG_SQLENGINE_EXPORT_COMPRESS, false)
+      && fileFormat == ExportFileFormat.AVRO) {
       extractConfig.setCompression(BigQuerySQLEngineUtils.CODEC_SNAPPY);
     }
 

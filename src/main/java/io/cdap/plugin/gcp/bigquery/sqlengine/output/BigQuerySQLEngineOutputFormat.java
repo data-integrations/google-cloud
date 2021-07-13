@@ -65,6 +65,8 @@ public class BigQuerySQLEngineOutputFormat extends BigQueryOutputFormat {
       throw new IOException("The output path '" + outputPath + "' already exists.");
     }
 
+    // Removed check for Compression Enabled here.
+
     // Error if unable to create a BigQuery helper.
     try {
       new BigQueryFactory().getBigQueryHelper(conf);

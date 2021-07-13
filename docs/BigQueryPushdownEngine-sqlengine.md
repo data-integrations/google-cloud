@@ -41,17 +41,21 @@ bucket will be created and then deleted after the run finishes.
 **Location**: The location where the big query dataset will get created. This value is ignored
 if the dataset or temporary bucket already exist.
 
-**Retain BigQuery tables after completion**: By Default, the temporary BigQuery tables used to execute operations
-will be deleted after execution is completed. Use this setting to override the default behavior and retain tables.
-This can be useful when testing/validating pipelines.
+**Retain BigQuery tables after completion**: As the default behavior, the temporary BigQuery tables used to execute 
+operations will be deleted after execution is completed. Use this setting to override the default behavior and retain 
+tables. This can be useful when testing/validating pipelines.
 
 **Temporary Table TTL (in Hours)**: Temporary tables are created with a default TTL. This is used as a safety mechanism
 in case the pipeline is interrupted abruptly, and the cleanup process is not completed. Default value is 72 hours.
 
-**Job Priority**: Job Priority used to execute BigQuery jobs (such as Join operations). The value must be 'batch' or 'interactive'. An interactive query is executed
-as soon as possible and counts towards the concurrent rate limit and the daily rate limit. A batch query is
-queued and started as soon as idle resources are available, usually within a few minutes. If the query hasn't
-started within 3 hours, its priority is changed to 'interactive'.
+**Job Priority**: Job Priority used to execute BigQuery jobs (such as Join operations). The value must be 'batch' or 
+'interactive'. An interactive query is executed as soon as possible and counts towards the concurrent rate limit and 
+the daily rate limit. A batch query is queued and started as soon as idle resources are available, usually within a 
+few minutes. If the query hasn't started within 3 hours, its priority is changed to 'interactive'.
+
+**Use compression for data transfers**: As the default behavior, data transfered into and out of BigQuery will use 
+Snappy compression to read and write records into BigQuery. This will reduce the amount of data that needs to be 
+transferred and can increase performance. This requires the Snappy codec to be installed in the cluster.
 
 **Service Account**  - service account key used for authorization
 

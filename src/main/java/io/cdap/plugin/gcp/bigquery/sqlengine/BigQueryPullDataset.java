@@ -28,6 +28,7 @@ import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceUtils;
 import io.cdap.plugin.gcp.bigquery.sqlengine.input.BigQuerySQLEngineInputFormatProvider;
 import io.cdap.plugin.gcp.bigquery.sqlengine.transform.PullTransform;
 import io.cdap.plugin.gcp.bigquery.sqlengine.util.BigQuerySQLEngineUtils;
+import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import org.apache.avro.generic.GenericData;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
@@ -69,6 +70,7 @@ public class BigQueryPullDataset extends BigQuerySQLEngineInputFormatProvider
   }
 
   public static BigQueryPullDataset getInstance(SQLPullRequest pullRequest,
+                                                BigQuerySQLEngineConfig sqlEngineConfig,
                                                 Configuration baseConfiguration,
                                                 BigQuery bigQuery,
                                                 String project,
@@ -79,6 +81,10 @@ public class BigQueryPullDataset extends BigQuerySQLEngineInputFormatProvider
 
     // Clone configuration object
     Configuration configuration = new Configuration(baseConfiguration);
+
+    if (sqlEngineConfig.shouldUseCompression()) {
+      configuration.setBoolean(BigQueryConstants.CONFIG_SQLENGINE_EXPORT_COMPRESS, true);
+    }
 
     // Configure BigQuery input format.
     String gcsPath = BigQuerySQLEngineUtils.getGCSPath(bucket, runId, bqTable);

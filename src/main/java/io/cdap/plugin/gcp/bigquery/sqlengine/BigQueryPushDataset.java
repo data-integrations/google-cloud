@@ -25,7 +25,6 @@ import io.cdap.cdap.api.dataset.lib.KeyValue;
 import io.cdap.cdap.etl.api.Transform;
 import io.cdap.cdap.etl.api.engine.sql.dataset.SQLPushDataset;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLPushRequest;
-import io.cdap.plugin.gcp.bigquery.sink.BigQueryOutputFormatProvider;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
 import io.cdap.plugin.gcp.bigquery.sink.Operation;
 import io.cdap.plugin.gcp.bigquery.sqlengine.output.BigQuerySQLEngineOutputFormatProvider;
@@ -102,9 +101,9 @@ public class BigQueryPushDataset extends BigQuerySQLEngineOutputFormatProvider
       BigQuerySinkUtils.getBigQueryTableFieldsFromSchema(pushRequest.getDatasetSchema());
 
     // Enable Snappy compression if the output format is Avro
-    if (BigQuerySinkUtils.getFileFormat(fields) == BigQueryFileFormat.AVRO) {
-      configuration.set(BigQuerySQLEngineUtils.MAPRED_OUTPUT_COMPRESS, "true");
-      configuration.set(BigQuerySQLEngineUtils.AVRO_OUTPUT_CODEC, BigQuerySQLEngineUtils.CODEC_SNAPPY);
+    if (sqlEngineConfig.shouldUseCompression() && BigQuerySinkUtils.getFileFormat(fields) == BigQueryFileFormat.AVRO) {
+      configuration.set(BigQuerySQLEngineUtils.PROPERTY_MAPRED_OUTPUT_COMPRESS, "true");
+      configuration.set(BigQuerySQLEngineUtils.PROPERTY_AVRO_OUTPUT_CODEC, BigQuerySQLEngineUtils.CODEC_SNAPPY);
     }
 
     BigQuerySinkUtils.configureBucket(configuration, bucket, runId);

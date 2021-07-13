@@ -19,6 +19,8 @@ package io.cdap.plugin.gcp.bigquery.sqlengine.input;
 import io.cdap.plugin.gcp.bigquery.source.BigQueryInputFormatProvider;
 import org.apache.hadoop.conf.Configuration;
 
+import java.util.Map;
+
 /**
  * Input format provider for BigQuery SQL Engine Pull operations.
  */

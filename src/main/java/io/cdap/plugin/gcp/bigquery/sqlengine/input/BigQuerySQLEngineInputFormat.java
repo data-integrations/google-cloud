@@ -42,6 +42,3 @@ public class BigQuerySQLEngineInputFormat extends PartitionedBigQueryInputFormat
     return delegateInputFormat.getSplits(context);
   }
 }
-
-
-

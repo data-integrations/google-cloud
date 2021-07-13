@@ -67,6 +67,7 @@ public class BigQuerySQLEngineAvroInputFormat extends AvroBigQueryInputFormat {
       BigQueryConfiguration.getTemporaryPathRoot(configuration, context.getJobID());
     configuration.set(BigQueryConfiguration.TEMP_GCS_PATH_KEY, exportPath);
 
+    // Change from overridden method. This invokes the local version of the constructExport method
     Export export = constructExport(
       configuration,
       getExportFileFormat(),
@@ -122,6 +123,7 @@ public class BigQuerySQLEngineAvroInputFormat extends AvroBigQueryInputFormat {
         configuration, format, bigQueryHelper, jobProjectId, table, null);
     }
 
+    // Change from overridden method, to use custom implementation of the Export class.
     return new BigQuerySQLEngineUnshardedExportToCloudStorage(
       configuration,
       exportPath,
