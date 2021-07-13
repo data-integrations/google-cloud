@@ -49,6 +49,9 @@ public class BigQuerySQLEngineUtils {
 
   public static final String GCS_PATH_FORMAT = BigQuerySinkUtils.GS_PATH_FORMAT + "/%s";
   public static final String BQ_TABLE_NAME_FORMAT = "%s_%s";
+  public static final String MAPRED_OUTPUT_COMPRESS = "mapred.output.compress";
+  public static final String AVRO_OUTPUT_CODEC = "avro.output.codec";
+  public static final String CODEC_SNAPPY = "snappy";
 
   private BigQuerySQLEngineUtils() {
     // no-op

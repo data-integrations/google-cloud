@@ -17,6 +17,7 @@
 package io.cdap.plugin.gcp.bigquery.sqlengine;
 
 import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
@@ -27,6 +28,7 @@ import io.cdap.cdap.etl.api.engine.sql.request.SQLPushRequest;
 import io.cdap.plugin.gcp.bigquery.sink.BigQueryOutputFormatProvider;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
 import io.cdap.plugin.gcp.bigquery.sink.Operation;
+import io.cdap.plugin.gcp.bigquery.sqlengine.output.BigQuerySQLEngineOutputFormatProvider;
 import io.cdap.plugin.gcp.bigquery.sqlengine.transform.PushTransform;
 import io.cdap.plugin.gcp.bigquery.sqlengine.util.BigQuerySQLEngineUtils;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
@@ -39,7 +41,7 @@ import java.util.List;
 /**
  * SQL Push Dataset implementation for BigQuery backed datasets.
  */
-public class BigQueryPushDataset extends BigQueryOutputFormatProvider
+public class BigQueryPushDataset extends BigQuerySQLEngineOutputFormatProvider
   implements SQLPushDataset<StructuredRecord, StructuredRecord, NullWritable>, BigQuerySQLDataset {
 
   private final String datasetName;
@@ -98,6 +100,13 @@ public class BigQueryPushDataset extends BigQueryOutputFormatProvider
     String gcsPath = BigQuerySQLEngineUtils.getGCSPath(bucket, runId, table);
     List<BigQueryTableFieldSchema> fields =
       BigQuerySinkUtils.getBigQueryTableFieldsFromSchema(pushRequest.getDatasetSchema());
+
+    // Enable Snappy compression if the output format is Avro
+    if (BigQuerySinkUtils.getFileFormat(fields) == BigQueryFileFormat.AVRO) {
+      configuration.set(BigQuerySQLEngineUtils.MAPRED_OUTPUT_COMPRESS, "true");
+      configuration.set(BigQuerySQLEngineUtils.AVRO_OUTPUT_CODEC, BigQuerySQLEngineUtils.CODEC_SNAPPY);
+    }
+
     BigQuerySinkUtils.configureBucket(configuration, bucket, runId);
     BigQuerySinkUtils.configureOutput(configuration, project, dataset, table, gcsPath, fields);
 

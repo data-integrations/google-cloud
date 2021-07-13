@@ -25,6 +25,7 @@ import io.cdap.cdap.etl.api.engine.sql.dataset.SQLPullDataset;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLPullRequest;
 import io.cdap.plugin.gcp.bigquery.source.BigQueryInputFormatProvider;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceUtils;
+import io.cdap.plugin.gcp.bigquery.sqlengine.input.BigQuerySQLEngineInputFormatProvider;
 import io.cdap.plugin.gcp.bigquery.sqlengine.transform.PullTransform;
 import io.cdap.plugin.gcp.bigquery.sqlengine.util.BigQuerySQLEngineUtils;
 import org.apache.avro.generic.GenericData;
@@ -37,7 +38,7 @@ import javax.annotation.Nullable;
 /**
  * SQL Pull Dataset implementation for BigQuery backed datasets.
  */
-public class BigQueryPullDataset extends BigQueryInputFormatProvider
+public class BigQueryPullDataset extends BigQuerySQLEngineInputFormatProvider
   implements SQLPullDataset<StructuredRecord, LongWritable, GenericData.Record>, BigQuerySQLDataset {
 
   private final BigQuery bigQuery;
