@@ -47,7 +47,7 @@ import java.util.concurrent.TimeUnit;
 public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<LongWritable, GenericData.Record> {
   private static final String DEFAULT_COLUMN_NAME = "_PARTITIONTIME";
 
-  private InputFormat<LongWritable, GenericData.Record> delegateInputFormat =
+  protected InputFormat<LongWritable, GenericData.Record> delegateInputFormat =
     new AvroBigQueryInputFormat();
 
   @Override
@@ -72,7 +72,7 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
     return new AvroRecordReader();
   }
 
-  private void processQuery(JobContext context) throws IOException, InterruptedException {
+  protected void processQuery(JobContext context) throws IOException, InterruptedException {
     final Configuration configuration = context.getConfiguration();
     BigQueryHelper bigQueryHelper;
     try {

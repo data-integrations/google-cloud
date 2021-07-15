@@ -34,6 +34,7 @@ public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
   public static final String NAME_RETAIN_TABLES = "retainTables";
   public static final String NAME_TEMP_TABLE_TTL_HOURS = "tempTableTTLHours";
   public static final String NAME_JOB_PRIORITY = "jobPriority";
+  public static final String NAME_USE_COMPRESSION = "useCompression";
 
   // Job priority options
   public static final String PRIORITY_BATCH = "batch";
@@ -70,6 +71,13 @@ public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
     "its priority is changed to 'interactive'")
   private String jobPriority;
 
+  @Name(NAME_USE_COMPRESSION)
+  @Macro
+  @Nullable
+  @Description("Use Snappy compression to transfer data to and from BigQuery for Pushdown execution. Requires " +
+    "the cluster to support Snappy compression to work.")
+  protected Boolean useCompression;
+
   @Nullable
   public String getLocation() {
     return location;
@@ -86,6 +94,10 @@ public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
   public QueryJobConfiguration.Priority getJobPriority() {
     String priority = jobPriority != null ? jobPriority : "batch";
     return QueryJobConfiguration.Priority.valueOf(priority.toUpperCase());
+  }
+
+  public Boolean shouldUseCompression() {
+    return useCompression != null ? useCompression : true;
   }
 
   /**
