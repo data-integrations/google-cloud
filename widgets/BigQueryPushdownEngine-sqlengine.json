@@ -12,7 +12,7 @@
           "label": "Dataset",
           "name": "dataset",
           "widget-attributes": {
-            "placeholder": "Dataset that will be used to store tables when the pipeline is executed."
+            "placeholder": "Dataset to be used to store temporary tables when the pipeline is run."
           }
         }
       ]
