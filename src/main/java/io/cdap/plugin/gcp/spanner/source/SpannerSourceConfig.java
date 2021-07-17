@@ -25,6 +25,7 @@ import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.plugin.PluginConfig;
 import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.plugin.common.ConfigUtil;
 import io.cdap.plugin.common.Constants;
 import io.cdap.plugin.common.IdUtils;
 import io.cdap.plugin.gcp.common.GCPConnectorConfig;
@@ -49,8 +50,6 @@ public class SpannerSourceConfig extends PluginConfig {
   public static final String NAME_TABLE = "table";
   public static final String NAME_IMPORT_QUERY = "importQuery";
   public static final String NAME_SCHEMA = "schema";
-  public static final String NAME_USE_CONNECTION = "useConnection";
-  public static final String NAME_CONNECTION = "connection";
 
   @Name(Constants.Reference.REFERENCE_NAME)
   @Description("This will be used to uniquely identify this source for lineage, annotating metadata, etc.")
@@ -89,12 +88,12 @@ public class SpannerSourceConfig extends PluginConfig {
   @Nullable
   public String schema;
 
-  @Name(NAME_USE_CONNECTION)
+  @Name(ConfigUtil.NAME_USE_CONNECTION)
   @Nullable
   @Description("Whether to use an existing connection.")
   private Boolean useConnection;
 
-  @Name(NAME_CONNECTION)
+  @Name(ConfigUtil.NAME_CONNECTION)
   @Macro
   @Nullable
   @Description("The existing connection to use.")
@@ -154,6 +153,7 @@ public class SpannerSourceConfig extends PluginConfig {
 
   public void validate(FailureCollector collector) {
     IdUtils.validateReferenceName(referenceName, collector);
+    ConfigUtil.validateConnection(this, useConnection, connection, collector);
     Schema schema = getSchema(collector);
     if (!containsMacro(NAME_SCHEMA) && schema != null) {
       SpannerUtil.validateSchema(schema, SUPPORTED_TYPES, collector);

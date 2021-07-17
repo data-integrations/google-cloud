@@ -29,9 +29,9 @@ import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.plugin.common.ConfigUtil;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySource;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
-import io.cdap.plugin.gcp.common.ConfigUtil;
 
 import java.util.AbstractMap.SimpleEntry;
 import java.util.List;
