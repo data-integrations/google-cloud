@@ -39,6 +39,7 @@ import io.cdap.cdap.etl.api.connector.ConnectorSpec;
 import io.cdap.cdap.etl.api.connector.ConnectorSpecRequest;
 import io.cdap.cdap.etl.api.connector.PluginSpec;
 import io.cdap.cdap.etl.api.validation.ValidationException;
+import io.cdap.plugin.common.ConfigUtil;
 import io.cdap.plugin.format.connector.AbstractFileConnector;
 import io.cdap.plugin.format.connector.FileTypeDetector;
 import io.cdap.plugin.gcp.common.GCPConnectorConfig;
@@ -57,7 +58,7 @@ import java.util.Map;
 @Plugin(type = Connector.PLUGIN_TYPE)
 @Name(GCSConnector.NAME)
 @Category("Google Cloud Platform")
-@Description("Connector to browse and sample from Google Cloud Storage")
+@Description("Connection to browse and sample data from Google Cloud Storage")
 public class GCSConnector extends AbstractFileConnector<GCPConnectorConfig> {
   public static final String NAME = "GCS";
   static final String BUCKET_TYPE = "bucket";
@@ -142,8 +143,8 @@ public class GCSConnector extends AbstractFileConnector<GCPConnectorConfig> {
     builder.addRelatedPlugin(
       new PluginSpec(GCSSource.NAME, BatchSource.PLUGIN_TYPE,
                      ImmutableMap.of(
-                       GCSSource.GCSSourceConfig.NAME_USE_CONNECTION, "true",
-                       GCSSource.GCSSourceConfig.NAME_CONNECTION, request.getConnectionWithMacro(),
+                       ConfigUtil.NAME_USE_CONNECTION, "true",
+                       ConfigUtil.NAME_CONNECTION, request.getConnectionWithMacro(),
                        GCSSource.GCSSourceConfig.NAME_PATH, getFullPath(request.getPath()))));
   }
 
