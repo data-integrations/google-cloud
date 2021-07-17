@@ -73,7 +73,7 @@
     <bigquery.connector.hadoop2.version>hadoop2-1.0.0</bigquery.connector.hadoop2.version>
     <commons.codec.version>1.4</commons.codec.version>
     <cdap.version>6.5.0-SNAPSHOT</cdap.version>
-    <cdap.plugin.version>2.7.0-SNAPSHOT</cdap.plugin.version>
+    <cdap.plugin.version>2.8.0-SNAPSHOT</cdap.plugin.version>
     <dropwizard.metrics-core.version>3.2.6</dropwizard.metrics-core.version>
     <flogger.system.backend.version>0.3.1</flogger.system.backend.version>
     <gcs.connector.version>hadoop2-2.0.0</gcs.connector.version>
