@@ -45,6 +45,8 @@ import io.cdap.cdap.etl.api.connector.PluginSpec;
 import io.cdap.cdap.etl.api.connector.SampleRequest;
 import io.cdap.cdap.etl.api.validation.ValidationException;
 import io.cdap.plugin.common.ConfigUtil;
+import io.cdap.plugin.common.Constants;
+import io.cdap.plugin.common.ReferenceNames;
 import io.cdap.plugin.gcp.common.GCPConnectorConfig;
 import io.cdap.plugin.gcp.spanner.common.SpannerUtil;
 import io.cdap.plugin.gcp.spanner.source.ResultSetToRecordTransformer;
@@ -166,6 +168,8 @@ public class SpannerConnector implements DirectConnector {
     String tableName = path.getTable();
     if (tableName != null) {
       properties.put(SpannerSourceConfig.NAME_TABLE, tableName);
+      properties.put(Constants.Reference.REFERENCE_NAME,
+                     ReferenceNames.cleanseReferenceName(instanceName + "." + databaseName + "." + tableName));
       Schema schema = getTableSchema(instanceName, databaseName, tableName, context.getFailureCollector());
       specBuilder.setSchema(schema);
     }
