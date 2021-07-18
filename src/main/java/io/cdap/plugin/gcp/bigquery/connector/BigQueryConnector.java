@@ -50,6 +50,8 @@ import io.cdap.cdap.etl.api.connector.PluginSpec;
 import io.cdap.cdap.etl.api.connector.SampleRequest;
 import io.cdap.cdap.etl.api.validation.ValidationException;
 import io.cdap.plugin.common.ConfigUtil;
+import io.cdap.plugin.common.Constants;
+import io.cdap.plugin.common.ReferenceNames;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySource;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceConfig;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryDataParser;
@@ -276,6 +278,8 @@ public final class BigQueryConnector implements DirectConnector {
       if (definition.getType() != TableDefinition.Type.TABLE) {
         properties.put(BigQuerySourceConfig.NAME_ENABLE_QUERYING_VIEWS, "true");
       }
+      properties.put(Constants.Reference.REFERENCE_NAME,
+                     ReferenceNames.cleanseReferenceName(datasetName + "." + tableName));
     }
     return specBuilder.addRelatedPlugin(new PluginSpec(BigQuerySource.NAME, BatchSource.PLUGIN_TYPE, properties))
       .build();
