@@ -139,7 +139,9 @@ public class GCSConnectorTest {
   }
 
   private void testGCSConnector(GCPConnectorConfig config, List<BrowseEntity> entities) throws IOException {
-    GCSConnector connector = new GCSConnector(config);
+    GCSConnector connector = new GCSConnector(new GCSConnectorConfig(
+      config.getProject(), config.getServiceAccountType(), config.getServiceAccountFilePath(),
+      config.getServiceAccountJson(), null));
     MockConnectorContext context = new MockConnectorContext(new MockConnectorConfigurer());
     connector.test(context);
     Assert.assertTrue(context.getFailureCollector().getValidationFailures().isEmpty());

@@ -114,7 +114,9 @@ public class BigQueryConnectorTest {
   }
 
   private void test(BigQueryConnectorConfig config) throws IOException {
-    BigQueryConnector connector = new BigQueryConnector(config);
+    BigQueryConnector connector = new BigQueryConnector(new BigQueryConnectorSpecificConfig(
+      config.getProject(), config.getDatasetProject(), config.getServiceAccountType(),
+      config.getServiceAccountFilePath(), config.getServiceAccountJson(), null));
     testTest(connector);
     testBrowse(connector);
     testSample(connector);
