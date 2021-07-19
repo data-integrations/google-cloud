@@ -28,6 +28,7 @@ import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.plugin.PluginConfig;
 import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.plugin.common.ConfigUtil;
 import io.cdap.plugin.common.Constants;
 import io.cdap.plugin.common.IdUtils;
 import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnectorConfig;
@@ -57,8 +58,6 @@ public final class BigQuerySourceConfig extends PluginConfig {
   public static final String NAME_ENABLE_QUERYING_VIEWS = "enableQueryingViews";
   public static final String NAME_VIEW_MATERIALIZATION_PROJECT = "viewMaterializationProject";
   public static final String NAME_VIEW_MATERIALIZATION_DATASET = "viewMaterializationDataset";
-  public static final String NAME_USE_CONNECTION = "useConnection";
-  public static final String NAME_CONNECTION = "connection";
 
   @Name(Constants.Reference.REFERENCE_NAME)
   @Description("This will be used to uniquely identify this source for lineage, annotating metadata, etc.")
@@ -135,12 +134,12 @@ public final class BigQuerySourceConfig extends PluginConfig {
     + "Defaults to the same dataset in which the view is located.")
   private String viewMaterializationDataset;
 
-  @Name(NAME_USE_CONNECTION)
+  @Name(ConfigUtil.NAME_USE_CONNECTION)
   @Nullable
   @Description("Whether to use an existing connection.")
   private Boolean useConnection;
 
-  @Name(NAME_CONNECTION)
+  @Name(ConfigUtil.NAME_CONNECTION)
   @Macro
   @Nullable
   @Description("The existing connection to use.")
@@ -207,6 +206,7 @@ public final class BigQuerySourceConfig extends PluginConfig {
 
   public void validate(FailureCollector collector) {
     IdUtils.validateReferenceName(referenceName, collector);
+    ConfigUtil.validateConnection(this, useConnection, connection, collector);
     String bucket = getBucket();
 
     if (!containsMacro(NAME_BUCKET)) {
