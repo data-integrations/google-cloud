@@ -22,7 +22,6 @@ import com.google.auth.Credentials;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
-import com.google.common.collect.ImmutableMap;
 import io.cdap.cdap.api.annotation.Category;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
@@ -40,6 +39,8 @@ import io.cdap.cdap.etl.api.connector.ConnectorSpecRequest;
 import io.cdap.cdap.etl.api.connector.PluginSpec;
 import io.cdap.cdap.etl.api.validation.ValidationException;
 import io.cdap.plugin.common.ConfigUtil;
+import io.cdap.plugin.common.Constants;
+import io.cdap.plugin.common.ReferenceNames;
 import io.cdap.plugin.format.connector.AbstractFileConnector;
 import io.cdap.plugin.format.connector.FileTypeDetector;
 import io.cdap.plugin.gcp.common.GCPConnectorConfig;
@@ -140,12 +141,18 @@ public class GCSConnector extends AbstractFileConnector<GCPConnectorConfig> {
   @Override
   protected void setConnectorSpec(ConnectorSpecRequest request, ConnectorSpec.Builder builder) {
     super.setConnectorSpec(request, builder);
-    builder.addRelatedPlugin(
-      new PluginSpec(GCSSource.NAME, BatchSource.PLUGIN_TYPE,
-                     ImmutableMap.of(
-                       ConfigUtil.NAME_USE_CONNECTION, "true",
-                       ConfigUtil.NAME_CONNECTION, request.getConnectionWithMacro(),
-                       GCSSource.GCSSourceConfig.NAME_PATH, getFullPath(request.getPath()))));
+    Map<String, String> properties = new HashMap<>();
+    properties.put(GCSSource.GCSSourceConfig.NAME_PATH, getFullPath(request.getPath()));
+    properties.put(GCSSource.GCSSourceConfig.NAME_FORMAT, FileTypeDetector.detectFileFormat(
+      FileTypeDetector.detectFileType(request.getPath())).name().toLowerCase());
+    properties.put(ConfigUtil.NAME_USE_CONNECTION, "true");
+    properties.put(ConfigUtil.NAME_CONNECTION, request.getConnectionWithMacro());
+    if (!isRoot(request.getPath())) {
+      GCSPath gcsPath = GCSPath.from(request.getPath());
+      properties.put(Constants.Reference.REFERENCE_NAME,
+                     ReferenceNames.cleanseReferenceName(gcsPath.getBucket() + "." + gcsPath.getName()));
+    }
+    builder.addRelatedPlugin(new PluginSpec(GCSSource.NAME, BatchSource.PLUGIN_TYPE, properties));
   }
 
   private BrowseDetail browseBuckets(int limit) throws IOException {

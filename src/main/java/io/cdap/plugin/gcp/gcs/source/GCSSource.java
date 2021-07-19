@@ -122,9 +122,9 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
   @SuppressWarnings("ConstantConditions")
   public static class GCSSourceConfig extends PluginConfig implements FileSourceProperties {
     public static final String NAME_PATH = "path";
+    public static final String NAME_FORMAT = "format";
     private static final String NAME_FILE_SYSTEM_PROPERTIES = "fileSystemProperties";
     private static final String NAME_FILE_REGEX = "fileRegex";
-    private static final String NAME_FORMAT = "format";
     private static final String NAME_DELIMITER = "delimiter";
 
     private static final String DEFAULT_ENCRYPTED_METADATA_SUFFIX = ".metadata";
