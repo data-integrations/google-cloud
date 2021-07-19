@@ -69,9 +69,9 @@ public class GCSConnector extends AbstractFileConnector<GCPConnectorConfig> {
   static final String SIZE_KEY = "Size";
   static final String FILE_TYPE_KEY = "File Type";
 
-  private GCPConnectorConfig config;
+  private GCSConnectorConfig config;
 
-  public GCSConnector(GCPConnectorConfig config) {
+  public GCSConnector(GCSConnectorConfig config) {
     super(config);
     this.config = config;
   }
@@ -120,7 +120,10 @@ public class GCSConnector extends AbstractFileConnector<GCPConnectorConfig> {
     String path = request.getPath();
     int limit = request.getLimit() == null || request.getLimit() <= 0 ? Integer.MAX_VALUE : request.getLimit();
     if (isRoot(path)) {
-      return browseBuckets(limit);
+      // if the root bucket is set just return it
+      return config.rootBucket ==  null ? browseBuckets(limit) : BrowseDetail.builder().setTotalCount(1).addEntity(
+        BrowseEntity.builder(config.rootBucket, config.rootBucket, BUCKET_TYPE)
+          .canBrowse(true).canSample(true).build()).build();
     }
     return browseBlobs(GCSPath.from(path), limit);
   }

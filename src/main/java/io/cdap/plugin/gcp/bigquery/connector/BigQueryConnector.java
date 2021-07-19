@@ -76,9 +76,9 @@ public final class BigQueryConnector implements DirectConnector {
   public static final String NAME = "BigQuery";
   public static final String ENTITY_TYPE_DATASET = "dataset";
   private static final int ERROR_CODE_NOT_FOUND = 404;
-  private BigQueryConnectorConfig config;
+  private BigQueryConnectorSpecificConfig config;
 
-  BigQueryConnector(BigQueryConnectorConfig config) {
+  BigQueryConnector(BigQueryConnectorSpecificConfig config) {
     this.config = config;
   }
 
@@ -137,7 +137,11 @@ public final class BigQueryConnector implements DirectConnector {
     String dataset = path.getDataset();
     if (dataset == null) {
       // browse project to list all datasets
-      return listDatasets(getBigQuery(config.getDatasetProject()), browseRequest.getLimit());
+      return config.rootDataset == null ?
+               listDatasets(getBigQuery(config.getDatasetProject()), browseRequest.getLimit()) :
+               BrowseDetail.builder().setTotalCount(1).addEntity(
+                 BrowseEntity.builder(config.rootDataset, "/" + config.rootDataset, ENTITY_TYPE_DATASET)
+                   .canBrowse(true).build()).build();
     }
     String table = path.getTable();
     if (table == null) {
