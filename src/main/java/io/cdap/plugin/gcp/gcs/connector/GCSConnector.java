@@ -22,7 +22,6 @@ import com.google.auth.Credentials;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
-import com.google.common.collect.ImmutableMap;
 import io.cdap.cdap.api.annotation.Category;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
@@ -39,6 +38,9 @@ import io.cdap.cdap.etl.api.connector.ConnectorSpec;
 import io.cdap.cdap.etl.api.connector.ConnectorSpecRequest;
 import io.cdap.cdap.etl.api.connector.PluginSpec;
 import io.cdap.cdap.etl.api.validation.ValidationException;
+import io.cdap.plugin.common.ConfigUtil;
+import io.cdap.plugin.common.Constants;
+import io.cdap.plugin.common.ReferenceNames;
 import io.cdap.plugin.format.connector.AbstractFileConnector;
 import io.cdap.plugin.format.connector.FileTypeDetector;
 import io.cdap.plugin.gcp.common.GCPConnectorConfig;
@@ -57,7 +59,7 @@ import java.util.Map;
 @Plugin(type = Connector.PLUGIN_TYPE)
 @Name(GCSConnector.NAME)
 @Category("Google Cloud Platform")
-@Description("Connector to browse and sample from Google Cloud Storage")
+@Description("Connection to browse and sample data from Google Cloud Storage")
 public class GCSConnector extends AbstractFileConnector<GCPConnectorConfig> {
   public static final String NAME = "GCS";
   static final String BUCKET_TYPE = "bucket";
@@ -67,9 +69,9 @@ public class GCSConnector extends AbstractFileConnector<GCPConnectorConfig> {
   static final String SIZE_KEY = "Size";
   static final String FILE_TYPE_KEY = "File Type";
 
-  private GCPConnectorConfig config;
+  private GCSConnectorConfig config;
 
-  public GCSConnector(GCPConnectorConfig config) {
+  public GCSConnector(GCSConnectorConfig config) {
     super(config);
     this.config = config;
   }
@@ -118,7 +120,10 @@ public class GCSConnector extends AbstractFileConnector<GCPConnectorConfig> {
     String path = request.getPath();
     int limit = request.getLimit() == null || request.getLimit() <= 0 ? Integer.MAX_VALUE : request.getLimit();
     if (isRoot(path)) {
-      return browseBuckets(limit);
+      // if the root bucket is set just return it
+      return config.rootBucket ==  null ? browseBuckets(limit) : BrowseDetail.builder().setTotalCount(1).addEntity(
+        BrowseEntity.builder(config.rootBucket, config.rootBucket, BUCKET_TYPE)
+          .canBrowse(true).canSample(true).build()).build();
     }
     return browseBlobs(GCSPath.from(path), limit);
   }
@@ -139,12 +144,18 @@ public class GCSConnector extends AbstractFileConnector<GCPConnectorConfig> {
   @Override
   protected void setConnectorSpec(ConnectorSpecRequest request, ConnectorSpec.Builder builder) {
     super.setConnectorSpec(request, builder);
-    builder.addRelatedPlugin(
-      new PluginSpec(GCSSource.NAME, BatchSource.PLUGIN_TYPE,
-                     ImmutableMap.of(
-                       GCSSource.GCSSourceConfig.NAME_USE_CONNECTION, "true",
-                       GCSSource.GCSSourceConfig.NAME_CONNECTION, request.getConnectionWithMacro(),
-                       GCSSource.GCSSourceConfig.NAME_PATH, getFullPath(request.getPath()))));
+    Map<String, String> properties = new HashMap<>();
+    properties.put(GCSSource.GCSSourceConfig.NAME_PATH, getFullPath(request.getPath()));
+    properties.put(GCSSource.GCSSourceConfig.NAME_FORMAT, FileTypeDetector.detectFileFormat(
+      FileTypeDetector.detectFileType(request.getPath())).name().toLowerCase());
+    properties.put(ConfigUtil.NAME_USE_CONNECTION, "true");
+    properties.put(ConfigUtil.NAME_CONNECTION, request.getConnectionWithMacro());
+    if (!isRoot(request.getPath())) {
+      GCSPath gcsPath = GCSPath.from(request.getPath());
+      properties.put(Constants.Reference.REFERENCE_NAME,
+                     ReferenceNames.cleanseReferenceName(gcsPath.getBucket() + "." + gcsPath.getName()));
+    }
+    builder.addRelatedPlugin(new PluginSpec(GCSSource.NAME, BatchSource.PLUGIN_TYPE, properties));
   }
 
   private BrowseDetail browseBuckets(int limit) throws IOException {

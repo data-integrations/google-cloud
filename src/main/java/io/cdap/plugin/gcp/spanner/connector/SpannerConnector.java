@@ -44,6 +44,9 @@ import io.cdap.cdap.etl.api.connector.DirectConnector;
 import io.cdap.cdap.etl.api.connector.PluginSpec;
 import io.cdap.cdap.etl.api.connector.SampleRequest;
 import io.cdap.cdap.etl.api.validation.ValidationException;
+import io.cdap.plugin.common.ConfigUtil;
+import io.cdap.plugin.common.Constants;
+import io.cdap.plugin.common.ReferenceNames;
 import io.cdap.plugin.gcp.common.GCPConnectorConfig;
 import io.cdap.plugin.gcp.spanner.common.SpannerUtil;
 import io.cdap.plugin.gcp.spanner.source.ResultSetToRecordTransformer;
@@ -63,8 +66,7 @@ import java.util.stream.Collectors;
 @Plugin(type = Connector.PLUGIN_TYPE)
 @Name(SpannerConnector.NAME)
 @Category("Google Cloud Platform")
-@Description("This connector creates connections to Spanner, browses Spanner databases and tables, samples Spanner " +
-  "tables. Spanner is Google's fully managed relational database with unlimited scale and strong consistency.")
+@Description("Connection to browse and sample data from Spanner databases and tables.")
 public class SpannerConnector implements DirectConnector {
   public static final String NAME = "Spanner";
   public static final String ENTITY_TYPE_INSTANCE = "instance";
@@ -152,8 +154,8 @@ public class SpannerConnector implements DirectConnector {
     SpannerPath path = new SpannerPath(connectorSpecRequest.getPath());
     ConnectorSpec.Builder specBuilder = ConnectorSpec.builder();
     Map<String, String> properties = new HashMap<>();
-    properties.put(SpannerSourceConfig.NAME_USE_CONNECTION, "true");
-    properties.put(SpannerSourceConfig.NAME_CONNECTION, connectorSpecRequest.getConnectionWithMacro());
+    properties.put(ConfigUtil.NAME_USE_CONNECTION, "true");
+    properties.put(ConfigUtil.NAME_CONNECTION, connectorSpecRequest.getConnectionWithMacro());
 
     String instanceName = path.getInstance();
     if (instanceName != null) {
@@ -166,6 +168,8 @@ public class SpannerConnector implements DirectConnector {
     String tableName = path.getTable();
     if (tableName != null) {
       properties.put(SpannerSourceConfig.NAME_TABLE, tableName);
+      properties.put(Constants.Reference.REFERENCE_NAME,
+                     ReferenceNames.cleanseReferenceName(instanceName + "." + databaseName + "." + tableName));
       Schema schema = getTableSchema(instanceName, databaseName, tableName, context.getFailureCollector());
       specBuilder.setSchema(schema);
     }

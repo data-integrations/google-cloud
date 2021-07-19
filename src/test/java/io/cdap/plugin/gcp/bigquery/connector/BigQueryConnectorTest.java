@@ -30,8 +30,8 @@ import io.cdap.cdap.etl.api.connector.SampleRequest;
 import io.cdap.cdap.etl.api.validation.ValidationException;
 import io.cdap.cdap.etl.mock.common.MockConnectorConfigurer;
 import io.cdap.cdap.etl.mock.common.MockConnectorContext;
+import io.cdap.plugin.common.ConfigUtil;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySource;
-import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceConfig;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.BeforeClass;
@@ -114,7 +114,9 @@ public class BigQueryConnectorTest {
   }
 
   private void test(BigQueryConnectorConfig config) throws IOException {
-    BigQueryConnector connector = new BigQueryConnector(config);
+    BigQueryConnector connector = new BigQueryConnector(new BigQueryConnectorSpecificConfig(
+      config.getProject(), config.getDatasetProject(), config.getServiceAccountType(),
+      config.getServiceAccountFilePath(), config.getServiceAccountJson(), null));
     testTest(connector);
     testBrowse(connector);
     testSample(connector);
@@ -139,8 +141,8 @@ public class BigQueryConnectorTest {
     Map<String, String> properties = pluginSpec.getProperties();
     Assert.assertEquals(dataset, properties.get("dataset"));
     Assert.assertEquals(table, properties.get("table"));
-    Assert.assertEquals("true", properties.get(BigQuerySourceConfig.NAME_USE_CONNECTION));
-    Assert.assertEquals("${conn(connection-id)}", properties.get(BigQuerySourceConfig.NAME_CONNECTION));
+    Assert.assertEquals("true", properties.get(ConfigUtil.NAME_USE_CONNECTION));
+    Assert.assertEquals("${conn(connection-id)}", properties.get(ConfigUtil.NAME_CONNECTION));
   }
 
   private void testSample(BigQueryConnector connector) throws IOException {

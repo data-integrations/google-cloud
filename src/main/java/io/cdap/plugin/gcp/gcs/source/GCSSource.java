@@ -32,6 +32,7 @@ import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
 import io.cdap.cdap.etl.api.connector.Connector;
+import io.cdap.plugin.common.ConfigUtil;
 import io.cdap.plugin.common.Constants;
 import io.cdap.plugin.common.IdUtils;
 import io.cdap.plugin.common.LineageRecorder;
@@ -121,11 +122,9 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
   @SuppressWarnings("ConstantConditions")
   public static class GCSSourceConfig extends PluginConfig implements FileSourceProperties {
     public static final String NAME_PATH = "path";
-    public static final String NAME_USE_CONNECTION = "useConnection";
-    public static final String NAME_CONNECTION = "connection";
+    public static final String NAME_FORMAT = "format";
     private static final String NAME_FILE_SYSTEM_PROPERTIES = "fileSystemProperties";
     private static final String NAME_FILE_REGEX = "fileRegex";
-    private static final String NAME_FORMAT = "format";
     private static final String NAME_DELIMITER = "delimiter";
 
     private static final String DEFAULT_ENCRYPTED_METADATA_SUFFIX = ".metadata";
@@ -239,12 +238,12 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
     @Description("The maximum number of rows that will get investigated for automatic data type detection.")
     private Long sampleSize;
 
-    @Name(NAME_USE_CONNECTION)
+    @Name(ConfigUtil.NAME_USE_CONNECTION)
     @Nullable
     @Description("Whether to use an existing connection.")
     private Boolean useConnection;
 
-    @Name(NAME_CONNECTION)
+    @Name(ConfigUtil.NAME_CONNECTION)
     @Macro
     @Nullable
     @Description("The existing connection to use.")
@@ -259,12 +258,7 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
 
     public void validate(FailureCollector collector) {
       IdUtils.validateReferenceName(referenceName, collector);
-      // if use connection is false but connection is provided as macro, fail the validation
-      if (useConnection != null && !useConnection && containsMacro(NAME_CONNECTION)) {
-        collector.addFailure(
-          String.format("Connection cannot be used when %s is set to false.", NAME_USE_CONNECTION),
-          String.format("Please set %s to true.", NAME_USE_CONNECTION)).withConfigProperty(NAME_USE_CONNECTION);
-      }
+      ConfigUtil.validateConnection(this, useConnection, connection, collector);
       // validate that path is valid
       if (!containsMacro(NAME_PATH)) {
         try {

@@ -24,8 +24,8 @@ import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.plugin.common.ConfigUtil;
 import io.cdap.plugin.gcp.bigtable.common.HBaseColumn;
-import io.cdap.plugin.gcp.common.ConfigUtil;
 import io.cdap.plugin.gcp.common.ErrorHandling;
 import io.cdap.plugin.gcp.common.GCPReferenceSourceConfig;
 

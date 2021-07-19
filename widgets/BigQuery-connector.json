@@ -22,6 +22,10 @@
           "widget-attributes": {
             "placeholder": "Project the dataset belongs to, if different from the Project ID."
           }
+        },
+        {
+          "widget-type": "hidden",
+          "name": "rootDataset"
         }
       ]
     },

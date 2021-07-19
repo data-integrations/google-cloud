@@ -49,6 +49,9 @@ import io.cdap.cdap.etl.api.connector.DirectConnector;
 import io.cdap.cdap.etl.api.connector.PluginSpec;
 import io.cdap.cdap.etl.api.connector.SampleRequest;
 import io.cdap.cdap.etl.api.validation.ValidationException;
+import io.cdap.plugin.common.ConfigUtil;
+import io.cdap.plugin.common.Constants;
+import io.cdap.plugin.common.ReferenceNames;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySource;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceConfig;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryDataParser;
@@ -68,15 +71,14 @@ import javax.annotation.Nullable;
 @Plugin(type = Connector.PLUGIN_TYPE)
 @Name(BigQueryConnector.NAME)
 @Category("Google Cloud Platform")
-@Description("This connector creates connections to BigQuery, browses BigQuery datasets and tables, sample BigQuery " +
-  "tables. BigQuery is Google's serverless, highly scalable, enterprise data warehouse.")
+@Description("Connection to browse and sample data from BigQuery datasets and tables.")
 public final class BigQueryConnector implements DirectConnector {
   public static final String NAME = "BigQuery";
   public static final String ENTITY_TYPE_DATASET = "dataset";
   private static final int ERROR_CODE_NOT_FOUND = 404;
-  private BigQueryConnectorConfig config;
+  private BigQueryConnectorSpecificConfig config;
 
-  BigQueryConnector(BigQueryConnectorConfig config) {
+  BigQueryConnector(BigQueryConnectorSpecificConfig config) {
     this.config = config;
   }
 
@@ -135,7 +137,11 @@ public final class BigQueryConnector implements DirectConnector {
     String dataset = path.getDataset();
     if (dataset == null) {
       // browse project to list all datasets
-      return listDatasets(getBigQuery(config.getDatasetProject()), browseRequest.getLimit());
+      return config.rootDataset == null ?
+               listDatasets(getBigQuery(config.getDatasetProject()), browseRequest.getLimit()) :
+               BrowseDetail.builder().setTotalCount(1).addEntity(
+                 BrowseEntity.builder(config.rootDataset, "/" + config.rootDataset, ENTITY_TYPE_DATASET)
+                   .canBrowse(true).build()).build();
     }
     String table = path.getTable();
     if (table == null) {
@@ -260,8 +266,8 @@ public final class BigQueryConnector implements DirectConnector {
     BigQueryPath path = new BigQueryPath(connectorSpecRequest.getPath());
     ConnectorSpec.Builder specBuilder = ConnectorSpec.builder();
     Map<String, String> properties = new HashMap<>();
-    properties.put(BigQuerySourceConfig.NAME_USE_CONNECTION, "true");
-    properties.put(BigQuerySourceConfig.NAME_CONNECTION, connectorSpecRequest.getConnectionWithMacro());
+    properties.put(ConfigUtil.NAME_USE_CONNECTION, "true");
+    properties.put(ConfigUtil.NAME_CONNECTION, connectorSpecRequest.getConnectionWithMacro());
     String datasetName = path.getDataset();
     if (datasetName != null) {
       properties.put(BigQuerySourceConfig.NAME_DATASET, datasetName);
@@ -276,6 +282,8 @@ public final class BigQueryConnector implements DirectConnector {
       if (definition.getType() != TableDefinition.Type.TABLE) {
         properties.put(BigQuerySourceConfig.NAME_ENABLE_QUERYING_VIEWS, "true");
       }
+      properties.put(Constants.Reference.REFERENCE_NAME,
+                     ReferenceNames.cleanseReferenceName(datasetName + "." + tableName));
     }
     return specBuilder.addRelatedPlugin(new PluginSpec(BigQuerySource.NAME, BatchSource.PLUGIN_TYPE, properties))
       .build();

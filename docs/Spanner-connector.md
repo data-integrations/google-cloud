@@ -1,13 +1,13 @@
-# Google Cloud Storage Connector
+# Google Cloud Spanner Connector
 
 Description
 -----------
-This plugin can be used to browse and sample data from Google Cloud Storage.
+This plugin can be used to browse and sample data from Google Cloud Spanner.
 
-Cloud Storage allows world-wide storage and retrieval of any amount of data at any time.
-You can use Cloud Storage for a range of scenarios including serving website content,
-storing data for archival and disaster recovery,
-or distributing large data objects to users via direct download.
+Cloud Spanner is the only enterprise-grade, globally-distributed, and strongly-consistent database service built for the
+cloud, specifically to combine the benefits of relational database structure with non-relational horizontal scale. It is
+a unique database that combines transactions, SQL queries, and relational structure with the scalability that you
+typically associate with non-relational or NoSQL databases.
 
 Properties
 ----------
