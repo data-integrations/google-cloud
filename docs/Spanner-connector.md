@@ -2,15 +2,14 @@
 
 Description
 -----------
-This plugin can be used to browse and sample data from Google Cloud Spanner.
-
-Cloud Spanner is the only enterprise-grade, globally-distributed, and strongly-consistent database service built for the
-cloud, specifically to combine the benefits of relational database structure with non-relational horizontal scale. It is
-a unique database that combines transactions, SQL queries, and relational structure with the scalability that you
-typically associate with non-relational or NoSQL databases.
+Use this connection to access data in Google Cloud Spanner.
 
 Properties
 ----------
+**Name:** Name of the connection. Connection names must be unique in a namespace.
+
+**Description:** Description of the connection.
+
 **Project ID**: Google Cloud Project ID, which uniquely identifies a project.
 It can be found on the Dashboard in the Google Cloud Platform Console.
 
