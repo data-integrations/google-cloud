@@ -2,14 +2,14 @@
 
 Description
 -----------
-This plugin can be used to browse and sample data from Google BigQuery.
-
-Storing and querying massive datasets can be time consuming and expensive without the right hardware and infrastructure.
-BigQuery is an enterprise data warehouse that solves this problem by enabling super-fast SQL queries using the
-processing power of Google's infrastructure. Properties
+Use this connection to access data in Google BigQuery.
 
 Properties
 ----------
+**Name:** Name of the connection. Connection names must be unique in a namespace.
+
+**Description:** Description of the connection.
+
 **Project ID**: Google Cloud Project ID, which uniquely identifies a project. This is where the BigQuery job will be run
 to query the data. It can be found on the Dashboard in the Google Cloud Platform Console. Make sure the service account
 specified below has the permission to run BigQuery jobs in this project by granting the service account
