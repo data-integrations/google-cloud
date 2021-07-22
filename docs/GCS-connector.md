@@ -2,15 +2,14 @@
 
 Description
 -----------
-This plugin can be used to browse and sample data from Google Cloud Storage.
-
-Cloud Storage allows world-wide storage and retrieval of any amount of data at any time.
-You can use Cloud Storage for a range of scenarios including serving website content,
-storing data for archival and disaster recovery,
-or distributing large data objects to users via direct download.
+Use this connection to access data in Google Cloud Storage.
 
 Properties
 ----------
+**Name:** Name of the connection. Connection names must be unique in a namespace.
+
+**Description:** Description of the connection.
+
 **Project ID**: Google Cloud Project ID, which uniquely identifies a project.
 It can be found on the Dashboard in the Google Cloud Platform Console.
 
