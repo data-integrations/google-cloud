@@ -123,7 +123,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     // Create BigQuery client
     String serviceAccount = config.getServiceAccount();
     Credentials credentials = BigQuerySourceUtils.getCredentials(config.getConnection());
-    BigQuery bigQuery = GCPUtils.getBigQuery(config.getDatasetProject(), credentials);
+    BigQuery bigQuery = GCPUtils.getBigQuery(config.getProject(), credentials);
 
     // Get Configuration for this run
     bucketPath = UUID.randomUUID().toString();

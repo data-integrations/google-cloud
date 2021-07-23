@@ -476,23 +476,8 @@ public final class BigQueryUtil {
 
   /**
    * Get BigQuery table.
-   *
-   * @param projectId BigQuery project ID
-   * @param datasetId BigQuery dataset ID
-   * @param tableName BigQuery table name
-   * @param serviceAccountPath service account file path
-   * @return BigQuery table
-   */
-  @Nullable
-  public static Table getBigQueryTable(String projectId, String datasetId, String tableName,
-                                       @Nullable String serviceAccountPath) {
-    return getBigQueryTable(projectId, datasetId, tableName, serviceAccountPath, true);
-  }
-
-  /**
-   * Get BigQuery table.
-   *
-   * @param projectId BigQuery project ID
+   * @param project project where the BQ job will be run
+   * @param datasetProject project where dataset is in
    * @param datasetId BigQuery dataset ID
    * @param tableName BigQuery table name
    * @param serviceAccount service account file path or JSON content
@@ -500,9 +485,9 @@ public final class BigQueryUtil {
    * @return BigQuery table
    */
   @Nullable
-  public static Table getBigQueryTable(String projectId, String datasetId, String tableName,
+  public static Table getBigQueryTable(String project, String datasetProject, String datasetId, String tableName,
                                        @Nullable String serviceAccount, boolean isServiceAccountFilePath) {
-    TableId tableId = TableId.of(projectId, datasetId, tableName);
+    TableId tableId = TableId.of(datasetProject, datasetId, tableName);
 
     com.google.auth.Credentials credentials = null;
     if (serviceAccount != null) {
@@ -514,7 +499,7 @@ public final class BigQueryUtil {
           "serviceFilePath");
       }
     }
-    BigQuery bigQuery = GCPUtils.getBigQuery(projectId, credentials);
+    BigQuery bigQuery = GCPUtils.getBigQuery(project, credentials);
 
     Table table;
     try {

@@ -40,7 +40,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -218,7 +217,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
    */
   private void configureTable(Schema schema) {
     AbstractBigQuerySinkConfig config = getConfig();
-    Table table = BigQueryUtil.getBigQueryTable(config.getDatasetProject(), config.getDataset(),
+    Table table = BigQueryUtil.getBigQueryTable(config.getProject(), config.getDatasetProject(), config.getDataset(),
                                                 config.getTable(),
                                                 config.getServiceAccount(),
                                                 config.isServiceAccountFilePath());
