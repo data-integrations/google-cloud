@@ -27,3 +27,5 @@ it can automatically be read from the environment. In other environments, the se
   node in the cluster.
 
 * **JSON**: Contents of the service account JSON file.
+
+**Show Hidden Datasets:** Whether to show hidden datasets.
