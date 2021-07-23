@@ -195,7 +195,7 @@ public final class BigQueryConnector implements DirectConnector {
   }
 
   private BrowseDetail listDatasets(BigQuery bigQuery, Integer limit) {
-    Page<Dataset> datasetPage = bigQuery.listDatasets(BigQuery.DatasetListOption.all());
+    Page<Dataset> datasetPage = bigQuery.listDatasets();
     int countLimit = limit == null || limit <= 0 ? Integer.MAX_VALUE : limit;
     int count = 0;
     BrowseDetail.Builder browseDetailBuilder = BrowseDetail.builder();
