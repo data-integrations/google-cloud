@@ -29,11 +29,20 @@ public class BigQueryConnectorSpecificConfig extends BigQueryConnectorConfig {
   @Description("The root dataset to browse when a root path is given")
   protected String rootDataset;
 
+  @Nullable
+  @Description("Whether to show hidden datasets")
+  protected Boolean showHiddenDatasets;
+
   public BigQueryConnectorSpecificConfig(@Nullable String project, @Nullable String datasetProject,
                                          @Nullable String serviceAccountType, @Nullable String serviceFilePath,
                                          @Nullable String serviceAccountJson,
                                          @Nullable String rootDataset) {
     super(project, datasetProject, serviceAccountType, serviceFilePath, serviceAccountJson);
     this.rootDataset = rootDataset;
+    this.showHiddenDatasets = false;
+  }
+
+  public boolean showHiddenDatasets() {
+    return showHiddenDatasets == null ? false : showHiddenDatasets;
   }
 }

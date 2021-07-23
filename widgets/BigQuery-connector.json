@@ -26,6 +26,22 @@
         {
           "widget-type": "hidden",
           "name": "rootDataset"
+        },
+        {
+          "widget-type": "toggle",
+          "label": "Show Hidden Datasets",
+          "name": "showHiddenDatasets",
+          "widget-attributes": {
+            "on": {
+              "value": "true",
+              "label": "YES"
+            },
+            "off": {
+              "value": "false",
+              "label": "NO"
+            },
+            "default": "false"
+          }
         }
       ]
     },
