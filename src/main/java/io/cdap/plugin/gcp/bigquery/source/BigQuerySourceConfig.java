@@ -242,7 +242,7 @@ public final class BigQuerySourceConfig extends PluginConfig {
    */
   public Type getSourceTableType() {
     Table sourceTable =
-      BigQueryUtil.getBigQueryTable(
+      BigQueryUtil.getBigQueryTable(getProject(),
         getDatasetProject(), getDataset(), table, getServiceAccount(), isServiceAccountFilePath());
     return sourceTable != null ? sourceTable.getDefinition().getType() : null;
   }

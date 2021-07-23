@@ -19,6 +19,7 @@ package io.cdap.plugin.gcp.bigquery.source;
 import com.google.auth.Credentials;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.Dataset;
+import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnectorConfig;
@@ -78,7 +79,7 @@ public class BigQuerySourceUtils {
       configuration.setBoolean("fs.gs.bucket.delete.enable", true);
 
       // the dataset existence is validated before, so this cannot be null
-      Dataset dataset = bigQuery.getDataset(config.getDataset());
+      Dataset dataset = bigQuery.getDataset(DatasetId.of(config.getDatasetProject(), config.getDataset()));
       GCPUtils.createBucket(GCPUtils.getStorage(config.getProject(), credentials),
                             bucket,
                             dataset.getLocation(),
@@ -158,8 +159,8 @@ public class BigQuerySourceUtils {
     String temporaryTable = configuration.get(BigQueryConstants.CONFIG_TEMPORARY_TABLE_NAME);
     try {
       Credentials credentials = getCredentials(config.getConnection());
-      BigQuery bigQuery = GCPUtils.getBigQuery(config.getDatasetProject(), credentials);
-      bigQuery.delete(TableId.of(config.getProject(), config.getDataset(), temporaryTable));
+      BigQuery bigQuery = GCPUtils.getBigQuery(config.getProject(), credentials);
+      bigQuery.delete(TableId.of(config.getDatasetProject(), config.getDataset(), temporaryTable));
       LOG.debug("Deleted temporary table '{}'", temporaryTable);
     } catch (IOException e) {
       LOG.error("Failed to load service account credentials: {}", e.getMessage(), e);
