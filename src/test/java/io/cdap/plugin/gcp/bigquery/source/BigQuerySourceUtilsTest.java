@@ -19,6 +19,7 @@ package io.cdap.plugin.gcp.bigquery.source;
 import com.google.auth.Credentials;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.Dataset;
+import com.google.cloud.bigquery.DatasetId;
 import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnectorConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -42,7 +43,6 @@ public class BigQuerySourceUtilsTest {
 
   @Test
   public void getOrCreateBucket() throws InstantiationException, IllegalAccessException, NoSuchFieldException {
-    System.out.println(new Date().getTime());
     PowerMockito.mockStatic(GCPUtils.class);
 
     Configuration configuration = new Configuration();
@@ -57,7 +57,7 @@ public class BigQuerySourceUtilsTest {
 
     Dataset ds = mock(Dataset.class);
     BigQuery bq = mock(BigQuery.class);
-    when(bq.getDataset(eq("some-ds"))).thenReturn(ds);
+    when(bq.getDataset(eq(DatasetId.of(config.getDatasetProject(), "some-ds")))).thenReturn(ds);
 
     Credentials credentials = mock(Credentials.class);
 
