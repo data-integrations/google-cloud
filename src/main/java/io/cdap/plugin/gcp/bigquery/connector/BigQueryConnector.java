@@ -71,7 +71,7 @@ import javax.annotation.Nullable;
 @Plugin(type = Connector.PLUGIN_TYPE)
 @Name(BigQueryConnector.NAME)
 @Category("Google Cloud Platform")
-@Description("Connection to browse and sample data from BigQuery datasets and tables.")
+@Description("Connection to access data in BigQuery datasets and tables.")
 public final class BigQueryConnector implements DirectConnector {
   public static final String NAME = "BigQuery";
   public static final String ENTITY_TYPE_DATASET = "dataset";
