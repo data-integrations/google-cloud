@@ -52,6 +52,7 @@ import io.cdap.plugin.gcp.common.Schemas;
 import io.cdap.plugin.gcp.spanner.SpannerArrayConstants;
 import io.cdap.plugin.gcp.spanner.SpannerConstants;
 import io.cdap.plugin.gcp.spanner.common.SpannerUtil;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.slf4j.Logger;
@@ -62,8 +63,11 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
@@ -82,6 +86,8 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
   private static final Statement.Builder SCHEMA_STATEMENT_BUILDER = Statement.newBuilder(
     String.format("SELECT  t.column_name,t.spanner_type, t.is_nullable FROM information_schema.columns AS t WHERE " +
                     "  t.table_catalog = ''  AND  t.table_schema = '' AND t.table_name = @%s", TABLE_NAME));
+  private static final String LIMIT = "limit";
+
   public static final String NAME = "Spanner";
   private final SpannerSourceConfig config;
   private Schema schema;
@@ -241,26 +247,55 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
                                                          projectId)) {
       DatabaseClient databaseClient =
         spanner.getDatabaseClient(DatabaseId.of(projectId, config.instance, config.database));
-      Statement getTableSchemaStatement = SCHEMA_STATEMENT_BUILDER.bind(TABLE_NAME).to(config.table).build();
-      try (ResultSet resultSet = databaseClient.singleUse().executeQuery(getTableSchemaStatement)) {
-        List<Schema.Field> schemaFields = new ArrayList<>();
-        while (resultSet.next()) {
-          String columnName = resultSet.getString("column_name");
-          String spannerType = resultSet.getString("spanner_type");
-          String nullable = resultSet.getString("is_nullable");
-          boolean isNullable = "YES".equals(nullable);
-          Schema typeSchema = parseSchemaFromSpannerTypeString(columnName, spannerType, collector);
-          if (typeSchema == null) {
-            // this means there were failures added to failure collector. Continue to collect more failures
-            continue;
+      if (Strings.isNullOrEmpty(config.importQuery)) {
+        Statement getTableSchemaStatement = SCHEMA_STATEMENT_BUILDER.bind(TABLE_NAME).to(config.table).build();
+        try (ResultSet resultSet = databaseClient.singleUse().executeQuery(getTableSchemaStatement)) {
+          List<Schema.Field> schemaFields = new ArrayList<>();
+          while (resultSet.next()) {
+            String columnName = resultSet.getString("column_name");
+            String spannerType = resultSet.getString("spanner_type");
+            String nullable = resultSet.getString("is_nullable");
+            boolean isNullable = "YES".equals(nullable);
+            Schema typeSchema = parseSchemaFromSpannerTypeString(columnName, spannerType, collector);
+            if (typeSchema == null) {
+              // this means there were failures added to failure collector. Continue to collect more failures
+              continue;
+            }
+            Schema fieldSchema = isNullable ? Schema.nullableOf(typeSchema) : typeSchema;
+            schemaFields.add(Schema.Field.of(columnName, fieldSchema));
           }
-          Schema fieldSchema = isNullable ? Schema.nullableOf(typeSchema) : typeSchema;
-          schemaFields.add(Schema.Field.of(columnName, fieldSchema));
+          if (schemaFields.isEmpty() && !collector.getValidationFailures().isEmpty()) {
+            collector.getOrThrowException();
+          }
+          return Schema.recordOf("outputSchema", schemaFields);
         }
-        if (schemaFields.isEmpty() && !collector.getValidationFailures().isEmpty()) {
-          collector.getOrThrowException();
+      } else {
+        final Map<String, Boolean> nullableFields = getFieldsNullability(databaseClient);
+        Statement importQueryStatement = getStatementForOneRow(config.importQuery);
+        List<Schema.Field> schemaFields = new ArrayList<>();
+        try (ResultSet resultSet = databaseClient.singleUse().executeQuery(importQueryStatement)) {
+          while (resultSet.next()) {
+            final List<Type.StructField> structFields = resultSet.getCurrentRowAsStruct().getType().getStructFields();
+            for (Type.StructField structField : structFields) {
+              final Type fieldSpannerType = structField.getType();
+              final String columnName = structField.getName();
+              // there are cases when column name is not in metadata table such as "Select FirstName as name",
+              // so fallback is nullable
+              final boolean isNullable = nullableFields.getOrDefault(columnName, true);
+              final Schema typeSchema = parseSchemaFromSpannerType(fieldSpannerType, columnName, collector);
+              if (typeSchema == null) {
+                // this means there were failures added to failure collector. Continue to collect more failures
+                continue;
+              }
+              Schema fieldSchema = isNullable ? Schema.nullableOf(typeSchema) : typeSchema;
+              schemaFields.add(Schema.Field.of(columnName, fieldSchema));
+            }
+          }
+          if (schemaFields.isEmpty() && !collector.getValidationFailures().isEmpty()) {
+            collector.getOrThrowException();
+          }
+          return Schema.recordOf("outputSchema", schemaFields);
         }
-        return Schema.recordOf("outputSchema", schemaFields);
       }
     } catch (IOException e) {
       collector.addFailure("Unable to get Spanner Client: " + e.getMessage(), null)
@@ -270,6 +305,22 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
       throw collector.getOrThrowException();
     }
 
+  }
+
+  private Statement getStatementForOneRow(String importQuery) {
+    String query;
+    // Matches any String containing the word 'limit' followed by a number
+    // ex: SELECT NAME FROM TABLE LIMIT 15
+    String regex = "^(?:[^;']|(?:'[^']+'))+ LIMIT +\\d+(.*)";
+    Pattern pattern = Pattern.compile(regex, Pattern.MULTILINE | Pattern.CASE_INSENSITIVE);
+    if (pattern.matcher(importQuery).matches()) {
+      int index = StringUtils.lastIndexOf(importQuery, LIMIT);
+      String substringToReplace = importQuery.substring(index);
+      query = importQuery.replace(substringToReplace, "limit 1");
+    } else {
+      query = String.format("%s limit 1", importQuery);
+    }
+    return Statement.newBuilder(query).build();
   }
 
   @Nullable
@@ -320,5 +371,70 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
       }
     }
     return null;
+  }
+
+  @Nullable
+  Schema parseSchemaFromSpannerType(Type spannerType, String columnName, FailureCollector collector) {
+    final Type.Code code = spannerType.getCode();
+
+    if (code == Type.Code.ARRAY) {
+      final Type arrayElementType = spannerType.getArrayElementType();
+      final Type.Code arrayElementTypeCode = arrayElementType.getCode();
+      switch (arrayElementTypeCode) {
+        case BOOL:
+          return Schema.arrayOf(Schema.of(Schema.Type.BOOLEAN));
+        case INT64:
+          return Schema.arrayOf(Schema.of(Schema.Type.LONG));
+        case FLOAT64:
+          return Schema.arrayOf(Schema.of(Schema.Type.DOUBLE));
+        case STRING:
+          return Schema.arrayOf(Schema.of(Schema.Type.STRING));
+        case BYTES:
+          return Schema.arrayOf(Schema.of(Schema.Type.BYTES));
+        case TIMESTAMP:
+          return Schema.arrayOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS));
+        case DATE:
+          return Schema.arrayOf(Schema.of(Schema.LogicalType.DATE));
+        default:
+          collector.addFailure(String.format("Column '%s' has unsupported type '%s'.", columnName, spannerType), null);
+          return null;
+      }
+    } else {
+      switch (code) {
+        case BOOL:
+          return Schema.of(Schema.Type.BOOLEAN);
+        case INT64:
+          return Schema.of(Schema.Type.LONG);
+        case FLOAT64:
+          return Schema.of(Schema.Type.DOUBLE);
+        case STRING:
+          return Schema.of(Schema.Type.STRING);
+        case BYTES:
+          return Schema.of(Schema.Type.BYTES);
+        case TIMESTAMP:
+          return Schema.of(Schema.LogicalType.TIMESTAMP_MICROS);
+        case DATE:
+          return Schema.of(Schema.LogicalType.DATE);
+        default:
+          collector.addFailure(String.format("Column '%s' has unsupported type '%s'.", columnName, spannerType), null);
+          return null;
+      }
+    }
+  }
+
+  /** Get from table metadata nullability for each field
+   * @param databaseClient Database Client
+   * @return Map where key is field name and value is nullability true or false
+   */
+  private Map<String, Boolean> getFieldsNullability(DatabaseClient databaseClient) {
+    Statement tableMetadataStatement = SCHEMA_STATEMENT_BUILDER.bind(TABLE_NAME).to(config.table).build();
+    Map<String, Boolean> nullableState = new HashMap<>();
+    ResultSet resultSet = databaseClient.singleUse().executeQuery(tableMetadataStatement);
+    while (resultSet.next()) {
+      String columnName = resultSet.getString("column_name");
+      String nullable = resultSet.getString("is_nullable");
+      nullableState.put(columnName, "YES".equals(nullable));
+    }
+    return nullableState;
   }
 }
