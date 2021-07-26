@@ -66,7 +66,7 @@ import java.util.stream.Collectors;
 @Plugin(type = Connector.PLUGIN_TYPE)
 @Name(SpannerConnector.NAME)
 @Category("Google Cloud Platform")
-@Description("Connection to browse and sample data from Spanner databases and tables.")
+@Description("Connection to access data in Spanner databases and tables.")
 public class SpannerConnector implements DirectConnector {
   public static final String NAME = "Spanner";
   public static final String ENTITY_TYPE_INSTANCE = "instance";
