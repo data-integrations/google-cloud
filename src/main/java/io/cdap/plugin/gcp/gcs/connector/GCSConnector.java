@@ -59,7 +59,7 @@ import java.util.Map;
 @Plugin(type = Connector.PLUGIN_TYPE)
 @Name(GCSConnector.NAME)
 @Category("Google Cloud Platform")
-@Description("Connection to browse and sample data from Google Cloud Storage")
+@Description("Connection to access data in Google Cloud Storage")
 public class GCSConnector extends AbstractFileConnector<GCPConnectorConfig> {
   public static final String NAME = "GCS";
   static final String BUCKET_TYPE = "bucket";
