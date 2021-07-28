@@ -1,4 +1,4 @@
-# Google Cloud Storage Connector
+# Google Cloud Storage Connection
 
 Description
 -----------
@@ -13,7 +13,7 @@ Properties
 **Project ID**: Google Cloud Project ID, which uniquely identifies a project.
 It can be found on the Dashboard in the Google Cloud Platform Console.
 
-**Service Account**  - When running on Google Cloud Platform, the service account key does not need to be provided, 
+**Service Account**: When running on Google Cloud Platform, the service account key does not need to be provided, 
 as it can automatically be read from the environment. In other environments, the service account key must be provided.
 
 * **File Path**: Path on the local file system of the service account key used for
