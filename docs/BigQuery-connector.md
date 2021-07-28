@@ -1,4 +1,4 @@
-# Google BigQuery Connector
+# Google BigQuery Connection
 
 Description
 -----------
@@ -17,9 +17,9 @@ the `BigQuery Job User` role.
 
 **Dataset Project ID**: Google Cloud Project ID of the project where your dataset is. It can be found on the Dashboard
 in the Google Cloud Platform Console. Make sure the service account specified below has the permission to view data in
-this project by granting the service account the `BigQuery Data Viewer` role
+this project by granting the service account the `BigQuery Data Viewer` role.
 
-**Service Account**  - When running on Google Cloud Platform, the service account key does not need to be provided, as
+**Service Account**: When running on Google Cloud Platform, the service account key does not need to be provided, as
 it can automatically be read from the environment. In other environments, the service account key must be provided.
 
 * **File Path**: Path on the local file system of the service account key used for authorization. Can be set to '
