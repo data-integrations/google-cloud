@@ -215,6 +215,11 @@ public class BigQuerySQLEngine
                                            validationProblems);
     }
 
+    // Validate join stages for join on keys
+    if (joinDefinition.getCondition().getOp() == JoinCondition.Op.KEY_EQUALITY) {
+      BigQuerySQLEngineUtils.validateJoinOnKeyStages(joinDefinition, validationProblems);
+    }
+
     if (!validationProblems.isEmpty()) {
       LOG.warn("Join operation for stage '{}' could not be executed in BigQuery. Issues found: {}.",
                sqlJoinDefinition.getDatasetName(),

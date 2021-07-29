@@ -75,6 +75,49 @@ public class BigQuerySQLEngineTest {
                       Schema.Field.of("shipment_id", Schema.of(Schema.Type.INT)),
                       Schema.Field.of("zip", Schema.nullableOf(Schema.of(Schema.Type.INT))));
 
+    Schema outputSchema =
+      Schema.recordOf("Join",
+                      Schema.Field.of("shipment_id", Schema.of(Schema.Type.INT)),
+                      Schema.Field.of("from_zip", Schema.nullableOf(Schema.of(Schema.Type.INT))));
+
+    // First join is a right join, second join is a left join
+    JoinStage shipments = JoinStage.builder("Shipments", shipmentSchema).setRequired(true).build();
+    JoinStage fromAddresses = JoinStage.builder("FromAddress", fromAddressSchema).setRequired(true).build();
+
+    // null safe
+    JoinCondition condition = JoinCondition.onKeys()
+      .addKey(new JoinKey("Shipments", Arrays.asList("id")))
+      .addKey(new JoinKey("FromAddress", Arrays.asList("shipment_id")))
+      .setNullSafe(false)
+      .build();
+
+    JoinDefinition joinDefinition = JoinDefinition.builder()
+      .select(new JoinField("Shipments", "id", "shipment_id"),
+              new JoinField("FromAddress", "zip", "from_zip"))
+      .from(shipments, fromAddresses)
+      .on(condition)
+      .setOutputSchemaName("Join")
+      .setOutputSchema(outputSchema)
+      .build();
+
+    SQLJoinDefinition sqlJoinDefinition = new SQLJoinDefinition("Join", joinDefinition);
+
+    Assert.assertTrue(BigQuerySQLEngine.isValidJoinDefinition(sqlJoinDefinition));
+    verify(logger, times(0)).warn(anyString(), anyString(), anyString());
+  }
+
+  @Test
+  public void testInnerJoinFor3StagesIsSupported() {
+    Schema shipmentSchema =
+      Schema.recordOf("Shipments",
+                      Schema.Field.of("id", Schema.of(Schema.Type.INT)));
+
+    Schema fromAddressSchema =
+      Schema.recordOf("FromAddress",
+                      Schema.Field.of("id", Schema.of(Schema.Type.INT)),
+                      Schema.Field.of("shipment_id", Schema.of(Schema.Type.INT)),
+                      Schema.Field.of("zip", Schema.nullableOf(Schema.of(Schema.Type.INT))));
+
     Schema toAddressSchema =
       Schema.recordOf("ToAddress",
                       Schema.Field.of("id", Schema.of(Schema.Type.INT)),
@@ -114,6 +157,74 @@ public class BigQuerySQLEngineTest {
 
     Assert.assertTrue(BigQuerySQLEngine.isValidJoinDefinition(sqlJoinDefinition));
     verify(logger, times(0)).warn(anyString(), anyString(), anyString());
+  }
+
+  @Test
+  public void testOuterJoinFor3StagesIsNotSupported() {
+    ArgumentCaptor<String> messageTemplateCaptor = ArgumentCaptor.forClass(String.class);
+    ArgumentCaptor<String> stageNameCaptor = ArgumentCaptor.forClass(String.class);
+    ArgumentCaptor<String> issuesCaptor = ArgumentCaptor.forClass(String.class);
+
+    Schema shipmentSchema =
+      Schema.recordOf("Shipments",
+                      Schema.Field.of("id", Schema.of(Schema.Type.INT)));
+
+    Schema fromAddressSchema =
+      Schema.recordOf("FromAddress",
+                      Schema.Field.of("id", Schema.of(Schema.Type.INT)),
+                      Schema.Field.of("shipment_id", Schema.of(Schema.Type.INT)),
+                      Schema.Field.of("zip", Schema.nullableOf(Schema.of(Schema.Type.INT))));
+
+    Schema toAddressSchema =
+      Schema.recordOf("ToAddress",
+                      Schema.Field.of("id", Schema.of(Schema.Type.INT)),
+                      Schema.Field.of("shipment_id", Schema.of(Schema.Type.INT)),
+                      Schema.Field.of("zip", Schema.nullableOf(Schema.of(Schema.Type.INT))));
+
+    Schema outputSchema =
+      Schema.recordOf("Join",
+                      Schema.Field.of("shipment_id", Schema.of(Schema.Type.INT)),
+                      Schema.Field.of("from_zip", Schema.nullableOf(Schema.of(Schema.Type.INT))),
+                      Schema.Field.of("to_zip", Schema.nullableOf(Schema.of(Schema.Type.INT))));
+
+    // First join is a right join, second join is a left join
+    JoinStage shipments = JoinStage.builder("Shipments", shipmentSchema).setRequired(true).build();
+    JoinStage fromAddresses = JoinStage.builder("FromAddress", fromAddressSchema).setRequired(true).build();
+    JoinStage toAddresses = JoinStage.builder("ToAddress", toAddressSchema).setRequired(false).build();
+
+    // null safe
+    JoinCondition condition = JoinCondition.onKeys()
+      .addKey(new JoinKey("Shipments", Arrays.asList("id")))
+      .addKey(new JoinKey("FromAddress", Arrays.asList("shipment_id")))
+      .addKey(new JoinKey("ToAddress", Arrays.asList("shipment_id")))
+      .setNullSafe(false)
+      .build();
+
+    JoinDefinition joinDefinition = JoinDefinition.builder()
+      .select(new JoinField("Shipments", "id", "shipment_id"),
+              new JoinField("FromAddress", "zip", "from_zip"),
+              new JoinField("ToAddress", "zip", "to_zip"))
+      .from(shipments, fromAddresses, toAddresses)
+      .on(condition)
+      .setOutputSchemaName("Join")
+      .setOutputSchema(outputSchema)
+      .build();
+
+    SQLJoinDefinition sqlJoinDefinition = new SQLJoinDefinition("Join", joinDefinition);
+
+    Assert.assertFalse(BigQuerySQLEngine.isValidJoinDefinition(sqlJoinDefinition));
+    verify(logger).warn(messageTemplateCaptor.capture(), stageNameCaptor.capture(), issuesCaptor.capture());
+
+    String messageTemplate = messageTemplateCaptor.getValue();
+    Assert.assertTrue(messageTemplate.contains(
+      "Join operation for stage '{}' could not be executed in BigQuery. Issues found:"));
+
+    String stageName = stageNameCaptor.getValue();
+    Assert.assertEquals("Join", stageName);
+
+    String issues = issuesCaptor.getValue();
+    Assert.assertTrue(issues.contains(
+      "Only 2 input stages are supported for outer joins, 3 stages supplied."));
   }
 
   @Test
