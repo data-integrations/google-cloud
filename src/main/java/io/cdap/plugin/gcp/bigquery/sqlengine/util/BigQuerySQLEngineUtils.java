@@ -25,6 +25,7 @@ import com.google.cloud.bigquery.TableInfo;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.engine.sql.SQLEngineException;
 import io.cdap.cdap.etl.api.join.JoinCondition;
+import io.cdap.cdap.etl.api.join.JoinDefinition;
 import io.cdap.cdap.etl.api.join.JoinStage;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
 import io.cdap.plugin.gcp.bigquery.sqlengine.BigQuerySQLEngineConfig;
@@ -215,6 +216,35 @@ public class BigQuerySQLEngineUtils {
   }
 
   /**
+   * Validates stages for a Join on Key operation
+   *
+   * TODO: Update logic once BQ SQL engine joins support multiple outer join tables
+   *
+   * @param joinDefinition     Join Definition to validate
+   * @param validationProblems List of validation problems to use to append messages
+   */
+  public static void validateJoinOnKeyStages(JoinDefinition joinDefinition, List<String> validationProblems) {
+    // 2 stages are not an issue
+    if (joinDefinition.getStages().size() < 3) {
+      return;
+    }
+
+    // For 3 or more stages, we only support inner joins.
+    boolean isInnerJoin = true;
+
+    // If any of the stages is not required, this is an outer join
+    for (JoinStage stage : joinDefinition.getStages()) {
+      isInnerJoin &= stage.isRequired();
+    }
+
+    if (!isInnerJoin) {
+      validationProblems.add(
+        String.format("Only 2 input stages are supported for outer joins, %d stages supplied.",
+                      joinDefinition.getStages().size()));
+    }
+  }
+
+  /**
    * Ensure the Stage name is valid for execution in BQ pushdown.
    * <p>
    * Due to differences in character escaping rules in Spark and BigQuery, identifiers that are accepted in Spark
@@ -230,6 +260,7 @@ public class BigQuerySQLEngineUtils {
 
   /**
    * Get tags for BQ Pushdown tags
+   *
    * @param operation the current operation that is being executed
    * @return Map containing tags for a job.
    */
