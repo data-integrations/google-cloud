@@ -111,7 +111,7 @@ public final class BigQueryConnector implements DirectConnector {
         credentials =
           GCPUtils.loadServiceAccountCredentials(config.getServiceAccount(), config.isServiceAccountFilePath());
       } catch (Exception e) {
-        failureCollector.addFailure(String.format("Service account key provided is not valid: %s.", e.getMessage()),
+        failureCollector.addFailure(String.format("Service account key provided is not valid: %s", e.getMessage()),
           "Please provide a valid service account key.");
       }
     }
