@@ -54,6 +54,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -277,7 +278,9 @@ public final class BigQueryUtil {
         }
         // do not return schema for the struct field if none of the nested fields are of supported types
         if (!schemafields.isEmpty()) {
-          return Schema.recordOf(field.getName(), schemafields);
+          // We use a random UUID as the record name to ensure each record will have a unique name
+          // as AVRO doesnt allow the redefinition of existing records.
+          return Schema.recordOf(UUID.randomUUID().toString().replace("-", ""), schemafields);
         } else {
           return null;
         }
