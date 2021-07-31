@@ -272,16 +272,20 @@ public final class BigQuerySinkUtils {
     fieldSchema.setType(type.name());
     if (type == LegacySQLTypeName.RECORD) {
       List<Schema.Field> schemaFields;
-      if (Schema.Type.ARRAY == field.getSchema().getType()) {
-        schemaFields = Objects.requireNonNull(field.getSchema().getComponentSchema()).getFields();
+      Schema fieldCdapSchema = BigQueryUtil.getNonNullableSchema(field.getSchema());
+
+      // If its an Array of records we need to get the component schema of the array
+      // which will be the Record. Which can itself be nullable, and then get the fields
+      // of that record.
+      if (Schema.Type.ARRAY == fieldCdapSchema.getType()) {
+        schemaFields = Objects.requireNonNull(
+            fieldCdapSchema.getComponentSchema().getNonNullable().getFields());
       } else {
-        schemaFields = field.getSchema().isNullable()
-          ? field.getSchema().getNonNullable().getFields()
-          : field.getSchema().getFields();
+        schemaFields = fieldCdapSchema.getFields();
       }
       fieldSchema.setFields(Objects.requireNonNull(schemaFields).stream()
-                              .map(BigQuerySinkUtils::generateTableFieldSchema)
-                              .collect(Collectors.toList()));
+          .map(BigQuerySinkUtils::generateTableFieldSchema)
+          .collect(Collectors.toList()));
 
     }
     return fieldSchema;
@@ -298,6 +302,10 @@ public final class BigQuerySinkUtils {
     return Field.Mode.REQUIRED;
   }
 
+  /**
+   * This function returns the LegacySQLTypeName that maps to the given CDAP Schema.
+   * If the CDAP Schema is an Array it will return the LegacySQLTypename of the components.
+   */
   private static LegacySQLTypeName getTableDataType(Schema schema) {
     schema = BigQueryUtil.getNonNullableSchema(schema);
     Schema.LogicalType logicalType = schema.getLogicalType();

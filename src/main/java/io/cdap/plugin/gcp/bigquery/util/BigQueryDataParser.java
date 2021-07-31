@@ -19,6 +19,7 @@ package io.cdap.plugin.gcp.bigquery.util;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.FieldValue;
+import com.google.cloud.bigquery.FieldValue.Attribute;
 import com.google.cloud.bigquery.FieldValueList;
 import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.StandardSQLTypeName;
@@ -63,37 +64,62 @@ public final class BigQueryDataParser {
   }
 
   public static StructuredRecord getStructuredRecord(Schema schema, FieldList fields, FieldValueList fieldValues) {
+
     StructuredRecord.Builder recordBuilder = StructuredRecord.builder(schema);
-    for (Field field : fields) {
+    List<Schema.Field> schemaFieldList = schema.getFields();
+
+    for (int i = 0; i < fields.size(); i++) {
+      Field field = fields.get(i);
       String fieldName = field.getName();
       FieldValue fieldValue = fieldValues.get(fieldName);
-      FieldValue.Attribute attribute = fieldValue.getAttribute();
+      Attribute attribute = fieldValue.getAttribute();
       if (fieldValue.isNull()) {
         recordBuilder.set(fieldName, null);
         continue;
       }
 
-      if (attribute == FieldValue.Attribute.REPEATED) {
+      Schema.Field localSchemaField = schemaFieldList.get(i);
+      Schema localSchema = localSchemaField.getSchema();
+      FieldList localFields = field.getSubFields();
+
+      if (attribute == Attribute.REPEATED) {
+        // Process each field of the array and then add it to the StructuredRecord
         List<Object> list = new ArrayList<>();
-        for (FieldValue value : fieldValue.getRepeatedValue()) {
-          list.add(convertValue(field, value));
+        List<FieldValue> fieldValueList = fieldValue.getRepeatedValue();
+
+        for (FieldValue localValue : fieldValueList) {
+          // If the field contains multiple fields then we have to process it recursively.
+          if (localValue.getValue() instanceof FieldValueList) {
+            FieldValueList localFieldValueListNoSchema = localValue.getRecordValue();
+            FieldValueList localFieldValueList =
+                FieldValueList.of(localFieldValueListNoSchema, localFields);
+            StructuredRecord componentRecord =
+                getStructuredRecord(localSchema.getComponentSchema(), localFields, localFieldValueList);
+            list.add(componentRecord);
+          } else {
+            list.add(convertValue(field, localValue));
+          }
         }
         recordBuilder.set(fieldName, list);
+
+      } else if (attribute == Attribute.RECORD) {
+        // If the field contains a Record then we need to process each field independently
+        FieldValue localValue = fieldValue;
+        Object value;
+        if (localValue.getValue() instanceof FieldValueList) {
+          // If one of the fields is a record
+          FieldValueList localFieldValueListNoSchema = localValue.getRecordValue();
+          FieldValueList localFieldValueList =
+              FieldValueList.of(localFieldValueListNoSchema, localFields);
+          value = getStructuredRecord(localSchema.getNonNullable(), localFields, localFieldValueList);
+        } else {
+          value = convertValue(field, localValue);
+        }
+        addToRecordBuilder(recordBuilder, fieldName, value);
+
       } else {
         Object value = convertValue(field, fieldValue);
-        if (value instanceof ZonedDateTime) {
-          recordBuilder.setTimestamp(fieldName, (ZonedDateTime) value);
-        } else if (value instanceof LocalTime) {
-          recordBuilder.setTime(fieldName, (LocalTime) value);
-        } else if (value instanceof LocalDate) {
-          recordBuilder.setDate(fieldName, (LocalDate) value);
-        } else if (value instanceof LocalDateTime) {
-          recordBuilder.setDateTime(fieldName, (LocalDateTime) value);
-        } else if (value instanceof BigDecimal) {
-          recordBuilder.setDecimal(fieldName, (BigDecimal) value);
-        } else {
-          recordBuilder.set(fieldName, value);
-        }
+        addToRecordBuilder(recordBuilder, fieldName, value);
       }
     }
     StructuredRecord record = recordBuilder.build();
@@ -101,11 +127,34 @@ public final class BigQueryDataParser {
   }
 
   /**
-   * Convert BigQuery field value to CDAP field value
-   * @param field BigQuery field
-   * @param fieldValue BigQUery field value
-   * @return the converted CDAP field value
+   * Checks the type value to add and calls the correct method in the StructureRecord Builder.
+   * @param recordBuilder The StructureRecord builder that we will be calling
+   * @param fieldName The name of the field to which the value has to be added
+   * @param value The value to add.
    */
+  private static void addToRecordBuilder(StructuredRecord.Builder recordBuilder, String fieldName,
+      Object value) {
+    if (value instanceof ZonedDateTime) {
+      recordBuilder.setTimestamp(fieldName, (ZonedDateTime) value);
+    } else if (value instanceof LocalTime) {
+      recordBuilder.setTime(fieldName, (LocalTime) value);
+    } else if (value instanceof LocalDate) {
+      recordBuilder.setDate(fieldName, (LocalDate) value);
+    } else if (value instanceof LocalDateTime) {
+      recordBuilder.setDateTime(fieldName, (LocalDateTime) value);
+    } else if (value instanceof BigDecimal) {
+      recordBuilder.setDecimal(fieldName, (BigDecimal) value);
+    } else {
+      recordBuilder.set(fieldName, value);
+    }
+  }
+
+    /**
+     * Convert BigQuery field value to CDAP field value
+     * @param field BigQuery field
+     * @param fieldValue BigQuery field value
+     * @return the converted CDAP field value
+     */
   public static Object convertValue(Field field, FieldValue fieldValue) {
     LegacySQLTypeName type = field.getType();
     StandardSQLTypeName standardType = type.getStandardType();
