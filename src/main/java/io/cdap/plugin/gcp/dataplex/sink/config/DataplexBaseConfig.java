@@ -5,6 +5,9 @@ import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.plugin.gcp.common.GCPConfig;
 
+/**
+ * Contains Dataplex config properties.
+ */
 public class DataplexBaseConfig extends GCPConfig {
     public static final String REFERENCE_NAME = "referenceName";
     public static final String NAME_ASSET = "asset";
