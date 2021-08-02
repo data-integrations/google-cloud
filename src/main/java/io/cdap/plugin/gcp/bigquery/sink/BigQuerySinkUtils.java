@@ -288,7 +288,11 @@ public final class BigQuerySinkUtils {
         case TIMESTAMP_MICROS:
           return LegacySQLTypeName.TIMESTAMP;
         case DECIMAL:
-          return LegacySQLTypeName.NUMERIC;
+          if ((schema.getScale() <= 9) && (schema.getPrecision() <= 38)) {
+            return LegacySQLTypeName.NUMERIC;
+          } else {
+            return LegacySQLTypeName.BIGNUMERIC;
+          }
         case DATETIME:
           return LegacySQLTypeName.DATETIME;
         default:

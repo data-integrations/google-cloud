@@ -124,7 +124,15 @@ public final class BigQueryDataParser {
           decimal = decimal.setScale(9);
         }
         return decimal;
-
+      case BIGNUMERIC:
+        BigDecimal bigDecimal = fieldValue.getNumericValue();
+        if (bigDecimal.scale() < 38) {
+          // scale up the big decimal. this is because structured record expects scale to be exactly same as schema
+          // Big Query Big Numeric supports maximum unscaled value up to 76.76 digits.
+          //  so scaling up should still be <= max precision
+          bigDecimal = bigDecimal.setScale(38);
+        }
+        return bigDecimal;
       case DATETIME:
         return LocalDateTime.parse(fieldValue.getStringValue());
       case STRING:
