@@ -20,11 +20,14 @@ import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.format.StructuredRecord;
+import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
+import io.cdap.cdap.etl.api.StageConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.plugin.gcp.dataplex.sink.config.DataplexBatchSinkConfig;
-
+import io.cdap.plugin.gcp.dataplex.sink.enums.AssetType;
 import org.apache.hadoop.io.NullWritable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,19 +44,36 @@ import org.slf4j.LoggerFactory;
  * StructuredRecord.
  */
 @Plugin(type = BatchSink.PLUGIN_TYPE)
-@Name("Dataplex")
+@Name(DataplexBatchSink.NAME)
 @Description("Ingests and processes data within Dataplex.")
-public class DataplexBatchSink extends BatchSink<StructuredRecord, NullWritable, StructuredRecord> {
-  private static final Logger LOGGER = LoggerFactory.getLogger(DataplexBatchSink.class);
+public final class DataplexBatchSink extends BatchSink<StructuredRecord, NullWritable, StructuredRecord> {
+  public static final String NAME = "Dataplex";
+  private static final Logger LOG = LoggerFactory.getLogger(DataplexBatchSink.class);
+  // Usually, you will need a private variable to store the config that was passed to your class
   private final DataplexBatchSinkConfig config;
-
+  private Schema outputSchema;
   public DataplexBatchSink(DataplexBatchSinkConfig config) {
     this.config = config;
   }
 
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
+    super.configurePipeline(pipelineConfigurer);
+    StageConfigurer configurer = pipelineConfigurer.getStageConfigurer();
+    FailureCollector collector = configurer.getFailureCollector();
+    Schema inputSchema = configurer.getInputSchema();
+    Schema configuredSchema = config.getSchema(collector);
+    if(config.getAssetType().equalsIgnoreCase(AssetType.BIGQUERY_DATASET.toString())) {
+      config.validateBigQueryDataset(inputSchema, configuredSchema, collector);
+    }else if(config.getAssetType().equalsIgnoreCase(AssetType.STORAGE_BUCKET.toString())) {
+      config.validateStorageBucket(collector);
+    }
 
+    if (config.tryGetProject() == null || config.getServiceAccountType() == null ||
+            (config.isServiceAccountFilePath() && config.autoServiceAccountUnavailable())) {
+      return;
+    }
+    // validate schema with underlying table
   }
 
   @Override
