@@ -67,7 +67,7 @@ public class DataplexPath {
         }
 
         lake = parts[0];
-        validateName("Lake" , lake);
+        validateName("Lake", lake);
 
         if (parts.length == 2) {
             zone = parts[1];
@@ -87,15 +87,15 @@ public class DataplexPath {
     private void validateName(String property, String name) {
         if (name.isEmpty()) {
             throw new IllegalArgumentException(
-                    String.format("%s should not be empty.", property));
+              String.format("%s should not be empty.", property));
         }
         if (name.length() > NAME_MAX_LENGTH) {
             throw new IllegalArgumentException(
-                    String.format("%s is invalid, it should contain at most %d characters.", property, NAME_MAX_LENGTH));
+              String.format("%s is invalid, it should contain at most %d characters.", property, NAME_MAX_LENGTH));
         }
         if (!name.matches(VALID_NAME_REGEX)) {
             throw new IllegalArgumentException(
-                    String.format("%s is invalid, it should contain only letters, numbers, and underscores.", property));
+              String.format("%s is invalid, it should contain only letters, numbers, and underscores.", property));
         }
     }
 
