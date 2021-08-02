@@ -279,7 +279,7 @@ public final class BigQuerySinkUtils {
       // of that record.
       if (Schema.Type.ARRAY == fieldCdapSchema.getType()) {
         schemaFields = Objects.requireNonNull(
-            fieldCdapSchema.getComponentSchema().getNonNullable().getFields());
+            BigQueryUtil.getNonNullableSchema(fieldCdapSchema.getComponentSchema()).getFields());
       } else {
         schemaFields = fieldCdapSchema.getFields();
       }
