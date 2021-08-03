@@ -19,6 +19,8 @@ package io.cdap.plugin.gcp.bigquery.util;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.StandardSQLTypeName;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize.BigNumeric;
+import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize.Numeric;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -43,6 +45,8 @@ public class BigQueryUtilTest {
     fieldList.add(datetimeField);
     Field numericField = Field.newBuilder("numeric", StandardSQLTypeName.NUMERIC).build();
     fieldList.add(numericField);
+    Field bigNumericField = Field.newBuilder("bignumeric", StandardSQLTypeName.BIGNUMERIC).build();
+    fieldList.add(bigNumericField);
     Field float64Field = Field.newBuilder("float64", StandardSQLTypeName.FLOAT64).build();
     fieldList.add(float64Field);
     Field int64Field = Field.newBuilder("int64", StandardSQLTypeName.INT64).build();
@@ -66,8 +70,12 @@ public class BigQueryUtilTest {
     Schema.Field cdapDatetimeField =
       Schema.Field.of("datetime", Schema.nullableOf(Schema.of(Schema.LogicalType.DATETIME)));
     cdapFieldList.add(cdapDatetimeField);
-    Schema.Field cdapNumericField = Schema.Field.of("numeric", Schema.nullableOf(Schema.decimalOf(38, 9)));
+    Schema.Field cdapNumericField = Schema.Field.of("numeric", Schema.nullableOf(Schema.decimalOf(
+        Numeric.PRECISION, Numeric.SCALE)));
     cdapFieldList.add(cdapNumericField);
+    Schema.Field cdapBigNumericField = Schema.Field.of("bignumeric", Schema.nullableOf(Schema.decimalOf(
+        BigNumeric.PRECISION, BigNumeric.SCALE)));
+    cdapFieldList.add(cdapBigNumericField);
     Schema.Field cdapFloat64Field = Schema.Field.of("float64", Schema.nullableOf(Schema.of(Schema.Type.DOUBLE)));
     cdapFieldList.add(cdapFloat64Field);
     Schema.Field cdapInt64Field = Schema.Field.of("int64", Schema.nullableOf(Schema.of(Schema.Type.LONG)));

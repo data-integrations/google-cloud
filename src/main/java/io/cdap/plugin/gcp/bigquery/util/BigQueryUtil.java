@@ -37,6 +37,8 @@ import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySink;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySource;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceConfig;
+import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize.BigNumeric;
+import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize.Numeric;
 import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.GCSPath;
@@ -262,11 +264,11 @@ public final class BigQueryUtil {
       case NUMERIC:
         // bigquery has 38 digits of precision and 9 digits of scale for NUMERIC.
         // https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#decimal_types
-        return Schema.decimalOf(38, 9);
+        return Schema.decimalOf(Numeric.PRECISION, Numeric.SCALE);
       case BIGNUMERIC:
-        // bigquery has 76 digits of precision and 38 digits of scale for BIGNUMERIC.
+        // bigquery has 77 digits of precision and 38 digits of scale for BIGNUMERIC.
         // https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#decimal_types
-        return Schema.decimalOf(77, 38);
+        return Schema.decimalOf(BigNumeric.PRECISION, BigNumeric.SCALE);
       case STRUCT:
         FieldList fields = field.getSubFields();
         List<Schema.Field> schemafields = new ArrayList<>();
@@ -339,7 +341,7 @@ public final class BigQueryUtil {
 
       // BigQuery schema precision must be at most 77 and scale at most 38
       if (logicalType == Schema.LogicalType.DECIMAL) {
-        if (fieldSchema.getPrecision() > 77 || fieldSchema.getScale() > 38) {
+        if (fieldSchema.getPrecision() > BigNumeric.PRECISION || fieldSchema.getScale() > BigNumeric.SCALE) {
           return collector.addFailure(String.format("Decimal Field '%s' has invalid precision '%s' and scale '%s'. ",
                                                     name, fieldSchema.getPrecision(), fieldSchema.getScale()),
                                       "Precision must be at most 77 and scale must be at most 38.");
