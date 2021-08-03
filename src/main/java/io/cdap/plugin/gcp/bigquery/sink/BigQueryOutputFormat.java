@@ -346,6 +346,11 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
         }
       }
 
+      if (!tableExists && Operation.UPSERT.equals(operation)) {
+        // If the table does not exist then an UPSERT operation becomes an INSERT operation
+        operation = Operation.INSERT;
+      }
+
       if (Operation.INSERT.equals(operation)) {
         // Schema update options should only be specified with WRITE_APPEND disposition,
         // or with WRITE_TRUNCATE disposition on a table partition - The logic below should change when we support
@@ -356,13 +361,6 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
             JobInfo.SchemaUpdateOption.ALLOW_FIELD_ADDITION.name(),
             JobInfo.SchemaUpdateOption.ALLOW_FIELD_RELAXATION.name()));
         }
-      } else if (!tableExists && Operation.UPSERT.equals(operation)) {
-        // For upsert operation, if the destination table does not exist, create it
-        Table table = new Table();
-        table.setTableReference(tableRef);
-        table.setSchema(schema);
-        bigQueryHelper.getRawBigquery().tables().insert(tableRef.getProjectId(), tableRef.getDatasetId(), table)
-          .execute();
       }
 
       if (!Strings.isNullOrEmpty(kmsKeyName)) {
