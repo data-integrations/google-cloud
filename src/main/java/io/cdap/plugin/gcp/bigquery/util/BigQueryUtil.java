@@ -262,11 +262,11 @@ public final class BigQueryUtil {
       case TIMESTAMP:
         return Schema.of(Schema.LogicalType.TIMESTAMP_MICROS);
       case NUMERIC:
-        // bigquery has 38 digits of precision and 9 digits of scale for NUMERIC.
+        // bigquery has Numeric.PRECISION digits of precision and Numeric.SCALE digits of scale for NUMERIC.
         // https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#decimal_types
         return Schema.decimalOf(Numeric.PRECISION, Numeric.SCALE);
       case BIGNUMERIC:
-        // bigquery has 77 digits of precision and 38 digits of scale for BIGNUMERIC.
+        // bigquery has BigNumeric.PRECISION digits of precision and BigNumeric.SCALE digits of scale for BIGNUMERIC.
         // https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#decimal_types
         return Schema.decimalOf(BigNumeric.PRECISION, BigNumeric.SCALE);
       case STRUCT:
@@ -339,12 +339,15 @@ public final class BigQueryUtil {
           String.format("Modify the input so that it is of type '%s'.", BQ_TYPE_MAP.get(bqField.getType())));
       }
 
-      // BigQuery schema precision must be at most 77 and scale at most 38
+      // BigQuery schema precision must be at most BigNumeric.PRECISION and scale at most BigNumeric.SCALE
       if (logicalType == Schema.LogicalType.DECIMAL) {
         if (fieldSchema.getPrecision() > BigNumeric.PRECISION || fieldSchema.getScale() > BigNumeric.SCALE) {
-          return collector.addFailure(String.format("Decimal Field '%s' has invalid precision '%s' and scale '%s'. ",
-                                                    name, fieldSchema.getPrecision(), fieldSchema.getScale()),
-                                      "Precision must be at most 77 and scale must be at most 38.");
+          return collector.addFailure(
+              String.format("Decimal Field '%s' has invalid precision '%s' and scale '%s'. ",
+                  name, fieldSchema.getPrecision(), fieldSchema.getScale()),
+              String.format("Precision must be at most '%s' and scale must be at most '%s'.",
+                  BigNumeric.PRECISION, BigNumeric.SCALE)
+          );
         }
       }
 

@@ -19,6 +19,7 @@ package io.cdap.plugin.gcp.bigquery.util;
 /**
  * Stores the Precision and Scale for the different Numeric (Decimal) types
  * provided by BigQuery
+ * https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#numeric_types
  */
 public final class BigQueryTypeSize {
 

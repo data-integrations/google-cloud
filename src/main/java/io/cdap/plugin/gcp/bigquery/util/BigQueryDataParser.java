@@ -121,8 +121,8 @@ public final class BigQueryDataParser {
         BigDecimal decimal = fieldValue.getNumericValue();
         if (decimal.scale() < Numeric.SCALE) {
           // scale up the big decimal. this is because structured record expects scale to be exactly same as schema
-          // Big Query supports maximum unscaled value up to 38 digits. so scaling up should still be <= max
-          // precision
+          // Big Query supports maximum unscaled value up to Numeric.SCALE digits. so scaling up should
+          // still be <= max precision
           decimal = decimal.setScale(Numeric.SCALE);
         }
         return decimal;
@@ -130,7 +130,7 @@ public final class BigQueryDataParser {
         BigDecimal bigDecimal = fieldValue.getNumericValue();
         if (bigDecimal.scale() < BigNumeric.SCALE) {
           // scale up the big decimal. this is because structured record expects scale to be exactly same as schema
-          // Big Query Big Numeric supports maximum unscaled value up to 76.76 digits.
+          // Big Query Big Numeric supports maximum unscaled value up to BigNumeric.SCALE digits.
           //  so scaling up should still be <= max precision
           bigDecimal = bigDecimal.setScale(BigNumeric.SCALE);
         }
