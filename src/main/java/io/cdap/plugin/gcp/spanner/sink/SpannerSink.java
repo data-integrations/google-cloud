@@ -26,9 +26,13 @@ import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerException;
+import com.google.cloud.spanner.SpannerExceptionFactory;
+import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Statement;
+import com.google.cloud.spanner.encryption.EncryptionConfigs;
 import com.google.common.base.Strings;
 import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
+import com.google.spanner.admin.database.v1.CreateDatabaseRequest;
 import com.google.spanner.admin.database.v1.UpdateDatabaseDdlMetadata;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
@@ -47,6 +51,7 @@ import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.common.ReferenceBatchSink;
 import io.cdap.plugin.common.batch.sink.SinkOutputFormatProvider;
+import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.spanner.common.SpannerUtil;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
@@ -57,6 +62,8 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
@@ -74,7 +81,6 @@ import javax.annotation.Nullable;
 @Description("Batch sink to write to Cloud Spanner. Cloud Spanner is a fully managed, mission-critical, " +
   "relational database service that offers transactional consistency at global scale, schemas, " +
   "SQL (ANSI 2011 with extensions), and automatic, synchronous replication for high availability.")
-@Requirements(capabilities = "bypass_cmek_check")
 public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable, Mutation> {
   private static final Logger LOG = LoggerFactory.getLogger(SpannerSink.class);
   public static final String NAME = "Spanner";
@@ -106,11 +112,12 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
     if (!context.isPreviewEnabled()) {
       try (Spanner spanner = SpannerUtil.getSpannerService(config.getServiceAccount(),
                                                            config.isServiceAccountFilePath(), config.getProject())) {
+        // create database
+        DatabaseAdminClient dbAdminClient = spanner.getDatabaseAdminClient();
+        Database database = getOrCreateDatabase(context, dbAdminClient);
+
         DatabaseId db = DatabaseId.of(config.getProject(), config.getInstance(), config.getDatabase());
         DatabaseClient dbClient = spanner.getDatabaseClient(db);
-        DatabaseAdminClient dbAdminClient = spanner.getDatabaseAdminClient();
-        // create database
-        Database database = getOrCreateDatabase(dbAdminClient);
         if (!isTablePresent(dbClient) && schema == null) {
           throw new IllegalArgumentException(String.format("Spanner table %s does not exist. To create it from the " +
                                                              "pipeline, schema must be provided",
@@ -183,16 +190,35 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
   }
 
   private Database getOrCreateDatabase(
+    BatchSinkContext context,
     DatabaseAdminClient dbAdminClient) throws ExecutionException, InterruptedException {
     Database database = getDatabaseIfPresent(dbAdminClient);
 
     if (database == null) {
       LOG.debug("Database not found. Creating database {} in instance {}.", config.getDatabase(), config.getInstance());
       // Create database
+      Database.Builder dbBuilder = dbAdminClient
+        .newDatabaseBuilder(DatabaseId.of(config.getProject(), config.getInstance(), config.getDatabase()));
+      String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
+      if (cmekKey != null) {
+        dbBuilder.setEncryptionConfig(EncryptionConfigs.customerManagedEncryption(cmekKey));
+      }
       OperationFuture<Database, CreateDatabaseMetadata> op =
-        dbAdminClient.createDatabase(config.getInstance(), config.getDatabase(), Collections.emptyList());
+        dbAdminClient.createDatabase(dbBuilder.build(), Collections.emptyList());
       // database creation is an async operation. Wait until database creation operation is complete.
-      database = op.get();
+      try {
+        database = op.get(120, TimeUnit.SECONDS);
+      } catch (ExecutionException e) {
+        // If the operation failed during execution, expose the cause.
+        throw SpannerExceptionFactory.asSpannerException(e.getCause());
+      } catch (InterruptedException e) {
+        // Throw when a thread is waiting, sleeping, or otherwise occupied,
+        // and the thread is interrupted, either before or during the activity.
+        throw SpannerExceptionFactory.propagateInterrupt(e);
+      } catch (TimeoutException e) {
+        // If the operation timed out propagates the timeout
+        throw SpannerExceptionFactory.propagateTimeout(e);
+      }
     }
 
     return database;
