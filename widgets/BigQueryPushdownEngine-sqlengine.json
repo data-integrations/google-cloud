@@ -9,10 +9,10 @@
       "properties": [
         {
           "widget-type": "textbox",
-          "label": "Dataset",
+          "label": "BigQuery Dataset",
           "name": "dataset",
           "widget-attributes": {
-            "placeholder": "Dataset to be used to store temporary tables when the pipeline is run."
+            "placeholder": "Dataset to use to store temporary tables when pipeline is run."
           }
         }
       ]
@@ -70,7 +70,7 @@
           "label": "Dataset Project ID",
           "name": "datasetProject",
           "widget-attributes": {
-            "placeholder": "The project in which the dataset is located/should be created. Defaults to the project specified in the Project Id property."
+            "placeholder": "Project in which the dataset is located or should be created. Defaults to Project ID."
           }
         },
         {
