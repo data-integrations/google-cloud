@@ -18,10 +18,11 @@ package io.cdap.plugin.gcp.publisher.source;
 import io.cdap.cdap.etl.api.streaming.StreamingContext;
 import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.api.java.JavaDStream;
-import org.apache.spark.streaming.api.java.JavaReceiverInputDStream;
+import org.apache.spark.streaming.dstream.DStream;
 import org.apache.spark.streaming.dstream.ReceiverInputDStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.collection.JavaConverters;
 import scala.reflect.ClassTag;
 
 import java.util.ArrayList;
@@ -69,18 +70,20 @@ public final class PubSubSubscriberUtil {
   protected static JavaDStream<PubSubMessage> getInputDStream(StreamingContext streamingContext,
                                                               PubSubSubscriberConfig config,
                                                               boolean autoAcknowledge) {
-    ArrayList<JavaDStream<PubSubMessage>> receivers = new ArrayList<>(config.getNumberOfReaders());
+    ArrayList<DStream<PubSubMessage>> receivers = new ArrayList<>(config.getNumberOfReaders());
     ClassTag<PubSubMessage> tag = scala.reflect.ClassTag$.MODULE$.apply(PubSubMessage.class);
 
     for (int i = 1; i <= config.getNumberOfReaders(); i++) {
       ReceiverInputDStream<PubSubMessage> receiverInputDStream =
         new PubSubInputDStream(streamingContext.getSparkStreamingContext().ssc(), config, StorageLevel.MEMORY_ONLY(),
                                autoAcknowledge);
-      receivers.add(new JavaReceiverInputDStream<>(receiverInputDStream, tag));
+      receivers.add(receiverInputDStream);
     }
 
-    return (JavaDStream<PubSubMessage>) streamingContext.getSparkStreamingContext()
-      .union(receivers.get(0), receivers.subList(1, receivers.size()));
+    DStream<PubSubMessage> dStream = streamingContext.getSparkStreamingContext().ssc()
+      .union(JavaConverters.collectionAsScalaIterableConverter(receivers).asScala().toSeq(), tag);
+
+    return new JavaDStream<>(dStream, tag);
   }
 
 }
