@@ -42,15 +42,14 @@ public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
   @Name(NAME_LOCATION)
   @Macro
   @Nullable
-  @Description("The location where the big query dataset will get created. " +
-    "This value is ignored if the dataset or temporary bucket already exist.")
+  @Description("The location where the BigQuery dataset will get created. " +
+    "This value is ignored if the dataset or temporary bucket already exists.")
   protected String location;
 
   @Name(NAME_RETAIN_TABLES)
   @Macro
   @Nullable
-  @Description("Select this option if the pipeline should retain all temporary BigQuery tables created during the " +
-    "execution of the pipeline.")
+  @Description("Select this option to retain all BigQuery temporary tables created during the pipeline run.")
   protected Boolean retainTables;
 
   @Name(NAME_TEMP_TABLE_TTL_HOURS)
