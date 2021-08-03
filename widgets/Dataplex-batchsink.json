@@ -26,8 +26,32 @@
       ]
     },
     {
-      "label": "Credentials",
+      "label": "Connection",
       "properties": [
+        {
+          "widget-type": "toggle",
+          "label": "Use connection",
+          "name": "useConnection",
+          "widget-attributes": {
+            "on": {
+              "value": "true",
+              "label": "YES"
+            },
+            "off": {
+              "value": "false",
+              "label": "NO"
+            },
+            "default": "false"
+          }
+        },
+        {
+          "widget-type": "connection-select",
+          "label": "Connection",
+          "name": "connection",
+          "widget-attributes": {
+            "connectionType": "Dataplex"
+          }
+        },
         {
           "name": "serviceAccountType",
           "label": "Service Account Type",
@@ -82,22 +106,6 @@
           }
         },
         {
-          "widget-type": "toggle",
-          "label": "Create new Table/Object",
-          "name": "createNewObject",
-          "widget-attributes": {
-            "default": "false",
-            "on": {
-              "value": "true",
-              "label": "True"
-            },
-            "off": {
-              "value": "false",
-              "label": "False"
-            }
-          }
-        },
-        {
           "widget-type": "radio-group",
           "label": "Asset type",
           "name": "assetType",
@@ -121,14 +129,6 @@
     {
       "label": "Asset Details",
       "properties": [
-        {
-          "widget-type": "textbox",
-          "label": "Object name",
-          "name": "objectName",
-          "widget-attributes": {
-            "placeholder": ""
-          }
-        },
         {
           "widget-type": "plugin-list",
           "label": "Format",
@@ -419,7 +419,7 @@
     {
       "name": "ServiceAuthenticationTypeFilePath",
       "condition": {
-        "expression": "serviceAccountType == 'filePath'"
+        "expression": "useConnection == false && serviceAccountType == 'filePath'"
       },
       "show": [
         {
@@ -431,7 +431,7 @@
     {
       "name": "ServiceAuthenticationTypeJSON",
       "condition": {
-        "expression": "serviceAccountType == 'JSON'"
+        "expression": "useConnection == false && serviceAccountType == 'JSON'"
       },
       "show": [
         {
@@ -449,6 +449,31 @@
         {
           "type": "property",
           "name": "truncateTable"
+        }
+      ]
+    },
+
+    {
+      "name": "showConnectionId",
+      "condition": {
+        "expression": "useConnection == true"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "connection"
+        }
+      ]
+    },
+    {
+      "name": "showConnectionProperties ",
+      "condition": {
+        "expression": "useConnection == false"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "serviceAccountType"
         }
       ]
     }

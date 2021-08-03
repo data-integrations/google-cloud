@@ -16,11 +16,8 @@
 
 package io.cdap.plugin.gcp.dataplex.sink.config;
 
-import com.google.cloud.bigquery.JobInfo;
-import com.google.cloud.bigquery.RangePartitioning;
-import com.google.cloud.bigquery.StandardTableDefinition;
-import com.google.cloud.bigquery.Table;
-import com.google.cloud.bigquery.TimePartitioning;
+import com.google.auth.oauth2.ServiceAccountCredentials;
+import com.google.cloud.bigquery.*;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.annotation.Description;
@@ -32,21 +29,15 @@ import io.cdap.plugin.common.IdUtils;
 import io.cdap.plugin.gcp.bigquery.sink.Operation;
 import io.cdap.plugin.gcp.bigquery.sink.PartitionType;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
-
+import io.cdap.plugin.gcp.dataplex.sink.connector.DataplexConnectorConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
-import javax.annotation.Nullable;
 
 /**
  * Dataplex plugin UI configuration parameters and validation wrapper
@@ -57,8 +48,6 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
       ImmutableSet.of(Schema.Type.INT, Schema.Type.LONG, Schema.Type.STRING, Schema.Type.BOOLEAN, Schema.Type.BYTES);
     public static final int MAX_NUMBER_OF_COLUMNS = 4;
     private static final Logger LOG = LoggerFactory.getLogger(DataplexBatchSinkConfig.class);
-    private static final String NAME_CREATE_NEW_OBJECT = "createNewObject";
-    private static final String NAME_OBJECT_NAME = "objectName";
     private static final String NAME_FORMAT = "format";
     private static final String NAME_TABLE = "table";
     private static final String NAME_TABLE_KEY = "tableKey";
@@ -94,18 +83,8 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     private static final String FORMAT_ORC = "orc";
     private static final String FORMAT_PARQUET = "parquet";
     private static final Pattern FIELD_PATTERN = Pattern.compile("[a-zA-Z0-9_]+");
-    @Name(NAME_CREATE_NEW_OBJECT)
-    @Description("Use to enable creation of a new table/object. Otherwise the plugin assumes the entity " +
-      "already exists in the destination asset.")
-    @Macro
-    protected Boolean createNewObject;
-
-    @Name(NAME_OBJECT_NAME)
-    @Nullable
-    @Description("The name of the object to use." +
-      "Note: check if browsing is required.")
-    @Macro
-    protected String objectName;
+    public static final String NAME_USE_CONNECTION = "useConnection";
+    public static final String NAME_CONNECTION = "connection";
 
     @Name(NAME_FORMAT)
     @Nullable
@@ -234,15 +213,16 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     @Description("The schema of the data to write. If provided, must be compatible with the table schema.")
     private String schema;
 
-
-    public Boolean isCreateNewObject() {
-        return createNewObject;
-    }
-
+    @Name(NAME_USE_CONNECTION)
     @Nullable
-    public String getObjectName() {
-        return objectName;
-    }
+    @Description("Whether to use an existing connection.")
+    private Boolean useConnection;
+
+    @Name(NAME_CONNECTION)
+    @Macro
+    @Nullable
+    @Description("The existing connection to use.")
+    private DataplexConnectorConfig connection;
 
     @Nullable
     public String getFormat() {
@@ -334,6 +314,50 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     }
 
 
+    public String getProject() {
+        if (connection == null) {
+            throw new IllegalArgumentException(
+                    "Could not get project information, connection should not be null!");
+        }
+        return connection.getProject();
+    }
+
+    public DataplexConnectorConfig getConnection() {
+        return connection;
+    }
+
+    @Nullable
+    public String tryGetProject() {
+        return connection == null ? null : connection.tryGetProject();
+    }
+
+    @Nullable
+    public String getServiceAccount() {
+        return connection == null ? null : connection.getServiceAccount();
+    }
+
+    @Nullable
+    public Boolean isServiceAccountFilePath() {
+        return connection == null ? null : connection.isServiceAccountFilePath();
+    }
+    public boolean autoServiceAccountUnavailable() {
+        if (connection == null || connection.getServiceAccountFilePath() == null &&
+                connection.isServiceAccountFilePath()) {
+            try {
+                ServiceAccountCredentials.getApplicationDefault();
+            } catch (IOException e) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Nullable
+    public String getServiceAccountType() {
+        return connection == null ? null : connection.getServiceAccountType();
+    }
+
+
     public void validateBigQueryDataset(FailureCollector collector) {
         IdUtils.validateReferenceName(referenceName, collector);
 
@@ -360,7 +384,8 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
         try {
             return Schema.parseJson(schema);
         } catch (IOException e) {
-            collector.addFailure("Invalid schema: " + e.getMessage(), null).withConfigProperty(NAME_SCHEMA);
+            collector.addFailure("Invalid schema: " + e.getMessage(), null).
+                    withConfigProperty(NAME_SCHEMA);
         }
         // if there was an error that was added, it will throw an exception, otherwise,
         // this statement will not be executed
@@ -681,7 +706,8 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
             .withConfigElement(NAME_TABLE_KEY, key)
           );
 
-        if ((Operation.UPDATE.equals(assetOperation) || Operation.UPSERT.equals(assetOperation)) && getDedupeBy() != null) {
+        if ((Operation.UPDATE.equals(assetOperation) ||
+                Operation.UPSERT.equals(assetOperation)) && getDedupeBy() != null) {
             List<String> dedupeByList = Arrays.stream(Objects.requireNonNull(getDedupeBy()).split(","))
               .collect(Collectors.toList());
 
@@ -724,9 +750,11 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
      * Returns true if bigquery table can be connected to or schema is not a macro.
      */
     boolean shouldConnect() {
-        return !containsMacro(NAME_ASSET) && !containsMacro(NAME_TABLE) && !containsMacro(NAME_SERVICE_ACCOUNT_TYPE) &&
-          !(containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH) || containsMacro(NAME_SERVICE_ACCOUNT_JSON)) &&
-          !containsMacro(NAME_PROJECT) && !containsMacro(NAME_SCHEMA);
+        return !containsMacro(NAME_ASSET) && !containsMacro(NAME_TABLE) &&
+                !containsMacro(connection.NAME_SERVICE_ACCOUNT_TYPE) &&
+          !(containsMacro(connection.NAME_SERVICE_ACCOUNT_FILE_PATH) ||
+                  containsMacro(connection.NAME_SERVICE_ACCOUNT_JSON)) &&
+          !containsMacro(connection.NAME_PROJECT) && !containsMacro(NAME_SCHEMA);
     }
 
     public void validateStorageBucket(FailureCollector collector) {

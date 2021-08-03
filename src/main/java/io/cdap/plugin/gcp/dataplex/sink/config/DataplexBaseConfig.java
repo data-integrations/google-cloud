@@ -3,12 +3,12 @@ package io.cdap.plugin.gcp.dataplex.sink.config;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
-import io.cdap.plugin.gcp.common.GCPConfig;
+import io.cdap.cdap.api.plugin.PluginConfig;
 
 /**
  * Contains Dataplex config properties.
  */
-public class DataplexBaseConfig extends GCPConfig {
+public class DataplexBaseConfig extends PluginConfig {
     public static final String REFERENCE_NAME = "referenceName";
     public static final String NAME_ASSET = "asset";
     public static final String NAME_ASSET_TYPE = "assetType";
@@ -29,7 +29,6 @@ public class DataplexBaseConfig extends GCPConfig {
     @Name(NAME_ASSET_TYPE)
     @Description("Asset Type can be BQ Dataset or GCS bucket.")
     protected String assetType;
-
 
 
     public String getReferenceName() {
