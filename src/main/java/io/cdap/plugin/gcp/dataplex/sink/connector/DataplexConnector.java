@@ -5,21 +5,13 @@ import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.etl.api.batch.BatchSink;
-import io.cdap.cdap.etl.api.connector.BrowseDetail;
-import io.cdap.cdap.etl.api.connector.BrowseEntity;
-import io.cdap.cdap.etl.api.connector.BrowseRequest;
-import io.cdap.cdap.etl.api.connector.Connector;
-import io.cdap.cdap.etl.api.connector.ConnectorContext;
-import io.cdap.cdap.etl.api.connector.ConnectorSpec;
-import io.cdap.cdap.etl.api.connector.ConnectorSpecRequest;
-import io.cdap.cdap.etl.api.connector.DirectConnector;
-import io.cdap.cdap.etl.api.connector.PluginSpec;
-import io.cdap.cdap.etl.api.connector.SampleRequest;
+import io.cdap.cdap.etl.api.connector.*;
 import io.cdap.cdap.etl.api.validation.ValidationException;
 import io.cdap.plugin.gcp.dataplex.sink.DataplexBatchSink;
 import io.cdap.plugin.gcp.dataplex.sink.config.DataplexBaseConfig;
-import io.cdap.plugin.gcp.dataplex.sink.config.DataplexBatchSinkConfig;
 import io.cdap.plugin.gcp.dataplex.sink.enums.AssetType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -35,10 +27,18 @@ import java.util.Map;
 @Description("This connector enables browsing feature to fetch the lakes, zones and assets information from Dataplex.")
 public class DataplexConnector implements DirectConnector {
     public static final String NAME = "Dataplex";
+    private static final Logger LOG = LoggerFactory.getLogger(DataplexConnector.class);
+
+    private DataplexConnectorConfig config;
+
+    DataplexConnector(DataplexConnectorConfig config) {
+        this.config = config;
+    }
+
 
     @Override
     public void test(ConnectorContext connectorContext) throws ValidationException {
-
+        //no-op
     }
 
     @Override
@@ -50,35 +50,39 @@ public class DataplexConnector implements DirectConnector {
         }
         String zone = path.getZone();
         if (zone == null) {
-            return listZones(10);
+            return listZones(10, lake);
         }
         String asset = path.getAsset();
         if (asset == null) {
-            return listAssets(10);
+            return listAssets(10, lake, zone);
         }
         BrowseDetail.Builder builder = BrowseDetail.builder();
-        builder.addEntity(BrowseEntity.builder(asset, asset, "ASSET").canBrowse(false).canSample(true).build());
+        builder.addEntity(BrowseEntity.builder(asset, asset, "Asset").canBrowse(false).canSample(true).build());
         return builder.setTotalCount(1).build();
     }
 
     private BrowseDetail listLakes(Integer limit) {
         BrowseDetail.Builder builder = BrowseDetail.builder();
         String name = "lakes";
-        builder.addEntity(BrowseEntity.builder(name, name, "LAKE").canBrowse(true).canSample(true).build());
+        builder.addEntity(BrowseEntity.builder(name, "/" + name, "Lake").canBrowse(true).canSample(true).build());
         return builder.setTotalCount(1).build();
     }
 
-    private BrowseDetail listZones(Integer limit) {
+    private BrowseDetail listZones(Integer limit, String lake) {
         BrowseDetail.Builder builder = BrowseDetail.builder();
+        String parentPath = String.format("/%s/", lake);;
         String name = "zones";
-        builder.addEntity(BrowseEntity.builder(name, name, "ZONE").canBrowse(true).canSample(true).build());
+        builder.addEntity(BrowseEntity.builder(name, parentPath + name, "Zone").canBrowse(true).
+                canSample(true).build());
         return builder.setTotalCount(1).build();
     }
 
-    private BrowseDetail listAssets(Integer limit) {
+    private BrowseDetail listAssets(Integer limit, String lake, String zone) {
         BrowseDetail.Builder builder = BrowseDetail.builder();
+        String parentPath = String.format("/%s/%s/", lake, zone);
         String name = "assets";
-        builder.addEntity(BrowseEntity.builder(name, name, "ASSET").canBrowse(false).canSample(true).build());
+        builder.addEntity(BrowseEntity.builder(name, parentPath + name, "Asset").
+                canSample(true).build());
         return builder.setTotalCount(1).build();
     }
 
@@ -88,7 +92,7 @@ public class DataplexConnector implements DirectConnector {
         ConnectorSpec.Builder specBuilder = ConnectorSpec.builder();
         Map<String, String> properties = new HashMap<>();
         properties.put(DataplexBaseConfig.NAME_ASSET, connectorSpecRequest.getPath());
-        properties.put(DataplexBaseConfig.NAME_ASSET_TYPE, AssetType.STORAGE_BUCKET.name());
+        properties.put(DataplexBaseConfig.NAME_ASSET_TYPE, AssetType.STORAGE_BUCKET.toString());
         return specBuilder.addRelatedPlugin(new PluginSpec(DataplexBatchSink.NAME, BatchSink.PLUGIN_TYPE, properties))
           .build();
     }
