@@ -5,11 +5,21 @@ import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.etl.api.batch.BatchSink;
-import io.cdap.cdap.etl.api.connector.*;
+import io.cdap.cdap.etl.api.connector.BrowseDetail;
+import io.cdap.cdap.etl.api.connector.BrowseEntity;
+import io.cdap.cdap.etl.api.connector.BrowseRequest;
+import io.cdap.cdap.etl.api.connector.Connector;
+import io.cdap.cdap.etl.api.connector.ConnectorContext;
+import io.cdap.cdap.etl.api.connector.ConnectorSpec;
+import io.cdap.cdap.etl.api.connector.ConnectorSpecRequest;
+import io.cdap.cdap.etl.api.connector.DirectConnector;
+import io.cdap.cdap.etl.api.connector.PluginSpec;
+import io.cdap.cdap.etl.api.connector.SampleRequest;
 import io.cdap.cdap.etl.api.validation.ValidationException;
 import io.cdap.plugin.gcp.dataplex.sink.DataplexBatchSink;
 import io.cdap.plugin.gcp.dataplex.sink.config.DataplexBaseConfig;
 import io.cdap.plugin.gcp.dataplex.sink.enums.AssetType;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

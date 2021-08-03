@@ -17,7 +17,11 @@
 package io.cdap.plugin.gcp.dataplex.sink.config;
 
 import com.google.auth.oauth2.ServiceAccountCredentials;
-import com.google.cloud.bigquery.*;
+import com.google.cloud.bigquery.JobInfo;
+import com.google.cloud.bigquery.RangePartitioning;
+import com.google.cloud.bigquery.StandardTableDefinition;
+import com.google.cloud.bigquery.Table;
+import com.google.cloud.bigquery.TimePartitioning;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.annotation.Description;
@@ -30,14 +34,21 @@ import io.cdap.plugin.gcp.bigquery.sink.Operation;
 import io.cdap.plugin.gcp.bigquery.sink.PartitionType;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.dataplex.sink.connector.DataplexConnectorConfig;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import javax.annotation.Nullable;
 
 /**
  * Dataplex plugin UI configuration parameters and validation wrapper
