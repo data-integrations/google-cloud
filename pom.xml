@@ -78,9 +78,9 @@
     <flogger.system.backend.version>0.3.1</flogger.system.backend.version>
     <gcs.connector.version>hadoop2-2.0.0</gcs.connector.version>
     <google.cloud.bigtable.version>1.17.1</google.cloud.bigtable.version>
-    <google.cloud.bigquery.version>1.125.0</google.cloud.bigquery.version>
+    <google.cloud.bigquery.version>1.137.1</google.cloud.bigquery.version>
     <google.cloud.pubsub.version>1.108.1</google.cloud.pubsub.version>
-    <google.cloud.spanner.version>3.0.4</google.cloud.spanner.version>
+    <google.cloud.spanner.version>6.10.1</google.cloud.spanner.version>
     <google.cloud.speech.version>1.24.7</google.cloud.speech.version>
     <google.cloud.storage.version>1.111.2</google.cloud.storage.version>
     <google.cloud.datastore.version>1.105.1</google.cloud.datastore.version>
