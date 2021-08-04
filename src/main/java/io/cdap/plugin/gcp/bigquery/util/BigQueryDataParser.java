@@ -26,6 +26,8 @@ import com.google.cloud.bigquery.TableResult;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 
+import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize.BigNumeric;
+import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize.Numeric;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -117,14 +119,22 @@ public final class BigQueryDataParser {
         return getZonedDateTime(tsMicroValue);
       case NUMERIC:
         BigDecimal decimal = fieldValue.getNumericValue();
-        if (decimal.scale() < 9) {
+        if (decimal.scale() < Numeric.SCALE) {
           // scale up the big decimal. this is because structured record expects scale to be exactly same as schema
-          // Big Query supports maximum unscaled value up to 38 digits. so scaling up should still be <= max
-          // precision
-          decimal = decimal.setScale(9);
+          // Big Query supports maximum unscaled value up to Numeric.SCALE digits. so scaling up should
+          // still be <= max precision
+          decimal = decimal.setScale(Numeric.SCALE);
         }
         return decimal;
-
+      case BIGNUMERIC:
+        BigDecimal bigDecimal = fieldValue.getNumericValue();
+        if (bigDecimal.scale() < BigNumeric.SCALE) {
+          // scale up the big decimal. this is because structured record expects scale to be exactly same as schema
+          // Big Query Big Numeric supports maximum unscaled value up to BigNumeric.SCALE digits.
+          //  so scaling up should still be <= max precision
+          bigDecimal = bigDecimal.setScale(BigNumeric.SCALE);
+        }
+        return bigDecimal;
       case DATETIME:
         return LocalDateTime.parse(fieldValue.getStringValue());
       case STRING:
