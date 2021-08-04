@@ -126,8 +126,8 @@ public final class BigQueryUtil {
    * Get Bigquery {@link Configuration}.
    *
    * @param serviceAccountInfo service account file path or JSON content
-   * @param projectId BigQuery project ID
-   * @param cmekKey the name of the cmek key
+   * @param projectId          BigQuery project ID
+   * @param cmekKey            the name of the cmek key
    * @param serviceAccountType type of the service account
    * @return indicator for whether service account is file or json
    * @throws IOException if not able to get credentials
@@ -167,7 +167,8 @@ public final class BigQueryUtil {
 
   /**
    * Converts BigQuery Table Schema into a CDAP Schema object.
-   * @param bqSchema BigQuery Schema to be converted.
+   *
+   * @param bqSchema  BigQuery Schema to be converted.
    * @param collector Failure collector to collect failure messages for the client.
    * @return CDAP schema object
    */
@@ -197,7 +198,8 @@ public final class BigQueryUtil {
 
   /**
    * Converts BigQuery schema field into a corresponding CDAP Schema.Field.
-   * @param field BigQuery field to be converted.
+   *
+   * @param field     BigQuery field to be converted.
    * @param collector Failure collector to collect failure messages for the client.
    * @return A CDAP schema field
    */
@@ -206,16 +208,17 @@ public final class BigQueryUtil {
     return getSchemaField(field, collector, null);
   }
 
-    /**
-     * Converts BigQuery schema field into a corresponding CDAP Schema.Field.
-     * @param field BigQuery field to be converted.
-     * @param collector Failure collector to collect failure messages for the client.
-     * @param recordPrefix String to prepend to recordNames to make them unique
-     * @return A CDAP schema field
-     */
+  /**
+   * Converts BigQuery schema field into a corresponding CDAP Schema.Field.
+   *
+   * @param field        BigQuery field to be converted.
+   * @param collector    Failure collector to collect failure messages for the client.
+   * @param recordPrefix String to prepend to recordNames to make them unique
+   * @return A CDAP schema field
+   */
   @Nullable
   public static Schema.Field getSchemaField(Field field, @Nullable FailureCollector collector,
-      @Nullable String recordPrefix) {
+                                            @Nullable String recordPrefix) {
     Schema schema = convertFieldType(field, collector, recordPrefix);
     if (schema == null) {
       return null;
@@ -245,26 +248,28 @@ public final class BigQueryUtil {
 
   /**
    * Converts BiqQuery field type into a CDAP field type.
-   * @param field Bigquery field to be converted.
+   *
+   * @param field     Bigquery field to be converted.
    * @param collector Failure collector to collect failure messages for the client.
    * @return A CDAP field schema
    */
   @Nullable
   public static Schema convertFieldType(Field field, @Nullable FailureCollector collector) {
-    return convertFieldType(field, collector,  null);
+    return convertFieldType(field, collector, null);
   }
 
 
   /**
    * Converts BiqQuery field type into a CDAP field type.
-   * @param field Bigquery field to be converted.
-   * @param collector Failure collector to collect failure messages for the client.
+   *
+   * @param field        Bigquery field to be converted.
+   * @param collector    Failure collector to collect failure messages for the client.
    * @param recordPrefix String to add before a record name to ensure unique names.
    * @return A CDAP field schema
    */
   @Nullable
   public static Schema convertFieldType(Field field, @Nullable FailureCollector collector,
-      @Nullable String recordPrefix) {
+                                        @Nullable String recordPrefix) {
     LegacySQLTypeName type = field.getType();
     StandardSQLTypeName standardType = type.getStandardType();
     switch (standardType) {
@@ -323,8 +328,8 @@ public final class BigQueryUtil {
         String error =
           String.format("BigQuery column '%s' is of unsupported type '%s'.", field.getName(), standardType.name());
         String action = String.format("Supported column types are: %s.",
-          BigQueryUtil.BQ_TYPE_MAP.keySet().stream().map(t -> t.getStandardType().name())
-            .collect(Collectors.joining(", ")));
+                                      BigQueryUtil.BQ_TYPE_MAP.keySet().stream().map(t -> t.getStandardType().name())
+                                        .collect(Collectors.joining(", ")));
         if (collector != null) {
           collector.addFailure(error, action);
         } else {
@@ -337,12 +342,12 @@ public final class BigQueryUtil {
   /**
    * Validates if provided field schema matches with BigQuery table column type.
    *
-   * @param bqField bigquery table field
-   * @param field schema field
-   * @param dataset dataset name
-   * @param table table name
+   * @param bqField        bigquery table field
+   * @param field          schema field
+   * @param dataset        dataset name
+   * @param table          table name
    * @param supportedTypes types supported
-   * @param collector failure collector
+   * @param collector      failure collector
    * @return returns validation failure
    */
   @Nullable
@@ -418,8 +423,8 @@ public final class BigQueryUtil {
    * Check the mode of the output schema fields against big query table fields.
    *
    * @param bigQueryField schema fields
-   * @param field bigquery table fields
-   * @param collector failure collector
+   * @param field         bigquery table fields
+   * @param collector     failure collector
    */
   public static void validateFieldModeMatches(Field bigQueryField, Schema.Field field, boolean allowSchemaRelaxation,
                                               FailureCollector collector) {
@@ -438,7 +443,7 @@ public final class BigQueryUtil {
    * (Names of schema fields - Names of bigQuery table fields).
    *
    * @param schemaFields schema fields
-   * @param bqFields bigquery table fields
+   * @param bqFields     bigquery table fields
    * @return list of remaining field names
    */
   public static List<String> getSchemaMinusBqFields(List<Schema.Field> schemaFields, FieldList bqFields) {
@@ -458,7 +463,7 @@ public final class BigQueryUtil {
    * Get difference of big query table fields and schema fields. The operation is equivalent to
    * (Names of bigQuery table fields - Names of schema fields).
    *
-   * @param bqFields bigquery table fields
+   * @param bqFields     bigquery table fields
    * @param schemaFields schema fields
    * @return list of remaining field names
    */
@@ -490,8 +495,8 @@ public final class BigQueryUtil {
    * Validates schema of type array. BigQuery does not allow nullable type within array.
    *
    * @param arraySchema schema of array field
-   * @param name name of the array field
-   * @param collector failure collector
+   * @param name        name of the array field
+   * @param collector   failure collector
    * @return returns validation failure if invalid array schema, otherwise returns null
    */
   @Nullable
@@ -514,11 +519,12 @@ public final class BigQueryUtil {
 
   /**
    * Get BigQuery table.
-   * @param project project where the BQ job will be run
-   * @param datasetProject project where dataset is in
-   * @param datasetId BigQuery dataset ID
-   * @param tableName BigQuery table name
-   * @param serviceAccount service account file path or JSON content
+   *
+   * @param project                  project where the BQ job will be run
+   * @param datasetProject           project where dataset is in
+   * @param datasetId                BigQuery dataset ID
+   * @param tableName                BigQuery table name
+   * @param serviceAccount           service account file path or JSON content
    * @param isServiceAccountFilePath indicator for whether service account is file or json
    * @return BigQuery table
    */
@@ -552,11 +558,11 @@ public final class BigQueryUtil {
   /**
    * Get BigQuery table.
    *
-   * @param projectId BigQuery project ID
-   * @param datasetId BigQuery dataset ID
-   * @param tableName BigQuery table name
+   * @param projectId          BigQuery project ID
+   * @param datasetId          BigQuery dataset ID
+   * @param tableName          BigQuery table name
    * @param serviceAccountPath service account file path
-   * @param collector failure collector
+   * @param collector          failure collector
    * @return BigQuery table
    */
   @Nullable
@@ -568,12 +574,12 @@ public final class BigQueryUtil {
   /**
    * Get BigQuery table.
    *
-   * @param projectId BigQuery project ID
-   * @param datasetId BigQuery dataset ID
-   * @param tableName BigQuery table name
-   * @param serviceAccount service account file path or JSON content
+   * @param projectId                BigQuery project ID
+   * @param datasetId                BigQuery dataset ID
+   * @param tableName                BigQuery table name
+   * @param serviceAccount           service account file path or JSON content
    * @param isServiceAccountFilePath indicator for whether service account is file or json
-   * @param collector failure collector
+   * @param collector                failure collector
    * @return BigQuery table
    */
   public static Table getBigQueryTable(String projectId, String datasetId, String tableName,
@@ -609,9 +615,9 @@ public final class BigQueryUtil {
   /**
    * Validates allowed characters for bucket name.
    *
-   * @param bucket bucket name
+   * @param bucket             bucket name
    * @param bucketPropertyName bucket name property
-   * @param collector failure collector
+   * @param collector          failure collector
    */
   public static void validateBucket(String bucket, String bucketPropertyName, FailureCollector collector) {
     // Allowed character validation for bucket name as per https://cloud.google.com/storage/docs/naming
@@ -622,9 +628,9 @@ public final class BigQueryUtil {
   /**
    * Validates allowed characters for dataset name.
    *
-   * @param dataset dataset name
+   * @param dataset             dataset name
    * @param datasetPropertyName dataset name property
-   * @param collector failure collector
+   * @param collector           failure collector
    */
   public static void validateDataset(String dataset, String datasetPropertyName, FailureCollector collector) {
     // Allowed character validation for dataset name as per https://cloud.google.com/bigquery/docs/datasets
@@ -635,9 +641,9 @@ public final class BigQueryUtil {
   /**
    * Validates allowed characters for table name.
    *
-   * @param table table name
+   * @param table             table name
    * @param tablePropertyName table name property
-   * @param collector failure collector
+   * @param collector         failure collector
    */
   public static void validateTable(String table, String tablePropertyName, FailureCollector collector) {
     // Allowed character validation for table name as per https://cloud.google.com/bigquery/docs/tables
@@ -648,9 +654,9 @@ public final class BigQueryUtil {
   /**
    * Validates allowed GCS Upload Request Chunk Size.
    *
-   * @param chunkSize provided chunk size
+   * @param chunkSize             provided chunk size
    * @param chunkSizePropertyName GCS chunk size name property
-   * @param collector failure collector
+   * @param collector             failure collector
    */
   public static void validateGCSChunkSize(String chunkSize, String chunkSizePropertyName, FailureCollector collector) {
     if (!Strings.isNullOrEmpty(chunkSize)) {
@@ -671,10 +677,10 @@ public final class BigQueryUtil {
    * Matches text with provided pattern. If the text does not match the pattern, the method adds a new failure to
    * failure collector.
    *
-   * @param text text to be matched
+   * @param text         text to be matched
    * @param propertyName property name
-   * @param pattern pattern
-   * @param collector failure collector
+   * @param pattern      pattern
+   * @param collector    failure collector
    * @param errorMessage error message
    */
   private static void match(String text, String propertyName, String pattern,
@@ -691,7 +697,7 @@ public final class BigQueryUtil {
    * Deletes temporary directory.
    *
    * @param configuration Hadoop Configuration.
-   * @param dir directory to delete
+   * @param dir           directory to delete
    */
   public static void deleteTemporaryDirectory(Configuration configuration, String dir) throws IOException {
     Path path = new Path(dir);
