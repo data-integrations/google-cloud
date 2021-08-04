@@ -319,7 +319,7 @@ public final class BigQuerySinkUtils {
     }
   }
 
-  private static BigQueryFileFormat getFileFormat(List<BigQueryTableFieldSchema> fields) {
+  public static BigQueryFileFormat getFileFormat(List<BigQueryTableFieldSchema> fields) {
     for (BigQueryTableFieldSchema field : fields) {
       if (DATETIME.equals(field.getType())) {
         return BigQueryFileFormat.NEWLINE_DELIMITED_JSON;

@@ -25,8 +25,10 @@ import io.cdap.cdap.etl.api.engine.sql.dataset.SQLPullDataset;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLPullRequest;
 import io.cdap.plugin.gcp.bigquery.source.BigQueryInputFormatProvider;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceUtils;
+import io.cdap.plugin.gcp.bigquery.sqlengine.input.BigQuerySQLEngineInputFormatProvider;
 import io.cdap.plugin.gcp.bigquery.sqlengine.transform.PullTransform;
 import io.cdap.plugin.gcp.bigquery.sqlengine.util.BigQuerySQLEngineUtils;
+import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import org.apache.avro.generic.GenericData;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
@@ -37,7 +39,7 @@ import javax.annotation.Nullable;
 /**
  * SQL Pull Dataset implementation for BigQuery backed datasets.
  */
-public class BigQueryPullDataset extends BigQueryInputFormatProvider
+public class BigQueryPullDataset extends BigQuerySQLEngineInputFormatProvider
   implements SQLPullDataset<StructuredRecord, LongWritable, GenericData.Record>, BigQuerySQLDataset {
 
   private final BigQuery bigQuery;
@@ -68,6 +70,7 @@ public class BigQueryPullDataset extends BigQueryInputFormatProvider
   }
 
   public static BigQueryPullDataset getInstance(SQLPullRequest pullRequest,
+                                                BigQuerySQLEngineConfig sqlEngineConfig,
                                                 Configuration baseConfiguration,
                                                 BigQuery bigQuery,
                                                 String project,
@@ -78,6 +81,10 @@ public class BigQueryPullDataset extends BigQueryInputFormatProvider
 
     // Clone configuration object
     Configuration configuration = new Configuration(baseConfiguration);
+
+    if (sqlEngineConfig.shouldUseCompression()) {
+      configuration.setBoolean(BigQueryConstants.CONFIG_SQLENGINE_EXPORT_COMPRESS, true);
+    }
 
     // Configure BigQuery input format.
     String gcsPath = BigQuerySQLEngineUtils.getGCSPath(bucket, runId, bqTable);

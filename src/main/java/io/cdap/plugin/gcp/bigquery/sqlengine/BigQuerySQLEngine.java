@@ -167,6 +167,7 @@ public class BigQuerySQLEngine
 
     try {
       return BigQueryPullDataset.getInstance(sqlPullRequest,
+                                             sqlEngineConfig,
                                              configuration,
                                              bigQuery,
                                              project,
