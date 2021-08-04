@@ -54,6 +54,10 @@ public class BigQueryUtilTest {
     Field timestampField = Field.newBuilder("timestamp", StandardSQLTypeName.TIMESTAMP).build();
     fieldList.add(timestampField);
 
+    Field subStringField = Field.newBuilder("subStringField", StandardSQLTypeName.STRING).build();
+    Field subRecord = Field.newBuilder("subStructure", StandardSQLTypeName.STRUCT, subStringField).build();;
+    Field recordField = Field.newBuilder("structure", StandardSQLTypeName.STRUCT, subRecord).build();
+    fieldList.add(recordField);
     Schema tableSchema = BigQueryUtil.getTableSchema(com.google.cloud.bigquery.Schema.of(fieldList), null);
 
     List<Schema.Field> cdapFieldList = new ArrayList<>();
@@ -80,7 +84,18 @@ public class BigQueryUtilTest {
       Schema.Field.of("timestamp", Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS)));
     cdapFieldList.add(cdapTimestampField);
 
+    Schema.Field cdapSubStringField = Schema.Field.of("subStringField",
+        Schema.nullableOf(Schema.of(Schema.Type.STRING)));
+    Schema.Field cdapSubRecordField = Schema.Field.of("subStructure",
+        Schema.nullableOf(Schema.recordOf("structure.subStructure", cdapSubStringField)));
+    Schema.Field cdapRecordField = Schema.Field.of("structure",
+        Schema.nullableOf(Schema.recordOf("structure", cdapSubRecordField)));
+    cdapFieldList.add(cdapRecordField);
+
     Schema expectedSchema = Schema.recordOf("output", cdapFieldList);
     assertEquals(expectedSchema, tableSchema);
   }
+
+
+
 }

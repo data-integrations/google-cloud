@@ -54,7 +54,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -195,6 +194,7 @@ public final class BigQueryUtil {
     return Schema.recordOf("output", schemafields);
   }
 
+
   /**
    * Converts BigQuery schema field into a corresponding CDAP Schema.Field.
    * @param field BigQuery field to be converted.
@@ -203,7 +203,20 @@ public final class BigQueryUtil {
    */
   @Nullable
   public static Schema.Field getSchemaField(Field field, @Nullable FailureCollector collector) {
-    Schema schema = convertFieldType(field, collector);
+    return getSchemaField(field, collector, null);
+  }
+
+    /**
+     * Converts BigQuery schema field into a corresponding CDAP Schema.Field.
+     * @param field BigQuery field to be converted.
+     * @param collector Failure collector to collect failure messages for the client.
+     * @param recordPrefix String to prepend to recordNames to make them unique
+     * @return A CDAP schema field
+     */
+  @Nullable
+  public static Schema.Field getSchemaField(Field field, @Nullable FailureCollector collector,
+      @Nullable String recordPrefix) {
+    Schema schema = convertFieldType(field, collector, recordPrefix);
     if (schema == null) {
       return null;
     }
@@ -229,6 +242,7 @@ public final class BigQueryUtil {
     return null;
   }
 
+
   /**
    * Converts BiqQuery field type into a CDAP field type.
    * @param field Bigquery field to be converted.
@@ -237,6 +251,20 @@ public final class BigQueryUtil {
    */
   @Nullable
   public static Schema convertFieldType(Field field, @Nullable FailureCollector collector) {
+    return convertFieldType(field, collector,  null);
+  }
+
+
+  /**
+   * Converts BiqQuery field type into a CDAP field type.
+   * @param field Bigquery field to be converted.
+   * @param collector Failure collector to collect failure messages for the client.
+   * @param recordPrefix String to add before a record name to ensure unique names.
+   * @return A CDAP field schema
+   */
+  @Nullable
+  public static Schema convertFieldType(Field field, @Nullable FailureCollector collector,
+      @Nullable String recordPrefix) {
     LegacySQLTypeName type = field.getType();
     StandardSQLTypeName standardType = type.getStandardType();
     switch (standardType) {
@@ -266,21 +294,28 @@ public final class BigQueryUtil {
         return Schema.decimalOf(38, 9);
       case STRUCT:
         FieldList fields = field.getSubFields();
-        List<Schema.Field> schemafields = new ArrayList<>();
+        List<Schema.Field> schemaFields = new ArrayList<>();
+
+        // Record names have to be unique as Avro doesn't allow to redefine them.
+        // We can make them unique by prepending the previous records names to their name.
+        String recordName = "";
+        if (recordPrefix != null) {
+          recordName = recordPrefix + '.';
+        }
+        recordName = recordName + field.getName();
+
         for (Field f : fields) {
-          Schema.Field schemaField = getSchemaField(f, collector);
+          Schema.Field schemaField = getSchemaField(f, collector, recordName);
           // if schema field is null, that means that there was a validation error. We will still continue in order to
           // collect more errors
           if (schemaField == null) {
             continue;
           }
-          schemafields.add(schemaField);
+          schemaFields.add(schemaField);
         }
         // do not return schema for the struct field if none of the nested fields are of supported types
-        if (!schemafields.isEmpty()) {
-          // We use a random UUID as the record name to ensure each record will have a unique name
-          // as AVRO doesnt allow the redefinition of existing records.
-          return Schema.recordOf(UUID.randomUUID().toString().replace("-", ""), schemafields);
+        if (!schemaFields.isEmpty()) {
+          return Schema.recordOf(recordName, schemaFields);
         } else {
           return null;
         }
