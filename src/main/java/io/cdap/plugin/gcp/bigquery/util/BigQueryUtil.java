@@ -195,7 +195,6 @@ public final class BigQueryUtil {
     return Schema.recordOf("output", schemafields);
   }
 
-
   /**
    * Converts BigQuery schema field into a corresponding CDAP Schema.Field.
    *
@@ -245,7 +244,6 @@ public final class BigQueryUtil {
     return null;
   }
 
-
   /**
    * Converts BiqQuery field type into a CDAP field type.
    *
@@ -257,7 +255,6 @@ public final class BigQueryUtil {
   public static Schema convertFieldType(Field field, @Nullable FailureCollector collector) {
     return convertFieldType(field, collector, null);
   }
-
 
   /**
    * Converts BiqQuery field type into a CDAP field type.
