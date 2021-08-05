@@ -101,19 +101,15 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
 
   @Override
   public void onRunFinish(boolean succeeded, BatchSinkContext context) {
-    Path gcsPath;
+    String gcsPath;
     String bucket = getConfig().getBucket();
     if (bucket == null) {
-      gcsPath = new Path(String.format("gs://%s", runUUID.toString()));
+      gcsPath = String.format("gs://%s", runUUID.toString());
     } else {
-      gcsPath = new Path(String.format(gcsPathFormat, bucket, runUUID.toString()));
+      gcsPath = String.format(gcsPathFormat, bucket, runUUID.toString());
     }
     try {
-      FileSystem fs = gcsPath.getFileSystem(baseConfiguration);
-      if (fs.exists(gcsPath)) {
-        fs.delete(gcsPath, true);
-        LOG.debug("Deleted temporary directory '{}'", gcsPath);
-      }
+      BigQueryUtil.deleteTemporaryDirectory(baseConfiguration, gcsPath);
     } catch (IOException e) {
       LOG.warn("Failed to delete temporary directory '{}': {}", gcsPath, e.getMessage());
     }
