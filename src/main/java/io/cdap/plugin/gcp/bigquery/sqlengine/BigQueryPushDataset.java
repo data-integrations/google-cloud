@@ -98,7 +98,6 @@ public class BigQueryPushDataset extends BigQueryOutputFormatProvider
     String gcsPath = BigQuerySQLEngineUtils.getGCSPath(bucket, runId, table);
     List<BigQueryTableFieldSchema> fields =
       BigQuerySinkUtils.getBigQueryTableFieldsFromSchema(pushRequest.getDatasetSchema());
-    BigQuerySinkUtils.configureBucket(configuration, bucket, runId);
     BigQuerySinkUtils.configureOutput(configuration, project, dataset, table, gcsPath, fields);
 
     // Create empty table to store uploaded records.
