@@ -69,7 +69,7 @@ public class DataplexPath {
         lake = parts[0];
         validateName("Lake", lake);
 
-        if (parts.length == 2) {
+        if (parts.length >= 2) {
             zone = parts[1];
             validateName("Zone", zone);
         }

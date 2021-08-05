@@ -80,7 +80,7 @@ public class DataplexConnector implements DirectConnector {
 
     private BrowseDetail listZones(Integer limit, String lake) {
         BrowseDetail.Builder builder = BrowseDetail.builder();
-        String parentPath = String.format("/%s/", lake);;
+        String parentPath = String.format("/%s/", lake);
         String name = "zones";
         builder.addEntity(BrowseEntity.builder(name, parentPath + name, "Zone").canBrowse(true).
                 canSample(true).build());
@@ -100,8 +100,11 @@ public class DataplexConnector implements DirectConnector {
     public ConnectorSpec generateSpec(ConnectorContext connectorContext, ConnectorSpecRequest connectorSpecRequest)
       throws IOException {
         ConnectorSpec.Builder specBuilder = ConnectorSpec.builder();
+        DataplexPath path = new DataplexPath(connectorSpecRequest.getPath());
         Map<String, String> properties = new HashMap<>();
-        properties.put(DataplexBaseConfig.NAME_ASSET, connectorSpecRequest.getPath());
+        properties.put(DataplexBaseConfig.NAME_LAKE, path.getLake());
+        properties.put(DataplexBaseConfig.NAME_ZONE, path.getZone());
+        properties.put(DataplexBaseConfig.NAME_ASSET, path.getAsset());
         properties.put(DataplexBaseConfig.NAME_ASSET_TYPE, AssetType.STORAGE_BUCKET.toString());
         return specBuilder.addRelatedPlugin(new PluginSpec(DataplexBatchSink.NAME, BatchSink.PLUGIN_TYPE, properties))
           .build();

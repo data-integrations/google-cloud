@@ -30,8 +30,6 @@ import io.cdap.plugin.gcp.dataplex.sink.config.DataplexBatchSinkConfig;
 import io.cdap.plugin.gcp.dataplex.sink.enums.AssetType;
 
 import org.apache.hadoop.io.NullWritable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Batch Sink that writes data to Dataplex assets (Bigquery or GCS).
@@ -64,6 +62,7 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, NullWri
     FailureCollector collector = configurer.getFailureCollector();
     Schema inputSchema = configurer.getInputSchema();
     Schema configuredSchema = config.getSchema(collector);
+    config.validateAssetConfiguration(collector);
     if (config.getAssetType().equalsIgnoreCase(AssetType.BIGQUERY_DATASET.toString())) {
       config.validateBigQueryDataset(inputSchema, configuredSchema, collector);
     } else if (config.getAssetType().equalsIgnoreCase(AssetType.STORAGE_BUCKET.toString())) {
