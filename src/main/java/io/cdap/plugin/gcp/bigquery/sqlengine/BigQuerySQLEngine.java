@@ -125,7 +125,30 @@ public class BigQuerySQLEngine
     String cmekKey = context.getRuntimeArguments().get(GCPUtils.CMEK_KEY);
     configuration = BigQueryUtil.getBigQueryConfig(sqlEngineConfig.getServiceAccount(), sqlEngineConfig.getProject(),
                                                    cmekKey, sqlEngineConfig.getServiceAccountType());
+    // Create resources needed for this execution
     BigQuerySinkUtils.createResources(bigQuery, storage, dataset, bucket, sqlEngineConfig.getLocation(), cmekKey);
+    // Configure GCS bucket that is used to stage temporary files.
+    // If the bucket is created for this run, mar it for deletion after executon is completed
+    BigQuerySinkUtils.configureBucket(configuration, bucket, runId, sqlEngineConfig.getBucket() == null);
+  }
+
+  @Override
+  public void onRunFinish(boolean succeeded, RuntimeContext context) {
+    super.onRunFinish(succeeded, context);
+
+    String gcsPath;
+    // If the bucket was created for this run, we should delete it.
+    // Otherwise, just clean the directory within the provided bucket.
+    if (sqlEngineConfig.getBucket() == null) {
+      gcsPath = String.format("gs://%s", bucket);
+    } else {
+      gcsPath = String.format(BigQuerySinkUtils.GS_PATH_FORMAT, bucket, runId);
+    }
+    try {
+      BigQueryUtil.deleteTemporaryDirectory(configuration, gcsPath);
+    } catch (IOException e) {
+      LOG.warn("Failed to delete temporary directory '{}': {}", gcsPath, e.getMessage());
+    }
   }
 
   @Override
