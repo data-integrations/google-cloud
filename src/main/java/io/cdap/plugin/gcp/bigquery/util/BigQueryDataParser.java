@@ -77,7 +77,6 @@ public final class BigQueryDataParser {
         continue;
       }
 
-
       Schema.Field localSchemaField = schema.getField(fieldName);
       Schema localSchema;
       if (localSchemaField != null) {
