@@ -66,7 +66,6 @@ public final class BigQueryDataParser {
   public static StructuredRecord getStructuredRecord(Schema schema, FieldList fields, FieldValueList fieldValues) {
 
     StructuredRecord.Builder recordBuilder = StructuredRecord.builder(schema);
-    List<Schema.Field> schemaFieldList = schema.getFields();
 
     for (int i = 0; i < fields.size(); i++) {
       Field field = fields.get(i);
@@ -78,8 +77,13 @@ public final class BigQueryDataParser {
         continue;
       }
 
-      Schema.Field localSchemaField = schemaFieldList.get(i);
-      Schema localSchema = localSchemaField.getSchema();
+      Schema.Field localSchemaField = schema.getField(fieldName);
+      Schema localSchema;
+      if (localSchemaField != null) {
+        localSchema = localSchemaField.getSchema();
+      } else {
+        continue;
+      }
       FieldList localFields = field.getSubFields();
 
       if (attribute == Attribute.REPEATED) {
