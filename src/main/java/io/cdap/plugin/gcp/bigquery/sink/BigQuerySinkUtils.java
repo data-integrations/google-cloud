@@ -154,8 +154,26 @@ public final class BigQuerySinkUtils {
    * @return bucket name
    */
   public static String configureBucket(Configuration baseConfiguration, @Nullable String bucket, String runId) {
+    boolean deleteBucket = false;
+    // If the bucket is null, assign the run ID as the bucket name and mark the bucket for deletion.
     if (bucket == null) {
       bucket = runId;
+      deleteBucket = true;
+    }
+    return configureBucket(baseConfiguration, bucket, runId, deleteBucket);
+  }
+
+  /**
+   * Updates {@link Configuration} with bucket details.
+   * Uses provided bucket, otherwise uses provided runId as a bucket name.
+   *
+   * @return bucket name
+   */
+  public static String configureBucket(Configuration baseConfiguration,
+                                       String bucket,
+                                       String runId,
+                                       boolean deleteBucket) {
+    if (deleteBucket) {
       // By default, this option is false, meaning the job can not delete the bucket.
       // So enable it only when bucket name is not provided.
       baseConfiguration.setBoolean("fs.gs.bucket.delete.enable", true);
