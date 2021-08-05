@@ -99,6 +99,22 @@
         },
         {
           "widget-type": "textbox",
+          "label": "Lake Name",
+          "name": "lake",
+          "widget-attributes": {
+            "placeholder": "Lake name"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Zone Name",
+          "name": "zone",
+          "widget-attributes": {
+            "placeholder": "Zone name"
+          }
+        },
+        {
+          "widget-type": "textbox",
           "label": "Asset Name",
           "name": "asset",
           "widget-attributes": {
@@ -129,6 +145,14 @@
     {
       "label": "Asset Details",
       "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Path Suffix",
+          "name": "suffix",
+          "widget-attributes": {
+            "default": "yyyy-MM-dd-HH-mm"
+          }
+        },
         {
           "widget-type": "plugin-list",
           "label": "Format",
@@ -328,7 +352,7 @@
       "show": [
         {
           "type": "property",
-          "name": "objectName"
+          "name": "suffix"
         },
         {
           "type": "property",

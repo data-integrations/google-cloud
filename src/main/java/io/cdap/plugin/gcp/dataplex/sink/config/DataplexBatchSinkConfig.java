@@ -39,6 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -96,6 +97,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     private static final Pattern FIELD_PATTERN = Pattern.compile("[a-zA-Z0-9_]+");
     public static final String NAME_USE_CONNECTION = "useConnection";
     public static final String NAME_CONNECTION = "connection";
+    private static final String NAME_SUFFIX = "suffix";
 
     @Name(NAME_FORMAT)
     @Nullable
@@ -235,6 +237,13 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     @Description("The existing connection to use.")
     private DataplexConnectorConfig connection;
 
+    @Description("The time format for the output directory that will be appended to the path. " +
+      "For example, the format 'yyyy-MM-dd-HH-mm' will result in a directory of the form '2015-01-01-20-42'. " +
+      "If not specified, nothing will be appended to the path.")
+    @Nullable
+    @Macro
+    private String suffix;
+
     @Nullable
     public String getFormat() {
         return format;
@@ -368,13 +377,14 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
         return connection == null ? null : connection.getServiceAccountType();
     }
 
+    @Nullable
+    public String getSuffix() {
+        return suffix;
+    }
 
     public void validateBigQueryDataset(FailureCollector collector) {
         IdUtils.validateReferenceName(referenceName, collector);
 
-        if (!containsMacro(NAME_ASSET)) {
-            BigQueryUtil.validateDataset(asset, NAME_ASSET, collector);
-        }
         if (!containsMacro(NAME_TABLE)) {
             BigQueryUtil.validateTable(table, NAME_TABLE, collector);
         }
@@ -403,6 +413,36 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
         throw collector.getOrThrowException();
     }
 
+    public void validateAssetConfiguration(FailureCollector collector) {
+
+        if (!containsMacro(NAME_LAKE)) {
+            if (!FIELD_PATTERN.matcher(lake).matches()) {
+                collector
+                  .addFailure(String.format(" '%s' field must only contain alphanumeric characters and '_'.",
+                    NAME_LAKE), null).withOutputSchemaField(NAME_LAKE);
+            }
+        }
+
+        if (!containsMacro(NAME_ZONE)) {
+            if (!FIELD_PATTERN.matcher(zone).matches()) {
+                collector
+                  .addFailure(String.format(" '%s' field must only contain alphanumeric characters and '_'.",
+                    NAME_ZONE), null).withOutputSchemaField(NAME_ZONE);
+            }
+        }
+
+        if (!containsMacro(NAME_ASSET)) {
+            if (!FIELD_PATTERN.matcher(asset).matches()) {
+                collector
+                  .addFailure(String.format(" '%s' field must only contain alphanumeric characters and '_'.",
+                    NAME_ASSET), null).withOutputSchemaField(NAME_ASSET);
+            }
+        }
+
+        //Check whether Lake, Zone, and Asset exists and check selected Asset type is same as  Actual asset type
+
+
+    }
 
     public void validateBigQueryDataset(@Nullable Schema inputSchema, @Nullable Schema outputSchema,
                                         FailureCollector collector) {
@@ -770,6 +810,15 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
 
     public void validateStorageBucket(FailureCollector collector) {
         IdUtils.validateReferenceName(referenceName, collector);
+
+        if (suffix != null && !containsMacro(NAME_SUFFIX)) {
+            try {
+                new SimpleDateFormat(suffix);
+            } catch (IllegalArgumentException e) {
+                collector.addFailure("Invalid suffix.", "Ensure provided suffix is valid.")
+                  .withConfigProperty(NAME_SUFFIX).withStacktrace(e.getStackTrace());
+            }
+        }
 
         if (!containsMacro(NAME_FORMAT)) {
             try {
