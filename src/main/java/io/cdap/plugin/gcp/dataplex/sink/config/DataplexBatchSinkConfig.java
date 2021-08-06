@@ -86,12 +86,9 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     private static final String CONTENT_TYPE_APPLICATION_CSV = "application/csv";
     private static final String CONTENT_TYPE_TEXT_PLAIN = "text/plain";
     private static final String CONTENT_TYPE_TEXT_CSV = "text/csv";
-    private static final String CONTENT_TYPE_TEXT_TSV = "text/tab-separated-values";
     private static final String FORMAT_AVRO = "avro";
     private static final String FORMAT_CSV = "csv";
     private static final String FORMAT_JSON = "json";
-    private static final String FORMAT_TSV = "tsv";
-    private static final String FORMAT_DELIMITED = "delimited";
     private static final String FORMAT_ORC = "orc";
     private static final String FORMAT_PARQUET = "parquet";
     private static final Pattern FIELD_PATTERN = Pattern.compile("[a-zA-Z0-9_]+");
@@ -235,7 +232,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     @Macro
     @Nullable
     @Description("The existing connection to use.")
-    private DataplexConnectorConfig connection;
+    private static DataplexConnectorConfig connection;
 
     @Description("The time format for the output directory that will be appended to the path. " +
       "For example, the format 'yyyy-MM-dd-HH-mm' will result in a directory of the form '2015-01-01-20-42'. " +
@@ -537,7 +534,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
                   table.getTableId().getTable()));
             } else if (timePartitioning != null) {
                 validateTimePartitionTableWithInputConfiguration(table, timePartitioning, collector);
-            } else if (rangePartitioning != null) {
+            } else {
                 validateRangePartitionTableWithInputConfiguration(table, rangePartitioning, collector);
             }
             validateColumnForPartition(partitionByField, schema, collector);
@@ -802,10 +799,10 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
      */
     boolean shouldConnect() {
         return !containsMacro(NAME_ASSET) && !containsMacro(NAME_TABLE) &&
-                !containsMacro(connection.NAME_SERVICE_ACCOUNT_TYPE) &&
-          !(containsMacro(connection.NAME_SERVICE_ACCOUNT_FILE_PATH) ||
-                  containsMacro(connection.NAME_SERVICE_ACCOUNT_JSON)) &&
-          !containsMacro(connection.NAME_PROJECT) && !containsMacro(NAME_SCHEMA);
+                !containsMacro(DataplexConnectorConfig.NAME_SERVICE_ACCOUNT_TYPE) &&
+          !(containsMacro(DataplexConnectorConfig.NAME_SERVICE_ACCOUNT_FILE_PATH) ||
+                  containsMacro(DataplexConnectorConfig.NAME_SERVICE_ACCOUNT_JSON)) &&
+          !containsMacro(DataplexConnectorConfig.NAME_PROJECT) && !containsMacro(NAME_SCHEMA);
     }
 
     public void validateStorageBucket(FailureCollector collector) {
@@ -873,13 +870,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
                     ).withConfigProperty(NAME_CONTENT_TYPE);
                 }
                 break;
-            case FORMAT_DELIMITED:
-                failureCollector.addFailure(String.format(
-                  "Valid content types for delimited are %s, %s, %s, %s, %s.", CONTENT_TYPE_TEXT_PLAIN,
-                  CONTENT_TYPE_TEXT_CSV, CONTENT_TYPE_APPLICATION_CSV, CONTENT_TYPE_TEXT_TSV, DEFAULT_CONTENT_TYPE),
-                  null
-                ).withConfigProperty(NAME_CONTENT_TYPE);
-                break;
+
             case FORMAT_PARQUET:
                 if (!contentType.equalsIgnoreCase(DEFAULT_CONTENT_TYPE)) {
                     failureCollector
@@ -894,12 +885,11 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
                         null).withConfigProperty(NAME_CONTENT_TYPE);
                 }
                 break;
-            case FORMAT_TSV:
 
+            default:
                 failureCollector.addFailure(String.format(
-                  "Valid content types for tsv are %s, %s, %s.", CONTENT_TYPE_TEXT_TSV, CONTENT_TYPE_TEXT_PLAIN,
-                  DEFAULT_CONTENT_TYPE), null).withConfigProperty(NAME_CONTENT_TYPE);
-
+                  "Valid format types are %s, %s, %s, %s, %s .", FORMAT_AVRO, FORMAT_ORC,
+                  FORMAT_JSON, FORMAT_PARQUET, FORMAT_CSV), null).withConfigProperty(NAME_FORMAT);
                 break;
         }
     }
