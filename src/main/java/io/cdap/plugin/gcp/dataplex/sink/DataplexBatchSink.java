@@ -49,7 +49,6 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, NullWri
   public static final String NAME = "Dataplex";
   // Usually, you will need a private variable to store the config that was passed to your class
   private final DataplexBatchSinkConfig config;
-  private Schema outputSchema;
 
   public DataplexBatchSink(DataplexBatchSinkConfig config) {
     this.config = config;
@@ -78,6 +77,6 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, NullWri
 
   @Override
   public void prepareRun(BatchSinkContext batchSinkContext) throws Exception {
-
+  //no-op
   }
 }
