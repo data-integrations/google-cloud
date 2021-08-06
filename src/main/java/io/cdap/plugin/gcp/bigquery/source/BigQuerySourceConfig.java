@@ -80,7 +80,6 @@ public final class BigQuerySourceConfig extends PluginConfig {
   @Macro
   @Nullable
   @Description("The Google Cloud Storage bucket to store temporary data in. "
-    + "It will be automatically created if it does not exist, but will not be automatically deleted. "
     + "Temporary data will be deleted after it has been read. "
     + "If it is not provided, a unique bucket will be created and then deleted after the run finishes. "
     + "The service account must have permission to create buckets in the configured project.")
