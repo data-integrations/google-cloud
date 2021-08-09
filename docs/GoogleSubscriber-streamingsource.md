@@ -52,6 +52,9 @@ If the subscription needs to be created then the topic to which the subscription
 does not exists it will be created. If a subscriber does not exists and is created only the messages arrived after
 the creation of subscriber will be received.
 
+**Format**: Format of the data to read. Supported formats are avro, blob, tsv, csv, delimited, json, parquet, and text.
+Default is text.
+
 **Service Account**  - service account key used for authorization
 * **File Path**: Path on the local file system of the service account key used for
 authorization. Can be set to 'auto-detect' when running on a Dataproc cluster.
