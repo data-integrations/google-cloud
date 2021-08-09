@@ -40,7 +40,6 @@ Each record is composed of columns (also called fields).
 Every table is defined by a schema that describes the column names, data types, and other information.
 
 **Temporary Bucket Name**: Google Cloud Storage bucket to store temporary data in.
-It will be automatically created if it does not exist, but will not be automatically deleted.
 Temporary data will be deleted after it is loaded into BigQuery. If it is not provided, a unique
 bucket will be created and then deleted after the run finishes.
 

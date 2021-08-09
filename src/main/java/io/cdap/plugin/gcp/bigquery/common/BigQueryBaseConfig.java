@@ -21,9 +21,6 @@ import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
-import io.cdap.cdap.etl.api.FailureCollector;
-import io.cdap.plugin.common.Constants;
-import io.cdap.plugin.common.IdUtils;
 import io.cdap.plugin.gcp.common.GCPConfig;
 
 import javax.annotation.Nullable;
@@ -55,9 +52,8 @@ public class BigQueryBaseConfig extends GCPConfig {
   @Macro
   @Nullable
   @Description("The Google Cloud Storage bucket to store temporary data in. "
-    + "It will be automatically created if it does not exist, but will not be automatically deleted. "
     + "Cloud Storage data will be deleted after it is loaded into BigQuery. "
-    + "If it is not provided, a unique bucket will be created and then deleted after the run finishes. "
+    + "If it is not provided, a unique bucket will be automatically created and then deleted after the run finishes. "
     + "The service account must have permission to create buckets in the configured project.")
   protected String bucket;
 
