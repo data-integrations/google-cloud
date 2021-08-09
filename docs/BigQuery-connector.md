@@ -29,3 +29,17 @@ it can automatically be read from the environment. In other environments, the se
 * **JSON**: Contents of the service account JSON file.
 
 **Show Hidden Datasets:** Whether to show hidden datasets.
+
+Path of the connection
+----------------------
+To browse, get a sample from, or get the specification for this connection through API (see [Pipeline Microservices](https://cdap.atlassian.net/wiki/spaces/DOCS/pages/975929350/Pipeline+Microservices)),
+the `path` property is required in the request body. It can be in the following form :
+
+1. `/{dataset}/{table}`
+   This path indicates a table. A table is the only one that can be sampled. Browse on this path to return the specified table.
+
+2. `/{dataset}`
+   This path indicates a dataset. A dataset cannot be sampled. Browse on this path to get all the tables under this dataset.
+
+3. `/`
+   This path indicates the root. A root cannot be sampled. Browse on this path to get all the datasets visible through this connection.
