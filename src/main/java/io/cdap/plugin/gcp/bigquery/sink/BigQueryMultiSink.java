@@ -137,11 +137,10 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
                                            String bucket) throws IOException {
     Configuration conf = getOutputConfiguration();
     String splitField = config.getSplitField();
-    String bucketName = config.getBucket();
     String projectName = config.getDatasetProject();
     String datasetName = config.getDataset();
     context.addOutput(Output.of(config.getReferenceName(),
-                                new DelegatingMultiSinkOutputFormatProvider(conf, splitField, bucketName,
+                                new DelegatingMultiSinkOutputFormatProvider(conf, splitField, bucket,
                                                                             projectName, datasetName)));
   }
 
