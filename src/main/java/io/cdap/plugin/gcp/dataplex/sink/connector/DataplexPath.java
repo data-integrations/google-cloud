@@ -32,6 +32,7 @@ import javax.annotation.Nullable;
 public class DataplexPath {
     private static final int NAME_MAX_LENGTH = 1024;
     private static final String VALID_NAME_REGEX = "[\\w]+";
+    private String location;
     private String lake;
     private String zone;
     private String asset;
@@ -62,19 +63,24 @@ public class DataplexPath {
         String[] parts = path.split("/", -1);
 
         // path should contain at most two part : dataset and table
-        if (parts.length > 3) {
+        if (parts.length > 4) {
             throw new IllegalArgumentException("Path should at most contain three parts.");
         }
 
-        lake = parts[0];
-        validateName("Lake", lake);
+        location = parts[0];
+        validateName("Location", location);
 
         if (parts.length >= 2) {
-            zone = parts[1];
+            lake = parts[1];
+            validateName("Lake", lake);
+        }
+
+        if (parts.length >= 3) {
+            zone = parts[2];
             validateName("Zone", zone);
         }
-        if (parts.length == 3) {
-            asset = parts[2];
+        if (parts.length == 4) {
+            asset = parts[3];
             validateName("Asset", asset);
         }
     }
@@ -112,5 +118,9 @@ public class DataplexPath {
     @Nullable
     public String getAsset() {
         return asset;
+    }
+
+    public String getLocation() {
+        return location;
     }
 }

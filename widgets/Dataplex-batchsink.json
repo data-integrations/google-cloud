@@ -87,7 +87,7 @@
       ]
     },
     {
-      "label": "Dataplex Settings",
+      "label": "Dataplex Configuration",
       "properties": [
         {
           "widget-type": "connection-browser",
@@ -99,26 +99,34 @@
         },
         {
           "widget-type": "textbox",
-          "label": "Lake Name",
+          "label": "Location",
+          "name": "location",
+          "widget-attributes": {
+            "placeholder": "Example us-central1"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Lake",
           "name": "lake",
           "widget-attributes": {
-            "placeholder": "Lake name"
+            "placeholder": "Example Lake"
           }
         },
         {
           "widget-type": "textbox",
-          "label": "Zone Name",
+          "label": "Zone",
           "name": "zone",
           "widget-attributes": {
-            "placeholder": "Zone name"
+            "placeholder": "Example Zone"
           }
         },
         {
           "widget-type": "textbox",
-          "label": "Asset Name",
+          "label": "Asset",
           "name": "asset",
           "widget-attributes": {
-            "placeholder": "Asset name"
+            "placeholder": "Example Asset"
           }
         },
         {
@@ -154,10 +162,17 @@
           }
         },
         {
-          "widget-type": "plugin-list",
+          "widget-type": "select",
           "label": "Format",
           "name": "format",
           "widget-attributes": {
+            "values" : [
+              "avro",
+              "csv",
+              "json",
+              "orc",
+              "parquet"
+            ],
             "plugin-type": "validatingOutputFormat"
           }
         },

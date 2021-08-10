@@ -27,6 +27,8 @@ import io.cdap.cdap.etl.api.StageConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.plugin.gcp.dataplex.sink.config.DataplexBatchSinkConfig;
+import io.cdap.plugin.gcp.dataplex.sink.connection.DataplexInterface;
+import io.cdap.plugin.gcp.dataplex.sink.connection.out.DataplexInterfaceImpl;
 import io.cdap.plugin.gcp.dataplex.sink.enums.AssetType;
 
 import org.apache.hadoop.io.NullWritable;
@@ -61,11 +63,12 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, NullWri
     FailureCollector collector = configurer.getFailureCollector();
     Schema inputSchema = configurer.getInputSchema();
     Schema configuredSchema = config.getSchema(collector);
-    config.validateAssetConfiguration(collector);
+    DataplexInterface dataplexInterface = new DataplexInterfaceImpl();
+    config.validateAssetConfiguration(collector, dataplexInterface);
     if (config.getAssetType().equalsIgnoreCase(AssetType.BIGQUERY_DATASET.toString())) {
       config.validateBigQueryDataset(inputSchema, configuredSchema, collector);
     } else if (config.getAssetType().equalsIgnoreCase(AssetType.STORAGE_BUCKET.toString())) {
-      config.validateStorageBucket(collector);
+      config.validateStorageBucket(pipelineConfigurer, collector);
     }
 
     if (config.tryGetProject() == null || config.getServiceAccountType() == null ||
