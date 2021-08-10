@@ -16,9 +16,31 @@
 
 package io.cdap.plugin.gcp.dataplex.sink.connection;
 
+import io.cdap.plugin.gcp.dataplex.sink.model.Asset;
+import io.cdap.plugin.gcp.dataplex.sink.model.Lake;
+import io.cdap.plugin.gcp.dataplex.sink.model.Location;
+import io.cdap.plugin.gcp.dataplex.sink.model.Zone;
+
+import java.util.List;
+
 /**
  * Exposes the APIs to connect with and execute programs in Dataplex
- *
  */
 public interface DataplexInterface {
+
+    List<Location> listLocations(String projectId);
+
+    Location getLocation(String projectId, String location);
+
+    List<Lake> listLakes(String projectId, String location);
+
+    Lake getLake(String projectId, String location, String lakeId);
+
+    List<Zone> listZones(String projectId, String location, String lakeId);
+
+    Zone getZone(String projectId, String location, String lakeId, String zoneId);
+
+    List<Asset> listAssets(String projectId, String location, String lakeId, String zoneId);
+
+    Asset getAsset(String projectId, String location, String lakeId, String zoneId, String assetId);
 }
