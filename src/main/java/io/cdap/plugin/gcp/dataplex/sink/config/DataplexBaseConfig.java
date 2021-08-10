@@ -14,12 +14,18 @@ public class DataplexBaseConfig extends PluginConfig {
     public static final String NAME_ZONE = "zone";
     public static final String NAME_ASSET = "asset";
     public static final String NAME_ASSET_TYPE = "assetType";
+    public static final String NAME_LOCATION = "location";
 
 
 
     @Name(REFERENCE_NAME)
     @Description("Name used to uniquely identify this sink for lineage, annotating metadata, etc.")
     protected String referenceName;
+
+    @Name(NAME_LOCATION)
+    @Macro
+    @Description("Enter location where lake got created. Example us-central1")
+    protected String location;
 
     @Name(NAME_LAKE)
     @Description("Lake name to use. User can type it in or " +
@@ -52,7 +58,7 @@ public class DataplexBaseConfig extends PluginConfig {
     public String getAsset() {
         return asset;
     }
-    
+
     public String getAssetType() {
         return assetType;
     }
@@ -71,5 +77,9 @@ public class DataplexBaseConfig extends PluginConfig {
 
     public void setZone(String zone) {
         this.zone = zone;
+    }
+
+    public String getLocation() {
+        return location;
     }
 }

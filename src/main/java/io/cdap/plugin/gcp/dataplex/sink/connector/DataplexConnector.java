@@ -18,7 +18,11 @@ import io.cdap.cdap.etl.api.connector.SampleRequest;
 import io.cdap.cdap.etl.api.validation.ValidationException;
 import io.cdap.plugin.gcp.dataplex.sink.DataplexBatchSink;
 import io.cdap.plugin.gcp.dataplex.sink.config.DataplexBaseConfig;
+import io.cdap.plugin.gcp.dataplex.sink.connection.DataplexInterface;
+import io.cdap.plugin.gcp.dataplex.sink.connection.out.DataplexInterfaceImpl;
 import io.cdap.plugin.gcp.dataplex.sink.enums.AssetType;
+import io.cdap.plugin.gcp.dataplex.sink.enums.ConnectorObject;
+import io.cdap.plugin.gcp.dataplex.sink.model.Location;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,11 +38,12 @@ import java.util.Map;
  */
 @Plugin(type = Connector.PLUGIN_TYPE)
 @Name(DataplexConnector.NAME)
-@Description("This connector enables browsing feature to fetch the lakes, zones and assets information from Dataplex.")
+@Description("This connector enables browsing feature to fetch the locations, lakes, zones and assets information " +
+  "from Dataplex.")
 public class DataplexConnector implements DirectConnector {
     public static final String NAME = "Dataplex";
     private static final Logger LOG = LoggerFactory.getLogger(DataplexConnector.class);
-
+    private DataplexInterface dataplexInterface = new DataplexInterfaceImpl();
     private DataplexConnectorConfig config;
 
     DataplexConnector(DataplexConnectorConfig config) {
@@ -54,42 +59,65 @@ public class DataplexConnector implements DirectConnector {
     @Override
     public BrowseDetail browse(ConnectorContext connectorContext, BrowseRequest browseRequest) throws IOException {
         DataplexPath path = new DataplexPath(browseRequest.getPath());
+        String location = path.getLocation();
+        if (location == null) {
+            return listLocations(path, browseRequest.getLimit());
+        }
+
         String lake = path.getLake();
         if (lake == null) {
-            return listLakes(10);
+            return listLakes(path, browseRequest.getLimit());
         }
         String zone = path.getZone();
         if (zone == null) {
-            return listZones(10, lake);
+            return listZones(path, browseRequest.getLimit());
         }
         String asset = path.getAsset();
         if (asset == null) {
-            return listAssets(10, lake, zone);
+            return listAssets(path, browseRequest.getLimit());
         }
         BrowseDetail.Builder builder = BrowseDetail.builder();
         builder.addEntity(BrowseEntity.builder(asset, asset, "Asset").canBrowse(false).canSample(true).build());
         return builder.setTotalCount(1).build();
     }
 
-    private BrowseDetail listLakes(Integer limit) {
+    private BrowseDetail listLocations(DataplexPath path, Integer limit) {
+        int countLimit = limit == null || limit <= 0 ? Integer.MAX_VALUE : limit;
+        int count = 0;
+        BrowseDetail.Builder builder = BrowseDetail.builder();
+        List<Location> locationList = dataplexInterface.listLocations(config.tryGetProject());
+        for (Location location : locationList) {
+            if (count >= countLimit) {
+                break;
+            }
+            String name = location.toString();
+            builder.addEntity(
+              BrowseEntity.builder("/" + name,  name, ConnectorObject.Location.toString())
+                .canSample(true).build());
+            count++;
+        }
+        return builder.setTotalCount(count).build();
+    }
+
+    private BrowseDetail listLakes(DataplexPath path, Integer limit) {
         BrowseDetail.Builder builder = BrowseDetail.builder();
         String name = "lakes";
         builder.addEntity(BrowseEntity.builder(name, "/" + name, "Lake").canBrowse(true).canSample(true).build());
         return builder.setTotalCount(1).build();
     }
 
-    private BrowseDetail listZones(Integer limit, String lake) {
+    private BrowseDetail listZones(DataplexPath path, Integer limit) {
         BrowseDetail.Builder builder = BrowseDetail.builder();
-        String parentPath = String.format("/%s/", lake);
+        String parentPath = String.format("/%s/", path.getLake());
         String name = "zones";
         builder.addEntity(BrowseEntity.builder(name, parentPath + name, "Zone").canBrowse(true).
                 canSample(true).build());
         return builder.setTotalCount(1).build();
     }
 
-    private BrowseDetail listAssets(Integer limit, String lake, String zone) {
+    private BrowseDetail listAssets(DataplexPath path, Integer limit) {
         BrowseDetail.Builder builder = BrowseDetail.builder();
-        String parentPath = String.format("/%s/%s/", lake, zone);
+        String parentPath = String.format("/%s/%s/%s/", path.getLocation(), path.getLake(), path.getZone());
         String name = "assets";
         builder.addEntity(BrowseEntity.builder(name, parentPath + name, "Asset").
                 canSample(true).build());
