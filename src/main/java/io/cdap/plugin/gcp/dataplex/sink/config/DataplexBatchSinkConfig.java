@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.dataplex.sink.config;
 
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.bigquery.RangePartitioning;
@@ -24,6 +25,7 @@ import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TimePartitioning;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Lists;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
@@ -39,9 +41,11 @@ import io.cdap.plugin.format.FileFormat;
 import io.cdap.plugin.gcp.bigquery.sink.Operation;
 import io.cdap.plugin.gcp.bigquery.sink.PartitionType;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
+import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.dataplex.sink.connection.DataplexInterface;
 import io.cdap.plugin.gcp.dataplex.sink.connector.DataplexConnectorConfig;
 import io.cdap.plugin.gcp.dataplex.sink.model.Asset;
+import io.cdap.plugin.gcp.dataplex.sink.model.Zone;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -108,7 +112,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     "Raw zone allowed values: avro, csv, delimited, json, orc, parquet, tsv. " +
     "Curated zone allowed values: parquet,avro, orc.")
   @Macro
-  protected FileFormat format;
+  protected String format;
 
   @Name(NAME_CONTENT_TYPE)
   @Nullable
@@ -229,17 +233,16 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   @Description("The schema of the data to write. If provided, must be compatible with the table schema.")
   private String schema;
 
-    @Name(NAME_USE_CONNECTION)
-    @Nullable
-    @Description("Whether to use an existing connection.")
-    private Boolean useConnection;
+  @Name(NAME_USE_CONNECTION)
+  @Nullable
+  @Description("Whether to use an existing connection.")
+  private Boolean useConnection;
 
-    @Name(NAME_CONNECTION)
-    @Macro
-    @Nullable
-    @Description("The existing connection to use.")
-    private DataplexConnectorConfig connection;
-
+  @Name(NAME_CONNECTION)
+  @Macro
+  @Nullable
+  @Description("The existing connection to use.")
+  private DataplexConnectorConfig connection;
 
 
   @Description("The time format for the output directory that will be appended to the path. " +
@@ -251,7 +254,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
 
   @Nullable
   public FileFormat getFormat() {
-    return FileFormat.from(format.toString(), FileFormat::canWrite);
+    return FileFormat.from(format, FileFormat::canWrite);
   }
 
   @Nullable
@@ -347,6 +350,10 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     IdUtils.validateReferenceName(referenceName, collector);
 
     if (!containsMacro(NAME_TABLE)) {
+      if (table == null) {
+        collector.addFailure(String.format("Required property '%s' has no value."), NAME_TABLE)
+          .withConfigProperty(NAME_TABLE);
+      }
       BigQueryUtil.validateTable(table, NAME_TABLE, collector);
     }
 
@@ -376,69 +383,68 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
 
   public void validateAssetConfiguration(FailureCollector collector, DataplexInterface dataplexInterface) {
 
-    if (!containsMacro(NAME_LOCATION)) {
+    if (!Strings.isNullOrEmpty(location) && !containsMacro(NAME_LOCATION)) {
       try {
-        dataplexInterface.getLocation(tryGetProject(), location);
+        dataplexInterface.getLocation(getCredentials(), tryGetProject(), location);
       } catch (Exception e) {
         collector.addFailure("Invalid location name: " + location, null).
           withConfigProperty(NAME_LOCATION);
         return;
       }
-
-    }
-
-    if (!containsMacro(NAME_LAKE)) {
-      lake = formatDataplexId(lake);
-      try {
-        dataplexInterface.getLake(tryGetProject(), location, lake);
-      } catch (Exception e) {
-        collector.addFailure("Lake doesn't exists: " + lake, null).
-          withConfigProperty(NAME_LAKE);
-        return;
-      }
-
-
-    }
-
-    if (!containsMacro(NAME_ZONE)) {
-      zone = formatDataplexId(zone);
-      try {
-        dataplexInterface.getZone(tryGetProject(), location, lake, zone);
-      } catch (Exception e) {
-        collector.addFailure("Zone doesn't exists: " + zone, null).
-          withConfigProperty(NAME_ZONE);
-        return;
-      }
-    }
-
-    if (!containsMacro(NAME_ASSET)) {
-      asset = formatDataplexId(asset);
-      try {
-        Asset assetBean = dataplexInterface.getAsset(tryGetProject(), location, lake, zone, asset);
-        if (!assetType.equalsIgnoreCase("asset.getResourceSpec().getType()")) {
-          collector.addFailure("Asset type doesn't match with actual asset. " , null).
-            withConfigProperty(NAME_ASSET_TYPE);
+      if (!Strings.isNullOrEmpty(lake) && !containsMacro(NAME_LAKE)) {
+        lake = formatDataplexId(lake);
+        try {
+          dataplexInterface.getLake(getCredentials(), tryGetProject(), location, lake);
+        } catch (Exception e) {
+          collector.addFailure("Lake doesn't exists: " + lake, null).
+            withConfigProperty(NAME_LAKE);
+          return;
         }
-      } catch (Exception e) {
-        collector.addFailure("Asset doesn't exists: " + asset, null).
-          withConfigProperty(NAME_ASSET);
-        return;
+
+        if (!Strings.isNullOrEmpty(zone) && !containsMacro(NAME_ZONE)) {
+          zone = formatDataplexId(zone);
+          try {
+            Zone zoneBean = dataplexInterface.getZone(getCredentials(), tryGetProject(), location, lake, zone);
+          } catch (Exception e) {
+            collector.addFailure("Zone doesn't exists: " + zone, null).
+              withConfigProperty(NAME_ZONE);
+            return;
+          }
+          if (!Strings.isNullOrEmpty(asset) && !containsMacro(NAME_ASSET)) {
+            asset = formatDataplexId(asset);
+            try {
+              Asset assetBean = dataplexInterface.getAsset(getCredentials(), tryGetProject(), location,
+                lake, zone, asset);
+              if (!assetType.equalsIgnoreCase(assetBean.getAssetResourceSpec().getType())) {
+                collector.addFailure("Asset type doesn't match with actual asset. ", null).
+                  withConfigProperty(NAME_ASSET_TYPE);
+              }
+            } catch (Exception e) {
+              collector.addFailure("Asset doesn't exists: " + asset, null).
+                withConfigProperty(NAME_ASSET);
+              return;
+            }
+          }
+        }
       }
     }
-
-
-
-
   }
 
   public void validateBigQueryDataset(@Nullable Schema inputSchema, @Nullable Schema outputSchema,
-                                      FailureCollector collector) {
+                                      FailureCollector collector, DataplexInterface dataplexInterface) {
     validateBigQueryDataset(collector);
-    if (containsMacro(NAME_SCHEMA)) {
+    if (!containsMacro(NAME_SCHEMA)) {
       Schema schema = outputSchema == null ? inputSchema : outputSchema;
-      validatePartitionProperties(schema, collector);
-      validateClusteringOrder(schema, collector);
-      validateOperationProperties(schema, collector);
+      try {
+        Asset assetBean = dataplexInterface.getAsset(getCredentials(), tryGetProject(), location,
+          lake, zone, asset);
+        validatePartitionProperties(schema, collector, assetBean.getAssetResourceSpec().getName());
+        validateClusteringOrder(schema, collector);
+        validateOperationProperties(schema, collector);
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+
       if (outputSchema == null) {
         return;
       }
@@ -492,12 +498,13 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     return duplicatedFields;
   }
 
-  private void validatePartitionProperties(@Nullable Schema schema, FailureCollector collector) {
+  private void validatePartitionProperties(@Nullable Schema schema, FailureCollector collector, String datasetName) {
     if (tryGetProject() == null) {
       return;
     }
     String project = tryGetProject();
-    String dataset = getAsset(); //Need to get asset from asset bean
+
+    String dataset = datasetName.substring(datasetName.lastIndexOf('/') + 1);
     String tableName = getTable();
     String serviceAccount = getServiceAccount();
 
@@ -796,8 +803,8 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   }
 
   protected ValidatingOutputFormat getValidatingOutputFormat(PipelineConfigurer pipelineConfigurer) {
-    return (ValidatingOutputFormat) pipelineConfigurer.usePlugin("validatingOutputFormat",
-      format.toString().toLowerCase(), format.toString().toLowerCase(), this.getRawProperties());
+    return pipelineConfigurer.usePlugin("validatingOutputFormat",
+      format.toLowerCase(), format.toLowerCase(), this.getRawProperties());
   }
 
   public void validateFormatForStorageBucket(PipelineConfigurer pipelineConfigurer, FailureCollector collector) {
@@ -820,8 +827,8 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
           LOG.warn(
             "Failed to register format '{}', which means it cannot be used when the pipeline is run. " +
               "Missing properties: {}, invalid properties: {}",
-            new Object[]{f.name(), var8.getMissingProperties(), var8.getInvalidProperties().stream().map(
-              InvalidPluginProperty::getName).collect(Collectors.toList())});
+            f.name(), var8.getMissingProperties(), var8.getInvalidProperties().stream().map(
+              InvalidPluginProperty::getName).collect(Collectors.toList()));
         }
       }
 
@@ -832,7 +839,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
                                             @Nullable ValidatingOutputFormat validatingOutputFormat) {
     FailureCollector collector = context.getFailureCollector();
     if (validatingOutputFormat == null) {
-      collector.addFailure(String.format("Could not find the '%s' output format plugin.", format), (String) null)
+      collector.addFailure(String.format("Could not find the '%s' output format plugin.", format), null)
         .withPluginNotFound(format, format, "validatingOutputFormat");
     } else {
       validatingOutputFormat.validate(context);
@@ -881,7 +888,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
 
   //This method validates the specified content type for the used format.
   public void validateContentType(FailureCollector failureCollector) {
-    switch (format.toString()) {
+    switch (format) {
       case FORMAT_AVRO:
         if (!contentType.equalsIgnoreCase(CONTENT_TYPE_APPLICATION_AVRO)) {
           failureCollector.addFailure(String.format("Valid content types for avro are %s, %s.",
@@ -962,6 +969,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   public Boolean isServiceAccountFilePath() {
     return connection == null ? null : connection.isServiceAccountFilePath();
   }
+
   public boolean autoServiceAccountUnavailable() {
     if (connection == null || connection.getServiceAccountFilePath() == null &&
       connection.isServiceAccountFilePath()) {
@@ -977,6 +985,18 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   @Nullable
   public String getServiceAccountType() {
     return connection == null ? null : connection.getServiceAccountType();
+  }
+
+
+  private GoogleCredentials getCredentials() throws IOException {
+    GoogleCredentials credentials = null;
+    //validate service account
+    if (connection.isServiceAccountJson() || connection.getServiceAccountFilePath() != null) {
+      credentials =
+        GCPUtils.loadServiceAccountCredentials(connection.getServiceAccount(), connection.isServiceAccountFilePath())
+          .createScoped(Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"));
+    }
+    return credentials;
   }
 
 

@@ -66,7 +66,7 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, NullWri
     DataplexInterface dataplexInterface = new DataplexInterfaceImpl();
     config.validateAssetConfiguration(collector, dataplexInterface);
     if (config.getAssetType().equalsIgnoreCase(AssetType.BIGQUERY_DATASET.toString())) {
-      config.validateBigQueryDataset(inputSchema, configuredSchema, collector);
+      config.validateBigQueryDataset(inputSchema, configuredSchema, collector, dataplexInterface);
     } else if (config.getAssetType().equalsIgnoreCase(AssetType.STORAGE_BUCKET.toString())) {
       config.validateStorageBucket(pipelineConfigurer, collector);
     }
