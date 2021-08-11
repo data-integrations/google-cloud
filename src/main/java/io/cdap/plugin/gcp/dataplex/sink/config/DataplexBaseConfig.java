@@ -5,6 +5,8 @@ import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.plugin.PluginConfig;
 
+import javax.annotation.Nullable;
+
 /**
  * Contains Dataplex config properties.
  */
@@ -46,6 +48,7 @@ public class DataplexBaseConfig extends PluginConfig {
     protected String asset;
 
 
+    @Nullable
     @Name(NAME_ASSET_TYPE)
     @Description("Asset Type can be BQ Dataset or GCS bucket.")
     protected String assetType;

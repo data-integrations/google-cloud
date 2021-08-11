@@ -173,6 +173,7 @@
               "orc",
               "parquet"
             ],
+            "default": "json",
             "plugin-type": "validatingOutputFormat"
           }
         },

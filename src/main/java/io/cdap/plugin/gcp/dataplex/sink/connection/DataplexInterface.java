@@ -16,11 +16,13 @@
 
 package io.cdap.plugin.gcp.dataplex.sink.connection;
 
+import com.google.auth.oauth2.GoogleCredentials;
 import io.cdap.plugin.gcp.dataplex.sink.model.Asset;
 import io.cdap.plugin.gcp.dataplex.sink.model.Lake;
 import io.cdap.plugin.gcp.dataplex.sink.model.Location;
 import io.cdap.plugin.gcp.dataplex.sink.model.Zone;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -28,19 +30,24 @@ import java.util.List;
  */
 public interface DataplexInterface {
 
-    List<Location> listLocations(String projectId);
+    List<Location> listLocations(GoogleCredentials credentials, String projectId) throws IOException;
 
-    Location getLocation(String projectId, String location);
+    Location getLocation(GoogleCredentials credentials, String projectId, String location) throws IOException;
 
-    List<Lake> listLakes(String projectId, String location);
+    List<Lake> listLakes(GoogleCredentials credentials, String projectId,
+                         String location) throws IOException;
 
-    Lake getLake(String projectId, String location, String lakeId);
+    Lake getLake(GoogleCredentials credentials, String projectId, String location, String lakeId) throws IOException;
 
-    List<Zone> listZones(String projectId, String location, String lakeId);
+    List<Zone> listZones(GoogleCredentials credentials, String projectId,
+                         String location, String lakeId) throws IOException;
 
-    Zone getZone(String projectId, String location, String lakeId, String zoneId);
+    Zone getZone(GoogleCredentials credentials, String projectId, String location, String lakeId, String zoneId)
+      throws IOException;
 
-    List<Asset> listAssets(String projectId, String location, String lakeId, String zoneId);
+    List<Asset> listAssets(GoogleCredentials credentials, String projectId,
+                           String location, String lakeId, String zoneId) throws IOException;
 
-    Asset getAsset(String projectId, String location, String lakeId, String zoneId, String assetId);
+    Asset getAsset(GoogleCredentials credentials, String projectId,
+                   String location, String lakeId, String zoneId, String assetId) throws IOException;
 }

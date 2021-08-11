@@ -120,46 +120,51 @@ public class Asset {
   public void setAssetDiscoveryStatus(AssetDiscoveryStatus assetDiscoveryStatus) {
     this.assetDiscoveryStatus = assetDiscoveryStatus;
   }
+  /**
+   * Information about Asset Resource specifications
+   */
+  public class AssetResourceSpec {
+    public String name;
+    public String type;
+    public String creationPolicy;
+    public String deletionPolicy;
+
+    public String getName() {
+      return name;
+    }
+
+    public void setName(String name) {
+      this.name = name;
+    }
+
+    public String getType() {
+      return type;
+    }
+
+    public void setType(String type) {
+      this.type = type;
+    }
+
+    public String getCreationPolicy() {
+      return creationPolicy;
+    }
+
+    public void setCreationPolicy(String creationPolicy) {
+      this.creationPolicy = creationPolicy;
+    }
+
+    public String getDeletionPolicy() {
+      return deletionPolicy;
+    }
+
+    public void setDeletionPolicy(String deletionPolicy) {
+      this.deletionPolicy = deletionPolicy;
+    }
+  }
+
 }
 
-class AssetResourceSpec {
-  public String name;
-  public String type;
-  public String creationPolicy;
-  public String deletionPolicy;
 
-  public String getName() {
-    return name;
-  }
-
-  public void setName(String name) {
-    this.name = name;
-  }
-
-  public String getType() {
-    return type;
-  }
-
-  public void setType(String type) {
-    this.type = type;
-  }
-
-  public String getCreationPolicy() {
-    return creationPolicy;
-  }
-
-  public void setCreationPolicy(String creationPolicy) {
-    this.creationPolicy = creationPolicy;
-  }
-
-  public String getDeletionPolicy() {
-    return deletionPolicy;
-  }
-
-  public void setDeletionPolicy(String deletionPolicy) {
-    this.deletionPolicy = deletionPolicy;
-  }
-}
 
 class AssetResourceStatus {
   public String state;

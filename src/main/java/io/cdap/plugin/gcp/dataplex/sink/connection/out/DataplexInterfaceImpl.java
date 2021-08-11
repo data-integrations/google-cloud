@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.dataplex.sink.connection.out;
 
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.gson.Gson;
 import io.cdap.plugin.gcp.dataplex.sink.connection.DataplexInterface;
 import io.cdap.plugin.gcp.dataplex.sink.model.Asset;
@@ -25,6 +26,7 @@ import io.cdap.plugin.gcp.dataplex.sink.model.ModelWrapper;
 import io.cdap.plugin.gcp.dataplex.sink.model.Zone;
 import io.cdap.plugin.gcp.dataplex.sink.util.DataplexApiHelper;
 
+import java.io.IOException;
 import java.text.MessageFormat;
 import java.util.List;
 import java.util.logging.Logger;
@@ -38,7 +40,8 @@ public class DataplexInterfaceImpl implements DataplexInterface {
     static final Logger LOGGER = Logger.getLogger(DataplexInterfaceImpl.class.getName());
 
     @Override
-    public List<Location> listLocations(String projectId) {
+    public List<Location> listLocations(GoogleCredentials credentials,
+                                        String projectId) throws IOException {
         LOGGER.info(MessageFormat.format("Invoked to fetch the list of locations from project id ", projectId));
         StringBuilder urlBuilder = new StringBuilder();
         Gson gson = new Gson();
@@ -47,13 +50,14 @@ public class DataplexInterfaceImpl implements DataplexInterface {
           .append("/v1/projects/")
           .append(projectId)
           .append("/locations");
+        String filePath = null;
         ModelWrapper locations =
-          gson.fromJson(dataplexApiHelper.invokeDataplexApi(urlBuilder.toString(), "filePath"), ModelWrapper.class);
+          gson.fromJson(dataplexApiHelper.invokeDataplexApi(urlBuilder.toString(), credentials), ModelWrapper.class);
         return locations.getLocations();
     }
 
     @Override
-    public Location getLocation(String projectId, String locationId) {
+    public Location getLocation(GoogleCredentials credentials, String projectId, String locationId) throws IOException {
         LOGGER.info(MessageFormat.format("gets location based on location id ", locationId));
         StringBuilder urlBuilder = new StringBuilder();
         Gson gson = new Gson();
@@ -64,12 +68,13 @@ public class DataplexInterfaceImpl implements DataplexInterface {
           .append("/locations/")
           .append(locationId);
         Location location = gson.fromJson(dataplexApiHelper.invokeDataplexApi(urlBuilder.toString(),
-          "filePath"), Location.class);
+          credentials), Location.class);
         return location;
     }
 
     @Override
-    public List<Lake> listLakes(String projectId, String location) {
+    public List<Lake> listLakes(GoogleCredentials credentials, String projectId,
+                                String location) throws IOException {
         LOGGER.info(MessageFormat.format("fetches the list of lakes from location ", location));
         StringBuilder urlBuilder = new StringBuilder();
         Gson gson = new Gson();
@@ -81,12 +86,13 @@ public class DataplexInterfaceImpl implements DataplexInterface {
           .append(location)
           .append("/lakes");
         ModelWrapper lakes =
-          gson.fromJson(dataplexApiHelper.invokeDataplexApi(urlBuilder.toString(), "filePath"), ModelWrapper.class);
+          gson.fromJson(dataplexApiHelper.invokeDataplexApi(urlBuilder.toString(), credentials), ModelWrapper.class);
         return lakes.getLakes();
     }
 
     @Override
-    public Lake getLake(String projectId, String location, String lakeId) {
+    public Lake getLake(GoogleCredentials credentials, String projectId, String location, String lakeId)
+      throws IOException {
         LOGGER.info(MessageFormat.format("gets the lake based on lake id ", lakeId));
         StringBuilder urlBuilder = new StringBuilder();
         Gson gson = new Gson();
@@ -98,12 +104,14 @@ public class DataplexInterfaceImpl implements DataplexInterface {
           .append(location)
           .append("/lakes/")
           .append(lakeId);
-        Lake lake = gson.fromJson(dataplexApiHelper.invokeDataplexApi(urlBuilder.toString(), "filePath"), Lake.class);
+        Lake lake = gson.fromJson(dataplexApiHelper.invokeDataplexApi(urlBuilder.toString(), credentials),
+          Lake.class);
         return lake;
     }
 
     @Override
-    public List<Zone> listZones(String projectId, String location, String lakeId) {
+    public List<Zone> listZones(GoogleCredentials credentials, String projectId,
+                                String location, String lakeId) throws IOException {
         LOGGER.info(MessageFormat.format("fetches the list of zones by lake id ", lakeId));
         StringBuilder urlBuilder = new StringBuilder();
         Gson gson = new Gson();
@@ -117,12 +125,13 @@ public class DataplexInterfaceImpl implements DataplexInterface {
           .append(lakeId)
           .append("/zones");
         ModelWrapper zones =
-          gson.fromJson(dataplexApiHelper.invokeDataplexApi(urlBuilder.toString(), "filePath"), ModelWrapper.class);
+          gson.fromJson(dataplexApiHelper.invokeDataplexApi(urlBuilder.toString(), credentials), ModelWrapper.class);
         return zones.getZones();
     }
 
     @Override
-    public Zone getZone(String projectId, String location, String lakeId, String zoneId) {
+    public Zone getZone(GoogleCredentials credentials, String projectId, String location, String lakeId,
+                        String zoneId) throws IOException {
         LOGGER.info(MessageFormat.format("gets the details of zone based on zone id ", zoneId));
         StringBuilder urlBuilder = new StringBuilder();
         Gson gson = new Gson();
@@ -136,12 +145,14 @@ public class DataplexInterfaceImpl implements DataplexInterface {
           .append(lakeId)
           .append("/zones/")
           .append(zoneId);
-        Zone zone = gson.fromJson(dataplexApiHelper.invokeDataplexApi(urlBuilder.toString(), "filePath"), Zone.class);
+        Zone zone = gson.fromJson(dataplexApiHelper.invokeDataplexApi(urlBuilder.toString(), credentials),
+          Zone.class);
         return zone;
     }
 
     @Override
-    public List<Asset> listAssets(String projectId, String location, String lakeId, String zoneId) {
+    public List<Asset> listAssets(GoogleCredentials credentials, String projectId,
+                                  String location, String lakeId, String zoneId) throws IOException {
         LOGGER.info(MessageFormat.format("fetches the list of assets based on zone Id", zoneId));
         StringBuilder urlBuilder = new StringBuilder();
         Gson gson = new Gson();
@@ -157,12 +168,13 @@ public class DataplexInterfaceImpl implements DataplexInterface {
           .append(zoneId)
           .append("/assets/");
         ModelWrapper assets =
-          gson.fromJson(dataplexApiHelper.invokeDataplexApi(urlBuilder.toString(), "filePath"), ModelWrapper.class);
+          gson.fromJson(dataplexApiHelper.invokeDataplexApi(urlBuilder.toString(), credentials), ModelWrapper.class);
         return assets.getAssets();
     }
 
     @Override
-    public Asset getAsset(String projectId, String location, String lakeId, String zoneId, String assetId) {
+    public Asset getAsset(GoogleCredentials credentials, String projectId,
+                          String location, String lakeId, String zoneId, String assetId) throws IOException {
         LOGGER.info(MessageFormat.format("gets the details of asset based on asset Id", assetId));
         StringBuilder urlBuilder = new StringBuilder();
         Gson gson = new Gson();
@@ -179,7 +191,7 @@ public class DataplexInterfaceImpl implements DataplexInterface {
           .append("/assets/")
           .append(assetId);
         Asset asset = gson.fromJson(dataplexApiHelper.invokeDataplexApi(urlBuilder.toString(),
-          "filePath"), Asset.class);
+          credentials), Asset.class);
         return asset;
     }
 }

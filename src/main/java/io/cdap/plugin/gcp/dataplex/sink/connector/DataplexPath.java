@@ -31,7 +31,7 @@ import javax.annotation.Nullable;
  */
 public class DataplexPath {
     private static final int NAME_MAX_LENGTH = 1024;
-    private static final String VALID_NAME_REGEX = "[\\w]+";
+    /*private static final String VALID_NAME_REGEX = "[\\w]+";*/
     private String location;
     private String lake;
     private String zone;
@@ -99,10 +99,10 @@ public class DataplexPath {
             throw new IllegalArgumentException(
               String.format("%s is invalid, it should contain at most %d characters.", property, NAME_MAX_LENGTH));
         }
-        if (!name.matches(VALID_NAME_REGEX)) {
+       /* if (!name.matches(VALID_NAME_REGEX)) {
             throw new IllegalArgumentException(
               String.format("%s is invalid, it should contain only letters, numbers, and underscores.", property));
-        }
+        }*/
     }
 
     @Nullable
