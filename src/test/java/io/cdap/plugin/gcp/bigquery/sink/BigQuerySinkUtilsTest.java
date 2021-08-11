@@ -56,116 +56,115 @@ public class BigQuerySinkUtilsTest {
     Assert.assertFalse(configuration.getBoolean("fs.gs.metadata.cache.enable", true));
   }
 
-    @Test
-    public void testGenerateTableFieldSchema() {
-        String fieldName = "arrayOfRecords";
-        Schema schema = Schema.recordOf("record",
-                Schema.Field.of("id", Schema.of(Schema.Type.STRING)),
-                Schema.Field.of(fieldName,
-                        Schema.arrayOf(
-                                Schema.recordOf("innerRecord",
-                                        Schema.Field.of("field1", Schema.of(Schema.Type.STRING))
-                                )
-                        )
-                )
-        );
+  public void testGenerateTableFieldSchema() {
+    String fieldName = "arrayOfRecords";
+    Schema schema = Schema.recordOf("record",
+            Schema.Field.of("id", Schema.of(Schema.Type.STRING)),
+            Schema.Field.of(fieldName,
+                    Schema.arrayOf(
+                            Schema.recordOf("innerRecord",
+                                    Schema.Field.of("field1", Schema.of(Schema.Type.STRING))
+                            )
+                    )
+            )
+    );
 
-        BigQueryTableFieldSchema bqTableFieldSchema =
-                BigQuerySinkUtils.generateTableFieldSchema(schema.getField(fieldName));
+    BigQueryTableFieldSchema bqTableFieldSchema =
+            BigQuerySinkUtils.generateTableFieldSchema(schema.getField(fieldName));
 
-        List<BigQueryTableFieldSchema> fields = bqTableFieldSchema.getFields();
-        Assert.assertEquals(fields.size(), 1);
+    List<BigQueryTableFieldSchema> fields = bqTableFieldSchema.getFields();
+    Assert.assertEquals(fields.size(), 1);
 
-        BigQueryTableFieldSchema expectedSchema = new BigQueryTableFieldSchema();
-        expectedSchema.setType("STRING");
-        expectedSchema.setMode("REQUIRED");
-        expectedSchema.setName("field1");
+    BigQueryTableFieldSchema expectedSchema = new BigQueryTableFieldSchema();
+    expectedSchema.setType("STRING");
+    expectedSchema.setMode("REQUIRED");
+    expectedSchema.setName("field1");
 
-        Assert.assertEquals(fields.get(0), expectedSchema);
-    }
+    Assert.assertEquals(fields.get(0), expectedSchema);
+  }
 
-    @Test
-    public void testGenerateTableFieldSchemaNullable() {
-        String fieldName = "arrayOfRecords";
-        Schema schema = Schema.recordOf("record",
-                Schema.Field.of("id", Schema.of(Schema.Type.STRING)),
-                Schema.Field.of(fieldName,
-                        Schema.nullableOf(Schema.arrayOf(
-                                Schema.recordOf("innerRecord",
-                                        Schema.Field.of("field1", Schema.of(Schema.Type.STRING))
-                                )
-                        ))
-                )
-        );
+  @Test
+  public void testGenerateTableFieldSchemaNullable() {
+    String fieldName = "arrayOfRecords";
+    Schema schema = Schema.recordOf("record",
+            Schema.Field.of("id", Schema.of(Schema.Type.STRING)),
+            Schema.Field.of(fieldName,
+                    Schema.nullableOf(Schema.arrayOf(
+                            Schema.recordOf("innerRecord",
+                                    Schema.Field.of("field1", Schema.of(Schema.Type.STRING))
+                            )
+                    ))
+            )
+    );
 
-        BigQueryTableFieldSchema bqTableFieldSchema =
-                BigQuerySinkUtils.generateTableFieldSchema(schema.getField(fieldName));
+    BigQueryTableFieldSchema bqTableFieldSchema =
+            BigQuerySinkUtils.generateTableFieldSchema(schema.getField(fieldName));
 
-        List<BigQueryTableFieldSchema> fields = bqTableFieldSchema.getFields();
-        Assert.assertEquals(fields.size(), 1);
+    List<BigQueryTableFieldSchema> fields = bqTableFieldSchema.getFields();
+    Assert.assertEquals(fields.size(), 1);
 
-        BigQueryTableFieldSchema expectedSchema = new BigQueryTableFieldSchema();
-        expectedSchema.setType("STRING");
-        expectedSchema.setMode("REQUIRED");
-        expectedSchema.setName("field1");
+    BigQueryTableFieldSchema expectedSchema = new BigQueryTableFieldSchema();
+    expectedSchema.setType("STRING");
+    expectedSchema.setMode("REQUIRED");
+    expectedSchema.setName("field1");
 
-        Assert.assertEquals(fields.get(0), expectedSchema);
-    }
+    Assert.assertEquals(fields.get(0), expectedSchema);
+  }
 
-    @Test
-    public void testGenerateTableFieldSchemaNullable2() {
-        String fieldName = "arrayOfRecords";
-        Schema schema = Schema.recordOf("record",
-                Schema.Field.of("id", Schema.of(Schema.Type.STRING)),
-                Schema.Field.of(fieldName,
-                        Schema.nullableOf(Schema.arrayOf(
-                                Schema.recordOf("innerRecord",
-                                        Schema.Field.of("field1", Schema.nullableOf(Schema.of(Schema.Type.STRING)))
-                                )
-                        ))
-                )
-        );
+  @Test
+  public void testGenerateTableFieldSchemaNullable2() {
+    String fieldName = "arrayOfRecords";
+    Schema schema = Schema.recordOf("record",
+            Schema.Field.of("id", Schema.of(Schema.Type.STRING)),
+            Schema.Field.of(fieldName,
+                    Schema.nullableOf(Schema.arrayOf(
+                            Schema.recordOf("innerRecord",
+                                    Schema.Field.of("field1", Schema.nullableOf(Schema.of(Schema.Type.STRING)))
+                            )
+                    ))
+            )
+    );
 
-        BigQueryTableFieldSchema bqTableFieldSchema =
-                BigQuerySinkUtils.generateTableFieldSchema(schema.getField(fieldName));
+    BigQueryTableFieldSchema bqTableFieldSchema =
+            BigQuerySinkUtils.generateTableFieldSchema(schema.getField(fieldName));
 
-        List<BigQueryTableFieldSchema> fields = bqTableFieldSchema.getFields();
-        Assert.assertEquals(fields.size(), 1);
+    List<BigQueryTableFieldSchema> fields = bqTableFieldSchema.getFields();
+    Assert.assertEquals(fields.size(), 1);
 
-        BigQueryTableFieldSchema expectedSchema = new BigQueryTableFieldSchema();
-        expectedSchema.setType("STRING");
-        expectedSchema.setMode("NULLABLE");
-        expectedSchema.setName("field1");
+    BigQueryTableFieldSchema expectedSchema = new BigQueryTableFieldSchema();
+    expectedSchema.setType("STRING");
+    expectedSchema.setMode("NULLABLE");
+    expectedSchema.setName("field1");
 
-        Assert.assertEquals(fields.get(0), expectedSchema);
-    }
+    Assert.assertEquals(fields.get(0), expectedSchema);
+  }
 
-    @Test
-    public void testGenerateTableFieldSchemaNullable3() {
-        String fieldName = "arrayOfRecords";
-        Schema schema = Schema.recordOf("record",
-                Schema.Field.of("id", Schema.of(Schema.Type.STRING)),
-                Schema.Field.of(fieldName,
-                        Schema.nullableOf(Schema.arrayOf(
-                                Schema.nullableOf(Schema.recordOf("innerRecord",
-                                        Schema.Field.of("field1", Schema.nullableOf(Schema.of(Schema.Type.STRING)))
-                                ))
-                        ))
-                )
-        );
+  @Test
+  public void testGenerateTableFieldSchemaNullable3() {
+    String fieldName = "arrayOfRecords";
+    Schema schema = Schema.recordOf("record",
+            Schema.Field.of("id", Schema.of(Schema.Type.STRING)),
+            Schema.Field.of(fieldName,
+                    Schema.nullableOf(Schema.arrayOf(
+                            Schema.nullableOf(Schema.recordOf("innerRecord",
+                                    Schema.Field.of("field1", Schema.nullableOf(Schema.of(Schema.Type.STRING)))
+                            ))
+                    ))
+            )
+    );
 
-        BigQueryTableFieldSchema bqTableFieldSchema =
-                BigQuerySinkUtils.generateTableFieldSchema(schema.getField(fieldName));
+    BigQueryTableFieldSchema bqTableFieldSchema =
+            BigQuerySinkUtils.generateTableFieldSchema(schema.getField(fieldName));
 
-        List<BigQueryTableFieldSchema> fields = bqTableFieldSchema.getFields();
-        Assert.assertEquals(fields.size(), 1);
+    List<BigQueryTableFieldSchema> fields = bqTableFieldSchema.getFields();
+    Assert.assertEquals(fields.size(), 1);
 
-        BigQueryTableFieldSchema expectedSchema = new BigQueryTableFieldSchema();
-        expectedSchema.setType("STRING");
-        expectedSchema.setMode("NULLABLE");
-        expectedSchema.setName("field1");
+    BigQueryTableFieldSchema expectedSchema = new BigQueryTableFieldSchema();
+    expectedSchema.setType("STRING");
+    expectedSchema.setMode("NULLABLE");
+    expectedSchema.setName("field1");
 
-        Assert.assertEquals(fields.get(0), expectedSchema);
-    }
+    Assert.assertEquals(fields.get(0), expectedSchema);
+  }
 
 }
