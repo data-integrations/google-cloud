@@ -29,7 +29,6 @@ import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableSchema;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
-import com.google.common.annotations.VisibleForTesting;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
@@ -256,7 +255,8 @@ final class BigQuerySinkUtils {
 
     if (fieldSchema.getType().equals(Schema.Type.ARRAY)) {
       return true;
-    } else if (fieldSchema.getType().equals(Schema.Type.UNION)) {
+    }
+    if (fieldSchema.getType().equals(Schema.Type.UNION)) {
       for (Schema s: fieldSchema.getUnionSchemas()) {
         if (s.getType().equals(Schema.Type.ARRAY)) {
           return true;
