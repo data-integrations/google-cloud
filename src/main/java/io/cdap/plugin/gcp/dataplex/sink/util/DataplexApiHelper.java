@@ -9,12 +9,12 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
-import java.text.MessageFormat;
 import java.util.Date;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Helper class, can be utilized to generate access token and contains util methods to invoke Rest API's
+ * Helper class, can be utilized to generate access token and invoke Rest API's
  */
 public class DataplexApiHelper {
 
@@ -22,11 +22,10 @@ public class DataplexApiHelper {
   static AccessToken accessToken = null;
 
   public String invokeDataplexApi(String urlBuilder, GoogleCredentials credentials) throws IOException {
-    LOGGER.info(MessageFormat.format("invokes the API's to fetch the details - {0}", urlBuilder));
-    URL url = null;
+    LOGGER.log(Level.INFO, "invokes the APIs to fetch the details {0}", urlBuilder);
     StringBuilder builder = new StringBuilder();
 
-    url = new URL(urlBuilder);
+    URL url = new URL(urlBuilder);
     URLConnection con = url.openConnection();
     HttpURLConnection http = (HttpURLConnection) con;
 

@@ -49,60 +49,60 @@ public class DataplexInterfaceTest {
   public void listLocationsTest() throws Exception {
     when(dataplexApiHelper.invokeDataplexApi(anyString(), any(GoogleCredentials.class))).thenReturn(getLocations());
     List<Location> locations = dataplexInterface.listLocations(googleCredentials, "");
-    assertEquals(locations.size(), 7);
-    assertEquals(locations.get(1).locationId, "australia-southeast1");
+    assertEquals(7, locations.size());
+    assertEquals("australia-southeast1", locations.get(1).locationId);
   }
 
   @Test
   public void getLocationTest() throws Exception {
     when(dataplexApiHelper.invokeDataplexApi(anyString(), any(GoogleCredentials.class))).thenReturn(getLocation());
     Location location = dataplexInterface.getLocation(googleCredentials, "", "");
-    assertEquals(location.locationId, "us-central1");
+    assertEquals("us-central1", location.locationId);
   }
 
   @Test
   public void listLakesTest() throws Exception {
     when(dataplexApiHelper.invokeDataplexApi(anyString(), any(GoogleCredentials.class))).thenReturn(getLakes());
     List<Lake> lakes = dataplexInterface.listLakes(googleCredentials, "", "");
-    assertEquals(lakes.size(), 1);
-    assertEquals(lakes.get(0).getDisplayName(), "example lake");
+    assertEquals(1, lakes.size());
+    assertEquals("example lake", lakes.get(0).getDisplayName());
   }
 
   @Test
   public void getLakeTest() throws Exception {
     when(dataplexApiHelper.invokeDataplexApi(anyString(), any(GoogleCredentials.class))).thenReturn(getLake());
     Lake lake = dataplexInterface.getLake(googleCredentials, "", "", "");
-    assertEquals(lake.getDisplayName(), "example lake");
+    assertEquals("example lake", lake.getDisplayName());
   }
 
   @Test
   public void listZonesTest() throws Exception {
     when(dataplexApiHelper.invokeDataplexApi(anyString(), any(GoogleCredentials.class))).thenReturn(getZones());
     List<Zone> zones = dataplexInterface.listZones(googleCredentials, "", "", "");
-    assertEquals(zones.size(), 1);
-    assertEquals(zones.get(0).displayName, "example zone");
+    assertEquals(1, zones.size());
+    assertEquals("example zone", zones.get(0).displayName);
   }
 
   @Test
   public void getZoneTest() throws Exception {
     when(dataplexApiHelper.invokeDataplexApi(anyString(), any(GoogleCredentials.class))).thenReturn(getZone());
     Zone zone = dataplexInterface.getZone(googleCredentials, "", "", "", "");
-    assertEquals(zone.displayName, "example zone");
+    assertEquals("example zone", zone.displayName);
   }
 
   @Test
   public void listAssetsTest() throws Exception {
     when(dataplexApiHelper.invokeDataplexApi(anyString(), any(GoogleCredentials.class))).thenReturn(getAssets());
     List<Asset> assets = dataplexInterface.listAssets(googleCredentials, "", "", "" , "");
-    assertEquals(assets.size(), 3);
-    assertEquals(assets.get(0).displayName, "test2");
+    assertEquals(3, assets.size());
+    assertEquals("test2", assets.get(0).displayName);
   }
 
   @Test
   public void getAssetTest() throws Exception {
     when(dataplexApiHelper.invokeDataplexApi(anyString(), any(GoogleCredentials.class))).thenReturn(getAsset());
     Asset asset = dataplexInterface.getAsset(googleCredentials, "", "", "", "", "");
-    assertEquals(asset.displayName, "Storage Asset");
+    assertEquals("Storage Asset", asset.displayName);
   }
 
   private String getLocations() {
