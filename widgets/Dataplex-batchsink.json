@@ -102,7 +102,7 @@
           "label": "Location",
           "name": "location",
           "widget-attributes": {
-            "placeholder": "Example us-central1"
+            "placeholder": "Ex: us-central1"
           }
         },
         {
@@ -110,7 +110,7 @@
           "label": "Lake",
           "name": "lake",
           "widget-attributes": {
-            "placeholder": "Example Lake"
+            "placeholder": "Ex: Lake"
           }
         },
         {
@@ -118,7 +118,7 @@
           "label": "Zone",
           "name": "zone",
           "widget-attributes": {
-            "placeholder": "Example Zone"
+            "placeholder": "Ex: Zone"
           }
         },
         {
@@ -126,7 +126,7 @@
           "label": "Asset",
           "name": "asset",
           "widget-attributes": {
-            "placeholder": "Example Asset"
+            "placeholder": "Ex: Asset"
           }
         },
         {
