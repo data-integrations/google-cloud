@@ -387,8 +387,6 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   }
 
   public void validateBigQueryDataset(FailureCollector collector) {
-    IdUtils.validateReferenceName(referenceName, collector);
-
     if (!containsMacro(NAME_TABLE)) {
       if (table == null) {
         collector.addFailure(String.format("Required property '%s' has no value."), NAME_TABLE)
@@ -422,7 +420,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   }
 
   public void validateAssetConfiguration(FailureCollector collector, DataplexInterface dataplexInterface) {
-
+    IdUtils.validateReferenceName(referenceName, collector);
     if (!Strings.isNullOrEmpty(location) && !containsMacro(NAME_LOCATION)) {
       try {
         dataplexInterface.getLocation(getCredentials(), tryGetProject(), location);
@@ -472,6 +470,10 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
 
   public void validateBigQueryDataset(@Nullable Schema inputSchema, @Nullable Schema outputSchema,
                                       FailureCollector collector, DataplexInterface dataplexInterface) {
+    if (containsMacro(NAME_LOCATION) || containsMacro(NAME_LAKE) || containsMacro(NAME_ZONE) ||
+      containsMacro(NAME_ASSET)) {
+      return;
+    }
     validateBigQueryDataset(collector);
     if (!containsMacro(NAME_SCHEMA)) {
       Schema schema = outputSchema == null ? inputSchema : outputSchema;
@@ -832,7 +834,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   }
 
   /**
-   * Returns true if bigquery table can be connected to or schema is not a macro.
+   * Returns true if dataplex can be connected to or schema is not a macro.
    */
   boolean shouldConnect() {
     return !containsMacro(NAME_ASSET) && !containsMacro(NAME_TABLE) &&
@@ -848,7 +850,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   }
 
   public void validateFormatForStorageBucket(PipelineConfigurer pipelineConfigurer, FailureCollector collector) {
-    if (!this.containsMacro("format")) {
+    if (!Strings.isNullOrEmpty(format) && !this.containsMacro(NAME_FORMAT)) {
       String format = this.getFormat().toString().toLowerCase();
       ValidatingOutputFormat validatingOutputFormat = this.getValidatingOutputFormat(pipelineConfigurer);
       FormatContext context = new FormatContext(collector, pipelineConfigurer.getStageConfigurer().getInputSchema());
@@ -888,9 +890,10 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   }
 
   public void validateStorageBucket(PipelineConfigurer pipelineConfigurer, FailureCollector collector) {
-
-    IdUtils.validateReferenceName(referenceName, collector);
-
+    if (containsMacro(NAME_LOCATION) || containsMacro(NAME_LAKE) || containsMacro(NAME_ZONE) ||
+      containsMacro(NAME_ASSET)) {
+      return;
+    }
     this.validateFormatForStorageBucket(pipelineConfigurer, collector);
 
     if (suffix != null && !containsMacro(NAME_SUFFIX)) {
