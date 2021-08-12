@@ -69,11 +69,13 @@ import javax.annotation.Nullable;
 public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   public static final Set<Schema.Type> SUPPORTED_CLUSTERING_TYPES =
     ImmutableSet.of(Schema.Type.INT, Schema.Type.LONG, Schema.Type.STRING, Schema.Type.BOOLEAN, Schema.Type.BYTES);
+  private static final Logger LOG = LoggerFactory.getLogger(DataplexBatchSinkConfig.class);
+  private static final String WHERE = "WHERE";
   public static final int MAX_NUMBER_OF_COLUMNS = 4;
+
   public static final String NAME_CONNECTION = "connection";
   public static final String NAME_USE_CONNECTION = "useConnection";
   public static final String NAME_SUFFIX = "suffix";
-  private static final Logger LOG = LoggerFactory.getLogger(DataplexBatchSinkConfig.class);
   private static final String NAME_FORMAT = "format";
   private static final String NAME_TABLE = "table";
   private static final String NAME_TABLE_KEY = "tableKey";
@@ -90,8 +92,8 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   private static final String NAME_RANGE_END = "rangeEnd";
   private static final String NAME_RANGE_INTERVAL = "rangeInterval";
   private static final String NAME_CONTENT_TYPE = "contentType";
-  private static final String WHERE = "WHERE";
   private static final String NAME_SCHEMA = "schema";
+
   private static final String NAME_CUSTOM_CONTENT_TYPE = "customContentType";
   private static final String DEFAULT_CONTENT_TYPE = "application/octet-stream";
   private static final String CONTENT_TYPE_OTHER = "other";
@@ -100,138 +102,15 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   private static final String CONTENT_TYPE_APPLICATION_CSV = "application/csv";
   private static final String CONTENT_TYPE_TEXT_PLAIN = "text/plain";
   private static final String CONTENT_TYPE_TEXT_CSV = "text/csv";
+
   private static final String FORMAT_AVRO = "avro";
   private static final String FORMAT_CSV = "csv";
   private static final String FORMAT_JSON = "json";
   private static final String FORMAT_ORC = "orc";
   private static final String FORMAT_PARQUET = "parquet";
   private static final Pattern FIELD_PATTERN = Pattern.compile("[a-zA-Z0-9_]+");
-  @Name(NAME_FORMAT)
-  @Nullable
-  @Description("Format to write the records in. " +
-    "Raw zone allowed values: avro, csv, delimited, json, orc, parquet, tsv. " +
-    "Curated zone allowed values: parquet,avro, orc.")
-  @Macro
-  protected String format;
 
-  @Name(NAME_CONTENT_TYPE)
-  @Nullable
-  @Description("The Content Type entity is used to indicate the media type of the resource. " +
-    "Defaults to ‘application/octet-stream’. " +
-    "Values: avro, csv, delimited, json, orc, parquet, tsv")
-  @Macro
-  protected String contentType;
-
-
-  @Name(NAME_TABLE)
-  @Nullable
-  @Description("The table name of the object to use. Note: check if browsing is required. ")
-  @Macro
-  protected String table;
-
-
-  @Name(NAME_TABLE_KEY)
-  @Description("List of fields that determine relation between tables during Update and Upsert operations.")
-  @Macro
-  @Nullable
-  protected String tableKey;
-
-  @Name(NAME_DEDUPE_BY)
-  @Description("Column names and sort order used to choose which input record to update/upsert when there are " +
-    "multiple input records with the same key. For example, if this is set to ‘updated_time desc’, then if there " +
-    "are multiple input records with the same key, the one with the largest value for ‘updated_time’ will be " +
-    "applied.")
-  @Macro
-  @Nullable
-  protected String dedupeBy;
-
-  @Name(NAME_OPERATION)
-  @Nullable
-  @Description("Insert/Update/Upsert")
-  @Macro
-  protected String operation;
-
-  @Name(NAME_PARTITION_FILTER)
-  @Description("Partition filter that can be used for partition elimination during Update or Upsert operations. " +
-    "Should only be used with Update or Upsert operations for tables where the required partition filter is " +
-    "enabled. For example, if the table is partitioned the Partition Filter ‘_PARTITIONTIME > “2020-01-01” " +
-    "and _PARTITIONTIME < “2020-03-01”‘, the update operation will be performed only in the partitions " +
-    "meeting the criteria.")
-  @Macro
-  @Nullable
-  protected String partitionFilter;
-
-
-  @Name(NAME_PARTITIONING_TYPE)
-  @Description("Specifies the partitioning type. Can either be Integer or Time or None. Defaults to Time. " +
-    "This value is ignored if the table already exists.")
-  @Macro
-  @Nullable
-  protected String partitioningType;
-
-
-  @Name(NAME_RANGE_START)
-  @Macro
-  @Nullable
-  @Description("Start value for range partitioning. The start value is inclusive. Ignored when table already exists")
-  protected Long rangeStart;
-
-  @Name(NAME_RANGE_END)
-  @Macro
-  @Nullable
-  @Description("End value for range partitioning. The end value is exclusive. Ignored when table already exists")
-  protected Long rangeEnd;
-
-  @Name(NAME_RANGE_INTERVAL)
-  @Macro
-  @Nullable
-  @Description(
-    "Interval value for range partitioning. The interval value must be a positive integer."
-      + "Ignored when table already exists")
-  protected Long rangeInterval;
-
-
-  @Name(NAME_TRUNCATE_TABLE)
-  @Description(
-    "Whether or not to truncate the table before writing to it. Should only be used with the Insert operation.")
-  @Macro
-  @Nullable
-  protected Boolean truncateTable;
-
-  @Name(NAME_UPDATE_TABLE_SCHEMA)
-  @Description("Whether the BigQuery table schema should be modified when it does not match the schema expected " +
-    "by the pipeline.")
-  @Macro
-  @Nullable
-  protected Boolean updateTableSchema;
-
-  @Name(NAME_PARTITION_BY_FIELD)
-  @Description("Partitioning column for the BigQuery table. This should be left empty if the BigQuery table " +
-    "is an ingestion-time partitioned table.")
-  @Macro
-  @Nullable
-  protected String partitionByField;
-
-  @Name(NAME_REQUIRE_PARTITION_FIELD)
-  @Description(
-    "Whether to create a table that requires a partition filter. This value is ignored if the table already exists.")
-  @Macro
-  @Nullable
-  protected Boolean requirePartitionField;
-
-  @Name(NAME_CLUSTERING_ORDER)
-  @Description("List of fields that determines the sort order of the data. Fields must be of type INT, LONG, " +
-    "STRING, DATE, TIMESTAMP, BOOLEAN or DECIMAL. Tables cannot be clustered on more than 4 fields. This " +
-    "value is only used when the BigQuery table is automatically created and ignored if the table already exists.")
-  @Macro
-  @Nullable
-  protected String clusteringOrder;
-
-  @Name(NAME_SCHEMA)
-  @Macro
-  @Nullable
-  @Description("The schema of the data to write. If provided, must be compatible with the table schema.")
-  private String schema;
+  //Connection properties
 
   @Name(NAME_USE_CONNECTION)
   @Nullable
@@ -239,18 +118,147 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   private Boolean useConnection;
 
   @Name(NAME_CONNECTION)
-  @Macro
   @Nullable
+  @Macro
   @Description("The existing connection to use.")
   private DataplexConnectorConfig connection;
 
+  //GCS Asset type configuration properties
 
+  @Nullable
+  @Macro
   @Description("The time format for the output directory that will be appended to the path. " +
     "For example, the format 'yyyy-MM-dd-HH-mm' will result in a directory of the form '2015-01-01-20-42'. " +
     "If not specified, nothing will be appended to the path.")
+  private String suffix;
+
+  @Name(NAME_FORMAT)
   @Nullable
   @Macro
-  private String suffix;
+  @Description("The format to write the records in. The format for raw zone must be one of 'json', 'avro', 'csv', " +
+    "'delimited', 'json', 'orc', or, 'parquet'. The format for curated zone must be one of 'avro', 'orc', or, " +
+    "'parquet'.")
+  protected String format;
+
+  @Name(NAME_CONTENT_TYPE)
+  @Nullable
+  @Macro
+  @Description("The content type property is used to indicate the media type of the resource. Defaults to " +
+    "'application/octet-stream'.")
+  protected String contentType;
+
+  // Bigquery asset type configuration properties
+
+  @Name(NAME_TABLE)
+  @Nullable
+  @Macro
+  @Description("The table to write to. A table contains individual records organized in rows. "
+    + "Each record is composed of columns (also called fields). "
+    + "Every table is defined by a schema that describes the column names, data types, and other information.")
+  protected String table;
+
+
+  @Name(NAME_TABLE_KEY)
+  @Nullable
+  @Macro
+  @Description("List of fields that determine relation between tables during Update and Upsert operations.")
+  protected String tableKey;
+
+  @Name(NAME_DEDUPE_BY)
+  @Nullable
+  @Macro
+  @Description("Column names and sort order used to choose which input record to update/upsert when there are " +
+    "multiple input records with the same key. For example, if this is set to ‘updated_time desc’, then if there " +
+    "are multiple input records with the same key, the one with the largest value for ‘updated_time’ will be " +
+    "applied.")
+  protected String dedupeBy;
+
+  @Name(NAME_OPERATION)
+  @Nullable
+  @Macro
+  @Description("Insert/Update/Upsert")
+  protected String operation;
+
+  @Name(NAME_PARTITION_FILTER)
+  @Nullable
+  @Macro
+  @Description("Partition filter that can be used for partition elimination during Update or Upsert operations. " +
+    "Should only be used with Update or Upsert operations for tables where the required partition filter is " +
+    "enabled. For example, if the table is partitioned the Partition Filter ‘_PARTITIONTIME > “2020-01-01” " +
+    "and _PARTITIONTIME < “2020-03-01”‘, the update operation will be performed only in the partitions " +
+    "meeting the criteria.")
+  protected String partitionFilter;
+
+
+  @Name(NAME_PARTITIONING_TYPE)
+  @Nullable
+  @Macro
+  @Description("Specifies the partitioning type. Can either be Integer or Time or None. Defaults to Time. " +
+    "This value is ignored if the table already exists.")
+  protected String partitioningType;
+
+
+  @Name(NAME_RANGE_START)
+  @Nullable
+  @Macro
+  @Description("Start value for range partitioning. The start value is inclusive. Ignored when table already exists")
+  protected Long rangeStart;
+
+  @Name(NAME_RANGE_END)
+  @Nullable
+  @Macro
+  @Description("End value for range partitioning. The end value is exclusive. Ignored when table already exists")
+  protected Long rangeEnd;
+
+  @Name(NAME_RANGE_INTERVAL)
+  @Nullable
+  @Macro
+  @Description("Interval value for range partitioning. The interval value must be a positive integer. Ignored when " +
+    "table already exists")
+  protected Long rangeInterval;
+
+
+  @Name(NAME_TRUNCATE_TABLE)
+  @Nullable
+  @Macro
+  @Description("Whether or not to truncate the table before writing to it. Should only be used with the Insert " +
+    "operation.")
+  protected Boolean truncateTable;
+
+  @Name(NAME_UPDATE_TABLE_SCHEMA)
+  @Nullable
+  @Macro
+  @Description("Whether the BigQuery table schema should be modified when it does not match the schema expected " +
+    "by the pipeline.")
+  protected Boolean updateTableSchema;
+
+  @Name(NAME_PARTITION_BY_FIELD)
+  @Nullable
+  @Macro
+  @Description("Partitioning column for the BigQuery table. This should be left empty if the BigQuery table " +
+    "is an ingestion-time partitioned table.")
+  protected String partitionByField;
+
+  @Name(NAME_REQUIRE_PARTITION_FIELD)
+  @Nullable
+  @Macro
+  @Description("Whether to create a table that requires a partition filter. This value is ignored if the table " +
+    "already exists.")
+  protected Boolean requirePartitionField;
+
+  @Name(NAME_CLUSTERING_ORDER)
+  @Nullable
+  @Macro
+  @Description("List of fields that determines the sort order of the data. Fields must be of type INT, LONG, " +
+    "STRING, DATE, TIMESTAMP, BOOLEAN or DECIMAL. Tables cannot be clustered on more than 4 fields. This " +
+    "value is only used when the BigQuery table is automatically created and ignored if the table already exists.")
+  protected String clusteringOrder;
+
+  @Name(NAME_SCHEMA)
+  @Nullable
+  @Macro
+  @Description("The schema of the data to write. If provided, must be compatible with the table schema.")
+  private String schema;
 
   @Nullable
   public FileFormat getFormat() {
@@ -346,6 +354,38 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     return suffix;
   }
 
+  public String getProject() {
+    if (connection == null) {
+      throw new IllegalArgumentException(
+        "Could not get project information, connection should not be null!");
+    }
+    return connection.getProject();
+  }
+
+  public DataplexConnectorConfig getConnection() {
+    return connection;
+  }
+
+  @Nullable
+  public String tryGetProject() {
+    return connection == null ? null : connection.tryGetProject();
+  }
+
+  @Nullable
+  public String getServiceAccount() {
+    return connection == null ? null : connection.getServiceAccount();
+  }
+
+  @Nullable
+  public String getServiceAccountType() {
+    return connection == null ? null : connection.getServiceAccountType();
+  }
+
+  @Nullable
+  public Boolean isServiceAccountFilePath() {
+    return connection == null ? null : connection.isServiceAccountFilePath();
+  }
+
   public void validateBigQueryDataset(FailureCollector collector) {
     IdUtils.validateReferenceName(referenceName, collector);
 
@@ -396,7 +436,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
         try {
           dataplexInterface.getLake(getCredentials(), tryGetProject(), location, lake);
         } catch (Exception e) {
-          collector.addFailure("Lake doesn't exists: " + lake, null).
+          collector.addFailure("Lake doesn't exist: " + lake, null).
             withConfigProperty(NAME_LAKE);
           return;
         }
@@ -406,7 +446,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
           try {
             Zone zoneBean = dataplexInterface.getZone(getCredentials(), tryGetProject(), location, lake, zone);
           } catch (Exception e) {
-            collector.addFailure("Zone doesn't exists: " + zone, null).
+            collector.addFailure("Zone doesn't exist: " + zone, null).
               withConfigProperty(NAME_ZONE);
             return;
           }
@@ -420,7 +460,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
                   withConfigProperty(NAME_ASSET_TYPE);
               }
             } catch (Exception e) {
-              collector.addFailure("Asset doesn't exists: " + asset, null).
+              collector.addFailure("Asset doesn't exist: " + asset, null).
                 withConfigProperty(NAME_ASSET);
               return;
             }
@@ -943,33 +983,6 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     return name.replace(" ", "-").toLowerCase();
   }
 
-  public String getProject() {
-    if (connection == null) {
-      throw new IllegalArgumentException(
-        "Could not get project information, connection should not be null!");
-    }
-    return connection.getProject();
-  }
-
-  public DataplexConnectorConfig getConnection() {
-    return connection;
-  }
-
-  @Nullable
-  public String tryGetProject() {
-    return connection == null ? null : connection.tryGetProject();
-  }
-
-  @Nullable
-  public String getServiceAccount() {
-    return connection == null ? null : connection.getServiceAccount();
-  }
-
-  @Nullable
-  public Boolean isServiceAccountFilePath() {
-    return connection == null ? null : connection.isServiceAccountFilePath();
-  }
-
   public boolean autoServiceAccountUnavailable() {
     if (connection == null || connection.getServiceAccountFilePath() == null &&
       connection.isServiceAccountFilePath()) {
@@ -982,12 +995,6 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     return false;
   }
 
-  @Nullable
-  public String getServiceAccountType() {
-    return connection == null ? null : connection.getServiceAccountType();
-  }
-
-
   private GoogleCredentials getCredentials() throws IOException {
     GoogleCredentials credentials = null;
     //validate service account
@@ -998,6 +1005,4 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     }
     return credentials;
   }
-
-
 }

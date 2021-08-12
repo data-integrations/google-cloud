@@ -18,39 +18,38 @@ public class DataplexBaseConfig extends PluginConfig {
     public static final String NAME_ASSET_TYPE = "assetType";
     public static final String NAME_LOCATION = "location";
 
-
-
     @Name(REFERENCE_NAME)
     @Description("Name used to uniquely identify this sink for lineage, annotating metadata, etc.")
     protected String referenceName;
 
     @Name(NAME_LOCATION)
     @Macro
-    @Description("Enter location where lake got created. Example us-central1")
+    @Description("Resource name for the Dataplex location. User can type it in or press a browse button which enables" +
+      " hierarchical selection.")
     protected String location;
 
     @Name(NAME_LAKE)
-    @Description("Lake name to use. User can type it in or " +
-      "press a browse button which enables hierarchical selection.")
     @Macro
+    @Description("Resource name for the Dataplex lake. User can type it in or press a browse button which enables " +
+      "hierarchical selection.")
     protected String lake;
 
     @Name(NAME_ZONE)
-    @Description("Zone name to use. User can type it in or " +
-      "press a browse button which enables hierarchical selection.")
     @Macro
+    @Description("Resource name for the Dataplex zone. User can type it in or press a browse button which enables " +
+      "hierarchical selection.")
     protected String zone;
 
     @Name(NAME_ASSET)
-    @Description("Asset name to use. User can type it in or " +
-            "press a browse button which enables hierarchical selection.")
     @Macro
+    @Description("Resource name for the Dataplex asset. It represents a cloud resource that is being managed within a" +
+      " lake as a member of a zone. User can type it in or press a browse button which enables " +
+      "hierarchical selection.")
     protected String asset;
 
-
-    @Nullable
     @Name(NAME_ASSET_TYPE)
-    @Description("Asset Type can be BQ Dataset or GCS bucket.")
+    @Nullable
+    @Description("Asset type resource.")
     protected String assetType;
 
 
