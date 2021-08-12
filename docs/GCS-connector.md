@@ -24,5 +24,6 @@ When running on other clusters, the file must be present on every node in the cl
 
 Path of the connection
 ----------------------
-To browse, get a sample from, or get the specification for this connection through API (see [Pipeline Microservices](https://cdap.atlassian.net/wiki/spaces/DOCS/pages/975929350/Pipeline+Microservices)),
-the `path` property is required in the request body. It's an absolute Google Cloud Storage path of a file or folder.
+To browse, get a sample from, or get the specification for this connection through
+[Pipeline Microservices](https://cdap.atlassian.net/wiki/spaces/DOCS/pages/975929350/Pipeline+Microservices), the `path`
+property is required in the request body. It's an absolute Google Cloud Storage path of a file or folder.
