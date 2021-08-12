@@ -59,6 +59,10 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, NullWri
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     super.configurePipeline(pipelineConfigurer);
+    if (config.tryGetProject() == null || config.getServiceAccountType() == null ||
+      (config.isServiceAccountFilePath() && config.autoServiceAccountUnavailable())) {
+      return;
+    }
     StageConfigurer configurer = pipelineConfigurer.getStageConfigurer();
     FailureCollector collector = configurer.getFailureCollector();
     Schema inputSchema = configurer.getInputSchema();
@@ -71,10 +75,7 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, NullWri
       config.validateStorageBucket(pipelineConfigurer, collector);
     }
 
-    if (config.tryGetProject() == null || config.getServiceAccountType() == null ||
-      (config.isServiceAccountFilePath() && config.autoServiceAccountUnavailable())) {
-      return;
-    }
+
     // validate schema with underlying table
   }
 
