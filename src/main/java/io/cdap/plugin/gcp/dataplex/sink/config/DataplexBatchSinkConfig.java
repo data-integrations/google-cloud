@@ -986,6 +986,13 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     return name.replace(" ", "-").toLowerCase();
   }
 
+  /**
+   * Return true if the service account is set to auto-detect but it can't be fetched from the environment.
+   * This shouldn't result in a deployment failure, as the credential could be detected at runtime if the pipeline
+   * runs on dataproc. This should primarily be used to check whether certain validation logic should be skipped.
+   *
+   * @return true if the service account is set to auto-detect but it can't be fetched from the environment.
+   */
   public boolean autoServiceAccountUnavailable() {
     if (connection == null || connection.getServiceAccountFilePath() == null &&
       connection.isServiceAccountFilePath()) {
