@@ -22,8 +22,6 @@ import org.junit.Test;
 
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
 import io.cdap.cdap.api.data.schema.Schema;
-import org.junit.Assert;
-import org.junit.Test;
 
 import java.util.List;
 
@@ -56,6 +54,7 @@ public class BigQuerySinkUtilsTest {
     Assert.assertFalse(configuration.getBoolean("fs.gs.metadata.cache.enable", true));
   }
 
+  @Test
   public void testGenerateTableFieldSchema() {
     String fieldName = "arrayOfRecords";
     Schema schema = Schema.recordOf("record",
