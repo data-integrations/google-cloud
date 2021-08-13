@@ -32,6 +32,8 @@ import io.cdap.plugin.gcp.dataplex.sink.connection.out.DataplexInterfaceImpl;
 import io.cdap.plugin.gcp.dataplex.sink.enums.AssetType;
 
 import org.apache.hadoop.io.NullWritable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Batch Sink that writes data to Dataplex assets (Bigquery or GCS).
@@ -51,6 +53,7 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, NullWri
   public static final String NAME = "Dataplex";
   // Usually, you will need a private variable to store the config that was passed to your class
   private final DataplexBatchSinkConfig config;
+  private static final Logger LOG = LoggerFactory.getLogger(DataplexBatchSink.class);
 
   public DataplexBatchSink(DataplexBatchSinkConfig config) {
     this.config = config;
@@ -59,12 +62,17 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, NullWri
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     super.configurePipeline(pipelineConfigurer);
-    if (config.tryGetProject() == null || config.getServiceAccountType() == null ||
-      (config.isServiceAccountFilePath() && config.autoServiceAccountUnavailable())) {
+    if (!config.getConnection().canConnect() || config.getServiceAccountType() == null ||
+      (config.isServiceAccountFilePath() && config.autoServiceAccountUnavailable()) ||
+      (config.tryGetProject() == null)) {
       return;
     }
+
     StageConfigurer configurer = pipelineConfigurer.getStageConfigurer();
     FailureCollector collector = configurer.getFailureCollector();
+    if (!config.validateServiceAccount(collector)) {
+      return;
+    }
     Schema inputSchema = configurer.getInputSchema();
     Schema configuredSchema = config.getSchema(collector);
     DataplexInterface dataplexInterface = new DataplexInterfaceImpl();

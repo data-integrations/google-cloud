@@ -44,6 +44,7 @@ import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.dataplex.sink.connection.DataplexInterface;
 import io.cdap.plugin.gcp.dataplex.sink.connector.DataplexConnectorConfig;
+import io.cdap.plugin.gcp.dataplex.sink.enums.AssetType;
 import io.cdap.plugin.gcp.dataplex.sink.model.Asset;
 import io.cdap.plugin.gcp.dataplex.sink.model.Zone;
 
@@ -94,8 +95,6 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   private static final String NAME_RANGE_INTERVAL = "rangeInterval";
   private static final String NAME_CONTENT_TYPE = "contentType";
   private static final String NAME_SCHEMA = "schema";
-
-  private static final String NAME_CUSTOM_CONTENT_TYPE = "customContentType";
   private static final String DEFAULT_CONTENT_TYPE = "application/octet-stream";
   private static final String CONTENT_TYPE_OTHER = "other";
   private static final String CONTENT_TYPE_APPLICATION_JSON = "application/json";
@@ -103,6 +102,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   private static final String CONTENT_TYPE_APPLICATION_CSV = "application/csv";
   private static final String CONTENT_TYPE_TEXT_PLAIN = "text/plain";
   private static final String CONTENT_TYPE_TEXT_CSV = "text/csv";
+  private static final String ZONE_TYPE_CURATED = "CURATED";
 
   private static final String FORMAT_AVRO = "avro";
   private static final String FORMAT_CSV = "csv";
@@ -396,6 +396,20 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     throw collector.getOrThrowException();
   }
 
+  public boolean validateServiceAccount(FailureCollector failureCollector) {
+    if (connection.isServiceAccountJson() || connection.getServiceAccountFilePath() != null) {
+      try {
+        GoogleCredentials credentials = getCredentials();
+        return true;
+      } catch (Exception e) {
+        failureCollector.addFailure(String.format("Service account key provided is not valid: %s.",
+          e.getMessage()), "Please provide a valid service account key.").withConfigProperty("serviceFilePath");
+        return false;
+      }
+    }
+    return true;
+  }
+
   public void validateAssetConfiguration(FailureCollector collector, DataplexInterface dataplexInterface) {
     IdUtils.validateReferenceName(referenceName, collector);
     if (!Strings.isNullOrEmpty(location) && !containsMacro(NAME_LOCATION)) {
@@ -433,8 +447,9 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
                   withConfigProperty(NAME_ASSET_TYPE);
               }
               if (zoneBean != null && assetBean != null && assetBean.getAssetResourceSpec().getType().
-                equalsIgnoreCase("STORAGE_BUCKET") && zoneBean.getType()
-                .equalsIgnoreCase("CURATED") && !containsMacro(NAME_FORMAT)) {
+                equalsIgnoreCase(AssetType.STORAGE_BUCKET.toString()) && zoneBean.getType()
+                .equalsIgnoreCase(ZONE_TYPE_CURATED) && !containsMacro(NAME_FORMAT) &&
+              !Strings.isNullOrEmpty(format)) {
                 try {
                   FileFormat fileFormat = getFormat();
                   if (!SUPPORTED_FORMATS_FOR_CURATED_ZONE.contains(fileFormat)) {
@@ -841,10 +856,21 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   }
 
   public void validateFormatForStorageBucket(PipelineConfigurer pipelineConfigurer, FailureCollector collector) {
+    if (Strings.isNullOrEmpty(format)) {
+      collector.addFailure(String.format("Required field '%s' has no value.", NAME_FORMAT), null)
+        .withConfigProperty(NAME_FORMAT);
+      return;
+    }
+
     if (!this.containsMacro(NAME_FORMAT)) {
       String fileFormat = null;
       try {
         fileFormat = getFormat().toString().toLowerCase();
+        if (!containsMacro(NAME_CONTENT_TYPE)
+          && !Strings.isNullOrEmpty(contentType) && !contentType.equalsIgnoreCase(CONTENT_TYPE_OTHER)
+          && !contentType.equalsIgnoreCase(DEFAULT_CONTENT_TYPE)) {
+          validateContentType(collector);
+        }
       } catch (IllegalArgumentException e) {
         collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_FORMAT)
           .withStacktrace(e.getStackTrace());
@@ -901,14 +927,6 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
           .withConfigProperty(NAME_SUFFIX).withStacktrace(e.getStackTrace());
       }
     }
-
-
-    if (!containsMacro(NAME_CONTENT_TYPE) && !containsMacro(NAME_CUSTOM_CONTENT_TYPE)
-      && !Strings.isNullOrEmpty(contentType) && !contentType.equalsIgnoreCase(CONTENT_TYPE_OTHER)
-      && !containsMacro(NAME_FORMAT) && !contentType.equalsIgnoreCase(DEFAULT_CONTENT_TYPE)) {
-      validateContentType(collector);
-    }
-
     try {
       getSchema(collector);
     } catch (IllegalArgumentException e) {
