@@ -396,18 +396,17 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     throw collector.getOrThrowException();
   }
 
-  public boolean validateServiceAccount(FailureCollector failureCollector) {
+  public void validateServiceAccount(FailureCollector failureCollector) {
     if (connection.isServiceAccountJson() || connection.getServiceAccountFilePath() != null) {
       try {
         GoogleCredentials credentials = getCredentials();
-        return true;
       } catch (Exception e) {
         failureCollector.addFailure(String.format("Service account key provided is not valid: %s.",
-          e.getMessage()), "Please provide a valid service account key.").withConfigProperty("serviceFilePath");
-        return false;
+          e.getMessage()), "Please provide a valid service account key.").withConfigProperty("serviceFilePath")
+        .withConfigProperty("serviceAccountJSON");
       }
     }
-    return true;
+    failureCollector.getOrThrowException();
   }
 
   public void validateAssetConfiguration(FailureCollector collector, DataplexInterface dataplexInterface) {
@@ -472,6 +471,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
         }
       }
     }
+    collector.getOrThrowException();
   }
 
   public void validateBigQueryDataset(@Nullable Schema inputSchema, @Nullable Schema outputSchema,

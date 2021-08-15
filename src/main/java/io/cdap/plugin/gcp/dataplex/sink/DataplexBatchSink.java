@@ -70,9 +70,7 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, NullWri
 
     StageConfigurer configurer = pipelineConfigurer.getStageConfigurer();
     FailureCollector collector = configurer.getFailureCollector();
-    if (!config.validateServiceAccount(collector)) {
-      return;
-    }
+    config.validateServiceAccount(collector);
     Schema inputSchema = configurer.getInputSchema();
     Schema configuredSchema = config.getSchema(collector);
     DataplexInterface dataplexInterface = new DataplexInterfaceImpl();
