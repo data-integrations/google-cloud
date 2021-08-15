@@ -1,3 +1,19 @@
+/*
+ * Copyright © 2021 Cask Data, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+
 package io.cdap.plugin.gcp.dataplex.sink.model;
 
 import com.google.gson.annotations.SerializedName;
@@ -14,16 +30,6 @@ public class Asset {
   public String state;
   @SerializedName("resourceSpec")
   public AssetResourceSpec assetResourceSpec;
-  @SerializedName("resourceStatus")
-  public AssetResourceStatus assetResourceStatus;
-  @SerializedName("SecuritySpec")
-  public AssetSecuritySpec assetSecuritySpec;
-  @SerializedName("securityStatus")
-  public AssetSecurityStatus assetSecurityStatus;
-  @SerializedName("discoverySpec")
-  public AssetDiscoverySpec assetDiscoverySpec;
-  @SerializedName("discoveryStatus")
-  public AssetDiscoveryStatus assetDiscoveryStatus;
 
   public String getName() {
     return name;
@@ -81,45 +87,6 @@ public class Asset {
     this.assetResourceSpec = assetResourceSpec;
   }
 
-  public AssetResourceStatus getAssetResourceStatus() {
-    return assetResourceStatus;
-  }
-
-  public void setAssetResourceStatus(AssetResourceStatus assetResourceStatus) {
-    this.assetResourceStatus = assetResourceStatus;
-  }
-
-  public AssetSecuritySpec getAssetSecuritySpec() {
-    return assetSecuritySpec;
-  }
-
-  public void setAssetSecuritySpec(AssetSecuritySpec assetSecuritySpec) {
-    this.assetSecuritySpec = assetSecuritySpec;
-  }
-
-  public AssetSecurityStatus getAssetSecurityStatus() {
-    return assetSecurityStatus;
-  }
-
-  public void setAssetSecurityStatus(AssetSecurityStatus assetSecurityStatus) {
-    this.assetSecurityStatus = assetSecurityStatus;
-  }
-
-  public AssetDiscoverySpec getAssetDiscoverySpec() {
-    return assetDiscoverySpec;
-  }
-
-  public void setAssetDiscoverySpec(AssetDiscoverySpec assetDiscoverySpec) {
-    this.assetDiscoverySpec = assetDiscoverySpec;
-  }
-
-  public AssetDiscoveryStatus getAssetDiscoveryStatus() {
-    return assetDiscoveryStatus;
-  }
-
-  public void setAssetDiscoveryStatus(AssetDiscoveryStatus assetDiscoveryStatus) {
-    this.assetDiscoveryStatus = assetDiscoveryStatus;
-  }
   /**
    * Information about Asset Resource specifications
    */
@@ -160,135 +127,5 @@ public class Asset {
     public void setDeletionPolicy(String deletionPolicy) {
       this.deletionPolicy = deletionPolicy;
     }
-  }
-
-}
-
-
-
-class AssetResourceStatus {
-  public String state;
-  public String updateTime;
-
-  public String getState() {
-    return state;
-  }
-
-  public void setState(String state) {
-    this.state = state;
-  }
-
-  public String getUpdateTime() {
-    return updateTime;
-  }
-
-  public void setUpdateTime(String updateTime) {
-    this.updateTime = updateTime;
-  }
-}
-
-class AssetSecuritySpec {
-}
-
-class AssetSecurityStatus {
-  public String state;
-  public String updateTime;
-
-  public String getState() {
-    return state;
-  }
-
-  public void setState(String state) {
-    this.state = state;
-  }
-
-  public String getUpdateTime() {
-    return updateTime;
-  }
-
-  public void setUpdateTime(String updateTime) {
-    this.updateTime = updateTime;
-  }
-}
-
-class AssetDiscoverySpec {
-  public boolean enabled;
-  public String schedule;
-
-  public boolean isEnabled() {
-    return enabled;
-  }
-
-  public void setEnabled(boolean enabled) {
-    this.enabled = enabled;
-  }
-
-  public String getSchedule() {
-    return schedule;
-  }
-
-  public void setSchedule(String schedule) {
-    this.schedule = schedule;
-  }
-}
-
-class AssetStats {
-}
-
-class AssetDiscoveryStatus {
-  public String state;
-  public String updateTime;
-  public String lastRunTime;
-  public String nextRunTime;
-  @SerializedName("stats")
-  public AssetStats assetStats;
-  public String lastRunDuration;
-
-  public String getState() {
-    return state;
-  }
-
-  public void setState(String state) {
-    this.state = state;
-  }
-
-  public String getUpdateTime() {
-    return updateTime;
-  }
-
-  public void setUpdateTime(String updateTime) {
-    this.updateTime = updateTime;
-  }
-
-  public String getLastRunTime() {
-    return lastRunTime;
-  }
-
-  public void setLastRunTime(String lastRunTime) {
-    this.lastRunTime = lastRunTime;
-  }
-
-  public String getNextRunTime() {
-    return nextRunTime;
-  }
-
-  public void setNextRunTime(String nextRunTime) {
-    this.nextRunTime = nextRunTime;
-  }
-
-  public AssetStats getAssetStats() {
-    return assetStats;
-  }
-
-  public void setAssetStats(AssetStats assetStats) {
-    this.assetStats = assetStats;
-  }
-
-  public String getLastRunDuration() {
-    return lastRunDuration;
-  }
-
-  public void setLastRunDuration(String lastRunDuration) {
-    this.lastRunDuration = lastRunDuration;
   }
 }
