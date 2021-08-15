@@ -42,9 +42,9 @@ import io.cdap.plugin.gcp.bigquery.sink.Operation;
 import io.cdap.plugin.gcp.bigquery.sink.PartitionType;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
+import io.cdap.plugin.gcp.dataplex.sink.DataplexBatchSink;
 import io.cdap.plugin.gcp.dataplex.sink.connection.DataplexInterface;
 import io.cdap.plugin.gcp.dataplex.sink.connector.DataplexConnectorConfig;
-import io.cdap.plugin.gcp.dataplex.sink.enums.AssetType;
 import io.cdap.plugin.gcp.dataplex.sink.model.Asset;
 import io.cdap.plugin.gcp.dataplex.sink.model.Zone;
 
@@ -446,7 +446,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
                   withConfigProperty(NAME_ASSET_TYPE);
               }
               if (zoneBean != null && assetBean != null && assetBean.getAssetResourceSpec().getType().
-                equalsIgnoreCase(AssetType.STORAGE_BUCKET.toString()) && zoneBean.getType()
+                equalsIgnoreCase(DataplexBatchSink.STORAGE_BUCKET_ASSET_TYPE) && zoneBean.getType()
                 .equalsIgnoreCase(ZONE_TYPE_CURATED) && !containsMacro(NAME_FORMAT) &&
               !Strings.isNullOrEmpty(format)) {
                 try {

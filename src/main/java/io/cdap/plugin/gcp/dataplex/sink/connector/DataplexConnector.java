@@ -1,3 +1,19 @@
+/*
+ * Copyright © 2021 Cask Data, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+
 package io.cdap.plugin.gcp.dataplex.sink.connector;
 
 import com.google.auth.oauth2.GoogleCredentials;
@@ -25,7 +41,6 @@ import io.cdap.plugin.gcp.dataplex.sink.DataplexBatchSink;
 import io.cdap.plugin.gcp.dataplex.sink.config.DataplexBaseConfig;
 import io.cdap.plugin.gcp.dataplex.sink.connection.DataplexInterface;
 import io.cdap.plugin.gcp.dataplex.sink.connection.out.DataplexInterfaceImpl;
-import io.cdap.plugin.gcp.dataplex.sink.enums.ConnectorObject;
 import io.cdap.plugin.gcp.dataplex.sink.model.Asset;
 import io.cdap.plugin.gcp.dataplex.sink.model.Lake;
 import io.cdap.plugin.gcp.dataplex.sink.model.Location;
@@ -49,6 +64,10 @@ import java.util.Map;
   "from Dataplex.")
 public class DataplexConnector implements DirectConnector {
     public static final String NAME = "Dataplex";
+    private static final String DATAPLEX_LOCATION = "Location";
+    private static final String DATAPLEX_LAKE = "Lake";
+    private static final String DATAPLEX_ZONE = "Zone";
+    private static final String DATAPLEX_ASSET = "Asset";
     private static final Logger LOG = LoggerFactory.getLogger(DataplexConnector.class);
     private static DataplexInterface dataplexInterface = new DataplexInterfaceImpl();
     private DataplexConnectorConfig config;
@@ -130,8 +149,7 @@ public class DataplexConnector implements DirectConnector {
                 break;
             }
             builder.addEntity(
-              BrowseEntity.builder(location.getLocationId(),  "/" + location.getLocationId(),
-                ConnectorObject.Location.toString())
+              BrowseEntity.builder(location.getLocationId(), "/" + location.getLocationId(), DATAPLEX_LOCATION)
                 .canSample(true).canBrowse(true).build());
             count++;
         }
@@ -161,8 +179,7 @@ public class DataplexConnector implements DirectConnector {
                 break;
             }
             builder.addEntity(
-              BrowseEntity.builder(getObjectId(lake.getName()),  parentPath + getObjectId(lake.getName()),
-                ConnectorObject.Lake.toString())
+              BrowseEntity.builder(getObjectId(lake.getName()), parentPath + getObjectId(lake.getName()), DATAPLEX_LAKE)
                 .canBrowse(true).canSample(true).build());
             count++;
         }
@@ -183,7 +200,7 @@ public class DataplexConnector implements DirectConnector {
             }
             builder.addEntity(
               BrowseEntity.builder(getObjectId(zone.getName()),  parentPath + getObjectId(zone.getName()),
-                zone.getType() + " " + ConnectorObject.Zone.toString())
+                zone.getType() + " " + DATAPLEX_ZONE)
                 .canBrowse(true).canSample(true).build());
             count++;
         }
@@ -203,7 +220,7 @@ public class DataplexConnector implements DirectConnector {
             }
             builder.addEntity(
               BrowseEntity.builder(getObjectId(asset.getName()),  parentPath + getObjectId(asset.getName()),
-                ConnectorObject.Asset.toString())
+                DATAPLEX_ASSET)
                 .canSample(true).build());
             count++;
         }
