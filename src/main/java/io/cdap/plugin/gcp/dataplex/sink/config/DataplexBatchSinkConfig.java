@@ -42,6 +42,7 @@ import io.cdap.plugin.gcp.bigquery.sink.Operation;
 import io.cdap.plugin.gcp.bigquery.sink.PartitionType;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
+import io.cdap.plugin.gcp.dataplex.sink.DataplexBatchSink;
 import io.cdap.plugin.gcp.dataplex.sink.connection.DataplexInterface;
 import io.cdap.plugin.gcp.dataplex.sink.connector.DataplexConnectorConfig;
 import io.cdap.plugin.gcp.dataplex.sink.model.Asset;
@@ -69,13 +70,14 @@ import javax.annotation.Nullable;
 public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   public static final Set<Schema.Type> SUPPORTED_CLUSTERING_TYPES =
     ImmutableSet.of(Schema.Type.INT, Schema.Type.LONG, Schema.Type.STRING, Schema.Type.BOOLEAN, Schema.Type.BYTES);
-  private static final Logger LOG = LoggerFactory.getLogger(DataplexBatchSinkConfig.class);
-  private static final String WHERE = "WHERE";
+  public static final Set<FileFormat> SUPPORTED_FORMATS_FOR_CURATED_ZONE =
+    ImmutableSet.of(FileFormat.AVRO, FileFormat.ORC, FileFormat.PARQUET);
   public static final int MAX_NUMBER_OF_COLUMNS = 4;
-
   public static final String NAME_CONNECTION = "connection";
   public static final String NAME_USE_CONNECTION = "useConnection";
   public static final String NAME_SUFFIX = "suffix";
+  private static final Logger LOG = LoggerFactory.getLogger(DataplexBatchSinkConfig.class);
+  private static final String WHERE = "WHERE";
   private static final String NAME_FORMAT = "format";
   private static final String NAME_TABLE = "table";
   private static final String NAME_TABLE_KEY = "tableKey";
@@ -93,8 +95,6 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   private static final String NAME_RANGE_INTERVAL = "rangeInterval";
   private static final String NAME_CONTENT_TYPE = "contentType";
   private static final String NAME_SCHEMA = "schema";
-
-  private static final String NAME_CUSTOM_CONTENT_TYPE = "customContentType";
   private static final String DEFAULT_CONTENT_TYPE = "application/octet-stream";
   private static final String CONTENT_TYPE_OTHER = "other";
   private static final String CONTENT_TYPE_APPLICATION_JSON = "application/json";
@@ -102,6 +102,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   private static final String CONTENT_TYPE_APPLICATION_CSV = "application/csv";
   private static final String CONTENT_TYPE_TEXT_PLAIN = "text/plain";
   private static final String CONTENT_TYPE_TEXT_CSV = "text/csv";
+  private static final String ZONE_TYPE_CURATED = "CURATED";
 
   private static final String FORMAT_AVRO = "avro";
   private static final String FORMAT_CSV = "csv";
@@ -111,27 +112,6 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   private static final Pattern FIELD_PATTERN = Pattern.compile("[a-zA-Z0-9_]+");
 
   //Connection properties
-
-  @Name(NAME_USE_CONNECTION)
-  @Nullable
-  @Description("Whether to use an existing connection.")
-  private Boolean useConnection;
-
-  @Name(NAME_CONNECTION)
-  @Nullable
-  @Macro
-  @Description("The existing connection to use.")
-  private DataplexConnectorConfig connection;
-
-  //GCS Asset type configuration properties
-
-  @Nullable
-  @Macro
-  @Description("The time format for the output directory that will be appended to the path. " +
-    "For example, the format 'yyyy-MM-dd-HH-mm' will result in a directory of the form '2015-01-01-20-42'. " +
-    "If not specified, nothing will be appended to the path.")
-  private String suffix;
-
   @Name(NAME_FORMAT)
   @Nullable
   @Macro
@@ -139,7 +119,6 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     "'delimited', 'json', 'orc', or, 'parquet'. The format for curated zone must be one of 'avro', 'orc', or, " +
     "'parquet'.")
   protected String format;
-
   @Name(NAME_CONTENT_TYPE)
   @Nullable
   @Macro
@@ -147,8 +126,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     "'application/octet-stream'.")
   protected String contentType;
 
-  // Bigquery asset type configuration properties
-
+  //GCS Asset type configuration properties
   @Name(NAME_TABLE)
   @Nullable
   @Macro
@@ -156,14 +134,11 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     + "Each record is composed of columns (also called fields). "
     + "Every table is defined by a schema that describes the column names, data types, and other information.")
   protected String table;
-
-
   @Name(NAME_TABLE_KEY)
   @Nullable
   @Macro
   @Description("List of fields that determine relation between tables during Update and Upsert operations.")
   protected String tableKey;
-
   @Name(NAME_DEDUPE_BY)
   @Nullable
   @Macro
@@ -173,12 +148,12 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     "applied.")
   protected String dedupeBy;
 
+  // Bigquery asset type configuration properties
   @Name(NAME_OPERATION)
   @Nullable
   @Macro
   @Description("Insert/Update/Upsert")
   protected String operation;
-
   @Name(NAME_PARTITION_FILTER)
   @Nullable
   @Macro
@@ -188,64 +163,52 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     "and _PARTITIONTIME < “2020-03-01”‘, the update operation will be performed only in the partitions " +
     "meeting the criteria.")
   protected String partitionFilter;
-
-
   @Name(NAME_PARTITIONING_TYPE)
   @Nullable
   @Macro
   @Description("Specifies the partitioning type. Can either be Integer or Time or None. Defaults to Time. " +
     "This value is ignored if the table already exists.")
   protected String partitioningType;
-
-
   @Name(NAME_RANGE_START)
   @Nullable
   @Macro
   @Description("Start value for range partitioning. The start value is inclusive. Ignored when table already exists")
   protected Long rangeStart;
-
   @Name(NAME_RANGE_END)
   @Nullable
   @Macro
   @Description("End value for range partitioning. The end value is exclusive. Ignored when table already exists")
   protected Long rangeEnd;
-
   @Name(NAME_RANGE_INTERVAL)
   @Nullable
   @Macro
   @Description("Interval value for range partitioning. The interval value must be a positive integer. Ignored when " +
     "table already exists")
   protected Long rangeInterval;
-
-
   @Name(NAME_TRUNCATE_TABLE)
   @Nullable
   @Macro
   @Description("Whether or not to truncate the table before writing to it. Should only be used with the Insert " +
     "operation.")
   protected Boolean truncateTable;
-
   @Name(NAME_UPDATE_TABLE_SCHEMA)
   @Nullable
   @Macro
   @Description("Whether the BigQuery table schema should be modified when it does not match the schema expected " +
     "by the pipeline.")
   protected Boolean updateTableSchema;
-
   @Name(NAME_PARTITION_BY_FIELD)
   @Nullable
   @Macro
   @Description("Partitioning column for the BigQuery table. This should be left empty if the BigQuery table " +
     "is an ingestion-time partitioned table.")
   protected String partitionByField;
-
   @Name(NAME_REQUIRE_PARTITION_FIELD)
   @Nullable
   @Macro
   @Description("Whether to create a table that requires a partition filter. This value is ignored if the table " +
     "already exists.")
   protected Boolean requirePartitionField;
-
   @Name(NAME_CLUSTERING_ORDER)
   @Nullable
   @Macro
@@ -253,7 +216,21 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     "STRING, DATE, TIMESTAMP, BOOLEAN or DECIMAL. Tables cannot be clustered on more than 4 fields. This " +
     "value is only used when the BigQuery table is automatically created and ignored if the table already exists.")
   protected String clusteringOrder;
-
+  @Name(NAME_USE_CONNECTION)
+  @Nullable
+  @Description("Whether to use an existing connection.")
+  private Boolean useConnection;
+  @Name(NAME_CONNECTION)
+  @Nullable
+  @Macro
+  @Description("The existing connection to use.")
+  private DataplexConnectorConfig connection;
+  @Nullable
+  @Macro
+  @Description("The time format for the output directory that will be appended to the path. " +
+    "For example, the format 'yyyy-MM-dd-HH-mm' will result in a directory of the form '2015-01-01-20-42'. " +
+    "If not specified, nothing will be appended to the path.")
+  private String suffix;
   @Name(NAME_SCHEMA)
   @Nullable
   @Macro
@@ -419,6 +396,19 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     throw collector.getOrThrowException();
   }
 
+  public void validateServiceAccount(FailureCollector failureCollector) {
+    if (connection.isServiceAccountJson() || connection.getServiceAccountFilePath() != null) {
+      try {
+        GoogleCredentials credentials = getCredentials();
+      } catch (Exception e) {
+        failureCollector.addFailure(String.format("Service account key provided is not valid: %s.",
+          e.getMessage()), "Please provide a valid service account key.").withConfigProperty("serviceFilePath")
+        .withConfigProperty("serviceAccountJSON");
+      }
+    }
+    failureCollector.getOrThrowException();
+  }
+
   public void validateAssetConfiguration(FailureCollector collector, DataplexInterface dataplexInterface) {
     IdUtils.validateReferenceName(referenceName, collector);
     if (!Strings.isNullOrEmpty(location) && !containsMacro(NAME_LOCATION)) {
@@ -430,7 +420,6 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
         return;
       }
       if (!Strings.isNullOrEmpty(lake) && !containsMacro(NAME_LAKE)) {
-        lake = formatDataplexId(lake);
         try {
           dataplexInterface.getLake(getCredentials(), tryGetProject(), location, lake);
         } catch (Exception e) {
@@ -440,22 +429,38 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
         }
 
         if (!Strings.isNullOrEmpty(zone) && !containsMacro(NAME_ZONE)) {
-          zone = formatDataplexId(zone);
+          Zone zoneBean = null;
           try {
-            Zone zoneBean = dataplexInterface.getZone(getCredentials(), tryGetProject(), location, lake, zone);
+            zoneBean = dataplexInterface.getZone(getCredentials(), tryGetProject(), location, lake, zone);
           } catch (Exception e) {
             collector.addFailure("Zone doesn't exist: " + zone, null).
               withConfigProperty(NAME_ZONE);
             return;
           }
           if (!Strings.isNullOrEmpty(asset) && !containsMacro(NAME_ASSET)) {
-            asset = formatDataplexId(asset);
             try {
               Asset assetBean = dataplexInterface.getAsset(getCredentials(), tryGetProject(), location,
                 lake, zone, asset);
               if (!assetType.equalsIgnoreCase(assetBean.getAssetResourceSpec().getType())) {
                 collector.addFailure("Asset type doesn't match with actual asset. ", null).
                   withConfigProperty(NAME_ASSET_TYPE);
+              }
+              if (zoneBean != null && assetBean != null && assetBean.getAssetResourceSpec().getType().
+                equalsIgnoreCase(DataplexBatchSink.STORAGE_BUCKET_ASSET_TYPE) && zoneBean.getType()
+                .equalsIgnoreCase(ZONE_TYPE_CURATED) && !containsMacro(NAME_FORMAT) &&
+              !Strings.isNullOrEmpty(format)) {
+                try {
+                  FileFormat fileFormat = getFormat();
+                  if (!SUPPORTED_FORMATS_FOR_CURATED_ZONE.contains(fileFormat)) {
+                    collector.addFailure(String.format("Format '%s' is not supported for curated zone",
+                      fileFormat.toString().toLowerCase()),
+                      null).
+                      withConfigProperty(NAME_FORMAT);
+                  }
+                } catch (IllegalArgumentException e) {
+                  collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_FORMAT)
+                    .withStacktrace(e.getStackTrace());
+                }
               }
             } catch (Exception e) {
               collector.addFailure("Asset doesn't exist: " + asset, null).
@@ -466,6 +471,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
         }
       }
     }
+    collector.getOrThrowException();
   }
 
   public void validateBigQueryDataset(@Nullable Schema inputSchema, @Nullable Schema outputSchema,
@@ -850,11 +856,28 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   }
 
   public void validateFormatForStorageBucket(PipelineConfigurer pipelineConfigurer, FailureCollector collector) {
-    if (!Strings.isNullOrEmpty(format) && !this.containsMacro(NAME_FORMAT)) {
-      String format = this.getFormat().toString().toLowerCase();
+    if (Strings.isNullOrEmpty(format)) {
+      collector.addFailure(String.format("Required field '%s' has no value.", NAME_FORMAT), null)
+        .withConfigProperty(NAME_FORMAT);
+      return;
+    }
+
+    if (!this.containsMacro(NAME_FORMAT)) {
+      String fileFormat = null;
+      try {
+        fileFormat = getFormat().toString().toLowerCase();
+        if (!containsMacro(NAME_CONTENT_TYPE)
+          && !Strings.isNullOrEmpty(contentType) && !contentType.equalsIgnoreCase(CONTENT_TYPE_OTHER)
+          && !contentType.equalsIgnoreCase(DEFAULT_CONTENT_TYPE)) {
+          validateContentType(collector);
+        }
+      } catch (IllegalArgumentException e) {
+        collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_FORMAT)
+          .withStacktrace(e.getStackTrace());
+      }
       ValidatingOutputFormat validatingOutputFormat = this.getValidatingOutputFormat(pipelineConfigurer);
       FormatContext context = new FormatContext(collector, pipelineConfigurer.getStageConfigurer().getInputSchema());
-      this.validateOutputFormatProvider(context, format, validatingOutputFormat);
+      this.validateOutputFormatProvider(context, fileFormat, validatingOutputFormat);
     } else {
       FileFormat[] var3 = FileFormat.values();
       int var4 = var3.length;
@@ -904,22 +927,6 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
           .withConfigProperty(NAME_SUFFIX).withStacktrace(e.getStackTrace());
       }
     }
-
-    if (!containsMacro(NAME_FORMAT)) {
-      try {
-        getFormat();
-      } catch (IllegalArgumentException e) {
-        collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_FORMAT)
-          .withStacktrace(e.getStackTrace());
-      }
-    }
-
-    if (!containsMacro(NAME_CONTENT_TYPE) && !containsMacro(NAME_CUSTOM_CONTENT_TYPE)
-      && !Strings.isNullOrEmpty(contentType) && !contentType.equalsIgnoreCase(CONTENT_TYPE_OTHER)
-      && !containsMacro(NAME_FORMAT) && !contentType.equalsIgnoreCase(DEFAULT_CONTENT_TYPE)) {
-      validateContentType(collector);
-    }
-
     try {
       getSchema(collector);
     } catch (IllegalArgumentException e) {

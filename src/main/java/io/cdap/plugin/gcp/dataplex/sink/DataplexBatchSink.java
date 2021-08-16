@@ -29,9 +29,10 @@ import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.plugin.gcp.dataplex.sink.config.DataplexBatchSinkConfig;
 import io.cdap.plugin.gcp.dataplex.sink.connection.DataplexInterface;
 import io.cdap.plugin.gcp.dataplex.sink.connection.out.DataplexInterfaceImpl;
-import io.cdap.plugin.gcp.dataplex.sink.enums.AssetType;
 
 import org.apache.hadoop.io.NullWritable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Batch Sink that writes data to Dataplex assets (Bigquery or GCS).
@@ -49,8 +50,11 @@ import org.apache.hadoop.io.NullWritable;
 @Description("Ingests and processes data within Dataplex.")
 public final class DataplexBatchSink extends BatchSink<StructuredRecord, NullWritable, StructuredRecord> {
   public static final String NAME = "Dataplex";
+  public static final String BIGQUERY_DATASET_ASSET_TYPE = "BIGQUERY_DATASET";
+  public static final String STORAGE_BUCKET_ASSET_TYPE = "STORAGE_BUCKET";
   // Usually, you will need a private variable to store the config that was passed to your class
   private final DataplexBatchSinkConfig config;
+  private static final Logger LOG = LoggerFactory.getLogger(DataplexBatchSink.class);
 
   public DataplexBatchSink(DataplexBatchSinkConfig config) {
     this.config = config;
@@ -59,19 +63,22 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, NullWri
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     super.configurePipeline(pipelineConfigurer);
-    if (config.tryGetProject() == null || config.getServiceAccountType() == null ||
-      (config.isServiceAccountFilePath() && config.autoServiceAccountUnavailable())) {
+    if (!config.getConnection().canConnect() || config.getServiceAccountType() == null ||
+      (config.isServiceAccountFilePath() && config.autoServiceAccountUnavailable()) ||
+      (config.tryGetProject() == null)) {
       return;
     }
+
     StageConfigurer configurer = pipelineConfigurer.getStageConfigurer();
     FailureCollector collector = configurer.getFailureCollector();
+    config.validateServiceAccount(collector);
     Schema inputSchema = configurer.getInputSchema();
     Schema configuredSchema = config.getSchema(collector);
     DataplexInterface dataplexInterface = new DataplexInterfaceImpl();
     config.validateAssetConfiguration(collector, dataplexInterface);
-    if (config.getAssetType().equalsIgnoreCase(AssetType.BIGQUERY_DATASET.toString())) {
+    if (config.getAssetType().equals(BIGQUERY_DATASET_ASSET_TYPE)) {
       config.validateBigQueryDataset(inputSchema, configuredSchema, collector, dataplexInterface);
-    } else if (config.getAssetType().equalsIgnoreCase(AssetType.STORAGE_BUCKET.toString())) {
+    } else if (config.getAssetType().equals(STORAGE_BUCKET_ASSET_TYPE)) {
       config.validateStorageBucket(pipelineConfigurer, collector);
     }
 
