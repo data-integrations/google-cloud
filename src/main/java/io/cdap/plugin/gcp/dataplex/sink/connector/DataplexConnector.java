@@ -25,6 +25,7 @@ import io.cdap.plugin.gcp.dataplex.sink.DataplexBatchSink;
 import io.cdap.plugin.gcp.dataplex.sink.config.DataplexBaseConfig;
 import io.cdap.plugin.gcp.dataplex.sink.connection.DataplexInterface;
 import io.cdap.plugin.gcp.dataplex.sink.connection.out.DataplexInterfaceImpl;
+import io.cdap.plugin.gcp.dataplex.sink.enums.AssetType;
 import io.cdap.plugin.gcp.dataplex.sink.enums.ConnectorObject;
 import io.cdap.plugin.gcp.dataplex.sink.model.Asset;
 import io.cdap.plugin.gcp.dataplex.sink.model.Lake;
@@ -203,7 +204,7 @@ public class DataplexConnector implements DirectConnector {
             }
             builder.addEntity(
               BrowseEntity.builder(getObjectId(asset.getName()),  parentPath + getObjectId(asset.getName()),
-                ConnectorObject.Asset.toString())
+                AssetType.valueOf(asset.getAssetResourceSpec().getType()).getAssetType())
                 .canSample(true).build());
             count++;
         }
