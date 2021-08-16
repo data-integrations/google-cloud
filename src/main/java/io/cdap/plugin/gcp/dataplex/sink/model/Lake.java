@@ -1,6 +1,20 @@
-package io.cdap.plugin.gcp.dataplex.sink.model;
+/*
+ * Copyright © 2021 Cask Data, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 
-import com.google.gson.annotations.SerializedName;
+package io.cdap.plugin.gcp.dataplex.sink.model;
 
 /**
  * Holds Lake details
@@ -13,14 +27,6 @@ public class Lake {
   public String updateTime;
   public String state;
   public String serviceAccount;
-  @SerializedName("securitySpec")
-  public LakeSecuritySpec lakeSecuritySpec;
-  @SerializedName("securityStatus")
-  public LakeSecurityStatus lakeSecurityStatus;
-  @SerializedName("metastore")
-  public LakeMetastore lakeMetastore;
-  @SerializedName("assetStatus")
-  public AssetLakeStatus assetLakeStatus;
 
   public String getName() {
     return name;
@@ -76,85 +82,5 @@ public class Lake {
 
   public void setServiceAccount(String serviceAccount) {
     this.serviceAccount = serviceAccount;
-  }
-
-  public LakeSecuritySpec getLakeSecuritySpec() {
-    return lakeSecuritySpec;
-  }
-
-  public void setLakeSecuritySpec(LakeSecuritySpec lakeSecuritySpec) {
-    this.lakeSecuritySpec = lakeSecuritySpec;
-  }
-
-  public LakeSecurityStatus getLakeSecurityStatus() {
-    return lakeSecurityStatus;
-  }
-
-  public void setLakeSecurityStatus(LakeSecurityStatus lakeSecurityStatus) {
-    this.lakeSecurityStatus = lakeSecurityStatus;
-  }
-
-  public LakeMetastore getLakeMetastore() {
-    return lakeMetastore;
-  }
-
-  public void setLakeMetastore(LakeMetastore lakeMetastore) {
-    this.lakeMetastore = lakeMetastore;
-  }
-
-  public AssetLakeStatus getAssetLakeStatus() {
-    return assetLakeStatus;
-  }
-
-  public void setAssetLakeStatus(AssetLakeStatus assetLakeStatus) {
-    this.assetLakeStatus = assetLakeStatus;
-  }
-}
-
-class LakeSecuritySpec {
-}
-
-class LakeSecurityStatus {
-  public String state;
-  public String updateTime;
-
-  public String getState() {
-    return state;
-  }
-
-  public void setState(String state) {
-    this.state = state;
-  }
-
-  public String getUpdateTime() {
-    return updateTime;
-  }
-
-  public void setUpdateTime(String updateTime) {
-    this.updateTime = updateTime;
-  }
-}
-
-class LakeMetastore {
-}
-
-class AssetLakeStatus {
-  public String updateTime;
-  public int activeAssets;
-
-  public String getUpdateTime() {
-    return updateTime;
-  }
-
-  public void setUpdateTime(String updateTime) {
-    this.updateTime = updateTime;
-  }
-
-  public int getActiveAssets() {
-    return activeAssets;
-  }
-
-  public void setActiveAssets(int activeAssets) {
-    this.activeAssets = activeAssets;
   }
 }
