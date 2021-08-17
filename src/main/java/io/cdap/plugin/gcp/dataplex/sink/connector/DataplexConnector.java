@@ -200,7 +200,7 @@ public class DataplexConnector implements DirectConnector {
             }
             builder.addEntity(
               BrowseEntity.builder(getObjectId(zone.getName()),  parentPath + getObjectId(zone.getName()),
-                zone.getType() + " " + DATAPLEX_ZONE)
+                toCamelCase(zone.getType()) + " " + DATAPLEX_ZONE)
                 .canBrowse(true).canSample(true).build());
             count++;
         }
@@ -220,7 +220,7 @@ public class DataplexConnector implements DirectConnector {
             }
             builder.addEntity(
               BrowseEntity.builder(getObjectId(asset.getName()),  parentPath + getObjectId(asset.getName()),
-                DATAPLEX_ASSET)
+                toCamelCase(asset.getAssetResourceSpec().getType()))
                 .canSample(true).build());
             count++;
         }
@@ -253,8 +253,18 @@ public class DataplexConnector implements DirectConnector {
         return Collections.emptyList();
     }
     private String getObjectId(String name) {
-        String[] splitNames = name.split("/");
-        return splitNames[splitNames.length - 1];
+        return name.substring(name.lastIndexOf('/') + 1);
     }
 
+    private String toCamelCase(String value) {
+        String[] words = value.split("_");
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < words.length; i++) {
+            String word = words[i];
+            word = word.isEmpty() ? word : Character.toUpperCase(word.charAt(0)) + word.substring(1).toLowerCase();
+            builder.append(" ");
+            builder.append(word);
+        }
+        return builder.toString().trim();
+    }
 }
