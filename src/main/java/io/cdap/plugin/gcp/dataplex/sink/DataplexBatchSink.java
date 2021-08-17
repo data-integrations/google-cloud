@@ -84,10 +84,13 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, NullWri
 
 
     // validate schema with underlying table
+
   }
 
   @Override
   public void prepareRun(BatchSinkContext batchSinkContext) throws Exception {
   //no-op
   }
+
+
 }

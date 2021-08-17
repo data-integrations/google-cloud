@@ -16,16 +16,17 @@
 
 package io.cdap.plugin.gcp.dataplex.sink.model;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Holds Locations, Zones, Assets and lakes as list
  */
 public class ModelWrapper {
-  List<Location> locations;
-  List<Asset> assets;
-  List<Zone> zones;
-  List<Lake> lakes;
+  List<Location> locations = new ArrayList<>();
+  List<Asset> assets  = new ArrayList<>();
+  List<Zone> zones  = new ArrayList<>();
+  List<Lake> lakes  = new ArrayList<>();
 
   public List<Location> getLocations() {
     return locations;
