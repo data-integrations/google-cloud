@@ -41,6 +41,7 @@ import io.cdap.plugin.gcp.dataplex.sink.DataplexBatchSink;
 import io.cdap.plugin.gcp.dataplex.sink.config.DataplexBaseConfig;
 import io.cdap.plugin.gcp.dataplex.sink.connection.DataplexInterface;
 import io.cdap.plugin.gcp.dataplex.sink.connection.out.DataplexInterfaceImpl;
+import io.cdap.plugin.gcp.dataplex.sink.exception.ConnectorException;
 import io.cdap.plugin.gcp.dataplex.sink.model.Asset;
 import io.cdap.plugin.gcp.dataplex.sink.model.Lake;
 import io.cdap.plugin.gcp.dataplex.sink.model.Location;
@@ -118,27 +119,43 @@ public class DataplexConnector implements DirectConnector {
         DataplexPath path = new DataplexPath(browseRequest.getPath());
         String location = path.getLocation();
         if (location == null) {
-            return listLocations(browseRequest.getLimit());
+            try {
+                return listLocations(browseRequest.getLimit());
+            } catch (ConnectorException e) {
+                LOG.debug(e.getCode() + ": " + e.getMessage());
+            }
         }
 
         String lake = path.getLake();
         if (lake == null) {
-            return listLakes(path, browseRequest.getLimit());
+            try {
+                return listLakes(path, browseRequest.getLimit());
+            } catch (ConnectorException e) {
+                LOG.debug(e.getCode() + ": " + e.getMessage());
+            }
         }
         String zone = path.getZone();
         if (zone == null) {
-            return listZones(path, browseRequest.getLimit());
+            try {
+                return listZones(path, browseRequest.getLimit());
+            } catch (ConnectorException e) {
+                LOG.debug(e.getCode() + ": " + e.getMessage());
+            }
         }
         String asset = path.getAsset();
         if (asset == null) {
-            return listAssets(path, browseRequest.getLimit());
+            try {
+                return listAssets(path, browseRequest.getLimit());
+            } catch (ConnectorException e) {
+                LOG.debug(e.getCode() + ": " + e.getMessage());
+            }
         }
         BrowseDetail.Builder builder = BrowseDetail.builder();
         builder.addEntity(BrowseEntity.builder(asset, asset, "Asset").canBrowse(false).canSample(true).build());
         return builder.setTotalCount(1).build();
     }
 
-    private BrowseDetail listLocations(Integer limit) throws IOException {
+    private BrowseDetail listLocations(Integer limit) throws IOException, ConnectorException {
         int countLimit = limit == null || limit <= 0 ? Integer.MAX_VALUE : limit;
         int count = 0;
         BrowseDetail.Builder builder = BrowseDetail.builder();
@@ -160,14 +177,14 @@ public class DataplexConnector implements DirectConnector {
         GoogleCredentials credentials = null;
         //validate service account
         if (config.isServiceAccountJson() || config.getServiceAccountFilePath() != null) {
-                credentials =
-                  GCPUtils.loadServiceAccountCredentials(config.getServiceAccount(), config.isServiceAccountFilePath())
-                    .createScoped(Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"));
+            credentials =
+              GCPUtils.loadServiceAccountCredentials(config.getServiceAccount(), config.isServiceAccountFilePath())
+                .createScoped(Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"));
         }
         return credentials;
     }
 
-    private BrowseDetail listLakes(DataplexPath path, Integer limit) throws IOException {
+    private BrowseDetail listLakes(DataplexPath path, Integer limit) throws IOException, ConnectorException {
         int countLimit = limit == null || limit <= 0 ? Integer.MAX_VALUE : limit;
         int count = 0;
         BrowseDetail.Builder builder = BrowseDetail.builder();
@@ -187,7 +204,7 @@ public class DataplexConnector implements DirectConnector {
     }
 
 
-    private BrowseDetail listZones(DataplexPath path, Integer limit) throws IOException {
+    private BrowseDetail listZones(DataplexPath path, Integer limit) throws IOException, ConnectorException {
         int countLimit = limit == null || limit <= 0 ? Integer.MAX_VALUE : limit;
         int count = 0;
         BrowseDetail.Builder builder = BrowseDetail.builder();
@@ -199,7 +216,7 @@ public class DataplexConnector implements DirectConnector {
                 break;
             }
             builder.addEntity(
-              BrowseEntity.builder(getObjectId(zone.getName()),  parentPath + getObjectId(zone.getName()),
+              BrowseEntity.builder(getObjectId(zone.getName()), parentPath + getObjectId(zone.getName()),
                 toCamelCase(zone.getType()) + " " + DATAPLEX_ZONE)
                 .canBrowse(true).canSample(true).build());
             count++;
@@ -207,7 +224,7 @@ public class DataplexConnector implements DirectConnector {
         return builder.setTotalCount(count).build();
     }
 
-    private BrowseDetail listAssets(DataplexPath path, Integer limit) throws IOException {
+    private BrowseDetail listAssets(DataplexPath path, Integer limit) throws IOException, ConnectorException {
         int countLimit = limit == null || limit <= 0 ? Integer.MAX_VALUE : limit;
         int count = 0;
         BrowseDetail.Builder builder = BrowseDetail.builder();
@@ -219,7 +236,7 @@ public class DataplexConnector implements DirectConnector {
                 break;
             }
             builder.addEntity(
-              BrowseEntity.builder(getObjectId(asset.getName()),  parentPath + getObjectId(asset.getName()),
+              BrowseEntity.builder(getObjectId(asset.getName()), parentPath + getObjectId(asset.getName()),
                 toCamelCase(asset.getAssetResourceSpec().getType()))
                 .canSample(true).build());
             count++;
@@ -240,10 +257,15 @@ public class DataplexConnector implements DirectConnector {
         properties.put(DataplexBaseConfig.NAME_LAKE, path.getLake());
         properties.put(DataplexBaseConfig.NAME_ZONE, path.getZone());
         properties.put(DataplexBaseConfig.NAME_ASSET, path.getAsset());
-        Asset asset = dataplexInterface.getAsset(getCredentials(),
-          config.tryGetProject(), path.getLocation(), path.getLake(), path.getZone(), path.getAsset());
+        Asset asset = null;
+        try {
+            asset = dataplexInterface.getAsset(getCredentials(),
+              config.tryGetProject(), path.getLocation(), path.getLake(), path.getZone(), path.getAsset());
+        } catch (ConnectorException e) {
+            LOG.debug(e.getCode() + ": " + e.getMessage());
+        }
         properties.put(DataplexBaseConfig.NAME_ASSET_TYPE, asset.getAssetResourceSpec().type);
-       // specBuilder.setSchema(Schema.of(Schema.Type.NULL));
+        // specBuilder.setSchema(Schema.of(Schema.Type.NULL));
         return specBuilder.addRelatedPlugin(new PluginSpec(DataplexBatchSink.NAME, BatchSink.PLUGIN_TYPE, properties))
           .build();
     }
@@ -253,6 +275,7 @@ public class DataplexConnector implements DirectConnector {
       throws IOException {
         return Collections.emptyList();
     }
+
     private String getObjectId(String name) {
         return name.substring(name.lastIndexOf('/') + 1);
     }
