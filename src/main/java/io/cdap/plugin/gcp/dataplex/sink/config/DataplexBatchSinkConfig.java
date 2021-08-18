@@ -49,6 +49,7 @@ import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.dataplex.sink.DataplexBatchSink;
 import io.cdap.plugin.gcp.dataplex.sink.connection.DataplexInterface;
 import io.cdap.plugin.gcp.dataplex.sink.connector.DataplexConnectorConfig;
+import io.cdap.plugin.gcp.dataplex.sink.exception.ConnectorException;
 import io.cdap.plugin.gcp.dataplex.sink.model.Asset;
 import io.cdap.plugin.gcp.dataplex.sink.model.Zone;
 
@@ -418,17 +419,15 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     if (!Strings.isNullOrEmpty(location) && !containsMacro(NAME_LOCATION)) {
       try {
         dataplexInterface.getLocation(getCredentials(), tryGetProject(), location);
-      } catch (Exception e) {
-        collector.addFailure("Invalid location name: " + location, null).
-          withConfigProperty(NAME_LOCATION);
+      } catch (ConnectorException e) {
+        configureDataplexException(NAME_LOCATION, e, collector);
         return;
       }
       if (!Strings.isNullOrEmpty(lake) && !containsMacro(NAME_LAKE)) {
         try {
           dataplexInterface.getLake(getCredentials(), tryGetProject(), location, lake);
-        } catch (Exception e) {
-          collector.addFailure("Lake doesn't exist: " + lake, null).
-            withConfigProperty(NAME_LAKE);
+        } catch (ConnectorException e) {
+          configureDataplexException(NAME_LAKE, e, collector);
           return;
         }
 
@@ -436,9 +435,8 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
           Zone zoneBean = null;
           try {
             zoneBean = dataplexInterface.getZone(getCredentials(), tryGetProject(), location, lake, zone);
-          } catch (Exception e) {
-            collector.addFailure("Zone doesn't exist: " + zone, null).
-              withConfigProperty(NAME_ZONE);
+          } catch (ConnectorException e) {
+            configureDataplexException(NAME_ZONE, e, collector);
             return;
           }
           if (!Strings.isNullOrEmpty(asset) && !containsMacro(NAME_ASSET)) {
@@ -466,9 +464,8 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
                     .withStacktrace(e.getStackTrace());
                 }
               }
-            } catch (Exception e) {
-              collector.addFailure("Asset doesn't exist: " + asset, null).
-                withConfigProperty(NAME_ASSET);
+            } catch (ConnectorException e) {
+              configureDataplexException(NAME_ASSET, e, collector);
               return;
             }
           }
@@ -476,6 +473,11 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
       }
     }
     collector.getOrThrowException();
+  }
+
+  private void configureDataplexException(String property, ConnectorException e, FailureCollector failureCollector) {
+    failureCollector.addFailure(e.getCode() + ": " + e.getMessage(), null)
+      .withConfigProperty(property);
   }
 
   public void validateBigQueryDataset(@Nullable Schema inputSchema, @Nullable Schema outputSchema,
@@ -496,8 +498,8 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
         validateClusteringOrder(schema, collector);
         validateOperationProperties(schema, collector);
         validateConfiguredSchema(schema, collector, dataset);
-      } catch (IOException e) {
-        e.printStackTrace();
+      } catch (ConnectorException e) {
+        LOG.debug(e.getCode() + ": " + e.getMessage());
       }
 
       if (outputSchema == null) {
@@ -1037,13 +1039,17 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     return false;
   }
 
-  private GoogleCredentials getCredentials() throws IOException {
+  private GoogleCredentials getCredentials() {
     GoogleCredentials credentials = null;
-    //validate service account
-    if (connection.isServiceAccountJson() || connection.getServiceAccountFilePath() != null) {
-      credentials =
-        GCPUtils.loadServiceAccountCredentials(connection.getServiceAccount(), connection.isServiceAccountFilePath())
-          .createScoped(Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"));
+    try {
+      //validate service account
+      if (connection.isServiceAccountJson() || connection.getServiceAccountFilePath() != null) {
+        credentials =
+          GCPUtils.loadServiceAccountCredentials(connection.getServiceAccount(), connection.isServiceAccountFilePath())
+            .createScoped(Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"));
+      }
+    } catch (IOException e) {
+      LOG.debug("Unable to load service account credentials due to error: {}", e.getMessage());
     }
     return credentials;
   }
