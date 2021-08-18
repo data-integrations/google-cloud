@@ -371,8 +371,9 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   public void validateBigQueryDataset(FailureCollector collector) {
     if (!containsMacro(NAME_TABLE)) {
       if (table == null) {
-        collector.addFailure(String.format("Required property '%s' has no value."), NAME_TABLE)
+        collector.addFailure(String.format("Required property '%s' has no value.", NAME_TABLE), null)
           .withConfigProperty(NAME_TABLE);
+        collector.getOrThrowException();
       }
       BigQueryUtil.validateTable(table, NAME_TABLE, collector);
     }
@@ -894,7 +895,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     if (Strings.isNullOrEmpty(format)) {
       collector.addFailure(String.format("Required field '%s' has no value.", NAME_FORMAT), null)
         .withConfigProperty(NAME_FORMAT);
-      return;
+      collector.getOrThrowException();
     }
 
     if (!this.containsMacro(NAME_FORMAT)) {
