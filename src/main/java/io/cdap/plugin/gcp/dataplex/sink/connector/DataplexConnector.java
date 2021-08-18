@@ -22,7 +22,6 @@ import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.format.StructuredRecord;
-import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.connector.BrowseDetail;
@@ -244,7 +243,7 @@ public class DataplexConnector implements DirectConnector {
         Asset asset = dataplexInterface.getAsset(getCredentials(),
           config.tryGetProject(), path.getLocation(), path.getLake(), path.getZone(), path.getAsset());
         properties.put(DataplexBaseConfig.NAME_ASSET_TYPE, asset.getAssetResourceSpec().type);
-        specBuilder.setSchema(Schema.of(Schema.Type.NULL));
+       // specBuilder.setSchema(Schema.of(Schema.Type.NULL));
         return specBuilder.addRelatedPlugin(new PluginSpec(DataplexBatchSink.NAME, BatchSink.PLUGIN_TYPE, properties))
           .build();
     }
