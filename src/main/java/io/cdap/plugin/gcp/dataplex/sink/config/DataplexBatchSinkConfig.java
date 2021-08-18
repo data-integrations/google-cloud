@@ -420,14 +420,14 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
       try {
         dataplexInterface.getLocation(getCredentials(), tryGetProject(), location);
       } catch (ConnectorException e) {
-        configureDataplexException(NAME_LOCATION, e, collector);
+        configureDataplexException(location, NAME_LOCATION, e, collector);
         return;
       }
       if (!Strings.isNullOrEmpty(lake) && !containsMacro(NAME_LAKE)) {
         try {
           dataplexInterface.getLake(getCredentials(), tryGetProject(), location, lake);
         } catch (ConnectorException e) {
-          configureDataplexException(NAME_LAKE, e, collector);
+          configureDataplexException(lake, NAME_LAKE, e, collector);
           return;
         }
 
@@ -436,7 +436,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
           try {
             zoneBean = dataplexInterface.getZone(getCredentials(), tryGetProject(), location, lake, zone);
           } catch (ConnectorException e) {
-            configureDataplexException(NAME_ZONE, e, collector);
+            configureDataplexException(zone, NAME_ZONE, e, collector);
             return;
           }
           if (!Strings.isNullOrEmpty(asset) && !containsMacro(NAME_ASSET)) {
@@ -465,7 +465,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
                 }
               }
             } catch (ConnectorException e) {
-              configureDataplexException(NAME_ASSET, e, collector);
+              configureDataplexException(asset, NAME_ASSET, e, collector);
               return;
             }
           }
@@ -475,9 +475,17 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     collector.getOrThrowException();
   }
 
-  private void configureDataplexException(String property, ConnectorException e, FailureCollector failureCollector) {
-    failureCollector.addFailure(e.getCode() + ": " + e.getMessage(), null)
-      .withConfigProperty(property);
+  private void configureDataplexException(String dataplexConfigProperty, String dataplexConfigPropType,
+                                          ConnectorException e,
+                                          FailureCollector failureCollector) {
+    if (e.getCode().equals("404")) {
+      failureCollector
+        .addFailure("'" + dataplexConfigProperty + "' could not be found. Please ensure that it exists in " +
+          "Dataplex.", null).withConfigProperty(dataplexConfigPropType);
+    } else {
+      failureCollector.addFailure(e.getCode() + ": " + e.getMessage(), null)
+        .withConfigProperty(dataplexConfigPropType);
+    }
   }
 
   public void validateBigQueryDataset(@Nullable Schema inputSchema, @Nullable Schema outputSchema,

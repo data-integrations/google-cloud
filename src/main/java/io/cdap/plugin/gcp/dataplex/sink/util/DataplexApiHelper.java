@@ -23,6 +23,7 @@ import io.cdap.plugin.gcp.dataplex.sink.exception.ConnectorException;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -66,7 +67,7 @@ public class DataplexApiHelper {
       while ((line = br.readLine()) != null) {
         builder.append(line);
       }
-    } catch (Exception e) {
+    } catch (IOException e) {
       LOGGER.debug("Dataplex api call failed due to error: {}", e.getMessage());
     }
     return builder.toString();
