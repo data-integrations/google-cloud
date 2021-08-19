@@ -43,6 +43,9 @@ public class BigQuerySourceUtils {
   public static final String GCS_BUCKET_FORMAT = "gs://%s";
   public static final String GS_PATH_FORMAT = GCS_BUCKET_FORMAT + "/%s";
   private static final String TEMPORARY_BUCKET_FORMAT = GS_PATH_FORMAT + "/hadoop/input/%s";
+  private static final String BQ_TEMP_BUCKET_NAME_PREFIX = "bq-source-bucket-";
+  private static final String BQ_TEMP_BUCKET_NAME_TEMPLATE = BQ_TEMP_BUCKET_NAME_PREFIX + "%s";
+  private static final String BQ_TEMP_BUCKET_PATH_TEMPLATE = "gs://" + BQ_TEMP_BUCKET_NAME_TEMPLATE;
 
   @Nullable
   public static Credentials getCredentials(BigQueryConnectorConfig config) throws IOException {
@@ -72,8 +75,9 @@ public class BigQuerySourceUtils {
                                          @Nullable String cmekKey) {
     String bucket = config.getBucket();
 
+    // Create a new bucket if needed
     if (bucket == null) {
-      bucket = "bq-source-bucket-" + bucketPath;
+      bucket = String.format(BQ_TEMP_BUCKET_NAME_TEMPLATE, bucketPath);
       // By default, this option is false, meaning the job can not delete the bucket. So enable it only when bucket name
       // is not provided.
       configuration.setBoolean("fs.gs.bucket.delete.enable", true);
@@ -178,9 +182,9 @@ public class BigQuerySourceUtils {
                                                  String bucket,
                                                  String runId) {
     String gcsPath;
-    // If the bucket was created for this run, delete it.
+    // If the bucket was created for this run, build temp path name using the bucket path and delete the entire bucket.
     if (bucket == null) {
-      gcsPath = String.format(GCS_BUCKET_FORMAT, runId);
+      gcsPath = String.format(BQ_TEMP_BUCKET_PATH_TEMPLATE, runId);
     } else {
       gcsPath = String.format(GS_PATH_FORMAT, bucket, runId);
     }
