@@ -52,7 +52,6 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, NullWri
   public static final String NAME = "Dataplex";
   public static final String BIGQUERY_DATASET_ASSET_TYPE = "BIGQUERY_DATASET";
   public static final String STORAGE_BUCKET_ASSET_TYPE = "STORAGE_BUCKET";
-  // Usually, you will need a private variable to store the config that was passed to your class
   private final DataplexBatchSinkConfig config;
   private static final Logger LOG = LoggerFactory.getLogger(DataplexBatchSink.class);
 
@@ -81,16 +80,10 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, NullWri
     } else if (config.getAssetType().equals(STORAGE_BUCKET_ASSET_TYPE)) {
       config.validateStorageBucket(pipelineConfigurer, collector);
     }
-
-
-    // validate schema with underlying table
-
   }
 
   @Override
   public void prepareRun(BatchSinkContext batchSinkContext) throws Exception {
-  //no-op
+  // no-op
   }
-
-
 }

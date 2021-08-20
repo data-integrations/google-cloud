@@ -68,7 +68,6 @@ public class DataplexBaseConfig extends PluginConfig {
     @Description("Asset type resource.")
     protected String assetType;
 
-
     public String getReferenceName() {
         return referenceName;
     }

@@ -45,7 +45,7 @@ public class DataplexPath {
             throw new IllegalArgumentException("Path should not be null.");
         }
 
-        //remove heading "/" if exists
+        // remove heading "/" if exists
         if (path.startsWith("/")) {
             path = path.substring(1);
         }

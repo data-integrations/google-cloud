@@ -77,7 +77,6 @@ public class DataplexConnector implements DirectConnector {
         this.config = config;
     }
 
-
     @Override
     public void test(ConnectorContext context) throws ValidationException {
         FailureCollector failureCollector = context.getFailureCollector();
@@ -111,7 +110,6 @@ public class DataplexConnector implements DirectConnector {
             failureCollector.addFailure(String.format("Could not connect to Dataplex: %s", e.getMessage()),
               "Please specify correct connection properties.");
         }
-
     }
 
     @Override
@@ -175,7 +173,7 @@ public class DataplexConnector implements DirectConnector {
 
     private GoogleCredentials getCredentials() throws IOException {
         GoogleCredentials credentials = null;
-        //validate service account
+        // validate service account
         if (config.isServiceAccountJson() || config.getServiceAccountFilePath() != null) {
             credentials =
               GCPUtils.loadServiceAccountCredentials(config.getServiceAccount(), config.isServiceAccountFilePath())

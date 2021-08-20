@@ -42,7 +42,6 @@ public class DataplexApiHelper {
     LOGGER.info("Initiating the api call to fetch the details");
     StringBuilder builder = new StringBuilder();
     try {
-
       URL url = new URL(urlBuilder);
       URLConnection con = url.openConnection();
       HttpURLConnection http = (HttpURLConnection) con;
