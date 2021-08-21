@@ -40,25 +40,25 @@ public class DataplexBaseConfig extends PluginConfig {
 
     @Name(NAME_LOCATION)
     @Macro
-    @Description("Resource name for the Dataplex location. User can type it in or press a browse button which enables" +
+    @Description("Resource id for the Dataplex location. User can type it in or press a browse button which enables" +
       " hierarchical selection.")
     protected String location;
 
     @Name(NAME_LAKE)
     @Macro
-    @Description("Resource name for the Dataplex lake. User can type it in or press a browse button which enables " +
+    @Description("Resource id for the Dataplex lake. User can type it in or press a browse button which enables " +
       "hierarchical selection.")
     protected String lake;
 
     @Name(NAME_ZONE)
     @Macro
-    @Description("Resource name for the Dataplex zone. User can type it in or press a browse button which enables " +
+    @Description("Resource id for the Dataplex zone. User can type it in or press a browse button which enables " +
       "hierarchical selection.")
     protected String zone;
 
     @Name(NAME_ASSET)
     @Macro
-    @Description("Resource name for the Dataplex asset. It represents a cloud resource that is being managed within a" +
+    @Description("Resource id for the Dataplex asset. It represents a cloud resource that is being managed within a" +
       " lake as a member of a zone. User can type it in or press a browse button which enables " +
       "hierarchical selection.")
     protected String asset;

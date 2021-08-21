@@ -18,6 +18,8 @@ package io.cdap.plugin.gcp.dataplex.sink.config;
 
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
+import com.google.cloud.bigquery.Field;
+import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.bigquery.RangePartitioning;
 import com.google.cloud.bigquery.StandardTableDefinition;
@@ -36,8 +38,10 @@ import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.validation.FormatContext;
 import io.cdap.cdap.etl.api.validation.ValidatingOutputFormat;
+import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.plugin.common.IdUtils;
 import io.cdap.plugin.format.FileFormat;
+import io.cdap.plugin.gcp.bigquery.sink.AbstractBigQuerySinkConfig;
 import io.cdap.plugin.gcp.bigquery.sink.Operation;
 import io.cdap.plugin.gcp.bigquery.sink.PartitionType;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
@@ -45,6 +49,7 @@ import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.dataplex.sink.DataplexBatchSink;
 import io.cdap.plugin.gcp.dataplex.sink.connection.DataplexInterface;
 import io.cdap.plugin.gcp.dataplex.sink.connector.DataplexConnectorConfig;
+import io.cdap.plugin.gcp.dataplex.sink.exception.ConnectorException;
 import io.cdap.plugin.gcp.dataplex.sink.model.Asset;
 import io.cdap.plugin.gcp.dataplex.sink.model.Zone;
 
@@ -366,8 +371,9 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   public void validateBigQueryDataset(FailureCollector collector) {
     if (!containsMacro(NAME_TABLE)) {
       if (table == null) {
-        collector.addFailure(String.format("Required property '%s' has no value."), NAME_TABLE)
+        collector.addFailure(String.format("Required property '%s' has no value.", NAME_TABLE), null)
           .withConfigProperty(NAME_TABLE);
+        collector.getOrThrowException();
       }
       BigQueryUtil.validateTable(table, NAME_TABLE, collector);
     }
@@ -414,17 +420,15 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     if (!Strings.isNullOrEmpty(location) && !containsMacro(NAME_LOCATION)) {
       try {
         dataplexInterface.getLocation(getCredentials(), tryGetProject(), location);
-      } catch (Exception e) {
-        collector.addFailure("Invalid location name: " + location, null).
-          withConfigProperty(NAME_LOCATION);
+      } catch (ConnectorException e) {
+        configureDataplexException(location, NAME_LOCATION, e, collector);
         return;
       }
       if (!Strings.isNullOrEmpty(lake) && !containsMacro(NAME_LAKE)) {
         try {
           dataplexInterface.getLake(getCredentials(), tryGetProject(), location, lake);
-        } catch (Exception e) {
-          collector.addFailure("Lake doesn't exist: " + lake, null).
-            withConfigProperty(NAME_LAKE);
+        } catch (ConnectorException e) {
+          configureDataplexException(lake, NAME_LAKE, e, collector);
           return;
         }
 
@@ -432,9 +436,8 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
           Zone zoneBean = null;
           try {
             zoneBean = dataplexInterface.getZone(getCredentials(), tryGetProject(), location, lake, zone);
-          } catch (Exception e) {
-            collector.addFailure("Zone doesn't exist: " + zone, null).
-              withConfigProperty(NAME_ZONE);
+          } catch (ConnectorException e) {
+            configureDataplexException(zone, NAME_ZONE, e, collector);
             return;
           }
           if (!Strings.isNullOrEmpty(asset) && !containsMacro(NAME_ASSET)) {
@@ -462,9 +465,8 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
                     .withStacktrace(e.getStackTrace());
                 }
               }
-            } catch (Exception e) {
-              collector.addFailure("Asset doesn't exist: " + asset, null).
-                withConfigProperty(NAME_ASSET);
+            } catch (ConnectorException e) {
+              configureDataplexException(asset, NAME_ASSET, e, collector);
               return;
             }
           }
@@ -472,6 +474,19 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
       }
     }
     collector.getOrThrowException();
+  }
+
+  private void configureDataplexException(String dataplexConfigProperty, String dataplexConfigPropType,
+                                          ConnectorException e,
+                                          FailureCollector failureCollector) {
+    if (e.getCode().equals("404")) {
+      failureCollector
+        .addFailure("'" + dataplexConfigProperty + "' could not be found. Please ensure that it exists in " +
+          "Dataplex.", null).withConfigProperty(dataplexConfigPropType);
+    } else {
+      failureCollector.addFailure(e.getCode() + ": " + e.getMessage(), null)
+        .withConfigProperty(dataplexConfigPropType);
+    }
   }
 
   public void validateBigQueryDataset(@Nullable Schema inputSchema, @Nullable Schema outputSchema,
@@ -486,11 +501,14 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
       try {
         Asset assetBean = dataplexInterface.getAsset(getCredentials(), tryGetProject(), location,
           lake, zone, asset);
-        validatePartitionProperties(schema, collector, assetBean.getAssetResourceSpec().getName());
+        String fullDatasetName = assetBean.getAssetResourceSpec().getName();
+        String dataset = fullDatasetName.substring(fullDatasetName.lastIndexOf('/') + 1);
+        validatePartitionProperties(schema, collector, dataset);
         validateClusteringOrder(schema, collector);
         validateOperationProperties(schema, collector);
-      } catch (IOException e) {
-        e.printStackTrace();
+        validateConfiguredSchema(schema, collector, dataset);
+      } catch (ConnectorException e) {
+        LOG.debug(e.getCode() + ": " + e.getMessage());
       }
 
       if (outputSchema == null) {
@@ -532,6 +550,26 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     }
   }
 
+
+  private void validateConfiguredSchema(Schema schema, FailureCollector collector, String dataset) {
+    if (!this.shouldConnect()) {
+      return;
+    }
+    String tableName = this.getTable();
+    Table table = BigQueryUtil.getBigQueryTable(this.tryGetProject(), dataset , tableName,
+      connection.getServiceAccount(), connection.isServiceAccountFilePath(),
+      collector);
+
+    if (table != null && !this.containsMacro(NAME_UPDATE_TABLE_SCHEMA)) {
+      // if table already exists, validate schema against underlying bigquery table
+      com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
+      if (this.getOperation().equals(Operation.INSERT)) {
+        validateInsertSchema(table, schema, collector, dataset);
+      } else if (this.getOperation().equals(Operation.UPSERT)) {
+        validateSchema(tableName, bqSchema, schema, this.isUpdateTableSchema(), collector, dataset);
+      }
+    }
+  }
   /**
    * Returns list of duplicated fields (case insensitive)
    */
@@ -546,13 +584,11 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     return duplicatedFields;
   }
 
-  private void validatePartitionProperties(@Nullable Schema schema, FailureCollector collector, String datasetName) {
+  private void validatePartitionProperties(@Nullable Schema schema, FailureCollector collector, String dataset) {
     if (tryGetProject() == null) {
       return;
     }
     String project = tryGetProject();
-
-    String dataset = datasetName.substring(datasetName.lastIndexOf('/') + 1);
     String tableName = getTable();
     String serviceAccount = getServiceAccount();
 
@@ -842,7 +878,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   /**
    * Returns true if dataplex can be connected to or schema is not a macro.
    */
-  boolean shouldConnect() {
+  public boolean shouldConnect() {
     return !containsMacro(NAME_ASSET) && !containsMacro(NAME_TABLE) &&
       !containsMacro(DataplexConnectorConfig.NAME_SERVICE_ACCOUNT_TYPE) &&
       !(containsMacro(DataplexConnectorConfig.NAME_SERVICE_ACCOUNT_FILE_PATH) ||
@@ -859,7 +895,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     if (Strings.isNullOrEmpty(format)) {
       collector.addFailure(String.format("Required field '%s' has no value.", NAME_FORMAT), null)
         .withConfigProperty(NAME_FORMAT);
-      return;
+      collector.getOrThrowException();
     }
 
     if (!this.containsMacro(NAME_FORMAT)) {
@@ -1012,14 +1048,155 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     return false;
   }
 
-  private GoogleCredentials getCredentials() throws IOException {
+  private GoogleCredentials getCredentials() {
     GoogleCredentials credentials = null;
-    //validate service account
-    if (connection.isServiceAccountJson() || connection.getServiceAccountFilePath() != null) {
-      credentials =
-        GCPUtils.loadServiceAccountCredentials(connection.getServiceAccount(), connection.isServiceAccountFilePath())
-          .createScoped(Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"));
+    try {
+      //validate service account
+      if (connection.isServiceAccountJson() || connection.getServiceAccountFilePath() != null) {
+        credentials =
+          GCPUtils.loadServiceAccountCredentials(connection.getServiceAccount(), connection.isServiceAccountFilePath())
+            .createScoped(Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"));
+      }
+    } catch (IOException e) {
+      LOG.debug("Unable to load service account credentials due to error: {}", e.getMessage());
     }
     return credentials;
   }
+
+
+  protected void validateInsertSchema(Table table, @Nullable Schema tableSchema, FailureCollector collector,
+                                      String dataset) {
+    com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
+    if (bqSchema == null || bqSchema.getFields().isEmpty()) {
+      // Table is created without schema, so no further validation is required.
+      return;
+    }
+
+    if (this.isTruncateTable() || tableSchema == null) {
+      //no validation required for schema if truncate table is set.
+      // BQ will overwrite the schema for normal tables when write disposition is WRITE_TRUNCATE
+      //note - If write to single partition is supported in future, schema validation will be necessary
+      return;
+    }
+    FieldList bqFields = bqSchema.getFields();
+    List<Schema.Field> outputSchemaFields = Objects.requireNonNull(tableSchema.getFields());
+
+    List<String> remainingBQFields = BigQueryUtil.getBqFieldsMinusSchema(bqFields, outputSchemaFields);
+    for (String field : remainingBQFields) {
+      if (bqFields.get(field).getMode() != Field.Mode.NULLABLE) {
+        collector.addFailure(String.format("Required Column '%s' is not present in the schema.", field),
+          String.format("Add '%s' to the schema.", field));
+      }
+    }
+
+    String tableName = table.getTableId().getTable();
+    List<String> missingBQFields = BigQueryUtil.getSchemaMinusBqFields(outputSchemaFields, bqFields);
+    // Match output schema field type with BigQuery column type
+    for (Schema.Field field : tableSchema.getFields()) {
+      String fieldName = field.getName();
+      // skip checking schema if field is missing in BigQuery
+      if (!missingBQFields.contains(fieldName)) {
+        ValidationFailure failure = BigQueryUtil.validateFieldSchemaMatches(
+          bqFields.get(field.getName()), field, dataset, tableName,
+          AbstractBigQuerySinkConfig.SUPPORTED_TYPES, collector);
+        if (failure != null) {
+          failure.withInputSchemaField(fieldName).withOutputSchemaField(fieldName);
+        }
+        BigQueryUtil.validateFieldModeMatches(bqFields.get(fieldName), field,
+          this.isUpdateTableSchema(),
+          collector);
+      }
+    }
+    collector.getOrThrowException();
+  }
+
+  /**
+   * Validates output schema against Big Query table schema. It throws {@link IllegalArgumentException}
+   * if the output schema has more fields than Big Query table or output schema field types does not match
+   * Big Query column types unless schema relaxation policy is allowed.
+   *
+   * @param tableName big query table
+   * @param bqSchema BigQuery table schema
+   * @param tableSchema Configured table schema
+   * @param allowSchemaRelaxation allows schema relaxation policy
+   * @param collector failure collector
+   */
+  protected void validateSchema(
+    String tableName,
+    com.google.cloud.bigquery.Schema bqSchema,
+    @Nullable Schema tableSchema,
+    boolean allowSchemaRelaxation,
+    FailureCollector collector, String dataset) {
+    if (bqSchema == null || bqSchema.getFields().isEmpty() || tableSchema == null) {
+      // Table is created without schema, so no further validation is required.
+      return;
+    }
+
+    FieldList bqFields = bqSchema.getFields();
+    List<Schema.Field> outputSchemaFields = Objects.requireNonNull(tableSchema.getFields());
+
+    List<String> missingBQFields = BigQueryUtil.getSchemaMinusBqFields(outputSchemaFields, bqFields);
+
+    if (allowSchemaRelaxation && !this.isTruncateTable()) {
+      // Required fields can be added only if truncate table option is set.
+      List<String> nonNullableFields = missingBQFields.stream()
+        .map(tableSchema::getField)
+        .filter(Objects::nonNull)
+        .filter(field -> !field.getSchema().isNullable())
+        .map(Schema.Field::getName)
+        .collect(Collectors.toList());
+
+      for (String nonNullableField : nonNullableFields) {
+        collector.addFailure(
+          String.format("Required field '%s' does not exist in BigQuery table '%s.%s'.",
+            nonNullableField, dataset, tableName),
+          "Change the field to be nullable.")
+          .withInputSchemaField(nonNullableField).withOutputSchemaField(nonNullableField);
+      }
+    }
+
+    if (!allowSchemaRelaxation) {
+      // schema should not have fields that are not present in BigQuery table,
+      for (String missingField : missingBQFields) {
+        collector.addFailure(
+          String.format("Field '%s' does not exist in BigQuery table '%s.%s'.",
+            missingField, dataset, tableName),
+          String.format("Remove '%s' from the input, or add a column to the BigQuery table.", missingField))
+          .withInputSchemaField(missingField).withOutputSchemaField(missingField);
+      }
+
+      // validate the missing columns in output schema are nullable fields in BigQuery
+      List<String> remainingBQFields = BigQueryUtil.getBqFieldsMinusSchema(bqFields, outputSchemaFields);
+      for (String field : remainingBQFields) {
+        Field.Mode mode = bqFields.get(field).getMode();
+        // Mode is optional. If the mode is unspecified, the column defaults to NULLABLE.
+        if (mode != null && mode != Field.Mode.NULLABLE) {
+          collector.addFailure(String.format("Required Column '%s' is not present in the schema.", field),
+            String.format("Add '%s' to the schema.", field));
+        }
+      }
+    }
+
+    // column type changes should be disallowed if either allowSchemaRelaxation or truncate table are not set.
+    if (!allowSchemaRelaxation || !this.isTruncateTable()) {
+      // Match output schema field type with BigQuery column type
+      for (Schema.Field field : tableSchema.getFields()) {
+        String fieldName = field.getName();
+        // skip checking schema if field is missing in BigQuery
+        if (!missingBQFields.contains(fieldName)) {
+          ValidationFailure failure = BigQueryUtil.validateFieldSchemaMatches(
+            bqFields.get(field.getName()), field, dataset, tableName,
+            AbstractBigQuerySinkConfig.SUPPORTED_TYPES, collector);
+          if (failure != null) {
+            failure.withInputSchemaField(fieldName).withOutputSchemaField(fieldName);
+          }
+          BigQueryUtil.validateFieldModeMatches(bqFields.get(fieldName), field,
+            allowSchemaRelaxation,
+            collector);
+        }
+      }
+    }
+    collector.getOrThrowException();
+  }
+
 }
