@@ -196,7 +196,7 @@
         },
         {
           "widget-type": "textbox",
-          "label": "Table name",
+          "label": "Table",
           "name": "table",
           "widget-attributes": {
             "placeholder": ""
