@@ -26,6 +26,8 @@ jobs:
       - name: Refresh branch
         run: |
           cd result
+          git config --global user.email "vitaliit@google.com"
+          git config --global user.name "Vitalii Tymchyshyn (Auto Merge)"
           # Add more feature branches as needed
           for BRANCH in feature/bq_sink_pushdown
           do
