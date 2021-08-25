@@ -8,7 +8,6 @@ import io.cdap.plugin.gcp.dataplex.sink.model.Location;
 import io.cdap.plugin.gcp.dataplex.sink.model.Zone;
 import io.cdap.plugin.gcp.dataplex.sink.util.DataplexApiHelper;
 
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -23,9 +22,7 @@ import java.util.List;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(DataplexInterfaceImpl.class)
@@ -93,7 +90,7 @@ public class DataplexInterfaceTest {
   @Test
   public void listAssetsTest() throws Exception {
     when(dataplexApiHelper.invokeDataplexApi(anyString(), any(GoogleCredentials.class))).thenReturn(getAssets());
-    List<Asset> assets = dataplexInterface.listAssets(googleCredentials, "", "", "" , "");
+    List<Asset> assets = dataplexInterface.listAssets(googleCredentials, "", "", "", "");
     assertEquals(3, assets.size());
     assertEquals("test2", assets.get(0).displayName);
   }
