@@ -479,7 +479,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   private void configureDataplexException(String dataplexConfigProperty, String dataplexConfigPropType,
                                           ConnectorException e,
                                           FailureCollector failureCollector) {
-    if (e.getCode().equals("404")) {
+    if (("404").equals(e.getCode())) {
       failureCollector
         .addFailure("'" + dataplexConfigProperty + "' could not be found. Please ensure that it exists in " +
           "Dataplex.", null).withConfigProperty(dataplexConfigPropType);
@@ -1048,7 +1048,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     return false;
   }
 
-  private GoogleCredentials getCredentials() {
+  GoogleCredentials getCredentials() {
     GoogleCredentials credentials = null;
     try {
       //validate service account
