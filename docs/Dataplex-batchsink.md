@@ -155,7 +155,7 @@ Incompatible schema changes will result in pipeline failure.
 In case of asset type as Bigquery, If a schema is provided, it must be compatible with the table schema in BigQuery.
 In case of asset type as Google Cloud Storage, The 'avro' and 'parquet' formats require a schema but other formats do not.
 
-Data Type Mappings from CDAP to BigQuery
+Data Type Mappings from CDAP to Dataplex asset type as Bigquery
 ----------
 The following table lists out different CDAP data types, as well as the 
 corresponding BigQuery data type for each CDAP type, for updates and upserts.

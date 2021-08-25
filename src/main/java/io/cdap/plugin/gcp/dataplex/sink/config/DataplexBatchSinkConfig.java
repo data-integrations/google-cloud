@@ -496,7 +496,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   private void configureDataplexException(String dataplexConfigProperty, String dataplexConfigPropType,
                                           ConnectorException e,
                                           FailureCollector failureCollector) {
-    if (e.getCode().equals("404")) {
+    if ("404".equals(e.getCode())) {
       failureCollector
         .addFailure("'" + dataplexConfigProperty + "' could not be found. Please ensure that it exists in " +
           "Dataplex.", null).withConfigProperty(dataplexConfigPropType);
@@ -857,6 +857,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
       List<String> dedupeByList = Arrays.stream(Objects.requireNonNull(getDedupeBy()).split(","))
         .collect(Collectors.toList());
 
+      //Validating the list of dedup key fields against fields received from bigquery input table
       dedupeByList.stream()
         .filter(v -> !fields.contains(v.split(" ")[0]))
         .forEach(v -> collector.addFailure(
@@ -1064,7 +1065,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     return false;
   }
 
-  private GoogleCredentials getCredentials() {
+  GoogleCredentials getCredentials() {
     GoogleCredentials credentials = null;
     try {
       // validate service account
