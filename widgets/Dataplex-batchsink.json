@@ -14,14 +14,6 @@
           "widget-attributes": {
             "placeholder": "Name used to identify this sink for lineage"
           }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Project ID",
-          "name": "project",
-          "widget-attributes": {
-            "default": "auto-detect"
-          }
         }
       ]
     },
@@ -50,6 +42,14 @@
           "name": "connection",
           "widget-attributes": {
             "connectionType": "Dataplex"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Project ID",
+          "name": "project",
+          "widget-attributes": {
+            "default": "auto-detect"
           }
         },
         {
@@ -510,6 +510,10 @@
         "expression": "useConnection == false"
       },
       "show": [
+        {
+          "type": "property",
+          "name": "project"
+        },
         {
           "type": "property",
           "name": "serviceAccountType"

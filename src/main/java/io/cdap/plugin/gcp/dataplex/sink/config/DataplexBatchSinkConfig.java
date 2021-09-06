@@ -323,7 +323,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
 
   @Nullable
   public Boolean isRequirePartitionField() {
-    return requirePartitionField;
+    return requirePartitionField == null ? false : requirePartitionField;
   }
 
   @Nullable
@@ -404,15 +404,16 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
 
   public void validateServiceAccount(FailureCollector failureCollector) {
     if (connection.isServiceAccountJson() || connection.getServiceAccountFilePath() != null) {
-      try {
         GoogleCredentials credentials = getCredentials();
-      } catch (Exception e) {
-        failureCollector.addFailure(String.format("Service account key provided is not valid: %s.",
-          e.getMessage()), "Please provide a valid service account key.").withConfigProperty("serviceFilePath")
-        .withConfigProperty("serviceAccountJSON");
-      }
+        if (credentials == null) {
+          failureCollector.addFailure(String.format("Unable to load credentials from %s.",
+            connection.isServiceAccountFilePath() ? connection.getServiceAccountFilePath() : "provided JSON key"),
+            "Ensure the service account file is available on the local filesystem.")
+            .withConfigProperty("serviceFilePath")
+            .withConfigProperty("serviceAccountJSON");
+          throw failureCollector.getOrThrowException();
+        }
     }
-    failureCollector.getOrThrowException();
   }
 
   public void validateAssetConfiguration(FailureCollector collector, DataplexInterface dataplexInterface) {
@@ -501,9 +502,10 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
       try {
         Asset assetBean = dataplexInterface.getAsset(getCredentials(), tryGetProject(), location,
           lake, zone, asset);
-        String fullDatasetName = assetBean.getAssetResourceSpec().getName();
-        String dataset = fullDatasetName.substring(fullDatasetName.lastIndexOf('/') + 1);
-        validatePartitionProperties(schema, collector, dataset);
+        String[] assetValues = assetBean.getAssetResourceSpec().name.split("/");
+        String dataset = assetValues[assetValues.length - 1];
+        String datasetProject = assetValues[assetValues.length - 3];
+        validatePartitionProperties(schema, collector, dataset, datasetProject);
         validateClusteringOrder(schema, collector);
         validateOperationProperties(schema, collector);
         validateConfiguredSchema(schema, collector, dataset);
@@ -584,11 +586,12 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     return duplicatedFields;
   }
 
-  private void validatePartitionProperties(@Nullable Schema schema, FailureCollector collector, String dataset) {
+  private void validatePartitionProperties(@Nullable Schema schema, FailureCollector collector, String dataset,
+                                           String datasetProject) {
     if (tryGetProject() == null) {
       return;
     }
-    String project = tryGetProject();
+    String project = datasetProject;
     String tableName = getTable();
     String serviceAccount = getServiceAccount();
 
@@ -892,7 +895,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   }
 
   public void validateFormatForStorageBucket(PipelineConfigurer pipelineConfigurer, FailureCollector collector) {
-    if (Strings.isNullOrEmpty(format)) {
+    if (!this.containsMacro(NAME_FORMAT) && Strings.isNullOrEmpty(format)) {
       collector.addFailure(String.format("Required field '%s' has no value.", NAME_FORMAT), null)
         .withConfigProperty(NAME_FORMAT);
       collector.getOrThrowException();
@@ -948,13 +951,11 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
 
   }
 
-  public void validateStorageBucket(PipelineConfigurer pipelineConfigurer, FailureCollector collector) {
+  public void validateStorageBucket(FailureCollector collector) {
     if (containsMacro(NAME_LOCATION) || containsMacro(NAME_LAKE) || containsMacro(NAME_ZONE) ||
       containsMacro(NAME_ASSET)) {
       return;
     }
-    this.validateFormatForStorageBucket(pipelineConfigurer, collector);
-
     if (suffix != null && !containsMacro(NAME_SUFFIX)) {
       try {
         new SimpleDateFormat(suffix);
@@ -1048,7 +1049,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     return false;
   }
 
-  GoogleCredentials getCredentials() {
+  public GoogleCredentials getCredentials() {
     GoogleCredentials credentials = null;
     try {
       //validate service account
