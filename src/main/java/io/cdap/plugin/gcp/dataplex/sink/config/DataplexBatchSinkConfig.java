@@ -116,7 +116,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   private static final String FORMAT_PARQUET = "parquet";
   private static final Pattern FIELD_PATTERN = Pattern.compile("[a-zA-Z0-9_]+");
 
-  //Connection properties
+  // Connection properties
   @Name(NAME_FORMAT)
   @Nullable
   @Macro
@@ -124,6 +124,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     "'delimited', 'json', 'orc', or, 'parquet'. The format for curated zone must be one of 'avro', 'orc', or, " +
     "'parquet'.")
   protected String format;
+
   @Name(NAME_CONTENT_TYPE)
   @Nullable
   @Macro
@@ -131,7 +132,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     "'application/octet-stream'.")
   protected String contentType;
 
-  //GCS Asset type configuration properties
+  // GCS Asset type configuration properties
   @Name(NAME_TABLE)
   @Nullable
   @Macro
@@ -139,11 +140,13 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     + "Each record is composed of columns (also called fields). "
     + "Every table is defined by a schema that describes the column names, data types, and other information.")
   protected String table;
+
   @Name(NAME_TABLE_KEY)
   @Nullable
   @Macro
   @Description("List of fields that determine relation between tables during Update and Upsert operations.")
   protected String tableKey;
+
   @Name(NAME_DEDUPE_BY)
   @Nullable
   @Macro
@@ -159,6 +162,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   @Macro
   @Description("Insert/Update/Upsert")
   protected String operation;
+
   @Name(NAME_PARTITION_FILTER)
   @Nullable
   @Macro
@@ -168,52 +172,61 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     "and _PARTITIONTIME < “2020-03-01”‘, the update operation will be performed only in the partitions " +
     "meeting the criteria.")
   protected String partitionFilter;
+
   @Name(NAME_PARTITIONING_TYPE)
   @Nullable
   @Macro
   @Description("Specifies the partitioning type. Can either be Integer or Time or None. Defaults to Time. " +
     "This value is ignored if the table already exists.")
   protected String partitioningType;
+
   @Name(NAME_RANGE_START)
   @Nullable
   @Macro
   @Description("Start value for range partitioning. The start value is inclusive. Ignored when table already exists")
   protected Long rangeStart;
+
   @Name(NAME_RANGE_END)
   @Nullable
   @Macro
   @Description("End value for range partitioning. The end value is exclusive. Ignored when table already exists")
   protected Long rangeEnd;
+
   @Name(NAME_RANGE_INTERVAL)
   @Nullable
   @Macro
   @Description("Interval value for range partitioning. The interval value must be a positive integer. Ignored when " +
     "table already exists")
   protected Long rangeInterval;
+
   @Name(NAME_TRUNCATE_TABLE)
   @Nullable
   @Macro
   @Description("Whether or not to truncate the table before writing to it. Should only be used with the Insert " +
     "operation.")
   protected Boolean truncateTable;
+
   @Name(NAME_UPDATE_TABLE_SCHEMA)
   @Nullable
   @Macro
   @Description("Whether the BigQuery table schema should be modified when it does not match the schema expected " +
     "by the pipeline.")
   protected Boolean updateTableSchema;
+
   @Name(NAME_PARTITION_BY_FIELD)
   @Nullable
   @Macro
   @Description("Partitioning column for the BigQuery table. This should be left empty if the BigQuery table " +
     "is an ingestion-time partitioned table.")
   protected String partitionByField;
+
   @Name(NAME_REQUIRE_PARTITION_FIELD)
   @Nullable
   @Macro
   @Description("Whether to create a table that requires a partition filter. This value is ignored if the table " +
     "already exists.")
   protected Boolean requirePartitionField;
+
   @Name(NAME_CLUSTERING_ORDER)
   @Nullable
   @Macro
@@ -221,21 +234,25 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     "STRING, DATE, TIMESTAMP, BOOLEAN or DECIMAL. Tables cannot be clustered on more than 4 fields. This " +
     "value is only used when the BigQuery table is automatically created and ignored if the table already exists.")
   protected String clusteringOrder;
+
   @Name(NAME_USE_CONNECTION)
   @Nullable
   @Description("Whether to use an existing connection.")
   private Boolean useConnection;
+
   @Name(NAME_CONNECTION)
   @Nullable
   @Macro
   @Description("The existing connection to use.")
   private DataplexConnectorConfig connection;
+
   @Nullable
   @Macro
   @Description("The time format for the output directory that will be appended to the path. " +
     "For example, the format 'yyyy-MM-dd-HH-mm' will result in a directory of the form '2015-01-01-20-42'. " +
     "If not specified, nothing will be appended to the path.")
   private String suffix;
+
   @Name(NAME_SCHEMA)
   @Nullable
   @Macro
@@ -373,6 +390,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
       if (table == null) {
         collector.addFailure(String.format("Required property '%s' has no value.", NAME_TABLE), null)
           .withConfigProperty(NAME_TABLE);
+
         collector.getOrThrowException();
       }
       BigQueryUtil.validateTable(table, NAME_TABLE, collector);
@@ -380,6 +398,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
 
     if (getWriteDisposition().equals(JobInfo.WriteDisposition.WRITE_TRUNCATE)
       && !getOperation().equals(Operation.INSERT)) {
+
       collector.addFailure("Truncate must only be used with operation 'Insert'.",
         "Set Truncate to false, or change the Operation to 'Insert'.")
         .withConfigProperty(NAME_TRUNCATE_TABLE).withConfigProperty(NAME_OPERATION);
@@ -844,6 +863,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
       List<String> dedupeByList = Arrays.stream(Objects.requireNonNull(getDedupeBy()).split(","))
         .collect(Collectors.toList());
 
+      //Validating the list of dedup key fields against fields received from bigquery input table
       dedupeByList.stream()
         .filter(v -> !fields.contains(v.split(" ")[0]))
         .forEach(v -> collector.addFailure(
@@ -903,6 +923,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     }
 
     if (!this.containsMacro(NAME_FORMAT)) {
+      // Validates output format for the selected format type
       String fileFormat = null;
       try {
         fileFormat = getFormat().toString().toLowerCase();
@@ -919,11 +940,12 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
       FormatContext context = new FormatContext(collector, pipelineConfigurer.getStageConfigurer().getInputSchema());
       this.validateOutputFormatProvider(context, fileFormat, validatingOutputFormat);
     } else {
-      FileFormat[] var3 = FileFormat.values();
-      int var4 = var3.length;
+      // Verifying all the file formats have its corresponding validating output format classes or not
+      FileFormat[] fileFormats = FileFormat.values();
+      int fileFormatLength = fileFormats.length;
 
-      for (int var5 = 0; var5 < var4; ++var5) {
-        FileFormat f = var3[var5];
+      for (int i = 0; i < fileFormatLength; ++i) {
+        FileFormat f = fileFormats[i];
 
         try {
           pipelineConfigurer.usePlugin("validatingOutputFormat", f.name().toLowerCase(),
@@ -936,7 +958,6 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
               InvalidPluginProperty::getName).collect(Collectors.toList()));
         }
       }
-
     }
   }
 
@@ -949,7 +970,6 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     } else {
       validatingOutputFormat.validate(context);
     }
-
   }
 
   public void validateStorageBucket(FailureCollector collector) {
@@ -971,10 +991,9 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
       collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_SCHEMA)
         .withStacktrace(e.getStackTrace());
     }
-
   }
 
-  //This method validates the specified content type for the used format.
+  // This method validates the specified content type for the used format.
   public void validateContentType(FailureCollector failureCollector) {
     switch (format) {
       case FORMAT_AVRO:
@@ -1053,7 +1072,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   public GoogleCredentials getCredentials() {
     GoogleCredentials credentials = null;
     try {
-      //validate service account
+      // validate service account
       if (connection.isServiceAccountJson() || connection.getServiceAccountFilePath() != null) {
         credentials =
           GCPUtils.loadServiceAccountCredentials(connection.getServiceAccount(), connection.isServiceAccountFilePath())
@@ -1075,9 +1094,9 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     }
 
     if (this.isTruncateTable() || tableSchema == null) {
-      //no validation required for schema if truncate table is set.
+      // no validation required for schema if truncate table is set.
       // BQ will overwrite the schema for normal tables when write disposition is WRITE_TRUNCATE
-      //note - If write to single partition is supported in future, schema validation will be necessary
+      // note - If write to single partition is supported in future, schema validation will be necessary
       return;
     }
     FieldList bqFields = bqSchema.getFields();
@@ -1200,5 +1219,4 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     }
     collector.getOrThrowException();
   }
-
 }
