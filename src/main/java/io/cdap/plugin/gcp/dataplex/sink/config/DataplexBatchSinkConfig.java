@@ -340,7 +340,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
 
   @Nullable
   public Boolean isRequirePartitionField() {
-    return requirePartitionField;
+    return requirePartitionField != null && requirePartitionField;
   }
 
   @Nullable
@@ -416,34 +416,38 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
       collector.addFailure("Invalid schema: " + e.getMessage(), null).
         withConfigProperty(NAME_SCHEMA);
     }
+    // if there was an error that was added, it will throw an exception, otherwise,
+    // this statement will not be executed
     throw collector.getOrThrowException();
   }
 
   public void validateServiceAccount(FailureCollector failureCollector) {
     if (connection.isServiceAccountJson() || connection.getServiceAccountFilePath() != null) {
-      try {
-        GoogleCredentials credentials = getCredentials();
-      } catch (Exception e) {
-        failureCollector.addFailure(String.format("Service account key provided is not valid: %s.",
-          e.getMessage()), "Please provide a valid service account key.").withConfigProperty("serviceFilePath")
-        .withConfigProperty("serviceAccountJSON");
+      GoogleCredentials credentials = getCredentials();
+      if (credentials == null) {
+        failureCollector.addFailure(String.format("Unable to load credentials from %s.",
+          connection.isServiceAccountFilePath() ? connection.getServiceAccountFilePath() : "provided JSON key"),
+          "Ensure the service account file is available on the local filesystem.")
+          .withConfigProperty("serviceFilePath")
+          .withConfigProperty("serviceAccountJSON");
+        throw failureCollector.getOrThrowException();
       }
     }
-    failureCollector.getOrThrowException();
   }
 
   public void validateAssetConfiguration(FailureCollector collector, DataplexInterface dataplexInterface) {
     IdUtils.validateReferenceName(referenceName, collector);
+    GoogleCredentials credentials = getCredentials();
     if (!Strings.isNullOrEmpty(location) && !containsMacro(NAME_LOCATION)) {
       try {
-        dataplexInterface.getLocation(getCredentials(), tryGetProject(), location);
+        dataplexInterface.getLocation(credentials, tryGetProject(), location);
       } catch (ConnectorException e) {
         configureDataplexException(location, NAME_LOCATION, e, collector);
         return;
       }
       if (!Strings.isNullOrEmpty(lake) && !containsMacro(NAME_LAKE)) {
         try {
-          dataplexInterface.getLake(getCredentials(), tryGetProject(), location, lake);
+          dataplexInterface.getLake(credentials, tryGetProject(), location, lake);
         } catch (ConnectorException e) {
           configureDataplexException(lake, NAME_LAKE, e, collector);
           return;
@@ -452,14 +456,14 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
         if (!Strings.isNullOrEmpty(zone) && !containsMacro(NAME_ZONE)) {
           Zone zoneBean = null;
           try {
-            zoneBean = dataplexInterface.getZone(getCredentials(), tryGetProject(), location, lake, zone);
+            zoneBean = dataplexInterface.getZone(credentials, tryGetProject(), location, lake, zone);
           } catch (ConnectorException e) {
             configureDataplexException(zone, NAME_ZONE, e, collector);
             return;
           }
           if (!Strings.isNullOrEmpty(asset) && !containsMacro(NAME_ASSET)) {
             try {
-              Asset assetBean = dataplexInterface.getAsset(getCredentials(), tryGetProject(), location,
+              Asset assetBean = dataplexInterface.getAsset(credentials, tryGetProject(), location,
                 lake, zone, asset);
               if (!assetType.equalsIgnoreCase(assetBean.getAssetResourceSpec().getType())) {
                 collector.addFailure("Asset type doesn't match with actual asset. ", null).
@@ -518,9 +522,10 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
       try {
         Asset assetBean = dataplexInterface.getAsset(getCredentials(), tryGetProject(), location,
           lake, zone, asset);
-        String fullDatasetName = assetBean.getAssetResourceSpec().getName();
-        String dataset = fullDatasetName.substring(fullDatasetName.lastIndexOf('/') + 1);
-        validatePartitionProperties(schema, collector, dataset);
+        String[] assetValues = assetBean.getAssetResourceSpec().name.split("/");
+        String dataset = assetValues[assetValues.length - 1];
+        String datasetProject = assetValues[assetValues.length - 3];
+        validatePartitionProperties(schema, collector, dataset, datasetProject);
         validateClusteringOrder(schema, collector);
         validateOperationProperties(schema, collector);
         validateConfiguredSchema(schema, collector, dataset);
@@ -601,11 +606,12 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     return duplicatedFields;
   }
 
-  private void validatePartitionProperties(@Nullable Schema schema, FailureCollector collector, String dataset) {
+  private void validatePartitionProperties(@Nullable Schema schema, FailureCollector collector, String dataset,
+                                           String datasetProject) {
     if (tryGetProject() == null) {
       return;
     }
-    String project = tryGetProject();
+    String project = datasetProject;
     String tableName = getTable();
     String serviceAccount = getServiceAccount();
 
@@ -910,7 +916,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   }
 
   public void validateFormatForStorageBucket(PipelineConfigurer pipelineConfigurer, FailureCollector collector) {
-    if (Strings.isNullOrEmpty(format)) {
+    if (!this.containsMacro(NAME_FORMAT) && Strings.isNullOrEmpty(format)) {
       collector.addFailure(String.format("Required field '%s' has no value.", NAME_FORMAT), null)
         .withConfigProperty(NAME_FORMAT);
       collector.getOrThrowException();
@@ -966,13 +972,11 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     }
   }
 
-  public void validateStorageBucket(PipelineConfigurer pipelineConfigurer, FailureCollector collector) {
+  public void validateStorageBucket(FailureCollector collector) {
     if (containsMacro(NAME_LOCATION) || containsMacro(NAME_LAKE) || containsMacro(NAME_ZONE) ||
       containsMacro(NAME_ASSET)) {
       return;
     }
-    this.validateFormatForStorageBucket(pipelineConfigurer, collector);
-
     if (suffix != null && !containsMacro(NAME_SUFFIX)) {
       try {
         new SimpleDateFormat(suffix);
@@ -1065,7 +1069,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     return false;
   }
 
-  GoogleCredentials getCredentials() {
+  public GoogleCredentials getCredentials() {
     GoogleCredentials credentials = null;
     try {
       // validate service account
