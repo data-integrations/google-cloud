@@ -17,6 +17,7 @@
 package io.cdap.plugin.gcp.dataplex.sink;
 
 import com.google.auth.Credentials;
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.Field;
@@ -120,7 +121,6 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
       (config.tryGetProject() == null)) {
       return;
     }
-
     StageConfigurer configurer = pipelineConfigurer.getStageConfigurer();
     FailureCollector collector = configurer.getFailureCollector();
     config.validateServiceAccount(collector);
@@ -156,13 +156,12 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
 
   private void prepareRunBigQueryDataset(BatchSinkContext context,
                                          DataplexInterface dataplexInterface) throws Exception {
-
     FailureCollector collector = context.getFailureCollector();
     Credentials credentials = config.getCredentials();
     String project = config.getProject();
     String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
     baseConfiguration = getBaseConfiguration(cmekKey);
-    Asset assetBean = dataplexInterface.getAsset(config.getCredentials(), config.tryGetProject(),
+    Asset assetBean = dataplexInterface.getAsset((GoogleCredentials) credentials, config.tryGetProject(),
       config.getLocation(), config.getLake(), config.getZone(), config.getAsset());
     String[] assetValues = assetBean.getAssetResourceSpec().name.split("/");
     String dataset = assetValues[assetValues.length - 1];

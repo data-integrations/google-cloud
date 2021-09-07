@@ -583,7 +583,7 @@ public class DataplexBatchSinkConfigTest {
     MockFailureCollector mockFailureCollector = new MockFailureCollector();
     PipelineConfigurer pipelineConfigurer = mock(PipelineConfigurer.class);
     PowerMockito.when(dataplexBatchSinkConfig.containsMacro(any())).thenReturn(true);
-    dataplexBatchSinkConfig.validateStorageBucket(pipelineConfigurer, mockFailureCollector);
+    dataplexBatchSinkConfig.validateStorageBucket(mockFailureCollector);
     assertEquals(0, mockFailureCollector.getValidationFailures().size());
   }
 
@@ -596,7 +596,7 @@ public class DataplexBatchSinkConfigTest {
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("suffix"),
       "test");
     when(dataplexBatchSinkConfig.getSchema(any())).thenThrow(IllegalArgumentException.class);
-    dataplexBatchSinkConfig.validateStorageBucket(pipelineConfigurer, mockFailureCollector);
+    dataplexBatchSinkConfig.validateStorageBucket(mockFailureCollector);
     assertEquals(2, mockFailureCollector.getValidationFailures().size());
   }
 
@@ -608,7 +608,7 @@ public class DataplexBatchSinkConfigTest {
     PowerMockito.doNothing().when(dataplexBatchSinkConfig, "validateFormatForStorageBucket", any(), any());
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("suffix"),
       "yyyy-MM-dd");
-    dataplexBatchSinkConfig.validateStorageBucket(pipelineConfigurer, mockFailureCollector);
+    dataplexBatchSinkConfig.validateStorageBucket(mockFailureCollector);
     assertEquals(0, mockFailureCollector.getValidationFailures().size());
   }
 

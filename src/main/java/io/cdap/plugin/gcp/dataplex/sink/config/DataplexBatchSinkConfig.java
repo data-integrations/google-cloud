@@ -418,16 +418,17 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
 
   public void validateAssetConfiguration(FailureCollector collector, DataplexInterface dataplexInterface) {
     IdUtils.validateReferenceName(referenceName, collector);
+    GoogleCredentials credentials = getCredentials();
     if (!Strings.isNullOrEmpty(location) && !containsMacro(NAME_LOCATION)) {
       try {
-        dataplexInterface.getLocation(getCredentials(), tryGetProject(), location);
+        dataplexInterface.getLocation(credentials, tryGetProject(), location);
       } catch (ConnectorException e) {
         configureDataplexException(location, NAME_LOCATION, e, collector);
         return;
       }
       if (!Strings.isNullOrEmpty(lake) && !containsMacro(NAME_LAKE)) {
         try {
-          dataplexInterface.getLake(getCredentials(), tryGetProject(), location, lake);
+          dataplexInterface.getLake(credentials, tryGetProject(), location, lake);
         } catch (ConnectorException e) {
           configureDataplexException(lake, NAME_LAKE, e, collector);
           return;
@@ -436,14 +437,14 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
         if (!Strings.isNullOrEmpty(zone) && !containsMacro(NAME_ZONE)) {
           Zone zoneBean = null;
           try {
-            zoneBean = dataplexInterface.getZone(getCredentials(), tryGetProject(), location, lake, zone);
+            zoneBean = dataplexInterface.getZone(credentials, tryGetProject(), location, lake, zone);
           } catch (ConnectorException e) {
             configureDataplexException(zone, NAME_ZONE, e, collector);
             return;
           }
           if (!Strings.isNullOrEmpty(asset) && !containsMacro(NAME_ASSET)) {
             try {
-              Asset assetBean = dataplexInterface.getAsset(getCredentials(), tryGetProject(), location,
+              Asset assetBean = dataplexInterface.getAsset(credentials, tryGetProject(), location,
                 lake, zone, asset);
               if (!assetType.equalsIgnoreCase(assetBean.getAssetResourceSpec().getType())) {
                 collector.addFailure("Asset type doesn't match with actual asset. ", null).
