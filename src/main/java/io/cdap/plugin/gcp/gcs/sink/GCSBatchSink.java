@@ -98,10 +98,8 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
   @Override
   public void prepareRun(BatchSinkContext context) throws Exception {
     super.prepareRun(context);
-    String cmekKey = config.getCmekKey();
-    if (Strings.isNullOrEmpty(cmekKey)) {
-      cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
-    }
+    String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
+    cmekKey = config.getCmekKey(cmekKey);
 
     Boolean isServiceAccountFilePath = config.isServiceAccountFilePath();
     if (isServiceAccountFilePath == null) {
@@ -416,7 +414,10 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
       }
     }
 
-    private String getCmekKey() {
+    public String getCmekKey(@Nullable String key) {
+      if (Strings.isNullOrEmpty(cmekKey)) {
+        return key;
+      }
       return cmekKey;
     }
 

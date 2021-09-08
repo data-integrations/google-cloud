@@ -174,4 +174,18 @@ public class GCSBatchSinkTest {
     Assert.assertEquals(1, causes.size());
     Assert.assertEquals("cmekKey", causes.get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
   }
+
+  @Test
+  public void testgetCmekKey() throws Exception {
+    GCSBatchSink.GCSBatchSinkConfig config = getConfig(null);
+    String key = "projects/cdf-test-322418/locations/us-east1/keyRings/my_ring/cryptoKeys/test_key2";
+    String cmekKey = config.getCmekKey(key);
+    Assert.assertEquals(cmekKey, key);
+    FieldSetter
+      .setField(config, GCSBatchSink.GCSBatchSinkConfig.class.getDeclaredField("cmekKey"),
+                "projects/cdf-test-322418/locations/us-east1/keyRings/my_ring/cryptoKeys/test_key");
+    cmekKey = config.getCmekKey(key);
+    Assert.assertEquals(cmekKey, "projects/cdf-test-322418/locations/us-east1/keyRings" +
+      "/my_ring/cryptoKeys/test_key");
+  }
 }
