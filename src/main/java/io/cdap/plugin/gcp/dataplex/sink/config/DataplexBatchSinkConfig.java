@@ -330,7 +330,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
 
   @Nullable
   public Boolean isUpdateTableSchema() {
-    return updateTableSchema;
+    return updateTableSchema == null ? false : updateTableSchema;
   }
 
   @Nullable
