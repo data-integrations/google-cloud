@@ -135,4 +135,43 @@ public class GCSBatchSinkTest {
     Assert.assertEquals(1, causes.size());
     Assert.assertEquals("contentType", causes.get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
   }
+
+  @Test
+  public void testValidCmekKey() throws Exception {
+    GCSBatchSink.GCSBatchSinkConfig config = getConfig(null);
+    MockFailureCollector collector = new MockFailureCollector("gcssink");
+    config.validate(collector);
+    FieldSetter
+      .setField(config, GCSBatchSink.GCSBatchSinkConfig.class.getDeclaredField("location"), "us-east1");
+    FieldSetter
+      .setField(config, GCSBatchSink.GCSBatchSinkConfig.class.getDeclaredField("cmekKey"),
+                "projects/cdf-test-322418/locations/us-east1/keyRings/my_ring/cryptoKeys/test_key");
+    config.validate(collector);
+    Assert.assertEquals(0, collector.getValidationFailures().size());
+  }
+
+  @Test
+  public void testInvalidCmekKey() throws Exception {
+    GCSBatchSink.GCSBatchSinkConfig config = getConfig(null);
+    MockFailureCollector collector = new MockFailureCollector("gcssink");
+    config.validate(collector);
+    FieldSetter
+      .setField(config, GCSBatchSink.GCSBatchSinkConfig.class.getDeclaredField("cmekKey"),
+                "keyRings/my_ring/cryptoKeys/test_key");
+    config.validate(collector);
+    FieldSetter
+      .setField(config, GCSBatchSink.GCSBatchSinkConfig.class.getDeclaredField("location"), "us");
+    FieldSetter
+      .setField(config, GCSBatchSink.GCSBatchSinkConfig.class.getDeclaredField("cmekKey"),
+                "projects/cdf-test-322418/locations/us-east1/keyRings/my_ring/cryptoKeys/test_key");
+    config.validate(collector);
+    ValidationFailure failure = collector.getValidationFailures().get(0);
+    List<ValidationFailure.Cause> causes = failure.getCauses();
+    Assert.assertEquals(1, causes.size());
+    Assert.assertEquals("cmekKey", causes.get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
+    failure = collector.getValidationFailures().get(1);
+    causes = failure.getCauses();
+    Assert.assertEquals(1, causes.size());
+    Assert.assertEquals("cmekKey", causes.get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
+  }
 }

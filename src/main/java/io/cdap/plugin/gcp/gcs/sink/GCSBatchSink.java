@@ -98,7 +98,10 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
   @Override
   public void prepareRun(BatchSinkContext context) throws Exception {
     super.prepareRun(context);
-    String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
+    String cmekKey = config.getCmekKey();
+    if (Strings.isNullOrEmpty(cmekKey)) {
+      cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
+    }
 
     Boolean isServiceAccountFilePath = config.isServiceAccountFilePath();
     if (isServiceAccountFilePath == null) {
@@ -261,6 +264,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     private static final String FORMAT_DELIMITED = "delimited";
     private static final String FORMAT_ORC = "orc";
     private static final String FORMAT_PARQUET = "parquet";
+    private static final String NAME_CMEK_KEY = "cmekKey";
 
     private static final String SCHEME = "gs://";
     @Name(NAME_PATH)
@@ -329,6 +333,12 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     @Description("Advanced feature to specify file output name prefix.")
     private String outputFileNameBase;
 
+    @Name(NAME_CMEK_KEY)
+    @Macro
+    @Nullable
+    @Description("The GCP customer managed encryption key (CMEK) name used by Cloud Dataproc")
+    private String cmekKey;
+
     @Override
     public void validate() {
       // no-op
@@ -371,6 +381,10 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
         }
       }
 
+      if (!containsMacro(NAME_CMEK_KEY) && !Strings.isNullOrEmpty(cmekKey)) {
+        validateCmekKey(collector);
+      }
+
       try {
         getSchema();
       } catch (IllegalArgumentException e) {
@@ -384,6 +398,26 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
         collector.addFailure("File system properties must be a valid json.", null)
           .withConfigProperty(NAME_FS_PROPERTIES).withStacktrace(e.getStackTrace());
       }
+    }
+
+    //This method validated the pattern of CMEK Key resource ID.
+    private void validateCmekKey(FailureCollector failureCollector) {
+      String[] part = cmekKey.split("/");
+      if ((part.length != 8) || !part[0].equals("projects") || !part[2].equals("locations")
+        || !part[4].equals("keyRings") || !part[6].equals("cryptoKeys")) {
+        failureCollector.addFailure("Invalid cmek key resource Id format. It should be of the form " +
+                                      "projects/<gcp-project-id>/locations/<key-location>/keyRings/" +
+                                      "<key-ring-name>/cryptoKeys/<key-name>", null)
+          .withConfigProperty(NAME_CMEK_KEY);
+      } else if (!part[3].equals(location)) {
+        failureCollector.addFailure(String.format("Cloud KMS region '%s' not available for use " +
+                                                    "with GCS region '%s'.", part[3], location), null)
+          .withConfigProperty(NAME_CMEK_KEY);
+      }
+    }
+
+    private String getCmekKey() {
+      return cmekKey;
     }
 
     //This method validates the specified content type for the used format.
