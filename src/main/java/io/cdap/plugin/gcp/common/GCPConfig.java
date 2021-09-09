@@ -7,6 +7,7 @@ import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.plugin.PluginConfig;
+import io.cdap.cdap.etl.api.action.SettableArguments;
 
 import java.io.IOException;
 import javax.annotation.Nullable;
@@ -137,5 +138,13 @@ public class GCPConfig extends PluginConfig {
       }
     }
     return false;
+  }
+
+  public String getCmekKey(SettableArguments arguments) {
+    String configKey = getProperties().getProperties().get("cmekKey");
+    if (!Strings.isNullOrEmpty(configKey)) {
+      return configKey;
+    }
+    return arguments.get("gcp.cmek.key.name");
   }
 }
