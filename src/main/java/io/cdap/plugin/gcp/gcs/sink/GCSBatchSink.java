@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.gcs.sink;
 
+import com.google.api.pathtemplate.ValidationException;
 import com.google.auth.Credentials;
 import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.Bucket;
@@ -402,8 +403,15 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
       try {
         CryptoKeyName cmekKeyName = CryptoKeyName.parse(cmekKey);
         Boolean isServiceAccountFilePath = isServiceAccountFilePath();
-        Credentials credentials = getServiceAccount() == null ?
-          null : GCPUtils.loadServiceAccountCredentials(getServiceAccount(), isServiceAccountFilePath);
+        Credentials credentials = null;
+        try {
+          credentials = getServiceAccount() == null ?
+            null : GCPUtils.loadServiceAccountCredentials(getServiceAccount(), isServiceAccountFilePath);
+        } catch (Exception e) {
+          /*Ignoring the exception because we don't want to highlight cmek key if an exception occurs while
+          loading credentials*/
+          return;
+        }
         Storage storage = GCPUtils.getStorage(getProject(), credentials);
         Bucket bucket = null;
         try {
@@ -428,7 +436,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
               .withConfigProperty(NAME_CMEK_KEY);
           }
         }
-      } catch (Exception e) {
+      } catch (ValidationException e) {
         failureCollector.addFailure(e.getMessage(), null)
           .withConfigProperty(NAME_CMEK_KEY).withStacktrace(e.getStackTrace());
       }
