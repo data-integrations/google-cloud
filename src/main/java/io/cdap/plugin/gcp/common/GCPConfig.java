@@ -7,7 +7,7 @@ import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.plugin.PluginConfig;
-import io.cdap.cdap.etl.api.action.SettableArguments;
+import io.cdap.cdap.etl.api.Arguments;
 
 import java.io.IOException;
 import javax.annotation.Nullable;
@@ -23,6 +23,7 @@ public class GCPConfig extends PluginConfig {
   public static final String AUTO_DETECT = "auto-detect";
   public static final String SERVICE_ACCOUNT_FILE_PATH = "filePath";
   public static final String SERVICE_ACCOUNT_JSON = "JSON";
+  public static final String NAME_CMEK_KEY = "cmekKey";
 
   @Name(NAME_PROJECT)
   @Description("Google Cloud Project ID, which uniquely identifies a project. "
@@ -140,8 +141,8 @@ public class GCPConfig extends PluginConfig {
     return false;
   }
 
-  public String getCmekKey(SettableArguments arguments) {
-    String configKey = getProperties().getProperties().get("cmekKey");
+  public String getCmekKey(Arguments arguments) {
+    String configKey = getProperties().getProperties().get(NAME_CMEK_KEY);
     if (!Strings.isNullOrEmpty(configKey)) {
       return configKey;
     }

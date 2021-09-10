@@ -17,6 +17,7 @@
 package io.cdap.plugin.gcp.gcs.sink;
 
 import com.google.auth.Credentials;
+import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
@@ -261,7 +262,6 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     private static final String FORMAT_DELIMITED = "delimited";
     private static final String FORMAT_ORC = "orc";
     private static final String FORMAT_PARQUET = "parquet";
-    private static final String NAME_CMEK_KEY = "cmekKey";
 
     private static final String SCHEME = "gs://";
     @Name(NAME_PATH)
@@ -399,17 +399,33 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
 
     //This method validated the pattern of CMEK Key resource ID.
     private void validateCmekKey(FailureCollector failureCollector) {
-      String[] part = cmekKey.split("/");
-      if ((part.length != 8) || !part[0].equals("projects") || !part[2].equals("locations")
-        || !part[4].equals("keyRings") || !part[6].equals("cryptoKeys")) {
-        failureCollector.addFailure("Invalid cmek key resource Id format. It should be of the form " +
-                                      "projects/<gcp-project-id>/locations/<key-location>/keyRings/" +
-                                      "<key-ring-name>/cryptoKeys/<key-name>", null)
-          .withConfigProperty(NAME_CMEK_KEY);
-      } else if (!part[3].equals(location)) {
-        failureCollector.addFailure(String.format("Cloud KMS region '%s' not available for use " +
-                                                    "with GCS region '%s'.", part[3], location), null)
-          .withConfigProperty(NAME_CMEK_KEY);
+      try {
+        CryptoKeyName cmekKeyName = CryptoKeyName.parse(cmekKey);
+        Boolean isServiceAccountFilePath = isServiceAccountFilePath();
+        if (isServiceAccountFilePath != null) {
+          Credentials credentials = getServiceAccount() == null ?
+            null : GCPUtils.loadServiceAccountCredentials(getServiceAccount(), isServiceAccountFilePath);
+          Storage storage = GCPUtils.getStorage(getProject(), credentials);
+          Bucket bucket = null;
+          try {
+            bucket = storage.get(getBucket());
+          } catch (StorageException e) {
+            return;
+          }
+          if (bucket == null) {
+            String cmekKeyLocation = cmekKeyName.getLocation();
+            if (!cmekKeyLocation.equals(location)) {
+              failureCollector.addFailure(String.format("CMEK key '%s' is in location '%s' while the GCS bucket will " +
+                                                          "be created in location '%s'.", cmekKey,
+                                                        cmekKeyLocation, location)
+                , "Modify the CMEK key or bucket location to be the same")
+                .withConfigProperty(NAME_CMEK_KEY);
+            }
+          }
+        }
+      } catch (Exception e) {
+        failureCollector.addFailure(e.getMessage(), null)
+          .withConfigProperty(NAME_CMEK_KEY).withStacktrace(e.getStackTrace());
       }
     }
 
