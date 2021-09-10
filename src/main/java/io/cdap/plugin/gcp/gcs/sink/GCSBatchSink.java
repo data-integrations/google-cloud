@@ -402,25 +402,30 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
       try {
         CryptoKeyName cmekKeyName = CryptoKeyName.parse(cmekKey);
         Boolean isServiceAccountFilePath = isServiceAccountFilePath();
-        if (isServiceAccountFilePath != null) {
-          Credentials credentials = getServiceAccount() == null ?
-            null : GCPUtils.loadServiceAccountCredentials(getServiceAccount(), isServiceAccountFilePath);
-          Storage storage = GCPUtils.getStorage(getProject(), credentials);
-          Bucket bucket = null;
-          try {
-            bucket = storage.get(getBucket());
-          } catch (StorageException e) {
-            return;
+        Credentials credentials = getServiceAccount() == null ?
+          null : GCPUtils.loadServiceAccountCredentials(getServiceAccount(), isServiceAccountFilePath);
+        Storage storage = GCPUtils.getStorage(getProject(), credentials);
+        Bucket bucket = null;
+        try {
+          bucket = storage.get(getBucket());
+        } catch (StorageException e) {
+          /* Ignoring the exception because we don't want the validation to fail if there is an exception getting
+            the bucket information either because the service account used during validation is the CDF service account
+            which is different than the service account that will be used at runtime (the dataproc service account)
+            (assuming the user has auto-detect for the service account) */
+          return;
+        }
+        if (bucket == null) {
+          if (Strings.isNullOrEmpty(location)) {
+            location = "US";
           }
-          if (bucket == null) {
-            String cmekKeyLocation = cmekKeyName.getLocation();
-            if (!cmekKeyLocation.equals(location)) {
-              failureCollector.addFailure(String.format("CMEK key '%s' is in location '%s' while the GCS bucket will " +
-                                                          "be created in location '%s'.", cmekKey,
-                                                        cmekKeyLocation, location)
-                , "Modify the CMEK key or bucket location to be the same")
-                .withConfigProperty(NAME_CMEK_KEY);
-            }
+          String cmekKeyLocation = cmekKeyName.getLocation();
+          if (!cmekKeyLocation.equals(location)) {
+            failureCollector.addFailure(String.format("CMEK key '%s' is in location '%s' while the GCS bucket will " +
+                                                        "be created in location '%s'.", cmekKey,
+                                                      cmekKeyLocation, location)
+              , "Modify the CMEK key or bucket location to be the same")
+              .withConfigProperty(NAME_CMEK_KEY);
           }
         }
       } catch (Exception e) {
