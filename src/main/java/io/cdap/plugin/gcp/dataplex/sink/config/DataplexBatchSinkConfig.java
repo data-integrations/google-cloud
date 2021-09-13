@@ -46,6 +46,7 @@ import io.cdap.plugin.gcp.bigquery.sink.Operation;
 import io.cdap.plugin.gcp.bigquery.sink.PartitionType;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
+import io.cdap.plugin.gcp.dataplex.common.config.DataplexBaseConfig;
 import io.cdap.plugin.gcp.dataplex.sink.DataplexBatchSink;
 import io.cdap.plugin.gcp.dataplex.sink.connection.DataplexInterface;
 import io.cdap.plugin.gcp.dataplex.sink.connector.DataplexConnectorConfig;
