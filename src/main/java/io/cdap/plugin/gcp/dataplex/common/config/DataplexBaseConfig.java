@@ -14,7 +14,7 @@
  * the License.
  */
 
-package io.cdap.plugin.gcp.dataplex.sink.config;
+package io.cdap.plugin.gcp.dataplex.common.config;
 
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
