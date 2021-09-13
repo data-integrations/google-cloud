@@ -17,11 +17,14 @@
 package io.cdap.plugin.gcp.dataplex.sink;
 
 import com.google.auth.Credentials;
-import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
+import com.google.cloud.bigquery.Job;
+import com.google.cloud.bigquery.JobConfiguration;
+import com.google.cloud.bigquery.JobId;
+import com.google.cloud.bigquery.JobStatistics;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
@@ -42,12 +45,15 @@ import io.cdap.cdap.etl.api.Emitter;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.StageConfigurer;
+import io.cdap.cdap.etl.api.StageMetrics;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.validation.FormatContext;
 import io.cdap.cdap.etl.api.validation.ValidatingOutputFormat;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.plugin.common.LineageRecorder;
+import io.cdap.plugin.common.batch.sink.SinkOutputFormatProvider;
+import io.cdap.plugin.gcp.bigquery.sink.AbstractBigQuerySink;
 import io.cdap.plugin.gcp.bigquery.sink.AbstractBigQuerySinkConfig;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
 import io.cdap.plugin.gcp.bigquery.sink.PartitionType;
@@ -58,9 +64,13 @@ import io.cdap.plugin.gcp.dataplex.sink.config.DataplexBatchSinkConfig;
 import io.cdap.plugin.gcp.dataplex.sink.connection.DataplexInterface;
 import io.cdap.plugin.gcp.dataplex.sink.connection.out.DataplexInterfaceImpl;
 import io.cdap.plugin.gcp.dataplex.sink.model.Asset;
-import io.cdap.plugin.gcp.gcs.sink.GCSOutputFormatProvider;
+import io.cdap.plugin.gcp.gcs.GCSPath;
+import io.cdap.plugin.gcp.gcs.StorageClient;
+import io.cdap.plugin.gcp.gcs.sink.GCSBatchSink;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.slf4j.Logger;
@@ -100,6 +110,7 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
   public static final String BIGQUERY_DATASET_ASSET_TYPE = "BIGQUERY_DATASET";
   public static final String STORAGE_BUCKET_ASSET_TYPE = "STORAGE_BUCKET";
   private static final Logger LOG = LoggerFactory.getLogger(DataplexBatchSink.class);
+  private static final String RECORDS_UPDATED_METRIC = "records.updated";
   // Usually, you will need a private variable to store the config that was passed to your class
   private final DataplexBatchSinkConfig config;
   // UUID for the run. Will be used as bucket name if bucket is not provided.
@@ -107,7 +118,8 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
   private final UUID runUUID = UUID.randomUUID();
   protected Configuration baseConfiguration;
   protected BigQuery bigQuery;
-
+  private String outputPath;
+  private Asset assetBean;
 
   public DataplexBatchSink(DataplexBatchSinkConfig config) {
     this.config = config;
@@ -135,9 +147,6 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
       config.validateFormatForStorageBucket(pipelineConfigurer, collector);
     }
 
-
-    // validate schema with underlying table
-
   }
 
   @Override
@@ -146,6 +155,8 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     DataplexInterface dataplexInterface = new DataplexInterfaceImpl();
     config.validateAssetConfiguration(collector, dataplexInterface);
     config.validateServiceAccount(collector);
+    assetBean = dataplexInterface.getAsset(config.getCredentials(), config.tryGetProject(),
+      config.getLocation(), config.getLake(), config.getZone(), config.getAsset());
     if (config.getAssetType().equals(BIGQUERY_DATASET_ASSET_TYPE)) {
       config.validateBigQueryDataset(context.getInputSchema(), context.getOutputSchema(), collector, dataplexInterface);
       prepareRunBigQueryDataset(context, dataplexInterface);
@@ -154,6 +165,44 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     }
   }
 
+  /**
+   * O/P Template parameters will get changed based on asset type. E.g. <StructuredRecord, NullWritable> for BQ Dataset
+   *
+   * @param input
+   * @param emitter
+   */
+
+  @Override
+  public void transform(StructuredRecord input, Emitter<KeyValue<Object, Object>> emitter) {
+    if (this.config.getAssetType().equalsIgnoreCase(BIGQUERY_DATASET_ASSET_TYPE)) {
+      emitter.emit(new KeyValue<>(input, NullWritable.get()));
+    } else {
+      emitter.emit(new KeyValue<>(NullWritable.get(), input));
+    }
+  }
+
+  @Override
+  public void onRunFinish(boolean succeeded, BatchSinkContext context) {
+    if (this.config.getAssetType().equalsIgnoreCase(STORAGE_BUCKET_ASSET_TYPE)) {
+      emitMetrics(succeeded, context);
+      return;
+    }
+    onRunFinishForBigQueryDataset(succeeded, context);
+    try {
+      recordMetric(succeeded, context);
+    } catch (Exception exception) {
+      LOG.warn("Exception while trying to emit metric. No metric will be emitted for the number of affected rows.",
+        exception);
+    }
+  }
+
+  /**
+   * prepare Run for BQ Dataset Asset. It will create necessary resources, and configuration methods
+   *
+   * @param context
+   * @param dataplexInterface
+   * @throws Exception
+   */
   private void prepareRunBigQueryDataset(BatchSinkContext context,
                                          DataplexInterface dataplexInterface) throws Exception {
     FailureCollector collector = context.getFailureCollector();
@@ -161,8 +210,6 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     String project = config.getProject();
     String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
     baseConfiguration = getBaseConfiguration(cmekKey);
-    Asset assetBean = dataplexInterface.getAsset((GoogleCredentials) credentials, config.tryGetProject(),
-      config.getLocation(), config.getLake(), config.getZone(), config.getAsset());
     String[] assetValues = assetBean.getAssetResourceSpec().name.split("/");
     String dataset = assetValues[assetValues.length - 1];
     String datasetProject = assetValues[assetValues.length - 3];
@@ -251,7 +298,7 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     Configuration baseConfiguration = BigQueryUtil.getBigQueryConfig(config.getServiceAccount(), config.getProject(),
       cmekKey, config.getServiceAccountType());
     baseConfiguration.setBoolean(BigQueryConstants.CONFIG_ALLOW_SCHEMA_RELAXATION,
-      true);
+      config.isUpdateTableSchema());
     baseConfiguration.setStrings(BigQueryConfiguration.OUTPUT_TABLE_WRITE_DISPOSITION_KEY,
       config.getWriteDisposition().name());
     // this setting is needed because gcs has default chunk size of 64MB. This is large default chunk size which can
@@ -297,7 +344,7 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
       .collect(Collectors.toList());
     recordLineage(context, outputName, tableSchema, fieldNames);
     configuration.set(DataplexOutputFormatProvider.DATAPLEX_ASSET_TYPE, DataplexBatchSink.BIGQUERY_DATASET_ASSET_TYPE);
-    context.addOutput(Output.of(outputName, new DataplexOutputFormatProvider(configuration, tableSchema, null, null)));
+    context.addOutput(Output.of(outputName, new DataplexOutputFormatProvider(configuration, tableSchema, null)));
   }
 
   private void recordLineage(BatchSinkContext context,
@@ -436,7 +483,67 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     collector.getOrThrowException();
   }
 
+  void recordMetric(boolean succeeded, BatchSinkContext context) {
+    if (!succeeded) {
+      return;
+    }
+    Job queryJob = bigQuery.getJob(getJobId());
+    if (queryJob == null) {
+      LOG.warn("Unable to find BigQuery job. No metric will be emitted for the number of affected rows.");
+      return;
+    }
+    long totalRows = getTotalRows(queryJob);
+    LOG.info("Job {} affected {} rows", queryJob.getJobId(), totalRows);
+    //work around since StageMetrics count() only takes int as of now
+    int cap = 10000; // so the loop will not cause significant delays
+    long count = totalRows / Integer.MAX_VALUE;
+    if (count > cap) {
+      LOG.warn("Total record count is too high! Metric for the number of affected rows may not be updated correctly");
+    }
+    count = count < cap ? count : cap;
+    for (int i = 0; i <= count && totalRows > 0; i++) {
+      int rowCount = totalRows < Integer.MAX_VALUE ? (int) totalRows : Integer.MAX_VALUE;
+      context.getMetrics().count(AbstractBigQuerySink.RECORDS_UPDATED_METRIC, rowCount);
+      totalRows -= rowCount;
+    }
+  }
 
+  private JobId getJobId() {
+    return JobId.newBuilder().setLocation(config.getLocation()).setJob(runUUID.toString()).build();
+  }
+
+  private long getTotalRows(Job queryJob) {
+    JobConfiguration.Type type = queryJob.getConfiguration().getType();
+    if (type == JobConfiguration.Type.LOAD) {
+      return ((JobStatistics.LoadStatistics) queryJob.getStatistics()).getOutputRows();
+    } else if (type == JobConfiguration.Type.QUERY) {
+      return ((JobStatistics.QueryStatistics) queryJob.getStatistics()).getNumDmlAffectedRows();
+    }
+    LOG.warn("Unable to identify BigQuery job type. No metric will be emitted for the number of affected rows.");
+    return 0;
+  }
+
+  public void onRunFinishForBigQueryDataset(boolean succeeded, BatchSinkContext context) {
+    Path gcsPath = new Path(String.format("gs://%s", runUUID));
+
+    try {
+      FileSystem fs = gcsPath.getFileSystem(baseConfiguration);
+      if (fs.exists(gcsPath)) {
+        fs.delete(gcsPath, true);
+        LOG.debug("Deleted temporary directory '{}'", gcsPath);
+      }
+    } catch (IOException e) {
+      LOG.warn("Failed to delete temporary directory '{}': {}", gcsPath, e.getMessage());
+    }
+  }
+
+  /**
+   * This method will perform prepareRun tasks for Storage Bucket Asset.
+   *
+   * @param context
+   * @param dataplexInterface
+   * @throws Exception
+   */
   private void prepareRunStorageBucket(BatchSinkContext context,
                                        DataplexInterface dataplexInterface) throws Exception {
     validateRunStorageBucket(context);
@@ -447,8 +554,6 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     Bucket bucket;
     String bucketName = "";
     try {
-      Asset assetBean = dataplexInterface.getAsset(config.getCredentials(), config.tryGetProject(),
-        config.getLocation(), config.getLake(), config.getZone(), config.getAsset());
       bucketName = assetBean.getAssetResourceSpec().getName().
         substring(assetBean.getAssetResourceSpec().getName().lastIndexOf('/') + 1);
       bucket = storage.get(bucketName);
@@ -462,13 +567,19 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     }
   }
 
+  /**
+   * Validates storage bucket properties and set OutputFormatValidator
+   *
+   * @param context
+   * @throws Exception
+   */
   private void validateRunStorageBucket(BatchSinkContext context) throws Exception {
     FailureCollector collector = context.getFailureCollector();
     config.validateStorageBucket(collector);
     String format = config.getFormat().toString().toLowerCase(Locale.ROOT);
     ValidatingOutputFormat validatingOutputFormat = getOutputFormatForRun(context);
     FormatContext formatContext = new FormatContext(collector, context.getInputSchema());
-    validateOutputFormatProvider(formatContext, format, validatingOutputFormat);
+    config.validateOutputFormatProvider(formatContext, format, validatingOutputFormat);
     collector.getOrThrowException();
     // record field level lineage information
     // needs to happen before context.addOutput(), otherwise an external dataset without schema will be created.
@@ -487,15 +598,30 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     // outputProperties.putAll(getFileSystemProperties(context));
     outputProperties.put(FileOutputFormat.OUTDIR, getOutputDir(context.getLogicalStartTime()));
     outputProperties.put(DataplexOutputFormatProvider.DATAPLEX_ASSET_TYPE, config.getAssetType());
+    outputProperties.putAll(getFileSystemProperties(context));
     context.addOutput(Output.of(config.getReferenceName(),
-      new DataplexOutputFormatProvider(null, null, validatingOutputFormat, outputProperties)));
+      new SinkOutputFormatProvider(validatingOutputFormat.getOutputFormatClassName(), outputProperties)));
   }
 
+  protected Map<String, String> getFileSystemProperties(BatchSinkContext context) {
+    Map<String, String> properties = GCPUtils.getFileSystemProperties(config.getConnection(),
+      outputPath, new HashMap<>());
+    properties.put(GCSBatchSink.CONTENT_TYPE, config.getContentType());
+    return properties;
+  }
+
+  /**
+   * It will instantiate and return the ValidatingOutputFormat object based on file Format selected by user
+   *
+   * @param context
+   * @return
+   * @throws InstantiationException
+   */
   protected ValidatingOutputFormat getOutputFormatForRun(BatchSinkContext context) throws InstantiationException {
     String fileFormat = config.getFormat().toString().toLowerCase();
     try {
       ValidatingOutputFormat validatingOutputFormat = context.newPluginInstance(fileFormat);
-      return new GCSOutputFormatProvider(validatingOutputFormat);
+      return new DataplexOutputFormatProvider(null, null, validatingOutputFormat);
     } catch (InvalidPluginConfigException e) {
       Set<String> properties = new HashSet<>(e.getMissingProperties());
       for (InvalidPluginProperty invalidProperty : e.getInvalidProperties()) {
@@ -509,38 +635,72 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     }
   }
 
-
-  private void validateOutputFormatProvider(FormatContext context, String format,
-                                            @Nullable ValidatingOutputFormat validatingOutputFormat) {
-    FailureCollector collector = context.getFailureCollector();
-    if (validatingOutputFormat == null) {
-      collector.addFailure(
-        String.format("Could not find the '%s' output format plugin.", format), null)
-        .withPluginNotFound(format, format, ValidatingOutputFormat.PLUGIN_TYPE);
-    } else {
-      validatingOutputFormat.validate(context);
-    }
-  }
-
   protected void recordLineage(LineageRecorder lineageRecorder, List<String> outputFields) {
     lineageRecorder.recordWrite("Write", "Wrote to Google Cloud Storage.", outputFields);
   }
 
-  //to-do does folder name required
+  /**
+   * it will return the output directory path in format gs://bucket/folder
+   *
+   * @param logicalStartTime
+   * @return
+   */
   protected String getOutputDir(long logicalStartTime) {
     String suffix = config.getSuffix();
-    String timeSuffix = suffix != null && !suffix.isEmpty() ?
-      new SimpleDateFormat(suffix).format(logicalStartTime) : "";
-    return timeSuffix;
+    String timeSuffix = suffix == null || suffix.isEmpty() ? "" : new SimpleDateFormat(suffix).format(logicalStartTime);
+    String configPath = GCSPath.SCHEME + assetBean.getAssetResourceSpec().getName().
+      substring(assetBean.getAssetResourceSpec().getName().lastIndexOf('/') + 1);
+    String finalPath = String.format("%s/%s", configPath, timeSuffix);
+    this.outputPath = finalPath;
+    return finalPath;
   }
 
-  @Override
-  public void transform(StructuredRecord input, Emitter<KeyValue<Object, Object>> emitter) {
-    if (this.config.getAssetType().equalsIgnoreCase(BIGQUERY_DATASET_ASSET_TYPE)) {
-      emitter.emit(new KeyValue<>(input, NullWritable.get()));
-    } else {
-      emitter.emit(new KeyValue<>(NullWritable.get(), input));
+  private void emitMetrics(boolean succeeded, BatchSinkContext context) {
+    if (!succeeded) {
+      return;
     }
 
+    try {
+      StorageClient storageClient = StorageClient.create(config.getProject(), config.getServiceAccount(),
+        config.isServiceAccountFilePath());
+      storageClient.mapMetaDataForAllBlobs(outputPath,
+        new DataplexBatchSink.MetricsEmitter(context.getMetrics())::emitMetrics);
+    } catch (Exception e) {
+      LOG.warn("Metrics for the number of affected rows in GCS Sink maybe incorrect.", e);
+    }
   }
+
+  private static class MetricsEmitter {
+    private final StageMetrics stageMetrics;
+
+    private MetricsEmitter(StageMetrics stageMetrics) {
+      this.stageMetrics = stageMetrics;
+    }
+
+    public void emitMetrics(Map<String, String> metaData) {
+      long totalRows = extractRecordCount(metaData);
+      if (totalRows == 0) {
+        return;
+      }
+
+      // work around since StageMetrics count() only takes int as of now
+      int cap = 10000; // so the loop will not cause significant delays
+      long count = totalRows / Integer.MAX_VALUE;
+      if (count > cap) {
+        LOG.warn("Total record count is too high! Metric for the number of affected rows may not be updated correctly");
+      }
+      count = count < cap ? count : cap;
+      for (int i = 0; i <= count && totalRows > 0; i++) {
+        int rowCount = totalRows < Integer.MAX_VALUE ? (int) totalRows : Integer.MAX_VALUE;
+        stageMetrics.count(RECORDS_UPDATED_METRIC, rowCount);
+        totalRows -= rowCount;
+      }
+    }
+
+    private long extractRecordCount(Map<String, String> metadata) {
+      String value = metadata.get(GCSBatchSink.RECORD_COUNT);
+      return value == null ? 0L : Long.parseLong(value);
+    }
+  }
+
 }
