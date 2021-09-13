@@ -91,7 +91,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   private static final String NAME_PARTITION_FILTER = "partitionFilter";
   private static final String NAME_PARTITIONING_TYPE = "partitioningType";
   private static final String NAME_TRUNCATE_TABLE = "truncateTable";
-  private static final String NAME_UPDATE_TABLE_SCHEMA = "updateTableSchema";
+  private static final String NAME_UPDATE_SCHEMA = "allowSchemaRelaxation";
   private static final String NAME_PARTITION_BY_FIELD = "partitionField";
   private static final String NAME_REQUIRE_PARTITION_FIELD = "requirePartitionField";
   private static final String NAME_CLUSTERING_ORDER = "clusteringOrder";
@@ -206,12 +206,12 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     "operation.")
   protected Boolean truncateTable;
 
-  @Name(NAME_UPDATE_TABLE_SCHEMA)
+  @Name(NAME_UPDATE_SCHEMA)
   @Nullable
   @Macro
   @Description("Whether the BigQuery table schema should be modified when it does not match the schema expected " +
     "by the pipeline.")
-  protected Boolean updateTableSchema;
+  protected Boolean allowSchemaRelaxation;
 
   @Name(NAME_PARTITION_BY_FIELD)
   @Nullable
@@ -330,7 +330,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
 
   @Nullable
   public Boolean isUpdateTableSchema() {
-    return updateTableSchema;
+    return allowSchemaRelaxation == null ? false : allowSchemaRelaxation;
   }
 
   @Nullable
@@ -434,7 +434,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
         }
     }
   }
-
+// This method will validate the location, lake, zone and asset configurations
   public void validateAssetConfiguration(FailureCollector collector, DataplexInterface dataplexInterface) {
     IdUtils.validateReferenceName(referenceName, collector);
     GoogleCredentials credentials = getCredentials();
@@ -582,7 +582,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
       connection.getServiceAccount(), connection.isServiceAccountFilePath(),
       collector);
 
-    if (table != null && !this.containsMacro(NAME_UPDATE_TABLE_SCHEMA)) {
+    if (table != null && !this.containsMacro(NAME_UPDATE_SCHEMA)) {
       // if table already exists, validate schema against underlying bigquery table
       com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
       if (this.getOperation().equals(Operation.INSERT)) {
@@ -961,7 +961,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     }
   }
 
-  private void validateOutputFormatProvider(FormatContext context, String format,
+  public void validateOutputFormatProvider(FormatContext context, String format,
                                             @Nullable ValidatingOutputFormat validatingOutputFormat) {
     FailureCollector collector = context.getFailureCollector();
     if (validatingOutputFormat == null) {
@@ -1219,4 +1219,19 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     }
     collector.getOrThrowException();
   }
+
+
+  /*  This method gets the value of content type. Valid content types for each format are:
+   *
+   *  avro -> application/avro, application/octet-stream
+   *  json -> application/json, text/plain, application/octet-stream
+   *  csv -> application/csv, text/csv, text/plain, application/octet-stream
+   *  orc -> application/octet-stream
+   *  parquet -> application/octet-stream
+   */
+  @Nullable
+  public String getContentType() {
+      return contentType;
+  }
+
 }

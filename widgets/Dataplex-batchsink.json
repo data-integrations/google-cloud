@@ -173,7 +173,7 @@
               "orc",
               "parquet"
             ],
-            "plugin-type": "validatingOutputFormat"
+            "default": "json"
           }
         },
         {
@@ -271,7 +271,7 @@
         {
           "widget-type": "toggle",
           "label": "Update Table Schema",
-          "name": "updateTableSchema",
+          "name": "allowSchemaRelaxation",
           "widget-attributes": {
             "default": "false",
             "on": {
@@ -407,7 +407,7 @@
         },
         {
           "type": "property",
-          "name": "updateTableSchema"
+          "name": "allowSchemaRelaxation"
         },
         {
           "type": "property",
