@@ -398,48 +398,19 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
       }
     }
 
-    //This method validated the pattern of CMEK Key resource ID.
-    private void validateCmekKey(FailureCollector failureCollector) {
-      try {
-        CryptoKeyName cmekKeyName = CryptoKeyName.parse(cmekKey);
-        Boolean isServiceAccountFilePath = isServiceAccountFilePath();
-        Credentials credentials = null;
-        try {
-          credentials = getServiceAccount() == null ?
-            null : GCPUtils.loadServiceAccountCredentials(getServiceAccount(), isServiceAccountFilePath);
-        } catch (Exception e) {
-          /*Ignoring the exception because we don't want to highlight cmek key if an exception occurs while
-          loading credentials*/
-          return;
-        }
-        Storage storage = GCPUtils.getStorage(getProject(), credentials);
-        Bucket bucket = null;
-        try {
-          bucket = storage.get(getBucket());
-        } catch (StorageException e) {
-          /* Ignoring the exception because we don't want the validation to fail if there is an exception getting
-            the bucket information either because the service account used during validation is the CDF service account
-            which is different than the service account that will be used at runtime (the dataproc service account)
-            (assuming the user has auto-detect for the service account) */
-          return;
-        }
-        if (bucket == null) {
-          if (Strings.isNullOrEmpty(location)) {
-            location = "US";
-          }
-          String cmekKeyLocation = cmekKeyName.getLocation();
-          if (!cmekKeyLocation.equals(location)) {
-            failureCollector.addFailure(String.format("CMEK key '%s' is in location '%s' while the GCS bucket will " +
-                                                        "be created in location '%s'.", cmekKey,
-                                                      cmekKeyLocation, location)
-              , "Modify the CMEK key or bucket location to be the same")
-              .withConfigProperty(NAME_CMEK_KEY);
-          }
-        }
-      } catch (ValidationException e) {
-        failureCollector.addFailure(e.getMessage(), null)
-          .withConfigProperty(NAME_CMEK_KEY).withStacktrace(e.getStackTrace());
-      }
+    public GCSBatchSinkConfig(@Nullable String referenceName, @Nullable String project,
+                              @Nullable String serviceAccountType, @Nullable String serviceFilePath,
+                              @Nullable String serviceAccountJson, @Nullable String path, @Nullable String location,
+                              @Nullable String cmekKey) {
+      super();
+      this.referenceName = referenceName;
+      this.project = project;
+      this.serviceAccountType = serviceAccountType;
+      this.serviceFilePath = serviceFilePath;
+      this.serviceAccountJson = serviceAccountJson;
+      this.path = path;
+      this.location = location;
+      this.cmekKey = cmekKey;
     }
 
     //This method validates the specified content type for the used format.
@@ -587,6 +558,54 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     @Nullable
     public String getOutputFileNameBase() {
       return outputFileNameBase;
+    }
+
+    public GCSBatchSinkConfig() {
+      super();
+    }
+
+    //This method validated the pattern of CMEK Key resource ID.
+    void validateCmekKey(FailureCollector failureCollector) {
+      CryptoKeyName cmekKeyName = null;
+      try {
+        cmekKeyName = CryptoKeyName.parse(cmekKey);
+      } catch (ValidationException e) {
+        failureCollector.addFailure(e.getMessage(), null)
+          .withConfigProperty(NAME_CMEK_KEY).withStacktrace(e.getStackTrace());
+        return;
+      }
+      Boolean isServiceAccountFilePath = isServiceAccountFilePath();
+      Credentials credentials = null;
+      try {
+        credentials = getServiceAccount() == null ?
+          null : GCPUtils.loadServiceAccountCredentials(getServiceAccount(), isServiceAccountFilePath);
+      } catch (Exception e) {
+        /*Ignoring the exception because we don't want to highlight cmek key if an exception occurs while
+        loading credentials*/
+        return;
+      }
+      Storage storage = GCPUtils.getStorage(getProject(), credentials);
+      Bucket bucket = null;
+      try {
+        bucket = storage.get(getBucket());
+      } catch (StorageException e) {
+        /* Ignoring the exception because we don't want the validation to fail if there is an exception getting
+          the bucket information either because the service account used during validation can be different than
+          the service account that will be used at runtime (the dataproc service account)
+          (assuming the user has auto-detect for the service account) */
+        return;
+      }
+      if (bucket == null) {
+        String cmekKeyLocation = cmekKeyName.getLocation();
+        if ((Strings.isNullOrEmpty(location) && "US".equalsIgnoreCase(cmekKeyLocation))
+          || (!Strings.isNullOrEmpty(location) && !cmekKeyLocation.equalsIgnoreCase(location))) {
+          failureCollector.addFailure(String.format("CMEK key '%s' is in location '%s' while the GCS bucket will " + 
+                                                      "be created in location '%s'.", cmekKey,
+                                                    cmekKeyLocation, location)
+            , "Modify the CMEK key or bucket location to be the same")
+            .withConfigProperty(NAME_CMEK_KEY);
+        }
+      }
     }
   }
 }
