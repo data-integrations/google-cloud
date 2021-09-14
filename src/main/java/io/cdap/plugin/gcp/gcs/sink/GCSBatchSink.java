@@ -612,10 +612,14 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
       }
     }
 
+    public static Builder builder() {
+      return new Builder();
+    }
+
     /**
      * GCS Batch Sink configuration builder.
      */
-    public static class GCSBatchSinkConfigBuilder {
+    public static class Builder {
       private String referenceName;
       private String serviceAccountType;
       private String serviceFilePath;
@@ -625,48 +629,44 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
       private String cmekKey;
       private String location;
 
-      public GCSBatchSinkConfigBuilder setReferenceName(@Nullable String referenceName) {
+      public Builder setReferenceName(@Nullable String referenceName) {
         this.referenceName = referenceName;
         return this;
       }
 
-      public GCSBatchSinkConfigBuilder setProject(@Nullable String project) {
+      public Builder setProject(@Nullable String project) {
         this.project = project;
         return this;
       }
 
-      public GCSBatchSinkConfigBuilder setServiceAccountType(@Nullable String serviceAccountType) {
+      public Builder setServiceAccountType(@Nullable String serviceAccountType) {
         this.serviceAccountType = serviceAccountType;
         return this;
       }
 
-      public GCSBatchSinkConfigBuilder setServiceFilePath(@Nullable String serviceFilePath) {
+      public Builder setServiceFilePath(@Nullable String serviceFilePath) {
         this.serviceFilePath = serviceFilePath;
         return this;
       }
 
-      public GCSBatchSinkConfigBuilder setServiceAccountJson(@Nullable String serviceAccountJson) {
+      public Builder setServiceAccountJson(@Nullable String serviceAccountJson) {
         this.serviceAccountJson = serviceAccountJson;
         return this;
       }
 
-      public GCSBatchSinkConfigBuilder setGcsPath(@Nullable String gcsPath) {
+      public Builder setGcsPath(@Nullable String gcsPath) {
         this.gcsPath = gcsPath;
         return this;
       }
 
-      public GCSBatchSinkConfigBuilder setCmekKey(@Nullable String cmekKey) {
+      public Builder setCmekKey(@Nullable String cmekKey) {
         this.cmekKey = cmekKey;
         return this;
       }
 
-      public GCSBatchSinkConfigBuilder setLocation(@Nullable String location) {
+      public Builder setLocation(@Nullable String location) {
         this.location = location;
         return this;
-      }
-
-      public static GCSBatchSinkConfigBuilder builder() {
-        return new GCSBatchSinkConfigBuilder();
       }
 
       public GCSBatchSink.GCSBatchSinkConfig build() {

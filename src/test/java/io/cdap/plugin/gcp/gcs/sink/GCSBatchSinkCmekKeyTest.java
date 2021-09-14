@@ -20,7 +20,7 @@ import io.cdap.cdap.etl.api.validation.CauseAttributes;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.cdap.etl.mock.validation.MockFailureCollector;
 import io.cdap.plugin.gcp.common.GCPConfig;
-import io.cdap.plugin.gcp.gcs.sink.GCSBatchSink.GCSBatchSinkConfig.GCSBatchSinkConfigBuilder;
+import io.cdap.plugin.gcp.gcs.sink.GCSBatchSink.GCSBatchSinkConfig;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.BeforeClass;
@@ -78,9 +78,9 @@ public class GCSBatchSinkCmekKeyTest {
     return String.format("gs://%s%s", project, new SimpleDateFormat("-yyyy-MM-dd-HH-mm-ss").format(new Date()));
   }
 
-  private GCSBatchSinkConfigBuilder getBuilder() throws NoSuchFieldException {
+  private GCSBatchSinkConfig.Builder getBuilder() throws NoSuchFieldException {
     String referenceName = "test-ref";
-    return GCSBatchSinkConfigBuilder.builder()
+    return GCSBatchSinkConfig.builder()
       .setReferenceName(referenceName)
       .setProject(project)
       .setGcsPath(gcsPath);
@@ -88,7 +88,7 @@ public class GCSBatchSinkCmekKeyTest {
 
   @Test
   public void testServiceAccountPath() throws Exception {
-    GCSBatchSinkConfigBuilder builder = getBuilder()
+    GCSBatchSinkConfig.Builder builder = getBuilder()
       .setServiceAccountType(GCPConfig.SERVICE_ACCOUNT_FILE_PATH)
       .setServiceFilePath(serviceAccountFilePath);
     testValidCmekKey(builder);
@@ -98,7 +98,7 @@ public class GCSBatchSinkCmekKeyTest {
 
   @Test
   public void testServiceAccountJson() throws Exception {
-    GCSBatchSinkConfigBuilder builder = getBuilder()
+    GCSBatchSinkConfig.Builder builder = getBuilder()
       .setServiceAccountType(GCPConfig.SERVICE_ACCOUNT_JSON)
       .setServiceAccountJson(serviceAccountKey);
     testValidCmekKey(builder);
@@ -106,7 +106,7 @@ public class GCSBatchSinkCmekKeyTest {
     testInvalidCmekKeyLocation(builder);
   }
 
-  private void testValidCmekKey(GCSBatchSinkConfigBuilder builder) throws Exception {
+  private void testValidCmekKey(GCSBatchSinkConfig.Builder builder) throws Exception {
     MockFailureCollector collector = new MockFailureCollector("gcssink");
     GCSBatchSink.GCSBatchSinkConfig config = builder
       .setCmekKey(String.format("projects/%s/locations/us-east1/keyRings/my_ring/cryptoKeys/test_key", project))
@@ -116,9 +116,9 @@ public class GCSBatchSinkCmekKeyTest {
     Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
-  private void testInvalidCmekKeyName(GCSBatchSinkConfigBuilder builder) throws Exception {
+  private void testInvalidCmekKeyName(GCSBatchSinkConfig.Builder builder) throws Exception {
     MockFailureCollector collector = new MockFailureCollector("gcssink");
-    GCSBatchSink.GCSBatchSinkConfig config = builder
+    GCSBatchSinkConfig config = builder
       .setCmekKey(String.format("projects/%s/locations/us-east1/keyRings", project))
       .build();
     config.validateCmekKey(collector);
@@ -128,9 +128,9 @@ public class GCSBatchSinkCmekKeyTest {
     Assert.assertEquals("cmekKey", causes.get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
   }
 
-  private void testInvalidCmekKeyLocation(GCSBatchSinkConfigBuilder builder) throws Exception {
+  private void testInvalidCmekKeyLocation(GCSBatchSinkConfig.Builder builder) throws Exception {
     MockFailureCollector collector = new MockFailureCollector("gcssink");
-    GCSBatchSink.GCSBatchSinkConfig config = builder
+    GCSBatchSinkConfig config = builder
       .setCmekKey(String.format("projects/%s/locations/us-east1/keyRings/my_ring/cryptoKeys/test_key", project))
       .setLocation("us")
       .build();
