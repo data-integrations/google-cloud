@@ -597,15 +597,91 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
       }
       if (bucket == null) {
         String cmekKeyLocation = cmekKeyName.getLocation();
-        if ((Strings.isNullOrEmpty(location) && "US".equalsIgnoreCase(cmekKeyLocation))
+        if ((Strings.isNullOrEmpty(location) && !"US".equalsIgnoreCase(cmekKeyLocation))
           || (!Strings.isNullOrEmpty(location) && !cmekKeyLocation.equalsIgnoreCase(location))) {
-          failureCollector.addFailure(String.format("CMEK key '%s' is in location '%s' while the GCS bucket will " + 
+          String bucketLocation = location;
+          if (Strings.isNullOrEmpty(bucketLocation)) {
+            bucketLocation = "US";
+          }
+          failureCollector.addFailure(String.format("CMEK key '%s' is in location '%s' while the GCS bucket will " +
                                                       "be created in location '%s'.", cmekKey,
-                                                    cmekKeyLocation, location)
+                                                    cmekKeyLocation, bucketLocation)
             , "Modify the CMEK key or bucket location to be the same")
             .withConfigProperty(NAME_CMEK_KEY);
         }
       }
+    }
+
+    /**
+     * GCS Batch Sink configuration builder.
+     */
+    public static class GCSBatchSinkConfigBuilder {
+      private String referenceName;
+      private String serviceAccountType;
+      private String serviceFilePath;
+      private String serviceAccountJson;
+      private String project;
+      private String gcsPath;
+      private String cmekKey;
+      private String location;
+
+      public GCSBatchSinkConfigBuilder setReferenceName(@Nullable String referenceName) {
+        this.referenceName = referenceName;
+        return this;
+      }
+
+      public GCSBatchSinkConfigBuilder setProject(@Nullable String project) {
+        this.project = project;
+        return this;
+      }
+
+      public GCSBatchSinkConfigBuilder setServiceAccountType(@Nullable String serviceAccountType) {
+        this.serviceAccountType = serviceAccountType;
+        return this;
+      }
+
+      public GCSBatchSinkConfigBuilder setServiceFilePath(@Nullable String serviceFilePath) {
+        this.serviceFilePath = serviceFilePath;
+        return this;
+      }
+
+      public GCSBatchSinkConfigBuilder setServiceAccountJson(@Nullable String serviceAccountJson) {
+        this.serviceAccountJson = serviceAccountJson;
+        return this;
+      }
+
+      public GCSBatchSinkConfigBuilder setGcsPath(@Nullable String gcsPath) {
+        this.gcsPath = gcsPath;
+        return this;
+      }
+
+      public GCSBatchSinkConfigBuilder setCmekKey(@Nullable String cmekKey) {
+        this.cmekKey = cmekKey;
+        return this;
+      }
+
+      public GCSBatchSinkConfigBuilder setLocation(@Nullable String location) {
+        this.location = location;
+        return this;
+      }
+
+      public static GCSBatchSinkConfigBuilder builder() {
+        return new GCSBatchSinkConfigBuilder();
+      }
+
+      public GCSBatchSink.GCSBatchSinkConfig build() {
+        return new GCSBatchSink.GCSBatchSinkConfig(
+          referenceName,
+          project,
+          serviceAccountType,
+          serviceFilePath,
+          serviceAccountJson,
+          gcsPath,
+          location,
+          cmekKey
+        );
+      }
+
     }
   }
 }

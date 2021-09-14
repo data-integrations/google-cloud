@@ -20,6 +20,7 @@ import io.cdap.cdap.etl.api.validation.CauseAttributes;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.cdap.etl.mock.validation.MockFailureCollector;
 import io.cdap.plugin.gcp.common.GCPConfig;
+import io.cdap.plugin.gcp.gcs.sink.GCSBatchSink.GCSBatchSinkConfig.GCSBatchSinkConfigBuilder;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.BeforeClass;
@@ -79,7 +80,7 @@ public class GCSBatchSinkCmekKeyTest {
 
   private GCSBatchSinkConfigBuilder getBuilder() throws NoSuchFieldException {
     String referenceName = "test-ref";
-    return GCSBatchSinkConfigBuilder.aGCSBatchSinkConfig()
+    return GCSBatchSinkConfigBuilder.builder()
       .setReferenceName(referenceName)
       .setProject(project)
       .setGcsPath(gcsPath);
@@ -136,6 +137,17 @@ public class GCSBatchSinkCmekKeyTest {
     config.validateCmekKey(collector);
     ValidationFailure failure = collector.getValidationFailures().get(0);
     List<ValidationFailure.Cause> causes = failure.getCauses();
+    Assert.assertEquals(1, causes.size());
+    Assert.assertEquals("cmekKey", causes.get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
+
+    //testing the default location of the bucket ("US") if location config is empty or null
+    config = builder
+      .setCmekKey(String.format("projects/%s/locations/us-east1/keyRings/my_ring/cryptoKeys/test_key", project))
+      .setLocation("")
+      .build();
+    config.validateCmekKey(collector);
+    failure = collector.getValidationFailures().get(1);
+    causes = failure.getCauses();
     Assert.assertEquals(1, causes.size());
     Assert.assertEquals("cmekKey", causes.get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
   }
