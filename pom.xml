@@ -79,6 +79,7 @@
     <gcs.connector.version>hadoop2-2.0.0</gcs.connector.version>
     <google.cloud.bigtable.version>1.17.1</google.cloud.bigtable.version>
     <google.cloud.bigquery.version>1.137.1</google.cloud.bigquery.version>
+    <google.cloud.kms.version>2.0.2</google.cloud.kms.version>
     <google.cloud.pubsub.version>1.108.1</google.cloud.pubsub.version>
     <google.cloud.spanner.version>6.10.1</google.cloud.spanner.version>
     <google.cloud.speech.version>1.24.7</google.cloud.speech.version>
@@ -404,6 +405,11 @@
       <groupId>com.google.cloud.bigdataoss</groupId>
       <artifactId>gcs-connector</artifactId>
       <version>${gcs.connector.version}</version>
+    </dependency>
+    <dependency>
+    <groupId>com.google.cloud</groupId>
+    <artifactId>google-cloud-kms</artifactId>
+    <version>${google.cloud.kms.version}</version>
     </dependency>
     <dependency>
       <groupId>com.google.protobuf</groupId>
