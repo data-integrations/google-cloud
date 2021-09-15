@@ -399,18 +399,24 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     }
 
     public GCSBatchSinkConfig(@Nullable String referenceName, @Nullable String project,
-                              @Nullable String serviceAccountType, @Nullable String serviceFilePath,
-                              @Nullable String serviceAccountJson, @Nullable String path, @Nullable String location,
-                              @Nullable String cmekKey) {
+                              @Nullable String fileSystemProperties, @Nullable String serviceAccountType,
+                              @Nullable String serviceFilePath, @Nullable String serviceAccountJson,
+                              @Nullable String path, @Nullable String location, @Nullable String cmekKey,
+                              @Nullable String format, @Nullable String contentType,
+                              @Nullable String customContentType) {
       super();
       this.referenceName = referenceName;
       this.project = project;
+      this.fileSystemProperties = fileSystemProperties;
       this.serviceAccountType = serviceAccountType;
       this.serviceFilePath = serviceFilePath;
       this.serviceAccountJson = serviceAccountJson;
       this.path = path;
       this.location = location;
       this.cmekKey = cmekKey;
+      this.format = format;
+      this.contentType = contentType;
+      this.customContentType = customContentType;
     }
 
     //This method validates the specified content type for the used format.
@@ -624,10 +630,14 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
       private String serviceAccountType;
       private String serviceFilePath;
       private String serviceAccountJson;
+      private String fileSystemProperties;
       private String project;
       private String gcsPath;
       private String cmekKey;
       private String location;
+      private String format;
+      private String contentType;
+      private String customContentType;
 
       public Builder setReferenceName(@Nullable String referenceName) {
         this.referenceName = referenceName;
@@ -669,16 +679,40 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
         return this;
       }
 
+      public Builder setFileSystemProperties(@Nullable String fileSystemProperties) {
+        this.fileSystemProperties = fileSystemProperties;
+        return this;
+      }
+
+      public Builder setFormat(@Nullable String format) {
+        this.format = format;
+        return this;
+      }
+
+      public Builder setContentType(@Nullable String contentType) {
+        this.contentType = contentType;
+        return this;
+      }
+
+      public Builder setCustomContentType(@Nullable String customContentType) {
+        this.customContentType = customContentType;
+        return this;
+      }
+
       public GCSBatchSink.GCSBatchSinkConfig build() {
         return new GCSBatchSink.GCSBatchSinkConfig(
           referenceName,
           project,
+          fileSystemProperties,
           serviceAccountType,
           serviceFilePath,
           serviceAccountJson,
           gcsPath,
           location,
-          cmekKey
+          cmekKey,
+          format,
+          contentType,
+          customContentType
         );
       }
 
