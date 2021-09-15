@@ -19,34 +19,39 @@ package io.cdap.plugin.gcp.gcs.sink;
 import io.cdap.cdap.etl.api.validation.CauseAttributes;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.cdap.etl.mock.validation.MockFailureCollector;
-import io.cdap.plugin.gcp.gcs.sink.GCSBatchSink.GCSBatchSinkConfig;
+import io.cdap.plugin.gcp.common.GCPReferenceSinkConfig;
 import org.junit.Assert;
 import org.junit.Test;
+import org.mockito.internal.util.reflection.FieldSetter;
 
 import java.util.List;
-import javax.annotation.Nullable;
 
 public class GCSBatchSinkTest {
 
   @Test
   public void testValidFSProperties() throws NoSuchFieldException {
-    GCSBatchSinkConfig config = getBuilder(null).build();
+    GCSBatchSink.GCSBatchSinkConfig config = getConfig(null);
     MockFailureCollector collector = new MockFailureCollector("gcssink");
     config.validate(collector);
     Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
-  private GCSBatchSinkConfig.Builder getBuilder(@Nullable String fileSystemProperties) throws NoSuchFieldException {
-    return GCSBatchSinkConfig.builder()
-      .setReferenceName("testref")
-      .setGcsPath("gs://test")
-      .setFormat("avro")
-      .setFileSystemProperties(fileSystemProperties);
+  private GCSBatchSink.GCSBatchSinkConfig getConfig(String fileSystemProperties) throws NoSuchFieldException {
+    GCSBatchSink.GCSBatchSinkConfig gcsBatchSinkConfig = new GCSBatchSink.GCSBatchSinkConfig();
+    FieldSetter
+      .setField(gcsBatchSinkConfig, GCSBatchSink.GCSBatchSinkConfig.class.getDeclaredField("path"), "gs://test");
+    FieldSetter.setField(gcsBatchSinkConfig, GCSBatchSink.GCSBatchSinkConfig.class.getDeclaredField("format"), "avro");
+    FieldSetter
+      .setField(gcsBatchSinkConfig, GCPReferenceSinkConfig.class.getDeclaredField("referenceName"), "testref");
+    FieldSetter
+      .setField(gcsBatchSinkConfig, GCSBatchSink.GCSBatchSinkConfig.class.getDeclaredField("fileSystemProperties"),
+                fileSystemProperties);
+    return gcsBatchSinkConfig;
   }
 
   @Test
   public void testValidFSProperties1() throws NoSuchFieldException {
-    GCSBatchSink.GCSBatchSinkConfig config = getBuilder("{\"key\":\"val\"}").build();
+    GCSBatchSink.GCSBatchSinkConfig config = getConfig("{\"key\":\"val\"}");
     MockFailureCollector collector = new MockFailureCollector("gcssink");
     config.validate(collector);
     Assert.assertEquals(0, collector.getValidationFailures().size());
@@ -54,7 +59,7 @@ public class GCSBatchSinkTest {
 
   @Test
   public void testInvalidFSProperties() throws NoSuchFieldException {
-    GCSBatchSink.GCSBatchSinkConfig config = getBuilder("{\"key\":}").build();
+    GCSBatchSink.GCSBatchSinkConfig config = getConfig("{\"key\":}");
     MockFailureCollector collector = new MockFailureCollector("gcssink");
     config.validate(collector);
     Assert.assertEquals(1, collector.getValidationFailures().size());
@@ -62,46 +67,69 @@ public class GCSBatchSinkTest {
 
   @Test
   public void testValidContentType() throws Exception {
-    GCSBatchSinkConfig.Builder builder = getBuilder(null);
-    GCSBatchSinkConfig config = builder.build();
+    GCSBatchSink.GCSBatchSinkConfig config = getConfig(null);
     MockFailureCollector collector = new MockFailureCollector("gcssink");
     config.validate(collector);
-    Assert.assertEquals(0, collector.getValidationFailures().size());
-
-    config = builder.setFormat("csv").setContentType("application/csv").build();
+    FieldSetter
+      .setField(config, GCSBatchSink.GCSBatchSinkConfig.class.getDeclaredField("format"),
+                "csv");
+    FieldSetter
+      .setField(config, GCSBatchSink.GCSBatchSinkConfig.class.getDeclaredField("contentType"),
+                "application/csv");
     config.validate(collector);
-    Assert.assertEquals(0, collector.getValidationFailures().size());
-
-    config = builder.setFormat("tsv").setContentType("text/tab-separated-values").build();
+    FieldSetter
+      .setField(config, GCSBatchSink.GCSBatchSinkConfig.class.getDeclaredField("format"),
+                "tsv");
+    FieldSetter
+      .setField(config, GCSBatchSink.GCSBatchSinkConfig.class.getDeclaredField("contentType"),
+                "text/tab-separated-values");
     config.validate(collector);
-    Assert.assertEquals(0, collector.getValidationFailures().size());
-
-    config = builder.setFormat("json").setContentType("other").setCustomContentType("application/javascript").build();
+    FieldSetter
+      .setField(config, GCSBatchSink.GCSBatchSinkConfig.class.getDeclaredField("format"),
+                "json");
+    FieldSetter
+      .setField(config, GCSBatchSink.GCSBatchSinkConfig.class.getDeclaredField("contentType"),
+                "other");
+    FieldSetter
+      .setField(config, GCSBatchSink.GCSBatchSinkConfig.class.getDeclaredField("customContentType"),
+                "application/javascript");
     config.validate(collector);
     Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
   @Test
   public void testInvalidContentType() throws Exception {
-    GCSBatchSinkConfig.Builder builder = getBuilder(null);
+    GCSBatchSink.GCSBatchSinkConfig config = getConfig(null);
     MockFailureCollector collector = new MockFailureCollector("gcssink");
-
-    GCSBatchSinkConfig config = builder.setFormat("avro").setContentType("text/plain").build();
+    FieldSetter
+      .setField(config, GCSBatchSink.GCSBatchSinkConfig.class.getDeclaredField("format"),
+                "avro");
+    FieldSetter
+      .setField(config, GCSBatchSink.GCSBatchSinkConfig.class.getDeclaredField("contentType"),
+                "text/plain");
+    config.validate(collector);
+    FieldSetter
+      .setField(config, GCSBatchSink.GCSBatchSinkConfig.class.getDeclaredField("format"),
+                "csv");
+    FieldSetter
+      .setField(config, GCSBatchSink.GCSBatchSinkConfig.class.getDeclaredField("contentType"),
+                "application/avro");
+    config.validate(collector);
+    FieldSetter
+      .setField(config, GCSBatchSink.GCSBatchSinkConfig.class.getDeclaredField("format"),
+                "json");
+    FieldSetter
+      .setField(config, GCSBatchSink.GCSBatchSinkConfig.class.getDeclaredField("contentType"),
+                "text/tab-separated-values");
     config.validate(collector);
     ValidationFailure failure = collector.getValidationFailures().get(0);
     List<ValidationFailure.Cause> causes = failure.getCauses();
     Assert.assertEquals(1, causes.size());
     Assert.assertEquals("contentType", causes.get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
-
-    config = builder.setFormat("csv").setContentType("application/avro").build();
-    config.validate(collector);
     failure = collector.getValidationFailures().get(1);
     causes = failure.getCauses();
     Assert.assertEquals(1, causes.size());
     Assert.assertEquals("contentType", causes.get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
-
-    config = builder.setFormat("json").setContentType("text/tab-separated-values").build();
-    config.validate(collector);
     failure = collector.getValidationFailures().get(2);
     causes = failure.getCauses();
     Assert.assertEquals(1, causes.size());
