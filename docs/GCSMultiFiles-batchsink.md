@@ -57,6 +57,10 @@ The delimiter will be ignored if the format is anything other than 'delimited'.
 
 **Location:** The location where the gcs buckets will get created. This value is ignored if the bucket already exists.
 
+**Encryption Key Name:** It is used to encrypt data written to bucket that will be created by pipeline.
+If the bucket already exists, you need to manually apply the CMEK to it.
+The location of bucket and key should be same.
+
 **Service Account**  - service account key used for authorization
 
 * **File Path**: Path on the local file system of the service account key used for
