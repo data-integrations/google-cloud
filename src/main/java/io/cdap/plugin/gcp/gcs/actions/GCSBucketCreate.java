@@ -16,10 +16,14 @@
 
 package io.cdap.plugin.gcp.gcs.actions;
 
+import com.google.api.pathtemplate.ValidationException;
+import com.google.auth.Credentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
+import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
+import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
@@ -124,7 +128,7 @@ public final class GCSBucketCreate extends Action {
         }
         if (bucket == null) {
           GCPUtils.createBucket(storage, gcsPath.getBucket(), config.location,
-                                context.getArguments().get(GCPUtils.CMEK_KEY));
+                                config.getCmekKey(context.getArguments()));
           undoBucket.add(bucketPath);
         } else if (gcsPath.equals(bucketPath) && config.failIfExists()) {
           // if the gcs path is just a bucket, and it exists, fail the pipeline
@@ -201,8 +205,14 @@ public final class GCSBucketCreate extends Action {
     @Macro
     @Nullable
     @Description("The location where the gcs buckets will get created. " +
-                   "This value is ignored if the bucket already exists.")
+      "This value is ignored if the bucket already exists.")
     protected String location;
+
+    @Name(NAME_CMEK_KEY)
+    @Macro
+    @Nullable
+    @Description("The GCP customer managed encryption key (CMEK) name used by Cloud Dataproc")
+    private String cmekKey;
 
     public List<String> getPaths() {
       return Arrays.stream(paths.split(",")).map(String::trim).collect(Collectors.toList());
@@ -221,7 +231,72 @@ public final class GCSBucketCreate extends Action {
             collector.addFailure(e.getMessage(), null).withConfigElement(NAME_PATHS, path);
           }
         }
-        collector.getOrThrowException();
+      }
+
+      if (!containsMacro(NAME_CMEK_KEY) && !Strings.isNullOrEmpty(cmekKey)) {
+        validateCmekKey(collector);
+      }
+      collector.getOrThrowException();
+    }
+
+    //This method validated the pattern of CMEK Key resource ID.
+    void validateCmekKey(FailureCollector failureCollector) {
+      CryptoKeyName cmekKeyName = null;
+      try {
+        cmekKeyName = CryptoKeyName.parse(cmekKey);
+      } catch (ValidationException e) {
+        failureCollector.addFailure(e.getMessage(), null)
+          .withConfigProperty(NAME_CMEK_KEY).withStacktrace(e.getStackTrace());
+        return;
+      }
+
+      //these fields are needed to check if bucket exists or not and for location validation
+      if (containsMacro(NAME_PATHS) || containsMacro(NAME_LOCATION) || containsMacro(NAME_SERVICE_ACCOUNT_TYPE)
+        || containsMacro(NAME_SERVICE_ACCOUNT_JSON) || containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH)) {
+        return;
+      }
+      Boolean isServiceAccountFilePath = isServiceAccountFilePath();
+      Credentials credentials = null;
+      try {
+        credentials = getServiceAccount() == null ?
+          null : GCPUtils.loadServiceAccountCredentials(getServiceAccount(), isServiceAccountFilePath);
+      } catch (Exception e) {
+        /*Ignoring the exception because we don't want to highlight cmek key if an exception occurs while
+        loading credentials*/
+        return;
+      }
+      Storage storage = GCPUtils.getStorage(getProject(), credentials);
+      for (String path : getPaths()) {
+        GCSPath gcsPath = GCSPath.from(path);
+
+        // create the gcs buckets if not exist
+        Bucket bucket = null;
+        try {
+          bucket = storage.get(gcsPath.getBucket());
+        } catch (StorageException e) {
+          /* Ignoring the exception because we don't want the validation to fail if there is an exception getting
+          the bucket information either because the service account used during validation can be different than
+          the service account that will be used at runtime (the dataproc service account)
+          (assuming the user has auto-detect for the service account) */
+          return;
+        }
+        if (bucket == null) {
+          String cmekKeyLocation = cmekKeyName.getLocation();
+          if ((Strings.isNullOrEmpty(location) && !"US".equalsIgnoreCase(cmekKeyLocation))
+            || (!Strings.isNullOrEmpty(location) && !cmekKeyLocation.equalsIgnoreCase(location))) {
+            String bucketLocation = location;
+            if (Strings.isNullOrEmpty(bucketLocation)) {
+              bucketLocation = "US";
+            }
+            failureCollector.addFailure(String.format("CMEK key '%s' is in location '%s' while the GCS bucket '%s' will"
+                                                        + " be created in location '%s'.", cmekKey,
+                                                      cmekKeyLocation, gcsPath.getBucket(), bucketLocation)
+              , "Modify the CMEK key or bucket location to be the same")
+              .withConfigProperty(NAME_CMEK_KEY);
+          }
+          //only need to check one bucket that is to be created as all others will have same location.
+          break;
+        }
       }
     }
   }

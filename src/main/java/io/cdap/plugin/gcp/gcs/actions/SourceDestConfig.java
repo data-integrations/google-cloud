@@ -16,11 +16,19 @@
 
 package io.cdap.plugin.gcp.gcs.actions;
 
+import com.google.api.pathtemplate.ValidationException;
+import com.google.auth.Credentials;
+import com.google.cloud.kms.v1.CryptoKeyName;
+import com.google.cloud.storage.Bucket;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageException;
+import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.gcp.common.GCPConfig;
+import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 
 import javax.annotation.Nullable;
@@ -55,6 +63,12 @@ public class SourceDestConfig extends GCPConfig {
     "This value is ignored if the bucket already exists.")
   protected String location;
 
+  @Name(NAME_CMEK_KEY)
+  @Macro
+  @Nullable
+  @Description("The GCP customer managed encryption key (CMEK) name used by Cloud Dataproc")
+  private String cmekKey;
+
   public SourceDestConfig() {
     overwrite = false;
   }
@@ -87,6 +101,63 @@ public class SourceDestConfig extends GCPConfig {
         collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_DEST_PATH);
       }
     }
+    if (!containsMacro(NAME_CMEK_KEY) && !Strings.isNullOrEmpty(cmekKey)) {
+      validateCmekKey(collector);
+    }
     collector.getOrThrowException();
+  }
+
+  //This method validated the pattern of CMEK Key resource ID.
+  void validateCmekKey(FailureCollector failureCollector) {
+    CryptoKeyName cmekKeyName = null;
+    try {
+      cmekKeyName = CryptoKeyName.parse(cmekKey);
+    } catch (ValidationException e) {
+      failureCollector.addFailure(e.getMessage(), null)
+        .withConfigProperty(NAME_CMEK_KEY).withStacktrace(e.getStackTrace());
+      return;
+    }
+
+    //these fields are needed to check if bucket exists or not and for location validation
+    if (containsMacro(NAME_DEST_PATH) || containsMacro(NAME_LOCATION) || containsMacro(NAME_SERVICE_ACCOUNT_TYPE)
+      || containsMacro(NAME_SERVICE_ACCOUNT_JSON) || containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH)) {
+      return;
+    }
+    Boolean isServiceAccountFilePath = isServiceAccountFilePath();
+    Credentials credentials = null;
+    try {
+      credentials = getServiceAccount() == null ?
+        null : GCPUtils.loadServiceAccountCredentials(getServiceAccount(), isServiceAccountFilePath);
+    } catch (Exception e) {
+        /*Ignoring the exception because we don't want to highlight cmek key if an exception occurs while
+        loading credentials*/
+      return;
+    }
+    Storage storage = GCPUtils.getStorage(getProject(), credentials);
+    Bucket bucket = null;
+    try {
+      bucket = storage.get(getDestPath().getBucket());
+    } catch (StorageException e) {
+        /* Ignoring the exception because we don't want the validation to fail if there is an exception getting
+          the bucket information either because the service account used during validation can be different than
+          the service account that will be used at runtime (the dataproc service account)
+          (assuming the user has auto-detect for the service account) */
+      return;
+    }
+    if (bucket == null) {
+      String cmekKeyLocation = cmekKeyName.getLocation();
+      if ((Strings.isNullOrEmpty(location) && !"US".equalsIgnoreCase(cmekKeyLocation))
+        || (!Strings.isNullOrEmpty(location) && !cmekKeyLocation.equalsIgnoreCase(location))) {
+        String bucketLocation = location;
+        if (Strings.isNullOrEmpty(bucketLocation)) {
+          bucketLocation = "US";
+        }
+        failureCollector.addFailure(String.format("CMEK key '%s' is in location '%s' while the GCS bucket will " +
+                                                    "be created in location '%s'.", cmekKey,
+                                                  cmekKeyLocation, bucketLocation)
+          , "Modify the CMEK key or bucket location to be the same")
+          .withConfigProperty(NAME_CMEK_KEY);
+      }
+    }
   }
 }

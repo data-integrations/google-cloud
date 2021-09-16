@@ -78,7 +78,7 @@ public class GCSMove extends Action {
     }
     if (bucket == null) {
       GCPUtils.createBucket(storage, destPath.getBucket(), config.location,
-                            context.getArguments().get(GCPUtils.CMEK_KEY));
+                            config.getCmekKey(context.getArguments()));
       undo = destPath;
     }
 

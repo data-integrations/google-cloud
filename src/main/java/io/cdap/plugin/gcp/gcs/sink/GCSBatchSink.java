@@ -580,6 +580,12 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
           .withConfigProperty(NAME_CMEK_KEY).withStacktrace(e.getStackTrace());
         return;
       }
+
+      //these fields are needed to check if bucket exists or not and for location validation
+      if (containsMacro(NAME_PATH) || containsMacro(NAME_LOCATION) || containsMacro(NAME_SERVICE_ACCOUNT_TYPE)
+        || containsMacro(NAME_SERVICE_ACCOUNT_JSON) || containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH)) {
+        return;
+      }
       Boolean isServiceAccountFilePath = isServiceAccountFilePath();
       Credentials credentials = null;
       try {

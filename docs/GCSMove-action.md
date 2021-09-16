@@ -47,6 +47,10 @@ When running on other clusters, the file must be present on every node in the cl
 **Location:** The location where the destination gcs bucket will get created. 
 This value is ignored if the bucket already exists.
 
+**Encryption Key Name:** It is used to encrypt data written to bucket that will be created by pipeline.
+If the bucket already exists, you need to manually apply the CMEK to it.
+The location of bucket and key should be same.
+
 Example
 -------
 
