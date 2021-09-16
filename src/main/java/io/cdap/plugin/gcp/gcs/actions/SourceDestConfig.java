@@ -31,6 +31,7 @@ import javax.annotation.Nullable;
 public class SourceDestConfig extends GCPConfig {
   public static final String NAME_SOURCE_PATH = "sourcePath";
   public static final String NAME_DEST_PATH = "destPath";
+  public static final String NAME_LOCATION = "location";
 
   @Name(NAME_SOURCE_PATH)
   @Macro
@@ -46,6 +47,13 @@ public class SourceDestConfig extends GCPConfig {
   @Nullable
   @Description("Whether to overwrite existing objects.")
   private Boolean overwrite;
+
+  @Name(NAME_LOCATION)
+  @Macro
+  @Nullable
+  @Description("The location where the gcs buckets will get created. " +
+    "This value is ignored if the bucket already exists.")
+  protected String location;
 
   public SourceDestConfig() {
     overwrite = false;

@@ -26,7 +26,7 @@ It can be found on the Dashboard in the Google Cloud Platform Console.
 
 **Source Path**: Path to a source object or directory.
 
-**Destination Path**: Path to the destination. The bucket must already exist.
+**Destination Path**: Path to the destination.
 
 **Copy All Subdirectories**: If the source is a directory, copy all subdirectories.
 
@@ -42,6 +42,9 @@ authorization. Can be set to 'auto-detect' when running on a Dataproc cluster.
 When running on other clusters, the file must be present on every node in the cluster.
 
 * **JSON**: Contents of the service account JSON file.
+
+**Location:** The location where the destination gcs bucket will get created. 
+This value is ignored if the bucket already exists.
 
 Example
 -------

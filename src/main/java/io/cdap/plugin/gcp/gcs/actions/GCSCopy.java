@@ -16,6 +16,9 @@
 
 package io.cdap.plugin.gcp.gcs.actions;
 
+import com.google.cloud.storage.Bucket;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageException;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
@@ -23,6 +26,8 @@ import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.action.Action;
 import io.cdap.cdap.etl.api.action.ActionContext;
+import io.cdap.plugin.gcp.common.GCPUtils;
+import io.cdap.plugin.gcp.gcs.GCSPath;
 import io.cdap.plugin.gcp.gcs.StorageClient;
 
 import java.io.IOException;
@@ -57,8 +62,36 @@ public class GCSCopy extends Action {
     }
     StorageClient storageClient = StorageClient.create(config.getProject(), config.getServiceAccount(),
                                                        isServiceAccountFilePath);
-    //noinspection ConstantConditions
-    storageClient.copy(config.getSourcePath(), config.getDestPath(), config.recursive, config.shouldOverwrite());
+
+    GCSPath destPath = config.getDestPath();
+    GCSPath undo = null;
+    Storage storage = storageClient.storage;
+
+    // create the destination bucket if not exist
+    Bucket bucket = null;
+    try {
+      bucket = storage.get(destPath.getBucket());
+    } catch (StorageException e) {
+      throw new RuntimeException(
+        String.format("Unable to access or create bucket %s. ", destPath.getBucket())
+          + "Ensure you entered the correct bucket path and have permissions for it.", e);
+    }
+    if (bucket == null) {
+      GCPUtils.createBucket(storage, destPath.getBucket(), config.location,
+                            context.getArguments().get(GCPUtils.CMEK_KEY));
+      undo = destPath;
+    }
+
+    try {
+      storageClient.copy(config.getSourcePath(), config.getDestPath(), config.recursive, config.shouldOverwrite());
+    } catch (Exception e) {
+      //deleting the destination bucket that was auto-created if the operation failed.
+      if (undo != null) {
+        storage.delete(undo.getBucket());
+      }
+      throw e;
+    }
+
   }
 
   /**
