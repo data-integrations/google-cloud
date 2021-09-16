@@ -45,6 +45,7 @@ import io.cdap.plugin.format.plugin.FileSourceProperties;
 import io.cdap.plugin.gcp.common.GCPConnectorConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.crypto.EncryptedFileSystem;
+import io.cdap.plugin.gcp.gcs.Formats;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 import io.cdap.plugin.gcp.gcs.connector.GCSConnector;
 
@@ -284,20 +285,17 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
             .withStacktrace(e.getStackTrace());
         }
       }
-      if (!containsMacro(NAME_FORMAT)) {
-        try {
-          getFormat();
-        } catch (IllegalArgumentException e) {
-          collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_FORMAT)
-            .withStacktrace(e.getStackTrace());
-        }
-      }
 
       if (fileEncoding != null && !fileEncoding.equals(AbstractFileSourceConfig.DEFAULT_FILE_ENCODING)
         && !FixedLengthCharset.isValidEncoding(fileEncoding)) {
         collector.addFailure("Specified file encoding is not valid.",
                              "Use one of the supported file encodings.");
       }
+    }
+
+    @Override
+    public String getFormatName() {
+      return Formats.getFormatPluginName(format);
     }
 
     @Override
@@ -308,11 +306,6 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
     @Override
     public String getPath() {
       return path;
-    }
-
-    @Override
-    public FileFormat getFormat() {
-      return FileFormat.from(format, FileFormat::canRead);
     }
 
     @Nullable
