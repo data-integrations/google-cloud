@@ -23,6 +23,7 @@ import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
@@ -35,6 +36,7 @@ import io.cdap.cdap.etl.api.action.ActionContext;
 import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.GCSPath;
+import io.cdap.plugin.gcp.gcs.sink.GCSBatchSink;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -214,6 +216,18 @@ public final class GCSBucketCreate extends Action {
     @Description("The GCP customer managed encryption key (CMEK) name used by Cloud Dataproc")
     private String cmekKey;
 
+    public Config(@Nullable String project, @Nullable String serviceAccountType, @Nullable String serviceFilePath,
+                  @Nullable String serviceAccountJson, @Nullable String paths, @Nullable String location,
+                  @Nullable String cmekKey) {
+      this.serviceAccountType = serviceAccountType;
+      this.serviceAccountJson = serviceAccountJson;
+      this.serviceFilePath = serviceFilePath;
+      this.project = project;
+      this.paths = paths;
+      this.location = location;
+      this.cmekKey = cmekKey;
+    }
+
     public List<String> getPaths() {
       return Arrays.stream(paths.split(",")).map(String::trim).collect(Collectors.toList());
     }
@@ -297,6 +311,70 @@ public final class GCSBucketCreate extends Action {
           //only need to check one bucket that is to be created as all others will have same location.
           break;
         }
+      }
+    }
+
+    public static Config.Builder builder() {
+      return new Config.Builder();
+    }
+
+    /**
+     * GCS Bucket Create configuration builder.
+     */
+    public static class Builder {
+      private String serviceAccountType;
+      private String serviceFilePath;
+      private String serviceAccountJson;
+      private String project;
+      private String gcsPaths;
+      private String cmekKey;
+      private String location;
+
+      public GCSBucketCreate.Config.Builder setProject(@Nullable String project) {
+        this.project = project;
+        return this;
+      }
+
+      public GCSBucketCreate.Config.Builder setServiceAccountType(@Nullable String serviceAccountType) {
+        this.serviceAccountType = serviceAccountType;
+        return this;
+      }
+
+      public GCSBucketCreate.Config.Builder setServiceFilePath(@Nullable String serviceFilePath) {
+        this.serviceFilePath = serviceFilePath;
+        return this;
+      }
+
+      public GCSBucketCreate.Config.Builder setServiceAccountJson(@Nullable String serviceAccountJson) {
+        this.serviceAccountJson = serviceAccountJson;
+        return this;
+      }
+
+      public GCSBucketCreate.Config.Builder setGcsPath(@Nullable String gcsPaths) {
+        this.gcsPaths = gcsPaths;
+        return this;
+      }
+
+      public GCSBucketCreate.Config.Builder setCmekKey(@Nullable String cmekKey) {
+        this.cmekKey = cmekKey;
+        return this;
+      }
+
+      public GCSBucketCreate.Config.Builder setLocation(@Nullable String location) {
+        this.location = location;
+        return this;
+      }
+
+      public GCSBucketCreate.Config build() {
+        return new GCSBucketCreate.Config(
+          project,
+          serviceAccountType,
+          serviceFilePath,
+          serviceAccountJson,
+          gcsPaths,
+          location,
+          cmekKey
+        );
       }
     }
   }

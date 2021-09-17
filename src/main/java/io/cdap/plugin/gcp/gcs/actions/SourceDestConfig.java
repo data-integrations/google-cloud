@@ -69,6 +69,18 @@ public class SourceDestConfig extends GCPConfig {
   @Description("The GCP customer managed encryption key (CMEK) name used by Cloud Dataproc")
   private String cmekKey;
 
+  public SourceDestConfig(@Nullable String project, @Nullable String serviceAccountType,
+                          @Nullable String serviceFilePath, @Nullable String serviceAccountJson,
+                          @Nullable String destPath, @Nullable String location, @Nullable String cmekKey) {
+    this.serviceAccountType = serviceAccountType;
+    this.serviceAccountJson = serviceAccountJson;
+    this.serviceFilePath = serviceFilePath;
+    this.project = project;
+    this.destPath = destPath;
+    this.location = location;
+    this.cmekKey = cmekKey;
+  }
+
   public SourceDestConfig() {
     overwrite = false;
   }
@@ -158,6 +170,70 @@ public class SourceDestConfig extends GCPConfig {
           , "Modify the CMEK key or bucket location to be the same")
           .withConfigProperty(NAME_CMEK_KEY);
       }
+    }
+  }
+
+  public static SourceDestConfig.Builder builder() {
+    return new SourceDestConfig.Builder();
+  }
+
+  /**
+   * SourceDest configuration builder.
+   */
+  public static class Builder {
+    private String serviceAccountType;
+    private String serviceFilePath;
+    private String serviceAccountJson;
+    private String project;
+    private String destPath;
+    private String cmekKey;
+    private String location;
+
+    public SourceDestConfig.Builder setProject(@Nullable String project) {
+      this.project = project;
+      return this;
+    }
+
+    public SourceDestConfig.Builder setServiceAccountType(@Nullable String serviceAccountType) {
+      this.serviceAccountType = serviceAccountType;
+      return this;
+    }
+
+    public SourceDestConfig.Builder setServiceFilePath(@Nullable String serviceFilePath) {
+      this.serviceFilePath = serviceFilePath;
+      return this;
+    }
+
+    public SourceDestConfig.Builder setServiceAccountJson(@Nullable String serviceAccountJson) {
+      this.serviceAccountJson = serviceAccountJson;
+      return this;
+    }
+
+    public SourceDestConfig.Builder setGcsPath(@Nullable String destPath) {
+      this.destPath = destPath;
+      return this;
+    }
+
+    public SourceDestConfig.Builder setCmekKey(@Nullable String cmekKey) {
+      this.cmekKey = cmekKey;
+      return this;
+    }
+
+    public SourceDestConfig.Builder setLocation(@Nullable String location) {
+      this.location = location;
+      return this;
+    }
+
+    public SourceDestConfig build() {
+      return new SourceDestConfig(
+        project,
+        serviceAccountType,
+        serviceFilePath,
+        serviceAccountJson,
+        destPath,
+        location,
+        cmekKey
+      );
     }
   }
 }
