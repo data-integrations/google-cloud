@@ -41,10 +41,10 @@ public class DataplexBatchSourceTest {
 
   @Test
   public void validateBigQueryDatasetTest() throws NoSuchFieldException {
-    DataplexBatchSourceConfig DataplexBatchSourceConfig = new DataplexBatchSourceConfig();
+    DataplexBatchSourceConfig dataplexBatchSourceConfig = new DataplexBatchSourceConfig();
     MockFailureCollector mockFailureCollector = new MockFailureCollector();
-    FieldSetter.setField(DataplexBatchSourceConfig, DataplexBatchSourceConfig.class.getDeclaredField("table"), "test");
-    DataplexBatchSourceConfig.validateBigQueryDataset(mockFailureCollector);
+    FieldSetter.setField(dataplexBatchSourceConfig, DataplexBatchSourceConfig.class.getDeclaredField("table"), "test");
+    dataplexBatchSourceConfig.validateBigQueryDataset(mockFailureCollector);
     assertEquals(0, mockFailureCollector.getValidationFailures().size());
   }
 
