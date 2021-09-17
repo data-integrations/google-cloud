@@ -225,7 +225,7 @@ public class DataplexBatchSourceConfig extends DataplexBaseConfig {
     failureCollector.getOrThrowException();
   }
 
-  GoogleCredentials getCredentials() {
+  public GoogleCredentials getCredentials() {
     GoogleCredentials credentials = null;
     try {
       //validate service account
