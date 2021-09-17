@@ -48,7 +48,6 @@ jobs:
       - name: Upload report 
         uses: actions/upload-artifact@v2.2.4
         with:
-          # Artifact name
           name: Cucumber report
           path: ./e2e/target/cucumber-reports
       - name: Deploy report
