@@ -57,3 +57,13 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./e2e/target/cucumber-reports
+          destination_dir: cucumber-reports/branches/e2e_poc
+          
+      - name: github-status-action
+        uses: Sibz/github-status-action@67af1f4042a5a790681aad83c44008ca6cfab83d
+        with:
+          authToken: ${{ secrets.GITHUB_TOKEN }}
+          state: success
+          context: Cucumber report
+          target_url: https://data-integrations.github.io/google-cloud/cucumber-reports/branches/e2e_poc/advanced-reports/cucumber-html-reports/overview-features.html
+          
