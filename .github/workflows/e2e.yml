@@ -56,4 +56,4 @@ jobs:
         if: always()
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./e2e/target/cucumber-reports/advanced-reports/cucumber-html-reports
+          publish_dir: ./e2e/target/cucumber-reports/advanced-reports
