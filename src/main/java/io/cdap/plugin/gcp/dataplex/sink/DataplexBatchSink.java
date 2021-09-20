@@ -18,15 +18,12 @@ package io.cdap.plugin.gcp.dataplex.sink;
 
 import com.google.auth.Credentials;
 import com.google.cloud.bigquery.BigQuery;
-import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.Field;
-import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.Job;
 import com.google.cloud.bigquery.JobConfiguration;
 import com.google.cloud.bigquery.JobId;
 import com.google.cloud.bigquery.JobStatistics;
 import com.google.cloud.bigquery.Table;
-import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
 import com.google.cloud.storage.Bucket;
@@ -50,11 +47,9 @@ import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.validation.FormatContext;
 import io.cdap.cdap.etl.api.validation.ValidatingOutputFormat;
-import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.common.batch.sink.SinkOutputFormatProvider;
 import io.cdap.plugin.gcp.bigquery.sink.AbstractBigQuerySink;
-import io.cdap.plugin.gcp.bigquery.sink.AbstractBigQuerySinkConfig;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
 import io.cdap.plugin.gcp.bigquery.sink.PartitionType;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
@@ -78,7 +73,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -96,9 +90,9 @@ import javax.annotation.Nullable;
  * <p>
  * {@code StructuredRecord} is the first parameter because that is what the
  * sink will take as an input.
- * NullWritable is the second parameter because that is the key used
+ * Object is the second parameter because that is the key used
  * by Hadoop's {@code TextOutputFormat}.
- * {@code StructuredRecord} is the third parameter because that is the value used by
+ * {@code Object} is the third parameter because that is the value used by
  * Hadoop's {@code TextOutputFormat}. All the plugins included with Hydrator operate on
  * StructuredRecord.
  */
@@ -324,8 +318,8 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
                             FailureCollector collector, String dataset, String datasetProject) throws IOException {
     LOG.debug("Init output for table '{}' with schema: {}", tableName, tableSchema);
 
-    List<BigQueryTableFieldSchema> fields = getBigQueryTableFields(bigQuery, tableName, tableSchema,
-      false, collector, dataset, datasetProject);
+    List<BigQueryTableFieldSchema> fields = BigQuerySinkUtils.getBigQueryTableFields(bigQuery, tableName, tableSchema,
+      this.config.isUpdateTableSchema(), datasetProject, dataset, this.config.isTruncateTable(), collector);
 
     Configuration configuration = new Configuration(baseConfiguration);
 
@@ -342,145 +336,9 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     List<String> fieldNames = fields.stream()
       .map(BigQueryTableFieldSchema::getName)
       .collect(Collectors.toList());
-    recordLineage(context, outputName, tableSchema, fieldNames);
+    BigQuerySinkUtils.recordLineage(context, outputName, tableSchema, fieldNames);
     configuration.set(DataplexOutputFormatProvider.DATAPLEX_ASSET_TYPE, DataplexBatchSink.BIGQUERY_DATASET_ASSET_TYPE);
     context.addOutput(Output.of(outputName, new DataplexOutputFormatProvider(configuration, tableSchema, null)));
-  }
-
-  private void recordLineage(BatchSinkContext context,
-                             String outputName,
-                             Schema tableSchema,
-                             List<String> fieldNames) {
-    LineageRecorder lineageRecorder = new LineageRecorder(context, outputName);
-    lineageRecorder.createExternalDataset(tableSchema);
-    if (!fieldNames.isEmpty()) {
-      lineageRecorder.recordWrite("Write", "Wrote to BigQuery table.", fieldNames);
-    }
-  }
-
-  /**
-   * Generates Big Query field instances based on given CDAP table schema after schema validation.
-   *
-   * @param bigQuery              big query object
-   * @param tableName             table name
-   * @param tableSchema           table schema
-   * @param allowSchemaRelaxation if schema relaxation policy is allowed
-   * @param collector             failure collector
-   * @return list of Big Query fields
-   */
-  private List<BigQueryTableFieldSchema> getBigQueryTableFields(BigQuery bigQuery, String tableName,
-                                                                @Nullable Schema tableSchema,
-                                                                boolean allowSchemaRelaxation,
-                                                                FailureCollector collector, String dataset,
-                                                                String datsetProject) {
-    if (tableSchema == null) {
-      return Collections.emptyList();
-    }
-
-    TableId tableId = TableId.of(datsetProject, dataset, tableName);
-    try {
-      Table table = bigQuery.getTable(tableId);
-      // if table is null that mean it does not exist. So there is no need to perform validation
-      if (table != null) {
-        com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
-        validateSchema(tableName, bqSchema, tableSchema, allowSchemaRelaxation, collector, dataset);
-      }
-    } catch (BigQueryException e) {
-      collector.addFailure("Unable to get details about the BigQuery table: " + e.getMessage(), null)
-        .withConfigProperty("table");
-      throw collector.getOrThrowException();
-    }
-
-    return BigQuerySinkUtils.getBigQueryTableFieldsFromSchema(tableSchema);
-  }
-
-  /**
-   * Validates output schema against Big Query table schema. It throws {@link IllegalArgumentException}
-   * if the output schema has more fields than Big Query table or output schema field types does not match
-   * Big Query column types unless schema relaxation policy is allowed.
-   *
-   * @param tableName             big query table
-   * @param bqSchema              BigQuery table schema
-   * @param tableSchema           Configured table schema
-   * @param allowSchemaRelaxation allows schema relaxation policy
-   * @param collector             failure collector
-   */
-  protected void validateSchema(
-    String tableName,
-    com.google.cloud.bigquery.Schema bqSchema,
-    @Nullable Schema tableSchema,
-    boolean allowSchemaRelaxation,
-    FailureCollector collector, String dataset) {
-    if (bqSchema == null || bqSchema.getFields().isEmpty() || tableSchema == null) {
-      // Table is created without schema, so no further validation is required.
-      return;
-    }
-
-    FieldList bqFields = bqSchema.getFields();
-    List<Schema.Field> outputSchemaFields = Objects.requireNonNull(tableSchema.getFields());
-
-    List<String> missingBQFields = BigQueryUtil.getSchemaMinusBqFields(outputSchemaFields, bqFields);
-
-    if (allowSchemaRelaxation && !config.isTruncateTable()) {
-      // Required fields can be added only if truncate table option is set.
-      List<String> nonNullableFields = missingBQFields.stream()
-        .map(tableSchema::getField)
-        .filter(Objects::nonNull)
-        .filter(field -> !field.getSchema().isNullable())
-        .map(Schema.Field::getName)
-        .collect(Collectors.toList());
-
-      for (String nonNullableField : nonNullableFields) {
-        collector.addFailure(
-          String.format("Required field '%s' does not exist in BigQuery table '%s.%s'.",
-            nonNullableField, dataset, tableName),
-          "Change the field to be nullable.")
-          .withInputSchemaField(nonNullableField).withOutputSchemaField(nonNullableField);
-      }
-    }
-
-    if (!allowSchemaRelaxation) {
-      // schema should not have fields that are not present in BigQuery table,
-      for (String missingField : missingBQFields) {
-        collector.addFailure(
-          String.format("Field '%s' does not exist in BigQuery table '%s.%s'.",
-            missingField, dataset, tableName),
-          String.format("Remove '%s' from the input, or add a column to the BigQuery table.", missingField))
-          .withInputSchemaField(missingField).withOutputSchemaField(missingField);
-      }
-
-      // validate the missing columns in output schema are nullable fields in BigQuery
-      List<String> remainingBQFields = BigQueryUtil.getBqFieldsMinusSchema(bqFields, outputSchemaFields);
-      for (String field : remainingBQFields) {
-        Field.Mode mode = bqFields.get(field).getMode();
-        // Mode is optional. If the mode is unspecified, the column defaults to NULLABLE.
-        if (mode != null && mode != Field.Mode.NULLABLE) {
-          collector.addFailure(String.format("Required Column '%s' is not present in the schema.", field),
-            String.format("Add '%s' to the schema.", field));
-        }
-      }
-    }
-
-    // column type changes should be disallowed if either allowSchemaRelaxation or truncate table are not set.
-    if (!allowSchemaRelaxation || !config.isTruncateTable()) {
-      // Match output schema field type with BigQuery column type
-      for (Schema.Field field : tableSchema.getFields()) {
-        String fieldName = field.getName();
-        // skip checking schema if field is missing in BigQuery
-        if (!missingBQFields.contains(fieldName)) {
-          ValidationFailure failure = BigQueryUtil.validateFieldSchemaMatches(
-            bqFields.get(field.getName()), field, dataset, tableName,
-            AbstractBigQuerySinkConfig.SUPPORTED_TYPES, collector);
-          if (failure != null) {
-            failure.withInputSchemaField(fieldName).withOutputSchemaField(fieldName);
-          }
-          BigQueryUtil.validateFieldModeMatches(bqFields.get(fieldName), field,
-            allowSchemaRelaxation,
-            collector);
-        }
-      }
-    }
-    collector.getOrThrowException();
   }
 
   void recordMetric(boolean succeeded, BatchSinkContext context) {

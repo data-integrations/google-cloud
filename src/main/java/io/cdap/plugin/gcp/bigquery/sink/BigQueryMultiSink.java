@@ -31,6 +31,7 @@ import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
+
 import org.apache.hadoop.conf.Configuration;
 
 import java.io.IOException;
@@ -120,7 +121,9 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
           // override against configured schema as necessary.
           com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
 
-          validateSchema(tableName, bqSchema, configuredSchema, config.allowSchemaRelaxation, collector);
+          BigQuerySinkUtils.validateSchema(tableName, bqSchema, configuredSchema, config.allowSchemaRelaxation,
+            config.isAllowSchemaRelaxation(), config.getDataset(),
+            collector);
 
         }
 
@@ -141,8 +144,8 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
     String projectName = config.getDatasetProject();
     String datasetName = config.getDataset();
     context.addOutput(Output.of(config.getReferenceName(),
-                                new DelegatingMultiSinkOutputFormatProvider(conf, splitField, bucketName,
-                                                                            projectName, datasetName)));
+      new DelegatingMultiSinkOutputFormatProvider(conf, splitField, bucketName,
+        projectName, datasetName)));
   }
 
   /**

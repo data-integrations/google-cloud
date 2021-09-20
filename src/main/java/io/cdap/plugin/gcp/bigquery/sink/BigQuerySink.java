@@ -34,13 +34,13 @@ import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
+
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -48,7 +48,7 @@ import java.util.stream.Collectors;
 /**
  * This class <code>BigQuerySink</code> is a plugin that would allow users
  * to write <code>StructuredRecords</code> to Google Big Query.
- *
+ * <p>
  * The plugin uses native BigQuery Output format to write data.
  */
 @Plugin(type = BatchSink.PLUGIN_TYPE)
@@ -59,12 +59,9 @@ import java.util.stream.Collectors;
 public final class BigQuerySink extends AbstractBigQuerySink {
 
   public static final String NAME = "BigQueryTable";
-
-  private final BigQuerySinkConfig config;
-
-  private final String jobId = UUID.randomUUID().toString();
-
   private static final Logger LOG = LoggerFactory.getLogger(BigQuerySink.class);
+  private final BigQuerySinkConfig config;
+  private final String jobId = UUID.randomUUID().toString();
 
   public BigQuerySink(BigQuerySinkConfig config) {
     this.config = config;
@@ -123,7 +120,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
       recordMetric(succeeded, context);
     } catch (Exception exception) {
       LOG.warn("Exception while trying to emit metric. No metric will be emitted for the number of affected rows.",
-               exception);
+        exception);
     }
   }
 
@@ -184,7 +181,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
       baseConfiguration.set(BigQueryConstants.CONFIG_PARTITION_BY_FIELD, getConfig().getPartitionByField());
     }
     baseConfiguration.setBoolean(BigQueryConstants.CONFIG_REQUIRE_PARTITION_FILTER,
-                                 getConfig().isPartitionFilterRequired());
+      getConfig().isPartitionFilterRequired());
     if (config.getClusteringOrder() != null) {
       baseConfiguration.set(BigQueryConstants.CONFIG_CLUSTERING_ORDER, getConfig().getClusteringOrder());
     }
@@ -219,13 +216,13 @@ public final class BigQuerySink extends AbstractBigQuerySink {
   private void configureTable(Schema schema) {
     AbstractBigQuerySinkConfig config = getConfig();
     Table table = BigQueryUtil.getBigQueryTable(config.getDatasetProject(), config.getDataset(),
-                                                config.getTable(),
-                                                config.getServiceAccount(),
-                                                config.isServiceAccountFilePath());
+      config.getTable(),
+      config.getServiceAccount(),
+      config.isServiceAccountFilePath());
     baseConfiguration.setBoolean(BigQueryConstants.CONFIG_DESTINATION_TABLE_EXISTS, table != null);
     List<String> tableFieldsNames = null;
     if (table != null) {
-       tableFieldsNames = Objects.requireNonNull(table.getDefinition().getSchema()).getFields().stream()
+      tableFieldsNames = Objects.requireNonNull(table.getDefinition().getSchema()).getFields().stream()
         .map(Field::getName).collect(Collectors.toList());
     } else if (schema != null) {
       tableFieldsNames = schema.getFields().stream()
@@ -243,16 +240,19 @@ public final class BigQuerySink extends AbstractBigQuerySink {
 
     String tableName = config.getTable();
     Table table = BigQueryUtil.getBigQueryTable(config.getDatasetProject(), config.getDataset(), tableName,
-                                                config.getServiceAccount(), config.isServiceAccountFilePath(),
-                                                collector);
+      config.getServiceAccount(), config.isServiceAccountFilePath(),
+      collector);
 
     if (table != null && !config.containsMacro(AbstractBigQuerySinkConfig.NAME_UPDATE_SCHEMA)) {
       // if table already exists, validate schema against underlying bigquery table
       com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
       if (config.getOperation().equals(Operation.INSERT)) {
-        validateInsertSchema(table, schema, collector);
+        BigQuerySinkUtils.validateInsertSchema(table, schema, config.allowSchemaRelaxation,
+          config.isTruncateTableSet(), config.getDataset(), collector);
       } else if (config.getOperation().equals(Operation.UPSERT)) {
-        validateSchema(tableName, bqSchema, schema, config.allowSchemaRelaxation, collector);
+        BigQuerySinkUtils
+          .validateSchema(tableName, bqSchema, schema, config.allowSchemaRelaxation, config.isTruncateTableSet(),
+            config.getDataset(), collector);
       }
     }
   }
