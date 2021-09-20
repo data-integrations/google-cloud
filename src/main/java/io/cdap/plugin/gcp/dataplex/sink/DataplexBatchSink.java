@@ -216,7 +216,7 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
 
     Schema configSchema = config.getSchema(collector);
     Schema outputSchema = configSchema == null ? context.getInputSchema() : configSchema;
-    configureTable(outputSchema, dataset, datasetProject);
+    configureTable(outputSchema, dataset, datasetProject, collector);
     configureBigQuerySink();
     initOutput(context, bigQuery, config.getReferenceName(), config.getTable(), outputSchema, bucket, collector,
       dataset, datasetProject);
@@ -264,11 +264,11 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
   /**
    * Sets the output table for the AbstractBigQuerySink's Hadoop configuration
    */
-  private void configureTable(Schema schema, String dataset, String datasetProject) {
+  private void configureTable(Schema schema, String dataset, String datasetProject, FailureCollector collector) {
     Table table = BigQueryUtil.getBigQueryTable(datasetProject, dataset,
       config.getTable(),
       config.getServiceAccount(),
-      config.isServiceAccountFilePath());
+      collector);
     baseConfiguration.setBoolean(BigQueryConstants.CONFIG_DESTINATION_TABLE_EXISTS, table != null);
     List<String> tableFieldsNames = null;
     if (table != null) {

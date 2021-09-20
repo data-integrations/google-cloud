@@ -48,6 +48,7 @@ import io.cdap.cdap.etl.api.connector.DirectConnector;
 import io.cdap.cdap.etl.api.connector.PluginSpec;
 import io.cdap.cdap.etl.api.connector.SampleRequest;
 import io.cdap.cdap.etl.api.validation.ValidationException;
+import io.cdap.plugin.common.ConfigUtil;
 import io.cdap.plugin.format.connector.FileTypeDetector;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceConfig;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
@@ -367,8 +368,8 @@ public class DataplexConnector implements DirectConnector {
     DataplexPath path = new DataplexPath(connectorSpecRequest.getPath());
 
     Map<String, String> properties = new HashMap<>();
-    properties.put(BigQuerySourceConfig.NAME_USE_CONNECTION, "true");
-    properties.put(BigQuerySourceConfig.NAME_CONNECTION, connectorSpecRequest.getConnectionWithMacro());
+    properties.put(ConfigUtil.NAME_USE_CONNECTION, "true");
+    properties.put(ConfigUtil.NAME_CONNECTION, connectorSpecRequest.getConnectionWithMacro());
     properties.put(DataplexBaseConfig.NAME_LOCATION, path.getLocation());
     properties.put(DataplexBaseConfig.NAME_LAKE, path.getLake());
     properties.put(DataplexBaseConfig.NAME_ZONE, path.getZone());
