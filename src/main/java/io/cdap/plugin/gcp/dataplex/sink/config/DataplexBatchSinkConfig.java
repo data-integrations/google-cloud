@@ -18,8 +18,6 @@ package io.cdap.plugin.gcp.dataplex.sink.config;
 
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
-import com.google.cloud.bigquery.Field;
-import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.bigquery.RangePartitioning;
 import com.google.cloud.bigquery.StandardTableDefinition;
@@ -27,7 +25,6 @@ import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TimePartitioning;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Lists;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
@@ -38,14 +35,12 @@ import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.validation.FormatContext;
 import io.cdap.cdap.etl.api.validation.ValidatingOutputFormat;
-import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.plugin.common.IdUtils;
 import io.cdap.plugin.format.FileFormat;
-import io.cdap.plugin.gcp.bigquery.sink.AbstractBigQuerySinkConfig;
+import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
 import io.cdap.plugin.gcp.bigquery.sink.Operation;
 import io.cdap.plugin.gcp.bigquery.sink.PartitionType;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
-import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.dataplex.common.config.DataplexBaseConfig;
 import io.cdap.plugin.gcp.dataplex.sink.DataplexBatchSink;
 import io.cdap.plugin.gcp.dataplex.sink.connection.DataplexInterface;
@@ -60,7 +55,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -85,7 +79,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   private static final Logger LOG = LoggerFactory.getLogger(DataplexBatchSinkConfig.class);
   private static final String WHERE = "WHERE";
   private static final String NAME_FORMAT = "format";
-  private static final String NAME_TABLE = "table";
+  public static final String NAME_TABLE = "table";
   private static final String NAME_TABLE_KEY = "tableKey";
   private static final String NAME_DEDUPE_BY = "dedupeBy";
   private static final String NAME_OPERATION = "operation";
@@ -331,7 +325,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
 
   @Nullable
   public Boolean isUpdateTableSchema() {
-    return allowSchemaRelaxation == null ? false : allowSchemaRelaxation;
+    return allowSchemaRelaxation != null && allowSchemaRelaxation;
   }
 
   @Nullable
@@ -341,7 +335,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
 
   @Nullable
   public Boolean isRequirePartitionField() {
-    return requirePartitionField == null ? false : requirePartitionField;
+    return requirePartitionField != null && requirePartitionField;
   }
 
   @Nullable
@@ -424,18 +418,19 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
 
   public void validateServiceAccount(FailureCollector failureCollector) {
     if (connection.isServiceAccountJson() || connection.getServiceAccountFilePath() != null) {
-        GoogleCredentials credentials = getCredentials();
-        if (credentials == null) {
-          failureCollector.addFailure(String.format("Unable to load credentials from %s.",
-            connection.isServiceAccountFilePath() ? connection.getServiceAccountFilePath() : "provided JSON key"),
-            "Ensure the service account file is available on the local filesystem.")
-            .withConfigProperty("serviceFilePath")
-            .withConfigProperty("serviceAccountJSON");
-          throw failureCollector.getOrThrowException();
-        }
+      GoogleCredentials credentials = getCredentials();
+      if (credentials == null) {
+        failureCollector.addFailure(String.format("Unable to load credentials from %s.",
+          connection.isServiceAccountFilePath() ? connection.getServiceAccountFilePath() : "provided JSON key"),
+          "Ensure the service account file is available on the local filesystem.")
+          .withConfigProperty("serviceFilePath")
+          .withConfigProperty("serviceAccountJSON");
+        throw failureCollector.getOrThrowException();
+      }
     }
   }
-// This method will validate the location, lake, zone and asset configurations
+
+  // This method will validate the location, lake, zone and asset configurations
   public void validateAssetConfiguration(FailureCollector collector, DataplexInterface dataplexInterface) {
     IdUtils.validateReferenceName(referenceName, collector);
     GoogleCredentials credentials = getCredentials();
@@ -455,7 +450,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
         }
 
         if (!Strings.isNullOrEmpty(zone) && !containsMacro(NAME_ZONE)) {
-          Zone zoneBean = null;
+          Zone zoneBean;
           try {
             zoneBean = dataplexInterface.getZone(credentials, tryGetProject(), location, lake, zone);
           } catch (ConnectorException e) {
@@ -473,7 +468,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
               if (zoneBean != null && assetBean != null && assetBean.getAssetResourceSpec().getType().
                 equalsIgnoreCase(DataplexBatchSink.STORAGE_BUCKET_ASSET_TYPE) && zoneBean.getType()
                 .equalsIgnoreCase(ZONE_TYPE_CURATED) && !containsMacro(NAME_FORMAT) &&
-              !Strings.isNullOrEmpty(format)) {
+                !Strings.isNullOrEmpty(format)) {
                 try {
                   FileFormat fileFormat = getFormat();
                   if (!SUPPORTED_FORMATS_FOR_CURATED_ZONE.contains(fileFormat)) {
@@ -531,7 +526,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
         validateOperationProperties(schema, collector);
         validateConfiguredSchema(schema, collector, dataset);
       } catch (ConnectorException e) {
-        LOG.debug(e.getCode() + ": " + e.getMessage());
+        LOG.debug(String.format("%s: %s", e.getCode(), e.getMessage()));
       }
 
       if (outputSchema == null) {
@@ -541,7 +536,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
       List<String> schemaFields = Objects.requireNonNull(schema.getFields()).stream().
         map(Schema.Field::getName).map(String::toLowerCase).collect(Collectors.toList());
 
-      final Set<String> duplicatedFields = getDuplicatedFields(schemaFields);
+      final Set<String> duplicatedFields = BigQuerySinkUtils.getDuplicatedFields(schemaFields);
 
       for (Schema.Field field : outputSchema.getFields()) {
         String name = field.getName();
@@ -579,7 +574,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
       return;
     }
     String tableName = this.getTable();
-    Table table = BigQueryUtil.getBigQueryTable(this.tryGetProject(), dataset , tableName,
+    Table table = BigQueryUtil.getBigQueryTable(this.tryGetProject(), dataset, tableName,
       connection.getServiceAccount(), connection.isServiceAccountFilePath(),
       collector);
 
@@ -587,25 +582,15 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
       // if table already exists, validate schema against underlying bigquery table
       com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
       if (this.getOperation().equals(Operation.INSERT)) {
-        validateInsertSchema(table, schema, collector, dataset);
+        BigQuerySinkUtils.validateInsertSchema(table, schema, allowSchemaRelaxation, isTruncateTable(), dataset,
+          collector);
       } else if (this.getOperation().equals(Operation.UPSERT)) {
-        validateSchema(tableName, bqSchema, schema, this.isUpdateTableSchema(), collector, dataset);
+        BigQuerySinkUtils.validateSchema(tableName, bqSchema, schema, this.isUpdateTableSchema(), isTruncateTable(),
+          dataset, collector);
       }
     }
   }
-  /**
-   * Returns list of duplicated fields (case insensitive)
-   */
-  private Set<String> getDuplicatedFields(List<String> schemaFields) {
-    final Set<String> duplicatedFields = new HashSet<>();
-    final Set<String> set = new HashSet<>();
-    for (String field : schemaFields) {
-      if (!set.add(field)) {
-        duplicatedFields.add(field);
-      }
-    }
-    return duplicatedFields;
-  }
+
 
   private void validatePartitionProperties(@Nullable Schema schema, FailureCollector collector, String dataset,
                                            String datasetProject) {
@@ -799,7 +784,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
       Schema.Type type = nonNullSchema.getType();
       Schema.LogicalType logicalType = nonNullSchema.getLogicalType();
 
-      if (!SUPPORTED_CLUSTERING_TYPES.contains(type) && !isSupportedLogicalType(logicalType)) {
+      if (!SUPPORTED_CLUSTERING_TYPES.contains(type) && !BigQuerySinkUtils.isSupportedLogicalType(logicalType)) {
         collector.addFailure(
           String.format("Field '%s' is of unsupported type '%s'.", column, nonNullSchema.getDisplayName()),
           "Supported types are : string, bytes, int, long, boolean, date, timestamp and decimal.")
@@ -851,7 +836,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
       }
     }
 
-    Map<String, Integer> keyMap = calculateDuplicates(keyFields);
+    Map<String, Integer> keyMap = BigQuerySinkUtils.calculateDuplicates(keyFields);
     keyMap.keySet().stream()
       .filter(key -> keyMap.get(key) != 1)
       .forEach(key -> collector.addFailure(
@@ -872,7 +857,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
           "Change the Dedupe by field to be one of the schema fields.")
           .withConfigElement(NAME_DEDUPE_BY, v));
 
-      Map<String, Integer> orderedByFieldMap = calculateDuplicates(dedupeByList);
+      Map<String, Integer> orderedByFieldMap = BigQuerySinkUtils.calculateDuplicates(dedupeByList);
       Map<String, String> orderedByFieldValueMap = dedupeByList.stream()
         .collect(Collectors.toMap(p -> p.split(" ")[0], p -> p, (x, y) -> y));
 
@@ -886,19 +871,6 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     }
   }
 
-  private Map<String, Integer> calculateDuplicates(List<String> values) {
-    return values.stream()
-      .map(v -> v.split(" ")[0])
-      .collect(Collectors.toMap(p -> p, p -> 1, (x, y) -> x + y));
-  }
-
-  private boolean isSupportedLogicalType(Schema.LogicalType logicalType) {
-    if (logicalType != null) {
-      return logicalType == Schema.LogicalType.DATE || logicalType == Schema.LogicalType.TIMESTAMP_MICROS ||
-        logicalType == Schema.LogicalType.TIMESTAMP_MILLIS || logicalType == Schema.LogicalType.DECIMAL;
-    }
-    return false;
-  }
 
   /**
    * Returns true if dataplex can be connected to or schema is not a macro.
@@ -963,7 +935,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   }
 
   public void validateOutputFormatProvider(FormatContext context, String format,
-                                            @Nullable ValidatingOutputFormat validatingOutputFormat) {
+                                           @Nullable ValidatingOutputFormat validatingOutputFormat) {
     FailureCollector collector = context.getFailureCollector();
     if (validatingOutputFormat == null) {
       collector.addFailure(String.format("Could not find the '%s' output format plugin.", format), null)
@@ -1073,154 +1045,12 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   public GoogleCredentials getCredentials() {
     GoogleCredentials credentials = null;
     try {
-      // validate service account
-      if (connection.isServiceAccountJson() || connection.getServiceAccountFilePath() != null) {
-        credentials =
-          GCPUtils.loadServiceAccountCredentials(connection.getServiceAccount(), connection.isServiceAccountFilePath())
-            .createScoped(Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"));
-      }
+        credentials = connection.getCredentials();
     } catch (IOException e) {
       LOG.debug("Unable to load service account credentials due to error: {}", e.getMessage());
     }
     return credentials;
   }
-
-
-  protected void validateInsertSchema(Table table, @Nullable Schema tableSchema, FailureCollector collector,
-                                      String dataset) {
-    com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
-    if (bqSchema == null || bqSchema.getFields().isEmpty()) {
-      // Table is created without schema, so no further validation is required.
-      return;
-    }
-
-    if (this.isTruncateTable() || tableSchema == null) {
-      // no validation required for schema if truncate table is set.
-      // BQ will overwrite the schema for normal tables when write disposition is WRITE_TRUNCATE
-      // note - If write to single partition is supported in future, schema validation will be necessary
-      return;
-    }
-    FieldList bqFields = bqSchema.getFields();
-    List<Schema.Field> outputSchemaFields = Objects.requireNonNull(tableSchema.getFields());
-
-    List<String> remainingBQFields = BigQueryUtil.getBqFieldsMinusSchema(bqFields, outputSchemaFields);
-    for (String field : remainingBQFields) {
-      if (bqFields.get(field).getMode() != Field.Mode.NULLABLE) {
-        collector.addFailure(String.format("Required Column '%s' is not present in the schema.", field),
-          String.format("Add '%s' to the schema.", field));
-      }
-    }
-
-    String tableName = table.getTableId().getTable();
-    List<String> missingBQFields = BigQueryUtil.getSchemaMinusBqFields(outputSchemaFields, bqFields);
-    // Match output schema field type with BigQuery column type
-    for (Schema.Field field : tableSchema.getFields()) {
-      String fieldName = field.getName();
-      // skip checking schema if field is missing in BigQuery
-      if (!missingBQFields.contains(fieldName)) {
-        ValidationFailure failure = BigQueryUtil.validateFieldSchemaMatches(
-          bqFields.get(field.getName()), field, dataset, tableName,
-          AbstractBigQuerySinkConfig.SUPPORTED_TYPES, collector);
-        if (failure != null) {
-          failure.withInputSchemaField(fieldName).withOutputSchemaField(fieldName);
-        }
-        BigQueryUtil.validateFieldModeMatches(bqFields.get(fieldName), field,
-          this.isUpdateTableSchema(),
-          collector);
-      }
-    }
-    collector.getOrThrowException();
-  }
-
-  /**
-   * Validates output schema against Big Query table schema. It throws {@link IllegalArgumentException}
-   * if the output schema has more fields than Big Query table or output schema field types does not match
-   * Big Query column types unless schema relaxation policy is allowed.
-   *
-   * @param tableName big query table
-   * @param bqSchema BigQuery table schema
-   * @param tableSchema Configured table schema
-   * @param allowSchemaRelaxation allows schema relaxation policy
-   * @param collector failure collector
-   */
-  protected void validateSchema(
-    String tableName,
-    com.google.cloud.bigquery.Schema bqSchema,
-    @Nullable Schema tableSchema,
-    boolean allowSchemaRelaxation,
-    FailureCollector collector, String dataset) {
-    if (bqSchema == null || bqSchema.getFields().isEmpty() || tableSchema == null) {
-      // Table is created without schema, so no further validation is required.
-      return;
-    }
-
-    FieldList bqFields = bqSchema.getFields();
-    List<Schema.Field> outputSchemaFields = Objects.requireNonNull(tableSchema.getFields());
-
-    List<String> missingBQFields = BigQueryUtil.getSchemaMinusBqFields(outputSchemaFields, bqFields);
-
-    if (allowSchemaRelaxation && !this.isTruncateTable()) {
-      // Required fields can be added only if truncate table option is set.
-      List<String> nonNullableFields = missingBQFields.stream()
-        .map(tableSchema::getField)
-        .filter(Objects::nonNull)
-        .filter(field -> !field.getSchema().isNullable())
-        .map(Schema.Field::getName)
-        .collect(Collectors.toList());
-
-      for (String nonNullableField : nonNullableFields) {
-        collector.addFailure(
-          String.format("Required field '%s' does not exist in BigQuery table '%s.%s'.",
-            nonNullableField, dataset, tableName),
-          "Change the field to be nullable.")
-          .withInputSchemaField(nonNullableField).withOutputSchemaField(nonNullableField);
-      }
-    }
-
-    if (!allowSchemaRelaxation) {
-      // schema should not have fields that are not present in BigQuery table,
-      for (String missingField : missingBQFields) {
-        collector.addFailure(
-          String.format("Field '%s' does not exist in BigQuery table '%s.%s'.",
-            missingField, dataset, tableName),
-          String.format("Remove '%s' from the input, or add a column to the BigQuery table.", missingField))
-          .withInputSchemaField(missingField).withOutputSchemaField(missingField);
-      }
-
-      // validate the missing columns in output schema are nullable fields in BigQuery
-      List<String> remainingBQFields = BigQueryUtil.getBqFieldsMinusSchema(bqFields, outputSchemaFields);
-      for (String field : remainingBQFields) {
-        Field.Mode mode = bqFields.get(field).getMode();
-        // Mode is optional. If the mode is unspecified, the column defaults to NULLABLE.
-        if (mode != null && mode != Field.Mode.NULLABLE) {
-          collector.addFailure(String.format("Required Column '%s' is not present in the schema.", field),
-            String.format("Add '%s' to the schema.", field));
-        }
-      }
-    }
-
-    // column type changes should be disallowed if either allowSchemaRelaxation or truncate table are not set.
-    if (!allowSchemaRelaxation || !this.isTruncateTable()) {
-      // Match output schema field type with BigQuery column type
-      for (Schema.Field field : tableSchema.getFields()) {
-        String fieldName = field.getName();
-        // skip checking schema if field is missing in BigQuery
-        if (!missingBQFields.contains(fieldName)) {
-          ValidationFailure failure = BigQueryUtil.validateFieldSchemaMatches(
-            bqFields.get(field.getName()), field, dataset, tableName,
-            AbstractBigQuerySinkConfig.SUPPORTED_TYPES, collector);
-          if (failure != null) {
-            failure.withInputSchemaField(fieldName).withOutputSchemaField(fieldName);
-          }
-          BigQueryUtil.validateFieldModeMatches(bqFields.get(fieldName), field,
-            allowSchemaRelaxation,
-            collector);
-        }
-      }
-    }
-    collector.getOrThrowException();
-  }
-
 
   /*  This method gets the value of content type. Valid content types for each format are:
    *
@@ -1232,7 +1062,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
    */
   @Nullable
   public String getContentType() {
-      return contentType;
+    return contentType;
   }
 
 }

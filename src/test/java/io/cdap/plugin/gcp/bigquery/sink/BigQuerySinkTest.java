@@ -35,6 +35,7 @@ import io.cdap.cdap.etl.common.AbstractStageContext;
 import io.cdap.cdap.etl.mock.common.MockStageMetrics;
 import io.cdap.cdap.etl.mock.validation.MockFailureCollector;
 import io.cdap.cdap.etl.spark.batch.SparkBatchSinkContext;
+
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mock;
@@ -54,19 +55,65 @@ import static org.mockito.Mockito.when;
  */
 public class BigQuerySinkTest {
 
+  //Mocks used to configure testDatasetWithSpecialCharacters
+  @Mock
+  BigQueryMultiSinkConfig bigQueryMultiSinkConfig;
+
+  private static BigQuerySink getSinkToTest(Job mockJob) throws NoSuchFieldException {
+    Schema schema = Schema.recordOf("record",
+      Schema.Field.of("id", Schema.of(Schema.Type.LONG)),
+      Schema.Field.of("name", Schema.of(Schema.Type.STRING)));
+    BigQuerySinkConfig config =
+      new BigQuerySinkConfig("testmetric", "ds", "tb", "bkt", schema.toString(),
+        null, null, null, null, null);
+    BigQuery bigQueryMock = mock(BigQuery.class);
+    BigQuerySink sink = new BigQuerySink(config);
+    setBigQuery(sink, bigQueryMock);
+    Dataset mockDataSet = mock(Dataset.class);
+    Mockito.when(bigQueryMock.getDataset(anyString())).thenReturn(mockDataSet);
+    Mockito.when(bigQueryMock.getJob(Mockito.any(JobId.class))).thenReturn(mockJob);
+    return sink;
+  }
+
+  private static void setBigQuery(BigQuerySink sink, BigQuery bigQuery) throws NoSuchFieldException {
+    FieldSetter.setField(sink, AbstractBigQuerySink.class.getDeclaredField("bigQuery"), bigQuery);
+  }
+
+  private static Job getMockLoadJob(long count) {
+    Job job = mock(Job.class);
+    JobConfiguration jobConfiguration = mock(JobConfiguration.class);
+    when(job.getConfiguration()).thenReturn(jobConfiguration);
+    when(jobConfiguration.getType()).thenReturn(JobConfiguration.Type.LOAD);
+    JobStatistics.LoadStatistics loadStatistics = mock(JobStatistics.LoadStatistics.class);
+    when(job.getStatistics()).thenReturn(loadStatistics);
+    when(loadStatistics.getOutputRows()).thenReturn(count);
+    return job;
+  }
+
+  private static Job getMockQueryJob(long count) {
+    Job job = mock(Job.class);
+    JobConfiguration jobConfiguration = mock(JobConfiguration.class);
+    when(job.getConfiguration()).thenReturn(jobConfiguration);
+    when(jobConfiguration.getType()).thenReturn(JobConfiguration.Type.QUERY);
+    JobStatistics.QueryStatistics queryStatistics = mock(JobStatistics.QueryStatistics.class);
+    when(job.getStatistics()).thenReturn(queryStatistics);
+    when(queryStatistics.getNumDmlAffectedRows()).thenReturn(count);
+    return job;
+  }
+
   @Test
   public void testBigQuerySinkConfig() {
     Schema schema = Schema.recordOf("record",
-                                    Schema.Field.of("id", Schema.of(Schema.Type.LONG)),
-                                    Schema.Field.of("name", Schema.of(Schema.Type.STRING)),
-                                    Schema.Field.of("price", Schema.of(Schema.Type.DOUBLE)),
-                                    Schema.Field.of("dt", Schema.nullableOf(Schema.of(Schema.LogicalType.DATE))),
-                                    Schema.Field.of("bytedata", Schema.of(Schema.Type.BYTES)),
-                                    Schema.Field.of("timestamp",
-                                                    Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))));
+      Schema.Field.of("id", Schema.of(Schema.Type.LONG)),
+      Schema.Field.of("name", Schema.of(Schema.Type.STRING)),
+      Schema.Field.of("price", Schema.of(Schema.Type.DOUBLE)),
+      Schema.Field.of("dt", Schema.nullableOf(Schema.of(Schema.LogicalType.DATE))),
+      Schema.Field.of("bytedata", Schema.of(Schema.Type.BYTES)),
+      Schema.Field.of("timestamp",
+        Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))));
 
     BigQuerySinkConfig config = new BigQuerySinkConfig("44", "ds", "tb", "bucket", schema.toString(),
-                                                       "INTEGER", 0L, 100L, 10L, null);
+      "INTEGER", 0L, 100L, 10L, null);
     MockFailureCollector collector = new MockFailureCollector("bqsink");
     config.validate(collector);
     Assert.assertEquals(0, collector.getValidationFailures().size());
@@ -75,10 +122,10 @@ public class BigQuerySinkTest {
   @Test
   public void testBigQuerySinkInvalidConfig() {
     Schema invalidSchema = Schema.recordOf("record",
-                                           Schema.Field.of("id", Schema.of(Schema.Type.LONG)));
+      Schema.Field.of("id", Schema.of(Schema.Type.LONG)));
 
     BigQuerySinkConfig config = new BigQuerySinkConfig("reference!!", "ds", "tb", "buck3t$$", invalidSchema.toString(),
-                                                       "INTEGER", 0L, 100L, 10L, "200000");
+      "INTEGER", 0L, 100L, 10L, "200000");
     MockFailureCollector collector = new MockFailureCollector("bqsink");
     config.validate(collector);
     List<ValidationFailure> failures = collector.getValidationFailures();
@@ -88,18 +135,18 @@ public class BigQuerySinkTest {
   @Test
   public void testBigQueryTimePartitionConfig() {
     Schema schema = Schema.recordOf("record",
-            Schema.Field.of("id", Schema.of(Schema.Type.LONG)),
-            Schema.Field.of("name", Schema.of(Schema.Type.STRING)),
-            Schema.Field.of("price", Schema.of(Schema.Type.DOUBLE)),
-            Schema.Field.of("dt", Schema.nullableOf(Schema.of(Schema.LogicalType.DATE))),
-            Schema.Field.of("bytedata", Schema.of(Schema.Type.BYTES)),
-            Schema.Field.of("timestamp",
-                    Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))));
+      Schema.Field.of("id", Schema.of(Schema.Type.LONG)),
+      Schema.Field.of("name", Schema.of(Schema.Type.STRING)),
+      Schema.Field.of("price", Schema.of(Schema.Type.DOUBLE)),
+      Schema.Field.of("dt", Schema.nullableOf(Schema.of(Schema.LogicalType.DATE))),
+      Schema.Field.of("bytedata", Schema.of(Schema.Type.BYTES)),
+      Schema.Field.of("timestamp",
+        Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))));
 
     BigQuerySinkConfig config = new BigQuerySinkConfig("44", "ds", "tb", "bucket", schema.toString(),
-            "TIME", 0L, 100L, 10L, null);
+      "TIME", 0L, 100L, 10L, null);
     config.partitionByField = "dt";
-    
+
     MockFailureCollector collector = new MockFailureCollector("bqsink");
     config.validate(collector);
     Assert.assertEquals(0, collector.getValidationFailures().size());
@@ -119,7 +166,7 @@ public class BigQuerySinkTest {
 
   @Test
   public void testBigQuerySinkMetricInsertLargeCount2() throws Exception {
-    Job mockLoadJob = getMockLoadJob((long) Integer.MAX_VALUE);
+    Job mockLoadJob = getMockLoadJob(Integer.MAX_VALUE);
     testMetric(mockLoadJob, -1, 1);
   }
 
@@ -147,52 +194,10 @@ public class BigQuerySinkTest {
     Mockito.verify(mockStageMetrics, times(invocations)).count(anyString(), anyInt());
   }
 
-  private static BigQuerySink getSinkToTest(Job mockJob) throws NoSuchFieldException {
-    Schema schema = Schema.recordOf("record",
-                                    Schema.Field.of("id", Schema.of(Schema.Type.LONG)),
-                                    Schema.Field.of("name", Schema.of(Schema.Type.STRING)));
-    BigQuerySinkConfig config =
-      new BigQuerySinkConfig("testmetric", "ds", "tb", "bkt", schema.toString(),
-                             null, null, null, null, null);
-    BigQuery bigQueryMock = mock(BigQuery.class);
-    BigQuerySink sink = new BigQuerySink(config);
-    setBigQuery(sink, bigQueryMock);
-    Dataset mockDataSet = mock(Dataset.class);
-    Mockito.when(bigQueryMock.getDataset(anyString())).thenReturn(mockDataSet);
-    Mockito.when(bigQueryMock.getJob(Mockito.any(JobId.class))).thenReturn(mockJob);
-    return sink;
-  }
-
-  private static void setBigQuery(BigQuerySink sink, BigQuery bigQuery) throws NoSuchFieldException {
-    FieldSetter.setField(sink, AbstractBigQuerySink.class.getDeclaredField("bigQuery"), bigQuery);
-  }
-
   private BatchSinkContext getContextWithMetrics(MockStageMetrics mockStageMetrics) throws NoSuchFieldException {
     BatchSinkContext context = mock(SparkBatchSinkContext.class);
     FieldSetter.setField(context, AbstractStageContext.class.getDeclaredField("stageMetrics"), mockStageMetrics);
     return context;
-  }
-
-  private static Job getMockLoadJob(long count) {
-    Job job = mock(Job.class);
-    JobConfiguration jobConfiguration = mock(JobConfiguration.class);
-    when(job.getConfiguration()).thenReturn(jobConfiguration);
-    when(jobConfiguration.getType()).thenReturn(JobConfiguration.Type.LOAD);
-    JobStatistics.LoadStatistics loadStatistics = mock(JobStatistics.LoadStatistics.class);
-    when(job.getStatistics()).thenReturn(loadStatistics);
-    when(loadStatistics.getOutputRows()).thenReturn(count);
-    return job;
-  }
-
-  private static Job getMockQueryJob(long count) {
-    Job job = mock(Job.class);
-    JobConfiguration jobConfiguration = mock(JobConfiguration.class);
-    when(job.getConfiguration()).thenReturn(jobConfiguration);
-    when(jobConfiguration.getType()).thenReturn(JobConfiguration.Type.QUERY);
-    JobStatistics.QueryStatistics queryStatistics = mock(JobStatistics.QueryStatistics.class);
-    when(job.getStatistics()).thenReturn(queryStatistics);
-    when(queryStatistics.getNumDmlAffectedRows()).thenReturn(count);
-    return job;
   }
 
   @Test(expected = ValidationException.class)
@@ -200,11 +205,13 @@ public class BigQuerySinkTest {
     BigQuerySink sink = getValidationTestSink(false);
     MockFailureCollector collector = new MockFailureCollector("bqsink");
     Table table = getTestSchema();
-    sink.validateSchema(
+    BigQuerySinkUtils.validateSchema(
       table.getTableId().getTable(),
       table.getDefinition().getSchema(),
       sink.getConfig().getSchema(collector),
       false,
+      false,
+      "ds",
       collector);
   }
 
@@ -213,11 +220,13 @@ public class BigQuerySinkTest {
     BigQuerySink sink = getValidationTestSink(true);
     MockFailureCollector collector = new MockFailureCollector("bqsink");
     Table table = getTestSchema();
-    sink.validateSchema(
+    BigQuerySinkUtils.validateSchema(
       table.getTableId().getTable(),
       table.getDefinition().getSchema(),
       sink.getConfig().getSchema(collector),
       false,
+      true,
+      "ds",
       collector);
     Assert.assertEquals(0, collector.getValidationFailures().size());
   }
@@ -227,11 +236,13 @@ public class BigQuerySinkTest {
     BigQuerySink sink = getValidationTestSink(true);
     MockFailureCollector collector = new MockFailureCollector("bqsink");
     Table table = getTestSchema();
-    sink.validateSchema(
+    BigQuerySinkUtils.validateSchema(
       table.getTableId().getTable(),
       table.getDefinition().getSchema(),
       sink.getConfig().getSchema(collector),
       true,
+      true,
+      "ds",
       collector);
     Assert.assertEquals(0, collector.getValidationFailures().size());
   }
@@ -241,11 +252,13 @@ public class BigQuerySinkTest {
     BigQuerySink sink = getValidationTestSink(false);
     MockFailureCollector collector = new MockFailureCollector("bqsink");
     Table table = getTestSchema();
-    sink.validateSchema(
+    BigQuerySinkUtils.validateSchema(
       table.getTableId().getTable(),
       table.getDefinition().getSchema(),
       sink.getConfig().getSchema(collector),
       true,
+      false,
+      "ds",
       collector);
     Assert.assertEquals(0, collector.getValidationFailures().size());
   }
@@ -255,15 +268,20 @@ public class BigQuerySinkTest {
     BigQuerySink sink = getValidationTestSink(false);
     MockFailureCollector collector = new MockFailureCollector("bqsink");
     Table table = getTestSchema();
-    sink.validateSchema(
+    BigQuerySinkUtils.validateSchema(
       table.getTableId().getTable(),
       table.getDefinition().getSchema(),
       null,
       true,
+      false,
+      "ds",
       collector);
-    sink.validateInsertSchema(
+    BigQuerySinkUtils.validateInsertSchema(
       table,
       null,
+      true,
+      false,
+      "ds",
       collector);
     Assert.assertEquals(0, collector.getValidationFailures().size());
   }
@@ -271,16 +289,16 @@ public class BigQuerySinkTest {
   @Test
   public void testBigQuerySinkConfigValidChunkSize() {
     Schema schema = Schema.recordOf("record",
-                                    Schema.Field.of("id", Schema.of(Schema.Type.LONG)),
-                                    Schema.Field.of("name", Schema.of(Schema.Type.STRING)),
-                                    Schema.Field.of("price", Schema.of(Schema.Type.DOUBLE)),
-                                    Schema.Field.of("dt", Schema.nullableOf(Schema.of(Schema.LogicalType.DATE))),
-                                    Schema.Field.of("bytedata", Schema.of(Schema.Type.BYTES)),
-                                    Schema.Field.of("timestamp",
-                                                    Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))));
+      Schema.Field.of("id", Schema.of(Schema.Type.LONG)),
+      Schema.Field.of("name", Schema.of(Schema.Type.STRING)),
+      Schema.Field.of("price", Schema.of(Schema.Type.DOUBLE)),
+      Schema.Field.of("dt", Schema.nullableOf(Schema.of(Schema.LogicalType.DATE))),
+      Schema.Field.of("bytedata", Schema.of(Schema.Type.BYTES)),
+      Schema.Field.of("timestamp",
+        Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))));
 
     BigQuerySinkConfig config = new BigQuerySinkConfig("44", "ds", "tb", "bucket", schema.toString(),
-                                                       "INTEGER", 0L, 100L, 10L, "2097152");
+      "INTEGER", 0L, 100L, 10L, "2097152");
     MockFailureCollector collector = new MockFailureCollector("bqsink");
     config.validate(collector);
     Assert.assertEquals(0, collector.getValidationFailures().size());
@@ -289,16 +307,16 @@ public class BigQuerySinkTest {
   @Test
   public void testBigQuerySinkConfigInvalidChunkSize() {
     Schema schema = Schema.recordOf("record",
-                                    Schema.Field.of("id", Schema.of(Schema.Type.LONG)),
-                                    Schema.Field.of("name", Schema.of(Schema.Type.STRING)),
-                                    Schema.Field.of("price", Schema.of(Schema.Type.DOUBLE)),
-                                    Schema.Field.of("dt", Schema.nullableOf(Schema.of(Schema.LogicalType.DATE))),
-                                    Schema.Field.of("bytedata", Schema.of(Schema.Type.BYTES)),
-                                    Schema.Field.of("timestamp",
-                                                    Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))));
+      Schema.Field.of("id", Schema.of(Schema.Type.LONG)),
+      Schema.Field.of("name", Schema.of(Schema.Type.STRING)),
+      Schema.Field.of("price", Schema.of(Schema.Type.DOUBLE)),
+      Schema.Field.of("dt", Schema.nullableOf(Schema.of(Schema.LogicalType.DATE))),
+      Schema.Field.of("bytedata", Schema.of(Schema.Type.BYTES)),
+      Schema.Field.of("timestamp",
+        Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))));
 
     BigQuerySinkConfig config = new BigQuerySinkConfig("44", "ds", "tb", "bucket", schema.toString(),
-                                                       "INTEGER", 0L, 100L, 10L, "120000");
+      "INTEGER", 0L, 100L, 10L, "120000");
     MockFailureCollector collector = new MockFailureCollector("bqsink");
     config.validate(collector);
     Assert.assertEquals(1, collector.getValidationFailures().size());
@@ -317,20 +335,16 @@ public class BigQuerySinkTest {
 
   private BigQuerySink getValidationTestSink(boolean truncateTable) throws NoSuchFieldException {
     Schema schema = Schema.recordOf("record",
-                                    Schema.Field.of("id", Schema.of(Schema.Type.LONG)),
-                                    Schema.Field.of("name", Schema.of(Schema.Type.STRING)));
+      Schema.Field.of("id", Schema.of(Schema.Type.LONG)),
+      Schema.Field.of("name", Schema.of(Schema.Type.STRING)));
     BigQuerySinkConfig config =
       new BigQuerySinkConfig("testmetric", "ds", "tb", "bkt", schema.toString(),
-                             "INTEGER", 0L, 100L, 10L, null);
+        "INTEGER", 0L, 100L, 10L, null);
     FieldSetter.setField(config, AbstractBigQuerySinkConfig.class.getDeclaredField("truncateTable"),
-                         truncateTable);
+      truncateTable);
     BigQuery bigQueryMock = mock(BigQuery.class);
     return new BigQuerySink(config);
   }
-
-  //Mocks used to configure testDatasetWithSpecialCharacters
-  @Mock
-  BigQueryMultiSinkConfig bigQueryMultiSinkConfig;
 
   @Test
   public void testDatasetWithSpecialCharacters() {

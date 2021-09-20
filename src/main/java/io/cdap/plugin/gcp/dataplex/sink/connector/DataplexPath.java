@@ -16,6 +16,8 @@
 
 package io.cdap.plugin.gcp.dataplex.sink.connector;
 
+import java.util.Arrays;
+
 import javax.annotation.Nullable;
 
 /**
@@ -27,95 +29,97 @@ import javax.annotation.Nullable;
  * valid , it will be parsed as there is an empty string part between the slashes. e.g. "//a" will be parsed as
  * dataset name as empty and table name as "a". Similarly "/a//" will be parsed as dataset
  * name as "a" and table name as empty.
- *
  */
 public class DataplexPath {
-    private static final int NAME_MAX_LENGTH = 1024;
-    private String location;
-    private String lake;
-    private String zone;
-    private String asset;
+  private static final int NAME_MAX_LENGTH = 1024;
+  private String location;
+  private String lake;
+  private String zone;
+  private String asset;
+  private String objectName;
 
-    public DataplexPath(String path) {
-        parsePath(path);
+  public DataplexPath(String path) {
+    parsePath(path);
+  }
+
+  private void parsePath(String path) {
+    if (path == null) {
+      throw new IllegalArgumentException("Path should not be null.");
     }
 
-    private void parsePath(String path) {
-        if (path == null) {
-            throw new IllegalArgumentException("Path should not be null.");
-        }
-
-        //remove heading "/" if exists
-        if (path.startsWith("/")) {
-            path = path.substring(1);
-        }
-
-        // both "" and "/" are taken as root path
-        if (path.isEmpty()) {
-            return;
-        }
-
-        if (path.endsWith("/")) {
-            path = path.substring(0, path.length() - 1);
-        }
-
-        String[] parts = path.split("/", -1);
-
-        // path should contain at most two part : location, lake, asset and zone
-        if (parts.length > 4) {
-            throw new IllegalArgumentException("Path should at most contain four parts.");
-        }
-
-        location = parts[0];
-        validateName("Location", location);
-
-        if (parts.length >= 2) {
-            lake = parts[1];
-            validateName("Lake", lake);
-        }
-
-        if (parts.length >= 3) {
-            zone = parts[2];
-            validateName("Zone", zone);
-        }
-        if (parts.length == 4) {
-            asset = parts[3];
-            validateName("Asset", asset);
-        }
+    //remove heading "/" if exists
+    if (path.startsWith("/")) {
+      path = path.substring(1);
     }
 
-
-    /**
-     * The location, lake, asset and zone name must not be empty
-     * and it must be 1024 characters or fewer.
-     */
-    private void validateName(String property, String name) {
-        if (name.isEmpty()) {
-            throw new IllegalArgumentException(
-              String.format("%s should not be empty.", property));
-        }
-        if (name.length() > NAME_MAX_LENGTH) {
-            throw new IllegalArgumentException(
-              String.format("%s is invalid, it should contain at most %d characters.", property, NAME_MAX_LENGTH));
-        }
+    // both "" and "/" are taken as root path
+    if (path.isEmpty()) {
+      return;
     }
 
-    @Nullable
-    public String getLake() {
-        return lake;
+    if (path.endsWith("/")) {
+      path = path.substring(0, path.length() - 1);
     }
 
-    @Nullable
-    public String getZone() {
-        return zone;
+    String[] parts = path.split("/", -1);
+
+    location = parts[0];
+    validateName("Location", location);
+
+    if (parts.length >= 2) {
+      lake = parts[1];
+      validateName("Lake", lake);
     }
 
-    @Nullable
-    public String getAsset() {
-        return asset;
+    if (parts.length >= 3) {
+      zone = parts[2];
+      validateName("Zone", zone);
     }
+    if (parts.length >= 4) {
+      asset = parts[3];
+      validateName("Asset", asset);
+    }
+    if (parts.length >= 5) {
+      objectName =  String.join("/", Arrays.asList(parts).subList(4, parts.length));
+    }
+  }
 
-    public String getLocation() {
-        return location;
+
+  /**
+   * The location, lake, asset and zone name must not be empty
+   * and it must be 1024 characters or fewer.
+   */
+  private void validateName(String property, String name) {
+    if (name.isEmpty()) {
+      throw new IllegalArgumentException(
+        String.format("%s should not be empty.", property));
     }
+    if (name.length() > NAME_MAX_LENGTH) {
+      throw new IllegalArgumentException(
+        String.format("%s is invalid, it should contain at most %d characters.", property, NAME_MAX_LENGTH));
+    }
+  }
+
+  @Nullable
+  public String getLake() {
+    return lake;
+  }
+
+  @Nullable
+  public String getZone() {
+    return zone;
+  }
+
+  @Nullable
+  public String getAsset() {
+    return asset;
+  }
+
+  public String getLocation() {
+    return location;
+  }
+
+  public String getObjectName() {
+    return objectName;
+  }
 }

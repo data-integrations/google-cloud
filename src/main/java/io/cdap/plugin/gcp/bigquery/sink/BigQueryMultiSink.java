@@ -120,7 +120,9 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
           // override against configured schema as necessary.
           com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
 
-          validateSchema(tableName, bqSchema, configuredSchema, config.allowSchemaRelaxation, collector);
+          BigQuerySinkUtils.validateSchema(tableName, bqSchema, configuredSchema, config.allowSchemaRelaxation,
+            config.isAllowSchemaRelaxation(), config.getDataset(),
+            collector);
 
         }
 
@@ -137,6 +139,7 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
                                            String bucket) throws IOException {
     Configuration conf = getOutputConfiguration();
     String splitField = config.getSplitField();
+    String bucketName = config.getBucket();
     String projectName = config.getDatasetProject();
     String datasetName = config.getDataset();
     context.addOutput(Output.of(config.getReferenceName(),

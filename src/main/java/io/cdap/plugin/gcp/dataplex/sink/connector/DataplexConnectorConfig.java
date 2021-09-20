@@ -16,7 +16,13 @@
 
 package io.cdap.plugin.gcp.dataplex.sink.connector;
 
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.oauth2.ServiceAccountCredentials;
+import com.google.common.collect.Lists;
 import io.cdap.plugin.gcp.common.GCPConnectorConfig;
+import io.cdap.plugin.gcp.common.GCPUtils;
+
+import java.io.IOException;
 
 import javax.annotation.Nullable;
 
@@ -25,8 +31,26 @@ import javax.annotation.Nullable;
  */
 public class DataplexConnectorConfig extends GCPConnectorConfig {
 
-    public DataplexConnectorConfig(@Nullable String project, @Nullable String serviceAccountType,
-                                   @Nullable String serviceFilePath, @Nullable String serviceAccountJson) {
-        super(project, serviceAccountType, serviceFilePath, serviceAccountJson);
+  public DataplexConnectorConfig(@Nullable String project, @Nullable String serviceAccountType,
+                                 @Nullable String serviceFilePath, @Nullable String serviceAccountJson) {
+    super(project, serviceAccountType, serviceFilePath, serviceAccountJson);
+  }
+
+  public boolean isServiceAccountFilePathAutoDetect() {
+    return serviceFilePath != null && AUTO_DETECT.equalsIgnoreCase(serviceFilePath);
+  }
+
+
+  public GoogleCredentials getCredentials() throws IOException {
+    GoogleCredentials credentials = null;
+    //validate service account
+    if (isServiceAccountJson() || getServiceAccountFilePath() != null) {
+      credentials =
+        GCPUtils.loadServiceAccountCredentials(getServiceAccount(), isServiceAccountFilePath())
+          .createScoped(Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"));
+    } else if (isServiceAccountFilePathAutoDetect()) {
+      credentials = ServiceAccountCredentials.getApplicationDefault();
     }
+    return credentials;
+  }
 }

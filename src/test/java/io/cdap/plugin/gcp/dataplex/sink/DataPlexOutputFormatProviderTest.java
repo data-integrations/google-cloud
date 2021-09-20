@@ -1,6 +1,7 @@
 package io.cdap.plugin.gcp.dataplex.sink;
 
 import io.cdap.cdap.api.data.format.StructuredRecord;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.JobContext;
@@ -27,82 +28,79 @@ import static org.mockito.Mockito.when;
 @RunWith(MockitoJUnitRunner.class)
 public class DataPlexOutputFormatProviderTest {
 
-    @Mock
-    private RecordWriter mockWriter;
+  @Mock
+  FileOutputCommitter fileOutputCommitter;
+  @Mock
+  JobContext mockJobContext;
+  @Mock
+  private RecordWriter mockWriter;
+  @Mock
+  private NullWritable mockWritable;
+  @Mock
+  private StructuredRecord mockRecord;
+  @Mock
+  private TaskAttemptContext mockContext;
 
-    @Mock
-    private NullWritable mockWritable;
+  @Test
+  public void testRecordWriter() throws IOException, InterruptedException {
+    DataplexOutputFormatProvider.DataplexRecordWriter recordWriterToTest =
+      new DataplexOutputFormatProvider.DataplexRecordWriter(mockWriter);
+    recordWriterToTest.write(mockWritable, mockRecord);
+    Configuration configuration = new Configuration();
+    when(mockContext.getConfiguration()).thenReturn(configuration);
+    recordWriterToTest.close(mockContext);
 
-    @Mock
-    private StructuredRecord mockRecord;
+    //Verify that the delegate calls are being done as expected
+    verify(mockWriter, times(1)).write(mockWritable, mockRecord);
 
-    @Mock
-    private TaskAttemptContext mockContext;
+    //Verify count is being recorded as expected
+    Assert.assertEquals(configuration
+      .getLong(String.format(DataplexOutputFormatProvider.RECORD_COUNT_FORMAT, mockContext.getTaskAttemptID()), 0), 1);
+  }
 
-    @Mock
-    FileOutputCommitter fileOutputCommitter;
+  @Test
+  public void testDataPexOutputCommitter() throws IOException {
+    DataplexOutputCommitter committer = new DataplexOutputCommitter(fileOutputCommitter);
+    DataplexOutputCommitter committerToTest = spy(committer);
+    JobStatus.State mockState = JobStatus.State.SUCCEEDED;
 
-    @Mock
-    JobContext mockJobContext;
+    //test all the delegation
+    committerToTest.abortJob(mockJobContext, mockState);
+    verify(fileOutputCommitter, times(1)).abortJob(mockJobContext, mockState);
 
-    @Test
-    public void testRecordWriter() throws IOException, InterruptedException {
-        DataplexOutputFormatProvider.DataplexRecordWriter recordWriterToTest = new DataplexOutputFormatProvider.DataplexRecordWriter(mockWriter);
-        recordWriterToTest.write(mockWritable, mockRecord);
-        Configuration configuration = new Configuration();
-        when(mockContext.getConfiguration()).thenReturn(configuration);
-        recordWriterToTest.close(mockContext);
+    committerToTest.abortTask(mockContext);
+    verify(fileOutputCommitter, times(1)).abortTask(mockContext);
 
-        //Verify that the delegate calls are being done as expected
-        verify(mockWriter, times(1)).write(mockWritable, mockRecord);
+    committerToTest.cleanupJob(mockJobContext);
+    verify(fileOutputCommitter, times(1)).cleanupJob(mockJobContext);
 
-        //Verify count is being recorded as expected
-        Assert.assertEquals(configuration.getLong(String.format(DataplexOutputFormatProvider.RECORD_COUNT_FORMAT, mockContext.getTaskAttemptID()), 0), 1);
-    }
+    committerToTest.commitJob(mockJobContext);
+    verify(fileOutputCommitter, times(1)).commitJob(mockJobContext);
 
-    @Test
-    public void testDataPexOutputCommitter() throws IOException {
-        DataplexOutputCommitter committer = new DataplexOutputCommitter(fileOutputCommitter);
-        DataplexOutputCommitter committerToTest = spy(committer);
-        JobStatus.State mockState = JobStatus.State.SUCCEEDED;
+    committerToTest.isCommitJobRepeatable(mockJobContext);
+    verify(fileOutputCommitter, times(1)).isCommitJobRepeatable(mockJobContext);
 
-        //test all the delegation
-        committerToTest.abortJob(mockJobContext, mockState);
-        verify(fileOutputCommitter, times(1)).abortJob(mockJobContext, mockState);
+    committerToTest.isRecoverySupported();
+    verify(fileOutputCommitter, times(1)).isRecoverySupported();
 
-        committerToTest.abortTask(mockContext);
-        verify(fileOutputCommitter, times(1)).abortTask(mockContext);
+    committerToTest.isRecoverySupported(mockJobContext);
+    verify(fileOutputCommitter, times(1)).isRecoverySupported(mockJobContext);
 
-        committerToTest.cleanupJob(mockJobContext);
-        verify(fileOutputCommitter, times(1)).cleanupJob(mockJobContext);
+    committerToTest.needsTaskCommit(mockContext);
+    verify(fileOutputCommitter, times(1)).needsTaskCommit(mockContext);
 
-        committerToTest.commitJob(mockJobContext);
-        verify(fileOutputCommitter, times(1)).commitJob(mockJobContext);
+    committerToTest.recoverTask(mockContext);
+    verify(fileOutputCommitter, times(1)).recoverTask(mockContext);
 
-        committerToTest.isCommitJobRepeatable(mockJobContext);
-        verify(fileOutputCommitter, times(1)).isCommitJobRepeatable(mockJobContext);
+    committerToTest.setupJob(mockJobContext);
+    verify(fileOutputCommitter, times(1)).setupJob(mockJobContext);
 
-        committerToTest.isRecoverySupported();
-        verify(fileOutputCommitter, times(1)).isRecoverySupported();
+    committerToTest.setupTask(mockContext);
+    verify(fileOutputCommitter, times(1)).setupTask(mockContext);
 
-        committerToTest.isRecoverySupported(mockJobContext);
-        verify(fileOutputCommitter, times(1)).isRecoverySupported(mockJobContext);
-
-        committerToTest.needsTaskCommit(mockContext);
-        verify(fileOutputCommitter, times(1)).needsTaskCommit(mockContext);
-
-        committerToTest.recoverTask(mockContext);
-        verify(fileOutputCommitter, times(1)).recoverTask(mockContext);
-
-        committerToTest.setupJob(mockJobContext);
-        verify(fileOutputCommitter, times(1)).setupJob(mockJobContext);
-
-        committerToTest.setupTask(mockContext);
-        verify(fileOutputCommitter, times(1)).setupTask(mockContext);
-
-        Configuration configuration = new Configuration();
-        when(mockContext.getConfiguration()).thenReturn(configuration);
-        committerToTest.commitTask(mockContext);
-        verify(fileOutputCommitter, times(1)).commitTask(mockContext);
-    }
+    Configuration configuration = new Configuration();
+    when(mockContext.getConfiguration()).thenReturn(configuration);
+    committerToTest.commitTask(mockContext);
+    verify(fileOutputCommitter, times(1)).commitTask(mockContext);
+  }
 }
