@@ -20,6 +20,7 @@ import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetInfo;
+import com.google.cloud.bigquery.EncryptionConfiguration;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
@@ -80,7 +81,7 @@ public final class BigQuerySinkUtils {
     if (dataset == null && bucket == null) {
       createBucket(storage, bucketName, location, cmekKey,
                    () -> String.format("Unable to create Cloud Storage bucket '%s'", bucketName));
-      createDataset(bigQuery, datasetName, location,
+      createDataset(bigQuery, datasetName, location, cmekKey,
                     () -> String.format("Unable to create BigQuery dataset '%s'", datasetName));
     } else if (bucket == null) {
       createBucket(
@@ -91,7 +92,7 @@ public final class BigQuerySinkUtils {
           bucketName, dataset.getLocation(), datasetName));
     } else if (dataset == null) {
       createDataset(
-        bigQuery, datasetName, bucket.getLocation(),
+        bigQuery, datasetName, bucket.getLocation(), cmekKey,
         () -> String.format(
           "Unable to create BigQuery dataset '%s' in the same location ('%s') as Cloud Storage bucket '%s'. "
             + "Please use a bucket that is in a supported location.",
@@ -108,10 +109,14 @@ public final class BigQuerySinkUtils {
    * @throws IOException if the dataset could not be created.
    */
   private static void createDataset(BigQuery bigQuery, String dataset, @Nullable String location,
-                                    Supplier<String> errorMessage) throws IOException {
+                                    @Nullable String cmekKey, Supplier<String> errorMessage) throws IOException {
     DatasetInfo.Builder builder = DatasetInfo.newBuilder(dataset);
     if (location != null) {
       builder.setLocation(location);
+    }
+    if (cmekKey != null) {
+      builder.setDefaultEncryptionConfiguration(
+        EncryptionConfiguration.newBuilder().setKmsKeyName(cmekKey).build());
     }
     try {
       bigQuery.create(builder.build());
