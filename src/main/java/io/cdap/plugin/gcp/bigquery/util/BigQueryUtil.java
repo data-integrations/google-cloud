@@ -307,14 +307,14 @@ public final class BigQueryUtil {
 
         // Record names have to be unique as Avro doesn't allow to redefine them.
         // We can make them unique by prepending the previous records names to their name.
-        String recordName = "";
+        String recordTypeName = "";
         if (recordPrefix != null) {
-          recordName = recordPrefix + '.';
+          recordTypeName = recordPrefix + '.';
         }
-        recordName = recordName + field.getName();
+        recordTypeName = recordTypeName + field.getName();
 
         for (Field f : fields) {
-          Schema.Field schemaField = getSchemaField(f, collector, recordName);
+          Schema.Field schemaField = getSchemaField(f, collector, recordTypeName);
           // if schema field is null, that means that there was a validation error. We will still continue in order to
           // collect more errors
           if (schemaField == null) {
@@ -324,7 +324,9 @@ public final class BigQueryUtil {
         }
         // do not return schema for the struct field if none of the nested fields are of supported types
         if (!schemaFields.isEmpty()) {
-          return Schema.recordOf(recordName, schemaFields);
+          Schema namingSchema = Schema.recordOf(schemaFields);
+          recordTypeName = recordTypeName + namingSchema.getRecordName();
+          return Schema.recordOf(recordTypeName, schemaFields);
         } else {
           return null;
         }
