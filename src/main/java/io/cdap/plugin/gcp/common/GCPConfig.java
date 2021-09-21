@@ -209,7 +209,8 @@ public class GCPConfig extends PluginConfig {
           , "Modify the CMEK key or bucket location to be the same")
           .withConfigProperty(NAME_CMEK_KEY);
       }
+      return true;
     }
-    return true;
+    return false;
   }
 }
