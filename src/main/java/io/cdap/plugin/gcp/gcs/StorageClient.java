@@ -43,7 +43,11 @@ import javax.annotation.Nullable;
  */
 public class StorageClient {
   private static final Logger LOG = LoggerFactory.getLogger(StorageClient.class);
-  public final Storage storage;
+  private final Storage storage;
+
+  public Storage getStorage() {
+    return storage;
+  }
 
   private StorageClient(Storage storage) {
     this.storage = storage;

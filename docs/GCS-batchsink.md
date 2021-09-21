@@ -47,9 +47,8 @@ The delimiter will be ignored if the format is anything other than 'delimited'.
 
 **Location:** The location where the gcs bucket will get created. This value is ignored if the bucket already exists.
 
-**Encryption Key Name:** It is used to encrypt data written to bucket that will be created by pipeline.
-If the bucket already exists, you need to manually apply the CMEK to it.
-The location of bucket and key should be same.
+**Encryption Key Name:** It is used to encrypt data written to any bucket created by the plugin.
+If the bucket already exists, this is ignored.
 
 **Content Type:** The Content Type entity is used to indicate the media type of the resource.
 Defaults to 'application/octet-stream'. The following table shows valid content types for each format.

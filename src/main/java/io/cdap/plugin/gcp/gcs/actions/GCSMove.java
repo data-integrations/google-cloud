@@ -65,7 +65,7 @@ public class GCSMove extends Action {
 
     GCSPath destPath = config.getDestPath();
     GCSPath undo = null;
-    Storage storage = storageClient.storage;
+    Storage storage = storageClient.getStorage();
 
     // create the destination bucket if not exist
     Bucket bucket = null;
@@ -73,7 +73,7 @@ public class GCSMove extends Action {
       bucket = storage.get(destPath.getBucket());
     } catch (StorageException e) {
       throw new RuntimeException(
-        String.format("Unable to access or create bucket %s. ", destPath.getBucket())
+        String.format("Unable to access destination bucket %s. ", destPath.getBucket())
           + "Ensure you entered the correct bucket path and have permissions for it.", e);
     }
     if (bucket == null) {

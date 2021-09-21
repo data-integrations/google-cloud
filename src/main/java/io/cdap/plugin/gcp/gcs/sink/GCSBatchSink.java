@@ -334,7 +334,8 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     @Name(NAME_CMEK_KEY)
     @Macro
     @Nullable
-    @Description("The GCP customer managed encryption key (CMEK) name used by Cloud Dataproc")
+    @Description("The GCP customer managed encryption key (CMEK) name used to encrypt data written to " +
+      "any bucket created by the plugin. If the bucket already exists, this is ignored.")
     private String cmekKey;
 
     @Override
@@ -572,56 +573,20 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
 
     //This method validated the pattern of CMEK Key resource ID.
     void validateCmekKey(FailureCollector failureCollector) {
-      CryptoKeyName cmekKeyName = null;
-      try {
-        cmekKeyName = CryptoKeyName.parse(cmekKey);
-      } catch (ValidationException e) {
-        failureCollector.addFailure(e.getMessage(), null)
-          .withConfigProperty(NAME_CMEK_KEY).withStacktrace(e.getStackTrace());
+      CryptoKeyName cmekKeyName = parseCmekKey(cmekKey, failureCollector);
+
+      //these fields are needed to check if bucket exists or not and for location validation
+      if (cmekKeyName == null || containsMacro(NAME_PATH) || containsMacro(NAME_LOCATION) ||
+        containsMacro(NAME_SERVICE_ACCOUNT_TYPE) || containsMacro(NAME_SERVICE_ACCOUNT_JSON) ||
+        containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH)) {
         return;
       }
 
-      //these fields are needed to check if bucket exists or not and for location validation
-      if (containsMacro(NAME_PATH) || containsMacro(NAME_LOCATION) || containsMacro(NAME_SERVICE_ACCOUNT_TYPE)
-        || containsMacro(NAME_SERVICE_ACCOUNT_JSON) || containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH)) {
+      Storage storage = getStorage();
+      if (storage == null) {
         return;
       }
-      Boolean isServiceAccountFilePath = isServiceAccountFilePath();
-      Credentials credentials = null;
-      try {
-        credentials = getServiceAccount() == null ?
-          null : GCPUtils.loadServiceAccountCredentials(getServiceAccount(), isServiceAccountFilePath);
-      } catch (Exception e) {
-        /*Ignoring the exception because we don't want to highlight cmek key if an exception occurs while
-        loading credentials*/
-        return;
-      }
-      Storage storage = GCPUtils.getStorage(getProject(), credentials);
-      Bucket bucket = null;
-      try {
-        bucket = storage.get(getBucket());
-      } catch (StorageException e) {
-        /* Ignoring the exception because we don't want the validation to fail if there is an exception getting
-          the bucket information either because the service account used during validation can be different than
-          the service account that will be used at runtime (the dataproc service account)
-          (assuming the user has auto-detect for the service account) */
-        return;
-      }
-      if (bucket == null) {
-        String cmekKeyLocation = cmekKeyName.getLocation();
-        if ((Strings.isNullOrEmpty(location) && !"US".equalsIgnoreCase(cmekKeyLocation))
-          || (!Strings.isNullOrEmpty(location) && !cmekKeyLocation.equalsIgnoreCase(location))) {
-          String bucketLocation = location;
-          if (Strings.isNullOrEmpty(bucketLocation)) {
-            bucketLocation = "US";
-          }
-          failureCollector.addFailure(String.format("CMEK key '%s' is in location '%s' while the GCS bucket will " +
-                                                      "be created in location '%s'.", cmekKey,
-                                                    cmekKeyLocation, bucketLocation)
-            , "Modify the CMEK key or bucket location to be the same")
-            .withConfigProperty(NAME_CMEK_KEY);
-        }
-      }
+      validateCmekKeyAndBucketLocation(storage, path, cmekKeyName, location, failureCollector);
     }
 
     public static Builder builder() {

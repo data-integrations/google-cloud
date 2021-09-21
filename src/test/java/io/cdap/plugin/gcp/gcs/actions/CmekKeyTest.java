@@ -50,7 +50,6 @@ public class CmekKeyTest {
   @BeforeClass
   public static void setupTestClass() throws Exception {
     // Certain properties need to be configured otherwise the whole tests will be skipped.
-
     String messageTemplate = "%s is not configured, please refer to javadoc of this class for details.";
 
     project = System.getProperty("project.id");
@@ -70,7 +69,6 @@ public class CmekKeyTest {
 
     serviceAccountKey = new String(Files.readAllBytes(Paths.get(new File(serviceAccountFilePath).getAbsolutePath())),
                                    StandardCharsets.UTF_8);
-
   }
 
   //This method creates a unique GCS bucket path.
@@ -88,6 +86,22 @@ public class CmekKeyTest {
     return SourceDestConfig.builder()
       .setProject(project)
       .setGcsPath(destPath);
+  }
+
+  private GCSBucketCreate.Config getConfig(GCSBucketCreate.Config.Builder builder, String key,
+                                           @Nullable String location) {
+    return builder
+      .setCmekKey(key)
+      .setLocation(location)
+      .build();
+  }
+
+  private SourceDestConfig getConfig(SourceDestConfig.Builder builder, String key,
+                                           @Nullable String location) {
+    return builder
+      .setCmekKey(key)
+      .setLocation(location)
+      .build();
   }
 
   @Test
@@ -121,17 +135,13 @@ public class CmekKeyTest {
   private void testValidCmekKey(GCSBucketCreate.Config.Builder gcsBucketCreateBuilder,
                                 SourceDestConfig.Builder sourceDestConfigBuilder) {
     MockFailureCollector collector = new MockFailureCollector();
-    GCSBucketCreate.Config gcsBucketCreateConfig = gcsBucketCreateBuilder
-      .setCmekKey(String.format("projects/%s/locations/us-east1/keyRings/my_ring/cryptoKeys/test_key", project))
-      .setLocation("us-east1")
-      .build();
+    String configKey = String.format("projects/%s/locations/us-east1/keyRings/my_ring/cryptoKeys/test_key", project);
+    String location = "us-east1";
+    GCSBucketCreate.Config gcsBucketCreateConfig = getConfig(gcsBucketCreateBuilder, configKey, location);
     gcsBucketCreateConfig.validateCmekKey(collector);
     Assert.assertEquals(0, collector.getValidationFailures().size());
 
-    SourceDestConfig sourceDestConfig = sourceDestConfigBuilder
-      .setCmekKey(String.format("projects/%s/locations/us-east1/keyRings/my_ring/cryptoKeys/test_key", project))
-      .setLocation("us-east1")
-      .build();
+    SourceDestConfig sourceDestConfig = getConfig(sourceDestConfigBuilder, configKey, location);
     sourceDestConfig.validateCmekKey(collector);
     Assert.assertEquals(0, collector.getValidationFailures().size());
   }
@@ -139,19 +149,16 @@ public class CmekKeyTest {
   private void testInvalidCmekKeyName(GCSBucketCreate.Config.Builder gcsBucketCreateBuilder,
                                       SourceDestConfig.Builder sourceDestConfigBuilder) {
     MockFailureCollector collector = new MockFailureCollector();
-    GCSBucketCreate.Config gcsBucketCreateConfig = gcsBucketCreateBuilder
-      .setCmekKey(String.format("projects/%s/locations/us-east1/keyRings", project))
-      .build();
+    String configKey = String.format("projects/%s/locations/us-east1/keyRings", project);
+    String location = "us-east1";
+    GCSBucketCreate.Config gcsBucketCreateConfig = getConfig(gcsBucketCreateBuilder, configKey, location);
     gcsBucketCreateConfig.validateCmekKey(collector);
     ValidationFailure failure = collector.getValidationFailures().get(0);
     List<ValidationFailure.Cause> causes = failure.getCauses();
     Assert.assertEquals(2, causes.size());
     Assert.assertEquals("cmekKey", causes.get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
 
-    SourceDestConfig sourceDestConfig = sourceDestConfigBuilder
-      .setCmekKey(String.format("projects/%s/locations/us-east1/keyRings", project))
-      .setLocation("us-east1")
-      .build();
+    SourceDestConfig sourceDestConfig = getConfig(sourceDestConfigBuilder, configKey, location);
     sourceDestConfig.validateCmekKey(collector);
     failure = collector.getValidationFailures().get(1);
     causes = failure.getCauses();
@@ -162,10 +169,9 @@ public class CmekKeyTest {
   private void testInvalidCmekKeyLocation(GCSBucketCreate.Config.Builder gcsBucketCreateBuilder,
                                           SourceDestConfig.Builder sourceDestConfigBuilder) {
     MockFailureCollector collector = new MockFailureCollector();
-    GCSBucketCreate.Config gcsBucketCreateConfig = gcsBucketCreateBuilder
-      .setCmekKey(String.format("projects/%s/locations/us-east1/keyRings/my_ring/cryptoKeys/test_key", project))
-      .setLocation("us")
-      .build();
+    String configKey = String.format("projects/%s/locations/us-east1/keyRings/my_ring/cryptoKeys/test_key", project);
+    String location = "us";
+    GCSBucketCreate.Config gcsBucketCreateConfig = getConfig(gcsBucketCreateBuilder, configKey, location);
     gcsBucketCreateConfig.validateCmekKey(collector);
     ValidationFailure failure = collector.getValidationFailures().get(0);
     List<ValidationFailure.Cause> causes = failure.getCauses();
@@ -173,20 +179,14 @@ public class CmekKeyTest {
     Assert.assertEquals("cmekKey", causes.get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
 
     //testing the default location of the bucket ("US") if location config is empty or null
-    gcsBucketCreateConfig = gcsBucketCreateBuilder
-      .setCmekKey(String.format("projects/%s/locations/us-east1/keyRings/my_ring/cryptoKeys/test_key", project))
-      .setLocation("")
-      .build();
+    gcsBucketCreateConfig = getConfig(gcsBucketCreateBuilder, configKey, null);
     gcsBucketCreateConfig.validateCmekKey(collector);
     failure = collector.getValidationFailures().get(1);
     causes = failure.getCauses();
     Assert.assertEquals(1, causes.size());
     Assert.assertEquals("cmekKey", causes.get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
 
-    SourceDestConfig sourceDestConfig = sourceDestConfigBuilder
-      .setCmekKey(String.format("projects/%s/locations/us-east1/keyRings/my_ring/cryptoKeys/test_key", project))
-      .setLocation("us")
-      .build();
+    SourceDestConfig sourceDestConfig = getConfig(sourceDestConfigBuilder, configKey, location);
     sourceDestConfig.validateCmekKey(collector);
     failure = collector.getValidationFailures().get(2);
     causes = failure.getCauses();
@@ -194,10 +194,7 @@ public class CmekKeyTest {
     Assert.assertEquals("cmekKey", causes.get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
 
     //testing the default location of the bucket ("US") if location config is empty or null
-    sourceDestConfig = sourceDestConfigBuilder
-      .setCmekKey(String.format("projects/%s/locations/us-east1/keyRings/my_ring/cryptoKeys/test_key", project))
-      .setLocation("")
-      .build();
+    sourceDestConfig = getConfig(sourceDestConfigBuilder, configKey, null);
     sourceDestConfig.validateCmekKey(collector);
     failure = collector.getValidationFailures().get(3);
     causes = failure.getCauses();
