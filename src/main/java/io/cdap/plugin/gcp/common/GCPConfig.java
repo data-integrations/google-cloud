@@ -168,7 +168,7 @@ public class GCPConfig extends PluginConfig {
     return cmekKeyName;
   }
 
-  public Storage getStorage() {
+  public Credentials getCredentials() {
     Boolean isServiceAccountFilePath = isServiceAccountFilePath();
     Credentials credentials = null;
     try {
@@ -177,9 +177,8 @@ public class GCPConfig extends PluginConfig {
     } catch (Exception e) {
       /* Ignoring the exception because we don't want to highlight config if an exception occurs while
         loading credentials */
-      return null;
     }
-    return GCPUtils.getStorage(getProject(), credentials);
+    return credentials;
   }
 
   public boolean validateCmekKeyAndBucketLocation(Storage storage, String path, CryptoKeyName cmekKey,

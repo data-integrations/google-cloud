@@ -264,7 +264,7 @@ public final class GCSBucketCreate extends Action {
         containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH)) {
         return;
       }
-      Storage storage = getStorage();
+      Storage storage = GCPUtils.getStorage(getProject(), getCredentials());
       if (storage == null) {
         return;
       }
