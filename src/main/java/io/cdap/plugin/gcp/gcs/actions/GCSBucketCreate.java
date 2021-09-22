@@ -260,8 +260,7 @@ public final class GCSBucketCreate extends Action {
 
       //these fields are needed to check if bucket exists or not and for location validation
       if (cmekKeyName == null || containsMacro(NAME_PATHS) || containsMacro(NAME_LOCATION) ||
-        containsMacro(NAME_SERVICE_ACCOUNT_TYPE) || containsMacro(NAME_SERVICE_ACCOUNT_JSON) ||
-        containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH)) {
+        requiredFieldsContainsMacro()) {
         return;
       }
       Storage storage = GCPUtils.getStorage(getProject(), getCredentials());

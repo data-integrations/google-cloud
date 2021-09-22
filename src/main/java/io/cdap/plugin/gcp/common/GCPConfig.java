@@ -168,6 +168,11 @@ public class GCPConfig extends PluginConfig {
     return cmekKeyName;
   }
 
+  public boolean requiredFieldsContainsMacro() {
+    return containsMacro(NAME_SERVICE_ACCOUNT_TYPE) || containsMacro(NAME_SERVICE_ACCOUNT_JSON) ||
+      containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH);
+  }
+
   public Credentials getCredentials() {
     Boolean isServiceAccountFilePath = isServiceAccountFilePath();
     Credentials credentials = null;

@@ -577,8 +577,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
 
       //these fields are needed to check if bucket exists or not and for location validation
       if (cmekKeyName == null || containsMacro(NAME_PATH) || containsMacro(NAME_LOCATION) ||
-        containsMacro(NAME_SERVICE_ACCOUNT_TYPE) || containsMacro(NAME_SERVICE_ACCOUNT_JSON) ||
-        containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH)) {
+        requiredFieldsContainsMacro()) {
         return;
       }
 
