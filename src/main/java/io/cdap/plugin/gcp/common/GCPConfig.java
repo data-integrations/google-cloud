@@ -169,8 +169,8 @@ public class GCPConfig extends PluginConfig {
   }
 
   public boolean requiredFieldsContainsMacro() {
-    return containsMacro(NAME_SERVICE_ACCOUNT_TYPE) || containsMacro(NAME_SERVICE_ACCOUNT_JSON) ||
-      containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH);
+    return containsMacro(NAME_PROJECT) || containsMacro(NAME_SERVICE_ACCOUNT_TYPE) ||
+      containsMacro(NAME_SERVICE_ACCOUNT_JSON) || containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH);
   }
 
   public Credentials getCredentials() {
