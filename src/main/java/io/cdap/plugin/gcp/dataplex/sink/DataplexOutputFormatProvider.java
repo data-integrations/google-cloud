@@ -1,6 +1,21 @@
+/*
+ * Copyright © 2021 Cask Data, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+
 package io.cdap.plugin.gcp.dataplex.sink;
 
-import com.google.common.collect.ImmutableMap;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.validation.FormatContext;
@@ -29,19 +44,25 @@ public class DataplexOutputFormatProvider implements ValidatingOutputFormat {
   public static final String RECORD_COUNT_FORMAT = "recordcount.%s";
   public static final String DATAPLEX_ASSET_TYPE = "dataplexsink.assettype";
   private static final String OUTPUT_FOLDER = "dataplexsink.metric.output.folder";
+  private static final String DELEGATE_OUTPUTFORMAT_CLASSNAME = "gcssink.delegate.outputformat.classname";
+
   private final ValidatingOutputFormat delegate;
-  private final Map<String, String> configMap;
   private final Configuration configuration;
   private final Schema tableSchema;
 
+  /**
+   *
+   * @param configuration it will be null for Asset type : Storage bucket
+   * @param tableSchema it will be null for Asset type : Storage bucket
+   * @param delegate it will be null for Asset type : BQ dataset
+   */
   public DataplexOutputFormatProvider(Configuration configuration, Schema tableSchema,
-                                      ValidatingOutputFormat delegate, Map<String, String> configMap) {
+                                      ValidatingOutputFormat delegate) {
   //for BQ assets
     this.configuration = configuration;
     this.tableSchema = tableSchema;
   //for GCS assets
     this.delegate = delegate;
-    this.configMap = configMap == null ? null : ImmutableMap.copyOf(configMap);
   }
 
 
@@ -57,6 +78,7 @@ public class DataplexOutputFormatProvider implements ValidatingOutputFormat {
 
   @Override
   public Map<String, String> getOutputFormatConfiguration() {
+    // delegate will be null in case of Bigquery Dataset asset.
     if (delegate == null) {
       Map<String, String> configToMap = BigQueryUtil.configToMap(configuration);
       if (tableSchema != null) {
@@ -65,7 +87,9 @@ public class DataplexOutputFormatProvider implements ValidatingOutputFormat {
       }
       return configToMap;
     }
+    // It will run only for GCS asset
     Map<String, String> outputFormatConfiguration = new HashMap<>(delegate.getOutputFormatConfiguration());
+    outputFormatConfiguration.put(DELEGATE_OUTPUTFORMAT_CLASSNAME, delegate.getOutputFormatClassName());
     return outputFormatConfiguration;
   }
 
@@ -78,6 +102,12 @@ public class DataplexOutputFormatProvider implements ValidatingOutputFormat {
     private final OutputFormat<StructuredRecord, NullWritable> bqDelegateFormat = new BigQueryOutputFormat();
     private OutputFormat delegateFormat;
 
+    /**
+     * It will set outputformat based on asset type in dataplex
+     * @param configuration
+     * @return
+     * @throws IOException
+     */
     private OutputFormat getDelegateFormatInstance(Configuration configuration) throws IOException {
       if (delegateFormat != null) {
         return delegateFormat;

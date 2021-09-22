@@ -1,23 +1,34 @@
+/*
+ * Copyright © 2021 Cask Data, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+
 package io.cdap.plugin.gcp.dataplex.sink;
 
-import com.google.cloud.storage.Blob;
 import com.google.common.annotations.VisibleForTesting;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.StorageClient;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.JobStatus;
 import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 /**
  * OutputCommitter for Dataplex
  */
@@ -63,49 +74,9 @@ public class DataplexOutputCommitter extends OutputCommitter {
 
   @Override
   public void commitTask(TaskAttemptContext taskAttemptContext) throws IOException {
-      /*On commit task, there seems to be some inconsistency across different hadoop implementations regarding the path
-       where output file is stored. For some implementations it appears in the path returned by FileOutputCommitter
-       getCommittedTaskPath and for some it does not.Before commit, the files appear to be consistently present in path
-       returned by FileOutputCommitter getTaskAttemptPath. Hence, find the output file from taskAttemptPath and add
-       metadata before commit happens. After commit, file would have been moved out of the taskAttemptPath. */
-    try {
-      updateMetricMetaData(taskAttemptContext);
-    } catch (Exception exception) {
-      LOG.warn("Unable to record metric for task. Metric emitted for the number of affected rows may be incorrect.",
-        exception);
-    }
-
     delegate.commitTask(taskAttemptContext);
   }
 
-  private void updateMetricMetaData(TaskAttemptContext taskAttemptContext) throws IOException {
-    if (!(delegate instanceof FileOutputCommitter)) {
-      return;
-    }
-
-    FileOutputCommitter fileOutputCommitter = (FileOutputCommitter) delegate;
-    Configuration configuration = taskAttemptContext.getConfiguration();
-    //Task is not yet committed, so should be available in attempt path
-    Path taskAttemptPath = fileOutputCommitter.getTaskAttemptPath(taskAttemptContext);
-    if (configuration == null || taskAttemptPath == null) {
-      return;
-    }
-
-    //read the count from configuration
-    String keyInConfig = String.format(RECORD_COUNT_FORMAT, taskAttemptContext.getTaskAttemptID());
-    Map<String, String> metaData = new HashMap<>();
-    metaData.put("recordcount", String.valueOf(configuration.getLong(keyInConfig, 0L)));
-    StorageClient storageClient = getStorageClient(configuration);
-    //update metadata on the output file present in the directory for this task
-    Blob blob = storageClient.pickABlob(taskAttemptPath.toString());
-    if (blob == null) {
-      LOG.info("Could not find a file in path {} to apply count metadata.", taskAttemptPath.toString());
-      return;
-    }
-    //to-do
-//    blob.toBuilder().setContentType(configuration.get(DataplexBatchSink.CONTENT_TYPE)).setMetadata(metaData).build()
-//      .update();
-  }
 
   @VisibleForTesting
   StorageClient getStorageClient(Configuration configuration) throws IOException {

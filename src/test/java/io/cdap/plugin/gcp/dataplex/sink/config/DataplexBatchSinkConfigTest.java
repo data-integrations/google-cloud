@@ -4,6 +4,7 @@ import com.google.auth.oauth2.GoogleCredentials;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.mock.validation.MockFailureCollector;
+import io.cdap.plugin.gcp.dataplex.common.config.DataplexBaseConfig;
 import io.cdap.plugin.gcp.dataplex.sink.connection.DataplexInterface;
 import io.cdap.plugin.gcp.dataplex.sink.connection.out.DataplexInterfaceImpl;
 import io.cdap.plugin.gcp.dataplex.sink.connector.DataplexConnectorConfig;
