@@ -41,6 +41,7 @@ import io.cdap.plugin.format.plugin.AbstractFileSink;
 import io.cdap.plugin.format.plugin.FileSinkProperties;
 import io.cdap.plugin.gcp.common.GCPReferenceSinkConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
+import io.cdap.plugin.gcp.gcs.Formats;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 import io.cdap.plugin.gcp.gcs.StorageClient;
 import org.slf4j.Logger;
@@ -354,15 +355,6 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
         }
       }
 
-      if (!containsMacro(NAME_FORMAT)) {
-        try {
-          getFormat();
-        } catch (IllegalArgumentException e) {
-          collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_FORMAT)
-            .withStacktrace(e.getStackTrace());
-        }
-      }
-
       if (!containsMacro(NAME_CONTENT_TYPE) && !containsMacro(NAME_CUSTOM_CONTENT_TYPE)
         && !Strings.isNullOrEmpty(contentType) && !contentType.equalsIgnoreCase(CONTENT_TYPE_OTHER)
         && !containsMacro(NAME_FORMAT)) {
@@ -460,8 +452,8 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     }
 
     @Override
-    public FileFormat getFormat() {
-      return FileFormat.from(format, FileFormat::canWrite);
+    public String getFormatName() {
+      return Formats.getFormatPluginName(format);
     }
 
     @Nullable
