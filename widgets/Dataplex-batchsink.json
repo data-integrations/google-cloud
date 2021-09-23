@@ -1,0 +1,543 @@
+{
+  "metadata": {
+    "spec-version": "1.5"
+  },
+  "display-name": "Dataplex",
+  "configuration-groups": [
+    {
+      "label": "Basic",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Reference Name",
+          "name": "referenceName",
+          "widget-attributes": {
+            "placeholder": "Name used to identify this sink for lineage"
+          }
+        }
+      ]
+    },
+    {
+      "label": "Connection",
+      "properties": [
+        {
+          "widget-type": "toggle",
+          "label": "Use connection",
+          "name": "useConnection",
+          "widget-attributes": {
+            "on": {
+              "value": "true",
+              "label": "YES"
+            },
+            "off": {
+              "value": "false",
+              "label": "NO"
+            },
+            "default": "false"
+          }
+        },
+        {
+          "widget-type": "connection-select",
+          "label": "Connection",
+          "name": "connection",
+          "widget-attributes": {
+            "connectionType": "Dataplex"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Project ID",
+          "name": "project",
+          "widget-attributes": {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "name": "serviceAccountType",
+          "label": "Service Account Type",
+          "widget-type": "radio-group",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "filePath",
+            "options": [
+              {
+                "id": "filePath",
+                "label": "File Path"
+              },
+              {
+                "id": "JSON",
+                "label": "JSON"
+              }
+            ]
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes": {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Service Account JSON",
+          "name": "serviceAccountJSON"
+        }
+      ]
+    },
+    {
+      "label": "Dataplex Configuration",
+      "properties": [
+        {
+          "widget-type": "connection-browser",
+          "widget-category": "plugin",
+          "widget-attributes": {
+            "connectionType": "Dataplex",
+            "label": "Browse"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Location ID",
+          "name": "location",
+          "widget-attributes": {
+            "placeholder": "Ex: us-central1"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Lake ID",
+          "name": "lake",
+          "widget-attributes": {
+            "placeholder": "Ex: Lake"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Zone ID",
+          "name": "zone",
+          "widget-attributes": {
+            "placeholder": "Ex: Zone"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Asset ID",
+          "name": "asset",
+          "widget-attributes": {
+            "placeholder": "Ex: Asset"
+          }
+        },
+        {
+          "widget-type": "radio-group",
+          "label": "Asset type",
+          "name": "assetType",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "BIGQUERY_DATASET",
+            "options": [
+              {
+                "id": "BIGQUERY_DATASET",
+                "label": "BigQuery Dataset"
+              },
+              {
+                "id": "STORAGE_BUCKET",
+                "label": "Storage Bucket"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "label": "Asset Details",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Path Suffix",
+          "name": "suffix",
+          "widget-attributes": {
+            "default": "yyyy-MM-dd-HH-mm"
+          }
+        },
+        {
+          "widget-type": "select",
+          "label": "Format",
+          "name": "format",
+          "widget-attributes": {
+            "values" : [
+              "avro",
+              "csv",
+              "json",
+              "orc",
+              "parquet"
+            ],
+            "default": "json"
+          }
+        },
+        {
+          "widget-type": "select",
+          "label": "Content Type",
+          "name": "contentType",
+          "widget-attributes": {
+            "values": [
+              "application/octet-stream",
+              "application/json",
+              "application/avro",
+              "application/csv",
+              "text/plain",
+              "text/csv",
+              "text/tab-separated-values",
+              "other"
+            ],
+            "default": "application/octet-stream"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Table Name",
+          "name": "table",
+          "widget-attributes": {
+            "placeholder": ""
+          }
+        },
+        {
+          "widget-type": "radio-group",
+          "name": "operation",
+          "label": "Operation",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "insert",
+            "options": [
+              {
+                "id": "insert",
+                "label": "Insert"
+              },
+              {
+                "id": "update",
+                "label": "Update"
+              },
+              {
+                "id": "upsert",
+                "label": "Upsert"
+              }
+            ]
+          }
+        },
+        {
+          "name": "tableKey",
+          "widget-type": "csv",
+          "label": "Table Key",
+          "widget-attributes": {}
+        },
+        {
+          "name": "dedupeBy",
+          "label": "Dedupe By",
+          "widget-type": "keyvalue-dropdown",
+          "widget-attributes": {
+            "delimiter": ",",
+            "kv-delimiter": " ",
+            "dropdownOptions": [
+              "ASC",
+              "DESC"
+            ]
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Partition Filter",
+          "name": "partitionFilter",
+          "widget-attributes": {
+            "placeholder": "Filter that can be used for partition elimination"
+          }
+        },
+        {
+          "widget-type": "toggle",
+          "label": "Truncate Table",
+          "name": "truncateTable",
+          "widget-attributes": {
+            "default": "false",
+            "on": {
+              "value": "true",
+              "label": "True"
+            },
+            "off": {
+              "value": "false",
+              "label": "False"
+            }
+          }
+        },
+        {
+          "widget-type": "toggle",
+          "label": "Update Table Schema",
+          "name": "allowSchemaRelaxation",
+          "widget-attributes": {
+            "default": "false",
+            "on": {
+              "value": "true",
+              "label": "True"
+            },
+            "off": {
+              "value": "false",
+              "label": "False"
+            }
+          }
+        },
+        {
+          "widget-type": "radio-group",
+          "label": "Partitioning type",
+          "name": "partitioningType",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "TIME",
+            "options": [
+              {
+                "id": "TIME",
+                "label": "Time"
+              },
+              {
+                "id": "INTEGER",
+                "label": "Integer"
+              },
+              {
+                "id": "NONE",
+                "label": "None"
+              }
+            ]
+          }
+        },
+        {
+          "widget-type": "Number",
+          "label": "Range Start (inclusive)",
+          "name": "rangeStart",
+          "widget-attributes": {
+            "default": "0"
+          }
+        },
+        {
+          "widget-type": "Number",
+          "label": "Range End (exclusive)",
+          "name": "rangeEnd"
+        },
+        {
+          "widget-type": "Number",
+          "label": "Range Interval",
+          "name": "rangeInterval"
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Partition Field",
+          "name": "partitionField",
+          "widget-attributes": {
+            "placeholder": "Table field for partitioning"
+          }
+        },
+        {
+          "widget-type": "toggle",
+          "label": "Require Partition Filter",
+          "name": "requirePartitionField",
+          "widget-attributes": {
+            "default": "false",
+            "on": {
+              "value": "true",
+              "label": "True"
+            },
+            "off": {
+              "value": "false",
+              "label": "False"
+            }
+          }
+        },
+        {
+          "name": "clusteringOrder",
+          "widget-type": "csv",
+          "label": "Clustering Order",
+          "widget-attributes": {}
+        }
+      ]
+    }
+  ],
+  "filters": [
+    {
+      "name": "AssetTypeFilterGCS",
+      "condition": {
+        "expression": "assetType == 'STORAGE_BUCKET'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "suffix"
+        },
+        {
+          "type": "property",
+          "name": "format"
+        },
+        {
+          "type": "property",
+          "name": "contentType"
+        }
+      ]
+    },
+    {
+      "name": "AssetTypeFilterBQ",
+      "condition": {
+        "expression": "assetType == 'BIGQUERY_DATASET'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "table"
+        },
+        {
+          "type": "property",
+          "name": "operation"
+        },
+        {
+          "type": "property",
+          "name": "tableKey"
+        },
+        {
+          "type": "property",
+          "name": "dedupeBy"
+        },
+        {
+          "type": "property",
+          "name": "partitionFilter"
+        },
+        {
+          "type": "property",
+          "name": "allowSchemaRelaxation"
+        },
+        {
+          "type": "property",
+          "name": "partitioningType"
+        }
+      ]
+    },
+    {
+      "name": "PartitioningIntegerFieldsFilter",
+      "condition": {
+        "expression": "partitioningType == 'INTEGER' && assetType == 'BIGQUERY_DATASET'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "rangeStart"
+        },
+        {
+          "type": "property",
+          "name": "rangeEnd"
+        },
+        {
+          "type": "property",
+          "name": "rangeInterval"
+        }
+      ]
+    },
+    {
+      "name": "PartitionFieldFilter",
+      "condition": {
+        "expression": "(partitioningType == 'INTEGER' || partitioningType == 'TIME') && assetType == 'BIGQUERY_DATASET'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "partitionField"
+        },
+        {
+          "type": "property",
+          "name": "requirePartitionField"
+        },
+        {
+          "type": "property",
+          "name": "clusteringOrder"
+        }
+      ]
+    },
+    {
+      "name": "ServiceAuthenticationTypeFilePath",
+      "condition": {
+        "expression": "useConnection == false && serviceAccountType == 'filePath'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "serviceFilePath"
+        }
+      ]
+    },
+    {
+      "name": "ServiceAuthenticationTypeJSON",
+      "condition": {
+        "expression": "useConnection == false && serviceAccountType == 'JSON'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "serviceAccountJSON"
+        }
+      ]
+    },
+    {
+      "name": "TruncateTableOption",
+      "condition": {
+        "expression": "operation == 'insert' && assetType == 'BIGQUERY_DATASET'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "truncateTable"
+        }
+      ]
+    },
+
+    {
+      "name": "showConnectionId",
+      "condition": {
+        "expression": "useConnection == true"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "connection"
+        }
+      ]
+    },
+    {
+      "name": "showConnectionProperties ",
+      "condition": {
+        "expression": "useConnection == false"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "project"
+        },
+        {
+          "type": "property",
+          "name": "serviceAccountType"
+        }
+      ]
+    }
+  ],
+  "outputs": [
+    {
+      "name": "schema",
+      "label": "schema",
+      "widget-type": "schema",
+      "widget-attributes": {
+        "schema-types": [
+          "boolean",
+          "int",
+          "long",
+          "float",
+          "double",
+          "bytes",
+          "string"
+        ],
+        "schema-default-type": "string"
+      }
+    }
+  ]
+}

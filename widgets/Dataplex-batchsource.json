@@ -1,0 +1,371 @@
+{
+  "metadata": {
+    "spec-version": "1.5"
+  },
+  "display-name": "Dataplex",
+  "configuration-groups": [
+    {
+      "label": "Basic",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Reference Name",
+          "name": "referenceName",
+          "widget-attributes": {
+            "placeholder": "Name used to identify this sink for lineage"
+          }
+        }
+      ]
+    },
+    {
+      "label": "Connection",
+      "properties": [
+        {
+          "widget-type": "toggle",
+          "label": "Use connection",
+          "name": "useConnection",
+          "widget-attributes": {
+            "on": {
+              "value": "true",
+              "label": "YES"
+            },
+            "off": {
+              "value": "false",
+              "label": "NO"
+            },
+            "default": "false"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Project ID",
+          "name": "project",
+          "widget-attributes": {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "widget-type": "connection-select",
+          "label": "Connection",
+          "name": "connection",
+          "widget-attributes": {
+            "connectionType": "Dataplex"
+          }
+        },
+        {
+          "name": "serviceAccountType",
+          "label": "Service Account Type",
+          "widget-type": "radio-group",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "filePath",
+            "options": [
+              {
+                "id": "filePath",
+                "label": "File Path"
+              },
+              {
+                "id": "JSON",
+                "label": "JSON"
+              }
+            ]
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes": {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Service Account JSON",
+          "name": "serviceAccountJSON"
+        }
+      ]
+    },
+    {
+      "label": "Dataplex Configuration",
+      "properties": [
+        {
+          "widget-type": "connection-browser",
+          "widget-category": "plugin",
+          "widget-attributes": {
+            "connectionType": "Dataplex",
+            "label": "Browse"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Location Id",
+          "name": "location",
+          "widget-attributes": {
+            "placeholder": "Ex: us-central1"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Lake Id",
+          "name": "lake",
+          "widget-attributes": {
+            "placeholder": "Ex: Lake"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Zone Id",
+          "name": "zone",
+          "widget-attributes": {
+            "placeholder": "Ex: zone"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Asset Id",
+          "name": "asset",
+          "widget-attributes": {
+            "placeholder": "Ex: Asset"
+          }
+        },
+        {
+          "widget-type": "radio-group",
+          "label": "Asset type",
+          "name": "assetType",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "BIGQUERY_DATASET",
+            "options": [
+              {
+                "id": "BIGQUERY_DATASET",
+                "label": "BigQuery Dataset"
+              },
+              {
+                "id": "STORAGE_BUCKET",
+                "label": "Storage Bucket"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "label": "Asset Details",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Table",
+          "name": "table",
+          "widget-attributes": {
+            "placeholder": "Table to read from"
+          },
+          "plugin-function": {
+            "label": "Get Schema",
+            "widget": "outputSchema",
+            "output-property": "schema",
+            "omit-properties": [
+              {
+                "name": "schema"
+              }
+            ]
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Partition Start Date",
+          "name": "partitionFrom",
+          "widget-attributes": {
+            "placeholder": "Partition start date in format yyyy-MM-dd"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Partition End Date",
+          "name": "partitionTo",
+          "widget-attributes": {
+            "placeholder": "Partition end date in format yyyy-MM-dd"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Filter",
+          "name": "filter",
+          "widget-attributes" : {
+            "placeholder": "Filters out rows that do not match the given condition"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Path",
+          "name": "path",
+          "widget-attributes": {
+            "placeholder": "gs://<bucket>/path/to/input"
+          }
+        },
+        {
+          "widget-type": "plugin-list",
+          "label": "Format",
+          "name": "format",
+          "widget-attributes": {
+            "plugin-type": "validatingInputFormat"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Delimiter",
+          "name": "delimiter",
+          "widget-attributes": {
+            "placeholder": "Delimiter if the format is 'delimited'"
+          },
+          "plugin-function": {
+            "method": "POST",
+            "widget": "outputSchema",
+            "label": "Get Schema Value",
+            "required-fields": [
+              "path"
+            ],
+            "missing-required-fields-message": "Please provide path field",
+            "plugin-method": "getSchema"
+          }
+        },
+        {
+          "widget-type": "toggle",
+          "label": "Skip Header",
+          "name": "skipHeader",
+          "widget-attributes": {
+            "default": "false",
+            "on": {
+              "value": "true",
+              "label": "True"
+            },
+            "off": {
+              "value": "false",
+              "label": "False"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "outputs": [
+    {
+      "name": "schema",
+      "label": "schema",
+      "widget-type": "schema",
+      "widget-attributes": {
+        "schema-types": [
+          "boolean",
+          "long",
+          "double",
+          "bytes",
+          "string",
+          "array"
+        ],
+        "schema-default-type": "string"
+      }
+    }
+  ],
+  "filters": [
+    {
+      "name": "AssetTypeFilterGCS",
+      "condition": {
+        "expression": "assetType == 'STORAGE_BUCKET'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "path"
+        },
+        {
+          "type": "property",
+          "name": "format"
+        },
+        {
+          "type": "property",
+          "name": "delimiter"
+        },
+        {
+          "type": "property",
+          "name": "skipHeader"
+        }
+      ]
+    },
+    {
+      "name": "AssetTypeFilterBQ",
+      "condition": {
+        "expression": "assetType == 'BIGQUERY_DATASET'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "table"
+        },
+        {
+          "type": "property",
+          "name": "partitionFrom"
+        },
+        {
+          "type": "property",
+          "name": "partitionTo"
+        },
+        {
+          "type": "property",
+          "name": "filter"
+        }
+      ]
+    },
+    {
+      "name": "ServiceAuthenticationTypeFilePath",
+      "condition": {
+        "expression": "useConnection == false && serviceAccountType == 'filePath'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "serviceFilePath"
+        }
+      ]
+    },
+    {
+      "name": "ServiceAuthenticationTypeJSON",
+      "condition": {
+        "expression": "useConnection == false && serviceAccountType == 'JSON'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "serviceAccountJSON"
+        }
+      ]
+    },
+    {
+      "name": "showConnectionId",
+      "condition": {
+        "expression": "useConnection == true"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "connection"
+        },
+        {
+          "type": "property",
+          "name": "project"
+        }
+      ]
+    },
+    {
+      "name": "showConnectionProperties ",
+      "condition": {
+        "expression": "useConnection == false"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "serviceAccountType"
+        }
+      ]
+    }
+  ]
+}
