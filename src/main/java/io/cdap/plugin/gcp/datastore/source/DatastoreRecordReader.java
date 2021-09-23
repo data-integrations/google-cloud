@@ -48,11 +48,8 @@ public class DatastoreRecordReader extends RecordReader<LongWritable, Entity> {
 
   private static final Logger LOG = LoggerFactory.getLogger(DatastoreRecordReader.class);
 
-  private Datastore datastore;
   private Iterator<EntityResult> results;
   private Entity entity;
-  private List<EntityResult> entityResultList;
-  private int batchSerializedSize;
   private long index;
   private LongWritable key;
 
@@ -60,43 +57,41 @@ public class DatastoreRecordReader extends RecordReader<LongWritable, Entity> {
   public void initialize(InputSplit inputSplit, TaskAttemptContext taskAttemptContext) throws IOException {
     Configuration config = taskAttemptContext.getConfiguration();
     Query query = ((QueryInputSplit) inputSplit).getQuery();
-    datastore = DatastoreUtil.getDatastoreV1(
+    Datastore datastore = DatastoreUtil.getDatastoreV1(
       config.get(DatastoreSourceConstants.CONFIG_SERVICE_ACCOUNT),
       config.getBoolean(DatastoreSourceConstants.CONFIG_SERVICE_ACCOUNT_IS_FILE, true),
       config.get(DatastoreSourceConstants.CONFIG_PROJECT));
     LOG.trace("Executing query split: {}", query);
-    RunQueryRequest request = RunQueryRequest.newBuilder()
-      .setQuery(query)
-      // partition id needs to be set in the RunQueryRequest in addition to being passed to QuerySplitter.getSplits.
-      // This is a quirk of the V1 API.
-      .setPartitionId(PartitionId.newBuilder()
-                        .setNamespaceId(config.get(DatastoreSourceConstants.CONFIG_NAMESPACE))
-                        .setProjectId(config.get(DatastoreSourceConstants.CONFIG_PROJECT)))
-      .build();
 
-    entityResultList = new ArrayList<>();
-    createEntityResultsList(query, request);
-    taskAttemptContext.getCounter(FileInputFormatCounter.BYTES_READ).increment(batchSerializedSize);
-    results = entityResultList.iterator();
-    index = 0;
-  }
-
-  private void createEntityResultsList(Query query, RunQueryRequest request) throws IOException {
+    Query.Builder queryBuilder = query.toBuilder();
+    PartitionId.Builder partitionIdBuilder = PartitionId.newBuilder()
+      .setNamespaceId(config.get(DatastoreSourceConstants.CONFIG_NAMESPACE))
+      .setProjectId(config.get(DatastoreSourceConstants.CONFIG_PROJECT));
+    int batchSerializedSize = 0;
+    List<EntityResult> entityResultList = new ArrayList<>();
+    QueryResultBatch batch;
     try {
-      QueryResultBatch batch = datastore.runQuery(request).getBatch();
-      batchSerializedSize += batch.getSerializedSize();
-      entityResultList.addAll(batch.getEntityResultsList());
-      LOG.debug("Batch moreResultsType: {}", batch.getMoreResults());
       // Datastore API only returns up to 300 items. Need to use cursor pagination if there is more results
-      if (batch.getMoreResults() != QueryResultBatch.MoreResultsType.NO_MORE_RESULTS) {
+      do {
+        RunQueryRequest request = RunQueryRequest.newBuilder()
+          .setQuery(queryBuilder)
+          // partition id needs to be set in the RunQueryRequest in addition to being passed to QuerySplitter.getSplits.
+          // This is a quirk of the V1 API.
+          .setPartitionId(partitionIdBuilder)
+          .build();
+        batch = datastore.runQuery(request).getBatch();
+        batchSerializedSize += batch.getSerializedSize();
+        entityResultList.addAll(batch.getEntityResultsList());
+        LOG.debug("Batch moreResultsType: {}", batch.getMoreResults());
         ByteString cursor = batch.getEndCursor();
-        query = query.toBuilder().setStartCursor(cursor).build();
-        request = request.toBuilder().setQuery(query).build();
-        createEntityResultsList(query, request);
-      }
+        queryBuilder.setStartCursor(cursor);
+      } while (batch.getMoreResults() == QueryResultBatch.MoreResultsType.NOT_FINISHED);
     } catch (DatastoreException e) {
       throw new IOException("Failed to run query", e);
     }
+    taskAttemptContext.getCounter(FileInputFormatCounter.BYTES_READ).increment(batchSerializedSize);
+    results = entityResultList.iterator();
+    index = 0;
   }
 
   @Override
