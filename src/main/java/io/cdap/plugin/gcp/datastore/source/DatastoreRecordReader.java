@@ -67,7 +67,6 @@ public class DatastoreRecordReader extends RecordReader<LongWritable, Entity> {
     PartitionId.Builder partitionIdBuilder = PartitionId.newBuilder()
       .setNamespaceId(config.get(DatastoreSourceConstants.CONFIG_NAMESPACE))
       .setProjectId(config.get(DatastoreSourceConstants.CONFIG_PROJECT));
-    int batchSerializedSize = 0;
     List<EntityResult> entityResultList = new ArrayList<>();
     QueryResultBatch batch;
     try {
@@ -80,7 +79,7 @@ public class DatastoreRecordReader extends RecordReader<LongWritable, Entity> {
           .setPartitionId(partitionIdBuilder)
           .build();
         batch = datastore.runQuery(request).getBatch();
-        batchSerializedSize += batch.getSerializedSize();
+        taskAttemptContext.getCounter(FileInputFormatCounter.BYTES_READ).increment(batch.getSerializedSize());
         entityResultList.addAll(batch.getEntityResultsList());
         LOG.debug("Batch moreResultsType: {}", batch.getMoreResults());
         ByteString cursor = batch.getEndCursor();
@@ -89,7 +88,6 @@ public class DatastoreRecordReader extends RecordReader<LongWritable, Entity> {
     } catch (DatastoreException e) {
       throw new IOException("Failed to run query", e);
     }
-    taskAttemptContext.getCounter(FileInputFormatCounter.BYTES_READ).increment(batchSerializedSize);
     results = entityResultList.iterator();
     index = 0;
   }
