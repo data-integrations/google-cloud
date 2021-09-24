@@ -46,10 +46,6 @@ public class StorageClient {
   private final Storage storage;
   private List<GCSPath> undoBucket = new ArrayList<>();
 
-  public Storage getStorage() {
-    return storage;
-  }
-
   private StorageClient(Storage storage) {
     this.storage = storage;
   }
