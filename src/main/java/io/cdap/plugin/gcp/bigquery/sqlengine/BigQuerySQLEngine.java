@@ -28,7 +28,10 @@ import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.format.StructuredRecord;
+import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
+import io.cdap.cdap.etl.api.dl.DLContext;
+import io.cdap.cdap.etl.api.dl.DLDataSet;
 import io.cdap.cdap.etl.api.engine.sql.BatchSQLEngine;
 import io.cdap.cdap.etl.api.engine.sql.SQLEngineException;
 import io.cdap.cdap.etl.api.engine.sql.dataset.SQLDataset;
@@ -38,10 +41,14 @@ import io.cdap.cdap.etl.api.engine.sql.request.SQLJoinDefinition;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLJoinRequest;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLPullRequest;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLPushRequest;
+import io.cdap.cdap.etl.api.engine.sql.request.SQLTransformRequest;
 import io.cdap.cdap.etl.api.join.JoinCondition;
 import io.cdap.cdap.etl.api.join.JoinDefinition;
 import io.cdap.cdap.etl.api.join.JoinStage;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
+import io.cdap.plugin.gcp.bigquery.sqlengine.builder.BigQuerySQLBuilder;
+import io.cdap.plugin.gcp.bigquery.sqlengine.dl.BigQueryDLContext;
+import io.cdap.plugin.gcp.bigquery.sqlengine.dl.BigQueryDLDataSet;
 import io.cdap.plugin.gcp.bigquery.sqlengine.util.BigQuerySQLEngineUtils;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
@@ -180,7 +187,7 @@ public class BigQuerySQLEngine
   public SQLPullDataset<StructuredRecord, LongWritable, GenericData.Record> getPullProvider(
     SQLPullRequest sqlPullRequest) throws SQLEngineException {
     if (!datasets.containsKey(sqlPullRequest.getDatasetName())) {
-      throw new SQLEngineException(String.format("Trying to pull non-existing dataset: '%s",
+      throw new SQLEngineException(String.format("Trying to pull non-existing dataset: '%s'",
                                                  sqlPullRequest.getDatasetName()));
     }
 
@@ -214,6 +221,11 @@ public class BigQuerySQLEngine
              sqlJoinDefinition.getDatasetName(),
              canJoin);
     return canJoin;
+  }
+
+  @Override
+  public boolean supportsDL() {
+    return true;
   }
 
   @VisibleForTesting
@@ -255,21 +267,40 @@ public class BigQuerySQLEngine
 
   @Override
   public SQLDataset join(SQLJoinRequest sqlJoinRequest) throws SQLEngineException {
-    LOG.info("Executing join operation for dataset {}", sqlJoinRequest.getDatasetName());
+    BigQuerySQLBuilder builder = new BigQuerySQLBuilder(
+        sqlJoinRequest.getJoinDefinition(),
+        project,
+        dataset,
+        getStageNameToBQTableNameMap());
 
-    BigQueryJoinDataset joinDataset = BigQueryJoinDataset.getInstance(sqlJoinRequest,
-                                                                      getStageNameToBQTableNameMap(),
-                                                                      sqlEngineConfig,
-                                                                      bigQuery,
-                                                                      project,
-                                                                      dataset,
-                                                                      runId);
+    return doSelect(
+      sqlJoinRequest.getDatasetName(),
+      sqlJoinRequest.getJoinDefinition().getOutputSchema(),
+      "join",
+      builder.getQuery());
+  }
 
-    LOG.info("Executed join operation for dataset {}", sqlJoinRequest.getDatasetName());
+  @Override
+  public DLContext getDLContext() throws SQLEngineException {
+    return new BigQueryDLContext();
+  }
 
-    datasets.put(sqlJoinRequest.getDatasetName(), joinDataset);
+  @Override
+  public DLDataSet getDLDataSet(SQLDataset sqlDataset) throws SQLEngineException {
+    return new BigQueryDLDataSet(project, dataset, getStageNameToBQTableNameMap(), sqlDataset);
+  }
 
-    return joinDataset;
+  @Override
+  public SQLDataset getSQLDataSet(SQLTransformRequest transformRequest, DLDataSet dlDataSet)
+      throws SQLEngineException {
+    BigQueryDLDataSet bqDLDataSet = (BigQueryDLDataSet) dlDataSet;
+    if (!bqDLDataSet.isTransformNeeded()) {
+      return bqDLDataSet.getSourceDataSet();
+    }
+    return doSelect(
+        transformRequest.getDatasetName(),
+        transformRequest.getDatasetSchema(),
+        "transform", bqDLDataSet.getTransformExpression());
   }
 
   @Override
@@ -404,6 +435,38 @@ public class BigQuerySQLEngine
     }
 
     BigQueryUtil.deleteTemporaryDirectory(configuration, gcsPath);
+  }
+
+  private BigQuerySelectDataset doSelect(String datasetName, Schema outputSchema, String operation,
+      String query) {
+    LOG.info("Executing {} operation for dataset {}", operation, datasetName);
+
+    // Get new Job ID for this push operation
+    String jobId = BigQuerySQLEngineUtils.newIdentifier();
+
+    // Build new table name for this dataset
+    String table = BigQuerySQLEngineUtils.getNewTableName(runId);
+
+    // Create empty table to store join results.
+    BigQuerySQLEngineUtils.createEmptyTable(sqlEngineConfig, bigQuery, project, dataset, table);
+
+    BigQuerySelectDataset dataset = new BigQuerySelectDataset(
+      datasetName,
+      outputSchema,
+      sqlEngineConfig,
+      bigQuery,
+      project,
+      this.dataset,
+      table,
+      jobId,
+      operation,
+      query
+    ).execute();
+
+    datasets.put(datasetName, dataset);
+
+    LOG.info("Executed {} operation for dataset {}", operation, datasetName);
+    return dataset;
   }
 
 }
