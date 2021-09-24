@@ -1,13 +1,8 @@
 package io.cdap.plugin.gcp.common;
 
-import com.google.api.pathtemplate.ValidationException;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.ServiceOptions;
-import com.google.cloud.kms.v1.CryptoKeyName;
-import com.google.cloud.storage.Bucket;
-import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageException;
 import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
@@ -15,7 +10,6 @@ import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.plugin.PluginConfig;
 import io.cdap.cdap.etl.api.Arguments;
 import io.cdap.cdap.etl.api.FailureCollector;
-import io.cdap.plugin.gcp.gcs.GCSPath;
 
 import java.io.IOException;
 import javax.annotation.Nullable;
