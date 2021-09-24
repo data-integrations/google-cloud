@@ -27,6 +27,7 @@ import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.plugin.gcp.common.CmekUtils;
 import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.GCSPath;
@@ -122,11 +123,11 @@ public class SourceDestConfig extends GCPConfig {
 
   //This method validated the pattern of CMEK Key resource ID.
   void validateCmekKey(FailureCollector failureCollector) {
-    CryptoKeyName cmekKeyName = parseCmekKey(cmekKey, failureCollector);
+    CryptoKeyName cmekKeyName = CmekUtils.parseCmekKey(cmekKey, failureCollector);
 
     //these fields are needed to check if bucket exists or not and for location validation
     if (cmekKeyName == null || containsMacro(NAME_DEST_PATH) || containsMacro(NAME_LOCATION) ||
-      requiredFieldsContainsMacro()) {
+      projectOrServiceAccountContainsMacro()) {
       return;
     }
     
@@ -134,7 +135,7 @@ public class SourceDestConfig extends GCPConfig {
     if (storage == null) {
       return;
     }
-    validateCmekKeyAndBucketLocation(storage, destPath, cmekKeyName, location, failureCollector);
+    CmekUtils.validateCmekKeyAndBucketLocation(storage, destPath, cmekKeyName, location, failureCollector);
   }
 
   public static SourceDestConfig.Builder builder() {

@@ -46,7 +46,7 @@ When running on other clusters, the file must be present on every node in the cl
 **Location:** The location where the destination gcs bucket will get created. 
 This value is ignored if the bucket already exists.
 
-**Encryption Key Name:** It is used to encrypt data written to any bucket created by the plugin.
+**Encryption Key Name:** Used to encrypt data written to any bucket created by the plugin.
 If the bucket already exists, this is ignored.
 
 Example

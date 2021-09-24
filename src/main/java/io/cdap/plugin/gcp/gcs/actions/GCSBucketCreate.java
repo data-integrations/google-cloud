@@ -33,6 +33,7 @@ import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.action.Action;
 import io.cdap.cdap.etl.api.action.ActionContext;
+import io.cdap.plugin.gcp.common.CmekUtils;
 import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.GCSPath;
@@ -256,11 +257,11 @@ public final class GCSBucketCreate extends Action {
 
     //This method validated the pattern of CMEK Key resource ID.
     void validateCmekKey(FailureCollector failureCollector) {
-      CryptoKeyName cmekKeyName = parseCmekKey(cmekKey, failureCollector);
+      CryptoKeyName cmekKeyName = CmekUtils.parseCmekKey(cmekKey, failureCollector);
 
       //these fields are needed to check if bucket exists or not and for location validation
       if (cmekKeyName == null || containsMacro(NAME_PATHS) || containsMacro(NAME_LOCATION) ||
-        requiredFieldsContainsMacro()) {
+        projectOrServiceAccountContainsMacro()) {
         return;
       }
       Storage storage = GCPUtils.getStorage(getProject(), getCredentials());
@@ -269,7 +270,7 @@ public final class GCSBucketCreate extends Action {
       }
       for (String path : getPaths()) {
         //only need to check one bucket that is to be created as all others will have same location.
-        if (validateCmekKeyAndBucketLocation(storage, path, cmekKeyName, location, failureCollector)) {
+        if (CmekUtils.validateCmekKeyAndBucketLocation(storage, path, cmekKeyName, location, failureCollector)) {
           break;
         }
       }

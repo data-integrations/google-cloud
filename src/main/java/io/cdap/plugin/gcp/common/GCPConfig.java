@@ -157,18 +157,7 @@ public class GCPConfig extends PluginConfig {
     return arguments.get("gcp.cmek.key.name");
   }
 
-  public CryptoKeyName parseCmekKey(String key, FailureCollector collector) {
-    CryptoKeyName cmekKeyName = null;
-    try {
-      cmekKeyName = CryptoKeyName.parse(key);
-    } catch (ValidationException e) {
-      collector.addFailure(e.getMessage(), null)
-        .withConfigProperty(NAME_CMEK_KEY).withStacktrace(e.getStackTrace());
-    }
-    return cmekKeyName;
-  }
-
-  public boolean requiredFieldsContainsMacro() {
+  public boolean projectOrServiceAccountContainsMacro() {
     return containsMacro(NAME_PROJECT) || containsMacro(NAME_SERVICE_ACCOUNT_TYPE) ||
       containsMacro(NAME_SERVICE_ACCOUNT_JSON) || containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH);
   }
@@ -184,37 +173,5 @@ public class GCPConfig extends PluginConfig {
         loading credentials */
     }
     return credentials;
-  }
-
-  public boolean validateCmekKeyAndBucketLocation(Storage storage, String path, CryptoKeyName cmekKey,
-                                                  @Nullable String location, FailureCollector collector) {
-    GCSPath gcsPath = GCSPath.from(path);
-    Bucket bucket = null;
-    try {
-      bucket = storage.get(gcsPath.getBucket());
-    } catch (StorageException e) {
-          /* Ignoring the exception because we don't want the validation to fail if there is an exception getting
-          the bucket information either because the service account used during validation can be different than
-          the service account that will be used at runtime (the dataproc service account)
-          (assuming the user has auto-detect for the service account) */
-      return false;
-    }
-    if (bucket == null) {
-      String cmekKeyLocation = cmekKey.getLocation();
-      if ((Strings.isNullOrEmpty(location) && !"US".equalsIgnoreCase(cmekKeyLocation))
-        || (!Strings.isNullOrEmpty(location) && !cmekKeyLocation.equalsIgnoreCase(location))) {
-        String bucketLocation = location;
-        if (Strings.isNullOrEmpty(bucketLocation)) {
-          bucketLocation = "US";
-        }
-        collector.addFailure(String.format("CMEK key '%s' is in location '%s' while the GCS bucket '%s' will"
-                                             + " be created in location '%s'.", cmekKey,
-                                           cmekKeyLocation, gcsPath.getBucket(), bucketLocation)
-          , "Modify the CMEK key or bucket location to be the same")
-          .withConfigProperty(NAME_CMEK_KEY);
-      }
-      return true;
-    }
-    return false;
   }
 }

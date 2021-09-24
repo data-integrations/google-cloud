@@ -41,6 +41,7 @@ import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.format.FileFormat;
 import io.cdap.plugin.format.plugin.AbstractFileSink;
 import io.cdap.plugin.format.plugin.FileSinkProperties;
+import io.cdap.plugin.gcp.common.CmekUtils;
 import io.cdap.plugin.gcp.common.GCPReferenceSinkConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.GCSPath;
@@ -573,11 +574,11 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
 
     //This method validated the pattern of CMEK Key resource ID.
     void validateCmekKey(FailureCollector failureCollector) {
-      CryptoKeyName cmekKeyName = parseCmekKey(cmekKey, failureCollector);
+      CryptoKeyName cmekKeyName = CmekUtils.parseCmekKey(cmekKey, failureCollector);
 
       //these fields are needed to check if bucket exists or not and for location validation
       if (cmekKeyName == null || containsMacro(NAME_PATH) || containsMacro(NAME_LOCATION) ||
-        requiredFieldsContainsMacro()) {
+        projectOrServiceAccountContainsMacro()) {
         return;
       }
 
@@ -585,7 +586,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
       if (storage == null) {
         return;
       }
-      validateCmekKeyAndBucketLocation(storage, path, cmekKeyName, location, failureCollector);
+      CmekUtils.validateCmekKeyAndBucketLocation(storage, path, cmekKeyName, location, failureCollector);
     }
 
     public static Builder builder() {

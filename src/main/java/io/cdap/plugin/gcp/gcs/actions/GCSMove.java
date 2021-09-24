@@ -62,33 +62,16 @@ public class GCSMove extends Action {
     }
     StorageClient storageClient = StorageClient.create(config.getProject(), config.getServiceAccount(),
                                                        isServiceAccountFilePath);
-
     GCSPath destPath = config.getDestPath();
-    GCSPath undo = null;
-    Storage storage = storageClient.getStorage();
 
     // create the destination bucket if not exist
-    Bucket bucket = null;
-    try {
-      bucket = storage.get(destPath.getBucket());
-    } catch (StorageException e) {
-      throw new RuntimeException(
-        String.format("Unable to access destination bucket %s. ", destPath.getBucket())
-          + "Ensure you entered the correct bucket path and have permissions for it.", e);
-    }
-    if (bucket == null) {
-      GCPUtils.createBucket(storage, destPath.getBucket(), config.location,
-                            config.getCmekKey(context.getArguments()));
-      undo = destPath;
-    }
+    storageClient.createBucket(destPath, config.location, config.getCmekKey(context.getArguments()));
 
     try {
       storageClient.move(config.getSourcePath(), config.getDestPath(), config.recursive, config.shouldOverwrite());
     } catch (Exception e) {
       //deleting the destination bucket that was auto-created if the operation failed.
-      if (undo != null) {
-        storage.delete(undo.getBucket());
-      }
+      storageClient.deleteBucket();
       throw e;
     }
   }

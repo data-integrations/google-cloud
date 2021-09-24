@@ -44,6 +44,7 @@ import javax.annotation.Nullable;
 public class StorageClient {
   private static final Logger LOG = LoggerFactory.getLogger(StorageClient.class);
   private final Storage storage;
+  private List<GCSPath> undoBucket = new ArrayList<>();
 
   public Storage getStorage() {
     return storage;
@@ -106,6 +107,37 @@ public class StorageClient {
         continue;
       }
       function.accept(metadata);
+    }
+  }
+
+  /**
+   * Creates the given bucket if it does not exists.
+   *
+   * @param path the path of the bucket 
+   * @param location the location of bucket
+   * @param cmekKey  the name of the cmek key
+   */
+  public void createBucket(GCSPath path, @Nullable String location, @Nullable String cmekKey) {
+    Bucket bucket = null;
+    try {
+      bucket = storage.get(path.getBucket());
+    } catch (StorageException e) {
+      throw new RuntimeException(
+        String.format("Unable to access bucket %s. ", path.getBucket())
+          + "Ensure you entered the correct bucket path and have permissions for it.", e);
+    }
+    if (bucket == null) {
+      GCPUtils.createBucket(storage, path.getBucket(), location, cmekKey);
+      undoBucket.add(path);
+    }
+  }
+
+  /**
+   * Deletes any bucket created by the client. It is called when the operation failed.
+   */
+  public void deleteBucket() {
+    for (GCSPath bucket : undoBucket) {
+      storage.delete(bucket.getBucket());
     }
   }
 
