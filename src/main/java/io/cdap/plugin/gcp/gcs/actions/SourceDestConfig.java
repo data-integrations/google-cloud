@@ -69,7 +69,7 @@ public class SourceDestConfig extends GCPConfig {
   @Nullable
   @Description("The GCP customer managed encryption key (CMEK) name used to encrypt data written to " +
     "any bucket created by the plugin. If the bucket already exists, this is ignored.")
-  private String cmekKey;
+  protected String cmekKey;
 
   public SourceDestConfig(@Nullable String project, @Nullable String serviceAccountType,
                           @Nullable String serviceFilePath, @Nullable String serviceAccountJson,
@@ -123,7 +123,7 @@ public class SourceDestConfig extends GCPConfig {
 
   //This method validated the pattern of CMEK Key resource ID.
   void validateCmekKey(FailureCollector failureCollector) {
-    CryptoKeyName cmekKeyName = CmekUtils.parseCmekKey(cmekKey, failureCollector);
+    CryptoKeyName cmekKeyName = getCmekKey(cmekKey, null, failureCollector);
 
     //these fields are needed to check if bucket exists or not and for location validation
     if (cmekKeyName == null || containsMacro(NAME_DEST_PATH) || containsMacro(NAME_LOCATION) ||
@@ -135,7 +135,8 @@ public class SourceDestConfig extends GCPConfig {
     if (storage == null) {
       return;
     }
-    CmekUtils.validateCmekKeyAndBucketLocation(storage, destPath, cmekKeyName, location, failureCollector);
+    CmekUtils.validateCmekKeyAndBucketLocation(storage, GCSPath.from(destPath),
+                                               cmekKeyName, location, failureCollector);
   }
 
   public static SourceDestConfig.Builder builder() {

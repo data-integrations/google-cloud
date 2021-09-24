@@ -44,7 +44,6 @@ import javax.annotation.Nullable;
 public class StorageClient {
   private static final Logger LOG = LoggerFactory.getLogger(StorageClient.class);
   private final Storage storage;
-  private List<GCSPath> undoBucket = new ArrayList<>();
 
   private StorageClient(Storage storage) {
     this.storage = storage;
@@ -113,7 +112,7 @@ public class StorageClient {
    * @param location the location of bucket
    * @param cmekKey  the name of the cmek key
    */
-  public void createBucket(GCSPath path, @Nullable String location, @Nullable String cmekKey) {
+  public void createBucketIfNotExists(GCSPath path, @Nullable String location, @Nullable String cmekKey) {
     Bucket bucket = null;
     try {
       bucket = storage.get(path.getBucket());
@@ -124,16 +123,6 @@ public class StorageClient {
     }
     if (bucket == null) {
       GCPUtils.createBucket(storage, path.getBucket(), location, cmekKey);
-      undoBucket.add(path);
-    }
-  }
-
-  /**
-   * Deletes any bucket created by the client. It is called when the operation failed.
-   */
-  public void deleteBucket() {
-    for (GCSPath bucket : undoBucket) {
-      storage.delete(bucket.getBucket());
     }
   }
 

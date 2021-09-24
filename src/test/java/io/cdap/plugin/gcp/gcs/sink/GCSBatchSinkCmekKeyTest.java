@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.gcs.sink;
 
+import com.google.cloud.kms.v1.CryptoKeyName;
 import io.cdap.cdap.api.plugin.PluginProperties;
 import io.cdap.cdap.etl.api.validation.CauseAttributes;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
@@ -163,6 +164,7 @@ public class GCSBatchSinkCmekKeyTest {
 
   @Test
   public void testGetCmekKey() {
+    MockFailureCollector collector = new MockFailureCollector("gcssink");
     String configKey = "projects/%s/locations/us-east1/keyRings/my_ring/cryptoKeys/test_key";
     String key = "projects/%s/locations/us/keyRings/my_ring/cryptoKeys/test_key";
 
@@ -171,11 +173,11 @@ public class GCSBatchSinkCmekKeyTest {
     PluginProperties properties = builder.add("cmekKey", configKey).build();
     MockArguments arguments = new MockArguments();
     arguments.set("gcp.cmek.key.name", key);
-    PowerMockito.when(config.getCmekKey(arguments)).thenCallRealMethod();
+    PowerMockito.when(config.getCmekKey(configKey, arguments, collector)).thenCallRealMethod();
     PowerMockito.when(config.getProperties()).thenReturn(properties);
 
-    String keyReturned = config.getCmekKey(arguments);
+    CryptoKeyName keyReturned = config.getCmekKey(configKey, arguments, collector);
     Mockito.verify(config).getProperties();
-    Assert.assertEquals(configKey, keyReturned);
+    Assert.assertEquals(configKey, keyReturned.toString());
   }
 }

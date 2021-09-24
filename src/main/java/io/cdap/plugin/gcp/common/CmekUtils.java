@@ -16,7 +16,6 @@
 
 package io.cdap.plugin.gcp.common;
 
-import com.google.api.pathtemplate.ValidationException;
 import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
@@ -32,47 +31,28 @@ import javax.annotation.Nullable;
  *  Cmek Key Utility class to validate cmek in gcp plugins.
  */
 public class CmekUtils {
-
   /**
-   * This method validates the cmek formatted string.
-   *
-   * @param key cmek key formatted string
-   * @param collector  failure collector
-   * @return parsed CryptoKeyName object.
-   */
-  public static CryptoKeyName parseCmekKey(String key, FailureCollector collector) {
-    CryptoKeyName cmekKeyName = null;
-    try {
-      cmekKeyName = CryptoKeyName.parse(key);
-    } catch (ValidationException e) {
-      collector.addFailure(e.getMessage(), null)
-        .withConfigProperty(GCPConfig.NAME_CMEK_KEY).withStacktrace(e.getStackTrace());
-    }
-    return cmekKeyName;
-  }
-
-  /**
-   * This method validates the location of cmek key and bucket if it doesn't exists.
+   * This method checks if the GCS bucket exists.
+   * If not, it checks that the CMEK key is in the same location that the bucket will be created in.
+   * If there is any exception when checking for bucket existence, it will be ignored.
    *
    * @param storage GCS storage
-   * @param path the path of bucket to validate
+   * @param gcsPath the path of bucket to validate
    * @param cmekKey the cmek key name
    * @param location the location to create the bucket in if it doesn't exists
    * @param collector failure collector
-   * @return true if bucket does not exist, otherwise false
    */
-  public static boolean validateCmekKeyAndBucketLocation(Storage storage, String path, CryptoKeyName cmekKey,
-                                                  @Nullable String location, FailureCollector collector) {
-    GCSPath gcsPath = GCSPath.from(path);
+  public static void validateCmekKeyAndBucketLocation(Storage storage, GCSPath gcsPath, CryptoKeyName cmekKey,
+                                                      @Nullable String location, FailureCollector collector) {
     Bucket bucket = null;
     try {
       bucket = storage.get(gcsPath.getBucket());
     } catch (StorageException e) {
-          /* Ignoring the exception because we don't want the validation to fail if there is an exception getting
-          the bucket information either because the service account used during validation can be different than
-          the service account that will be used at runtime (the dataproc service account)
-          (assuming the user has auto-detect for the service account) */
-      return false;
+      /* Ignoring the exception because we don't want the validation to fail if there is an exception getting
+      the bucket information either because the service account used during validation can be different than
+      the service account that will be used at runtime (the dataproc service account)
+      (assuming the user has auto-detect for the service account) */
+      return;
     }
     if (bucket == null) {
       String cmekKeyLocation = cmekKey.getLocation();
@@ -88,8 +68,6 @@ public class CmekUtils {
           , "Modify the CMEK key or bucket location to be the same")
           .withConfigProperty(GCPConfig.NAME_CMEK_KEY);
       }
-      return true;
     }
-    return false;
   }
 }

@@ -1,8 +1,10 @@
 package io.cdap.plugin.gcp.common;
 
+import com.google.api.pathtemplate.ValidationException;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.ServiceOptions;
+import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
@@ -143,12 +145,28 @@ public class GCPConfig extends PluginConfig {
     return false;
   }
 
-  public String getCmekKey(Arguments arguments) {
-    String configKey = getProperties().getProperties().get(NAME_CMEK_KEY);
-    if (!Strings.isNullOrEmpty(configKey)) {
-      return configKey;
+  /**
+   * This method validates the cmek key raw string.
+   *
+   * @param cmekKey cmek key raw string
+   * @param arguments runtime arguments
+   * @param collector  failure collector
+   * @return parsed CryptoKeyName object.
+   */
+  public CryptoKeyName getCmekKey(@Nullable String cmekKey, @Nullable Arguments arguments, FailureCollector collector) {
+    if (Strings.isNullOrEmpty(cmekKey)) {
+      cmekKey = arguments == null ? null : arguments.get("gcp.cmek.key.name");
     }
-    return arguments.get("gcp.cmek.key.name");
+    CryptoKeyName cmekKeyName = null;
+    if (!Strings.isNullOrEmpty(cmekKey)) {
+      try {
+        cmekKeyName = CryptoKeyName.parse(cmekKey);
+      } catch (ValidationException e) {
+        collector.addFailure(e.getMessage(), null)
+          .withConfigProperty(GCPConfig.NAME_CMEK_KEY).withStacktrace(e.getStackTrace());
+      }
+    }
+    return cmekKeyName;
   }
 
   public boolean projectOrServiceAccountContainsMacro() {

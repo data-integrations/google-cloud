@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.gcs.actions;
 
+import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
@@ -64,17 +65,15 @@ public class GCSCopy extends Action {
                                                        isServiceAccountFilePath);
 
     GCSPath destPath = config.getDestPath();
+    CryptoKeyName cmekKeyName = config.getCmekKey(config.cmekKey, context.getArguments(),
+                                                  context.getFailureCollector());
 
     // create the destination bucket if not exist
-    storageClient.createBucket(destPath, config.location, config.getCmekKey(context.getArguments()));
+    storageClient.createBucketIfNotExists(destPath, config.location,
+                                          cmekKeyName == null ? null : cmekKeyName.toString());
 
-    try {
-      storageClient.copy(config.getSourcePath(), config.getDestPath(), config.recursive, config.shouldOverwrite());
-    } catch (Exception e) {
-      //deleting the destination bucket that was auto-created if the operation failed.
-      storageClient.deleteBucket();
-      throw e;
-    }
+    //noinspection ConstantConditions
+    storageClient.copy(config.getSourcePath(), config.getDestPath(), config.recursive, config.shouldOverwrite());
 
   }
 

@@ -29,6 +29,7 @@ import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
+import io.cdap.cdap.etl.api.Arguments;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.action.Action;
@@ -130,8 +131,10 @@ public final class GCSBucketCreate extends Action {
               + "Ensure you entered the correct bucket path and have permissions for it.", e);
         }
         if (bucket == null) {
+          CryptoKeyName cmekKeyName = config.getCmekKey(config.cmekKey, context.getArguments(),
+                                                        context.getFailureCollector());
           GCPUtils.createBucket(storage, gcsPath.getBucket(), config.location,
-                                config.getCmekKey(context.getArguments()));
+                                cmekKeyName == null ? null : cmekKeyName.toString());
           undoBucket.add(bucketPath);
         } else if (gcsPath.equals(bucketPath) && config.failIfExists()) {
           // if the gcs path is just a bucket, and it exists, fail the pipeline
@@ -257,7 +260,7 @@ public final class GCSBucketCreate extends Action {
 
     //This method validated the pattern of CMEK Key resource ID.
     void validateCmekKey(FailureCollector failureCollector) {
-      CryptoKeyName cmekKeyName = CmekUtils.parseCmekKey(cmekKey, failureCollector);
+      CryptoKeyName cmekKeyName = getCmekKey(cmekKey, null, failureCollector);
 
       //these fields are needed to check if bucket exists or not and for location validation
       if (cmekKeyName == null || containsMacro(NAME_PATHS) || containsMacro(NAME_LOCATION) ||
@@ -269,10 +272,8 @@ public final class GCSBucketCreate extends Action {
         return;
       }
       for (String path : getPaths()) {
-        //only need to check one bucket that is to be created as all others will have same location.
-        if (CmekUtils.validateCmekKeyAndBucketLocation(storage, path, cmekKeyName, location, failureCollector)) {
-          break;
-        }
+        CmekUtils.validateCmekKeyAndBucketLocation(storage, GCSPath.from(path),
+                                                   cmekKeyName, location, failureCollector);
       }
     }
 

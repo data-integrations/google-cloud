@@ -101,7 +101,8 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
   @Override
   public void prepareRun(BatchSinkContext context) throws Exception {
     super.prepareRun(context);
-    String cmekKey = config.getCmekKey(context.getArguments());
+    CryptoKeyName cmekKeyName = config.getCmekKey(config.cmekKey, context.getArguments(),
+                                                  context.getFailureCollector());
 
     Boolean isServiceAccountFilePath = config.isServiceAccountFilePath();
     if (isServiceAccountFilePath == null) {
@@ -122,7 +123,8 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
           + "Ensure you entered the correct bucket path and have permissions for it.", e);
     }
     if (bucket == null) {
-      GCPUtils.createBucket(storage, config.getBucket(), config.getLocation(), cmekKey);
+      GCPUtils.createBucket(storage, config.getBucket(), config.getLocation(),
+                            cmekKeyName == null ? null : cmekKeyName.toString());
     }
   }
 
@@ -337,7 +339,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     @Nullable
     @Description("The GCP customer managed encryption key (CMEK) name used to encrypt data written to " +
       "any bucket created by the plugin. If the bucket already exists, this is ignored.")
-    private String cmekKey;
+    protected String cmekKey;
 
     @Override
     public void validate() {
@@ -574,7 +576,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
 
     //This method validated the pattern of CMEK Key resource ID.
     void validateCmekKey(FailureCollector failureCollector) {
-      CryptoKeyName cmekKeyName = CmekUtils.parseCmekKey(cmekKey, failureCollector);
+      CryptoKeyName cmekKeyName = getCmekKey(cmekKey, null, failureCollector);
 
       //these fields are needed to check if bucket exists or not and for location validation
       if (cmekKeyName == null || containsMacro(NAME_PATH) || containsMacro(NAME_LOCATION) ||
@@ -586,7 +588,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
       if (storage == null) {
         return;
       }
-      CmekUtils.validateCmekKeyAndBucketLocation(storage, path, cmekKeyName, location, failureCollector);
+      CmekUtils.validateCmekKeyAndBucketLocation(storage, GCSPath.from(path), cmekKeyName, location, failureCollector);
     }
 
     public static Builder builder() {
