@@ -162,15 +162,14 @@ public class GCPConfig extends PluginConfig {
       containsMacro(NAME_SERVICE_ACCOUNT_JSON) || containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH);
   }
 
-  public Credentials getCredentials() {
+  public Credentials getCredentials(FailureCollector collector) {
     Boolean isServiceAccountFilePath = isServiceAccountFilePath();
     Credentials credentials = null;
     try {
       credentials = getServiceAccount() == null ?
         null : GCPUtils.loadServiceAccountCredentials(getServiceAccount(), isServiceAccountFilePath);
-    } catch (Exception e) {
-      /* Ignoring the exception because we don't want to highlight config if an exception occurs while
-        loading credentials */
+    } catch (IOException e) {
+      collector.addFailure(e.getMessage(), null);
     }
     return credentials;
   }

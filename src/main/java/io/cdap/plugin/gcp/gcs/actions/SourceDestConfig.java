@@ -131,7 +131,7 @@ public class SourceDestConfig extends GCPConfig {
       return;
     }
     
-    Storage storage = GCPUtils.getStorage(getProject(), getCredentials());
+    Storage storage = GCPUtils.getStorage(getProject(), getCredentials(failureCollector));
     if (storage == null) {
       return;
     }

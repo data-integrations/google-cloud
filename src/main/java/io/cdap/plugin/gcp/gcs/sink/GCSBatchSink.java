@@ -582,7 +582,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
         return;
       }
 
-      Storage storage = GCPUtils.getStorage(getProject(), getCredentials());
+      Storage storage = GCPUtils.getStorage(getProject(), getCredentials(failureCollector));
       if (storage == null) {
         return;
       }
