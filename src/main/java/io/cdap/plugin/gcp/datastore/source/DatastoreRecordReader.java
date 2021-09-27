@@ -23,10 +23,12 @@ import com.google.datastore.v1.QueryResultBatch;
 import com.google.datastore.v1.RunQueryRequest;
 import com.google.datastore.v1.client.Datastore;
 import com.google.datastore.v1.client.DatastoreException;
+import com.google.protobuf.ByteString;
 import io.cdap.plugin.gcp.datastore.source.util.DatastoreSourceConstants;
 import io.cdap.plugin.gcp.datastore.util.DatastoreUtil;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
@@ -45,47 +47,51 @@ public class DatastoreRecordReader extends RecordReader<LongWritable, Entity> {
 
   private static final Logger LOG = LoggerFactory.getLogger(DatastoreRecordReader.class);
 
+  private ByteString cursor = ByteString.EMPTY;
+  private Counter batchSizeCounter;
+  private Datastore datastore;
   private Iterator<EntityResult> results;
   private Entity entity;
   private long index;
   private LongWritable key;
+  private PartitionId partitionId;
+  private Query query;
+  private QueryResultBatch.MoreResultsType lastBatchMoreResultsType;
 
   @Override
   public void initialize(InputSplit inputSplit, TaskAttemptContext taskAttemptContext) throws IOException {
     Configuration config = taskAttemptContext.getConfiguration();
-    Query query = ((QueryInputSplit) inputSplit).getQuery();
-    Datastore datastore = DatastoreUtil.getDatastoreV1(
+    query = ((QueryInputSplit) inputSplit).getQuery();
+    batchSizeCounter = taskAttemptContext.getCounter(FileInputFormatCounter.BYTES_READ);
+    datastore = DatastoreUtil.getDatastoreV1(
       config.get(DatastoreSourceConstants.CONFIG_SERVICE_ACCOUNT),
       config.getBoolean(DatastoreSourceConstants.CONFIG_SERVICE_ACCOUNT_IS_FILE, true),
       config.get(DatastoreSourceConstants.CONFIG_PROJECT));
-    LOG.trace("Executing query split: {}", query);
-    RunQueryRequest request = RunQueryRequest.newBuilder()
-      .setQuery(query)
-      // partition id needs to be set in the RunQueryRequest in addition to being passed to QuerySplitter.getSplits.
-      // This is a quirk of the V1 API.
-      .setPartitionId(PartitionId.newBuilder()
-                        .setNamespaceId(config.get(DatastoreSourceConstants.CONFIG_NAMESPACE))
-                        .setProjectId(config.get(DatastoreSourceConstants.CONFIG_PROJECT)))
+    partitionId = PartitionId.newBuilder()
+      .setNamespaceId(config.get(DatastoreSourceConstants.CONFIG_NAMESPACE))
+      .setProjectId(config.get(DatastoreSourceConstants.CONFIG_PROJECT))
       .build();
-    try {
-      QueryResultBatch batch = datastore.runQuery(request).getBatch();
-      taskAttemptContext.getCounter(FileInputFormatCounter.BYTES_READ).increment(batch.getSerializedSize());
-      results = batch.getEntityResultsList().iterator();
-    } catch (DatastoreException e) {
-      throw new IOException("Failed to run query", e);
-    }
+
+    loadPage();
     index = 0;
   }
 
   @Override
-  public boolean nextKeyValue() {
-    if (!results.hasNext()) {
+  public boolean nextKeyValue() throws IOException {
+    if (!results.hasNext() && lastBatchMoreResultsType != QueryResultBatch.MoreResultsType.NO_MORE_RESULTS) {
+      // Load next page from Datastore if current page is depleted and there are more results
+      loadPage();
+    }
+    if (results.hasNext()) {
+      // Increment to next element within current page
+      entity = results.next().getEntity();
+      key = new LongWritable(index);
+      ++index;
+      return true;
+    } else {
+      // No more elements in current page and no more pages to load from Datastore
       return false;
     }
-    entity = results.next().getEntity();
-    key = new LongWritable(index);
-    ++index;
-    return true;
   }
 
   @Override
@@ -107,4 +113,27 @@ public class DatastoreRecordReader extends RecordReader<LongWritable, Entity> {
   public void close() {
   }
 
+  // Datastore API only returns up to 300 items. Need to use cursor pagination if there is more results
+  private void loadPage() throws IOException {
+    Query.Builder queryBuilder = query.toBuilder();
+    queryBuilder.setStartCursor(cursor);
+    RunQueryRequest request = RunQueryRequest.newBuilder()
+      .setQuery(queryBuilder)
+      // partition id needs to be set in the RunQueryRequest in addition to being passed to QuerySplitter.getSplits.
+      // This is a quirk of the V1 API.
+      .setPartitionId(partitionId)
+      .build();
+    LOG.trace("Using start cursor {}; executing query split {}", cursor, query);
+    try {
+      QueryResultBatch batch = datastore.runQuery(request).getBatch();
+      batchSizeCounter.increment(batch.getSerializedSize());
+      lastBatchMoreResultsType = batch.getMoreResults();
+      LOG.trace("Loaded batch of {} entries from Datastore; more results status: {}",
+                batch.getEntityResultsList().size(), lastBatchMoreResultsType);
+      cursor = batch.getEndCursor();
+      results = batch.getEntityResultsList().iterator();
+    } catch (DatastoreException e) {
+      throw new IOException("Failed to run query", e);
+    }
+  }
 }
