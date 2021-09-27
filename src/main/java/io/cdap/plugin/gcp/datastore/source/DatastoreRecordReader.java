@@ -54,24 +54,23 @@ public class DatastoreRecordReader extends RecordReader<LongWritable, Entity> {
   private Entity entity;
   private long index;
   private LongWritable key;
-  private PartitionId.Builder partitionIdBuilder;
-  private Query.Builder queryBuilder;
+  private PartitionId partitionId;
+  private Query query;
   private QueryResultBatch.MoreResultsType lastBatchMoreResultsType;
 
   @Override
   public void initialize(InputSplit inputSplit, TaskAttemptContext taskAttemptContext) throws IOException {
     Configuration config = taskAttemptContext.getConfiguration();
-    Query query = ((QueryInputSplit) inputSplit).getQuery();
-    LOG.trace("Executing query split: {}", query);
+    query = ((QueryInputSplit) inputSplit).getQuery();
     batchSizeCounter = taskAttemptContext.getCounter(FileInputFormatCounter.BYTES_READ);
     datastore = DatastoreUtil.getDatastoreV1(
       config.get(DatastoreSourceConstants.CONFIG_SERVICE_ACCOUNT),
       config.getBoolean(DatastoreSourceConstants.CONFIG_SERVICE_ACCOUNT_IS_FILE, true),
       config.get(DatastoreSourceConstants.CONFIG_PROJECT));
-    partitionIdBuilder = PartitionId.newBuilder()
+    partitionId = PartitionId.newBuilder()
       .setNamespaceId(config.get(DatastoreSourceConstants.CONFIG_NAMESPACE))
-      .setProjectId(config.get(DatastoreSourceConstants.CONFIG_PROJECT));
-    queryBuilder = query.toBuilder();
+      .setProjectId(config.get(DatastoreSourceConstants.CONFIG_PROJECT))
+      .build();
 
     loadPage();
     index = 0;
@@ -116,18 +115,21 @@ public class DatastoreRecordReader extends RecordReader<LongWritable, Entity> {
 
   // Datastore API only returns up to 300 items. Need to use cursor pagination if there is more results
   private void loadPage() throws IOException {
+    Query.Builder queryBuilder = query.toBuilder();
     queryBuilder.setStartCursor(cursor);
     RunQueryRequest request = RunQueryRequest.newBuilder()
       .setQuery(queryBuilder)
       // partition id needs to be set in the RunQueryRequest in addition to being passed to QuerySplitter.getSplits.
       // This is a quirk of the V1 API.
-      .setPartitionId(partitionIdBuilder)
+      .setPartitionId(partitionId)
       .build();
+    LOG.trace("Using start cursor {}; executing query split {}", cursor, query);
     try {
       QueryResultBatch batch = datastore.runQuery(request).getBatch();
       batchSizeCounter.increment(batch.getSerializedSize());
       lastBatchMoreResultsType = batch.getMoreResults();
-      LOG.debug("Batch page moreResultsType: {}", lastBatchMoreResultsType);
+      LOG.trace("Loaded batch of {} entries from Datastore; more results status: {}",
+                batch.getEntityResultsList().size(), lastBatchMoreResultsType);
       cursor = batch.getEndCursor();
       results = batch.getEntityResultsList().iterator();
     } catch (DatastoreException e) {
