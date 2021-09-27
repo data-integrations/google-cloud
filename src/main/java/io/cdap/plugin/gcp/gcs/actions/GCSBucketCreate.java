@@ -133,6 +133,7 @@ public final class GCSBucketCreate extends Action {
         if (bucket == null) {
           CryptoKeyName cmekKeyName = config.getCmekKey(config.cmekKey, context.getArguments(),
                                                         context.getFailureCollector());
+          context.getFailureCollector().getOrThrowException();
           GCPUtils.createBucket(storage, gcsPath.getBucket(), config.location,
                                 cmekKeyName == null ? null : cmekKeyName.toString());
           undoBucket.add(bucketPath);

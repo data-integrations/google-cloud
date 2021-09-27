@@ -107,6 +107,7 @@ public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable,
 
     CryptoKeyName cmekKeyName = config.getCmekKey(config.cmekKey, context.getArguments(),
                                                   context.getFailureCollector());
+    context.getFailureCollector().getOrThrowException();
     Boolean isServiceAccountFilePath = config.isServiceAccountFilePath();
     if (isServiceAccountFilePath == null) {
       context.getFailureCollector().addFailure("Service account type is undefined.",

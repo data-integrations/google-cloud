@@ -103,6 +103,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     super.prepareRun(context);
     CryptoKeyName cmekKeyName = config.getCmekKey(config.cmekKey, context.getArguments(),
                                                   context.getFailureCollector());
+    context.getFailureCollector().getOrThrowException();
 
     Boolean isServiceAccountFilePath = config.isServiceAccountFilePath();
     if (isServiceAccountFilePath == null) {

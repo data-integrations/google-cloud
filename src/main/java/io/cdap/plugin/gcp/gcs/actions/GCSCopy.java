@@ -67,6 +67,7 @@ public class GCSCopy extends Action {
     GCSPath destPath = config.getDestPath();
     CryptoKeyName cmekKeyName = config.getCmekKey(config.cmekKey, context.getArguments(),
                                                   context.getFailureCollector());
+    context.getFailureCollector().getOrThrowException();
 
     // create the destination bucket if not exist
     storageClient.createBucketIfNotExists(destPath, config.location,
