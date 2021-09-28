@@ -134,8 +134,7 @@ public final class GCSBucketCreate extends Action {
           CryptoKeyName cmekKeyName = config.getCmekKey(config.cmekKey, context.getArguments(),
                                                         context.getFailureCollector());
           context.getFailureCollector().getOrThrowException();
-          GCPUtils.createBucket(storage, gcsPath.getBucket(), config.location,
-                                cmekKeyName == null ? null : cmekKeyName.toString());
+          GCPUtils.createBucket(storage, gcsPath.getBucket(), config.location, cmekKeyName);
           undoBucket.add(bucketPath);
         } else if (gcsPath.equals(bucketPath) && config.failIfExists()) {
           // if the gcs path is just a bucket, and it exists, fail the pipeline

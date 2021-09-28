@@ -70,8 +70,7 @@ public class GCSCopy extends Action {
     context.getFailureCollector().getOrThrowException();
 
     // create the destination bucket if not exist
-    storageClient.createBucketIfNotExists(destPath, config.location,
-                                          cmekKeyName == null ? null : cmekKeyName.toString());
+    storageClient.createBucketIfNotExists(destPath, config.location, cmekKeyName);
 
     //noinspection ConstantConditions
     storageClient.copy(config.getSourcePath(), config.getDestPath(), config.recursive, config.shouldOverwrite());

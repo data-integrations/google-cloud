@@ -17,6 +17,7 @@
 package io.cdap.plugin.gcp.gcs;
 
 import com.google.api.gax.paging.Page;
+import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
@@ -110,9 +111,9 @@ public class StorageClient {
    *
    * @param path the path of the bucket 
    * @param location the location of bucket
-   * @param cmekKey  the name of the cmek key
+   * @param cmekKeyName  the name of the cmek key
    */
-  public void createBucketIfNotExists(GCSPath path, @Nullable String location, @Nullable String cmekKey) {
+  public void createBucketIfNotExists(GCSPath path, @Nullable String location, @Nullable CryptoKeyName cmekKeyName) {
     Bucket bucket = null;
     try {
       bucket = storage.get(path.getBucket());
@@ -122,7 +123,7 @@ public class StorageClient {
           + "Ensure you entered the correct bucket path and have permissions for it.", e);
     }
     if (bucket == null) {
-      GCPUtils.createBucket(storage, path.getBucket(), location, cmekKey);
+      GCPUtils.createBucket(storage, path.getBucket(), location, cmekKeyName);
     }
   }
 

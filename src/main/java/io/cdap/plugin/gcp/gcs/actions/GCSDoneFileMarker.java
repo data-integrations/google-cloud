@@ -17,6 +17,7 @@
 package io.cdap.plugin.gcp.gcs.actions;
 
 import com.google.auth.Credentials;
+import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
@@ -172,7 +173,8 @@ public class GCSDoneFileMarker extends PostAction {
     Storage storage = GCPUtils.getStorage(project, credentials);
     if (storage.get(path.getBucket()) == null) {
       try {
-        GCPUtils.createBucket(storage, path.getBucket(), null, cmekKey);
+        GCPUtils.createBucket(storage, path.getBucket(), null,
+                              Strings.isNullOrEmpty(cmekKey) ? null : CryptoKeyName.parse(cmekKey));
       } catch (StorageException e) {
         throw new RuntimeException(String.format("Failed to create bucket %s: %s.", path.getBucket(),
                                                  e.getMessage()), e);

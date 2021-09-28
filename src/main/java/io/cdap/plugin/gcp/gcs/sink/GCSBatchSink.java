@@ -124,8 +124,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
           + "Ensure you entered the correct bucket path and have permissions for it.", e);
     }
     if (bucket == null) {
-      GCPUtils.createBucket(storage, config.getBucket(), config.getLocation(),
-                            cmekKeyName == null ? null : cmekKeyName.toString());
+      GCPUtils.createBucket(storage, config.getBucket(), config.getLocation(), cmekKeyName);
     }
   }
 

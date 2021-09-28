@@ -26,9 +26,11 @@ import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryOutputConfiguration;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableSchema;
+import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
+import com.google.common.base.Strings;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize.Numeric;
@@ -137,7 +139,8 @@ public final class BigQuerySinkUtils {
   private static void createBucket(Storage storage, String bucket, @Nullable String location,
                                    @Nullable String cmekKey, Supplier<String> errorMessage) throws IOException {
     try {
-      GCPUtils.createBucket(storage, bucket, location, cmekKey);
+      GCPUtils.createBucket(storage, bucket, location,
+                            Strings.isNullOrEmpty(cmekKey) ? null : CryptoKeyName.parse(cmekKey));
     } catch (StorageException e) {
       if (e.getCode() != 409) {
         // A conflict means the bucket already exists

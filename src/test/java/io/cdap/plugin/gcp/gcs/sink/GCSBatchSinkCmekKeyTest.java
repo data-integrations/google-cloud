@@ -157,8 +157,8 @@ public class GCSBatchSinkCmekKeyTest {
   @Test
   public void testGetCmekKey() throws NoSuchFieldException {
     MockFailureCollector collector = new MockFailureCollector("gcssink");
-    String configKey = "projects/%s/locations/us-east1/keyRings/my_ring/cryptoKeys/test_key";
-    String key = "projects/%s/locations/us/keyRings/my_ring/cryptoKeys/test_key";
+    String configKey = String.format("projects/%s/locations/us-east1/keyRings/my_ring/cryptoKeys/test_key", project);
+    String key = String.format("projects/%s/locations/us/keyRings/my_ring/cryptoKeys/test_key", project);
     GCSBatchSinkConfig config = getBuilder().setCmekKey(configKey).build();
     MockArguments arguments = new MockArguments();
     arguments.set("gcp.cmek.key.name", key);
