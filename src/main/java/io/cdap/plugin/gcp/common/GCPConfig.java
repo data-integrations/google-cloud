@@ -145,6 +145,14 @@ public class GCPConfig extends PluginConfig {
     return false;
   }
 
+  public CryptoKeyName getCmekKey(Arguments arguments, FailureCollector collector) {
+    String cmekKey = getProperties().getProperties().get(NAME_CMEK_KEY);
+    if (Strings.isNullOrEmpty(cmekKey)) {
+      cmekKey = arguments.get("gcp.cmek.key.name");
+    }
+    return CmekUtils.getCmekKey(cmekKey, collector);
+  }
+
   public boolean projectOrServiceAccountContainsMacro() {
     return containsMacro(NAME_PROJECT) || containsMacro(NAME_SERVICE_ACCOUNT_TYPE) ||
       containsMacro(NAME_SERVICE_ACCOUNT_JSON) || containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH);

@@ -160,6 +160,10 @@ public class GCSDoneFileMarker extends PostAction {
                                        BatchActionContext context) {
 
     String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
+    CryptoKeyName cmekKeyName = null;
+    if (!Strings.isNullOrEmpty(cmekKey)) {
+      cmekKeyName = CryptoKeyName.parse(cmekKey);
+    }
     Credentials credentials = null;
     if (serviceAccount != null) {
       try {
@@ -173,8 +177,7 @@ public class GCSDoneFileMarker extends PostAction {
     Storage storage = GCPUtils.getStorage(project, credentials);
     if (storage.get(path.getBucket()) == null) {
       try {
-        GCPUtils.createBucket(storage, path.getBucket(), null,
-                              Strings.isNullOrEmpty(cmekKey) ? null : CryptoKeyName.parse(cmekKey));
+        GCPUtils.createBucket(storage, path.getBucket(), null, cmekKeyName);
       } catch (StorageException e) {
         throw new RuntimeException(String.format("Failed to create bucket %s: %s.", path.getBucket(),
                                                  e.getMessage()), e);

@@ -24,6 +24,7 @@ import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
+import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.common.base.Strings;
 import io.cdap.cdap.api.data.batch.Output;
 import io.cdap.cdap.api.data.batch.OutputFormatProvider;
@@ -89,11 +90,15 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
     String datasetProjectId = config.getDatasetProject();
     bigQuery = GCPUtils.getBigQuery(datasetProjectId, credentials);
     String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
+    CryptoKeyName cmekKeyName = null;
+    if (!Strings.isNullOrEmpty(cmekKey)) {
+      cmekKeyName = CryptoKeyName.parse(cmekKey);
+    }
     baseConfiguration = getBaseConfiguration(cmekKey);
     String bucket = BigQuerySinkUtils.configureBucket(baseConfiguration, config.getBucket(), runUUID.toString());
     if (!context.isPreviewEnabled()) {
       BigQuerySinkUtils.createResources(bigQuery, GCPUtils.getStorage(project, credentials), config.getDataset(),
-                                        bucket, config.getLocation(), cmekKey);
+                                        bucket, config.getLocation(), cmekKeyName);
     }
 
     prepareRunInternal(context, bigQuery, bucket);

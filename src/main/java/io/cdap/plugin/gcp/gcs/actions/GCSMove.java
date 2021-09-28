@@ -65,8 +65,7 @@ public class GCSMove extends Action {
     StorageClient storageClient = StorageClient.create(config.getProject(), config.getServiceAccount(),
                                                        isServiceAccountFilePath);
     GCSPath destPath = config.getDestPath();
-    CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(config.cmekKey, context.getArguments(),
-                                                     context.getFailureCollector());
+    CryptoKeyName cmekKeyName = config.getCmekKey(context.getArguments(), context.getFailureCollector());
     context.getFailureCollector().getOrThrowException();
 
     // create the destination bucket if not exist

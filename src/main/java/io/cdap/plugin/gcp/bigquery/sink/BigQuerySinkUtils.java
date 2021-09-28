@@ -70,23 +70,23 @@ public final class BigQuerySinkUtils {
    * @param datasetName the name of the dataset
    * @param bucketName the name of the bucket
    * @param location the location of the resources, this is only applied if both the bucket and dataset do not exist
-   * @param cmekKey the name of the cmek key
+   * @param cmekKeyName the name of the cmek key
    * @throws IOException if there was an error creating or fetching any GCP resource
    */
   public static void createResources(BigQuery bigQuery, Storage storage,
                                      String datasetName, String bucketName, @Nullable String location,
-                                     @Nullable String cmekKey) throws IOException {
+                                     @Nullable CryptoKeyName cmekKeyName) throws IOException {
     Dataset dataset = bigQuery.getDataset(datasetName);
     Bucket bucket = storage.get(bucketName);
 
     if (dataset == null && bucket == null) {
-      createBucket(storage, bucketName, location, cmekKey,
+      createBucket(storage, bucketName, location, cmekKeyName,
                    () -> String.format("Unable to create Cloud Storage bucket '%s'", bucketName));
       createDataset(bigQuery, datasetName, location,
                     () -> String.format("Unable to create BigQuery dataset '%s'", datasetName));
     } else if (bucket == null) {
       createBucket(
-        storage, bucketName, dataset.getLocation(), cmekKey,
+        storage, bucketName, dataset.getLocation(), cmekKeyName,
         () -> String.format(
           "Unable to create Cloud Storage bucket '%s' in the same location ('%s') as BigQuery dataset '%s'. "
             + "Please use a bucket that is in the same location as the dataset.",
@@ -132,15 +132,15 @@ public final class BigQuerySinkUtils {
    * @param storage GCS Client.
    * @param bucket Bucket Name.
    * @param location Location for this bucket.
-   * @param cmekKey CMEK key to use for this bucket.
+   * @param cmekKeyName CMEK key to use for this bucket.
    * @param errorMessage Supplier for the error message to output if the bucket could not be created.
    * @throws IOException if the bucket could not be created.
    */
   private static void createBucket(Storage storage, String bucket, @Nullable String location,
-                                   @Nullable String cmekKey, Supplier<String> errorMessage) throws IOException {
+                                   @Nullable CryptoKeyName cmekKeyName,
+                                   Supplier<String> errorMessage) throws IOException {
     try {
-      GCPUtils.createBucket(storage, bucket, location,
-                            Strings.isNullOrEmpty(cmekKey) ? null : CryptoKeyName.parse(cmekKey));
+      GCPUtils.createBucket(storage, bucket, location, cmekKeyName);
     } catch (StorageException e) {
       if (e.getCode() != 409) {
         // A conflict means the bucket already exists

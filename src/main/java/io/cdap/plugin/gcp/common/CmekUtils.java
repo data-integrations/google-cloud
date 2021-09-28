@@ -77,16 +77,11 @@ public class CmekUtils {
    * This method validates the cmek key formatted string.
    *
    * @param cmekKey cmek key raw string
-   * @param arguments runtime arguments
    * @param collector  failure collector
    * @return parsed CryptoKeyName object if the formatted string is valid otherwise null.
    */
   @Nullable
-  public static CryptoKeyName getCmekKey(@Nullable String cmekKey, @Nullable Arguments arguments,
-                                         FailureCollector collector) {
-    if (Strings.isNullOrEmpty(cmekKey)) {
-      cmekKey = arguments == null ? null : arguments.get("gcp.cmek.key.name");
-    }
+  public static CryptoKeyName getCmekKey(@Nullable String cmekKey, FailureCollector collector) {
     CryptoKeyName cmekKeyName = null;
     if (Strings.isNullOrEmpty(cmekKey)) {
       return cmekKeyName;

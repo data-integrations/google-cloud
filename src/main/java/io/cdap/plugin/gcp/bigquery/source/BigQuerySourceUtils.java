@@ -66,7 +66,7 @@ public class BigQuerySourceUtils {
    * @param bigQuery BigQuery client.
    * @param credentials Google Cloud Credentials.
    * @param bucketPath bucket path to use. Will be used as a bucket name if needed..
-   * @param cmekKey CMEK key to use for the auto-created bucket.
+   * @param cmekKeyName CMEK key to use for the auto-created bucket.
    * @return Bucket name.
    */
   public static String getOrCreateBucket(Configuration configuration,
@@ -74,7 +74,7 @@ public class BigQuerySourceUtils {
                                          BigQuery bigQuery,
                                          Credentials credentials,
                                          String bucketPath,
-                                         @Nullable String cmekKey) {
+                                         @Nullable CryptoKeyName cmekKeyName) {
     String bucket = config.getBucket();
 
     // Create a new bucket if needed
@@ -88,8 +88,7 @@ public class BigQuerySourceUtils {
       Dataset dataset = bigQuery.getDataset(DatasetId.of(config.getDatasetProject(), config.getDataset()));
       GCPUtils.createBucket(GCPUtils.getStorage(config.getProject(), credentials),
                             bucket,
-                            dataset.getLocation(),
-                            Strings.isNullOrEmpty(cmekKey) ? null : CryptoKeyName.parse(cmekKey));
+                            dataset.getLocation(), cmekKeyName);
     }
 
     return bucket;
