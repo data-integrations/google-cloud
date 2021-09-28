@@ -24,6 +24,8 @@ import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableDefinition.Type;
 import com.google.cloud.bigquery.TimePartitioning;
+import com.google.cloud.kms.v1.CryptoKeyName;
+import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Metadata;
 import io.cdap.cdap.api.annotation.MetadataProperty;
@@ -128,6 +130,10 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     // Get Configuration for this run
     bucketPath = UUID.randomUUID().toString();
     String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
+    CryptoKeyName cmekKeyName = null;
+    if (!Strings.isNullOrEmpty(cmekKey)) {
+      cmekKeyName = CryptoKeyName.parse(cmekKey);
+    }
     configuration = BigQueryUtil.getBigQueryConfig(serviceAccount, config.getProject(), cmekKey,
                                                    config.getServiceAccountType());
 
@@ -137,7 +143,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
                                                           bigQuery,
                                                           credentials,
                                                           bucketPath,
-                                                          cmekKey);
+                                                          cmekKeyName);
 
     // Configure Service account credentials
     BigQuerySourceUtils.configureServiceAccount(configuration, config.getConnection());

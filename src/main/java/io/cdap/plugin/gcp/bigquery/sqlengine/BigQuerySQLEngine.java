@@ -21,8 +21,10 @@ import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.Job;
 import com.google.cloud.bigquery.TableId;
+import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.Storage;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import io.cdap.cdap.api.RuntimeContext;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
@@ -123,10 +125,14 @@ public class BigQuerySQLEngine
     storage = GCPUtils.getStorage(project, credentials);
 
     String cmekKey = context.getRuntimeArguments().get(GCPUtils.CMEK_KEY);
+    CryptoKeyName cmekKeyName = null;
+    if (!Strings.isNullOrEmpty(cmekKey)) {
+      cmekKeyName = CryptoKeyName.parse(cmekKey);
+    }
     configuration = BigQueryUtil.getBigQueryConfig(sqlEngineConfig.getServiceAccount(), sqlEngineConfig.getProject(),
                                                    cmekKey, sqlEngineConfig.getServiceAccountType());
     // Create resources needed for this execution
-    BigQuerySinkUtils.createResources(bigQuery, storage, dataset, bucket, sqlEngineConfig.getLocation(), cmekKey);
+    BigQuerySinkUtils.createResources(bigQuery, storage, dataset, bucket, sqlEngineConfig.getLocation(), cmekKeyName);
     // Configure GCS bucket that is used to stage temporary files.
     // If the bucket is created for this run, mar it for deletion after executon is completed
     BigQuerySinkUtils.configureBucket(configuration, bucket, runId, sqlEngineConfig.getBucket() == null);

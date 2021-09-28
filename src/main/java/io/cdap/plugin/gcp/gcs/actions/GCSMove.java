@@ -16,6 +16,10 @@
 
 package io.cdap.plugin.gcp.gcs.actions;
 
+import com.google.cloud.kms.v1.CryptoKeyName;
+import com.google.cloud.storage.Bucket;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageException;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
@@ -23,6 +27,9 @@ import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.action.Action;
 import io.cdap.cdap.etl.api.action.ActionContext;
+import io.cdap.plugin.gcp.common.CmekUtils;
+import io.cdap.plugin.gcp.common.GCPUtils;
+import io.cdap.plugin.gcp.gcs.GCSPath;
 import io.cdap.plugin.gcp.gcs.StorageClient;
 
 import java.io.IOException;
@@ -57,6 +64,13 @@ public class GCSMove extends Action {
     }
     StorageClient storageClient = StorageClient.create(config.getProject(), config.getServiceAccount(),
                                                        isServiceAccountFilePath);
+    GCSPath destPath = config.getDestPath();
+    CryptoKeyName cmekKeyName = config.getCmekKey(context.getArguments(), context.getFailureCollector());
+    context.getFailureCollector().getOrThrowException();
+
+    // create the destination bucket if not exist
+    storageClient.createBucketIfNotExists(destPath, config.location, cmekKeyName);
+
     //noinspection ConstantConditions
     storageClient.move(config.getSourcePath(), config.getDestPath(), config.recursive, config.shouldOverwrite());
   }
