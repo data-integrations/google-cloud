@@ -22,6 +22,7 @@ import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem;
+import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.BucketInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
@@ -177,13 +178,13 @@ public class GCPUtils {
   }
 
   public static void createBucket(Storage storage, String bucket, @Nullable String location,
-                                  @Nullable String cmekKey) throws StorageException {
+                                  @Nullable CryptoKeyName cmekKeyName) throws StorageException {
     BucketInfo.Builder builder = BucketInfo.newBuilder(bucket);
     if (location != null) {
       builder.setLocation(location);
     }
-    if (cmekKey != null) {
-      builder.setDefaultKmsKeyName(cmekKey);
+    if (cmekKeyName != null) {
+      builder.setDefaultKmsKeyName(cmekKeyName.toString());
     }
     storage.create(builder.build());
   }
