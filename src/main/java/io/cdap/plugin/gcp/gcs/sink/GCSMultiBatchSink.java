@@ -39,6 +39,7 @@ import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.validation.ValidatingOutputFormat;
 import io.cdap.plugin.common.batch.sink.SinkOutputFormatProvider;
 import io.cdap.plugin.format.FileFormat;
+import io.cdap.plugin.gcp.common.CmekUtils;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
@@ -105,8 +106,8 @@ public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable,
     Map<String, String> baseProperties = GCPUtils.getFileSystemProperties(config, config.getPath(), new HashMap<>());
     Map<String, String> argumentCopy = new HashMap<>(context.getArguments().asMap());
 
-    CryptoKeyName cmekKeyName = config.getCmekKey(config.cmekKey, context.getArguments(),
-                                                  context.getFailureCollector());
+    CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(config.cmekKey, context.getArguments(),
+                                                     context.getFailureCollector());
     context.getFailureCollector().getOrThrowException();
     Boolean isServiceAccountFilePath = config.isServiceAccountFilePath();
     if (isServiceAccountFilePath == null) {

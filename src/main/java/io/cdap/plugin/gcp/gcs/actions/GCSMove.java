@@ -27,6 +27,7 @@ import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.action.Action;
 import io.cdap.cdap.etl.api.action.ActionContext;
+import io.cdap.plugin.gcp.common.CmekUtils;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 import io.cdap.plugin.gcp.gcs.StorageClient;
@@ -64,8 +65,8 @@ public class GCSMove extends Action {
     StorageClient storageClient = StorageClient.create(config.getProject(), config.getServiceAccount(),
                                                        isServiceAccountFilePath);
     GCSPath destPath = config.getDestPath();
-    CryptoKeyName cmekKeyName = config.getCmekKey(config.cmekKey, context.getArguments(),
-                                                  context.getFailureCollector());
+    CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(config.cmekKey, context.getArguments(),
+                                                     context.getFailureCollector());
     context.getFailureCollector().getOrThrowException();
 
     // create the destination bucket if not exist

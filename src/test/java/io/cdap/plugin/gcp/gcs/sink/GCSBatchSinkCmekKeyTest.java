@@ -21,6 +21,7 @@ import io.cdap.cdap.etl.api.validation.CauseAttributes;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.cdap.etl.mock.common.MockArguments;
 import io.cdap.cdap.etl.mock.validation.MockFailureCollector;
+import io.cdap.plugin.gcp.common.CmekUtils;
 import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.gcs.sink.GCSBatchSink.GCSBatchSinkConfig;
 import org.junit.Assert;
@@ -162,7 +163,7 @@ public class GCSBatchSinkCmekKeyTest {
     GCSBatchSinkConfig config = getBuilder().setCmekKey(configKey).build();
     MockArguments arguments = new MockArguments();
     arguments.set("gcp.cmek.key.name", key);
-    CryptoKeyName keyReturned = config.getCmekKey(configKey, arguments, collector);
+    CryptoKeyName keyReturned = CmekUtils.getCmekKey(configKey, arguments, collector);
     Assert.assertEquals(configKey, keyReturned.toString());
   }
 }

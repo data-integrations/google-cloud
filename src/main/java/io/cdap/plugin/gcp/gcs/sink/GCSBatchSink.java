@@ -101,7 +101,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
   @Override
   public void prepareRun(BatchSinkContext context) throws Exception {
     super.prepareRun(context);
-    CryptoKeyName cmekKeyName = config.getCmekKey(config.cmekKey, context.getArguments(),
+    CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(config.cmekKey, context.getArguments(),
                                                   context.getFailureCollector());
     context.getFailureCollector().getOrThrowException();
 
@@ -576,7 +576,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
 
     //This method validated the pattern of CMEK Key resource ID.
     void validateCmekKey(FailureCollector failureCollector) {
-      CryptoKeyName cmekKeyName = getCmekKey(cmekKey, null, failureCollector);
+      CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(cmekKey, null, failureCollector);
 
       //these fields are needed to check if bucket exists or not and for location validation
       if (cmekKeyName == null || containsMacro(NAME_PATH) || containsMacro(NAME_LOCATION) ||

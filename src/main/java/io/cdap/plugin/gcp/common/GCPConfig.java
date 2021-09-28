@@ -145,32 +145,6 @@ public class GCPConfig extends PluginConfig {
     return false;
   }
 
-  /**
-   * This method validates the cmek key formatted string.
-   *
-   * @param cmekKey cmek key raw string
-   * @param arguments runtime arguments
-   * @param collector  failure collector
-   * @return parsed CryptoKeyName object if the formatted string is valid otherwise null.
-   */
-  @Nullable
-  public CryptoKeyName getCmekKey(@Nullable String cmekKey, @Nullable Arguments arguments, FailureCollector collector) {
-    if (Strings.isNullOrEmpty(cmekKey)) {
-      cmekKey = arguments == null ? null : arguments.get("gcp.cmek.key.name");
-    }
-    CryptoKeyName cmekKeyName = null;
-    if (Strings.isNullOrEmpty(cmekKey)) {
-      return cmekKeyName;
-    }
-    try {
-      cmekKeyName = CryptoKeyName.parse(cmekKey);
-    } catch (ValidationException e) {
-      collector.addFailure(e.getMessage(), null)
-        .withConfigProperty(GCPConfig.NAME_CMEK_KEY).withStacktrace(e.getStackTrace());
-    }
-    return cmekKeyName;
-  }
-
   public boolean projectOrServiceAccountContainsMacro() {
     return containsMacro(NAME_PROJECT) || containsMacro(NAME_SERVICE_ACCOUNT_TYPE) ||
       containsMacro(NAME_SERVICE_ACCOUNT_JSON) || containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH);

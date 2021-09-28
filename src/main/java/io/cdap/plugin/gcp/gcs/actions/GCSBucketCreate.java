@@ -131,7 +131,7 @@ public final class GCSBucketCreate extends Action {
               + "Ensure you entered the correct bucket path and have permissions for it.", e);
         }
         if (bucket == null) {
-          CryptoKeyName cmekKeyName = config.getCmekKey(config.cmekKey, context.getArguments(),
+          CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(config.cmekKey, context.getArguments(),
                                                         context.getFailureCollector());
           context.getFailureCollector().getOrThrowException();
           GCPUtils.createBucket(storage, gcsPath.getBucket(), config.location, cmekKeyName);
@@ -260,7 +260,7 @@ public final class GCSBucketCreate extends Action {
 
     //This method validated the pattern of CMEK Key resource ID.
     void validateCmekKey(FailureCollector failureCollector) {
-      CryptoKeyName cmekKeyName = getCmekKey(cmekKey, null, failureCollector);
+      CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(cmekKey, null, failureCollector);
 
       //these fields are needed to check if bucket exists or not and for location validation
       if (cmekKeyName == null || containsMacro(NAME_PATHS) || containsMacro(NAME_LOCATION) ||

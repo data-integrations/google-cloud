@@ -16,11 +16,13 @@
 
 package io.cdap.plugin.gcp.common;
 
+import com.google.api.pathtemplate.ValidationException;
 import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
 import com.google.common.base.Strings;
+import io.cdap.cdap.etl.api.Arguments;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 
@@ -69,5 +71,32 @@ public class CmekUtils {
           .withConfigProperty(GCPConfig.NAME_CMEK_KEY);
       }
     }
+  }
+
+  /**
+   * This method validates the cmek key formatted string.
+   *
+   * @param cmekKey cmek key raw string
+   * @param arguments runtime arguments
+   * @param collector  failure collector
+   * @return parsed CryptoKeyName object if the formatted string is valid otherwise null.
+   */
+  @Nullable
+  public static CryptoKeyName getCmekKey(@Nullable String cmekKey, @Nullable Arguments arguments,
+                                         FailureCollector collector) {
+    if (Strings.isNullOrEmpty(cmekKey)) {
+      cmekKey = arguments == null ? null : arguments.get("gcp.cmek.key.name");
+    }
+    CryptoKeyName cmekKeyName = null;
+    if (Strings.isNullOrEmpty(cmekKey)) {
+      return cmekKeyName;
+    }
+    try {
+      cmekKeyName = CryptoKeyName.parse(cmekKey);
+    } catch (ValidationException e) {
+      collector.addFailure(e.getMessage(), null)
+        .withConfigProperty(GCPConfig.NAME_CMEK_KEY).withStacktrace(e.getStackTrace());
+    }
+    return cmekKeyName;
   }
 }

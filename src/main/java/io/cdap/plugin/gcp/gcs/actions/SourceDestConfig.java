@@ -123,7 +123,7 @@ public class SourceDestConfig extends GCPConfig {
 
   //This method validated the pattern of CMEK Key resource ID.
   void validateCmekKey(FailureCollector failureCollector) {
-    CryptoKeyName cmekKeyName = getCmekKey(cmekKey, null, failureCollector);
+    CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(cmekKey, null, failureCollector);
 
     //these fields are needed to check if bucket exists or not and for location validation
     if (cmekKeyName == null || containsMacro(NAME_DEST_PATH) || containsMacro(NAME_LOCATION) ||
