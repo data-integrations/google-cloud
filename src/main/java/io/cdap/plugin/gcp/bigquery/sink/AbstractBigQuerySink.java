@@ -25,6 +25,7 @@ import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
 import io.cdap.cdap.api.data.batch.Output;
 import io.cdap.cdap.api.data.batch.OutputFormatProvider;
 import io.cdap.cdap.api.data.format.StructuredRecord;
@@ -34,8 +35,10 @@ import io.cdap.cdap.etl.api.Emitter;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
+import io.cdap.cdap.etl.api.engine.sql.SQLEngineOutput;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.plugin.common.LineageRecorder;
+import io.cdap.plugin.gcp.bigquery.sqlengine.BigQuerySQLEngine;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
@@ -142,8 +145,9 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
 
     // Build GCS storage path for this bucket output.
     String temporaryGcsPath = BigQuerySinkUtils.getTemporaryGcsPath(bucket, runUUID.toString(), tableName);
+    String datasetProject = getConfig().getDatasetProject();
     BigQuerySinkUtils.configureOutput(configuration,
-                                      getConfig().getDatasetProject(),
+                                      datasetProject,
                                       getConfig().getDataset(),
                                       tableName,
                                       temporaryGcsPath,
@@ -155,6 +159,14 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
       .collect(Collectors.toList());
     recordLineage(context, outputName, tableSchema, fieldNames);
     context.addOutput(Output.of(outputName, getOutputFormatProvider(configuration, tableName, tableSchema)));
+    ImmutableMap.Builder<String, String> arguments = new ImmutableMap.Builder<String, String>()
+      .put("table", tableName)
+      .put("dataset", getConfig().getDataset());
+    if (datasetProject != null && !datasetProject.isEmpty()) {
+      arguments.put("project", datasetProject);
+    }
+    context.addOutput(new SQLEngineOutput(outputName, BigQuerySQLEngine.class.getName(),
+                                          arguments.build()));
   }
 
   /**
