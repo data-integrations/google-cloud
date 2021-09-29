@@ -26,9 +26,11 @@ import com.google.cloud.bigquery.JobStatistics;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
+import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
+import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
@@ -203,6 +205,10 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     Credentials credentials = config.getCredentials();
     String project = config.getProject();
     String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
+    CryptoKeyName cmekKeyName = null;
+    if (!Strings.isNullOrEmpty(cmekKey)) {
+      cmekKeyName = CryptoKeyName.parse(cmekKey);
+    }
     baseConfiguration = getBaseConfiguration(cmekKey);
     String[] assetValues = assetBean.getAssetResourceSpec().name.split("/");
     String dataset = assetValues[assetValues.length - 1];
@@ -211,7 +217,7 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     String bucket = BigQuerySinkUtils.configureBucket(baseConfiguration, null, runUUID.toString());
     if (!context.isPreviewEnabled()) {
       BigQuerySinkUtils.createResources(bigQuery, GCPUtils.getStorage(project, credentials), dataset,
-        bucket, config.getLocation(), cmekKey);
+        bucket, config.getLocation(), cmekKeyName);
     }
 
     Schema configSchema = config.getSchema(collector);
@@ -407,6 +413,10 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     validateRunStorageBucket(context);
     FailureCollector collector = context.getFailureCollector();
     String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
+    CryptoKeyName cmekKeyName = null;
+    if (!Strings.isNullOrEmpty(cmekKey)) {
+      cmekKeyName = CryptoKeyName.parse(cmekKey);
+    }
     Credentials credentials = config.getCredentials();
     Storage storage = GCPUtils.getStorage(config.getProject(), credentials);
     Bucket bucket;
@@ -421,7 +431,7 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
           + "Ensure you entered the correct bucket path and have permissions for it.", e);
     }
     if (bucket == null) {
-      GCPUtils.createBucket(storage, bucketName, config.getLocation(), cmekKey);
+      GCPUtils.createBucket(storage, bucketName, config.getLocation(), cmekKeyName);
     }
   }
 

@@ -285,7 +285,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
       return null;
     }
     partitionFilter = partitionFilter.trim();
-    // remove the WHERE keyword from the filter if the user adds it at the begging of the expression
+    // remove the WHERE keyword from the filter if the user adds it at the beginning of the expression
     if (partitionFilter.toUpperCase().startsWith(WHERE)) {
       partitionFilter = partitionFilter.substring(WHERE.length());
     }

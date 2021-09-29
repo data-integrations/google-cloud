@@ -37,6 +37,8 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.annotation.Nullable;
+
 /**
  * OutputFormatProvider for Dataplex
  */
@@ -51,17 +53,16 @@ public class DataplexOutputFormatProvider implements ValidatingOutputFormat {
   private final Schema tableSchema;
 
   /**
-   *
    * @param configuration it will be null for Asset type : Storage bucket
-   * @param tableSchema it will be null for Asset type : Storage bucket
-   * @param delegate it will be null for Asset type : BQ dataset
+   * @param tableSchema   it will be null for Asset type : Storage bucket
+   * @param delegate      it will be null for Asset type : BQ dataset
    */
-  public DataplexOutputFormatProvider(Configuration configuration, Schema tableSchema,
-                                      ValidatingOutputFormat delegate) {
-  //for BQ assets
+  public DataplexOutputFormatProvider(@Nullable Configuration configuration, @Nullable Schema tableSchema,
+                                      @Nullable ValidatingOutputFormat delegate) {
+    // for BQ assets
     this.configuration = configuration;
     this.tableSchema = tableSchema;
-  //for GCS assets
+    // for GCS assets
     this.delegate = delegate;
   }
 
@@ -104,6 +105,7 @@ public class DataplexOutputFormatProvider implements ValidatingOutputFormat {
 
     /**
      * It will set outputformat based on asset type in dataplex
+     *
      * @param configuration
      * @return
      * @throws IOException
