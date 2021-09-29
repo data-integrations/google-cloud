@@ -1,6 +1,5 @@
 package io.cdap.plugin.gcp.common;
 
-import com.google.api.pathtemplate.ValidationException;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.ServiceOptions;

@@ -16,13 +16,18 @@
 
 package io.cdap.plugin.gcp.common;
 
+import com.google.auth.Credentials;
 import com.google.cloud.ServiceOptions;
+import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.plugin.PluginConfig;
+import io.cdap.cdap.etl.api.Arguments;
+import io.cdap.cdap.etl.api.FailureCollector;
 
+import java.io.IOException;
 import javax.annotation.Nullable;
 
 /**
@@ -149,5 +154,18 @@ public class GCPConnectorConfig extends PluginConfig {
     return !containsMacro(GCPConnectorConfig.NAME_SERVICE_ACCOUNT_TYPE) &&
       !(containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH) || containsMacro(NAME_SERVICE_ACCOUNT_JSON)) &&
       !containsMacro(NAME_PROJECT);
+  }
+  
+  @Nullable
+  public Credentials getCredentials(FailureCollector collector) {
+    Boolean isServiceAccountFilePath = isServiceAccountFilePath();
+    Credentials credentials = null;
+    try {
+      credentials = getServiceAccount() == null ?
+        null : GCPUtils.loadServiceAccountCredentials(getServiceAccount(), isServiceAccountFilePath);
+    } catch (IOException e) {
+      collector.addFailure(e.getMessage(), null);
+    }
+    return credentials;
   }
 }

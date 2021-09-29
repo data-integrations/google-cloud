@@ -21,6 +21,7 @@ import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.DatasetInfo;
+import com.google.cloud.bigquery.EncryptionConfiguration;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
@@ -83,7 +84,7 @@ public final class BigQuerySinkUtils {
     if (dataset == null && bucket == null) {
       createBucket(storage, bucketName, location, cmekKeyName,
                    () -> String.format("Unable to create Cloud Storage bucket '%s'", bucketName));
-      createDataset(bigQuery, datasetId, location,
+      createDataset(bigQuery, datasetId, location, cmekKeyName,
                     () -> String.format("Unable to create BigQuery dataset '%s.%s'", datasetId.getProject(),
                                         datasetId.getDataset()));
     } else if (bucket == null) {
@@ -95,7 +96,7 @@ public final class BigQuerySinkUtils {
           bucketName, dataset.getLocation(), datasetId));
     } else if (dataset == null) {
       createDataset(
-        bigQuery, datasetId, bucket.getLocation(),
+        bigQuery, datasetId, bucket.getLocation(), cmekKeyName,
         () -> String.format(
           "Unable to create BigQuery dataset '%s' in the same location ('%s') as Cloud Storage bucket '%s'. "
             + "Please use a bucket that is in a supported location.",
@@ -108,14 +109,20 @@ public final class BigQuerySinkUtils {
    * @param bigQuery the bigQuery client.
    * @param dataset the Id of the dataset to create.
    * @param location Location for this dataset.
+   * @param cmekKeyName CMEK key to use for this dataset.
    * @param errorMessage Supplier for the error message to output if the dataset could not be created.
    * @throws IOException if the dataset could not be created.
    */
-  private static void createDataset(BigQuery bigQuery, DatasetId dataset, @Nullable String location,
-                                    Supplier<String> errorMessage) throws IOException {
+  public static void createDataset(BigQuery bigQuery, DatasetId dataset, @Nullable String location,
+                                   @Nullable CryptoKeyName cmekKeyName,
+                                   Supplier<String> errorMessage) throws IOException {
     DatasetInfo.Builder builder = DatasetInfo.newBuilder(dataset);
     if (location != null) {
       builder.setLocation(location);
+    }
+    if (cmekKeyName != null) {
+      builder.setDefaultEncryptionConfiguration(
+        EncryptionConfiguration.newBuilder().setKmsKeyName(cmekKeyName.toString()).build());
     }
     try {
       bigQuery.create(builder.build());
