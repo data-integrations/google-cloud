@@ -19,6 +19,7 @@ package io.cdap.plugin.gcp.publisher;
 import com.google.api.gax.rpc.AlreadyExistsException;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.NotFoundException;
+import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.pubsub.v1.TopicAdminClient;
 import com.google.cloud.pubsub.v1.TopicAdminSettings;
 import com.google.common.base.Strings;
@@ -40,6 +41,7 @@ import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.format.StructuredRecordStringConverter;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.common.batch.sink.SinkOutputFormatProvider;
+import io.cdap.plugin.gcp.common.CmekUtils;
 import io.cdap.plugin.gcp.common.GCPReferenceSinkConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -103,9 +105,10 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, S
         } catch (NotFoundException e) {
           try {
             Topic.Builder request = Topic.newBuilder().setName(projectTopicName.toString());
-            String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
-            if (cmekKey != null) {
-              request.setKmsKeyName(cmekKey);
+            CryptoKeyName cmekKeyName = config.getCmekKey(context.getArguments(), context.getFailureCollector());
+            context.getFailureCollector().getOrThrowException();
+            if (cmekKeyName != null) {
+              request.setKmsKeyName(cmekKeyName.toString());
             }
             topicAdminClient.createTopic(request.build());
           } catch (AlreadyExistsException e1) {
@@ -198,6 +201,13 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, S
     @Nullable
     private Integer retryTimeoutSeconds;
 
+    @Name(NAME_CMEK_KEY)
+    @Macro
+    @Nullable
+    @Description("The GCP customer managed encryption key (CMEK) name used to encrypt data written to " +
+      "any topic created by the plugin. If the topic already exists, this is ignored.")
+    private String cmekKey;
+
 
     public Config(String referenceName, String topic, @Nullable Long messageCountBatchSize,
                   @Nullable Long requestThresholdKB, @Nullable Long publishDelayThresholdMillis,
@@ -241,6 +251,9 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, S
         collector.addFailure(String.format("Delimiter is required when format is set to %s.", format),
                              "Ensure the delimiter is provided.")
           .withConfigProperty(delimiter);
+      }
+      if (!containsMacro(NAME_CMEK_KEY) && !Strings.isNullOrEmpty(cmekKey)) {
+        CmekUtils.getCmekKey(cmekKey, collector);
       }
       collector.getOrThrowException();
     }

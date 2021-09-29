@@ -19,6 +19,7 @@ package io.cdap.plugin.gcp.gcs.actions;
 import io.cdap.cdap.etl.api.validation.CauseAttributes;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.cdap.etl.mock.validation.MockFailureCollector;
+import io.cdap.plugin.common.batch.action.Condition;
 import io.cdap.plugin.gcp.common.GCPConfig;
 import org.junit.Assert;
 import org.junit.Assume;
@@ -88,6 +89,12 @@ public class CmekKeyTest {
       .setGcsPath(destPath);
   }
 
+  private GCSDoneFileMarker.Config.Builder getGCSDoneFileMarkerBuilder() {
+    return GCSDoneFileMarker.Config.builder()
+      .setProject(project)
+      .setGcsPath(destPath);
+  }
+
   private GCSBucketCreate.Config getConfig(GCSBucketCreate.Config.Builder builder, String key,
                                            @Nullable String location) {
     return builder
@@ -104,6 +111,14 @@ public class CmekKeyTest {
       .build();
   }
 
+  private GCSDoneFileMarker.Config getConfig(GCSDoneFileMarker.Config.Builder builder, String key,
+                                             String runCondition) {
+    return builder
+      .setCmekKey(key)
+      .setRunCondition(runCondition)
+      .build();
+  }
+
   @Test
   public void testServiceAccountPath() throws Exception {
     GCSBucketCreate.Config.Builder gcsBucketCreateBuilder = getGCSBucketCreateConfigBuilder()
@@ -112,9 +127,12 @@ public class CmekKeyTest {
     SourceDestConfig.Builder sourceDestConfigBuilder = getSourceDestConfigBuilder()
       .setServiceAccountType(GCPConfig.SERVICE_ACCOUNT_FILE_PATH)
       .setServiceFilePath(serviceAccountFilePath);
+    GCSDoneFileMarker.Config.Builder gcsDoneFileMarkerBuilder = getGCSDoneFileMarkerBuilder()
+      .setServiceAccountType(GCPConfig.SERVICE_ACCOUNT_FILE_PATH)
+      .setServiceFilePath(serviceAccountFilePath);
 
-    testValidCmekKey(gcsBucketCreateBuilder, sourceDestConfigBuilder);
-    testInvalidCmekKeyName(gcsBucketCreateBuilder, sourceDestConfigBuilder);
+    testValidCmekKey(gcsBucketCreateBuilder, sourceDestConfigBuilder, gcsDoneFileMarkerBuilder);
+    testInvalidCmekKeyName(gcsBucketCreateBuilder, sourceDestConfigBuilder, gcsDoneFileMarkerBuilder);
     testInvalidCmekKeyLocation(gcsBucketCreateBuilder, sourceDestConfigBuilder);
   }
 
@@ -126,17 +144,21 @@ public class CmekKeyTest {
     SourceDestConfig.Builder sourceDestConfigBuilder = getSourceDestConfigBuilder()
       .setServiceAccountType(GCPConfig.SERVICE_ACCOUNT_JSON)
       .setServiceAccountJson(serviceAccountKey);
+    GCSDoneFileMarker.Config.Builder gcsDoneFileMarkerBuilder = getGCSDoneFileMarkerBuilder()
+      .setServiceAccountType(GCPConfig.SERVICE_ACCOUNT_JSON)
+      .setServiceAccountJson(serviceAccountKey);
 
-    testValidCmekKey(gcsBucketCreateBuilder, sourceDestConfigBuilder);
-    testInvalidCmekKeyName(gcsBucketCreateBuilder, sourceDestConfigBuilder);
+    testValidCmekKey(gcsBucketCreateBuilder, sourceDestConfigBuilder, gcsDoneFileMarkerBuilder);
+    testInvalidCmekKeyName(gcsBucketCreateBuilder, sourceDestConfigBuilder, gcsDoneFileMarkerBuilder);
     testInvalidCmekKeyLocation(gcsBucketCreateBuilder, sourceDestConfigBuilder);
   }
 
   private void testValidCmekKey(GCSBucketCreate.Config.Builder gcsBucketCreateBuilder,
-                                SourceDestConfig.Builder sourceDestConfigBuilder) {
+                                SourceDestConfig.Builder sourceDestConfigBuilder,
+                                GCSDoneFileMarker.Config.Builder gcsDoneFileMarkerBuilder) {
     MockFailureCollector collector = new MockFailureCollector();
-    String configKey = String.format("projects/%s/locations/us-east1/keyRings/my_ring/cryptoKeys/test_key", project);
-    String location = "us-east1";
+    String configKey = String.format("projects/%s/locations/us/keyRings/my_ring/cryptoKeys/test_key", project);
+    String location = "us";
     GCSBucketCreate.Config gcsBucketCreateConfig = getConfig(gcsBucketCreateBuilder, configKey, location);
     gcsBucketCreateConfig.validateCmekKey(collector);
     Assert.assertEquals(0, collector.getValidationFailures().size());
@@ -144,13 +166,19 @@ public class CmekKeyTest {
     SourceDestConfig sourceDestConfig = getConfig(sourceDestConfigBuilder, configKey, location);
     sourceDestConfig.validateCmekKey(collector);
     Assert.assertEquals(0, collector.getValidationFailures().size());
+
+    String runCondition = Condition.SUCCESS.name();
+    GCSDoneFileMarker.Config gcsDoneFileMarkerConfig = getConfig(gcsDoneFileMarkerBuilder, configKey, runCondition);
+    gcsDoneFileMarkerConfig.validateCmekKey(collector);
+    Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
   private void testInvalidCmekKeyName(GCSBucketCreate.Config.Builder gcsBucketCreateBuilder,
-                                      SourceDestConfig.Builder sourceDestConfigBuilder) {
+                                      SourceDestConfig.Builder sourceDestConfigBuilder,
+                                      GCSDoneFileMarker.Config.Builder gcsDoneFileMarkerBuilder) {
     MockFailureCollector collector = new MockFailureCollector();
-    String configKey = String.format("projects/%s/locations/us-east1/keyRings", project);
-    String location = "us-east1";
+    String configKey = String.format("projects/%s/locations/us/keyRings", project);
+    String location = "us";
     GCSBucketCreate.Config gcsBucketCreateConfig = getConfig(gcsBucketCreateBuilder, configKey, location);
     gcsBucketCreateConfig.validateCmekKey(collector);
     ValidationFailure failure = collector.getValidationFailures().get(0);
@@ -160,6 +188,14 @@ public class CmekKeyTest {
 
     SourceDestConfig sourceDestConfig = getConfig(sourceDestConfigBuilder, configKey, location);
     sourceDestConfig.validateCmekKey(collector);
+    failure = collector.getValidationFailures().get(1);
+    causes = failure.getCauses();
+    Assert.assertEquals(2, causes.size());
+    Assert.assertEquals("cmekKey", causes.get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
+
+    String runCondition = Condition.SUCCESS.name();
+    GCSDoneFileMarker.Config gcsDoneFileMarkerConfig = getConfig(gcsDoneFileMarkerBuilder, configKey, runCondition);
+    gcsDoneFileMarkerConfig.validateCmekKey(collector);
     failure = collector.getValidationFailures().get(1);
     causes = failure.getCauses();
     Assert.assertEquals(2, causes.size());
