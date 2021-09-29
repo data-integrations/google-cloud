@@ -26,6 +26,7 @@ import com.google.cloud.bigquery.StandardSQLTypeName;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
+import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -127,13 +128,13 @@ public final class BigQueryUtil {
    *
    * @param serviceAccountInfo service account file path or JSON content
    * @param projectId BigQuery project ID
-   * @param cmekKey the name of the cmek key
+   * @param cmekKeyName the name of the cmek key
    * @param serviceAccountType type of the service account
    * @return indicator for whether service account is file or json
    * @throws IOException if not able to get credentials
    */
   public static Configuration getBigQueryConfig(@Nullable String serviceAccountInfo, String projectId,
-                                                @Nullable String cmekKey, String serviceAccountType)
+                                                @Nullable CryptoKeyName cmekKeyName, String serviceAccountType)
     throws IOException {
     Job job = Job.getInstance();
 
@@ -159,8 +160,8 @@ public final class BigQueryUtil {
     configuration.set("fs.gs.project.id", projectId);
     configuration.set("fs.gs.working.dir", GCSPath.ROOT_DIR);
     configuration.set(BigQueryConfiguration.PROJECT_ID_KEY, projectId);
-    if (cmekKey != null) {
-      configuration.set(BigQueryConfiguration.OUTPUT_TABLE_KMS_KEY_NAME_KEY, cmekKey);
+    if (cmekKeyName != null) {
+      configuration.set(BigQueryConfiguration.OUTPUT_TABLE_KMS_KEY_NAME_KEY, cmekKeyName.toString());
     }
     return configuration;
   }
@@ -476,7 +477,6 @@ public final class BigQueryUtil {
 
   /**
    * Get BigQuery table.
-   * @param project project where the BQ job will be run
    * @param datasetProject project where dataset is in
    * @param datasetId BigQuery dataset ID
    * @param tableName BigQuery table name
@@ -485,7 +485,7 @@ public final class BigQueryUtil {
    * @return BigQuery table
    */
   @Nullable
-  public static Table getBigQueryTable(String project, String datasetProject, String datasetId, String tableName,
+  public static Table getBigQueryTable(String datasetProject, String datasetId, String tableName,
                                        @Nullable String serviceAccount, boolean isServiceAccountFilePath) {
     TableId tableId = TableId.of(datasetProject, datasetId, tableName);
 
@@ -499,7 +499,7 @@ public final class BigQueryUtil {
           "serviceFilePath");
       }
     }
-    BigQuery bigQuery = GCPUtils.getBigQuery(project, credentials);
+    BigQuery bigQuery = GCPUtils.getBigQuery(datasetProject, credentials);
 
     Table table;
     try {
@@ -531,17 +531,17 @@ public final class BigQueryUtil {
    * Get BigQuery table.
    *
    * @param projectId BigQuery project ID
-   * @param datasetId BigQuery dataset ID
+   * @param dataset BigQuery dataset name
    * @param tableName BigQuery table name
    * @param serviceAccount service account file path or JSON content
    * @param isServiceAccountFilePath indicator for whether service account is file or json
    * @param collector failure collector
    * @return BigQuery table
    */
-  public static Table getBigQueryTable(String projectId, String datasetId, String tableName,
+  public static Table getBigQueryTable(String projectId, String dataset, String tableName,
                                        @Nullable String serviceAccount, @Nullable Boolean isServiceAccountFilePath,
                                        FailureCollector collector) {
-    TableId tableId = TableId.of(projectId, datasetId, tableName);
+    TableId tableId = TableId.of(projectId, dataset, tableName);
     com.google.auth.Credentials credentials = null;
     if (serviceAccount != null) {
       try {

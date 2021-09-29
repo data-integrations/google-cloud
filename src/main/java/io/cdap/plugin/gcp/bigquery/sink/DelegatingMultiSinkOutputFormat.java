@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.bigquery.sink;
 
+import com.google.cloud.bigquery.DatasetId;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
@@ -65,8 +66,7 @@ public class DelegatingMultiSinkOutputFormat extends OutputFormat<StructuredReco
                                                tableNameField,
                                                bucketName,
                                                bucketPathUniqueId,
-                                               projectName,
-                                               datasetName,
+                                               DatasetId.of(projectName, datasetName),
                                                getOutputCommitterInstance(taskAttemptContext));
   }
 

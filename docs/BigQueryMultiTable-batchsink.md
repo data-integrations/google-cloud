@@ -50,6 +50,9 @@ if the dataset or temporary bucket already exist.
 
 **Split Field:** The name of the field that will be used to determine which table to write to.
 
+**Encryption Key Name**: Used to encrypt data written to any bucket, dataset or table created by the plugin.
+If the bucket, dataset or table already exists, this is ignored.
+
 **Update Table Schema**: Whether the BigQuery table schema should be modified 
 when it does not match the schema expected by the pipeline. 
 * When this is set to false, any mismatches between the schema expected by the pipeline 

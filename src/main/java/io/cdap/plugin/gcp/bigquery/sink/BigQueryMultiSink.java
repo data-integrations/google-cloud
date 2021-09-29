@@ -111,7 +111,7 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
         Schema configuredSchema = Schema.parseJson(argument.getValue());
 
         Table table = BigQueryUtil.getBigQueryTable(
-          config.getProject(), config.getDataset(), tableName, config.getServiceAccount(),
+          config.getDatasetProject(), config.getDataset(), tableName, config.getServiceAccount(),
           config.isServiceAccountFilePath(), collector);
 
         Schema tableSchema = configuredSchema;

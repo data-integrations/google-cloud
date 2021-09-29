@@ -70,6 +70,9 @@ the update operation will be performed only in the partitions meeting the criter
 **Location:** The location where the big query dataset will get created. This value is ignored
 if the dataset or temporary bucket already exist.
 
+**Encryption Key Name**: Used to encrypt data written to any bucket, dataset or table created by the plugin.
+If the bucket, dataset or table already exists, this is ignored.
+
 **Create Partitioned Table  [DEPRECATED]**: Whether to create the BigQuery table with time partitioning. This value
 is ignored if the table already exists.
 * When this is set to true, table will be created with time partitioning.

@@ -36,7 +36,10 @@ It can be found on the Dashboard in the Google Cloud Platform Console.
 **Path** Google Cloud Storage path to the marker file. This takes the format `gs://<bucket>/directory/marker-file-name`. 
 For example `gs://billing-data/2021-01-21/__SUCCESS`. The marker file will get created only if there is no previous
 marker file in that path. Otherwise, creating a new marker file will be skipped. If the bucket does not exist, it
-will get created automatically. 
+will get created automatically.
+
+**Encryption Key Name**: Used to encrypt data written to any bucket created by the plugin.
+If the bucket already exists, this is ignored.
 
 * **Service Account**  Service account key used for authorization
 
