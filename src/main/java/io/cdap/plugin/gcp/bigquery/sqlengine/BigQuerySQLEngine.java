@@ -313,21 +313,25 @@ public class BigQuerySQLEngine
       LOG.debug("Got output for another SQL engine {}, skipping", writeRequest.getOutput().getSqlEngineClassName());
       return false;
     }
+
     String jobId = runId + "_" + writeRequest.getOutput().getName();
     String sourceTable = datasets.get(writeRequest.getDatasetName()).getBigQueryTableName();
+    String fields = writeRequest.getOutput().getArguments().get("fields");
     String destinationDataset = writeRequest.getOutput().getArguments().get("dataset");
     String destinationTable = writeRequest.getOutput().getArguments().get("table");
     String destinationProject = writeRequest.getOutput().getArguments().getOrDefault("project", project);
+    JobInfo.WriteDisposition writeDisposition =
+      JobInfo.WriteDisposition.valueOf(writeRequest.getOutput().getArguments().get("writeDisposition"));
     TableId destinationTableId = TableId.of(destinationProject, destinationDataset, destinationTable);
 
-    String query = String.format("select * from `%s.%s.%s`", project, dataset, sourceTable);
+    String query = String.format("select %s from `%s.%s.%s`", fields, project, dataset, sourceTable);
     LOG.info("Copying data from {} to {} using sql statement: {} ", sourceTable, destinationTable, query);
 
     QueryJobConfiguration queryConfig =
       QueryJobConfiguration.newBuilder(query)
         .setDestinationTable(destinationTableId)
         .setCreateDisposition(JobInfo.CreateDisposition.CREATE_IF_NEEDED)
-        .setWriteDisposition(JobInfo.WriteDisposition.WRITE_TRUNCATE)
+        .setWriteDisposition(writeDisposition)
         .setPriority(sqlEngineConfig.getJobPriority())
         .setLabels(BigQuerySQLEngineUtils.getJobTags("copy"))
         .build();

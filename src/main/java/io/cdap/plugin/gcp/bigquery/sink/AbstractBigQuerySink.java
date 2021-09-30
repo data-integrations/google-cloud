@@ -159,9 +159,13 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
       .collect(Collectors.toList());
     recordLineage(context, outputName, tableSchema, fieldNames);
     context.addOutput(Output.of(outputName, getOutputFormatProvider(configuration, tableName, tableSchema)));
+
+    // Configure SQL Engine Output
     ImmutableMap.Builder<String, String> arguments = new ImmutableMap.Builder<String, String>()
       .put("table", tableName)
-      .put("dataset", getConfig().getDataset());
+      .put("dataset", getConfig().getDataset())
+      .put("writeDisposition", getConfig().getWriteDisposition().toString())
+      .put("fields", String.join(",", fieldNames));
     if (datasetProject != null && !datasetProject.isEmpty()) {
       arguments.put("project", datasetProject);
     }
