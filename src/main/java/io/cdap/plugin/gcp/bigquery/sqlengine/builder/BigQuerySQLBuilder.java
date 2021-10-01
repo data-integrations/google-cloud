@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.bigquery.sqlengine.builder;
 
+import com.google.cloud.bigquery.DatasetId;
 import com.google.common.annotations.VisibleForTesting;
 import io.cdap.cdap.etl.api.engine.sql.SQLEngineException;
 import io.cdap.cdap.etl.api.join.JoinCondition;
@@ -28,9 +29,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -57,18 +55,15 @@ public class BigQuerySQLBuilder {
 
   private final JoinDefinition joinDefinition;
   private final StringBuilder builder;
-  private final String project;
-  private final String dataset;
+  private final DatasetId dataset;
   private final Map<String, String> stageToBQTableNameMap;
   private final Map<String, String> stageToFullTableNameMap;
   private final Map<String, String> stageToTableAliasMap;
 
   public BigQuerySQLBuilder(JoinDefinition joinDefinition,
-                            String project,
-                            String dataset,
+                            DatasetId dataset,
                             Map<String, String> stageToBQTableNameMap) {
     this(joinDefinition,
-         project,
          dataset,
          stageToBQTableNameMap,
          new HashMap<>(),
@@ -78,15 +73,13 @@ public class BigQuerySQLBuilder {
 
   @VisibleForTesting
   protected BigQuerySQLBuilder(JoinDefinition joinDefinition,
-                               String project,
-                               String dataset,
+                               DatasetId dataset,
                                Map<String, String> stageToBQTableNameMap,
                                Map<String, String> stageToFullTableNameMap,
                                Map<String, String> stageToTableAliasMap,
                                StringBuilder builder) {
     this.joinDefinition = joinDefinition;
     this.builder = builder;
-    this.project = project;
     this.dataset = dataset;
     this.stageToBQTableNameMap = stageToBQTableNameMap;
     this.stageToFullTableNameMap = stageToFullTableNameMap;
@@ -374,7 +367,7 @@ public class BigQuerySQLBuilder {
   protected void addFullTableName(String stageName) {
     String bqTableName = getBQTableName(stageName);
     stageToFullTableNameMap.put(stageName,
-                                String.format("`%s.%s.%s`", project, dataset, bqTableName));
+                                String.format("`%s.%s.%s`", dataset.getProject(), dataset.getDataset(), bqTableName));
   }
 
   private void addTableAlias(String stageName, String alias) {

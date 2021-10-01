@@ -111,15 +111,13 @@ public class BigQuerySourceUtils {
    * Configure BigQuery input using the supplied configuration and GCS path.
    *
    * @param configuration Hadoop configuration instance.
-   * @param project the project to use.
    * @param dataset the dataset to use.
    * @param table the name of the table to pull from.
    * @param gcsPath Path to use to store output files.
    * @throws IOException if the BigQuery input could not be configured.
    */
   public static void configureBigQueryInput(Configuration configuration,
-                                            String project,
-                                            String dataset,
+                                            DatasetId dataset,
                                             String table,
                                             String gcsPath) throws IOException {
     // Configure GCS bucket path
@@ -137,8 +135,8 @@ public class BigQuerySourceUtils {
     PartitionedBigQueryInputFormat.setTemporaryCloudStorageDirectory(configuration,
                                                                      gcsPath);
     BigQueryConfiguration.configureBigQueryInput(configuration,
-                                                 project,
-                                                 dataset,
+                                                 dataset.getProject(),
+                                                 dataset.getDataset(),
                                                  table);
   }
 
