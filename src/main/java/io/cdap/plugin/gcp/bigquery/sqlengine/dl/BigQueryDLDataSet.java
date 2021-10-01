@@ -105,6 +105,7 @@ public class BigQueryDLDataSet implements DLDataSet {
 
   private String getFromExpression() {
     //TODO: alias validation
-    return " from (" + this.transformExpression + ") as " + sourceDataSet.getDatasetName();
+    return " from (" + this.transformExpression + ") as "
+      + sourceDataSet.getDatasetName().replaceAll("[^a-zA-Z0-9_-]", "");
   }
 }
