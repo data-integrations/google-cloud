@@ -51,6 +51,12 @@ jobs:
         with:
           name: Cucumber report
           path: ./e2e/target/cucumber-reports
+      - name: Upload debug files 
+        uses: actions/upload-artifact@v2.2.4
+        if: always()
+        with:
+          name: Debug files
+          path: ./**/target/e2e-debug
       - name: Deploy report
         uses: peaceiris/actions-gh-pages@v3
         if: always()
