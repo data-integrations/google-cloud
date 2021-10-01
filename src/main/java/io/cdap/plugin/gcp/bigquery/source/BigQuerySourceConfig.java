@@ -48,6 +48,8 @@ public final class BigQuerySourceConfig extends PluginConfig {
     ImmutableSet.of(Schema.Type.LONG, Schema.Type.STRING, Schema.Type.DOUBLE, Schema.Type.BOOLEAN, Schema.Type.BYTES,
                     Schema.Type.ARRAY, Schema.Type.RECORD);
 
+  public static final String NAME_TEMPORARY_EXPORT_TABLE_PROJECT = "temporaryExportTableProject";
+
   public static final String NAME_DATASET = "dataset";
   public static final String NAME_TABLE = "table";
   public static final String NAME_BUCKET = "bucket";
@@ -58,6 +60,14 @@ public final class BigQuerySourceConfig extends PluginConfig {
   public static final String NAME_ENABLE_QUERYING_VIEWS = "enableQueryingViews";
   public static final String NAME_VIEW_MATERIALIZATION_PROJECT = "viewMaterializationProject";
   public static final String NAME_VIEW_MATERIALIZATION_DATASET = "viewMaterializationDataset";
+
+
+  @Name(NAME_TEMPORARY_EXPORT_TABLE_PROJECT)
+  @Macro
+  @Description("The BigQuery source splits partitions across temporary table, by default this will be in the same "
+      + "project as the dataset."
+      + "This property allows the project in which the temporary tables are created to be explicitly set.")
+  private String temporaryExportTableProject;
 
   @Name(Constants.Reference.REFERENCE_NAME)
   @Description("This will be used to uniquely identify this source for lineage, annotating metadata, etc.")
@@ -145,6 +155,13 @@ public final class BigQuerySourceConfig extends PluginConfig {
   @Description("The existing connection to use.")
   private BigQueryConnectorConfig connection;
 
+  public String getTemporaryExportTableProject() {
+    if (temporaryExportTableProject == null) {
+       return getDatasetProject();
+    }
+
+    return temporaryExportTableProject;
+  }
 
   public String getDataset() {
     return dataset;

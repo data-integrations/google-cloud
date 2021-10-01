@@ -158,6 +158,14 @@
           "widget-attributes": {
             "placeholder": "Google Cloud Storage bucket for temporary data"
           }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Temporary Export Table Project",
+          "name": "temporaryExportTableProject",
+          "widget-attributes": {
+            "placeholder": "The project to use to create temporary export tables, defaults to source dataset project id"
+          }
         }
       ]
     },

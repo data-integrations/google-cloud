@@ -20,6 +20,7 @@ import com.google.cloud.hadoop.io.bigquery.ExportFileFormat;
 import com.google.cloud.hadoop.util.ConfigurationUtil;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.flogger.GoogleLogger;
 import com.sun.istack.Nullable;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
@@ -47,6 +48,7 @@ import java.util.concurrent.TimeUnit;
 public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<LongWritable, GenericData.Record> {
   private static final String DEFAULT_COLUMN_NAME = "_PARTITIONTIME";
 
+
   private InputFormat<LongWritable, GenericData.Record> delegateInputFormat =
     new AvroBigQueryInputFormat();
 
@@ -58,6 +60,10 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
   @Override
   public List<InputSplit> getSplits(JobContext context) throws IOException, InterruptedException {
     processQuery(context);
+
+    String tempTableProjectId = context.getConfiguration().get(BigQueryConstants.CONFIG_TEMPORARY_TABLE_PROJECT_ID);
+
+    context.getConfiguration().set(BigQueryConfiguration.INPUT_PROJECT_ID_KEY, tempTableProjectId);
 
     return delegateInputFormat.getSplits(context);
   }
@@ -111,8 +117,13 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
         .setTableId(tableName);
       String location = bigQueryHelper.getTable(sourceTable).getLocation();
       String temporaryTableName = configuration.get(BigQueryConstants.CONFIG_TEMPORARY_TABLE_NAME);
-      TableReference exportTableReference = createExportTableReference(type, datasetProjectId, datasetId,
-                                                                       temporaryTableName, configuration);
+      String tempTableProjectId = context.getConfiguration().get(BigQueryConstants.CONFIG_TEMPORARY_TABLE_PROJECT_ID);
+
+      TableReference exportTableReference = createExportTableReference(type, tempTableProjectId, datasetId,
+          temporaryTableName, configuration);
+
+      logger.atInfo().log("Export temporary table:%s", exportTableReference);
+
       runQuery(configuration, bigQueryHelper, projectId, exportTableReference, query, location);
       if (type == Type.VIEW || type == Type.MATERIALIZED_VIEW) {
         configuration.set(BigQueryConfiguration.INPUT_PROJECT_ID_KEY,
@@ -201,6 +212,8 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
     return tableReference;
   }
 
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+
   private static void runQuery(Configuration configuration,
                                BigQueryHelper bigQueryHelper,
                                String projectId,
@@ -212,6 +225,8 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
     // Create a query statement and query request object.
     JobConfigurationQuery queryConfig = new JobConfigurationQuery();
     queryConfig.setAllowLargeResults(true);
+    logger.atInfo().log("Query to run:" + query);
+
     queryConfig.setQuery(query);
     queryConfig.setUseLegacySql(false);
 
