@@ -85,7 +85,8 @@ public final class BigQuerySinkUtils {
       createBucket(storage, bucketName, location, cmekKeyName,
                    () -> String.format("Unable to create Cloud Storage bucket '%s'", bucketName));
       createDataset(bigQuery, datasetId, location, cmekKeyName,
-                    () -> String.format("Unable to create BigQuery dataset '%s'", datasetId.getDataset()));
+                    () -> String.format("Unable to create BigQuery dataset '%s.%s'", datasetId.getProject(),
+                                        datasetId.getDataset()));
     } else if (bucket == null) {
       createBucket(
         storage, bucketName, dataset.getLocation(), cmekKeyName,
