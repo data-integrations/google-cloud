@@ -35,11 +35,13 @@ import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.dl.DLContext;
 import io.cdap.cdap.etl.api.dl.DLDataSet;
-import io.cdap.cdap.etl.api.engine.sql.BatchSQLEngine;
+import io.cdap.cdap.etl.api.engine.sql.BatchSparkSQLEngine;
 import io.cdap.cdap.etl.api.engine.sql.SQLEngineException;
 import io.cdap.cdap.etl.api.engine.sql.dataset.SQLDataset;
 import io.cdap.cdap.etl.api.engine.sql.dataset.SQLPullDataset;
 import io.cdap.cdap.etl.api.engine.sql.dataset.SQLPushDataset;
+import io.cdap.cdap.etl.api.engine.sql.dataset.SparkPullDataset;
+import io.cdap.cdap.etl.api.engine.sql.dataset.SparkPushDataset;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLJoinDefinition;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLJoinRequest;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLPullRequest;
@@ -60,6 +62,8 @@ import org.apache.avro.generic.GenericData;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.NullWritable;
+import org.apache.spark.SparkContext;
+import org.apache.spark.api.java.JavaSparkContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,13 +77,13 @@ import java.util.stream.Collectors;
 /**
  * SQL Engine implementation using BigQuery as the execution engine.
  */
-@Plugin(type = BatchSQLEngine.PLUGIN_TYPE)
+@Plugin(type = BatchSparkSQLEngine.PLUGIN_TYPE)
 @Name(BigQuerySQLEngine.NAME)
 @Description("BigQuery SQLEngine implementation, used to push down certain pipeline steps into BigQuery. "
   + "A GCS bucket is used as staging for the read/write operations performed by this engine. "
   + "BigQuery is Google's serverless, highly scalable, enterprise data warehouse.")
 public class BigQuerySQLEngine
-  extends BatchSQLEngine<LongWritable, GenericData.Record, StructuredRecord, NullWritable> {
+  extends BatchSparkSQLEngine<LongWritable, GenericData.Record, StructuredRecord, NullWritable> {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigQuerySQLEngine.class);
 
@@ -188,6 +192,13 @@ public class BigQuerySQLEngine
   }
 
   @Override
+  public SparkPushDataset<StructuredRecord> getSparkPushProvider(SQLPushRequest sqlPushRequest)
+    throws SQLEngineException {
+    // Not supported
+    return null;
+  }
+
+  @Override
   public SQLPullDataset<StructuredRecord, LongWritable, GenericData.Record> getPullProvider(
     SQLPullRequest sqlPullRequest) throws SQLEngineException {
     if (!datasets.containsKey(sqlPullRequest.getDatasetName())) {
@@ -208,6 +219,26 @@ public class BigQuerySQLEngine
                                              table,
                                              bucket,
                                              runId);
+    } catch (IOException ioe) {
+      throw new SQLEngineException(ioe);
+    }
+  }
+
+  @Override
+  public SparkPullDataset<StructuredRecord> getSparkPullProvider(SQLPullRequest sqlPullRequest)
+    throws SQLEngineException {
+
+    String table = datasets.get(sqlPullRequest.getDatasetName()).getBigQueryTableName();
+
+    LOG.info("Executing Spark Pull operation for dataset {} stored in table {}",
+             sqlPullRequest.getDatasetName(), table);
+
+    try {
+      return BigQuerySparkPullDataset.getInstance(sqlPullRequest,
+                                                  bigQuery,
+                                                  project,
+                                                  dataset,
+                                                  table);
     } catch (IOException ioe) {
       throw new SQLEngineException(ioe);
     }
