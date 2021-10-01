@@ -86,8 +86,6 @@ public class BigQuerySparkPullDataset
     //TODO: This should use the credentials from the BQ SQL engine config, right now it uses dataproc config.
     Dataset<Row> ds = spark.read()
       .format("bigquery")
-      .option("readDataFormat", "AVRO")
-      .option("useAvroLogicalTypes", "true")
       .load(path);
 
     // Adjust Integer and Float types to the right method signature.
@@ -118,13 +116,25 @@ public class BigQuerySparkPullDataset
     return numRows;
   }
 
+  /**
+   * Used to correct differences between the Spark-BigQuery Connector data type mappings and CDAP schema types.
+   * @param ds input dataset
+   * @param schema input schema
+   * @return dataset with updated column type mappings.
+   */
   public Dataset<Row> adjustColumnTypes(Dataset<Row> ds, Schema schema) {
     if (schema.getFields() == null) {
       return ds;
     }
 
     for (Schema.Field field : schema.getFields()) {
-      Schema.Type type = field.getSchema().getType();
+
+      // Get underlying type from a field schema.
+      Schema fieldSchema = field.getSchema();
+      if (fieldSchema.isNullable()) {
+        fieldSchema = fieldSchema.getNonNullable();
+      }
+      Schema.Type type = fieldSchema.getType();
 
       // Convert int types from long
       if (type == Schema.Type.INT) {
