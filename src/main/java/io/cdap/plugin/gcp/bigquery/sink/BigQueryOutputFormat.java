@@ -183,7 +183,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
       // Get the destination configuration information.
       Configuration conf = jobContext.getConfiguration();
       TableReference destTable = getTableReference(conf);
-      String destProjectId = BigQueryOutputConfiguration.getProjectId(conf);
+      String destProjectId = BigQueryOutputConfiguration.getJobProjectId(conf);
       String writeDisposition = BigQueryOutputConfiguration.getWriteDisposition(conf);
       Optional<TableSchema> destSchema = getTableSchema(conf);
       String kmsKeyName = BigQueryOutputConfiguration.getKmsKeyName(conf);

@@ -34,7 +34,6 @@ import io.cdap.plugin.gcp.bigquery.sqlengine.util.BigQuerySQLEngineUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
 
@@ -50,7 +49,7 @@ public class BigQueryJoinDataset implements SQLDataset, BigQuerySQLDataset {
   private final BigQuerySQLEngineConfig sqlEngineConfig;
   private final BigQuery bigQuery;
   private final String project;
-  private final String bqDataset;
+  private final DatasetId bqDataset;
   private final String bqTable;
   private final String jobId;
   private final BigQuerySQLBuilder queryBuilder;
@@ -62,7 +61,7 @@ public class BigQueryJoinDataset implements SQLDataset, BigQuerySQLDataset {
                               Map<String, String> stageToTableNameMap,
                               BigQuery bigQuery,
                               String project,
-                              String bqDataset,
+                              DatasetId bqDataset,
                               String bqTable,
                               String jobId) {
     this.datasetName = datasetName;
@@ -73,7 +72,7 @@ public class BigQueryJoinDataset implements SQLDataset, BigQuerySQLDataset {
     this.bqDataset = bqDataset;
     this.bqTable = bqTable;
     this.jobId = jobId;
-    this.queryBuilder = new BigQuerySQLBuilder(this.joinDefinition, this.project, this.bqDataset, stageToTableNameMap);
+    this.queryBuilder = new BigQuerySQLBuilder(this.joinDefinition, this.bqDataset, stageToTableNameMap);
   }
 
   public static BigQueryJoinDataset getInstance(SQLJoinRequest joinRequest,
@@ -81,7 +80,7 @@ public class BigQueryJoinDataset implements SQLDataset, BigQuerySQLDataset {
                                                 BigQuerySQLEngineConfig sqlEngineConfig,
                                                 BigQuery bigQuery,
                                                 String project,
-                                                String dataset,
+                                                DatasetId dataset,
                                                 String runId) {
 
     // Get new Job ID for this push operation
@@ -91,7 +90,8 @@ public class BigQueryJoinDataset implements SQLDataset, BigQuerySQLDataset {
     String table = BigQuerySQLEngineUtils.getNewTableName(runId);
 
     // Create empty table to store join results.
-    BigQuerySQLEngineUtils.createEmptyTable(sqlEngineConfig, bigQuery, project, dataset, table);
+    BigQuerySQLEngineUtils.createEmptyTable(sqlEngineConfig, bigQuery, dataset.getProject(), dataset.getDataset(),
+                                            table);
 
     BigQueryJoinDataset instance = new BigQueryJoinDataset(joinRequest.getDatasetName(),
                                                            joinRequest.getJoinDefinition(),
@@ -107,11 +107,10 @@ public class BigQueryJoinDataset implements SQLDataset, BigQuerySQLDataset {
   }
 
   public void executeJoin() {
-    TableId destinationTable = TableId.of(project, bqDataset, bqTable);
+    TableId destinationTable = TableId.of(bqDataset.getProject(), bqDataset.getDataset(), bqTable);
 
     // Get location for target dataset. This way, the job will run in the same location as the dataset
-    DatasetId destinationDataset = DatasetId.of(project, bqDataset);
-    Dataset dataset = bigQuery.getDataset(destinationDataset);
+    Dataset dataset = bigQuery.getDataset(bqDataset);
     String location = dataset.getLocation();
 
     String query = queryBuilder.getQuery();
@@ -165,7 +164,7 @@ public class BigQueryJoinDataset implements SQLDataset, BigQuerySQLDataset {
   public long getNumRows() {
     // Get the number of rows from BQ if not known at this time.
     if (numRows == null) {
-      numRows = BigQuerySQLEngineUtils.getNumRows(bigQuery, project, bqDataset, bqTable);
+      numRows = BigQuerySQLEngineUtils.getNumRows(bigQuery, bqDataset, bqTable);
     }
 
     return numRows;

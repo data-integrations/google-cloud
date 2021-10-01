@@ -217,7 +217,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
    */
   private void configureTable(Schema schema) {
     AbstractBigQuerySinkConfig config = getConfig();
-    Table table = BigQueryUtil.getBigQueryTable(config.getProject(), config.getDatasetProject(), config.getDataset(),
+    Table table = BigQueryUtil.getBigQueryTable(config.getDatasetProject(), config.getDataset(),
                                                 config.getTable(),
                                                 config.getServiceAccount(),
                                                 config.isServiceAccountFilePath());

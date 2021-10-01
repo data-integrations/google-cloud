@@ -476,7 +476,6 @@ public final class BigQueryUtil {
 
   /**
    * Get BigQuery table.
-   * @param project project where the BQ job will be run
    * @param datasetProject project where dataset is in
    * @param datasetId BigQuery dataset ID
    * @param tableName BigQuery table name
@@ -485,7 +484,7 @@ public final class BigQueryUtil {
    * @return BigQuery table
    */
   @Nullable
-  public static Table getBigQueryTable(String project, String datasetProject, String datasetId, String tableName,
+  public static Table getBigQueryTable(String datasetProject, String datasetId, String tableName,
                                        @Nullable String serviceAccount, boolean isServiceAccountFilePath) {
     TableId tableId = TableId.of(datasetProject, datasetId, tableName);
 
@@ -499,7 +498,7 @@ public final class BigQueryUtil {
           "serviceFilePath");
       }
     }
-    BigQuery bigQuery = GCPUtils.getBigQuery(project, credentials);
+    BigQuery bigQuery = GCPUtils.getBigQuery(datasetProject, credentials);
 
     Table table;
     try {
@@ -531,17 +530,17 @@ public final class BigQueryUtil {
    * Get BigQuery table.
    *
    * @param projectId BigQuery project ID
-   * @param datasetId BigQuery dataset ID
+   * @param dataset BigQuery dataset name
    * @param tableName BigQuery table name
    * @param serviceAccount service account file path or JSON content
    * @param isServiceAccountFilePath indicator for whether service account is file or json
    * @param collector failure collector
    * @return BigQuery table
    */
-  public static Table getBigQueryTable(String projectId, String datasetId, String tableName,
+  public static Table getBigQueryTable(String projectId, String dataset, String tableName,
                                        @Nullable String serviceAccount, @Nullable Boolean isServiceAccountFilePath,
                                        FailureCollector collector) {
-    TableId tableId = TableId.of(projectId, datasetId, tableName);
+    TableId tableId = TableId.of(projectId, dataset, tableName);
     com.google.auth.Credentials credentials = null;
     if (serviceAccount != null) {
       try {
