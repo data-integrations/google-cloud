@@ -19,6 +19,7 @@ package io.cdap.plugin.gcp.bigquery.sqlengine;
 import com.google.auth.Credentials;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
+import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.Job;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.storage.Storage;
@@ -79,7 +80,7 @@ public class BigQuerySQLEngine
   private Storage storage;
   private Configuration configuration;
   private String project;
-  private String location;
+  private String datasetProject;
   private String dataset;
   private String bucket;
   private String runId;
@@ -114,9 +115,9 @@ public class BigQuerySQLEngine
     Credentials credentials = serviceAccount == null ?
       null : GCPUtils.loadServiceAccountCredentials(serviceAccount, sqlEngineConfig.isServiceAccountFilePath());
     project = sqlEngineConfig.getProject();
+    datasetProject = sqlEngineConfig.getDatasetProject();
     dataset = sqlEngineConfig.getDataset();
     bucket = sqlEngineConfig.getBucket() != null ? sqlEngineConfig.getBucket() : "bqpushdown-" + runId;
-    location = sqlEngineConfig.getLocation();
 
     // Initialize BQ and GCS clients.
     bigQuery = GCPUtils.getBigQuery(project, credentials);
@@ -126,7 +127,8 @@ public class BigQuerySQLEngine
     configuration = BigQueryUtil.getBigQueryConfig(sqlEngineConfig.getServiceAccount(), sqlEngineConfig.getProject(),
                                                    cmekKey, sqlEngineConfig.getServiceAccountType());
     // Create resources needed for this execution
-    BigQuerySinkUtils.createResources(bigQuery, storage, dataset, bucket, sqlEngineConfig.getLocation(), cmekKey);
+    BigQuerySinkUtils.createResources(bigQuery, storage, DatasetId.of(datasetProject, dataset), bucket,
+                                      sqlEngineConfig.getLocation(), cmekKey);
     // Configure GCS bucket that is used to stage temporary files.
     // If the bucket is created for this run, mar it for deletion after executon is completed
     BigQuerySinkUtils.configureBucket(configuration, bucket, runId, sqlEngineConfig.getBucket() == null);
@@ -160,8 +162,7 @@ public class BigQuerySQLEngine
                                         sqlEngineConfig,
                                         configuration,
                                         bigQuery,
-                                        project,
-                                        dataset,
+                                        DatasetId.of(datasetProject, dataset),
                                         bucket,
                                         runId);
 
@@ -192,8 +193,7 @@ public class BigQuerySQLEngine
       return BigQueryPullDataset.getInstance(sqlPullRequest,
                                              configuration,
                                              bigQuery,
-                                             project,
-                                             dataset,
+                                             DatasetId.of(datasetProject, dataset),
                                              table,
                                              bucket,
                                              runId);
@@ -262,7 +262,7 @@ public class BigQuerySQLEngine
                                                                       sqlEngineConfig,
                                                                       bigQuery,
                                                                       project,
-                                                                      dataset,
+                                                                      DatasetId.of(datasetProject, dataset),
                                                                       runId);
 
     LOG.info("Executed join operation for dataset {}", sqlJoinRequest.getDatasetName());
@@ -383,7 +383,7 @@ public class BigQuerySQLEngine
     }
 
     String tableName = bqDataset.getBigQueryTableName();
-    TableId tableId = TableId.of(project, dataset, tableName);
+    TableId tableId = TableId.of(datasetProject, dataset, tableName);
 
     if (!bigQuery.delete(tableId)) {
       LOG.error("Unable to delete BigQuery table '{}' for stage '{}'", tableName, stageName);

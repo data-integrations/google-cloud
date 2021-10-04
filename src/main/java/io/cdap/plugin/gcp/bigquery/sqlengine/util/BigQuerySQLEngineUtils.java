@@ -17,6 +17,7 @@
 package io.cdap.plugin.gcp.bigquery.sqlengine.util;
 
 import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableDefinition;
@@ -90,19 +91,18 @@ public class BigQuerySQLEngineUtils {
    * Get the number of rows for a BQ table.
    *
    * @param bigQuery BigQuery client
-   * @param project  Project Name
-   * @param dataset  Dataset Name
+   * @param dataset  Dataset Id
    * @param table    Table Name
    * @return number of rows for this table.
    */
-  public static Long getNumRows(BigQuery bigQuery, String project, String dataset, String table) {
+  public static Long getNumRows(BigQuery bigQuery, DatasetId dataset, String table) {
     LOG.debug("Getting number of records stored in table {}", table);
-    TableId tableId = TableId.of(project, dataset, table);
+    TableId tableId = TableId.of(dataset.getProject(), dataset.getDataset(), table);
     Table bgTable = bigQuery.getTable(tableId);
 
     if (bgTable == null) {
       throw new SQLEngineException(String.format("Table '%s' could not be found on dataset '%s' and project `%s`",
-                                                 table, dataset, project));
+                                                 table, dataset.getDataset(), dataset.getProject()));
     }
 
     long numRows = bgTable.getNumRows().longValue();

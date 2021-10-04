@@ -18,6 +18,7 @@ package io.cdap.plugin.gcp.bigquery.source;
 
 import com.google.auth.Credentials;
 import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.StandardTableDefinition;
@@ -148,8 +149,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     // Configure BigQuery input format.
     String temporaryGcsPath = BigQuerySourceUtils.getTemporaryGcsPath(bucket, bucketPath, bucketPath);
     BigQuerySourceUtils.configureBigQueryInput(configuration,
-                                               config.getDatasetProject(),
-                                               config.getDataset(),
+                                               DatasetId.of(config.getDatasetProject(), config.getDataset()),
                                                config.getTable(),
                                                temporaryGcsPath);
 
