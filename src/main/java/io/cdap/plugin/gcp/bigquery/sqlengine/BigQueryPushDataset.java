@@ -17,6 +17,7 @@
 package io.cdap.plugin.gcp.bigquery.sqlengine;
 
 import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
@@ -44,8 +45,7 @@ public class BigQueryPushDataset extends BigQueryOutputFormatProvider
 
   private final String datasetName;
   private final BigQuery bigQuery;
-  private final String project;
-  private final String bqDataset;
+  private final DatasetId bqDataset;
   private final String bqTable;
   private final String gcsPath;
   private final String jobId;
@@ -55,15 +55,13 @@ public class BigQueryPushDataset extends BigQueryOutputFormatProvider
                               Schema tableSchema,
                               Configuration configuration,
                               BigQuery bigQuery,
-                              String project,
-                              String bqDataset,
+                              DatasetId bqDataset,
                               String bqTable,
                               String jobId,
                               String gcsPath) {
     super(configuration, tableSchema);
     this.datasetName = datasetName;
     this.bigQuery = bigQuery;
-    this.project = project;
     this.bqDataset = bqDataset;
     this.bqTable = bqTable;
     this.jobId = jobId;
@@ -74,8 +72,7 @@ public class BigQueryPushDataset extends BigQueryOutputFormatProvider
                                                    BigQuerySQLEngineConfig sqlEngineConfig,
                                                    Configuration baseConfiguration,
                                                    BigQuery bigQuery,
-                                                   String project,
-                                                   String dataset,
+                                                   DatasetId dataset,
                                                    String bucket,
                                                    String runId) throws IOException {
     // Get new Job ID for this push operation
@@ -98,17 +95,17 @@ public class BigQueryPushDataset extends BigQueryOutputFormatProvider
     String gcsPath = BigQuerySQLEngineUtils.getGCSPath(bucket, runId, table);
     List<BigQueryTableFieldSchema> fields =
       BigQuerySinkUtils.getBigQueryTableFieldsFromSchema(pushRequest.getDatasetSchema());
-    BigQuerySinkUtils.configureOutput(configuration, project, dataset, table, gcsPath, fields);
+    BigQuerySinkUtils.configureOutput(configuration, dataset, table, gcsPath, fields);
 
     // Create empty table to store uploaded records.
-    BigQuerySQLEngineUtils.createEmptyTable(sqlEngineConfig, bigQuery, project, dataset, table);
+    BigQuerySQLEngineUtils.createEmptyTable(sqlEngineConfig, bigQuery, dataset.getProject(), dataset.getDataset(),
+                                            table);
 
     //Build new Instance
     return new BigQueryPushDataset(pushRequest.getDatasetName(),
                                    pushRequest.getDatasetSchema(),
                                    configuration,
                                    bigQuery,
-                                   project,
                                    dataset,
                                    table,
                                    jobId,
@@ -134,7 +131,7 @@ public class BigQueryPushDataset extends BigQueryOutputFormatProvider
   public long getNumRows() {
     // Get the number of rows from BQ if not known at this time.
     if (numRows == null) {
-      numRows = BigQuerySQLEngineUtils.getNumRows(bigQuery, project, bqDataset, bqTable);
+      numRows = BigQuerySQLEngineUtils.getNumRows(bigQuery, bqDataset, bqTable);
     }
 
     return numRows;

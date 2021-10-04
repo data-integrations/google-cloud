@@ -17,6 +17,7 @@
 package io.cdap.plugin.gcp.bigquery.sqlengine;
 
 import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.DatasetId;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
@@ -43,8 +44,7 @@ public class BigQueryPullDataset extends BigQueryInputFormatProvider
   private final BigQuery bigQuery;
   private final String datasetName;
   private final Schema schema;
-  private final String project;
-  private final String bqDataset;
+  private final DatasetId bqDataset;
   private final String bqTable;
   private final String gcsPath;
   private Long numRows;
@@ -53,15 +53,13 @@ public class BigQueryPullDataset extends BigQueryInputFormatProvider
                               String datasetName,
                               Schema schema,
                               BigQuery bigQuery,
-                              String project,
-                              String bqDataset,
+                              DatasetId bqDataset,
                               String bqTable,
                               String gcsPath) {
     super(configuration);
     this.datasetName = datasetName;
     this.schema = schema;
     this.bigQuery = bigQuery;
-    this.project = project;
     this.bqDataset = bqDataset;
     this.bqTable = bqTable;
     this.gcsPath = gcsPath;
@@ -70,8 +68,7 @@ public class BigQueryPullDataset extends BigQueryInputFormatProvider
   public static BigQueryPullDataset getInstance(SQLPullRequest pullRequest,
                                                 Configuration baseConfiguration,
                                                 BigQuery bigQuery,
-                                                String project,
-                                                String bqDataset,
+                                                DatasetId bqDataset,
                                                 String bqTable,
                                                 String bucket,
                                                 String runId) throws IOException {
@@ -81,13 +78,12 @@ public class BigQueryPullDataset extends BigQueryInputFormatProvider
 
     // Configure BigQuery input format.
     String gcsPath = BigQuerySQLEngineUtils.getGCSPath(bucket, runId, bqTable);
-    BigQuerySourceUtils.configureBigQueryInput(configuration, project, bqDataset, bqTable, gcsPath);
+    BigQuerySourceUtils.configureBigQueryInput(configuration, bqDataset, bqTable, gcsPath);
 
     return new BigQueryPullDataset(configuration,
                                    pullRequest.getDatasetName(),
                                    pullRequest.getDatasetSchema(),
                                    bigQuery,
-                                   project,
                                    bqDataset,
                                    bqTable,
                                    gcsPath);
@@ -112,7 +108,7 @@ public class BigQueryPullDataset extends BigQueryInputFormatProvider
   public long getNumRows() {
     // Get the number of rows from BQ if not known at this time.
     if (numRows == null) {
-      numRows = BigQuerySQLEngineUtils.getNumRows(bigQuery, project, bqDataset, bqTable);
+      numRows = BigQuerySQLEngineUtils.getNumRows(bigQuery, bqDataset, bqTable);
     }
 
     return numRows;

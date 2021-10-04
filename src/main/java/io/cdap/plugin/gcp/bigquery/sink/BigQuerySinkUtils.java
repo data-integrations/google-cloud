@@ -19,6 +19,7 @@ package io.cdap.plugin.gcp.bigquery.sink;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.Dataset;
+import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.DatasetInfo;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.LegacySQLTypeName;
@@ -67,49 +68,50 @@ public final class BigQuerySinkUtils {
    *
    * @param bigQuery the bigquery client for the project
    * @param storage the storage client for the project
-   * @param datasetName the name of the dataset
+   * @param datasetId the Id of the dataset
    * @param bucketName the name of the bucket
    * @param location the location of the resources, this is only applied if both the bucket and dataset do not exist
    * @param cmekKeyName the name of the cmek key
    * @throws IOException if there was an error creating or fetching any GCP resource
    */
   public static void createResources(BigQuery bigQuery, Storage storage,
-                                     String datasetName, String bucketName, @Nullable String location,
+                                     DatasetId datasetId, String bucketName, @Nullable String location,
                                      @Nullable CryptoKeyName cmekKeyName) throws IOException {
-    Dataset dataset = bigQuery.getDataset(datasetName);
+    Dataset dataset = bigQuery.getDataset(datasetId);
     Bucket bucket = storage.get(bucketName);
 
     if (dataset == null && bucket == null) {
       createBucket(storage, bucketName, location, cmekKeyName,
                    () -> String.format("Unable to create Cloud Storage bucket '%s'", bucketName));
-      createDataset(bigQuery, datasetName, location,
-                    () -> String.format("Unable to create BigQuery dataset '%s'", datasetName));
+      createDataset(bigQuery, datasetId, location,
+                    () -> String.format("Unable to create BigQuery dataset '%s.%s'", datasetId.getProject(),
+                                        datasetId.getDataset()));
     } else if (bucket == null) {
       createBucket(
         storage, bucketName, dataset.getLocation(), cmekKeyName,
         () -> String.format(
           "Unable to create Cloud Storage bucket '%s' in the same location ('%s') as BigQuery dataset '%s'. "
             + "Please use a bucket that is in the same location as the dataset.",
-          bucketName, dataset.getLocation(), datasetName));
+          bucketName, dataset.getLocation(), datasetId));
     } else if (dataset == null) {
       createDataset(
-        bigQuery, datasetName, bucket.getLocation(),
+        bigQuery, datasetId, bucket.getLocation(),
         () -> String.format(
           "Unable to create BigQuery dataset '%s' in the same location ('%s') as Cloud Storage bucket '%s'. "
             + "Please use a bucket that is in a supported location.",
-          datasetName, bucket.getLocation(), bucketName));
+          datasetId, bucket.getLocation(), bucketName));
     }
   }
 
   /**
    * Creates a Dataset in the specified location using the supplied BigQuery client.
    * @param bigQuery the bigQuery client.
-   * @param dataset the name of the dataset to create.
+   * @param dataset the Id of the dataset to create.
    * @param location Location for this dataset.
    * @param errorMessage Supplier for the error message to output if the dataset could not be created.
    * @throws IOException if the dataset could not be created.
    */
-  private static void createDataset(BigQuery bigQuery, String dataset, @Nullable String location,
+  private static void createDataset(BigQuery bigQuery, DatasetId dataset, @Nullable String location,
                                     Supplier<String> errorMessage) throws IOException {
     DatasetInfo.Builder builder = DatasetInfo.newBuilder(dataset);
     if (location != null) {
@@ -192,16 +194,14 @@ public final class BigQuerySinkUtils {
    * Configures output for Sink
    *
    * @param configuration Hadoop configuration instance
-   * @param projectName name of the project to use
-   * @param datasetName name of the dataset to use
+   * @param datasetId id of the dataset to use
    * @param tableName name of the table to use
    * @param gcsPath GCS path to use for output
    * @param fields list of BigQuery table fields
    * @throws IOException if the output cannot be configured
    */
   public static void configureOutput(Configuration configuration,
-                                     String projectName,
-                                     String datasetName,
+                                     DatasetId datasetId,
                                      String tableName,
                                      String gcsPath,
                                      List<BigQueryTableFieldSchema> fields) throws IOException {
@@ -215,7 +215,7 @@ public final class BigQuerySinkUtils {
     BigQueryFileFormat fileFormat = getFileFormat(fields);
     BigQueryOutputConfiguration.configure(
       configuration,
-      String.format("%s:%s.%s", projectName, datasetName, tableName),
+      String.format("%s:%s.%s", datasetId.getProject(), datasetId.getDataset(), tableName),
       outputTableSchema,
       gcsPath,
       fileFormat,
@@ -226,22 +226,19 @@ public final class BigQuerySinkUtils {
    * Configures output for MultiSink
    *
    * @param configuration Hadoop configuration instance
-   * @param projectName name of the project to use
-   * @param datasetName name of the dataset to use
+   * @param datasetId name of the dataset to use
    * @param tableName name of the table to use
    * @param gcsPath GCS path to use for output
    * @param fields list of BigQuery table fields
    * @throws IOException if the output cannot be configured
    */
   public static void configureMultiSinkOutput(Configuration configuration,
-                                              String projectName,
-                                              String datasetName,
+                                              DatasetId datasetId,
                                               String tableName,
                                               String gcsPath,
                                               List<BigQueryTableFieldSchema> fields) throws IOException {
     configureOutput(configuration,
-                    projectName,
-                    datasetName,
+                    datasetId,
                     tableName,
                     gcsPath,
                     fields);
