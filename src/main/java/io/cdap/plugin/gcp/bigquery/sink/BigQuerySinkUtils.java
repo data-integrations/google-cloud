@@ -89,7 +89,7 @@ public final class BigQuerySinkUtils {
         () -> String.format(
           "Unable to create Cloud Storage bucket '%s' in the same location ('%s') as BigQuery dataset '%s'. "
             + "Please use a bucket that is in the same location as the dataset.",
-          bucketName, dataset.getLocation(), datasetId));
+          bucketName, dataset.getLocation(), datasetId.getProject() + "." + datasetId.getDataset()));
     } else if (dataset == null) {
       createDataset(
         bigQuery, datasetId, bucket.getLocation(),
