@@ -31,7 +31,6 @@ import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
-import com.google.common.base.Strings;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize.Numeric;
@@ -92,7 +91,7 @@ public final class BigQuerySinkUtils {
         () -> String.format(
           "Unable to create Cloud Storage bucket '%s' in the same location ('%s') as BigQuery dataset '%s'. "
             + "Please use a bucket that is in the same location as the dataset.",
-          bucketName, dataset.getLocation(), datasetId));
+          bucketName, dataset.getLocation(), datasetId.getProject() + "." + datasetId.getDataset()));
     } else if (dataset == null) {
       createDataset(
         bigQuery, datasetId, bucket.getLocation(),
