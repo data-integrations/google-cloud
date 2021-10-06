@@ -39,6 +39,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -130,6 +131,10 @@ public class GCSConnectorTest {
       bkt.create(blobName, "Hello, World!".getBytes(StandardCharsets.UTF_8));
     }
 
+    bkt.create("verifyempty/", new ByteArrayInputStream(new byte[0]));
+    entities.add(BrowseEntity.builder("verifyempty", bucket + "/" + "verifyempty" + "/", GCSConnector.DIRECTORY_TYPE)
+                   .canSample(true).canBrowse(true).build());
+
     entities.sort(Comparator.comparing(BrowseEntity::getName));
     testGCSConnector(new GCPConnectorConfig(project, GCPConnectorConfig.SERVICE_ACCOUNT_FILE_PATH,
                                             serviceAccountFilePath, null), entities);
@@ -160,7 +165,7 @@ public class GCSConnectorTest {
 
     // browse blob
     detail = connector.browse(context, BrowseRequest.builder("/" + bucket).build());
-    BrowseDetail expected = BrowseDetail.builder().setTotalCount(10).setEntities(entities).build();
+    BrowseDetail expected = BrowseDetail.builder().setTotalCount(11).setEntities(entities).build();
     Assert.assertEquals(expected, detail);
 
     // browse limited
@@ -171,6 +176,11 @@ public class GCSConnectorTest {
     // browse one single file
     detail = connector.browse(context, BrowseRequest.builder("/" + bucket + "/" + "file0.txt").build());
     expected = BrowseDetail.builder().setTotalCount(1).setEntities(entities.subList(0, 1)).build();
+    Assert.assertEquals(expected, detail);
+
+    // browse empty blob, should give empty list
+    detail = connector.browse(context, BrowseRequest.builder("/" + bucket + "/" + "verifyempty/").build());
+    expected = BrowseDetail.builder().setTotalCount(0).build();
     Assert.assertEquals(expected, detail);
   }
 
