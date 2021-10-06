@@ -192,7 +192,10 @@ public class GCSConnector extends AbstractFileConnector<GCPConnectorConfig> {
         break;
       }
 
-      boolean directory = blob.isDirectory();
+      // this call will return false for the prefix blob(which intuitively should be true), this is because there
+      // is no concept for directory on gcs, so if a prefix search is performed, this blob will be considered as a
+      // file with no name and size 0, see https://stackoverflow.com/questions/66161833/ for detailed explanation.
+      boolean directory = blobName.equals(pathBlobName) ? pathBlobName.endsWith("/") : blob.isDirectory();
       BrowseEntity.Builder entity =
         BrowseEntity.builder(new File(blobName).getName(), String.format("%s/%s", blob.getBucket(), blobName),
                              directory ? DIRECTORY_TYPE : FILE_TYPE).canBrowse(directory).canSample(directory);
