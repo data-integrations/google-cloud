@@ -44,3 +44,49 @@ property is required in the request body. It can be in the following form :
 
 3. `/`
    This path indicates the root. A root cannot be sampled. Browse on this path to get all the datasets visible through this connection.
+
+Trouble Shooting
+----------------
+
+**missing permission to run BigQuery jobs**
+
+If your pipeline failed with the following error in the log:
+```
+POST https://bigquery.googleapis.com/bigquery/v2/projects/xxxx/jobs
+{
+"code" : 403,
+"errors" : [ {
+"domain" : "global",
+"message" : "Access Denied: Project xxxx: User does not have bigquery.jobs.create permission in project xxxx",
+"reason" : "accessDenied"
+} ],
+"message" : "Access Denied: Project xxxx: User does not have bigquery.jobs.create permission in project xxxx.",
+"status" : "PERMISSION_DENIED"
+}
+``` 
+`xxxx` is the `Project ID` you specified in this plugin. This means the specified service account doesn't have the
+permission to run BigQuery jobs. You must grant "BigQuery Job User" role on the project identified by the `Project ID`
+you specified in this plugin to the service account. If you think you already granted the role, check if you granted the
+role on the wrong project (for example the one identified by the `Dataset Project ID`).
+
+**missing permission to read the BigQuery dataset**
+If your pipeline failed with the following error in the log:
+```
+com.google.api.client.googleapis.json.GoogleJsonResponseException: 403 Forbidden
+GET https://www.googleapis.com/bigquery/v2/projects/xxxx/datasets/mysql_bq_perm?prettyPrint=false
+{
+"code" : 403,
+"errors" : [ {
+"domain" : "global",
+"message" : "Access Denied: Dataset xxxx:mysql_bq_perm: Permission bigquery.datasets.get denied on dataset xxxx:mysql_bq_perm (or it may not exist).",
+"reason" : "accessDenied"
+} ],
+"message" : "Access Denied: Dataset xxxx:mysql_bq_perm: Permission bigquery.datasets.get denied on dataset xxxx:mysql_bq_perm (or it may not exist).",
+"status" : "PERMISSION_DENIED"
+}
+```
+`xxxx` is the `Dataset Project ID` you specified in this plugin. The service account you specified in this plugin doesn't
+have the permission to read the dataset you specified in this plugin. You must grant "BigQuery Data Viewer" role on the
+project identified by the `Dataset Project ID` you specified in this plugin to the service account. If you think you
+already granted the role, check if you granted the role on the wrong project (for example the one identified by the `Project ID`).
+
