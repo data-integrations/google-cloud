@@ -14,13 +14,12 @@
  *  the License.
  */
 
-package io.cdap.plugin.gcp.gcs.sink;
+package io.cdap.plugin.gcp.bigquery.sink;
 
 import io.cdap.cdap.etl.api.validation.CauseAttributes;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.cdap.etl.mock.validation.MockFailureCollector;
 import io.cdap.plugin.gcp.common.GCPConfig;
-import io.cdap.plugin.gcp.gcs.sink.GCSBatchSink.GCSBatchSinkConfig;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.BeforeClass;
@@ -33,24 +32,25 @@ import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 import javax.annotation.Nullable;
 
 /**
- * GCSBatchSink Cmek Key integration test. This test will only be run when below property is provided:
- * project.id -- the name of the project where staging bucket may be created or new resource needs to be created.
- * It will default to active google project if you have google cloud client installed.
- * service.account.file -- the path to the service account key file
+ *  BigQuerySink Cmek Key unit test. This test will only be run when below property is provided:
+ *  project.id -- the name of the project where staging bucket may be created or new resource needs to be created.
+ *  It will default to active google project if you have google cloud client installed.
+ *  service.account.file -- the path to the service account key file
  */
-public class GCSBatchSinkCmekKeyTest {
+public class BigQuerySinkCmekKeyTest {
   private static String serviceAccountKey;
   private static String project;
   private static String serviceAccountFilePath;
-  private static String gcsPath;
+  private static String dataset;
+  private static String table;
 
   @BeforeClass
   public static void setupTestClass() throws Exception {
     // Certain properties need to be configured otherwise the whole tests will be skipped.
-
     String messageTemplate = "%s is not configured, please refer to javadoc of this class for details.";
 
     project = System.getProperty("project.id");
@@ -66,29 +66,25 @@ public class GCSBatchSinkCmekKeyTest {
     serviceAccountFilePath = System.getProperty("service.account.file");
     Assume.assumeFalse(String.format(messageTemplate, "service account key file"), serviceAccountFilePath == null);
 
-    gcsPath = getPath(project);
+    dataset = UUID.randomUUID().toString();
+    table = UUID.randomUUID().toString();
 
     serviceAccountKey = new String(Files.readAllBytes(Paths.get(new File(serviceAccountFilePath).getAbsolutePath())),
                                    StandardCharsets.UTF_8);
-
   }
 
-  //This method creates a unique GCS bucket path.
-  private static String getPath(@Nullable String project) {
-    return String.format("gs://%s%s", project, new SimpleDateFormat("-yyyy-MM-dd-HH-mm-ss").format(new Date()));
-  }
-
-  private GCSBatchSinkConfig.Builder getBuilder() throws NoSuchFieldException {
+  private BigQuerySinkConfig.Builder getBuilder() throws NoSuchFieldException {
     String referenceName = "test-ref";
-    return GCSBatchSinkConfig.builder()
+    return BigQuerySinkConfig.builder()
       .setReferenceName(referenceName)
       .setProject(project)
-      .setGcsPath(gcsPath);
+      .setDataset(dataset)
+      .setTable(table);
   }
 
   @Test
   public void testServiceAccountPath() throws Exception {
-    GCSBatchSinkConfig.Builder builder = getBuilder()
+    BigQuerySinkConfig.Builder builder = getBuilder()
       .setServiceAccountType(GCPConfig.SERVICE_ACCOUNT_FILE_PATH)
       .setServiceFilePath(serviceAccountFilePath);
     testValidCmekKey(builder);
@@ -98,7 +94,7 @@ public class GCSBatchSinkCmekKeyTest {
 
   @Test
   public void testServiceAccountJson() throws Exception {
-    GCSBatchSinkConfig.Builder builder = getBuilder()
+    BigQuerySinkConfig.Builder builder = getBuilder()
       .setServiceAccountType(GCPConfig.SERVICE_ACCOUNT_JSON)
       .setServiceAccountJson(serviceAccountKey);
     testValidCmekKey(builder);
@@ -106,9 +102,9 @@ public class GCSBatchSinkCmekKeyTest {
     testInvalidCmekKeyLocation(builder);
   }
 
-  private void testValidCmekKey(GCSBatchSinkConfig.Builder builder) throws Exception {
-    MockFailureCollector collector = new MockFailureCollector("gcssink");
-    GCSBatchSink.GCSBatchSinkConfig config = builder
+  private void testValidCmekKey(BigQuerySinkConfig.Builder builder) throws Exception {
+    MockFailureCollector collector = new MockFailureCollector();
+    BigQuerySinkConfig config = builder
       .setCmekKey(String.format("projects/%s/locations/us-east1/keyRings/my_ring/cryptoKeys/test_key", project))
       .setLocation("us-east1")
       .build();
@@ -116,9 +112,9 @@ public class GCSBatchSinkCmekKeyTest {
     Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
-  private void testInvalidCmekKeyName(GCSBatchSinkConfig.Builder builder) throws Exception {
-    MockFailureCollector collector = new MockFailureCollector("gcssink");
-    GCSBatchSinkConfig config = builder
+  private void testInvalidCmekKeyName(BigQuerySinkConfig.Builder builder) throws Exception {
+    MockFailureCollector collector = new MockFailureCollector();
+    BigQuerySinkConfig config = builder
       .setCmekKey(String.format("projects/%s/locations/us-east1/keyRings", project))
       .build();
     config.validateCmekKey(collector);
@@ -128,9 +124,9 @@ public class GCSBatchSinkCmekKeyTest {
     Assert.assertEquals("cmekKey", causes.get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
   }
 
-  private void testInvalidCmekKeyLocation(GCSBatchSinkConfig.Builder builder) throws Exception {
-    MockFailureCollector collector = new MockFailureCollector("gcssink");
-    GCSBatchSinkConfig config = builder
+  private void testInvalidCmekKeyLocation(BigQuerySinkConfig.Builder builder) throws Exception {
+    MockFailureCollector collector = new MockFailureCollector();
+    BigQuerySinkConfig config = builder
       .setCmekKey(String.format("projects/%s/locations/us-east1/keyRings/my_ring/cryptoKeys/test_key", project))
       .setLocation("us")
       .build();

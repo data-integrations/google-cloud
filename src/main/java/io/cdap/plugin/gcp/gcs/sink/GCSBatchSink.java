@@ -16,7 +16,6 @@
 
 package io.cdap.plugin.gcp.gcs.sink;
 
-import com.google.api.pathtemplate.ValidationException;
 import com.google.auth.Credentials;
 import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.Bucket;

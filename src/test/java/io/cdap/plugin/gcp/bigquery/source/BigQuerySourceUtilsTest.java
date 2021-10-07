@@ -16,60 +16,40 @@
 
 package io.cdap.plugin.gcp.bigquery.source;
 
-import com.google.auth.Credentials;
-import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.Dataset;
-import com.google.cloud.bigquery.DatasetId;
-import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnectorConfig;
-import io.cdap.plugin.gcp.common.GCPUtils;
+import com.google.cloud.storage.Bucket;
+import com.google.cloud.storage.Storage;
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Assert;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.Mockito;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
-import java.util.Date;
 
-import static org.mockito.ArgumentMatchers.eq;
-import static org.powermock.api.mockito.PowerMockito.mock;
-import static org.powermock.api.mockito.PowerMockito.when;
-
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(GCPUtils.class)
 public class BigQuerySourceUtilsTest {
 
   @Test
-  public void getOrCreateBucket() throws InstantiationException, IllegalAccessException, NoSuchFieldException {
-    PowerMockito.mockStatic(GCPUtils.class);
-
+  public void getOrCreateBucket() throws IllegalAccessException, NoSuchFieldException, IOException {
     Configuration configuration = new Configuration();
     BigQuerySourceConfig config = new BigQuerySourceConfig();
-    Field dataset = BigQuerySourceConfig.class.getDeclaredField("dataset");
-    dataset.setAccessible(true);
-    dataset.set(config, "some-ds");
 
-    Field connection = BigQuerySourceConfig.class.getDeclaredField("connection");
-    connection.setAccessible(true);
-    connection.set(config, new BigQueryConnectorConfig(null, null, null, null, null));
-
-    Dataset ds = mock(Dataset.class);
-    BigQuery bq = mock(BigQuery.class);
-    when(bq.getDataset(eq(DatasetId.of(config.getDatasetProject(), "some-ds")))).thenReturn(ds);
-
-    Credentials credentials = mock(Credentials.class);
+    Dataset ds = Mockito.mock(Dataset.class);
+    Storage st = Mockito.mock(Storage.class);
+    Bucket bkt = Mockito.mock(Bucket.class);
+    Mockito.when(st.get(Mockito.anyString())).thenReturn(bkt);
 
     // Test with no bucket specified
-    String bucket1 = BigQuerySourceUtils.getOrCreateBucket(configuration, config, bq, credentials, "some-path", null);
+    String bucket1 = BigQuerySourceUtils.getOrCreateBucket(configuration, st, config.getBucket(), ds,
+                                                           "some-path", null);
     Assert.assertEquals("bq-source-bucket-some-path", bucket1);
 
     // Test with a bucket specified
     Field bucket = BigQuerySourceConfig.class.getDeclaredField("bucket");
     bucket.setAccessible(true);
     bucket.set(config, "a-bucket");
-    String bucket2 = BigQuerySourceUtils.getOrCreateBucket(configuration, config, bq, credentials, "some-path", null);
+    String bucket2 = BigQuerySourceUtils.getOrCreateBucket(configuration, st, config.getBucket(), ds,
+                                                           "some-path", null);
     Assert.assertEquals("a-bucket", bucket2);
   }
 }

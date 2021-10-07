@@ -87,12 +87,9 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
       null : GCPUtils.loadServiceAccountCredentials(serviceAccount, config.isServiceAccountFilePath());
     String project = config.getProject();
     bigQuery = GCPUtils.getBigQuery(project, credentials);
-    String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
-    CryptoKeyName cmekKeyName = null;
-    if (!Strings.isNullOrEmpty(cmekKey)) {
-      cmekKeyName = CryptoKeyName.parse(cmekKey);
-    }
-    baseConfiguration = getBaseConfiguration(cmekKey);
+    CryptoKeyName cmekKeyName = config.getCmekKey(context.getArguments(), context.getFailureCollector());
+    context.getFailureCollector().getOrThrowException();
+    baseConfiguration = getBaseConfiguration(cmekKeyName);
     String bucket = BigQuerySinkUtils.configureBucket(baseConfiguration, config.getBucket(), runUUID.toString());
     if (!context.isPreviewEnabled()) {
       BigQuerySinkUtils.createResources(bigQuery, GCPUtils.getStorage(project, credentials),
@@ -205,10 +202,10 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
    *
    * @return base configuration
    */
-  private Configuration getBaseConfiguration(@Nullable String cmekKey) throws IOException {
+  private Configuration getBaseConfiguration(@Nullable CryptoKeyName cmekKeyName) throws IOException {
     AbstractBigQuerySinkConfig config = getConfig();
     Configuration baseConfiguration = BigQueryUtil.getBigQueryConfig(config.getServiceAccount(), config.getProject(),
-                                                                     cmekKey, config.getServiceAccountType());
+                                                                     cmekKeyName, config.getServiceAccountType());
     baseConfiguration.setBoolean(BigQueryConstants.CONFIG_ALLOW_SCHEMA_RELAXATION,
                                  config.isAllowSchemaRelaxation());
     baseConfiguration.setStrings(BigQueryConfiguration.OUTPUT_TABLE_WRITE_DISPOSITION_KEY,
@@ -243,7 +240,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
     for (String field : remainingBQFields) {
       if (bqFields.get(field).getMode() != Field.Mode.NULLABLE) {
         collector.addFailure(String.format("Required Column '%s' is not present in the schema.", field),
-          String.format("Add '%s' to the schema.", field));
+                             String.format("Add '%s' to the schema.", field));
       }
     }
 
@@ -307,7 +304,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
       for (String nonNullableField : nonNullableFields) {
         collector.addFailure(
           String.format("Required field '%s' does not exist in BigQuery table '%s.%s'.",
-              nonNullableField, getConfig().getDataset(), tableName),
+                        nonNullableField, getConfig().getDataset(), tableName),
           "Change the field to be nullable.")
           .withInputSchemaField(nonNullableField).withOutputSchemaField(nonNullableField);
       }

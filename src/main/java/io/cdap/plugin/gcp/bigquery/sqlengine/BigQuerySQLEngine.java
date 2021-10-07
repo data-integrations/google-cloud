@@ -31,6 +31,7 @@ import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.format.StructuredRecord;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.engine.sql.BatchSQLEngine;
 import io.cdap.cdap.etl.api.engine.sql.SQLEngineException;
@@ -99,7 +100,7 @@ public class BigQuerySQLEngine
     super.configurePipeline(pipelineConfigurer);
 
     // Validate configuration and throw exception if the supplied configuration is invalid.
-    sqlEngineConfig.validate();
+    sqlEngineConfig.validate(pipelineConfigurer.getStageConfigurer().getFailureCollector());
   }
 
   @Override
@@ -125,13 +126,14 @@ public class BigQuerySQLEngine
     bigQuery = GCPUtils.getBigQuery(project, credentials);
     storage = GCPUtils.getStorage(project, credentials);
 
-    String cmekKey = context.getRuntimeArguments().get(GCPUtils.CMEK_KEY);
+    String cmekKey = !Strings.isNullOrEmpty(sqlEngineConfig.cmekKey) ? sqlEngineConfig.cmekKey :
+      context.getRuntimeArguments().get(GCPUtils.CMEK_KEY);
     CryptoKeyName cmekKeyName = null;
     if (!Strings.isNullOrEmpty(cmekKey)) {
       cmekKeyName = CryptoKeyName.parse(cmekKey);
     }
     configuration = BigQueryUtil.getBigQueryConfig(sqlEngineConfig.getServiceAccount(), sqlEngineConfig.getProject(),
-                                                   cmekKey, sqlEngineConfig.getServiceAccountType());
+                                                   cmekKeyName, sqlEngineConfig.getServiceAccountType());
     // Create resources needed for this execution
     BigQuerySinkUtils.createResources(bigQuery, storage, DatasetId.of(datasetProject, dataset), bucket,
                                       sqlEngineConfig.getLocation(), cmekKeyName);

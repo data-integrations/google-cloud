@@ -18,6 +18,7 @@ package io.cdap.plugin.gcp.bigquery.source;
 
 import com.google.auth.Credentials;
 import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
@@ -26,6 +27,7 @@ import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableDefinition.Type;
 import com.google.cloud.bigquery.TimePartitioning;
 import com.google.cloud.kms.v1.CryptoKeyName;
+import com.google.cloud.storage.Storage;
 import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Metadata;
@@ -127,22 +129,21 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     String serviceAccount = config.getServiceAccount();
     Credentials credentials = BigQuerySourceUtils.getCredentials(config.getConnection());
     BigQuery bigQuery = GCPUtils.getBigQuery(config.getProject(), credentials);
+    Dataset dataset = bigQuery.getDataset(DatasetId.of(config.getDatasetProject(), config.getDataset()));
+    Storage storage = GCPUtils.getStorage(config.getProject(), credentials);
 
     // Get Configuration for this run
     bucketPath = UUID.randomUUID().toString();
-    String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
-    CryptoKeyName cmekKeyName = null;
-    if (!Strings.isNullOrEmpty(cmekKey)) {
-      cmekKeyName = CryptoKeyName.parse(cmekKey);
-    }
-    configuration = BigQueryUtil.getBigQueryConfig(serviceAccount, config.getProject(), cmekKey,
+    CryptoKeyName cmekKeyName = config.getCmekKey(context.getArguments(), collector);
+    collector.getOrThrowException();
+    configuration = BigQueryUtil.getBigQueryConfig(serviceAccount, config.getProject(), cmekKeyName,
                                                    config.getServiceAccountType());
 
     // Configure GCS Bucket to use
     String bucket = BigQuerySourceUtils.getOrCreateBucket(configuration,
-                                                          config,
-                                                          bigQuery,
-                                                          credentials,
+                                                          storage,
+                                                          config.getBucket(),
+                                                          dataset,
                                                           bucketPath,
                                                           cmekKeyName);
 
