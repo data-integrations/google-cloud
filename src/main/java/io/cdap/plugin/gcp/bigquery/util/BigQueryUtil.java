@@ -26,6 +26,7 @@ import com.google.cloud.bigquery.StandardSQLTypeName;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
+import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -129,13 +130,13 @@ public final class BigQueryUtil {
    *
    * @param serviceAccountInfo service account file path or JSON content
    * @param projectId          BigQuery project ID
-   * @param cmekKey            the name of the cmek key
+   * @param cmekKeyName            the name of the cmek key
    * @param serviceAccountType type of the service account
    * @return indicator for whether service account is file or json
    * @throws IOException if not able to get credentials
    */
   public static Configuration getBigQueryConfig(@Nullable String serviceAccountInfo, String projectId,
-                                                @Nullable String cmekKey, String serviceAccountType)
+                                                @Nullable CryptoKeyName cmekKeyName, String serviceAccountType)
     throws IOException {
     Job job = Job.getInstance();
 
@@ -161,8 +162,8 @@ public final class BigQueryUtil {
     configuration.set("fs.gs.project.id", projectId);
     configuration.set("fs.gs.working.dir", GCSPath.ROOT_DIR);
     configuration.set(BigQueryConfiguration.PROJECT_ID_KEY, projectId);
-    if (cmekKey != null) {
-      configuration.set(BigQueryConfiguration.OUTPUT_TABLE_KMS_KEY_NAME_KEY, cmekKey);
+    if (cmekKeyName != null) {
+      configuration.set(BigQueryConfiguration.OUTPUT_TABLE_KMS_KEY_NAME_KEY, cmekKeyName.toString());
     }
     return configuration;
   }

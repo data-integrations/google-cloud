@@ -21,44 +21,37 @@ import io.cdap.cdap.etl.api.validation.ValidationException;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.cdap.etl.mock.validation.MockFailureCollector;
 import io.cdap.plugin.common.batch.action.Condition;
-import io.cdap.plugin.gcp.common.GCPConfig;
 import org.junit.Assert;
 import org.junit.Test;
-import org.mockito.internal.util.reflection.FieldSetter;
 
 /**
  * Unit tests for {@link GCSDoneFileMarker}
  */
 public class GCSDoneFileMarkerTest {
 
-  private GCSDoneFileMarker.Config getValidConfig(String fileSystemProperties) throws NoSuchFieldException {
-    GCSDoneFileMarker.Config gcsDoneFileMarkerConfig = new GCSDoneFileMarker.Config();
-    FieldSetter.setField(gcsDoneFileMarkerConfig, GCSDoneFileMarker.Config.class.getDeclaredField("path"),
-                         "gs://test");
-    FieldSetter.setField(gcsDoneFileMarkerConfig, GCSDoneFileMarker.Config.class.getDeclaredField("runCondition"),
-                         Condition.SUCCESS.name());
-    FieldSetter.setField(gcsDoneFileMarkerConfig, GCPConfig.class.getDeclaredField("project"), "test");
-    FieldSetter.setField(gcsDoneFileMarkerConfig, GCPConfig.class.getDeclaredField("serviceAccountType"),
-                         "filePath");
-    FieldSetter.setField(gcsDoneFileMarkerConfig, GCPConfig.class.getDeclaredField("serviceFilePath"),
-                         "/service-account.json");
-    return gcsDoneFileMarkerConfig;
+  private GCSDoneFileMarker.Config getValidConfig() {
+    return GCSDoneFileMarker.Config.builder()
+      .setProject("test")
+      .setGcsPath("gs://test")
+      .setServiceAccountType("filePath")
+      .setServiceFilePath("/service-account.json")
+      .setRunCondition(Condition.SUCCESS.name())
+      .build();
   }
 
-  private GCSDoneFileMarker.Config getInvalidConfig(String fileSystemProperties) throws NoSuchFieldException {
-    GCSDoneFileMarker.Config gcsDoneFileMarkerConfig = new GCSDoneFileMarker.Config();
-    FieldSetter.setField(gcsDoneFileMarkerConfig, GCSDoneFileMarker.Config.class.getDeclaredField("path"),
-                         "sg:/test");
-    FieldSetter.setField(gcsDoneFileMarkerConfig, GCSDoneFileMarker.Config.class.getDeclaredField("runCondition"),
-                         Condition.SUCCESS.name());
-    FieldSetter.setField(gcsDoneFileMarkerConfig, GCPConfig.class.getDeclaredField("serviceFilePath"),
-                         "auto-detect");
-    return gcsDoneFileMarkerConfig;
+  private GCSDoneFileMarker.Config getInvalidConfig() {
+    return GCSDoneFileMarker.Config.builder()
+      .setProject("test")
+      .setGcsPath("sg:/test")
+      .setServiceAccountType("filePath")
+      .setServiceFilePath("auto-detect")
+      .setRunCondition(Condition.SUCCESS.name())
+      .build();
   }
 
   @Test
-  public void testValidFSProperties() throws NoSuchFieldException {
-    GCSDoneFileMarker.Config config = getValidConfig("{\"key\":\"val\"}");
+  public void testValidFSProperties() {
+    GCSDoneFileMarker.Config config = getValidConfig();
     MockFailureCollector collector = new MockFailureCollector("gcs_done_file_marker_collector_one");
     config.validate(collector);
     Assert.assertEquals(0, collector.getValidationFailures().size());
@@ -66,7 +59,7 @@ public class GCSDoneFileMarkerTest {
 
   @Test
   public void testInvalidFSProperties() throws NoSuchFieldException {
-    GCSDoneFileMarker.Config config = getInvalidConfig("{\"key\":\"val\"}");
+    GCSDoneFileMarker.Config config = getInvalidConfig();
     MockFailureCollector collector = new MockFailureCollector("gcs_done_file_marker_collector_two");
     ValidationFailure failure = null;
     try {
