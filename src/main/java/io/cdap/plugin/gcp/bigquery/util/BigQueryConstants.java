@@ -21,6 +21,7 @@ package io.cdap.plugin.gcp.bigquery.util;
 public interface BigQueryConstants {
 
   String CONFIG_TEMPORARY_TABLE_PROJECT_ID = "cdap.bq.source.temp.table.project.id";
+  String CONFIG_TEMPORARY_TABLE_DATESET_ID = "cdap.bq.source.temp.table.dataset.id";
 
   String CONFIG_ALLOW_SCHEMA_RELAXATION = "cdap.bq.sink.allow.schema.relaxation";
   String CONFIG_ALLOW_SCHEMA_RELAXATION_ON_EMPTY_OUTPUT = "cdap.bq.sink.allow.schema.relaxationoemptyoutput";

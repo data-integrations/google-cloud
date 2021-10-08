@@ -60,9 +60,11 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
   public List<InputSplit> getSplits(JobContext context) throws IOException, InterruptedException {
     processQuery(context);
 
-    String tempTableProjectId = context.getConfiguration().get(BigQueryConstants.CONFIG_TEMPORARY_TABLE_PROJECT_ID);
+    context.getConfiguration().set(BigQueryConfiguration.INPUT_PROJECT_ID_KEY,
+        context.getConfiguration().get(BigQueryConstants.CONFIG_TEMPORARY_TABLE_PROJECT_ID));
 
-    context.getConfiguration().set(BigQueryConfiguration.INPUT_PROJECT_ID_KEY, tempTableProjectId);
+    context.getConfiguration().set(BigQueryConfiguration.INPUT_DATASET_ID_KEY,
+        context.getConfiguration().get(BigQueryConstants.CONFIG_TEMPORARY_TABLE_DATESET_ID));
 
     return delegateInputFormat.getSplits(context);
   }
@@ -117,8 +119,9 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
       String location = bigQueryHelper.getTable(sourceTable).getLocation();
       String temporaryTableName = configuration.get(BigQueryConstants.CONFIG_TEMPORARY_TABLE_NAME);
       String tempTableProjectId = context.getConfiguration().get(BigQueryConstants.CONFIG_TEMPORARY_TABLE_PROJECT_ID);
+      String tempTableDatasetId = context.getConfiguration().get(BigQueryConstants.CONFIG_TEMPORARY_TABLE_DATESET_ID);
 
-      TableReference exportTableReference = createExportTableReference(type, tempTableProjectId, datasetId,
+      TableReference exportTableReference = createExportTableReference(type, tempTableProjectId, tempTableDatasetId,
           temporaryTableName, configuration);
 
       runQuery(configuration, bigQueryHelper, projectId, exportTableReference, query, location);

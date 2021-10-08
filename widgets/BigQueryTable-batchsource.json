@@ -166,6 +166,14 @@
           "widget-attributes": {
             "placeholder": "The project to use to create temporary export tables, defaults to source dataset project id"
           }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Temporary Export Table Dataset",
+          "name": "temporaryExportTableDataset",
+          "widget-attributes": {
+            "placeholder": "The dataset to use to create temporary export tables, defaults to source dataset"
+          }
         }
       ]
     },

@@ -208,6 +208,10 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
       configuration.set(BigQueryConstants.CONFIG_TEMPORARY_TABLE_PROJECT_ID, config.getTemporaryExportTableProject());
     }
 
+    if (config.getTemporaryExportTableDataset() != null) {
+      configuration.set(BigQueryConstants.CONFIG_TEMPORARY_TABLE_DATESET_ID, config.getTemporaryExportTableDataset());
+    }
+
   }
 
   public Schema getSchema(FailureCollector collector) {
