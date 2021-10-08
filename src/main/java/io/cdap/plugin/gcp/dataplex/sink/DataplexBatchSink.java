@@ -18,6 +18,7 @@ package io.cdap.plugin.gcp.dataplex.sink;
 
 import com.google.auth.Credentials;
 import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.Job;
 import com.google.cloud.bigquery.JobConfiguration;
@@ -215,14 +216,15 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     if (!Strings.isNullOrEmpty(cmekKey)) {
       cmekKeyName = CryptoKeyName.parse(cmekKey);
     }
-    baseConfiguration = getBaseConfiguration(cmekKey);
+    baseConfiguration = getBaseConfiguration(cmekKeyName);
     String[] assetValues = assetBean.getAssetResourceSpec().name.split("/");
     String dataset = assetValues[assetValues.length - 1];
     String datasetProject = assetValues[assetValues.length - 3];
     bigQuery = GCPUtils.getBigQuery(datasetProject, credentials);
     String bucket = BigQuerySinkUtils.configureBucket(baseConfiguration, null, runUUID.toString());
     if (!context.isPreviewEnabled()) {
-      BigQuerySinkUtils.createResources(bigQuery, GCPUtils.getStorage(project, credentials), dataset,
+      BigQuerySinkUtils.createResources(bigQuery, GCPUtils.getStorage(project, credentials),
+        DatasetId.of(datasetProject, dataset),
         bucket, config.getLocation(), cmekKeyName);
     }
 
@@ -301,7 +303,7 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
    *
    * @return base configuration
    */
-  private Configuration getBaseConfiguration(@Nullable String cmekKey) throws IOException {
+  private Configuration getBaseConfiguration(@Nullable CryptoKeyName cmekKey) throws IOException {
     Configuration baseConfiguration = BigQueryUtil.getBigQueryConfig(config.getServiceAccount(), config.getProject(),
       cmekKey, config.getServiceAccountType());
     baseConfiguration.setBoolean(BigQueryConstants.CONFIG_ALLOW_SCHEMA_RELAXATION,
@@ -339,8 +341,7 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     // Build GCS storage path for this bucket output.
     String temporaryGcsPath = BigQuerySinkUtils.getTemporaryGcsPath(bucket, runUUID.toString(), tableName);
     BigQuerySinkUtils.configureOutput(configuration,
-      datasetProject,
-      dataset,
+      DatasetId.of(datasetProject, dataset),
       tableName,
       temporaryGcsPath,
       fields);
