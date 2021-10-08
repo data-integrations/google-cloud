@@ -16,19 +16,14 @@
 
 package io.cdap.plugin.gcp.dataplex.sink;
 
-import com.google.common.annotations.VisibleForTesting;
-import io.cdap.plugin.gcp.common.GCPUtils;
-import io.cdap.plugin.gcp.gcs.StorageClient;
-
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.JobStatus;
 import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * OutputCommitter for Dataplex
@@ -36,87 +31,93 @@ import java.io.IOException;
 public class DataplexOutputCommitter extends OutputCommitter {
 
   public static final String RECORD_COUNT_FORMAT = "recordcount.%s";
-  private static final Logger LOG = LoggerFactory.getLogger(DataplexOutputFormatProvider.class);
-  private final OutputCommitter delegate;
+  // Creating committer map to commit every committer jo separately for hive style partitioning for GCS Bucket assets.
+  private final Map<String, OutputCommitter> committerMap;
 
-  public DataplexOutputCommitter(OutputCommitter delegate) {
-    this.delegate = delegate;
+  public DataplexOutputCommitter() {
+    committerMap = new HashMap<>();
+  }
+
+  public void addDataplexOutputCommitterFromOutputFormat(OutputCommitter outputCommitter,
+                                                         TaskAttemptContext context)
+    throws IOException, InterruptedException {
+    outputCommitter.setupJob(context);
+    outputCommitter.setupTask(context);
+    String assetType = context.getConfiguration().get(DataplexOutputFormatProvider.DATAPLEX_ASSET_TYPE);
+    // Only one committer is required for BigQuery otherwise it is trying to delete the temporary data twice while
+    // clean up.
+    if (assetType.equalsIgnoreCase(DataplexBatchSink.BIGQUERY_DATASET_ASSET_TYPE) && !committerMap.isEmpty()) {
+      return;
+    }
+    committerMap.put("partition=" + context.getTaskAttemptID().toString(), outputCommitter);
   }
 
   @Override
   public void setupJob(JobContext jobContext) throws IOException {
-    delegate.setupJob(jobContext);
+    for (OutputCommitter committer : committerMap.values()) {
+      committer.setupJob(jobContext);
+    }
   }
 
   @Override
   public void cleanupJob(JobContext jobContext) throws IOException {
-    delegate.cleanupJob(jobContext);
+    for (OutputCommitter committer : committerMap.values()) {
+      committer.cleanupJob(jobContext);
+    }
   }
 
   @Override
   public void commitJob(JobContext jobContext) throws IOException {
-    delegate.commitJob(jobContext);
+    for (OutputCommitter committer : committerMap.values()) {
+      committer.commitJob(jobContext);
+    }
   }
 
   @Override
   public void abortJob(JobContext jobContext, JobStatus.State state) throws IOException {
-    delegate.abortJob(jobContext, state);
+    for (OutputCommitter committer : committerMap.values()) {
+      committer.abortJob(jobContext, state);
+    }
   }
 
   @Override
   public void setupTask(TaskAttemptContext taskAttemptContext) throws IOException {
-    delegate.setupTask(taskAttemptContext);
+    for (OutputCommitter committer : committerMap.values()) {
+      committer.setupTask(taskAttemptContext);
+    }
   }
 
   @Override
   public boolean needsTaskCommit(TaskAttemptContext taskAttemptContext) throws IOException {
-    return delegate.needsTaskCommit(taskAttemptContext);
+    if (committerMap.isEmpty()) {
+      return false;
+    }
+    boolean needsTaskCommit = true;
+    for (OutputCommitter committer : committerMap.values()) {
+      needsTaskCommit = needsTaskCommit && committer.needsTaskCommit(taskAttemptContext);
+    }
+    return needsTaskCommit;
   }
 
   @Override
   public void commitTask(TaskAttemptContext taskAttemptContext) throws IOException {
-    delegate.commitTask(taskAttemptContext);
-  }
-
-
-  @VisibleForTesting
-  StorageClient getStorageClient(Configuration configuration) throws IOException {
-    String project = configuration.get(GCPUtils.FS_GS_PROJECT_ID);
-    String serviceAccount = null;
-    boolean isServiceAccountFile = GCPUtils.SERVICE_ACCOUNT_TYPE_FILE_PATH
-      .equals(configuration.get(GCPUtils.SERVICE_ACCOUNT_TYPE));
-    if (isServiceAccountFile) {
-      serviceAccount = configuration.get(GCPUtils.CLOUD_JSON_KEYFILE, null);
-    } else {
-      serviceAccount = configuration.get(String.format("%s.%s", GCPUtils.CLOUD_JSON_KEYFILE_PREFIX,
-        GCPUtils.CLOUD_ACCOUNT_JSON_SUFFIX));
+    for (OutputCommitter committer : committerMap.values()) {
+      committer.commitTask(taskAttemptContext);
     }
-    return StorageClient.create(project, serviceAccount, isServiceAccountFile);
   }
 
   @Override
   public void abortTask(TaskAttemptContext taskAttemptContext) throws IOException {
-    delegate.abortTask(taskAttemptContext);
-  }
-
-  @Override
-  public boolean isCommitJobRepeatable(JobContext jobContext) throws IOException {
-    return delegate.isCommitJobRepeatable(jobContext);
-  }
-
-  @Override
-  public boolean isRecoverySupported(JobContext jobContext) throws IOException {
-    return delegate.isRecoverySupported(jobContext);
-  }
-
-  @Override
-  public boolean isRecoverySupported() {
-    return delegate.isRecoverySupported();
+    for (OutputCommitter committer : committerMap.values()) {
+      committer.abortTask(taskAttemptContext);
+    }
   }
 
   @Override
   public void recoverTask(TaskAttemptContext taskContext) throws IOException {
-    delegate.recoverTask(taskContext);
+    for (OutputCommitter committer : committerMap.values()) {
+      committer.recoverTask(taskContext);
+    }
   }
 }
 

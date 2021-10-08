@@ -23,17 +23,14 @@ import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.Table;
-import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Storage;
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.format.StructuredRecord;
-import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.connector.BrowseDetail;
@@ -50,8 +47,6 @@ import io.cdap.cdap.etl.api.connector.SampleRequest;
 import io.cdap.cdap.etl.api.validation.ValidationException;
 import io.cdap.plugin.common.ConfigUtil;
 import io.cdap.plugin.format.connector.FileTypeDetector;
-import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceConfig;
-import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.dataplex.common.config.DataplexBaseConfig;
 import io.cdap.plugin.gcp.dataplex.sink.DataplexBatchSink;
@@ -160,7 +155,8 @@ public class DataplexConnector implements DirectConnector {
       if (asset == null) {
         return listAssets(path, browseRequest.getLimit());
       }
-      Asset assetBean = dataplexInterface.getAsset(config.getCredentials(),
+      // commenting this code as we  are returning only upto asset level.
+      /*Asset assetBean = dataplexInterface.getAsset(config.getCredentials(),
         config.tryGetProject(), path.getLocation(), path.getLake(), path.getZone(), path.getAsset());
       String assetType = assetBean.getAssetResourceSpec().getType();
       String objectName = path.getObjectName();
@@ -170,7 +166,7 @@ public class DataplexConnector implements DirectConnector {
 
       if (STORAGE_BUCKET.equalsIgnoreCase(assetType)) {
         return browseBlobs(path, browseRequest.getLimit());
-      }
+      } */
     } catch (ConnectorException e) {
       LOG.debug(String.format("%s: %s", e.getCode(), e.getMessage()));
     }
@@ -257,7 +253,7 @@ public class DataplexConnector implements DirectConnector {
       BrowseEntity.Builder entity =
         BrowseEntity.builder(getObjectId(asset.getName()),
           parentPath + getObjectId(asset.getName()),
-          ASSET_MAP.get(assetType)).canSample(true).canBrowse(true);
+          ASSET_MAP.get(assetType)).canSample(true).canBrowse(false);
       entity.addProperty(DISPLAY_NAME, BrowseEntityPropertyValue.builder(
         asset.displayName, BrowseEntityPropertyValue.PropertyType.STRING).build());
       builder.addEntity(entity.build());
@@ -383,7 +379,8 @@ public class DataplexConnector implements DirectConnector {
     }
     String assetType = asset.getAssetResourceSpec().type;
     properties.put(DataplexBaseConfig.NAME_ASSET_TYPE, assetType);
-    if (BIGQUERY_DATASET.equalsIgnoreCase(assetType)) {
+    // Commenting this code as we are keeping hierarchy till asset level, can be used in future.
+   /* if (BIGQUERY_DATASET.equalsIgnoreCase(assetType)) {
       String[] assetValues = asset.getAssetResourceSpec().name.split("/");
       String dataset = assetValues[assetValues.length - 1];
       String datasetProject = assetValues[assetValues.length - 3];
@@ -400,7 +397,7 @@ public class DataplexConnector implements DirectConnector {
       }
     } else if (STORAGE_BUCKET.equalsIgnoreCase(assetType)) {
       // to-do handling schema for GCS resources
-    }
+    } */
     return specBuilder.addRelatedPlugin(new PluginSpec(DataplexBatchSink.NAME, BatchSink.PLUGIN_TYPE, properties))
       .build();
   }

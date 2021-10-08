@@ -32,6 +32,8 @@ import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.OutputFormat;
 import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -45,8 +47,9 @@ import javax.annotation.Nullable;
 public class DataplexOutputFormatProvider implements ValidatingOutputFormat {
   public static final String RECORD_COUNT_FORMAT = "recordcount.%s";
   public static final String DATAPLEX_ASSET_TYPE = "dataplexsink.assettype";
-  private static final String OUTPUT_FOLDER = "dataplexsink.metric.output.folder";
+  public static final String DATAPLEX_OUTPUT_BASE_DIR = "dataplex.output.fileoutputformat.baseoutputdir";
   private static final String DELEGATE_OUTPUTFORMAT_CLASSNAME = "gcssink.delegate.outputformat.classname";
+  private static DataplexOutputCommitter dataplexOutputCommitter = new DataplexOutputCommitter();
 
   private final ValidatingOutputFormat delegate;
   private final Configuration configuration;
@@ -101,7 +104,6 @@ public class DataplexOutputFormatProvider implements ValidatingOutputFormat {
     private final OutputFormat<NullWritable, StructuredRecord> gcsDelegateFormat =
       new GCSOutputFormatProvider.GCSOutputFormat();
     private final OutputFormat<StructuredRecord, NullWritable> bqDelegateFormat = new BigQueryOutputFormat();
-    private OutputFormat delegateFormat;
 
     /**
      * It will set outputformat based on asset type in dataplex
@@ -111,16 +113,12 @@ public class DataplexOutputFormatProvider implements ValidatingOutputFormat {
      * @throws IOException
      */
     private OutputFormat getDelegateFormatInstance(Configuration configuration) throws IOException {
-      if (delegateFormat != null) {
-        return delegateFormat;
-      }
       String assetType = configuration.get(DATAPLEX_ASSET_TYPE);
       if (assetType.equalsIgnoreCase(DataplexBatchSink.BIGQUERY_DATASET_ASSET_TYPE)) {
-        delegateFormat = bqDelegateFormat;
+        return bqDelegateFormat;
       } else {
-        delegateFormat = gcsDelegateFormat;
+        return gcsDelegateFormat;
       }
-      return delegateFormat;
     }
 
     @Override
@@ -139,9 +137,19 @@ public class DataplexOutputFormatProvider implements ValidatingOutputFormat {
     @Override
     public OutputCommitter getOutputCommitter(TaskAttemptContext taskAttemptContext) throws IOException,
       InterruptedException {
+      // setting up the output directory based on taskAttempId to create the folder
+      // in this format -> partition=taskAttemptId
+      String taskAttemptId = taskAttemptContext.getTaskAttemptID().toString();
+      if (taskAttemptContext.getConfiguration().get(DATAPLEX_OUTPUT_BASE_DIR) != null) {
+        String outDir = taskAttemptContext.getConfiguration().get(DATAPLEX_OUTPUT_BASE_DIR) +
+          "partition=" + taskAttemptId;
+        taskAttemptContext.getConfiguration().set(FileOutputFormat.OUTDIR, outDir);
+      }
       OutputCommitter delegateCommitter = getDelegateFormatInstance(taskAttemptContext.getConfiguration())
         .getOutputCommitter(taskAttemptContext);
-      return new DataplexOutputCommitter(delegateCommitter);
+      // As we doing hive style partitioning reducer wise, we are setting all the reducer tasks to separate committer.
+      dataplexOutputCommitter.addDataplexOutputCommitterFromOutputFormat(delegateCommitter, taskAttemptContext);
+      return dataplexOutputCommitter;
     }
   }
 
@@ -167,7 +175,6 @@ public class DataplexOutputFormatProvider implements ValidatingOutputFormat {
     @Override
     public void close(TaskAttemptContext taskAttemptContext) throws IOException, InterruptedException {
       originalWriter.close(taskAttemptContext);
-      //Since the file details are not available here, pass the value on in configuration
       taskAttemptContext.getConfiguration()
         .setLong(String.format(RECORD_COUNT_FORMAT, taskAttemptContext.getTaskAttemptID()), recordCount);
     }

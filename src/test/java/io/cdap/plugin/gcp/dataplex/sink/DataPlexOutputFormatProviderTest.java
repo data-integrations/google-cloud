@@ -59,8 +59,9 @@ public class DataPlexOutputFormatProviderTest {
   }
 
   @Test
-  public void testDataPexOutputCommitter() throws IOException {
-    DataplexOutputCommitter committer = new DataplexOutputCommitter(fileOutputCommitter);
+  public void testDataPexOutputCommitter() throws IOException, InterruptedException {
+    DataplexOutputCommitter committer = new DataplexOutputCommitter();
+    committer.addDataplexOutputCommitterFromOutputFormat(fileOutputCommitter, mockContext);
     DataplexOutputCommitter committerToTest = spy(committer);
     JobStatus.State mockState = JobStatus.State.SUCCEEDED;
 

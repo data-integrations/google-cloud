@@ -25,6 +25,7 @@ import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TimePartitioning;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Lists;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
@@ -41,10 +42,11 @@ import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
 import io.cdap.plugin.gcp.bigquery.sink.Operation;
 import io.cdap.plugin.gcp.bigquery.sink.PartitionType;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
+import io.cdap.plugin.gcp.common.GCPConnectorConfig;
+import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.dataplex.common.config.DataplexBaseConfig;
 import io.cdap.plugin.gcp.dataplex.sink.DataplexBatchSink;
 import io.cdap.plugin.gcp.dataplex.sink.connection.DataplexInterface;
-import io.cdap.plugin.gcp.dataplex.sink.connector.DataplexConnectorConfig;
 import io.cdap.plugin.gcp.dataplex.sink.exception.ConnectorException;
 import io.cdap.plugin.gcp.dataplex.sink.model.Asset;
 import io.cdap.plugin.gcp.dataplex.sink.model.Zone;
@@ -131,9 +133,8 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   @Name(NAME_TABLE)
   @Nullable
   @Macro
-  @Description("The table to write to. A table contains individual records organized in rows. "
-    + "Each record is composed of columns (also called fields). "
-    + "Every table is defined by a schema that describes the column names, data types, and other information.")
+  @Description("The table to write to. It can be BigQuery table if Asset is of Type 'BigQuery Dataset' or" +
+    " a directory if Asset is of type 'Storage Bucket'")
   protected String table;
 
   @Name(NAME_TABLE_KEY)
@@ -229,23 +230,23 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     "STRING, DATE, TIMESTAMP, BOOLEAN or DECIMAL. Tables cannot be clustered on more than 4 fields. This " +
     "value is only used when the BigQuery table is automatically created and ignored if the table already exists.")
   protected String clusteringOrder;
-
-  @Name(NAME_USE_CONNECTION)
+  // Commented the code as we are removing browse functionality from sink plugin as we are getting schema issue for
+  // assets.
+  /* @Name(NAME_USE_CONNECTION)
   @Nullable
   @Description("Whether to use an existing connection.")
   private Boolean useConnection;
-
+*/
   @Name(NAME_CONNECTION)
   @Nullable
   @Macro
   @Description("The existing connection to use.")
-  private DataplexConnectorConfig connection;
+  private GCPConnectorConfig connection;
 
   @Nullable
   @Macro
   @Description("The time format for the output directory that will be appended to the path. " +
-    "For example, the format 'yyyy-MM-dd-HH-mm' will result in a directory of the form '2015-01-01-20-42'. " +
-    "If not specified, nothing will be appended to the path.")
+    "For example, the format 'yyyy-MM-dd-HH-mm' will result in a directory of the form '2015-01-01-20-42'.")
   private String suffix;
 
   @Name(NAME_SCHEMA)
@@ -348,38 +349,6 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     return suffix;
   }
 
-  public String getProject() {
-    if (connection == null) {
-      throw new IllegalArgumentException(
-        "Could not get project information, connection should not be null!");
-    }
-    return connection.getProject();
-  }
-
-  public DataplexConnectorConfig getConnection() {
-    return connection;
-  }
-
-  @Nullable
-  public String tryGetProject() {
-    return connection == null ? null : connection.tryGetProject();
-  }
-
-  @Nullable
-  public String getServiceAccount() {
-    return connection == null ? null : connection.getServiceAccount();
-  }
-
-  @Nullable
-  public String getServiceAccountType() {
-    return connection == null ? null : connection.getServiceAccountType();
-  }
-
-  @Nullable
-  public Boolean isServiceAccountFilePath() {
-    return connection == null ? null : connection.isServiceAccountFilePath();
-  }
-
   public void validateBigQueryDataset(FailureCollector collector) {
     if (!containsMacro(NAME_TABLE)) {
       if (table == null) {
@@ -414,20 +383,6 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     // if there was an error that was added, it will throw an exception, otherwise,
     // this statement will not be executed
     throw collector.getOrThrowException();
-  }
-
-  public void validateServiceAccount(FailureCollector failureCollector) {
-    if (connection.isServiceAccountJson() || connection.getServiceAccountFilePath() != null) {
-      GoogleCredentials credentials = getCredentials();
-      if (credentials == null) {
-        failureCollector.addFailure(String.format("Unable to load credentials from %s.",
-          connection.isServiceAccountFilePath() ? connection.getServiceAccountFilePath() : "provided JSON key"),
-          "Ensure the service account file is available on the local filesystem.")
-          .withConfigProperty("serviceFilePath")
-          .withConfigProperty("serviceAccountJSON");
-        throw failureCollector.getOrThrowException();
-      }
-    }
   }
 
   // This method will validate the location, lake, zone and asset configurations
@@ -582,10 +537,10 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
       // if table already exists, validate schema against underlying bigquery table
       com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
       if (this.getOperation().equals(Operation.INSERT)) {
-        BigQuerySinkUtils.validateInsertSchema(table, schema, allowSchemaRelaxation, isTruncateTable(), dataset,
+        BigQuerySinkUtils.validateInsertSchema(table, schema, isUpdateTableSchema(), isTruncateTable(), dataset,
           collector);
       } else if (this.getOperation().equals(Operation.UPSERT)) {
-        BigQuerySinkUtils.validateSchema(tableName, bqSchema, schema, this.isUpdateTableSchema(), isTruncateTable(),
+        BigQuerySinkUtils.validateSchema(tableName, bqSchema, schema, isUpdateTableSchema(), isTruncateTable(),
           dataset, collector);
       }
     }
@@ -877,10 +832,10 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
    */
   public boolean shouldConnect() {
     return !containsMacro(NAME_ASSET) && !containsMacro(NAME_TABLE) &&
-      !containsMacro(DataplexConnectorConfig.NAME_SERVICE_ACCOUNT_TYPE) &&
-      !(containsMacro(DataplexConnectorConfig.NAME_SERVICE_ACCOUNT_FILE_PATH) ||
-        containsMacro(DataplexConnectorConfig.NAME_SERVICE_ACCOUNT_JSON)) &&
-      !containsMacro(DataplexConnectorConfig.NAME_PROJECT) && !containsMacro(NAME_SCHEMA);
+      !containsMacro(GCPConnectorConfig.NAME_SERVICE_ACCOUNT_TYPE) &&
+      !(containsMacro(GCPConnectorConfig.NAME_SERVICE_ACCOUNT_FILE_PATH) ||
+        containsMacro(GCPConnectorConfig.NAME_SERVICE_ACCOUNT_JSON)) &&
+      !containsMacro(GCPConnectorConfig.NAME_PROJECT) && !containsMacro(NAME_SCHEMA);
   }
 
   protected ValidatingOutputFormat getValidatingOutputFormat(PipelineConfigurer pipelineConfigurer) {
@@ -950,7 +905,14 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
       containsMacro(NAME_ASSET)) {
       return;
     }
-    if (suffix != null && !containsMacro(NAME_SUFFIX)) {
+    if (!containsMacro(NAME_TABLE)) {
+      if (table == null) {
+        collector.addFailure(String.format("Required property '%s' has no value.", NAME_TABLE), null)
+          .withConfigProperty(NAME_TABLE);
+        collector.getOrThrowException();
+      }
+    }
+    if (!Strings.isNullOrEmpty(suffix) && !containsMacro(NAME_SUFFIX)) {
       try {
         new SimpleDateFormat(suffix);
       } catch (IllegalArgumentException e) {
@@ -1023,6 +985,20 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     return name.replace(" ", "-").toLowerCase();
   }
 
+  /*  This method gets the value of content type. Valid content types for each format are:
+   *
+   *  avro -> application/avro, application/octet-stream
+   *  json -> application/json, text/plain, application/octet-stream
+   *  csv -> application/csv, text/csv, text/plain, application/octet-stream
+   *  orc -> application/octet-stream
+   *  parquet -> application/octet-stream
+   */
+  @Nullable
+  public String getContentType() {
+    return contentType;
+  }
+
+
   /**
    * Return true if the service account is set to auto-detect but it can't be fetched from the environment.
    * This shouldn't result in a deployment failure, as the credential could be detected at runtime if the pipeline
@@ -1045,24 +1021,74 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   public GoogleCredentials getCredentials() {
     GoogleCredentials credentials = null;
     try {
-        credentials = connection.getCredentials();
+      credentials = getCredentialsFromServiceAccount();
     } catch (IOException e) {
       LOG.debug("Unable to load service account credentials due to error: {}", e.getMessage());
     }
     return credentials;
   }
 
-  /*  This method gets the value of content type. Valid content types for each format are:
-   *
-   *  avro -> application/avro, application/octet-stream
-   *  json -> application/json, text/plain, application/octet-stream
-   *  csv -> application/csv, text/csv, text/plain, application/octet-stream
-   *  orc -> application/octet-stream
-   *  parquet -> application/octet-stream
-   */
-  @Nullable
-  public String getContentType() {
-    return contentType;
+  public String getProject() {
+    if (connection == null) {
+      throw new IllegalArgumentException(
+        "Could not get project information, connection should not be null!");
+    }
+    return connection.getProject();
   }
 
+  public GCPConnectorConfig getConnection() {
+    return connection;
+  }
+
+  @Nullable
+  public String tryGetProject() {
+    return connection == null ? null : connection.tryGetProject();
+  }
+
+  @Nullable
+  public String getServiceAccount() {
+    return connection == null ? null : connection.getServiceAccount();
+  }
+
+  @Nullable
+  public String getServiceAccountType() {
+    return connection == null ? null : connection.getServiceAccountType();
+  }
+
+  @Nullable
+  public Boolean isServiceAccountFilePath() {
+    return connection == null ? null : connection.isServiceAccountFilePath();
+  }
+
+  public void validateServiceAccount(FailureCollector failureCollector) {
+    if (connection.isServiceAccountJson() || connection.getServiceAccountFilePath() != null) {
+      GoogleCredentials credentials = getCredentials();
+      if (credentials == null) {
+        failureCollector.addFailure(String.format("Unable to load credentials from %s.",
+          connection.isServiceAccountFilePath() ? connection.getServiceAccountFilePath() : "provided JSON key"),
+          "Ensure the service account file is available on the local filesystem.")
+          .withConfigProperty("serviceFilePath")
+          .withConfigProperty("serviceAccountJSON");
+        throw failureCollector.getOrThrowException();
+      }
+    }
+  }
+  public boolean isServiceAccountFilePathAutoDetect() {
+    return connection.getServiceAccountFilePath() != null &&
+      GCPConnectorConfig.AUTO_DETECT.equalsIgnoreCase(connection.getServiceAccountFilePath());
+  }
+
+
+  public GoogleCredentials getCredentialsFromServiceAccount() throws IOException {
+    GoogleCredentials credentials = null;
+    //validate service account
+    if (connection.isServiceAccountJson() || connection.getServiceAccountFilePath() != null) {
+      credentials =
+        GCPUtils.loadServiceAccountCredentials(getServiceAccount(), isServiceAccountFilePath())
+          .createScoped(Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"));
+    } else if (isServiceAccountFilePathAutoDetect()) {
+      credentials = ServiceAccountCredentials.getApplicationDefault();
+    }
+    return credentials;
+  }
 }

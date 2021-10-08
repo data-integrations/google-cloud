@@ -156,6 +156,8 @@ data to BigQuery; the table is available
 Storage Bucket specific fields
 ----------
 
+**Table Name**: Table to write to. In context of GCS Bucket, a table is a directory where data would be stored 
+and read by dataplex discover jobs.
 
 **Path Suffix:** Time format for the output directory that will be appended to the path.
 For example, the format 'yyyy-MM-dd-HH-mm' will result in a directory of the form '2015-01-01-20-42'.

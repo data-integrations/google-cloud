@@ -21,23 +21,7 @@
       "label": "Connection",
       "properties": [
         {
-          "widget-type": "toggle",
-          "label": "Use connection",
-          "name": "useConnection",
-          "widget-attributes": {
-            "on": {
-              "value": "true",
-              "label": "YES"
-            },
-            "off": {
-              "value": "false",
-              "label": "NO"
-            },
-            "default": "false"
-          }
-        },
-        {
-          "widget-type": "connection-select",
+          "widget-type": "hidden",
           "label": "Connection",
           "name": "connection",
           "widget-attributes": {
@@ -89,14 +73,6 @@
     {
       "label": "Dataplex Configuration",
       "properties": [
-        {
-          "widget-type": "connection-browser",
-          "widget-category": "plugin",
-          "widget-attributes": {
-            "connectionType": "Dataplex",
-            "label": "Browse"
-          }
-        },
         {
           "widget-type": "textbox",
           "label": "Location ID",
@@ -155,6 +131,14 @@
       "properties": [
         {
           "widget-type": "textbox",
+          "label": "Table Name",
+          "name": "table",
+          "widget-attributes": {
+            "placeholder": ""
+          }
+        },
+        {
+          "widget-type": "textbox",
           "label": "Path Suffix",
           "name": "suffix",
           "widget-attributes": {
@@ -192,14 +176,6 @@
               "other"
             ],
             "default": "application/octet-stream"
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Table Name",
-          "name": "table",
-          "widget-attributes": {
-            "placeholder": ""
           }
         },
         {
@@ -385,10 +361,7 @@
         "expression": "assetType == 'BIGQUERY_DATASET'"
       },
       "show": [
-        {
-          "type": "property",
-          "name": "table"
-        },
+
         {
           "type": "property",
           "name": "operation"
@@ -458,7 +431,7 @@
     {
       "name": "ServiceAuthenticationTypeFilePath",
       "condition": {
-        "expression": "useConnection == false && serviceAccountType == 'filePath'"
+        "expression": "serviceAccountType == 'filePath'"
       },
       "show": [
         {
@@ -470,7 +443,7 @@
     {
       "name": "ServiceAuthenticationTypeJSON",
       "condition": {
-        "expression": "useConnection == false && serviceAccountType == 'JSON'"
+        "expression": "serviceAccountType == 'JSON'"
       },
       "show": [
         {
@@ -488,35 +461,6 @@
         {
           "type": "property",
           "name": "truncateTable"
-        }
-      ]
-    },
-
-    {
-      "name": "showConnectionId",
-      "condition": {
-        "expression": "useConnection == true"
-      },
-      "show": [
-        {
-          "type": "property",
-          "name": "connection"
-        }
-      ]
-    },
-    {
-      "name": "showConnectionProperties ",
-      "condition": {
-        "expression": "useConnection == false"
-      },
-      "show": [
-        {
-          "type": "property",
-          "name": "project"
-        },
-        {
-          "type": "property",
-          "name": "serviceAccountType"
         }
       ]
     }

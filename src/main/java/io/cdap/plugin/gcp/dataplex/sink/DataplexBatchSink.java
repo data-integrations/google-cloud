@@ -124,13 +124,19 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     super.configurePipeline(pipelineConfigurer);
+    StageConfigurer configurer = pipelineConfigurer.getStageConfigurer();
+    FailureCollector collector = configurer.getFailureCollector();
     if (!config.getConnection().canConnect() || config.getServiceAccountType() == null ||
       (config.isServiceAccountFilePath() && config.autoServiceAccountUnavailable()) ||
       (config.tryGetProject() == null)) {
+      // This code is added as connection properties are coming as null while deploying pipeline if useConnection is
+      // true. We are getting similar issue in GCS/BQ source plugin also.
+      if (config.getAssetType().equalsIgnoreCase(STORAGE_BUCKET_ASSET_TYPE)) {
+        config.validateFormatForStorageBucket(pipelineConfigurer, collector);
+      }
       return;
     }
-    StageConfigurer configurer = pipelineConfigurer.getStageConfigurer();
-    FailureCollector collector = configurer.getFailureCollector();
+
     config.validateServiceAccount(collector);
     Schema inputSchema = configurer.getInputSchema();
     Schema configuredSchema = config.getSchema(collector);
@@ -274,6 +280,7 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     Table table = BigQueryUtil.getBigQueryTable(datasetProject, dataset,
       config.getTable(),
       config.getServiceAccount(),
+      config.isServiceAccountFilePath(),
       collector);
     baseConfiguration.setBoolean(BigQueryConstants.CONFIG_DESTINATION_TABLE_EXISTS, table != null);
     List<String> tableFieldsNames = null;
@@ -463,8 +470,9 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     }
 
     Map<String, String> outputProperties = new HashMap<>(validatingOutputFormat.getOutputFormatConfiguration());
-    // outputProperties.putAll(getFileSystemProperties(context));
-    outputProperties.put(FileOutputFormat.OUTDIR, getOutputDir(context.getLogicalStartTime()));
+    String outputDir = getOutputDir(context.getLogicalStartTime());
+    outputProperties.put(FileOutputFormat.OUTDIR, outputDir);
+    outputProperties.put(DataplexOutputFormatProvider.DATAPLEX_OUTPUT_BASE_DIR, outputDir);
     outputProperties.put(DataplexOutputFormatProvider.DATAPLEX_ASSET_TYPE, config.getAssetType());
     outputProperties.putAll(getFileSystemProperties(context));
     context.addOutput(Output.of(config.getReferenceName(),
@@ -515,10 +523,14 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
    */
   protected String getOutputDir(long logicalStartTime) {
     String suffix = config.getSuffix();
-    String timeSuffix = suffix == null || suffix.isEmpty() ? "" : new SimpleDateFormat(suffix).format(logicalStartTime);
+    String defaultTimestampFormat = "yyyy-MM-dd-HH-mm";
+    String tableName = config.getTable();
+    String timeSuffix = suffix == null || suffix.isEmpty() ?
+      "ts=" + new SimpleDateFormat(defaultTimestampFormat).format(logicalStartTime) :
+      "ts=" + new SimpleDateFormat(suffix).format(logicalStartTime);
     String configPath = GCSPath.SCHEME + assetBean.getAssetResourceSpec().getName().
       substring(assetBean.getAssetResourceSpec().getName().lastIndexOf('/') + 1);
-    String finalPath = String.format("%s/%s", configPath, timeSuffix);
+    String finalPath = String.format("%s/%s/%s/", configPath, tableName, timeSuffix);
     this.outputPath = finalPath;
     return finalPath;
   }
