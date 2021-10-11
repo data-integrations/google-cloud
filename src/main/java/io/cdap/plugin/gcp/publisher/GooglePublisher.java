@@ -252,9 +252,11 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, S
                              "Ensure the delimiter is provided.")
           .withConfigProperty(delimiter);
       }
+      /* Commenting out this code for 6.5.1
       if (!containsMacro(NAME_CMEK_KEY) && !Strings.isNullOrEmpty(cmekKey)) {
         CmekUtils.getCmekKey(cmekKey, collector);
       }
+      */
       collector.getOrThrowException();
     }
 

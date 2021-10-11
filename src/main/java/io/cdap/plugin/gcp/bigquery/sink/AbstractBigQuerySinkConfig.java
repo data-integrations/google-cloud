@@ -130,9 +130,11 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
     if (!containsMacro(NAME_DATASET)) {
       BigQueryUtil.validateDataset(dataset, NAME_DATASET, collector);
     }
+    /* Commenting out this code for 6.5.1
     if (!containsMacro(NAME_CMEK_KEY) && !Strings.isNullOrEmpty(cmekKey)) {
       validateCmekKey(collector);
     }
+    */
   }
 
   void validateCmekKey(FailureCollector failureCollector) {

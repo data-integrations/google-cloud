@@ -158,10 +158,11 @@ public class GCSDoneFileMarker extends PostAction {
         collector.addFailure("Required property 'Service Account JSON' has no value.", "")
           .withConfigProperty(NAME_SERVICE_ACCOUNT_JSON);
       }
-
+      /* Commenting out this code for 6.5.1
       if (!containsMacro(NAME_CMEK_KEY) && !Strings.isNullOrEmpty(cmekKey)) {
         validateCmekKey(collector);
       }
+      */
 
       collector.getOrThrowException();
     }
