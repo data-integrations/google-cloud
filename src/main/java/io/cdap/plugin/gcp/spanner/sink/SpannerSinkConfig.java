@@ -140,10 +140,11 @@ public class SpannerSinkConfig extends GCPReferenceSinkConfig {
         }
       }
     }
-
+    /* Commenting out this code for 6.5.1
     if (!containsMacro(NAME_CMEK_KEY) && !Strings.isNullOrEmpty(cmekKey)) {
       CmekUtils.getCmekKey(cmekKey, collector);
     }
+    */
   }
   /**
    * Returns schema object.

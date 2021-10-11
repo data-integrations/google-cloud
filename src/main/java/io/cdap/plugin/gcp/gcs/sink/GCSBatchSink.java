@@ -373,9 +373,11 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
         }
       }
 
+      /* Commenting out this code for 6.5.1
       if (!containsMacro(NAME_CMEK_KEY) && !Strings.isNullOrEmpty(cmekKey)) {
         validateCmekKey(collector);
       }
+      */
 
       try {
         getSchema();

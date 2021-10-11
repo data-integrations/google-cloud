@@ -250,10 +250,11 @@ public final class GCSBucketCreate extends Action {
           }
         }
       }
-
+      /* Commenting out this code for 6.5.1
       if (!containsMacro(NAME_CMEK_KEY) && !Strings.isNullOrEmpty(cmekKey)) {
         validateCmekKey(collector);
       }
+      */
       collector.getOrThrowException();
     }
 

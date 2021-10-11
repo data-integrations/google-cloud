@@ -115,9 +115,11 @@ public class SourceDestConfig extends GCPConfig {
         collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_DEST_PATH);
       }
     }
+    /* Commenting out this code for 6.5.1
     if (!containsMacro(NAME_CMEK_KEY) && !Strings.isNullOrEmpty(cmekKey)) {
       validateCmekKey(collector);
     }
+    */
     collector.getOrThrowException();
   }
 
