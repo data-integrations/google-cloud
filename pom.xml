@@ -138,6 +138,8 @@
   </repositories>
 
   <dependencies>
+
+
     <dependency>
       <groupId>commons-lang</groupId>
       <artifactId>commons-lang</artifactId>
@@ -438,6 +440,7 @@
       <version>${slf4j.version}</version>
       <scope>provided</scope>
     </dependency>
+
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>jcl-over-slf4j</artifactId>
@@ -564,6 +567,18 @@
       <artifactId>httpclient</artifactId>
       <version>${httpclient.version}</version>
     </dependency>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.13.1</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.13.1</version>
+      <scope>compile</scope>
+    </dependency>
 
   </dependencies>
 
@@ -625,6 +640,13 @@
             <include>**/*TestCase.java</include>
           </includes>
         </configuration>
+        <dependencies>
+          <dependency>
+            <groupId>com.w2a</groupId>
+            <artifactId>CucumberJVMReporting</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+          </dependency>
+        </dependencies>
       </plugin>
 
       <plugin>
@@ -792,6 +814,18 @@
           </plugin>
         </plugins>
       </build>
+    </profile>
+
+    <profile>
+      <id>cloudBuilde2e</id>
+      <dependencies>
+              <dependency>
+                <groupId>io.cdap.tests.e2e</groupId>
+                <artifactId>cdap-e2e-framework</artifactId>
+                <version>0.0.1-SNAPSHOT</version>
+                <scope>compile</scope>
+              </dependency>
+      </dependencies>
     </profile>
   </profiles>
 </project>
