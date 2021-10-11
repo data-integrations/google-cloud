@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.bigquery.sqlengine.builder;
 
+import com.google.cloud.bigquery.DatasetId;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.engine.sql.SQLEngineException;
 import io.cdap.cdap.etl.api.join.JoinCondition;
@@ -86,8 +87,7 @@ public class BigQuerySQLBuilderTest {
     dataset = "dataset";
 
     helper = spy(new BigQuerySQLBuilder(joinDefinition,
-                                        project,
-                                        dataset,
+                                        DatasetId.of(project, dataset),
                                         stageToBQTableNameMap,
                                         stageToFullTableNameMap,
                                         stageToTableAliasMap,
@@ -119,7 +119,7 @@ public class BigQuerySQLBuilderTest {
     stateToBqTableNames.put("Purchases", "p");
 
     BigQuerySQLBuilder helper =
-      new BigQuerySQLBuilder(joinDefinition, "my-project", "MY_DS", stateToBqTableNames);
+      new BigQuerySQLBuilder(joinDefinition, DatasetId.of("my-project", "MY_DS"), stateToBqTableNames);
 
     Assert.assertEquals(
       "SELECT `Users`.id AS `user_id` , `Purchases`.id AS `purchase_id` "
@@ -157,7 +157,7 @@ public class BigQuerySQLBuilderTest {
     stateToBqTableNames.put("ToAddresses", "to-addr");
 
     BigQuerySQLBuilder helper =
-      new BigQuerySQLBuilder(joinDefinition, "my-project", "MY_DS", stateToBqTableNames);
+      new BigQuerySQLBuilder(joinDefinition, DatasetId.of("my-project", "MY_DS"), stateToBqTableNames);
 
     Assert.assertEquals(
       "SELECT `Shipments`.id AS `shipment_id` , `FromAddresses`.zip AS `from_zip` , `ToAddresses`.zip AS `to_zip` "
@@ -205,7 +205,7 @@ public class BigQuerySQLBuilderTest {
     stateToBqTableNames.put("Purchases", "p");
 
     BigQuerySQLBuilder helper =
-      new BigQuerySQLBuilder(joinDefinition, "my-project", "MY_DS", stateToBqTableNames);
+      new BigQuerySQLBuilder(joinDefinition, DatasetId.of("my-project", "MY_DS"), stateToBqTableNames);
 
     Assert.assertEquals(
       "SELECT `Users`.id AS `user_id` , `purch`.id AS `purchase_id` , `purch`.price "

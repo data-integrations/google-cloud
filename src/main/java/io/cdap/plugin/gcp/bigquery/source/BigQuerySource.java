@@ -18,12 +18,17 @@ package io.cdap.plugin.gcp.bigquery.source;
 
 import com.google.auth.Credentials;
 import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.Dataset;
+import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableDefinition.Type;
 import com.google.cloud.bigquery.TimePartitioning;
+import com.google.cloud.kms.v1.CryptoKeyName;
+import com.google.cloud.storage.Storage;
+import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Metadata;
 import io.cdap.cdap.api.annotation.MetadataProperty;
@@ -124,20 +129,23 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     String serviceAccount = config.getServiceAccount();
     Credentials credentials = BigQuerySourceUtils.getCredentials(config.getConnection());
     BigQuery bigQuery = GCPUtils.getBigQuery(config.getProject(), credentials);
+    Dataset dataset = bigQuery.getDataset(DatasetId.of(config.getDatasetProject(), config.getDataset()));
+    Storage storage = GCPUtils.getStorage(config.getProject(), credentials);
 
     // Get Configuration for this run
     bucketPath = UUID.randomUUID().toString();
-    String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
-    configuration = BigQueryUtil.getBigQueryConfig(serviceAccount, config.getProject(), cmekKey,
+    CryptoKeyName cmekKeyName = config.getCmekKey(context.getArguments(), collector);
+    collector.getOrThrowException();
+    configuration = BigQueryUtil.getBigQueryConfig(serviceAccount, config.getProject(), cmekKeyName,
                                                    config.getServiceAccountType());
 
     // Configure GCS Bucket to use
     String bucket = BigQuerySourceUtils.getOrCreateBucket(configuration,
-                                                          config,
-                                                          bigQuery,
-                                                          credentials,
+                                                          storage,
+                                                          config.getBucket(),
+                                                          dataset,
                                                           bucketPath,
-                                                          cmekKey);
+                                                          cmekKeyName);
 
     // Configure Service account credentials
     BigQuerySourceUtils.configureServiceAccount(configuration, config.getConnection());
@@ -148,8 +156,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     // Configure BigQuery input format.
     String temporaryGcsPath = BigQuerySourceUtils.getTemporaryGcsPath(bucket, bucketPath, bucketPath);
     BigQuerySourceUtils.configureBigQueryInput(configuration,
-                                               config.getDatasetProject(),
-                                               config.getDataset(),
+                                               DatasetId.of(config.getDatasetProject(), config.getDataset()),
                                                config.getTable(),
                                                temporaryGcsPath);
 

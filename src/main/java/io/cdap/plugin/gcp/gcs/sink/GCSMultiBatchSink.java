@@ -17,6 +17,7 @@
 package io.cdap.plugin.gcp.gcs.sink;
 
 import com.google.auth.Credentials;
+import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
 import com.google.common.base.Strings;
@@ -38,6 +39,7 @@ import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.validation.ValidatingOutputFormat;
 import io.cdap.plugin.common.batch.sink.SinkOutputFormatProvider;
 import io.cdap.plugin.format.FileFormat;
+import io.cdap.plugin.gcp.common.CmekUtils;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
@@ -104,7 +106,8 @@ public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable,
     Map<String, String> baseProperties = GCPUtils.getFileSystemProperties(config, config.getPath(), new HashMap<>());
     Map<String, String> argumentCopy = new HashMap<>(context.getArguments().asMap());
 
-    String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
+    CryptoKeyName cmekKeyName = config.getCmekKey(context.getArguments(), context.getFailureCollector());
+    context.getFailureCollector().getOrThrowException();
     Boolean isServiceAccountFilePath = config.isServiceAccountFilePath();
     if (isServiceAccountFilePath == null) {
       context.getFailureCollector().addFailure("Service account type is undefined.",
@@ -117,7 +120,7 @@ public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable,
     Storage storage = GCPUtils.getStorage(config.getProject(), credentials);
     try {
       if (storage.get(config.getBucket()) == null) {
-        GCPUtils.createBucket(storage, config.getBucket(), config.getLocation(), cmekKey);
+        GCPUtils.createBucket(storage, config.getBucket(), config.getLocation(), cmekKeyName);
       }
     } catch (StorageException e) {
       // Add more descriptive error message

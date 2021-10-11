@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.bigquery.sink;
 
+import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
 import io.cdap.cdap.api.data.schema.Schema;
 import org.apache.hadoop.mapreduce.JobContext;
@@ -162,8 +163,7 @@ public class DelegatingMultiSinkOutputCommitter extends OutputCommitter {
     String gcsPath = BigQuerySinkUtils.getTemporaryGcsPath(bucketName, bucketPathUniqueId,  tableName);
 
     BigQuerySinkUtils.configureMultiSinkOutput(context.getConfiguration(),
-                                               projectName,
-                                               datasetName,
+                                               DatasetId.of(projectName, datasetName),
                                                tableName,
                                                gcsPath,
                                                fields);

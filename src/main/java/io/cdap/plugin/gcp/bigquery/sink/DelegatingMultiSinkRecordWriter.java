@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.bigquery.sink;
 
+import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
@@ -40,8 +41,7 @@ public class DelegatingMultiSinkRecordWriter extends RecordWriter<StructuredReco
   private final String tableNameField;
   private final String bucketName;
   private final String bucketPathUniqueId;
-  private final String projectName;
-  private final String datasetName;
+  private final DatasetId datasetId;
   private final Map<String, RecordWriter<StructuredRecord, NullWritable>> delegateMap;
   private final DelegatingMultiSinkOutputCommitter delegatingOutputCommitter;
 
@@ -49,15 +49,13 @@ public class DelegatingMultiSinkRecordWriter extends RecordWriter<StructuredReco
                                          String tableNameField,
                                          String bucketName,
                                          String bucketPathUniqueId,
-                                         String projectName,
-                                         String datasetName,
+                                         DatasetId datasetId,
                                          DelegatingMultiSinkOutputCommitter delegatingMultiSinkOutputCommitter) {
     this.initialContext = initialContext;
     this.tableNameField = tableNameField;
     this.bucketName = bucketName;
     this.bucketPathUniqueId = bucketPathUniqueId;
-    this.projectName = projectName;
-    this.datasetName = datasetName;
+    this.datasetId = datasetId;
     this.delegateMap = new HashMap<>();
     this.delegatingOutputCommitter = delegatingMultiSinkOutputCommitter;
   }
@@ -101,8 +99,7 @@ public class DelegatingMultiSinkRecordWriter extends RecordWriter<StructuredReco
     String gcsPath = BigQuerySinkUtils.getTemporaryGcsPath(bucketName, bucketPathUniqueId,  tableName);
 
     BigQuerySinkUtils.configureMultiSinkOutput(initialContext.getConfiguration(),
-                                               projectName,
-                                               datasetName,
+                                               datasetId,
                                                tableName,
                                                gcsPath,
                                                fields);

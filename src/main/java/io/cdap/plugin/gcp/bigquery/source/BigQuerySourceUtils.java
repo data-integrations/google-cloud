@@ -22,6 +22,9 @@ import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
+import com.google.cloud.kms.v1.CryptoKeyName;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageException;
 import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnectorConfig;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
@@ -60,34 +63,41 @@ public class BigQuerySourceUtils {
    * to auto-delete this bucket on completion.
    *
    * @param configuration Hadoop configuration instance.
-   * @param config BigQuery Source configuration.
-   * @param bigQuery BigQuery client.
-   * @param credentials Google Cloud Credentials.
+   * @param storage GCS Storage client
+   * @param bucket GCS bucket
+   * @param dataset BigQuery dataset
    * @param bucketPath bucket path to use. Will be used as a bucket name if needed..
-   * @param cmekKey CMEK key to use for the auto-created bucket.
+   * @param cmekKeyName CMEK key to use for the auto-created bucket.
    * @return Bucket name.
    */
   public static String getOrCreateBucket(Configuration configuration,
-                                         BigQuerySourceConfig config,
-                                         BigQuery bigQuery,
-                                         Credentials credentials,
+                                         Storage storage,
+                                         @Nullable String bucket,
+                                         Dataset dataset,
                                          String bucketPath,
-                                         @Nullable String cmekKey) {
-    String bucket = config.getBucket();
-
+                                         @Nullable CryptoKeyName cmekKeyName) throws IOException {
     // Create a new bucket if needed
     if (bucket == null) {
       bucket = String.format(BQ_TEMP_BUCKET_NAME_TEMPLATE, bucketPath);
       // By default, this option is false, meaning the job can not delete the bucket. So enable it only when bucket name
       // is not provided.
       configuration.setBoolean("fs.gs.bucket.delete.enable", true);
-
-      // the dataset existence is validated before, so this cannot be null
-      Dataset dataset = bigQuery.getDataset(DatasetId.of(config.getDatasetProject(), config.getDataset()));
-      GCPUtils.createBucket(GCPUtils.getStorage(config.getProject(), credentials),
-                            bucket,
-                            dataset.getLocation(),
-                            cmekKey);
+      GCPUtils.createBucket(storage, bucket, dataset.getLocation(), cmekKeyName);
+    } else if (storage != null && storage.get(bucket) == null) {
+      try {
+        GCPUtils.createBucket(storage, bucket, dataset.getLocation(), cmekKeyName);
+      } catch (StorageException e) {
+        if (e.getCode() == 409) {
+          // A conflict means the bucket already exists
+          // This most likely means multiple stages in the same pipeline are trying to create the same bucket.
+          // Ignore this and move on, since all that matters is that the bucket exists.
+          return bucket;
+        }
+        throw new IOException(String.format("Unable to create Cloud Storage bucket '%s' in the same " +
+                                              "location ('%s') as BigQuery dataset '%s'. " + "Please use a bucket " +
+                                              "that is in the same location as the dataset.",
+                                            bucket, dataset.getLocation(), dataset.getDatasetId().getDataset()), e);
+      }
     }
 
     return bucket;
@@ -110,15 +120,13 @@ public class BigQuerySourceUtils {
    * Configure BigQuery input using the supplied configuration and GCS path.
    *
    * @param configuration Hadoop configuration instance.
-   * @param project the project to use.
    * @param dataset the dataset to use.
    * @param table the name of the table to pull from.
    * @param gcsPath Path to use to store output files.
    * @throws IOException if the BigQuery input could not be configured.
    */
   public static void configureBigQueryInput(Configuration configuration,
-                                            String project,
-                                            String dataset,
+                                            DatasetId dataset,
                                             String table,
                                             String gcsPath) throws IOException {
     // Configure GCS bucket path
@@ -136,8 +144,8 @@ public class BigQuerySourceUtils {
     PartitionedBigQueryInputFormat.setTemporaryCloudStorageDirectory(configuration,
                                                                      gcsPath);
     BigQueryConfiguration.configureBigQueryInput(configuration,
-                                                 project,
-                                                 dataset,
+                                                 dataset.getProject(),
+                                                 dataset.getDataset(),
                                                  table);
   }
 

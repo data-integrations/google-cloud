@@ -90,6 +90,14 @@
           }
         },
         {
+          "widget-type": "textbox",
+          "label": "Encryption Key Name",
+          "name": "cmekKey",
+          "widget-attributes": {
+            "placeholder": "projects/<gcp-project-id>/locations/<key-location>/keyRings/<key-ring-name>/cryptoKeys/<key-name>"
+          }
+        },
+        {
           "widget-type": "toggle",
           "label": "Retain BigQuery tables after completion",
           "name": "retainTables",
