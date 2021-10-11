@@ -325,9 +325,11 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
         BigQueryUtil.validateTable(table, TABLE, failureCollector);
       }
 
+      /* Commenting out this code for 6.5.1
       if (!containsMacro(NAME_CMEK_KEY) && !Strings.isNullOrEmpty(cmekKey)) {
         validateCmekKey(failureCollector);
       }
+      */
 
       failureCollector.getOrThrowException();
     }
