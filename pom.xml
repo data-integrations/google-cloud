@@ -795,13 +795,13 @@
     </profile>
 
     <profile>
-      <id>cloudBuilde2e</id>
+      <id>e2e-tests</id>
       <dependencies>
               <dependency>
                 <groupId>io.cdap.tests.e2e</groupId>
                 <artifactId>cdap-e2e-framework</artifactId>
                 <version>0.0.1-SNAPSHOT</version>
-                <scope>compile</scope>
+                <scope>test</scope>
               </dependency>
       </dependencies>
     </profile>

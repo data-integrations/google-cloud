@@ -1,5 +1,4 @@
 package stepsDesign;
-
 import io.cdap.e2e.pages.actions.*;
 import io.cdap.e2e.pages.locators.CdfBigQueryPropertiesLocators;
 import io.cucumber.java.en.Given;
