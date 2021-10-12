@@ -113,8 +113,9 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     String datasetName = config.getDataset();
     String tableName = config.getTable();
     if (!Strings.isNullOrEmpty(datasetName) && !Strings.isNullOrEmpty(tableName)) {
-      BigQuerySinkUtils.createDataset(bigQuery, DatasetId.of(datasetName), config.getLocation(), cmekKeyName,
-                                      () -> String.format("Unable to create BigQuery dataset '%s'", datasetName));
+      BigQuerySinkUtils.createDataset(bigQuery, DatasetId.of(config.getProject(), datasetName), config.getLocation(),
+                                      cmekKeyName, () -> String.format("Unable to create BigQuery dataset " +
+                                                                         "'%s.%s'", config.getProject(), datasetName));
     }
 
     Job queryJob = bigQuery.create(JobInfo.newBuilder(queryConfig).setJobId(jobId).build());
