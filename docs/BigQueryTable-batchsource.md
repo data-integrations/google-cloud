@@ -25,12 +25,14 @@ Properties
 
 **Project ID**: Google Cloud Project ID, which uniquely identifies a project.
 It can be found on the Dashboard in the Google Cloud Platform Console. This is the project
-that the BigQuery job will run in. If a temporary bucket needs to be created, the service account
-must have permission in this project to create buckets.
+that the BigQuery job will run in. `BigQuery Job User` role on this project must be granted to the specified service
+account to run the job. If a temporary bucket needs to be created, the bucket will also be created in this project and
+'GCE Storage Bucket Admin' role on this project must be granted to the specified service account to create buckets. 
 
-**Dataset Project**: Project the dataset belongs to. This is only required if the dataset is not
-in the same project that the BigQuery job will run in. If no value is given,
-it will default to the configured Project ID.
+**Dataset Project ID**: Project the dataset belongs to. This is only required if the dataset is not
+in the same project that the BigQuery job will run in. If no value is given, it will default to the configured Project
+ID. `BigQuery Data Viewer` role on this project must be granted to the specified service account to read BigQuery data
+from this project.
 
 **Dataset**: Dataset the table belongs to. A dataset is contained within a specific project.
 Datasets are top-level containers that are used to organize and control access to tables and views.
