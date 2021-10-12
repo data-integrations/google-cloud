@@ -17,6 +17,7 @@
 package io.cdap.plugin.gcp.spanner.sink;
 
 import com.google.api.gax.longrunning.OperationFuture;
+import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.spanner.Database;
 import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.DatabaseClient;
@@ -199,9 +200,10 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
       // Create database
       Database.Builder dbBuilder = dbAdminClient
         .newDatabaseBuilder(DatabaseId.of(config.getProject(), config.getInstance(), config.getDatabase()));
-      String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
-      if (cmekKey != null) {
-        dbBuilder.setEncryptionConfig(EncryptionConfigs.customerManagedEncryption(cmekKey));
+      CryptoKeyName cmekKeyName = config.getCmekKey(context.getArguments(), context.getFailureCollector());
+      context.getFailureCollector().getOrThrowException();
+      if (cmekKeyName != null) {
+        dbBuilder.setEncryptionConfig(EncryptionConfigs.customerManagedEncryption(cmekKeyName.toString()));
       }
       OperationFuture<Database, CreateDatabaseMetadata> op =
         dbAdminClient.createDatabase(dbBuilder.build(), Collections.emptyList());

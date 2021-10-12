@@ -16,6 +16,8 @@
 package io.cdap.plugin.gcp.bigquery.sink;
 
 import com.google.cloud.bigquery.JobInfo;
+import com.google.cloud.kms.v1.CryptoKeyName;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
@@ -26,6 +28,7 @@ import io.cdap.plugin.common.Constants;
 import io.cdap.plugin.common.IdUtils;
 import io.cdap.plugin.gcp.bigquery.common.BigQueryBaseConfig;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
+import io.cdap.plugin.gcp.common.CmekUtils;
 
 import java.util.Set;
 import javax.annotation.Nullable;
@@ -71,8 +74,16 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
   @Macro
   @Nullable
   @Description("The location where the big query dataset will get created. " +
-                 "This value is ignored if the dataset or temporary bucket already exist.")
+    "This value is ignored if the dataset or temporary bucket already exist.")
   protected String location;
+
+  @Name(NAME_CMEK_KEY)
+  @Macro
+  @Nullable
+  @Description("The GCP customer managed encryption key (CMEK) name used to encrypt data written to " +
+    "any bucket or dataset/table created by the plugin. If the bucket or dataset/table already exists, " +
+    "this is ignored.")
+  protected String cmekKey;
 
   public String getReferenceName() {
     return referenceName;
@@ -119,6 +130,19 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
     if (!containsMacro(NAME_DATASET)) {
       BigQueryUtil.validateDataset(dataset, NAME_DATASET, collector);
     }
+    /* Commenting out this code for 6.5.1
+    if (!containsMacro(NAME_CMEK_KEY) && !Strings.isNullOrEmpty(cmekKey)) {
+      validateCmekKey(collector);
+    }
+    */
+  }
 
+  void validateCmekKey(FailureCollector failureCollector) {
+    CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(cmekKey, failureCollector);
+    //these fields are needed to check if bucket exists or not and for location validation
+    if (containsMacro(NAME_LOCATION)) {
+      return;
+    }
+    validateCmekKeyLocation(cmekKeyName, null, location, failureCollector);
   }
 }

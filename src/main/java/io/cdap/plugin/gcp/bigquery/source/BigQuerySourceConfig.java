@@ -16,10 +16,16 @@
 
 package io.cdap.plugin.gcp.bigquery.source;
 
+import com.google.auth.Credentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.ServiceOptions;
+import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.Dataset;
+import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableDefinition.Type;
+import com.google.cloud.kms.v1.CryptoKeyName;
+import com.google.cloud.storage.Storage;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.annotation.Description;
@@ -27,12 +33,16 @@ import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.plugin.PluginConfig;
+import io.cdap.cdap.etl.api.Arguments;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.common.ConfigUtil;
 import io.cdap.plugin.common.Constants;
 import io.cdap.plugin.common.IdUtils;
 import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnectorConfig;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
+import io.cdap.plugin.gcp.common.CmekUtils;
+import io.cdap.plugin.gcp.common.GCPUtils;
+import io.cdap.plugin.gcp.gcs.GCSPath;
 
 import java.io.IOException;
 import java.util.Set;
@@ -58,6 +68,7 @@ public final class BigQuerySourceConfig extends PluginConfig {
   public static final String NAME_ENABLE_QUERYING_VIEWS = "enableQueryingViews";
   public static final String NAME_VIEW_MATERIALIZATION_PROJECT = "viewMaterializationProject";
   public static final String NAME_VIEW_MATERIALIZATION_DATASET = "viewMaterializationDataset";
+  public static final String NAME_CMEK_KEY = "cmekKey";
 
   @Name(Constants.Reference.REFERENCE_NAME)
   @Description("This will be used to uniquely identify this source for lineage, annotating metadata, etc.")
@@ -145,6 +156,13 @@ public final class BigQuerySourceConfig extends PluginConfig {
   @Description("The existing connection to use.")
   private BigQueryConnectorConfig connection;
 
+  @Name(NAME_CMEK_KEY)
+  @Macro
+  @Nullable
+  @Description("The GCP customer managed encryption key (CMEK) name used to encrypt data written to " +
+    "any bucket created by the plugin. If the bucket already exists, this is ignored.")
+  protected String cmekKey;
+
 
   public String getDataset() {
     return dataset;
@@ -204,6 +222,15 @@ public final class BigQuerySourceConfig extends PluginConfig {
     return connection == null ? null : connection.getServiceAccountType();
   }
 
+  @Nullable
+  public CryptoKeyName getCmekKey(Arguments arguments, FailureCollector collector) {
+    String cmekKey = this.cmekKey;
+    if (Strings.isNullOrEmpty(cmekKey)) {
+      cmekKey = arguments.get("gcp.cmek.key.name");
+    }
+    return CmekUtils.getCmekKey(cmekKey, collector);
+  }
+
   public void validate(FailureCollector collector) {
     IdUtils.validateReferenceName(referenceName, collector);
     ConfigUtil.validateConnection(this, useConnection, connection, collector);
@@ -220,6 +247,38 @@ public final class BigQuerySourceConfig extends PluginConfig {
     if (!containsMacro(NAME_TABLE)) {
       validateTable(collector);
     }
+    /* Commenting out this code for 6.5.1
+    if (!containsMacro(NAME_CMEK_KEY) && !Strings.isNullOrEmpty(cmekKey)) {
+      validateCmekKey(collector);
+    }
+    */
+  }
+
+  void validateCmekKey(FailureCollector collector) {
+    CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(cmekKey, collector);
+    //these fields are needed to check if bucket exists or not and for location validation
+    if (cmekKeyName == null || !canConnect() || containsMacro(NAME_BUCKET) || Strings.isNullOrEmpty(bucket)) {
+      return;
+    }
+    DatasetId datasetId = DatasetId.of(getDatasetProject(), getDataset());
+    Credentials credentials = connection.getCredentials(collector);
+    BigQuery bigQuery = GCPUtils.getBigQuery(getProject(), credentials);
+    if (bigQuery == null) {
+      return;
+    }
+    Dataset dataset = null;
+    try {
+      dataset = bigQuery.getDataset(datasetId);
+    } catch (Exception e) {
+      //If there is an exception getting dataset information during validation, it will be ignored.
+      return;
+    }
+    Storage storage = GCPUtils.getStorage(getProject(), credentials);
+    if (dataset == null || storage == null || containsMacro(NAME_BUCKET) || Strings.isNullOrEmpty(bucket)) {
+      return;
+    }
+    CmekUtils.validateCmekKeyAndBucketLocation(storage, GCSPath.from(bucket), cmekKeyName,
+                                               dataset.getLocation(), collector);
   }
 
   private void validateTable(FailureCollector collector) {

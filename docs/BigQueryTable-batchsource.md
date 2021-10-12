@@ -66,6 +66,9 @@ It will be automatically created if it does not exist, but will not be automatic
 Temporary data will be deleted after it has been read. If it is not provided, a unique bucket will be
 created and then deleted after the run finishes.
 
+**Encryption Key Name**: Used to encrypt data written to any bucket created by the plugin.
+If the bucket already exists, this is ignored.
+
 **Service Account**  - service account key used for authorization
 
 * **File Path**: Path on the local file system of the service account key used for

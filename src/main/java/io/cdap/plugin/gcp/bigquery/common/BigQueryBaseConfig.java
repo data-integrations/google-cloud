@@ -16,7 +16,14 @@
 
 package io.cdap.plugin.gcp.bigquery.common;
 
+import com.google.auth.Credentials;
 import com.google.cloud.ServiceOptions;
+import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.Dataset;
+import com.google.cloud.bigquery.DatasetId;
+import com.google.cloud.bigquery.TableId;
+import com.google.cloud.kms.v1.CryptoKeyName;
+import com.google.cloud.storage.Storage;
 import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
@@ -24,7 +31,10 @@ import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.common.Constants;
 import io.cdap.plugin.common.IdUtils;
+import io.cdap.plugin.gcp.common.CmekUtils;
 import io.cdap.plugin.gcp.common.GCPConfig;
+import io.cdap.plugin.gcp.common.GCPUtils;
+import io.cdap.plugin.gcp.gcs.GCSPath;
 
 import javax.annotation.Nullable;
 
@@ -88,4 +98,27 @@ public class BigQueryBaseConfig extends GCPConfig {
     return bucket;
   }
 
+  public void validateCmekKeyLocation(@Nullable CryptoKeyName cmekKeyName, @Nullable String tableName,
+                                      @Nullable String location, FailureCollector failureCollector) {
+    if (cmekKeyName == null || containsMacro(NAME_DATASET) || projectOrServiceAccountContainsMacro()) {
+      return;
+    }
+    String datasetProjectId = getDatasetProject();
+    String datasetName = getDataset();
+    DatasetId datasetId = DatasetId.of(datasetProjectId, datasetName);
+    TableId tableId = tableName == null ? null : TableId.of(datasetProjectId, datasetName, tableName);
+    Credentials credentials = getCredentials(failureCollector);
+    BigQuery bigQuery = GCPUtils.getBigQuery(getProject(), credentials);
+    if (bigQuery == null) {
+      return;
+    }
+    Dataset dataset = CmekUtils.validateCmekKeyAndDatasetOrTableLocation(bigQuery, datasetId, tableId, cmekKeyName,
+                                                                         location, failureCollector);
+    Storage storage = GCPUtils.getStorage(getProject(), credentials);
+    if (dataset == null || storage == null || containsMacro(NAME_BUCKET) || Strings.isNullOrEmpty(bucket)) {
+      return;
+    }
+    CmekUtils.validateCmekKeyAndBucketLocation(storage, GCSPath.from(bucket), cmekKeyName,
+                                               dataset.getLocation(), failureCollector);
+  }
 }

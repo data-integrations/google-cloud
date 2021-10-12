@@ -57,6 +57,9 @@ The delimiter will be ignored if the format is anything other than 'delimited'.
 
 **Location:** The location where the gcs buckets will get created. This value is ignored if the bucket already exists.
 
+**Encryption Key Name:** Used to encrypt data written to any bucket created by the plugin.
+If the bucket already exists, this is ignored.
+
 **Service Account**  - service account key used for authorization
 
 * **File Path**: Path on the local file system of the service account key used for

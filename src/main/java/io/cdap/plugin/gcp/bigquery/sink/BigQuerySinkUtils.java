@@ -21,15 +21,18 @@ import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.DatasetInfo;
+import com.google.cloud.bigquery.EncryptionConfiguration;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryOutputConfiguration;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableSchema;
+import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
+import com.google.common.base.Strings;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
@@ -68,31 +71,31 @@ public final class BigQuerySinkUtils {
    * @param datasetId the Id of the dataset
    * @param bucketName the name of the bucket
    * @param location the location of the resources, this is only applied if both the bucket and dataset do not exist
-   * @param cmekKey the name of the cmek key
+   * @param cmekKeyName the name of the cmek key
    * @throws IOException if there was an error creating or fetching any GCP resource
    */
   public static void createResources(BigQuery bigQuery, Storage storage,
                                      DatasetId datasetId, String bucketName, @Nullable String location,
-                                     @Nullable String cmekKey) throws IOException {
+                                     @Nullable CryptoKeyName cmekKeyName) throws IOException {
     Dataset dataset = bigQuery.getDataset(datasetId);
     Bucket bucket = storage.get(bucketName);
 
     if (dataset == null && bucket == null) {
-      createBucket(storage, bucketName, location, cmekKey,
+      createBucket(storage, bucketName, location, cmekKeyName,
                    () -> String.format("Unable to create Cloud Storage bucket '%s'", bucketName));
-      createDataset(bigQuery, datasetId, location,
+      createDataset(bigQuery, datasetId, location, cmekKeyName, 
                     () -> String.format("Unable to create BigQuery dataset '%s.%s'", datasetId.getProject(),
                                         datasetId.getDataset()));
     } else if (bucket == null) {
       createBucket(
-        storage, bucketName, dataset.getLocation(), cmekKey,
+        storage, bucketName, dataset.getLocation(), cmekKeyName,
         () -> String.format(
           "Unable to create Cloud Storage bucket '%s' in the same location ('%s') as BigQuery dataset '%s'. "
             + "Please use a bucket that is in the same location as the dataset.",
           bucketName, dataset.getLocation(), datasetId.getProject() + "." + datasetId.getDataset()));
     } else if (dataset == null) {
       createDataset(
-        bigQuery, datasetId, bucket.getLocation(),
+        bigQuery, datasetId, bucket.getLocation(), cmekKeyName, 
         () -> String.format(
           "Unable to create BigQuery dataset '%s' in the same location ('%s') as Cloud Storage bucket '%s'. "
             + "Please use a bucket that is in a supported location.",
@@ -105,14 +108,20 @@ public final class BigQuerySinkUtils {
    * @param bigQuery the bigQuery client.
    * @param dataset the Id of the dataset to create.
    * @param location Location for this dataset.
+   * @param cmekKeyName CMEK key to use for this dataset.
    * @param errorMessage Supplier for the error message to output if the dataset could not be created.
    * @throws IOException if the dataset could not be created.
    */
-  private static void createDataset(BigQuery bigQuery, DatasetId dataset, @Nullable String location,
-                                    Supplier<String> errorMessage) throws IOException {
+  public static void createDataset(BigQuery bigQuery, DatasetId dataset, @Nullable String location,
+                                   @Nullable CryptoKeyName cmekKeyName,
+                                   Supplier<String> errorMessage) throws IOException {
     DatasetInfo.Builder builder = DatasetInfo.newBuilder(dataset);
     if (location != null) {
       builder.setLocation(location);
+    }
+    if (cmekKeyName != null) {
+      builder.setDefaultEncryptionConfiguration(
+        EncryptionConfiguration.newBuilder().setKmsKeyName(cmekKeyName.toString()).build());
     }
     try {
       bigQuery.create(builder.build());
@@ -131,14 +140,15 @@ public final class BigQuerySinkUtils {
    * @param storage GCS Client.
    * @param bucket Bucket Name.
    * @param location Location for this bucket.
-   * @param cmekKey CMEK key to use for this bucket.
+   * @param cmekKeyName CMEK key to use for this bucket.
    * @param errorMessage Supplier for the error message to output if the bucket could not be created.
    * @throws IOException if the bucket could not be created.
    */
   private static void createBucket(Storage storage, String bucket, @Nullable String location,
-                                   @Nullable String cmekKey, Supplier<String> errorMessage) throws IOException {
+                                   @Nullable CryptoKeyName cmekKeyName,
+                                   Supplier<String> errorMessage) throws IOException {
     try {
-      GCPUtils.createBucket(storage, bucket, location, cmekKey);
+      GCPUtils.createBucket(storage, bucket, location, cmekKeyName);
     } catch (StorageException e) {
       if (e.getCode() != 409) {
         // A conflict means the bucket already exists

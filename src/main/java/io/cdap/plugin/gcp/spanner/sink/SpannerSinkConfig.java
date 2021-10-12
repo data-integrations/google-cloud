@@ -23,6 +23,7 @@ import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.plugin.gcp.common.CmekUtils;
 import io.cdap.plugin.gcp.common.GCPReferenceSinkConfig;
 import io.cdap.plugin.gcp.spanner.common.SpannerUtil;
 
@@ -82,6 +83,13 @@ public class SpannerSinkConfig extends GCPReferenceSinkConfig {
   @Macro
   private String schema;
 
+  @Name(NAME_CMEK_KEY)
+  @Macro
+  @Nullable
+  @Description("The GCP customer managed encryption key (CMEK) name used to encrypt data written to " +
+    "any database created by the plugin. If the database already exists, this is ignored.")
+  protected String cmekKey;
+
   public SpannerSinkConfig(String referenceName, String table, @Nullable Integer batchSize, String instance,
                            String database, @Nullable String keys, String schema) {
     this.referenceName = referenceName;
@@ -132,8 +140,12 @@ public class SpannerSinkConfig extends GCPReferenceSinkConfig {
         }
       }
     }
+    /* Commenting out this code for 6.5.1
+    if (!containsMacro(NAME_CMEK_KEY) && !Strings.isNullOrEmpty(cmekKey)) {
+      CmekUtils.getCmekKey(cmekKey, collector);
+    }
+    */
   }
-
   /**
    * Returns schema object.
    */

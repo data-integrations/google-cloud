@@ -17,11 +17,16 @@
 package io.cdap.plugin.gcp.bigquery.sqlengine;
 
 import com.google.cloud.bigquery.QueryJobConfiguration;
+import com.google.cloud.kms.v1.CryptoKeyName;
+import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.engine.sql.SQLEngineException;
 import io.cdap.plugin.gcp.bigquery.common.BigQueryBaseConfig;
+import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
+import io.cdap.plugin.gcp.common.CmekUtils;
 
 import javax.annotation.Nullable;
 
@@ -45,6 +50,14 @@ public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
   @Description("The location where the BigQuery dataset will get created. " +
     "This value is ignored if the dataset or temporary bucket already exists.")
   protected String location;
+
+  @Name(NAME_CMEK_KEY)
+  @Macro
+  @Nullable
+  @Description("The GCP customer managed encryption key (CMEK) name used to encrypt data written to " +
+    "any bucket or dataset/table created by the plugin. If the bucket or dataset/table already exists, " +
+    "this is ignored.")
+  protected String cmekKey;
 
   @Name(NAME_RETAIN_TABLES)
   @Macro
@@ -97,5 +110,29 @@ public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
       && !PRIORITY_INTERACTIVE.equalsIgnoreCase(jobPriority)) {
       throw new SQLEngineException("Property 'jobPriority' must be 'batch' or 'interactive'");
     }
+  }
+
+  public void validate(FailureCollector failureCollector) {
+    validate();
+    String bucket = getBucket();
+    if (!containsMacro(NAME_BUCKET)) {
+      BigQueryUtil.validateBucket(bucket, NAME_BUCKET, failureCollector);
+    }
+    if (!containsMacro(NAME_DATASET)) {
+      BigQueryUtil.validateDataset(dataset, NAME_DATASET, failureCollector);
+    }
+    /* Commenting out this code for 6.5.1
+    if (!containsMacro(NAME_CMEK_KEY) && !Strings.isNullOrEmpty(cmekKey)) {
+      validateCmekKey(failureCollector);
+    }
+    */
+  }
+
+  public void validateCmekKey(FailureCollector failureCollector) {
+    CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(cmekKey, failureCollector);
+    if (containsMacro(NAME_LOCATION)) {
+      return;
+    }
+    validateCmekKeyLocation(cmekKeyName, null, location, failureCollector);
   }
 }

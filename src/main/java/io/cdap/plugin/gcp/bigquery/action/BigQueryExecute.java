@@ -19,6 +19,8 @@ package io.cdap.plugin.gcp.bigquery.action;
 import com.google.auth.Credentials;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
+import com.google.cloud.bigquery.Dataset;
+import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.EncryptionConfiguration;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldValueList;
@@ -30,6 +32,7 @@ import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableResult;
+import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
@@ -38,7 +41,9 @@ import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.action.Action;
 import io.cdap.cdap.etl.api.action.ActionContext;
+import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
+import io.cdap.plugin.gcp.common.CmekUtils;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,10 +79,11 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
       builder.setPriority(QueryJobConfiguration.Priority.INTERACTIVE);
     }
 
-    String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
-    if (cmekKey != null) {
+    CryptoKeyName cmekKeyName = config.getCmekKey(context.getArguments(), context.getFailureCollector());
+    context.getFailureCollector().getOrThrowException();
+    if (cmekKeyName != null) {
       builder.setDestinationEncryptionConfiguration(
-        EncryptionConfiguration.newBuilder().setKmsKeyName(cmekKey).build());
+        EncryptionConfiguration.newBuilder().setKmsKeyName(cmekKeyName.toString()).build());
     }
 
     // Save the results of the query to a permanent table.
@@ -100,9 +106,17 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
 
     // API request - starts the query.
     Credentials credentials = config.getServiceAccount() == null ?
-                                null : GCPUtils.loadServiceAccountCredentials(config.getServiceAccount(),
-                                                                              config.isServiceAccountFilePath());
+      null : GCPUtils.loadServiceAccountCredentials(config.getServiceAccount(),
+                                                    config.isServiceAccountFilePath());
     BigQuery bigQuery = GCPUtils.getBigQuery(config.getProject(), credentials);
+    //create dataset to store the results if not exists
+    String datasetName = config.getDataset();
+    String tableName = config.getTable();
+    if (!Strings.isNullOrEmpty(datasetName) && !Strings.isNullOrEmpty(tableName)) {
+      BigQuerySinkUtils.createDataset(bigQuery, DatasetId.of(datasetName), config.getLocation(), cmekKeyName,
+                                      () -> String.format("Unable to create BigQuery dataset '%s'", datasetName));
+    }
+
     Job queryJob = bigQuery.create(JobInfo.newBuilder(queryConfig).setJobId(jobId).build());
 
     LOG.info("Executing SQL as job {}.", jobId.getJob());
@@ -159,11 +173,12 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     private static final String SQL = "sql";
     private static final String DATASET = "dataset";
     private static final String TABLE = "table";
+    private static final String NAME_LOCATION = "location";
 
     @Description("Dialect of the SQL command. The value must be 'legacy' or 'standard'. " +
-                   "If set to 'standard', the query will use BigQuery's standard SQL: " +
-                   "https://cloud.google.com/bigquery/sql-reference/. If set to 'legacy', BigQuery's legacy SQL " +
-                   "dialect will be used for this query.")
+      "If set to 'standard', the query will use BigQuery's standard SQL: " +
+      "https://cloud.google.com/bigquery/sql-reference/. If set to 'legacy', BigQuery's legacy SQL " +
+      "dialect will be used for this query.")
     @Macro
     private String dialect;
 
@@ -174,10 +189,10 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
 
     @Name(MODE)
     @Description("Mode to execute the query in. The value must be 'batch' or 'interactive'. " +
-                   "An interactive query is executed as soon as possible and counts towards the concurrent rate " +
-                   "limit and the daily rate limit. A batch query is queued and started as soon as idle resources " +
-                   "are available, usually within a few minutes. If the query hasn't started within 3 hours, " +
-                   "its priority is changed to 'interactive'")
+      "An interactive query is executed as soon as possible and counts towards the concurrent rate " +
+      "limit and the daily rate limit. A batch query is queued and started as soon as idle resources " +
+      "are available, usually within a few minutes. If the query hasn't started within 3 hours, " +
+      "its priority is changed to 'interactive'")
     @Macro
     private String mode;
 
@@ -185,6 +200,7 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     @Macro
     private String useCache;
 
+    @Name(NAME_LOCATION)
     @Description("Location of the job. Must match the location of the dataset specified in the query. Defaults to 'US'")
     @Macro
     private String location;
@@ -201,11 +217,18 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     @Nullable
     private String table;
 
+    @Name(NAME_CMEK_KEY)
+    @Macro
+    @Nullable
+    @Description("The GCP customer managed encryption key (CMEK) name used to encrypt data written to " +
+      "any dataset/table created by the plugin. If the dataset/table already exists, this is ignored.")
+    private String cmekKey;
+
     @Description("Row as arguments. For example, if the query is " +
-                   "'select min(id) as min_id, max(id) as max_id from my_dataset.my_table'," +
-                   "an arguments for 'min_id' and 'max_id' will be set based on the query results. " +
-                   "Plugins further down the pipeline can then" +
-                   "reference these values with macros ${min_id} and ${max_id}.")
+      "'select min(id) as min_id, max(id) as max_id from my_dataset.my_table'," +
+      "an arguments for 'min_id' and 'max_id' will be set based on the query results. " +
+      "Plugins further down the pipeline can then" +
+      "reference these values with macros ${min_id} and ${max_id}.")
     @Macro
     private String rowAsArguments;
 
@@ -213,6 +236,19 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
       this.dialect = dialect;
       this.sql = sql;
       this.mode = mode;
+    }
+
+    private Config(@Nullable String project, @Nullable String serviceAccountType, @Nullable String serviceFilePath,
+                   @Nullable String serviceAccountJson, @Nullable String dataset, @Nullable String table,
+                   @Nullable String location, @Nullable String cmekKey) {
+      this.project = project;
+      this.serviceAccountType = serviceAccountType;
+      this.serviceFilePath = serviceFilePath;
+      this.serviceAccountJson = serviceAccountJson;
+      this.dataset = dataset;
+      this.table = table;
+      this.location = location;
+      this.cmekKey = cmekKey;
     }
 
     public boolean isLegacySQL() {
@@ -289,7 +325,31 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
         BigQueryUtil.validateTable(table, TABLE, failureCollector);
       }
 
+      /* Commenting out this code for 6.5.1
+      if (!containsMacro(NAME_CMEK_KEY) && !Strings.isNullOrEmpty(cmekKey)) {
+        validateCmekKey(failureCollector);
+      }
+      */
+
       failureCollector.getOrThrowException();
+    }
+
+    void validateCmekKey(FailureCollector failureCollector) {
+      CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(cmekKey, failureCollector);
+      //these fields are needed to check if bucket exists or not and for location validation
+      if (cmekKeyName == null || containsMacro(DATASET) || containsMacro(NAME_LOCATION) || containsMacro(TABLE) ||
+        projectOrServiceAccountContainsMacro() || Strings.isNullOrEmpty(dataset) || Strings.isNullOrEmpty(table)) {
+        return;
+      }
+      String datasetName = getDataset();
+      DatasetId datasetId = DatasetId.of(datasetName);
+      TableId tableId = TableId.of(datasetName, getTable());
+      BigQuery bigQuery = getBigQuery(failureCollector);
+      if (bigQuery == null) {
+        return;
+      }
+      CmekUtils.validateCmekKeyAndDatasetOrTableLocation(bigQuery, datasetId, tableId, cmekKeyName, location,
+                                                         failureCollector);
     }
 
     public void validateSQLSyntax(FailureCollector failureCollector, BigQuery bigQuery) {
@@ -312,6 +372,78 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
         failureCollector.getOrThrowException();
       }
       return GCPUtils.getBigQuery(getProject(), credentials);
+    }
+
+    public static Builder builder() {
+      return new Builder();
+    }
+
+    /**
+     * BigQuery Execute configuration builder.
+     */
+    public static class Builder {
+      private String serviceAccountType;
+      private String serviceFilePath;
+      private String serviceAccountJson;
+      private String project;
+      private String dataset;
+      private String table;
+      private String cmekKey;
+      private String location;
+
+      public Builder setProject(@Nullable String project) {
+        this.project = project;
+        return this;
+      }
+
+      public Builder setServiceAccountType(@Nullable String serviceAccountType) {
+        this.serviceAccountType = serviceAccountType;
+        return this;
+      }
+
+      public Builder setServiceFilePath(@Nullable String serviceFilePath) {
+        this.serviceFilePath = serviceFilePath;
+        return this;
+      }
+
+      public Builder setServiceAccountJson(@Nullable String serviceAccountJson) {
+        this.serviceAccountJson = serviceAccountJson;
+        return this;
+      }
+
+      public Builder setDataset(@Nullable String dataset) {
+        this.dataset = dataset;
+        return this;
+      }
+
+      public Builder setTable(@Nullable String table) {
+        this.table = table;
+        return this;
+      }
+
+      public Builder setCmekKey(@Nullable String cmekKey) {
+        this.cmekKey = cmekKey;
+        return this;
+      }
+
+      public Builder setLocation(@Nullable String location) {
+        this.location = location;
+        return this;
+      }
+
+      public Config build() {
+        return new Config(
+          project,
+          serviceAccountType,
+          serviceFilePath,
+          serviceAccountJson,
+          dataset,
+          table,
+          location,
+          cmekKey
+        );
+      }
+
     }
   }
 }

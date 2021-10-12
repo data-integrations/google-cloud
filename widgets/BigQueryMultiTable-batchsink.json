@@ -168,6 +168,14 @@
           "widget-attributes": {
             "default": "US"
           }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Encryption Key Name",
+          "name": "cmekKey",
+          "widget-attributes": {
+            "placeholder": "projects/<gcp-project-id>/locations/<key-location>/keyRings/<key-ring-name>/cryptoKeys/<key-name>"
+          }
         }
       ]
     }

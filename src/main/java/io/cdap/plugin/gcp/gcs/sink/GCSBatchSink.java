@@ -17,6 +17,7 @@
 package io.cdap.plugin.gcp.gcs.sink;
 
 import com.google.auth.Credentials;
+import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
@@ -39,6 +40,7 @@ import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.format.FileFormat;
 import io.cdap.plugin.format.plugin.AbstractFileSink;
 import io.cdap.plugin.format.plugin.FileSinkProperties;
+import io.cdap.plugin.gcp.common.CmekUtils;
 import io.cdap.plugin.gcp.common.GCPReferenceSinkConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.Formats;
@@ -99,7 +101,8 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
   @Override
   public void prepareRun(BatchSinkContext context) throws Exception {
     super.prepareRun(context);
-    String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
+    CryptoKeyName cmekKeyName = config.getCmekKey(context.getArguments(), context.getFailureCollector());
+    context.getFailureCollector().getOrThrowException();
 
     Boolean isServiceAccountFilePath = config.isServiceAccountFilePath();
     if (isServiceAccountFilePath == null) {
@@ -120,7 +123,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
           + "Ensure you entered the correct bucket path and have permissions for it.", e);
     }
     if (bucket == null) {
-      GCPUtils.createBucket(storage, config.getBucket(), config.getLocation(), cmekKey);
+      GCPUtils.createBucket(storage, config.getBucket(), config.getLocation(), cmekKeyName);
     }
   }
 
@@ -330,6 +333,13 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     @Description("Advanced feature to specify file output name prefix.")
     private String outputFileNameBase;
 
+    @Name(NAME_CMEK_KEY)
+    @Macro
+    @Nullable
+    @Description("The GCP customer managed encryption key (CMEK) name used to encrypt data written to " +
+      "any bucket created by the plugin. If the bucket already exists, this is ignored.")
+    protected String cmekKey;
+
     @Override
     public void validate() {
       // no-op
@@ -363,6 +373,12 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
         }
       }
 
+      /* Commenting out this code for 6.5.1
+      if (!containsMacro(NAME_CMEK_KEY) && !Strings.isNullOrEmpty(cmekKey)) {
+        validateCmekKey(collector);
+      }
+      */
+
       try {
         getSchema();
       } catch (IllegalArgumentException e) {
@@ -376,6 +392,27 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
         collector.addFailure("File system properties must be a valid json.", null)
           .withConfigProperty(NAME_FS_PROPERTIES).withStacktrace(e.getStackTrace());
       }
+    }
+
+    public GCSBatchSinkConfig(@Nullable String referenceName, @Nullable String project,
+                              @Nullable String fileSystemProperties, @Nullable String serviceAccountType,
+                              @Nullable String serviceFilePath, @Nullable String serviceAccountJson,
+                              @Nullable String path, @Nullable String location, @Nullable String cmekKey,
+                              @Nullable String format, @Nullable String contentType,
+                              @Nullable String customContentType) {
+      super();
+      this.referenceName = referenceName;
+      this.project = project;
+      this.fileSystemProperties = fileSystemProperties;
+      this.serviceAccountType = serviceAccountType;
+      this.serviceFilePath = serviceFilePath;
+      this.serviceAccountJson = serviceAccountJson;
+      this.path = path;
+      this.location = location;
+      this.cmekKey = cmekKey;
+      this.format = format;
+      this.contentType = contentType;
+      this.customContentType = customContentType;
     }
 
     //This method validates the specified content type for the used format.
@@ -523,6 +560,127 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     @Nullable
     public String getOutputFileNameBase() {
       return outputFileNameBase;
+    }
+
+    public GCSBatchSinkConfig() {
+      super();
+    }
+
+    //This method validated the pattern of CMEK Key resource ID.
+    void validateCmekKey(FailureCollector failureCollector) {
+      CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(cmekKey, failureCollector);
+
+      //these fields are needed to check if bucket exists or not and for location validation
+      if (cmekKeyName == null || containsMacro(NAME_PATH) || containsMacro(NAME_LOCATION) ||
+        projectOrServiceAccountContainsMacro()) {
+        return;
+      }
+
+      Storage storage = GCPUtils.getStorage(getProject(), getCredentials(failureCollector));
+      if (storage == null) {
+        return;
+      }
+      CmekUtils.validateCmekKeyAndBucketLocation(storage, GCSPath.from(path), cmekKeyName, location, failureCollector);
+    }
+
+    public static Builder builder() {
+      return new Builder();
+    }
+
+    /**
+     * GCS Batch Sink configuration builder.
+     */
+    public static class Builder {
+      private String referenceName;
+      private String serviceAccountType;
+      private String serviceFilePath;
+      private String serviceAccountJson;
+      private String fileSystemProperties;
+      private String project;
+      private String gcsPath;
+      private String cmekKey;
+      private String location;
+      private String format;
+      private String contentType;
+      private String customContentType;
+
+      public Builder setReferenceName(@Nullable String referenceName) {
+        this.referenceName = referenceName;
+        return this;
+      }
+
+      public Builder setProject(@Nullable String project) {
+        this.project = project;
+        return this;
+      }
+
+      public Builder setServiceAccountType(@Nullable String serviceAccountType) {
+        this.serviceAccountType = serviceAccountType;
+        return this;
+      }
+
+      public Builder setServiceFilePath(@Nullable String serviceFilePath) {
+        this.serviceFilePath = serviceFilePath;
+        return this;
+      }
+
+      public Builder setServiceAccountJson(@Nullable String serviceAccountJson) {
+        this.serviceAccountJson = serviceAccountJson;
+        return this;
+      }
+
+      public Builder setGcsPath(@Nullable String gcsPath) {
+        this.gcsPath = gcsPath;
+        return this;
+      }
+
+      public Builder setCmekKey(@Nullable String cmekKey) {
+        this.cmekKey = cmekKey;
+        return this;
+      }
+
+      public Builder setLocation(@Nullable String location) {
+        this.location = location;
+        return this;
+      }
+
+      public Builder setFileSystemProperties(@Nullable String fileSystemProperties) {
+        this.fileSystemProperties = fileSystemProperties;
+        return this;
+      }
+
+      public Builder setFormat(@Nullable String format) {
+        this.format = format;
+        return this;
+      }
+
+      public Builder setContentType(@Nullable String contentType) {
+        this.contentType = contentType;
+        return this;
+      }
+
+      public Builder setCustomContentType(@Nullable String customContentType) {
+        this.customContentType = customContentType;
+        return this;
+      }
+
+      public GCSBatchSink.GCSBatchSinkConfig build() {
+        return new GCSBatchSink.GCSBatchSinkConfig(
+          referenceName,
+          project,
+          fileSystemProperties,
+          serviceAccountType,
+          serviceFilePath,
+          serviceAccountJson,
+          gcsPath,
+          location,
+          cmekKey,
+          format,
+          contentType,
+          customContentType
+        );
+      }
+
     }
   }
 }
