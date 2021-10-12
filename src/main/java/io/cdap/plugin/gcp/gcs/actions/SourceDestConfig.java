@@ -49,7 +49,7 @@ public class SourceDestConfig extends GCPConfig {
 
   @Name(NAME_DEST_PATH)
   @Macro
-  @Description("Path to the destination. The bucket must already exist.")
+  @Description("Path to the destination. The bucket will be created if it does not exist.")
   private String destPath;
 
   @Macro
@@ -60,7 +60,7 @@ public class SourceDestConfig extends GCPConfig {
   @Name(NAME_LOCATION)
   @Macro
   @Nullable
-  @Description("The location where the gcs buckets will get created. " +
+  @Description("The location where the GCS bucket will get created. " +
     "This value is ignored if the bucket already exists.")
   protected String location;
 

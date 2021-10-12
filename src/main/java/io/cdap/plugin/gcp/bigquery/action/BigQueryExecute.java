@@ -221,7 +221,7 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     @Macro
     @Nullable
     @Description("The GCP customer managed encryption key (CMEK) name used to encrypt data written to " +
-      "any dataset/table created by the plugin. If the dataset/table already exists, this is ignored.")
+      "any dataset or table created by the plugin. If the dataset or table already exists, this is ignored.")
     private String cmekKey;
 
     @Description("Row as arguments. For example, if the query is " +

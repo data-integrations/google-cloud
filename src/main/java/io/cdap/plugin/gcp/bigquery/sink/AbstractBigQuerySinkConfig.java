@@ -81,7 +81,7 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
   @Macro
   @Nullable
   @Description("The GCP customer managed encryption key (CMEK) name used to encrypt data written to " +
-    "any bucket or dataset/table created by the plugin. If the bucket or dataset/table already exists, " +
+    "any bucket, dataset, or table created by the plugin. If the bucket, dataset, or table already exists, " +
     "this is ignored.")
   protected String cmekKey;
 
