@@ -13,7 +13,7 @@ import org.junit.runner.RunWith;
  */
 @RunWith(Cucumber.class)
 @CucumberOptions(
-        features = {"src/e2e-test/java/features"},
+        features = {"src/e2e-test/features"},
         glue = {"io.cdap.plugin.gcp.stepsdesign"},
         monochrome = true,
         plugin = {"pretty", "html:target/cucumber-html-report", "json:target/cucumber-reports/cucumber.json",
