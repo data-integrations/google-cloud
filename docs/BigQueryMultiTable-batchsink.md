@@ -49,8 +49,8 @@ Should only be used with the Insert operation.
 **Location:** The location where the big query datasets will get created. This value is ignored
 if the dataset or temporary bucket already exist.
 
-**Encryption Key Name**: Used to encrypt data written to any bucket, dataset or table created by the plugin.
-If the bucket, dataset or table already exists, this is ignored.
+**Encryption Key Name**: Used to encrypt data written to any bucket, dataset, or table created by the plugin.
+If the bucket, dataset, or table already exists, this is ignored.
 
 **Split Field:** The name of the field that will be used to determine which table to write to. If unspecified, it
 defaults to `tablename`. This field is used when Allow Flexible Schemas in Output configuration is enabled.
