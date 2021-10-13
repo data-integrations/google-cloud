@@ -1,5 +1,6 @@
 /**
- * Info about this package doing something for package-info.java file.
+ * @Copyright
+ * This class is the runner class to run the GCS test cases
  */
 package io.cdap.plugin.gcp.tests.runner;
 import io.cucumber.junit.Cucumber;

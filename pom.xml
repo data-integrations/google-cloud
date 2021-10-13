@@ -565,13 +565,6 @@
       <artifactId>httpclient</artifactId>
       <version>${httpclient.version}</version>
     </dependency>
-    <dependency>
-      <groupId>io.cucumber</groupId>
-      <artifactId>cucumber-junit</artifactId>
-      <version>4.8.1</version>
-      <scope>compile</scope>
-    </dependency>
-
   </dependencies>
 
   <build>
@@ -805,8 +798,7 @@
     <profile>
       <id>e2e-tests</id>
       <properties>
-        <maven.test.skip>false</maven.test.skip>
-        <TestSourceDirectory>src/e2e-test/java</TestSourceDirectory>
+        <testSourceLocation>src/e2e-test/java</testSourceLocation>
       </properties>
       <dependencies>
         <dependency>
