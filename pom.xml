@@ -97,6 +97,7 @@
     <powermock.version>2.0.2</powermock.version>
     <slf4j.version>1.7.5</slf4j.version>
     <spark.version>2.3.1</spark.version>
+    <testSourceLocation>${project.basedir}/src/test/java/</testSourceLocation>
   </properties>
 
   <dependencyManagement>
@@ -564,10 +565,10 @@
       <artifactId>httpclient</artifactId>
       <version>${httpclient.version}</version>
     </dependency>
-
   </dependencies>
 
   <build>
+    <testSourceDirectory>${testSourceLocation}</testSourceDirectory>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -796,13 +797,16 @@
 
     <profile>
       <id>e2e-tests</id>
+      <properties>
+        <testSourceLocation>src/e2e-test/java</testSourceLocation>
+      </properties>
       <dependencies>
-              <dependency>
-                <groupId>io.cdap.tests.e2e</groupId>
-                <artifactId>cdap-e2e-framework</artifactId>
-                <version>0.0.1-SNAPSHOT</version>
-                <scope>test</scope>
-              </dependency>
+        <dependency>
+          <groupId>io.cdap.tests.e2e</groupId>
+          <artifactId>cdap-e2e-framework</artifactId>
+          <version>0.0.1-SNAPSHOT</version>
+          <scope>test</scope>
+        </dependency>
       </dependencies>
     </profile>
   </profiles>
