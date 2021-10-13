@@ -97,7 +97,7 @@
     <powermock.version>2.0.2</powermock.version>
     <slf4j.version>1.7.5</slf4j.version>
     <spark.version>2.3.1</spark.version>
-    <testSourceLocation>${project.basedir}/src/e2e-test/java/</testSourceLocation>
+    <testSourceLocation>${project.basedir}/src/test/java/</testSourceLocation>
   </properties>
 
   <dependencyManagement>
@@ -576,11 +576,6 @@
 
   <build>
     <testSourceDirectory>${testSourceLocation}</testSourceDirectory>
-<!--    <testResources>-->
-<!--    <testResource>-->
-<!--      <directory>${basedir}/src/e2e-test/resources</directory>-->
-<!--    </testResource>-->
-<!--    </testResources>-->
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -811,7 +806,7 @@
       <id>e2e-tests</id>
       <properties>
         <maven.test.skip>false</maven.test.skip>
-        <TestSourceDirectory>${testSourceLocation}</TestSourceDirectory>
+        <TestSourceDirectory>src/e2e-test/java</TestSourceDirectory>
       </properties>
       <dependencies>
         <dependency>

@@ -1,7 +1,7 @@
 /**
  * Info about this package doing something for package-info.java file.
  */
-package io.cdap.plugin.gcp.runner;
+package io.cdap.plugin.gcp.tests.runner;
 import io.cucumber.junit.Cucumber;
 import io.cucumber.junit.CucumberOptions;
 import org.junit.runner.RunWith;

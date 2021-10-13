@@ -29,7 +29,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.UUID;
-
 import static io.cdap.e2e.utils.RemoteClass.createDriverFromSession;
 
 /**
