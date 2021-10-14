@@ -155,8 +155,8 @@ public class GCSBasicDemo implements CdfHelper {
     }
 
     @Then("Open Logs")
-    public void openLogs() throws FileNotFoundException {
-       // CdfPipelineRunAction.logsClick();
+    public void openLogs() throws FileNotFoundException, InterruptedException {
+        CdfPipelineRunAction.logsClick();
         BeforeActions.scenario.write(CdfPipelineRunAction.captureRawLogs());
         PrintWriter out = new PrintWriter(BeforeActions.myObj);
         out.println(CdfPipelineRunAction.captureRawLogs());
