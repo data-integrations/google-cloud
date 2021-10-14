@@ -37,6 +37,7 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import stepsDesign.BeforeActions;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -155,7 +156,7 @@ public class GCSBasicDemo implements CdfHelper {
     }
 
     @Then("Open Logs")
-    public void openLogs() throws FileNotFoundException {
+    public void openLogs() throws FileNotFoundException, InterruptedException {
         CdfPipelineRunAction.logsClick();
         BeforeActions.scenario.write(CdfPipelineRunAction.captureRawLogs());
         PrintWriter out = new PrintWriter(BeforeActions.myObj);
