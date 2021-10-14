@@ -66,6 +66,7 @@ import io.cdap.plugin.gcp.gcs.GCSPath;
 import io.cdap.plugin.gcp.gcs.StorageClient;
 import io.cdap.plugin.gcp.gcs.sink.GCSBatchSink;
 
+import org.apache.avro.ValidateAll;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -130,11 +131,6 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     if (!config.getConnection().canConnect() || config.getServiceAccountType() == null ||
       (config.isServiceAccountFilePath() && config.autoServiceAccountUnavailable()) ||
       (config.tryGetProject() == null)) {
-      // This code is added as connection properties are coming as null while deploying pipeline if useConnection is
-      // true. We are getting similar issue in GCS/BQ source plugin also.
-      if (config.getAssetType().equalsIgnoreCase(STORAGE_BUCKET_ASSET_TYPE)) {
-        config.validateFormatForStorageBucket(pipelineConfigurer, collector);
-      }
       return;
     }
 
@@ -162,9 +158,10 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
       config.getLocation(), config.getLake(), config.getZone(), config.getAsset());
     if (config.getAssetType().equals(BIGQUERY_DATASET_ASSET_TYPE)) {
       config.validateBigQueryDataset(context.getInputSchema(), context.getOutputSchema(), collector, dataplexInterface);
-      prepareRunBigQueryDataset(context, dataplexInterface);
+      prepareRunBigQueryDataset(context);
     } else if (config.getAssetType().equals(STORAGE_BUCKET_ASSET_TYPE)) {
-      prepareRunStorageBucket(context, dataplexInterface);
+      config.validateStorageBucket(collector);
+      prepareRunStorageBucket(context);
     }
   }
 
@@ -187,12 +184,20 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
   @Override
   public void onRunFinish(boolean succeeded, BatchSinkContext context) {
     if (this.config.getAssetType().equalsIgnoreCase(STORAGE_BUCKET_ASSET_TYPE)) {
-      emitMetrics(succeeded, context);
+      emitMetricsForStorageBucket(succeeded, context);
       return;
     }
-    onRunFinishForBigQueryDataset(succeeded, context);
+
+    Path gcsPath = new Path(String.format("gs://%s", runUUID));
     try {
-      recordMetric(succeeded, context);
+        FileSystem fs = gcsPath.getFileSystem(baseConfiguration);
+        if (fs.exists(gcsPath)) {
+          fs.delete(gcsPath, true);
+          LOG.debug("Deleted temporary directory '{}'", gcsPath);
+        }
+      emitMetricsForBigQueryDataset(succeeded, context);
+    } catch (IOException e) {
+      LOG.warn("Failed to delete temporary directory '{}': {}", gcsPath, e.getMessage());
     } catch (Exception exception) {
       LOG.warn("Exception while trying to emit metric. No metric will be emitted for the number of affected rows.",
         exception);
@@ -203,11 +208,9 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
    * prepare Run for BQ Dataset Asset. It will create necessary resources, and configuration methods
    *
    * @param context
-   * @param dataplexInterface
    * @throws Exception
    */
-  private void prepareRunBigQueryDataset(BatchSinkContext context,
-                                         DataplexInterface dataplexInterface) throws Exception {
+  private void prepareRunBigQueryDataset(BatchSinkContext context) throws Exception {
     FailureCollector collector = context.getFailureCollector();
     Credentials credentials = config.getCredentials();
     String project = config.getProject();
@@ -355,7 +358,7 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     context.addOutput(Output.of(outputName, new DataplexOutputFormatProvider(configuration, tableSchema, null)));
   }
 
-  void recordMetric(boolean succeeded, BatchSinkContext context) {
+  void emitMetricsForBigQueryDataset(boolean succeeded, BatchSinkContext context) {
     if (!succeeded) {
       return;
     }
@@ -395,31 +398,36 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     return 0;
   }
 
-  public void onRunFinishForBigQueryDataset(boolean succeeded, BatchSinkContext context) {
-    Path gcsPath = new Path(String.format("gs://%s", runUUID));
-
-    try {
-      FileSystem fs = gcsPath.getFileSystem(baseConfiguration);
-      if (fs.exists(gcsPath)) {
-        fs.delete(gcsPath, true);
-        LOG.debug("Deleted temporary directory '{}'", gcsPath);
-      }
-    } catch (IOException e) {
-      LOG.warn("Failed to delete temporary directory '{}': {}", gcsPath, e.getMessage());
-    }
-  }
-
   /**
    * This method will perform prepareRun tasks for Storage Bucket Asset.
    *
    * @param context
-   * @param dataplexInterface
    * @throws Exception
    */
-  private void prepareRunStorageBucket(BatchSinkContext context,
-                                       DataplexInterface dataplexInterface) throws Exception {
-    validateRunStorageBucket(context);
+  private void prepareRunStorageBucket(BatchSinkContext context) throws Exception {
+    ValidatingOutputFormat validatingOutputFormat = validateOutputFormatForRun(context);
     FailureCollector collector = context.getFailureCollector();
+    // record field level lineage information
+    // needs to happen before context.addOutput(), otherwise an external dataset without schema will be created.
+    Schema schema = config.getSchema(collector);
+    if (schema == null) {
+      schema = context.getInputSchema();
+    }
+    LineageRecorder lineageRecorder = new LineageRecorder(context, config.getReferenceName());
+    lineageRecorder.createExternalDataset(schema);
+    if (schema != null && schema.getFields() != null && !schema.getFields().isEmpty()) {
+      recordLineage(lineageRecorder,
+        schema.getFields().stream().map(Schema.Field::getName).collect(Collectors.toList()));
+    }
+
+    Map<String, String> outputProperties = new HashMap<>(validatingOutputFormat.getOutputFormatConfiguration());
+    String outputDir = getOutputDir(context.getLogicalStartTime());
+    outputProperties.put(FileOutputFormat.OUTDIR, outputDir);
+    outputProperties.put(DataplexOutputFormatProvider.DATAPLEX_OUTPUT_BASE_DIR, outputDir);
+    outputProperties.put(DataplexOutputFormatProvider.DATAPLEX_ASSET_TYPE, config.getAssetType());
+    outputProperties.putAll(getFileSystemProperties(context));
+    context.addOutput(Output.of(config.getReferenceName(),
+      new SinkOutputFormatProvider(validatingOutputFormat.getOutputFormatClassName(), outputProperties)));
     String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
     CryptoKeyName cmekKeyName = null;
     if (!Strings.isNullOrEmpty(cmekKey)) {
@@ -444,40 +452,19 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
   }
 
   /**
-   * Validates storage bucket properties and set OutputFormatValidator
+   * Validates output format for run  and return ValidatingOutputFormat
    *
    * @param context
    * @throws Exception
    */
-  private void validateRunStorageBucket(BatchSinkContext context) throws Exception {
+  private ValidatingOutputFormat validateOutputFormatForRun(BatchSinkContext context) throws Exception {
     FailureCollector collector = context.getFailureCollector();
-    config.validateStorageBucket(collector);
     String format = config.getFormat().toString().toLowerCase(Locale.ROOT);
     ValidatingOutputFormat validatingOutputFormat = getOutputFormatForRun(context);
     FormatContext formatContext = new FormatContext(collector, context.getInputSchema());
     config.validateOutputFormatProvider(formatContext, format, validatingOutputFormat);
     collector.getOrThrowException();
-    // record field level lineage information
-    // needs to happen before context.addOutput(), otherwise an external dataset without schema will be created.
-    Schema schema = config.getSchema(collector);
-    if (schema == null) {
-      schema = context.getInputSchema();
-    }
-    LineageRecorder lineageRecorder = new LineageRecorder(context, config.getReferenceName());
-    lineageRecorder.createExternalDataset(schema);
-    if (schema != null && schema.getFields() != null && !schema.getFields().isEmpty()) {
-      recordLineage(lineageRecorder,
-        schema.getFields().stream().map(Schema.Field::getName).collect(Collectors.toList()));
-    }
-
-    Map<String, String> outputProperties = new HashMap<>(validatingOutputFormat.getOutputFormatConfiguration());
-    String outputDir = getOutputDir(context.getLogicalStartTime());
-    outputProperties.put(FileOutputFormat.OUTDIR, outputDir);
-    outputProperties.put(DataplexOutputFormatProvider.DATAPLEX_OUTPUT_BASE_DIR, outputDir);
-    outputProperties.put(DataplexOutputFormatProvider.DATAPLEX_ASSET_TYPE, config.getAssetType());
-    outputProperties.putAll(getFileSystemProperties(context));
-    context.addOutput(Output.of(config.getReferenceName(),
-      new SinkOutputFormatProvider(validatingOutputFormat.getOutputFormatClassName(), outputProperties)));
+    return validatingOutputFormat;
   }
 
   protected Map<String, String> getFileSystemProperties(BatchSinkContext context) {
@@ -536,7 +523,7 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     return finalPath;
   }
 
-  private void emitMetrics(boolean succeeded, BatchSinkContext context) {
+  private void emitMetricsForStorageBucket(boolean succeeded, BatchSinkContext context) {
     if (!succeeded) {
       return;
     }

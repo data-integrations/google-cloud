@@ -78,10 +78,10 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   public static final String NAME_CONNECTION = "connection";
   public static final String NAME_USE_CONNECTION = "useConnection";
   public static final String NAME_SUFFIX = "suffix";
+  public static final String NAME_TABLE = "table";
   private static final Logger LOG = LoggerFactory.getLogger(DataplexBatchSinkConfig.class);
   private static final String WHERE = "WHERE";
   private static final String NAME_FORMAT = "format";
-  public static final String NAME_TABLE = "table";
   private static final String NAME_TABLE_KEY = "tableKey";
   private static final String NAME_DEDUPE_BY = "dedupeBy";
   private static final String NAME_OPERATION = "operation";
@@ -451,10 +451,14 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   private void configureDataplexException(String dataplexConfigProperty, String dataplexConfigPropType,
                                           ConnectorException e,
                                           FailureCollector failureCollector) {
-    if (("404").equals(e.getCode())) {
+    if (("404").equals(e.getCode()) || "400".equals(e.getCode())) {
       failureCollector
         .addFailure("'" + dataplexConfigProperty + "' could not be found. Please ensure that it exists in " +
           "Dataplex.", null).withConfigProperty(dataplexConfigPropType);
+    } else if ("403".equals(e.getCode())) {
+      failureCollector
+        .addFailure("'" + dataplexConfigProperty + "' could not be accessed. Please ensure that you have required" +
+          " permissions." , null).withConfigProperty(dataplexConfigPropType);
     } else {
       failureCollector.addFailure(e.getCode() + ": " + e.getMessage(), null)
         .withConfigProperty(dataplexConfigPropType);
@@ -1073,6 +1077,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
       }
     }
   }
+
   public boolean isServiceAccountFilePathAutoDetect() {
     return connection.getServiceAccountFilePath() != null &&
       GCPConnectorConfig.AUTO_DETECT.equalsIgnoreCase(connection.getServiceAccountFilePath());
@@ -1087,7 +1092,8 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
         GCPUtils.loadServiceAccountCredentials(getServiceAccount(), isServiceAccountFilePath())
           .createScoped(Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"));
     } else if (isServiceAccountFilePathAutoDetect()) {
-      credentials = ServiceAccountCredentials.getApplicationDefault();
+      credentials = ServiceAccountCredentials.getApplicationDefault().createScoped(
+        Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"));
     }
     return credentials;
   }

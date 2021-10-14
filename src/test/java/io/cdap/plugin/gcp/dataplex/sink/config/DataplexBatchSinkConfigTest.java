@@ -1,13 +1,29 @@
+/*
+ * Copyright © 2021 Cask Data, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+
 package io.cdap.plugin.gcp.dataplex.sink.config;
 
 import com.google.auth.oauth2.GoogleCredentials;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.mock.validation.MockFailureCollector;
+import io.cdap.plugin.gcp.common.GCPConnectorConfig;
 import io.cdap.plugin.gcp.dataplex.common.config.DataplexBaseConfig;
 import io.cdap.plugin.gcp.dataplex.sink.connection.DataplexInterface;
 import io.cdap.plugin.gcp.dataplex.sink.connection.out.DataplexInterfaceImpl;
-import io.cdap.plugin.gcp.dataplex.sink.connector.DataplexConnectorConfig;
 import io.cdap.plugin.gcp.dataplex.sink.exception.ConnectorException;
 import io.cdap.plugin.gcp.dataplex.sink.model.Asset;
 import io.cdap.plugin.gcp.dataplex.sink.model.Lake;
@@ -85,7 +101,7 @@ public class DataplexBatchSinkConfigTest {
   public void validateServiceAccountWhenIsServiceAccountJsonTrue() throws NoSuchFieldException {
     DataplexBatchSinkConfig dataplexBatchSinkConfig = new DataplexBatchSinkConfig();
     MockFailureCollector mockFailureCollector = new MockFailureCollector();
-    DataplexConnectorConfig dataplexConnectorConfig = mock(DataplexConnectorConfig.class);
+    GCPConnectorConfig dataplexConnectorConfig = mock(GCPConnectorConfig.class);
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("connection"),
       dataplexConnectorConfig);
     when(dataplexConnectorConfig.isServiceAccountJson()).thenReturn(new Boolean(Boolean.TRUE));
@@ -101,7 +117,7 @@ public class DataplexBatchSinkConfigTest {
   public void validateServiceAccountWhenIsServiceAccountJsonTrueAndFilePathIsNotNull() throws NoSuchFieldException {
     DataplexBatchSinkConfig dataplexBatchSinkConfig = new DataplexBatchSinkConfig();
     MockFailureCollector mockFailureCollector = new MockFailureCollector();
-    DataplexConnectorConfig dataplexConnectorConfig = mock(DataplexConnectorConfig.class);
+    GCPConnectorConfig dataplexConnectorConfig = mock(GCPConnectorConfig.class);
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("connection"),
       dataplexConnectorConfig);
     when(dataplexConnectorConfig.isServiceAccountJson()).thenReturn(new Boolean(Boolean.TRUE));
@@ -118,7 +134,7 @@ public class DataplexBatchSinkConfigTest {
   public void validateServiceAccountWhenMockedGoogleCredentials() throws Exception {
     DataplexBatchSinkConfig dataplexBatchSinkConfig = PowerMockito.spy(new DataplexBatchSinkConfig());
     MockFailureCollector mockFailureCollector = new MockFailureCollector();
-    DataplexConnectorConfig dataplexConnectorConfig = mock(DataplexConnectorConfig.class);
+    GCPConnectorConfig dataplexConnectorConfig = mock(GCPConnectorConfig.class);
     GoogleCredentials googleCredentials = PowerMockito.mock(GoogleCredentials.class);
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("connection"),
       dataplexConnectorConfig);
@@ -472,7 +488,7 @@ public class DataplexBatchSinkConfigTest {
   public void validateBigQueryDatasetWhenNoMacro() throws Exception {
     DataplexBatchSinkConfig dataplexBatchSinkConfig = PowerMockito.spy(new DataplexBatchSinkConfig());
     GoogleCredentials googleCredentials = PowerMockito.mock(GoogleCredentials.class);
-    DataplexConnectorConfig dataplexConnectorConfig = PowerMockito.spy(new DataplexConnectorConfig("", "", "", ""));
+    GCPConnectorConfig dataplexConnectorConfig = PowerMockito.spy(new GCPConnectorConfig("", "", "", ""));
     MockFailureCollector mockFailureCollector = new MockFailureCollector();
     Schema schema = mock(Schema.class);
     DataplexInterface dataplexInterfaceImpl = mock(DataplexInterfaceImpl.class);
@@ -499,7 +515,7 @@ public class DataplexBatchSinkConfigTest {
   @Test
   public void autoServiceAccountUnavailableWhenConnectionIsNullWithMock() throws Exception {
     DataplexBatchSinkConfig dataplexBatchSinkConfig = PowerMockito.spy(new DataplexBatchSinkConfig());
-    DataplexConnectorConfig dataplexConnectorConfig = PowerMockito.spy(new DataplexConnectorConfig("", "", "filePath",
+    GCPConnectorConfig dataplexConnectorConfig = PowerMockito.spy(new GCPConnectorConfig("", "", "filePath",
       ""));
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("connection"),
       dataplexConnectorConfig);

@@ -140,7 +140,11 @@ public class DataplexOutputFormatProvider implements ValidatingOutputFormat {
       // setting up the output directory based on taskAttempId to create the folder
       // in this format -> partition=taskAttemptId
       String taskAttemptId = taskAttemptContext.getTaskAttemptID().toString();
-      if (taskAttemptContext.getConfiguration().get(DATAPLEX_OUTPUT_BASE_DIR) != null) {
+      taskAttemptId = taskAttemptId.length() > 10 ? taskAttemptId.substring(taskAttemptId.length() - 10) :
+        taskAttemptId;
+      //starts with condition is added to identify reducer jobs, need to check for better alternatives.
+      if (taskAttemptContext.getConfiguration().get(DATAPLEX_OUTPUT_BASE_DIR) != null
+        && taskAttemptId.startsWith("r")) {
         String outDir = taskAttemptContext.getConfiguration().get(DATAPLEX_OUTPUT_BASE_DIR) +
           "partition=" + taskAttemptId;
         taskAttemptContext.getConfiguration().set(FileOutputFormat.OUTDIR, outDir);
