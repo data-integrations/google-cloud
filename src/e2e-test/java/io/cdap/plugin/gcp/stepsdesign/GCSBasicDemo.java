@@ -27,6 +27,7 @@ import io.cdap.e2e.utils.CdfHelper;
 import io.cdap.e2e.utils.GcpClient;
 import io.cdap.e2e.utils.SeleniumDriver;
 import io.cdap.e2e.utils.SeleniumHelper;
+import io.cdap.plugin.utils.BeforeActions;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
@@ -36,7 +37,6 @@ import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.WebDriverWait;
-import stepsDesign.BeforeActions;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -156,7 +156,7 @@ public class GCSBasicDemo implements CdfHelper {
 
     @Then("Open Logs")
     public void openLogs() throws FileNotFoundException {
-        CdfPipelineRunAction.logsClick();
+       // CdfPipelineRunAction.logsClick();
         BeforeActions.scenario.write(CdfPipelineRunAction.captureRawLogs());
         PrintWriter out = new PrintWriter(BeforeActions.myObj);
         out.println(CdfPipelineRunAction.captureRawLogs());
