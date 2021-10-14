@@ -1,5 +1,5 @@
 /**
- * Package contains the stepDesign for the GCP features.
+ * Package contains the utilities of hooks.
  */
 package io.cdap.plugin.utils;
 
