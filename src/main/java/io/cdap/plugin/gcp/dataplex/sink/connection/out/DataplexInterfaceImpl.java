@@ -19,7 +19,7 @@ package io.cdap.plugin.gcp.dataplex.sink.connection.out;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.gson.Gson;
 import io.cdap.plugin.gcp.dataplex.sink.connection.DataplexInterface;
-import io.cdap.plugin.gcp.dataplex.sink.exception.ConnectorException;
+import io.cdap.plugin.gcp.dataplex.sink.exception.DataplexException;
 import io.cdap.plugin.gcp.dataplex.sink.model.Asset;
 import io.cdap.plugin.gcp.dataplex.sink.model.Lake;
 import io.cdap.plugin.gcp.dataplex.sink.model.Location;
@@ -46,7 +46,7 @@ public class DataplexInterfaceImpl implements DataplexInterface {
 
     @Override
     public List<Location> listLocations(GoogleCredentials credentials,
-                                        String projectId) throws ConnectorException {
+                                        String projectId) throws DataplexException {
         LOGGER.info("Invoking to fetch the list of Dataplex locations for project id '{}'", projectId);
         StringBuilder urlBuilder = new StringBuilder();
         Gson gson = new Gson();
@@ -59,7 +59,7 @@ public class DataplexInterfaceImpl implements DataplexInterface {
 
     @Override
     public Location getLocation(GoogleCredentials credentials, String projectId, String locationId)
-      throws ConnectorException {
+      throws DataplexException {
         LOGGER.info("Retrieves Dataplex location based on location id '{}'", locationId);
         StringBuilder urlBuilder = new StringBuilder();
         Gson gson = new Gson();
@@ -70,7 +70,7 @@ public class DataplexInterfaceImpl implements DataplexInterface {
 
     @Override
     public List<Lake> listLakes(GoogleCredentials credentials, String projectId,
-                                String location) throws ConnectorException {
+                                String location) throws DataplexException {
         LOGGER.info("Retrieves the list of Dataplex lakes from location '{}'", location);
         StringBuilder urlBuilder = new StringBuilder();
         Gson gson = new Gson();
@@ -83,7 +83,7 @@ public class DataplexInterfaceImpl implements DataplexInterface {
 
     @Override
     public Lake getLake(GoogleCredentials credentials, String projectId, String location, String lakeId)
-      throws ConnectorException {
+      throws DataplexException {
         LOGGER.info("Retrieves the Dataplex lake based on lake id '{}'", lakeId);
         StringBuilder urlBuilder = new StringBuilder();
         Gson gson = new Gson();
@@ -95,7 +95,7 @@ public class DataplexInterfaceImpl implements DataplexInterface {
 
     @Override
     public List<Zone> listZones(GoogleCredentials credentials, String projectId,
-                                String location, String lakeId) throws ConnectorException {
+                                String location, String lakeId) throws DataplexException {
         LOGGER.info("Retrieves the list of Dataplex zones by lake id '{}'", lakeId);
         StringBuilder urlBuilder = new StringBuilder();
         Gson gson = new Gson();
@@ -109,7 +109,7 @@ public class DataplexInterfaceImpl implements DataplexInterface {
 
     @Override
     public Zone getZone(GoogleCredentials credentials, String projectId, String location, String lakeId,
-                        String zoneId) throws ConnectorException {
+                        String zoneId) throws DataplexException {
         LOGGER.info("Retrieves the details of Dataplex zone based on zone id '{}'", zoneId);
         StringBuilder urlBuilder = new StringBuilder();
         Gson gson = new Gson();
@@ -121,7 +121,7 @@ public class DataplexInterfaceImpl implements DataplexInterface {
 
     @Override
     public List<Asset> listAssets(GoogleCredentials credentials, String projectId,
-                                  String location, String lakeId, String zoneId) throws ConnectorException {
+                                  String location, String lakeId, String zoneId) throws DataplexException {
         LOGGER.info("Retrieves the list of Dataplex assets based on zone Id '{}'", zoneId);
         StringBuilder urlBuilder = new StringBuilder();
         Gson gson = new Gson();
@@ -135,7 +135,7 @@ public class DataplexInterfaceImpl implements DataplexInterface {
 
     @Override
     public Asset getAsset(GoogleCredentials credentials, String projectId,
-                          String location, String lakeId, String zoneId, String assetId) throws ConnectorException {
+                          String location, String lakeId, String zoneId, String assetId) throws DataplexException {
         LOGGER.info("Retrieves the details of Dataplex asset based on asset Id '{}'", assetId);
         StringBuilder urlBuilder = new StringBuilder();
         Gson gson = new Gson();

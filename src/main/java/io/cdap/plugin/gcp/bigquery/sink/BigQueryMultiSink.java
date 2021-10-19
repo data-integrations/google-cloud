@@ -128,7 +128,7 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
           com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
 
           BigQuerySinkUtils.validateSchema(tableName, bqSchema, configuredSchema, config.allowSchemaRelaxation,
-            config.isAllowSchemaRelaxation(), config.getDataset(),
+            config.isTruncateTableSet(), config.getDataset(),
             collector);
         }
 

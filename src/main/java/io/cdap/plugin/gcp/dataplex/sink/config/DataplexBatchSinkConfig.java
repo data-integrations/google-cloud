@@ -47,7 +47,7 @@ import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.dataplex.common.config.DataplexBaseConfig;
 import io.cdap.plugin.gcp.dataplex.sink.DataplexBatchSink;
 import io.cdap.plugin.gcp.dataplex.sink.connection.DataplexInterface;
-import io.cdap.plugin.gcp.dataplex.sink.exception.ConnectorException;
+import io.cdap.plugin.gcp.dataplex.sink.exception.DataplexException;
 import io.cdap.plugin.gcp.dataplex.sink.model.Asset;
 import io.cdap.plugin.gcp.dataplex.sink.model.Zone;
 
@@ -76,7 +76,6 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     ImmutableSet.of(FileFormat.AVRO, FileFormat.ORC, FileFormat.PARQUET);
   public static final int MAX_NUMBER_OF_COLUMNS = 4;
   public static final String NAME_CONNECTION = "connection";
-  public static final String NAME_USE_CONNECTION = "useConnection";
   public static final String NAME_SUFFIX = "suffix";
   public static final String NAME_TABLE = "table";
   private static final Logger LOG = LoggerFactory.getLogger(DataplexBatchSinkConfig.class);
@@ -230,13 +229,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     "STRING, DATE, TIMESTAMP, BOOLEAN or DECIMAL. Tables cannot be clustered on more than 4 fields. This " +
     "value is only used when the BigQuery table is automatically created and ignored if the table already exists.")
   protected String clusteringOrder;
-  // Commented the code as we are removing browse functionality from sink plugin as we are getting schema issue for
-  // assets.
-  /* @Name(NAME_USE_CONNECTION)
-  @Nullable
-  @Description("Whether to use an existing connection.")
-  private Boolean useConnection;
-*/
+
   @Name(NAME_CONNECTION)
   @Nullable
   @Macro
@@ -392,14 +385,14 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     if (!Strings.isNullOrEmpty(location) && !containsMacro(NAME_LOCATION)) {
       try {
         dataplexInterface.getLocation(credentials, tryGetProject(), location);
-      } catch (ConnectorException e) {
+      } catch (DataplexException e) {
         configureDataplexException(location, NAME_LOCATION, e, collector);
         return;
       }
       if (!Strings.isNullOrEmpty(lake) && !containsMacro(NAME_LAKE)) {
         try {
           dataplexInterface.getLake(credentials, tryGetProject(), location, lake);
-        } catch (ConnectorException e) {
+        } catch (DataplexException e) {
           configureDataplexException(lake, NAME_LAKE, e, collector);
           return;
         }
@@ -408,7 +401,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
           Zone zoneBean;
           try {
             zoneBean = dataplexInterface.getZone(credentials, tryGetProject(), location, lake, zone);
-          } catch (ConnectorException e) {
+          } catch (DataplexException e) {
             configureDataplexException(zone, NAME_ZONE, e, collector);
             return;
           }
@@ -437,7 +430,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
                     .withStacktrace(e.getStackTrace());
                 }
               }
-            } catch (ConnectorException e) {
+            } catch (DataplexException e) {
               configureDataplexException(asset, NAME_ASSET, e, collector);
               return;
             }
@@ -449,7 +442,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   }
 
   private void configureDataplexException(String dataplexConfigProperty, String dataplexConfigPropType,
-                                          ConnectorException e,
+                                          DataplexException e,
                                           FailureCollector failureCollector) {
     if (("404").equals(e.getCode()) || "400".equals(e.getCode())) {
       failureCollector
@@ -484,7 +477,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
         validateClusteringOrder(schema, collector);
         validateOperationProperties(schema, collector);
         validateConfiguredSchema(schema, collector, dataset);
-      } catch (ConnectorException e) {
+      } catch (DataplexException e) {
         LOG.debug(String.format("%s: %s", e.getCode(), e.getMessage()));
       }
 

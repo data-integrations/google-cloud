@@ -22,7 +22,7 @@ import javax.annotation.Nullable;
  * Custom Exception implementation for generic use within the plugin.
  *
  */
-public class ConnectorException extends Exception {
+public class DataplexException extends Exception {
 
   private static final long serialVersionUID = 1L;
 
@@ -36,7 +36,7 @@ public class ConnectorException extends Exception {
    * @param code exception code
    * @param message exception message
    */
-  public ConnectorException(String code, String message) {
+  public DataplexException(String code, String message) {
     this(code, message, null);
   }
 
@@ -45,7 +45,7 @@ public class ConnectorException extends Exception {
    * @param code exception code
    * @param cause exception cause
    */
-  public ConnectorException(String code, @Nullable Throwable cause) {
+  public DataplexException(String code, @Nullable Throwable cause) {
     this(code, cause != null ? cause.getMessage() : null, cause);
   }
 
@@ -55,7 +55,7 @@ public class ConnectorException extends Exception {
    * @param message exception message
    * @param cause exception cause
    */
-  public ConnectorException(String code, @Nullable String message, @Nullable Throwable cause) {
+  public DataplexException(String code, @Nullable String message, @Nullable Throwable cause) {
     this(code, message, cause, ENABLE_SUPPRESION, WRITABLE_STACK_TRACE);
   }
 
@@ -67,8 +67,8 @@ public class ConnectorException extends Exception {
    * @param enableSuppression enableSuppression
    * @param writableStackTrace exception trace
    */
-  protected ConnectorException(String code, @Nullable String message, @Nullable Throwable cause,
-                               boolean enableSuppression, boolean writableStackTrace) {
+  protected DataplexException(String code, @Nullable String message, @Nullable Throwable cause,
+                              boolean enableSuppression, boolean writableStackTrace) {
 
     super(message, cause, enableSuppression, writableStackTrace);
     this.code = code;

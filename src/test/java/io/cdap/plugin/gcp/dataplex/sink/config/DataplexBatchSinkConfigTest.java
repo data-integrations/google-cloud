@@ -24,7 +24,7 @@ import io.cdap.plugin.gcp.common.GCPConnectorConfig;
 import io.cdap.plugin.gcp.dataplex.common.config.DataplexBaseConfig;
 import io.cdap.plugin.gcp.dataplex.sink.connection.DataplexInterface;
 import io.cdap.plugin.gcp.dataplex.sink.connection.out.DataplexInterfaceImpl;
-import io.cdap.plugin.gcp.dataplex.sink.exception.ConnectorException;
+import io.cdap.plugin.gcp.dataplex.sink.exception.DataplexException;
 import io.cdap.plugin.gcp.dataplex.sink.model.Asset;
 import io.cdap.plugin.gcp.dataplex.sink.model.Lake;
 import io.cdap.plugin.gcp.dataplex.sink.model.Location;
@@ -184,13 +184,13 @@ public class DataplexBatchSinkConfigTest {
     MockFailureCollector mockFailureCollector = new MockFailureCollector();
     DataplexInterface dataplexInterfaceImpl = mock(DataplexInterfaceImpl.class);
     GoogleCredentials googleCredentials = PowerMockito.mock(GoogleCredentials.class);
-    ConnectorException connectorException = PowerMockito.spy(new ConnectorException("404", "error message"));
+    DataplexException dataplexException = PowerMockito.spy(new DataplexException("404", "error message"));
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("referenceName"),
       "test");
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("location"),
       "test");
     doReturn(googleCredentials).when(dataplexBatchSinkConfig).getCredentials();
-    PowerMockito.when(dataplexInterfaceImpl.getLocation(any(), any(), any())).thenThrow(connectorException);
+    PowerMockito.when(dataplexInterfaceImpl.getLocation(any(), any(), any())).thenThrow(dataplexException);
     dataplexBatchSinkConfig.validateAssetConfiguration(mockFailureCollector, dataplexInterfaceImpl);
     assertEquals(1, mockFailureCollector.getValidationFailures().size());
   }
@@ -206,7 +206,7 @@ public class DataplexBatchSinkConfigTest {
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("location"),
       "test");
     doReturn(googleCredentials).when(dataplexBatchSinkConfig).getCredentials();
-    PowerMockito.when(dataplexInterfaceImpl.getLocation(any(), any(), any())).thenThrow(ConnectorException.class);
+    PowerMockito.when(dataplexInterfaceImpl.getLocation(any(), any(), any())).thenThrow(DataplexException.class);
     dataplexBatchSinkConfig.validateAssetConfiguration(mockFailureCollector, dataplexInterfaceImpl);
     assertEquals(1, mockFailureCollector.getValidationFailures().size());
   }
@@ -235,7 +235,7 @@ public class DataplexBatchSinkConfigTest {
     MockFailureCollector mockFailureCollector = new MockFailureCollector();
     DataplexInterface dataplexInterfaceImpl = mock(DataplexInterfaceImpl.class);
     GoogleCredentials googleCredentials = PowerMockito.mock(GoogleCredentials.class);
-    ConnectorException connectorException = PowerMockito.spy(new ConnectorException("404", "error message"));
+    DataplexException dataplexException = PowerMockito.spy(new DataplexException("404", "error message"));
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("referenceName"),
       "test");
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("lake"), "example lake");
@@ -243,7 +243,7 @@ public class DataplexBatchSinkConfigTest {
       "test");
     doReturn(googleCredentials).when(dataplexBatchSinkConfig).getCredentials();
     PowerMockito.when(dataplexInterfaceImpl.getLocation(any(), any(), any())).thenReturn(new Location());
-    PowerMockito.when(dataplexInterfaceImpl.getLake(any(), any(), any(), any())).thenThrow(connectorException);
+    PowerMockito.when(dataplexInterfaceImpl.getLake(any(), any(), any(), any())).thenThrow(dataplexException);
     dataplexBatchSinkConfig.validateAssetConfiguration(mockFailureCollector, dataplexInterfaceImpl);
     assertEquals(1, mockFailureCollector.getValidationFailures().size());
   }
@@ -261,7 +261,7 @@ public class DataplexBatchSinkConfigTest {
       "test");
     doReturn(googleCredentials).when(dataplexBatchSinkConfig).getCredentials();
     PowerMockito.when(dataplexInterfaceImpl.getLocation(any(), any(), any())).thenReturn(new Location());
-    PowerMockito.when(dataplexInterfaceImpl.getLake(any(), any(), any(), any())).thenThrow(ConnectorException.class);
+    PowerMockito.when(dataplexInterfaceImpl.getLake(any(), any(), any(), any())).thenThrow(DataplexException.class);
     dataplexBatchSinkConfig.validateAssetConfiguration(mockFailureCollector, dataplexInterfaceImpl);
     assertEquals(1, mockFailureCollector.getValidationFailures().size());
   }
@@ -292,7 +292,7 @@ public class DataplexBatchSinkConfigTest {
     MockFailureCollector mockFailureCollector = new MockFailureCollector();
     DataplexInterface dataplexInterfaceImpl = mock(DataplexInterfaceImpl.class);
     GoogleCredentials googleCredentials = PowerMockito.mock(GoogleCredentials.class);
-    ConnectorException connectorException = PowerMockito.spy(new ConnectorException("404", "error message"));
+    DataplexException dataplexException = PowerMockito.spy(new DataplexException("404", "error message"));
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("referenceName"),
       "test");
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("lake"), "example lake");
@@ -302,7 +302,7 @@ public class DataplexBatchSinkConfigTest {
     doReturn(googleCredentials).when(dataplexBatchSinkConfig).getCredentials();
     PowerMockito.when(dataplexInterfaceImpl.getLocation(any(), any(), any())).thenReturn(new Location());
     PowerMockito.when(dataplexInterfaceImpl.getLake(any(), any(), any(), any())).thenReturn(new Lake());
-    PowerMockito.when(dataplexInterfaceImpl.getZone(any(), any(), any(), any(), any())).thenThrow(connectorException);
+    PowerMockito.when(dataplexInterfaceImpl.getZone(any(), any(), any(), any(), any())).thenThrow(dataplexException);
     dataplexBatchSinkConfig.validateAssetConfiguration(mockFailureCollector, dataplexInterfaceImpl);
     assertEquals(1, mockFailureCollector.getValidationFailures().size());
   }
@@ -323,7 +323,7 @@ public class DataplexBatchSinkConfigTest {
     PowerMockito.when(dataplexInterfaceImpl.getLocation(any(), any(), any())).thenReturn(new Location());
     PowerMockito.when(dataplexInterfaceImpl.getLake(any(), any(), any(), any())).thenReturn(new Lake());
     PowerMockito.when(dataplexInterfaceImpl.getZone(any(), any(), any(), any(), any()))
-      .thenThrow(ConnectorException.class);
+      .thenThrow(DataplexException.class);
     dataplexBatchSinkConfig.validateAssetConfiguration(mockFailureCollector, dataplexInterfaceImpl);
     assertEquals(1, mockFailureCollector.getValidationFailures().size());
   }
@@ -428,7 +428,7 @@ public class DataplexBatchSinkConfigTest {
     MockFailureCollector mockFailureCollector = new MockFailureCollector();
     DataplexInterface dataplexInterfaceImpl = mock(DataplexInterfaceImpl.class);
     GoogleCredentials googleCredentials = PowerMockito.mock(GoogleCredentials.class);
-    ConnectorException connectorException = PowerMockito.spy(new ConnectorException("404", "error message"));
+    DataplexException dataplexException = PowerMockito.spy(new DataplexException("404", "error message"));
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("referenceName"),
       "test");
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("lake"), "example lake");
@@ -441,7 +441,7 @@ public class DataplexBatchSinkConfigTest {
     PowerMockito.when(dataplexInterfaceImpl.getLake(any(), any(), any(), any())).thenReturn(new Lake());
     PowerMockito.when(dataplexInterfaceImpl.getZone(any(), any(), any(), any(), any())).thenReturn(new Zone());
     PowerMockito.when(dataplexInterfaceImpl.getAsset(any(), any(), any(), any(), any(), any()))
-      .thenThrow(connectorException);
+      .thenThrow(dataplexException);
     dataplexBatchSinkConfig.validateAssetConfiguration(mockFailureCollector, dataplexInterfaceImpl);
     assertEquals(1, mockFailureCollector.getValidationFailures().size());
   }
@@ -464,7 +464,7 @@ public class DataplexBatchSinkConfigTest {
     PowerMockito.when(dataplexInterfaceImpl.getLake(any(), any(), any(), any())).thenReturn(new Lake());
     PowerMockito.when(dataplexInterfaceImpl.getZone(any(), any(), any(), any(), any())).thenReturn(new Zone());
     PowerMockito.when(dataplexInterfaceImpl.getAsset(any(), any(), any(), any(), any(), any()))
-      .thenThrow(ConnectorException.class);
+      .thenThrow(DataplexException.class);
     dataplexBatchSinkConfig.validateAssetConfiguration(mockFailureCollector, dataplexInterfaceImpl);
     assertEquals(1, mockFailureCollector.getValidationFailures().size());
   }
@@ -479,7 +479,7 @@ public class DataplexBatchSinkConfigTest {
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("table"), "test");
     doReturn(googleCredentials).when(dataplexBatchSinkConfig).getCredentials();
     Mockito.when(dataplexInterfaceImpl.getAsset(any(), any(), any(), any(), any(), any()))
-      .thenThrow(ConnectorException.class);
+      .thenThrow(DataplexException.class);
     dataplexBatchSinkConfig.validateBigQueryDataset(schema, schema, mockFailureCollector, dataplexInterfaceImpl);
     assertEquals(0, mockFailureCollector.getValidationFailures().size());
   }

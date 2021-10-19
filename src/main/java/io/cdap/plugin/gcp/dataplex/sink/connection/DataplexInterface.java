@@ -17,7 +17,7 @@
 package io.cdap.plugin.gcp.dataplex.sink.connection;
 
 import com.google.auth.oauth2.GoogleCredentials;
-import io.cdap.plugin.gcp.dataplex.sink.exception.ConnectorException;
+import io.cdap.plugin.gcp.dataplex.sink.exception.DataplexException;
 import io.cdap.plugin.gcp.dataplex.sink.model.Asset;
 import io.cdap.plugin.gcp.dataplex.sink.model.Lake;
 import io.cdap.plugin.gcp.dataplex.sink.model.Location;
@@ -30,25 +30,25 @@ import java.util.List;
  */
 public interface DataplexInterface {
 
-    List<Location> listLocations(GoogleCredentials credentials, String projectId) throws ConnectorException;
+    List<Location> listLocations(GoogleCredentials credentials, String projectId) throws DataplexException;
 
-    Location getLocation(GoogleCredentials credentials, String projectId, String location) throws ConnectorException;
+    Location getLocation(GoogleCredentials credentials, String projectId, String location) throws DataplexException;
 
     List<Lake> listLakes(GoogleCredentials credentials, String projectId,
-                         String location) throws ConnectorException;
+                         String location) throws DataplexException;
 
     Lake getLake(GoogleCredentials credentials, String projectId, String location, String lakeId)
-      throws ConnectorException;
+      throws DataplexException;
 
     List<Zone> listZones(GoogleCredentials credentials, String projectId,
-                         String location, String lakeId) throws ConnectorException;
+                         String location, String lakeId) throws DataplexException;
 
     Zone getZone(GoogleCredentials credentials, String projectId, String location, String lakeId, String zoneId)
-      throws ConnectorException;
+      throws DataplexException;
 
     List<Asset> listAssets(GoogleCredentials credentials, String projectId,
-                           String location, String lakeId, String zoneId) throws ConnectorException;
+                           String location, String lakeId, String zoneId) throws DataplexException;
 
     Asset getAsset(GoogleCredentials credentials, String projectId,
-                   String location, String lakeId, String zoneId, String assetId) throws ConnectorException;
+                   String location, String lakeId, String zoneId, String assetId) throws DataplexException;
 }

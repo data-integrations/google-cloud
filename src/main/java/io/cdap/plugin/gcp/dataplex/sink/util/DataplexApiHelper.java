@@ -18,7 +18,7 @@ package io.cdap.plugin.gcp.dataplex.sink.util;
 
 import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
-import io.cdap.plugin.gcp.dataplex.sink.exception.ConnectorException;
+import io.cdap.plugin.gcp.dataplex.sink.exception.DataplexException;
 
 import org.slf4j.LoggerFactory;
 
@@ -38,7 +38,7 @@ public class DataplexApiHelper {
   private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(DataplexApiHelper.class);
   private static AccessToken accessToken = null;
 
-  public String invokeDataplexApi(String urlBuilder, GoogleCredentials credentials) throws ConnectorException {
+  public String invokeDataplexApi(String urlBuilder, GoogleCredentials credentials) throws DataplexException {
     LOGGER.info("Initiating the api call to fetch the details");
     StringBuilder builder = new StringBuilder();
     try {
@@ -59,7 +59,7 @@ public class DataplexApiHelper {
       if (responseCode == 400 || responseCode == 401 || responseCode == 402 || responseCode == 403 ||
         responseCode == 404 || responseCode == 500
         || responseCode == 501 || responseCode == 502 || responseCode == 503) {
-        throw new ConnectorException(String.valueOf(responseCode), http.getResponseMessage());
+        throw new DataplexException(String.valueOf(responseCode), http.getResponseMessage());
       }
 
       BufferedReader br = new BufferedReader(new InputStreamReader(http.getInputStream()));
