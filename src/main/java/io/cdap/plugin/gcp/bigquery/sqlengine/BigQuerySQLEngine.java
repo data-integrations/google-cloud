@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.bigquery.sqlengine;
 
+import com.google.api.pathtemplate.ValidationException;
 import com.google.auth.Credentials;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
@@ -130,7 +131,11 @@ public class BigQuerySQLEngine
       context.getRuntimeArguments().get(GCPUtils.CMEK_KEY);
     CryptoKeyName cmekKeyName = null;
     if (!Strings.isNullOrEmpty(cmekKey)) {
-      cmekKeyName = CryptoKeyName.parse(cmekKey);
+      try {
+        cmekKeyName = CryptoKeyName.parse(cmekKey);
+      } catch (ValidationException e) {
+        // Ignoring this exception to ensure backward compatibility.
+      }
     }
     configuration = BigQueryUtil.getBigQueryConfig(sqlEngineConfig.getServiceAccount(), sqlEngineConfig.getProject(),
                                                    cmekKeyName, sqlEngineConfig.getServiceAccountType());

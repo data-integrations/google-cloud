@@ -100,8 +100,10 @@ public class CmekUtils {
     try {
       cmekKeyName = CryptoKeyName.parse(cmekKey);
     } catch (ValidationException e) {
+      /* Ignoring this exception for 6.5.1
       collector.addFailure(e.getMessage(), null)
         .withConfigProperty(GCPConfig.NAME_CMEK_KEY).withStacktrace(e.getStackTrace());
+       */
     }
     return cmekKeyName;
   }
