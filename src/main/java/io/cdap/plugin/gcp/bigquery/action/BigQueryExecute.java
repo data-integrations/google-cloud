@@ -17,6 +17,7 @@
 package io.cdap.plugin.gcp.bigquery.action;
 
 import com.google.auth.Credentials;
+import com.google.cloud.ServiceOptions;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.Dataset;
@@ -44,6 +45,7 @@ import io.cdap.cdap.etl.api.action.ActionContext;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.CmekUtils;
+import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -112,10 +114,11 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     //create dataset to store the results if not exists
     String datasetName = config.getDataset();
     String tableName = config.getTable();
+    String datasetProjectId = config.getDatasetProject();
     if (!Strings.isNullOrEmpty(datasetName) && !Strings.isNullOrEmpty(tableName)) {
-      BigQuerySinkUtils.createDataset(bigQuery, DatasetId.of(config.getProject(), datasetName), config.getLocation(),
-                                      cmekKeyName, () -> String.format("Unable to create BigQuery dataset " +
-                                                                         "'%s.%s'", config.getProject(), datasetName));
+      BigQuerySinkUtils.createDataset(bigQuery, DatasetId.of(datasetProjectId, datasetName), config.getLocation(),
+                                      cmekKeyName, () -> String.format("Unable to create BigQuery dataset '%s.%s'",
+                                                                       datasetProjectId, datasetName));
     }
 
     Job queryJob = bigQuery.create(JobInfo.newBuilder(queryConfig).setJobId(jobId).build());
@@ -175,6 +178,14 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     private static final String DATASET = "dataset";
     private static final String TABLE = "table";
     private static final String NAME_LOCATION = "location";
+    public static final String DATASET_PROJECT_ID = "datasetProject";
+
+    @Name(DATASET_PROJECT_ID)
+    @Macro
+    @Nullable
+    @Description("The project in which the dataset specified in the `Dataset Name` is located or should be created."
+      + " Defaults to the project specified in the Project Id property.")
+    private String datasetProject;
 
     @Description("Dialect of the SQL command. The value must be 'legacy' or 'standard'. " +
       "If set to 'standard', the query will use BigQuery's standard SQL: " +
@@ -277,6 +288,14 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     }
 
     @Nullable
+    public String getDatasetProject() {
+      if (GCPConfig.AUTO_DETECT.equalsIgnoreCase(datasetProject)) {
+        return ServiceOptions.getDefaultProjectId();
+      }
+      return Strings.isNullOrEmpty(datasetProject) ? getProject() : datasetProject;
+    }
+
+    @Nullable
     public String getDataset() {
       return dataset;
     }
@@ -339,12 +358,14 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
       CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(cmekKey, failureCollector);
       //these fields are needed to check if bucket exists or not and for location validation
       if (cmekKeyName == null || containsMacro(DATASET) || containsMacro(NAME_LOCATION) || containsMacro(TABLE) ||
-        projectOrServiceAccountContainsMacro() || Strings.isNullOrEmpty(dataset) || Strings.isNullOrEmpty(table)) {
+        projectOrServiceAccountContainsMacro() || Strings.isNullOrEmpty(dataset) || Strings.isNullOrEmpty(table) ||
+        containsMacro(DATASET_PROJECT_ID)) {
         return;
       }
+      String datasetProjectId = getDatasetProject();
       String datasetName = getDataset();
-      DatasetId datasetId = DatasetId.of(datasetName);
-      TableId tableId = TableId.of(datasetName, getTable());
+      DatasetId datasetId = DatasetId.of(datasetProjectId, datasetName);
+      TableId tableId = TableId.of(datasetProjectId, datasetName, getTable());
       BigQuery bigQuery = getBigQuery(failureCollector);
       if (bigQuery == null) {
         return;
