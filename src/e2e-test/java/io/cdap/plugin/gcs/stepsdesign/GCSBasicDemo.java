@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package io.cdap.plugin.gcp.stepsdesign;
+package io.cdap.plugin.gcs.stepsdesign;
 
 import io.cdap.e2e.pages.actions.BigQueryActions;
 import io.cdap.e2e.pages.actions.CdfBigQueryPropertiesActions;
@@ -65,7 +65,7 @@ public class GCSBasicDemo implements CdfHelper {
 
     @When("Target is BigQuery")
     public void targetIsBigQuery() {
-        CdfStudioActions.SinkBigQuery();
+        CdfStudioActions.sinkBigQuery();
     }
 
     @Then("Link Source and Sink to establish connection")
@@ -74,18 +74,17 @@ public class GCSBasicDemo implements CdfHelper {
         SeleniumHelper.dragAndDrop(CdfStudioLocators.fromGCS, CdfStudioLocators.toBigQiery);
     }
 
-    @Then("Enter the GCS Properties with {string} GCS bucket")
-    public void enterTheGCSPropertiesWithGCSBucket(String bucket) throws InterruptedException, IOException {
-
+    @Then("Enter the GCS Properties with {string} GCS bucket and {string}")
+    public void enterTheGCSPropertiesWithGCSBucketAnd(String bucket, String formatType) throws
+      IOException, InterruptedException {
         CdfGcsActions.gcsProperties();
         CdfGcsActions.enterReferenceName();
         CdfGcsActions.enterProjectId();
         CdfGcsActions.enterGcsBucket(bucket);
-        CdfGcsActions.enterFormat();
+        CdfGcsActions.selectFormat(formatType);
         CdfGcsActions.skipHeader();
         CdfGcsActions.getSchema();
-        Thread.sleep(10000);
-
+        SeleniumHelper.waitForParticularTime(10000);
     }
 
 
