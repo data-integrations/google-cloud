@@ -36,7 +36,7 @@ import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.WebDriverWait;
-import stepsDesign.BeforeActions;
+import stepsdesign.BeforeActions;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
