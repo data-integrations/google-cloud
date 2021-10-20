@@ -65,7 +65,7 @@ public class GCSBasicDemo implements CdfHelper {
 
     @When("Target is BigQuery")
     public void targetIsBigQuery() {
-        CdfStudioActions.SinkBigQuery();
+        CdfStudioActions.sinkBigQuery();
     }
 
     @Then("Link Source and Sink to establish connection")
