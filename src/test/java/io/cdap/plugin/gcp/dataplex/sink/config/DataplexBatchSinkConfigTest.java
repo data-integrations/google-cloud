@@ -184,7 +184,7 @@ public class DataplexBatchSinkConfigTest {
     MockFailureCollector mockFailureCollector = new MockFailureCollector();
     DataplexInterface dataplexInterfaceImpl = mock(DataplexInterfaceImpl.class);
     GoogleCredentials googleCredentials = PowerMockito.mock(GoogleCredentials.class);
-    DataplexException dataplexException = PowerMockito.spy(new DataplexException("404", "error message"));
+    DataplexException dataplexException = PowerMockito.spy(new DataplexException(404, "error message"));
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("referenceName"),
       "test");
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("location"),
@@ -235,7 +235,7 @@ public class DataplexBatchSinkConfigTest {
     MockFailureCollector mockFailureCollector = new MockFailureCollector();
     DataplexInterface dataplexInterfaceImpl = mock(DataplexInterfaceImpl.class);
     GoogleCredentials googleCredentials = PowerMockito.mock(GoogleCredentials.class);
-    DataplexException dataplexException = PowerMockito.spy(new DataplexException("404", "error message"));
+    DataplexException dataplexException = PowerMockito.spy(new DataplexException(404, "error message"));
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("referenceName"),
       "test");
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("lake"), "example lake");
@@ -292,7 +292,7 @@ public class DataplexBatchSinkConfigTest {
     MockFailureCollector mockFailureCollector = new MockFailureCollector();
     DataplexInterface dataplexInterfaceImpl = mock(DataplexInterfaceImpl.class);
     GoogleCredentials googleCredentials = PowerMockito.mock(GoogleCredentials.class);
-    DataplexException dataplexException = PowerMockito.spy(new DataplexException("404", "error message"));
+    DataplexException dataplexException = PowerMockito.spy(new DataplexException(404, "error message"));
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("referenceName"),
       "test");
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("lake"), "example lake");
@@ -428,7 +428,7 @@ public class DataplexBatchSinkConfigTest {
     MockFailureCollector mockFailureCollector = new MockFailureCollector();
     DataplexInterface dataplexInterfaceImpl = mock(DataplexInterfaceImpl.class);
     GoogleCredentials googleCredentials = PowerMockito.mock(GoogleCredentials.class);
-    DataplexException dataplexException = PowerMockito.spy(new DataplexException("404", "error message"));
+    DataplexException dataplexException = PowerMockito.spy(new DataplexException(404, "error message"));
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("referenceName"),
       "test");
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("lake"), "example lake");

@@ -112,6 +112,10 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   private static final String FORMAT_PARQUET = "parquet";
   private static final Pattern FIELD_PATTERN = Pattern.compile("[a-zA-Z0-9_]+");
 
+  private static final int ERROR_CODE_NOT_FOUND = 404;
+  private static final int ERROR_CODE_FORBIDDEN = 403;
+  private static final int ERROR_CODE_BAD_REQUEST = 400;
+
   // Connection properties
   @Name(NAME_FORMAT)
   @Nullable
@@ -444,11 +448,11 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   private void configureDataplexException(String dataplexConfigProperty, String dataplexConfigPropType,
                                           DataplexException e,
                                           FailureCollector failureCollector) {
-    if (("404").equals(e.getCode()) || "400".equals(e.getCode())) {
+    if ((ERROR_CODE_NOT_FOUND == e.getCode()) || ERROR_CODE_BAD_REQUEST == e.getCode()) {
       failureCollector
         .addFailure("'" + dataplexConfigProperty + "' could not be found. Please ensure that it exists in " +
           "Dataplex.", null).withConfigProperty(dataplexConfigPropType);
-    } else if ("403".equals(e.getCode())) {
+    } else if (ERROR_CODE_FORBIDDEN == e.getCode()) {
       failureCollector
         .addFailure("'" + dataplexConfigProperty + "' could not be accessed. Please ensure that you have required" +
           " permissions." , null).withConfigProperty(dataplexConfigPropType);

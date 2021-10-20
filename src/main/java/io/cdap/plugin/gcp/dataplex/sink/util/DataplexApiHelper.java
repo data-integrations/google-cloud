@@ -59,7 +59,7 @@ public class DataplexApiHelper {
       if (responseCode == 400 || responseCode == 401 || responseCode == 402 || responseCode == 403 ||
         responseCode == 404 || responseCode == 500
         || responseCode == 501 || responseCode == 502 || responseCode == 503) {
-        throw new DataplexException(String.valueOf(responseCode), http.getResponseMessage());
+        throw new DataplexException(responseCode, http.getResponseMessage());
       }
 
       BufferedReader br = new BufferedReader(new InputStreamReader(http.getInputStream()));

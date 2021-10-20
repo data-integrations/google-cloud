@@ -29,14 +29,14 @@ public class DataplexException extends Exception {
   private static final boolean ENABLE_SUPPRESION = false;
   private static final boolean WRITABLE_STACK_TRACE = true;
 
-  private final String code;
+  private final int code;
 
   /**
-   * 
+   *
    * @param code exception code
    * @param message exception message
    */
-  public DataplexException(String code, String message) {
+  public DataplexException(int code, String message) {
     this(code, message, null);
   }
 
@@ -45,7 +45,7 @@ public class DataplexException extends Exception {
    * @param code exception code
    * @param cause exception cause
    */
-  public DataplexException(String code, @Nullable Throwable cause) {
+  public DataplexException(int code, @Nullable Throwable cause) {
     this(code, cause != null ? cause.getMessage() : null, cause);
   }
 
@@ -55,7 +55,7 @@ public class DataplexException extends Exception {
    * @param message exception message
    * @param cause exception cause
    */
-  public DataplexException(String code, @Nullable String message, @Nullable Throwable cause) {
+  public DataplexException(int code, @Nullable String message, @Nullable Throwable cause) {
     this(code, message, cause, ENABLE_SUPPRESION, WRITABLE_STACK_TRACE);
   }
 
@@ -67,7 +67,7 @@ public class DataplexException extends Exception {
    * @param enableSuppression enableSuppression
    * @param writableStackTrace exception trace
    */
-  protected DataplexException(String code, @Nullable String message, @Nullable Throwable cause,
+  protected DataplexException(int code, @Nullable String message, @Nullable Throwable cause,
                               boolean enableSuppression, boolean writableStackTrace) {
 
     super(message, cause, enableSuppression, writableStackTrace);
@@ -77,7 +77,7 @@ public class DataplexException extends Exception {
   /**
    * @return the code
    */
-  public String getCode() {
+  public int getCode() {
     return code;
   }
 }

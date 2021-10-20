@@ -49,7 +49,8 @@ public class DataplexOutputCommitter extends OutputCommitter {
     if (assetType.equalsIgnoreCase(DataplexBatchSink.BIGQUERY_DATASET_ASSET_TYPE) && !committerMap.isEmpty()) {
       return;
     }
-    committerMap.put("partition=" + context.getTaskAttemptID().toString(), outputCommitter);
+    committerMap.put(DataplexOutputFormatProvider.PARTITION_PREFIX + context.getTaskAttemptID().toString(),
+      outputCommitter);
   }
 
   @Override
