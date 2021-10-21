@@ -45,7 +45,7 @@ public class BQMTRunTime implements CdfHelper {
   }
 
   @Then("Enter the GCS format with {string} GCS bucket")
-  public void enterTheGCSFormatWithGCSBucket(String format) throws IOException {
+  public void enterTheGCSFormatWithGCSBucket(String format) throws IOException, InterruptedException {
     CdfGcsActions.selectFormat(format);
     String expectedString = "delimited";
     String actualString = SeleniumHelper.readParameters(format);
