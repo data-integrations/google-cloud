@@ -425,7 +425,7 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     outputProperties.put(FileOutputFormat.OUTDIR, outputDir);
     outputProperties.put(DataplexOutputFormatProvider.DATAPLEX_OUTPUT_BASE_DIR, outputDir);
     outputProperties.put(DataplexOutputFormatProvider.DATAPLEX_ASSET_TYPE, config.getAssetType());
-    outputProperties.putAll(getFileSystemProperties(context));
+    outputProperties.putAll(getFileSystemProperties());
     context.addOutput(Output.of(config.getReferenceName(),
       new SinkOutputFormatProvider(validatingOutputFormat.getOutputFormatClassName(), outputProperties)));
     String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
@@ -467,10 +467,10 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     return validatingOutputFormat;
   }
 
-  protected Map<String, String> getFileSystemProperties(BatchSinkContext context) {
+  protected Map<String, String> getFileSystemProperties() {
     Map<String, String> properties = GCPUtils.getFileSystemProperties(config.getConnection(),
       outputPath, new HashMap<>());
-    properties.put(GCSBatchSink.CONTENT_TYPE, config.getContentType());
+    properties.put(GCSBatchSink.CONTENT_TYPE, config.getContentType(config.getFormat().toString()));
     return properties;
   }
 

@@ -530,7 +530,6 @@ public class DataplexBatchSinkConfigTest {
       "avro");
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("contentType"),
       "application/avros");
-    dataplexBatchSinkConfig.validateContentType(mockFailureCollector);
     assertEquals(1, mockFailureCollector.getValidationFailures().size());
   }
 
@@ -542,7 +541,6 @@ public class DataplexBatchSinkConfigTest {
       "json");
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("contentType"),
       "application/jsons");
-    dataplexBatchSinkConfig.validateContentType(mockFailureCollector);
     assertEquals(1, mockFailureCollector.getValidationFailures().size());
   }
 
@@ -554,7 +552,6 @@ public class DataplexBatchSinkConfigTest {
       "csv");
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("contentType"),
       "application/csvs");
-    dataplexBatchSinkConfig.validateContentType(mockFailureCollector);
     assertEquals(1, mockFailureCollector.getValidationFailures().size());
   }
 
@@ -566,7 +563,6 @@ public class DataplexBatchSinkConfigTest {
       "parquet");
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("contentType"),
       "application/parquets");
-    dataplexBatchSinkConfig.validateContentType(mockFailureCollector);
     assertEquals(1, mockFailureCollector.getValidationFailures().size());
   }
 
@@ -578,7 +574,6 @@ public class DataplexBatchSinkConfigTest {
       "orc");
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("contentType"),
       "application/orcs");
-    dataplexBatchSinkConfig.validateContentType(mockFailureCollector);
     assertEquals(1, mockFailureCollector.getValidationFailures().size());
   }
 
@@ -590,7 +585,6 @@ public class DataplexBatchSinkConfigTest {
       "test");
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("contentType"),
       "application/csv");
-    dataplexBatchSinkConfig.validateContentType(mockFailureCollector);
     assertEquals(1, mockFailureCollector.getValidationFailures().size());
   }
 

@@ -24,6 +24,7 @@ import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TimePartitioning;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import io.cdap.cdap.api.annotation.Description;
@@ -58,6 +59,7 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -94,14 +96,11 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   private static final String NAME_RANGE_START = "rangeStart";
   private static final String NAME_RANGE_END = "rangeEnd";
   private static final String NAME_RANGE_INTERVAL = "rangeInterval";
-  private static final String NAME_CONTENT_TYPE = "contentType";
   private static final String NAME_SCHEMA = "schema";
-  private static final String DEFAULT_CONTENT_TYPE = "application/octet-stream";
-  private static final String CONTENT_TYPE_OTHER = "other";
   private static final String CONTENT_TYPE_APPLICATION_JSON = "application/json";
-  private static final String CONTENT_TYPE_APPLICATION_AVRO = "application/avro";
-  private static final String CONTENT_TYPE_APPLICATION_CSV = "application/csv";
-  private static final String CONTENT_TYPE_TEXT_PLAIN = "text/plain";
+  private static final String CONTENT_TYPE_APPLICATION_AVRO = "application/x-avro";
+  private static final String CONTENT_TYPE_APPLICATION_PARQUET = "application/x-parquet";
+  private static final String CONTENT_TYPE_APPLICATION_ORC = "application/x-orc";
   private static final String CONTENT_TYPE_TEXT_CSV = "text/csv";
   private static final String ZONE_TYPE_CURATED = "CURATED";
 
@@ -115,6 +114,13 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   private static final int ERROR_CODE_NOT_FOUND = 404;
   private static final int ERROR_CODE_FORBIDDEN = 403;
   private static final int ERROR_CODE_BAD_REQUEST = 400;
+  private static final Map<String, String> contentTypeMap = ImmutableMap.of(
+    FORMAT_AVRO, CONTENT_TYPE_APPLICATION_AVRO,
+    FORMAT_CSV, CONTENT_TYPE_TEXT_CSV,
+    FORMAT_JSON, CONTENT_TYPE_APPLICATION_JSON,
+    FORMAT_PARQUET, CONTENT_TYPE_APPLICATION_PARQUET,
+    FORMAT_ORC, CONTENT_TYPE_APPLICATION_ORC
+  );
 
   // Connection properties
   @Name(NAME_FORMAT)
@@ -124,13 +130,6 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     "'delimited', 'json', 'orc', or, 'parquet'. The format for curated zone must be one of 'avro', 'orc', or, " +
     "'parquet'.")
   protected String format;
-
-  @Name(NAME_CONTENT_TYPE)
-  @Nullable
-  @Macro
-  @Description("The content type property is used to indicate the media type of the resource. Defaults to " +
-    "'application/octet-stream'.")
-  protected String contentType;
 
   // GCS Asset type configuration properties
   @Name(NAME_TABLE)
@@ -856,11 +855,6 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
       String fileFormat = null;
       try {
         fileFormat = getFormat().toString().toLowerCase();
-        if (!containsMacro(NAME_CONTENT_TYPE)
-          && !Strings.isNullOrEmpty(contentType) && !contentType.equalsIgnoreCase(CONTENT_TYPE_OTHER)
-          && !contentType.equalsIgnoreCase(DEFAULT_CONTENT_TYPE)) {
-          validateContentType(collector);
-        }
       } catch (IllegalArgumentException e) {
         collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_FORMAT)
           .withStacktrace(e.getStackTrace());
@@ -929,62 +923,6 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     }
   }
 
-  // This method validates the specified content type for the used format.
-  public void validateContentType(FailureCollector failureCollector) {
-    switch (format) {
-      case FORMAT_AVRO:
-        if (!contentType.equalsIgnoreCase(CONTENT_TYPE_APPLICATION_AVRO)) {
-          failureCollector.addFailure(String.format("Valid content types for avro are %s, %s.",
-            CONTENT_TYPE_APPLICATION_AVRO, DEFAULT_CONTENT_TYPE), null)
-            .withConfigProperty(NAME_CONTENT_TYPE);
-        }
-        break;
-      case FORMAT_JSON:
-        if (!contentType.equalsIgnoreCase(CONTENT_TYPE_APPLICATION_JSON)
-          && !contentType.equalsIgnoreCase(CONTENT_TYPE_TEXT_PLAIN)) {
-          failureCollector.addFailure(String.format(
-            "Valid content types for json are %s, %s, %s.", CONTENT_TYPE_APPLICATION_JSON,
-            CONTENT_TYPE_TEXT_PLAIN, DEFAULT_CONTENT_TYPE), null
-          ).withConfigProperty(NAME_CONTENT_TYPE);
-        }
-        break;
-      case FORMAT_CSV:
-        if (!contentType.equalsIgnoreCase(CONTENT_TYPE_APPLICATION_CSV)
-          && !contentType.equalsIgnoreCase(CONTENT_TYPE_TEXT_CSV)
-          && !contentType.equalsIgnoreCase(CONTENT_TYPE_TEXT_PLAIN)) {
-          failureCollector.addFailure(String.format(
-            "Valid content types for csv are %s, %s, %s, %s.", CONTENT_TYPE_APPLICATION_CSV,
-            CONTENT_TYPE_TEXT_PLAIN, CONTENT_TYPE_TEXT_CSV, DEFAULT_CONTENT_TYPE), null
-          ).withConfigProperty(NAME_CONTENT_TYPE);
-        }
-        break;
-
-      case FORMAT_PARQUET:
-        if (!contentType.equalsIgnoreCase(DEFAULT_CONTENT_TYPE)) {
-          failureCollector
-            .addFailure(String.format("Valid content type for parquet is %s.", DEFAULT_CONTENT_TYPE),
-              null).withConfigProperty(NAME_CONTENT_TYPE);
-        }
-        break;
-      case FORMAT_ORC:
-        if (!contentType.equalsIgnoreCase(DEFAULT_CONTENT_TYPE)) {
-          failureCollector
-            .addFailure(String.format("Valid content type for orc is %s.", DEFAULT_CONTENT_TYPE),
-              null).withConfigProperty(NAME_CONTENT_TYPE);
-        }
-        break;
-
-      default:
-        failureCollector.addFailure(String.format(
-          "Valid format types are %s, %s, %s, %s, %s .", FORMAT_AVRO, FORMAT_ORC,
-          FORMAT_JSON, FORMAT_PARQUET, FORMAT_CSV), null).withConfigProperty(NAME_FORMAT);
-        break;
-    }
-  }
-
-  public String formatDataplexId(String name) {
-    return name.replace(" ", "-").toLowerCase();
-  }
 
   /*  This method gets the value of content type. Valid content types for each format are:
    *
@@ -995,8 +933,8 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
    *  parquet -> application/octet-stream
    */
   @Nullable
-  public String getContentType() {
-    return contentType;
+  public String getContentType(String format) {
+    return contentTypeMap.get(format.toLowerCase());
   }
 
 
@@ -1075,12 +1013,6 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     }
   }
 
-  public boolean isServiceAccountFilePathAutoDetect() {
-    return connection.getServiceAccountFilePath() != null &&
-      GCPConnectorConfig.AUTO_DETECT.equalsIgnoreCase(connection.getServiceAccountFilePath());
-  }
-
-
   public GoogleCredentials getCredentialsFromServiceAccount() throws IOException {
     GoogleCredentials credentials = null;
     //validate service account
@@ -1088,7 +1020,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
       credentials =
         GCPUtils.loadServiceAccountCredentials(getServiceAccount(), isServiceAccountFilePath())
           .createScoped(Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"));
-    } else if (isServiceAccountFilePathAutoDetect()) {
+    } else {
       credentials = ServiceAccountCredentials.getApplicationDefault().createScoped(
         Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"));
     }
