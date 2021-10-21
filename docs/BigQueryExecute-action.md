@@ -23,6 +23,11 @@ Properties
 It can be found on the Dashboard in the Google Cloud Platform Console.
 This is the project that the BigQuery SQL will run in.
 
+**Dataset Project ID**: Project ID of the dataset to store the query results in. This is only required if the 
+dataset is not in the same project that the BigQuery job will run in. If no value is given, it will default to the
+configured Project ID. `BigQuery Data Editor` role on this project must be granted to the specified service account to
+write BigQuery data to this project.
+
 **SQL**: SQL command to execute.
 
 **Dialect**: Dialect of the SQL command. The value must be 'legacy' or 'standard'. If set to 'standard',
