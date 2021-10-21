@@ -1,16 +1,17 @@
 package io.cdap.plugin.bqmt.stepsdesign;
 
-import io.cdap.e2e.pages.actions.CdfBQMTActions;
 import io.cdap.e2e.pages.actions.CdfGcsActions;
 import io.cdap.e2e.pages.actions.CdfPipelineRunAction;
+import io.cdap.e2e.pages.actions.CdfStudioActions;
 import io.cdap.e2e.pages.locators.CdfStudioLocators;
 import io.cdap.e2e.utils.CdfHelper;
 import io.cdap.e2e.utils.SeleniumHelper;
+import io.cdap.plugin.bqmt.actions.CdfBQMTActions;
+import io.cdap.plugin.utils.CdapUtils;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.junit.Assert;
-
 import java.io.FileNotFoundException;
 import java.io.IOException;
 
@@ -29,16 +30,18 @@ public class BQMTRunTime implements CdfHelper {
     CdfHelper.selectSourceGCS();
   }
 
-  @Then("Link GCS to BQMT to establish connection")
-  public void linkGCSToBQMTToEstablishConnection() throws InterruptedException {
+  @Then("Link GCS to {string} to establish connection")
+  public void linkGCSToToEstablishConnection(String pluginName) throws IOException, InterruptedException {
     Thread.sleep(2000);
-    SeleniumHelper.dragAndDrop(CdfStudioLocators.fromGCS, CdfStudioLocators.bigQueryMultiTable);
+    SeleniumHelper.dragAndDrop(CdfStudioLocators.fromGCS, linkSinkPlugin(pluginName));
   }
 
   @Then("Enter the source GCS Properties with format {string} GCS bucket {string}")
-  public void enterTheSourceGCSPropertiesWithFormatGCSBucket(String bucket, String formatType)
+  public void enterTheSourceGCSPropertiesWithFormatGCSBucket(String formatType, String bucket)
     throws IOException, InterruptedException {
-    gcsPropertiesWithBucket(bucket, formatType);
+    CdfGcsActions.gcsProperties();
+    CdfGcsActions.enterGcsBucket(CdapUtils.pluginProp(bucket));
+    gcsProperties(formatType);
   }
 
   @Then("Enter the GCS format with {string} GCS bucket")
@@ -56,7 +59,7 @@ public class BQMTRunTime implements CdfHelper {
 
   @Then("Verify the get schema status")
   public void verifyTheGetSchemaStatus() throws InterruptedException {
-    SeleniumHelper.waitForParticularTime(10000);
+    Thread.sleep(10000);
     CdfGcsActions.clickValidateButton();
     CdfPipelineRunAction.schemaStatusValidation();
   }
@@ -65,7 +68,7 @@ public class BQMTRunTime implements CdfHelper {
   public void validateTheSchema() throws InterruptedException {
     CdfGcsActions.schemaValidation();
     CdfGcsActions.assertionverification();
-    SeleniumHelper.waitForParticularTime(5000);
+    Thread.sleep(5000);
   }
 
   @Then("Verify the Connector status")
@@ -81,7 +84,7 @@ public class BQMTRunTime implements CdfHelper {
   @Then("Enter the BQMT Properties")
   public void enterTheBQMTProperties() throws InterruptedException, IOException {
     CdfBQMTActions.bqmtProperties();
-    SeleniumHelper.waitForParticularTime(1000);
+    Thread.sleep(1000);
     CdfBQMTActions.enterReferenceName();
     CdfBQMTActions.enterDataset();
     CdfBQMTActions.truncateTable();
@@ -89,7 +92,7 @@ public class BQMTRunTime implements CdfHelper {
     CdfBQMTActions.allowFlexibleSchemaInOutput();
     CdfBQMTActions.setTableSchemaTrue();
     CdfGcsActions.clickValidateButton();
-    SeleniumHelper.waitForParticularTime(5000);
+    Thread.sleep(5000);
   }
 
   @Then("Save and Deploy Pipeline of GCS to BQMT")
@@ -131,5 +134,11 @@ public class BQMTRunTime implements CdfHelper {
 
   @Then("Delete the BQMT table {string}")
   public void deleteTheBQMTTable(String table) {
+  }
+
+  @When("Target is {string}")
+  public void targetIs(String target) throws IOException, InterruptedException {
+    CdfStudioActions.clickSink();
+    selectSinkPlugin(target);
   }
 }

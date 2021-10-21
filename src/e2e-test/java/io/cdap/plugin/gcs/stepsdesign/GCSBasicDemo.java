@@ -80,11 +80,11 @@ public class GCSBasicDemo implements CdfHelper {
         CdfGcsActions.gcsProperties();
         CdfGcsActions.enterReferenceName();
         CdfGcsActions.enterProjectId();
-        CdfGcsActions.enterGcsBucket(bucket);
+        CdfGcsActions.enterGcsBucket(SeleniumHelper.readParameters(bucket));
         CdfGcsActions.selectFormat(formatType);
         CdfGcsActions.skipHeader();
         CdfGcsActions.getSchema();
-        SeleniumHelper.waitForParticularTime(10000);
+        Thread.sleep(10000);
     }
 
 

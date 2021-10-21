@@ -1,11 +1,11 @@
 package io.cdap.plugin.bqmt.stepsdesign;
 
-import io.cdap.e2e.pages.actions.CdfBQMTActions;
 import io.cdap.e2e.pages.actions.CdfGcsActions;
 import io.cdap.e2e.pages.actions.CdfStudioActions;
-import io.cdap.e2e.pages.locators.CdfBQMTLocators;
 import io.cdap.e2e.utils.CdfHelper;
 import io.cdap.e2e.utils.SeleniumHelper;
+import io.cdap.plugin.bqmt.actions.CdfBQMTActions;
+import io.cdap.plugin.bqmt.locators.CdfBQMTLocators;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.junit.Assert;
@@ -17,28 +17,24 @@ import java.io.IOException;
  */
 public class BQMTDesignTime implements CdfHelper {
 
-    @When("Target is BigQueryMultiTable")
-    public void targetIsBigQueryMultiTable() {
-        CdfStudioActions.sinkBigQueryMultiTable();
-    }
 
     @Then("Open BQMT Properties")
     public void openBQMTProperties() throws InterruptedException {
         CdfBQMTActions.bqmtProperties();
-        SeleniumHelper.waitForParticularTime(10000);
+        Thread.sleep(10000);
 
     }
 
     @Then("Verify Reference Field")
     public void verifyReferenceField() throws Exception {
         CdfBQMTActions.referenceNameValidation();
-        SeleniumHelper.waitForParticularTime(3000);
+        Thread.sleep(3000);
     }
 
     @Then("Validate Pipeline")
     public void validatePipeline() throws InterruptedException {
         CdfBQMTActions.clickValidateButton();
-        SeleniumHelper.waitForParticularTime(10000);
+        Thread.sleep(10000);
     }
 
 
@@ -60,7 +56,7 @@ public class BQMTDesignTime implements CdfHelper {
             CdfBQMTLocators.bqmtDataSet.sendKeys("$#$#$#$#$#");
 
         CdfBQMTActions.clickValidateButton();
-        SeleniumHelper.waitForParticularTime(5);
+        Thread.sleep(5000);
     }
     @Then("Verify Reference Name & DataSet Fields with Invalid Test Data")
     public void verifyTheBQMTwithInvalidTestData() throws InterruptedException {
@@ -77,13 +73,13 @@ public class BQMTDesignTime implements CdfHelper {
         CdfBQMTLocators.bqmtTemporaryBucketName.sendKeys("#,#@#@#@#@");
         CdfBQMTActions.clickValidateButton();
         CdfBQMTActions.temporaryBucketNameValidation();
-        SeleniumHelper.waitForParticularTime(2);
+        Thread.sleep(2000);
     }
 
     @Then("Add and Save Comments")//verify comment
     public void addComments() throws InterruptedException, IOException {
         CdfBQMTActions.bqmtProperties();
-        SeleniumHelper.waitForParticularTime(2);
+        Thread.sleep(2000);
         CdfBQMTActions.clickComment();
         CdfBQMTActions.addComment();
         CdfBQMTActions.saveComment();
@@ -93,11 +89,11 @@ public class BQMTDesignTime implements CdfHelper {
     public void editComments() throws InterruptedException, IOException {
         CdfBQMTActions.editComment();
         CdfBQMTActions.clickEdit();
-        SeleniumHelper.waitForParticularTime(2);
+        Thread.sleep(2000);
         CdfBQMTActions.clearComments();
-        SeleniumHelper.waitForParticularTime(2);
+        Thread.sleep(2000);
         CdfBQMTActions.addComment();
-        SeleniumHelper.waitForParticularTime(2);
+        Thread.sleep(2000);
         CdfBQMTActions.saveComment();
     }
 
@@ -110,7 +106,7 @@ public class BQMTDesignTime implements CdfHelper {
     @Then("Click on Hamburger menu and select delete")//verify
     public void hamburgermenu() throws InterruptedException {
         CdfBQMTActions.clickHamburgerMenu();
-        SeleniumHelper.waitForParticularTime(2);
+        Thread.sleep(2000);
         CdfBQMTActions.clickHamburgerDelete();
     }
 
