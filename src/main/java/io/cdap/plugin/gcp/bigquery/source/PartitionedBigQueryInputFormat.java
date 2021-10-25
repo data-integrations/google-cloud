@@ -20,7 +20,6 @@ import com.google.cloud.hadoop.io.bigquery.ExportFileFormat;
 import com.google.cloud.hadoop.util.ConfigurationUtil;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.sun.istack.Nullable;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import org.apache.avro.generic.GenericData;
@@ -39,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
 
 /**
  * BigQuery input format, splits query from the configuration into list of queries

@@ -51,6 +51,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.Map;
 import javax.annotation.Nullable;
 
 /**
@@ -72,7 +74,8 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
 
   @Override
   public void run(ActionContext context) throws Exception {
-    config.validate(context.getFailureCollector());
+    FailureCollector collector = context.getFailureCollector();
+    config.validate(collector, context.getArguments().asMap());
     QueryJobConfiguration.Builder builder = QueryJobConfiguration.newBuilder(config.getSql());
     // Run at batch priority, which won't count toward concurrent rate limit.
     if (config.getMode().equals(QueryJobConfiguration.Priority.BATCH)) {
@@ -81,8 +84,8 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
       builder.setPriority(QueryJobConfiguration.Priority.INTERACTIVE);
     }
 
-    CryptoKeyName cmekKeyName = config.getCmekKey(context.getArguments(), context.getFailureCollector());
-    context.getFailureCollector().getOrThrowException();
+    CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(config.cmekKey, context.getArguments().asMap(), collector);
+    collector.getOrThrowException();
     if (cmekKeyName != null) {
       builder.setDestinationEncryptionConfiguration(
         EncryptionConfiguration.newBuilder().setKmsKeyName(cmekKeyName.toString()).build());
@@ -307,6 +310,10 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
 
     @Override
     public void validate(FailureCollector failureCollector) {
+      validate(failureCollector, Collections.emptyMap());
+    }
+
+    public void validate(FailureCollector failureCollector, Map<String, String> arguments) {
       // check the mode is valid
       if (!containsMacro(MODE)) {
         try {
@@ -345,17 +352,15 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
         BigQueryUtil.validateTable(table, TABLE, failureCollector);
       }
 
-      /* Commenting out this code for 6.5.1
-      if (!containsMacro(NAME_CMEK_KEY) && !Strings.isNullOrEmpty(cmekKey)) {
-        validateCmekKey(failureCollector);
+      if (!containsMacro(NAME_CMEK_KEY)) {
+        validateCmekKey(failureCollector, arguments);
       }
-      */
 
       failureCollector.getOrThrowException();
     }
 
-    void validateCmekKey(FailureCollector failureCollector) {
-      CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(cmekKey, failureCollector);
+    void validateCmekKey(FailureCollector failureCollector, Map<String, String> arguments) {
+      CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(cmekKey, arguments, failureCollector);
       //these fields are needed to check if bucket exists or not and for location validation
       if (cmekKeyName == null || containsMacro(DATASET) || containsMacro(NAME_LOCATION) || containsMacro(TABLE) ||
         projectOrServiceAccountContainsMacro() || Strings.isNullOrEmpty(dataset) || Strings.isNullOrEmpty(table) ||

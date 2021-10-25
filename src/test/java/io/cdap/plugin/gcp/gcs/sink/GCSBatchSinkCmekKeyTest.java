@@ -16,10 +16,15 @@
 
 package io.cdap.plugin.gcp.gcs.sink;
 
+import com.google.auth.Credentials;
+import com.google.cloud.kms.v1.CryptoKeyName;
+import com.google.cloud.storage.Storage;
 import io.cdap.cdap.etl.api.validation.CauseAttributes;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.cdap.etl.mock.validation.MockFailureCollector;
 import io.cdap.plugin.gcp.common.GCPConfig;
+import io.cdap.plugin.gcp.common.GCPUtils;
+import io.cdap.plugin.gcp.gcs.GCSPath;
 import io.cdap.plugin.gcp.gcs.sink.GCSBatchSink.GCSBatchSinkConfig;
 import org.junit.Assert;
 import org.junit.Assume;
@@ -31,6 +36,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import javax.annotation.Nullable;
@@ -46,6 +52,7 @@ public class GCSBatchSinkCmekKeyTest {
   private static String project;
   private static String serviceAccountFilePath;
   private static String gcsPath;
+  private static Storage storage;
 
   @BeforeClass
   public static void setupTestClass() throws Exception {
@@ -70,15 +77,17 @@ public class GCSBatchSinkCmekKeyTest {
 
     serviceAccountKey = new String(Files.readAllBytes(Paths.get(new File(serviceAccountFilePath).getAbsolutePath())),
                                    StandardCharsets.UTF_8);
-
+    Credentials credentials = GCPUtils.loadServiceAccountCredentials(serviceAccountKey, false);
+    storage = GCPUtils.getStorage(project, credentials);
   }
 
   //This method creates a unique GCS bucket path.
   private static String getPath(@Nullable String project) {
-    return String.format("gs://%s%s", project, new SimpleDateFormat("-yyyy-MM-dd-HH-mm-ss").format(new Date()));
+    return String.format("gs://gcs-cmektest-%s%s", project,
+                         new SimpleDateFormat("-yyyy-MM-dd-HH-mm-ss").format(new Date()));
   }
 
-  private GCSBatchSinkConfig.Builder getBuilder() throws NoSuchFieldException {
+  private GCSBatchSinkConfig.Builder getBuilder() {
     String referenceName = "test-ref";
     return GCSBatchSinkConfig.builder()
       .setReferenceName(referenceName)
@@ -94,6 +103,7 @@ public class GCSBatchSinkCmekKeyTest {
     testValidCmekKey(builder);
     testInvalidCmekKeyName(builder);
     testInvalidCmekKeyLocation(builder);
+    testCmekKeyWithExistingBucket(builder);
   }
 
   @Test
@@ -104,37 +114,41 @@ public class GCSBatchSinkCmekKeyTest {
     testValidCmekKey(builder);
     testInvalidCmekKeyName(builder);
     testInvalidCmekKeyLocation(builder);
+    testCmekKeyWithExistingBucket(builder);
   }
 
-  private void testValidCmekKey(GCSBatchSinkConfig.Builder builder) throws Exception {
+  private void testValidCmekKey(GCSBatchSinkConfig.Builder builder) {
+    String cmekKey = String.format("projects/%s/locations/key-location/keyRings/my_ring/cryptoKeys/test_key", project);
     MockFailureCollector collector = new MockFailureCollector("gcssink");
     GCSBatchSink.GCSBatchSinkConfig config = builder
-      .setCmekKey(String.format("projects/%s/locations/us-east1/keyRings/my_ring/cryptoKeys/test_key", project))
-      .setLocation("us-east1")
+      .setCmekKey(cmekKey)
+      .setLocation("key-location")
       .build();
-    config.validateCmekKey(collector);
+    config.validateCmekKey(collector, Collections.emptyMap());
     Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
-  private void testInvalidCmekKeyName(GCSBatchSinkConfig.Builder builder) throws Exception {
-    MockFailureCollector collector = new MockFailureCollector("gcssink");
+  private void testInvalidCmekKeyName(GCSBatchSinkConfig.Builder builder) {
+    String cmekKey = String.format("projects/%s/locations/key-location/keyRings", project);
+      MockFailureCollector collector = new MockFailureCollector("gcssink");
     GCSBatchSinkConfig config = builder
-      .setCmekKey(String.format("projects/%s/locations/us-east1/keyRings", project))
+      .setCmekKey(cmekKey)
       .build();
-    config.validateCmekKey(collector);
+    config.validateCmekKey(collector, Collections.emptyMap());
     ValidationFailure failure = collector.getValidationFailures().get(0);
     List<ValidationFailure.Cause> causes = failure.getCauses();
     Assert.assertEquals(2, causes.size());
     Assert.assertEquals("cmekKey", causes.get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
   }
 
-  private void testInvalidCmekKeyLocation(GCSBatchSinkConfig.Builder builder) throws Exception {
+  private void testInvalidCmekKeyLocation(GCSBatchSinkConfig.Builder builder) {
+    String cmekKey = String.format("projects/%s/locations/key-location/keyRings/my_ring/cryptoKeys/test_key", project);
     MockFailureCollector collector = new MockFailureCollector("gcssink");
     GCSBatchSinkConfig config = builder
-      .setCmekKey(String.format("projects/%s/locations/us-east1/keyRings/my_ring/cryptoKeys/test_key", project))
-      .setLocation("us")
+      .setCmekKey(cmekKey)
+      .setLocation("bucket-location")
       .build();
-    config.validateCmekKey(collector);
+    config.validateCmekKey(collector, Collections.emptyMap());
     ValidationFailure failure = collector.getValidationFailures().get(0);
     List<ValidationFailure.Cause> causes = failure.getCauses();
     Assert.assertEquals(1, causes.size());
@@ -142,13 +156,30 @@ public class GCSBatchSinkCmekKeyTest {
 
     //testing the default location of the bucket ("US") if location config is empty or null
     config = builder
-      .setCmekKey(String.format("projects/%s/locations/us-east1/keyRings/my_ring/cryptoKeys/test_key", project))
+      .setCmekKey(cmekKey)
       .setLocation("")
       .build();
-    config.validateCmekKey(collector);
+    config.validateCmekKey(collector, Collections.emptyMap());
     failure = collector.getValidationFailures().get(1);
     causes = failure.getCauses();
     Assert.assertEquals(1, causes.size());
     Assert.assertEquals("cmekKey", causes.get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
+  }
+
+  private void testCmekKeyWithExistingBucket(GCSBatchSinkConfig.Builder builder) {
+    String cmekKey = String.format("projects/%s/locations/key-location/keyRings/my_ring/cryptoKeys/test_key", project);
+    MockFailureCollector collector = new MockFailureCollector("gcssink");
+    // Even though the location set in config is not same as of the cmek key but the validation should not fail because
+    // the bucket already exists.
+    GCSBatchSinkConfig config = builder
+      .setCmekKey(cmekKey)
+      .setLocation("bucket-location")
+      .build();
+    // creating bucket before validating cmek key.
+    GCPUtils.createBucket(storage, GCSPath.from(gcsPath).getBucket(), "us-east1", null);
+    config.validateCmekKey(collector, Collections.emptyMap());
+    Assert.assertEquals(0, collector.getValidationFailures().size());
+    // deleting bucket after successful validation
+    storage.delete(GCSPath.from(gcsPath).getBucket());
   }
 }

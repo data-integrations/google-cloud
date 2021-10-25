@@ -21,6 +21,9 @@ import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.common.IdUtils;
 
+import java.util.Collections;
+import java.util.Map;
+
 /**
  * Reference config extending GCPConfig for sinks.
  */
@@ -33,6 +36,10 @@ public class GCPReferenceSinkConfig extends GCPConfig {
    * Validates the given referenceName to consists of characters allowed to represent a dataset.
    */
   public void validate(FailureCollector collector) {
+    validate(collector, Collections.emptyMap());
+  }
+
+  public void validate(FailureCollector collector, Map<String, String> map) {
     IdUtils.validateReferenceName(referenceName, collector);
   }
 

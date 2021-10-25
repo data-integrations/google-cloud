@@ -45,6 +45,8 @@ import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
 
@@ -221,16 +223,11 @@ public final class BigQuerySourceConfig extends PluginConfig {
     return connection == null ? null : connection.getServiceAccountType();
   }
 
-  @Nullable
-  public CryptoKeyName getCmekKey(Arguments arguments, FailureCollector collector) {
-    String cmekKey = this.cmekKey;
-    if (Strings.isNullOrEmpty(cmekKey)) {
-      cmekKey = arguments.get("gcp.cmek.key.name");
-    }
-    return CmekUtils.getCmekKey(cmekKey, collector);
+  public void validate(FailureCollector collector) {
+    validate(collector, Collections.emptyMap());
   }
 
-  public void validate(FailureCollector collector) {
+  public void validate(FailureCollector collector, Map<String, String> arguments) {
     IdUtils.validateReferenceName(referenceName, collector);
     ConfigUtil.validateConnection(this, useConnection, connection, collector);
     String bucket = getBucket();
@@ -246,15 +243,13 @@ public final class BigQuerySourceConfig extends PluginConfig {
     if (!containsMacro(NAME_TABLE)) {
       validateTable(collector);
     }
-    /* Commenting out this code for 6.5.1
-    if (!containsMacro(NAME_CMEK_KEY) && !Strings.isNullOrEmpty(cmekKey)) {
-      validateCmekKey(collector);
+    if (!containsMacro(NAME_CMEK_KEY)) {
+      validateCmekKey(collector, arguments);
     }
-    */
   }
 
-  void validateCmekKey(FailureCollector collector) {
-    CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(cmekKey, collector);
+  void validateCmekKey(FailureCollector collector, Map<String, String> arguments) {
+    CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(cmekKey, arguments, collector);
     //these fields are needed to check if bucket exists or not and for location validation
     if (cmekKeyName == null || !canConnect() || containsMacro(NAME_BUCKET) || Strings.isNullOrEmpty(bucket)) {
       return;
@@ -273,11 +268,11 @@ public final class BigQuerySourceConfig extends PluginConfig {
       return;
     }
     Storage storage = GCPUtils.getStorage(getProject(), credentials);
-    if (dataset == null || storage == null || containsMacro(NAME_BUCKET) || Strings.isNullOrEmpty(bucket)) {
+    if (dataset == null || storage == null || containsMacro(NAME_BUCKET)) {
       return;
     }
-    CmekUtils.validateCmekKeyAndBucketLocation(storage, GCSPath.from(bucket), cmekKeyName,
-                                               dataset.getLocation(), collector);
+    GCSPath gcsPath = Strings.isNullOrEmpty(bucket) ? null : GCSPath.from(bucket);
+    CmekUtils.validateCmekKeyAndBucketLocation(storage, gcsPath, cmekKeyName, dataset.getLocation(), collector);
   }
 
   private void validateTable(FailureCollector collector) {
@@ -396,5 +391,58 @@ public final class BigQuerySourceConfig extends PluginConfig {
 
   public BigQueryConnectorConfig getConnection() {
     return connection;
+  }
+
+  private BigQuerySourceConfig(@Nullable BigQueryConnectorConfig connection, @Nullable String dataset,
+                               @Nullable String cmekKey, @Nullable String bucket, @Nullable String table) {
+    this.connection = connection;
+    this.dataset = dataset;
+    this.cmekKey = cmekKey;
+    this.bucket = bucket;
+    this.table = table;
+  }
+
+  public static Builder builder() {
+     return new Builder();
+  }
+
+  /**
+   * BigQuery Source configuration builder.
+   */
+  public static class Builder {
+    private BigQueryConnectorConfig connection;
+    private String dataset;
+    private String cmekKey;
+    private String bucket;
+    private String table;
+
+    public Builder setConnection(@Nullable BigQueryConnectorConfig connection) {
+      this.connection = connection;
+      return this;
+    }
+
+    public Builder setDataset(@Nullable String dataset) {
+      this.dataset = dataset;
+      return this;
+    }
+
+    public Builder setTable(@Nullable String table) {
+      this.table = table;
+      return this;
+    }
+
+    public Builder setCmekKey(@Nullable String cmekKey) {
+      this.cmekKey = cmekKey;
+      return this;
+    }
+
+    public Builder setBucket(@Nullable String bucket) {
+      this.bucket = bucket;
+      return this;
+    }
+
+    public BigQuerySourceConfig build() {
+      return new BigQuerySourceConfig(connection, dataset, cmekKey, bucket, table);
+    }
   }
 }

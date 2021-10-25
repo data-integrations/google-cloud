@@ -28,6 +28,7 @@ import io.cdap.plugin.gcp.common.GCPReferenceSinkConfig;
 import io.cdap.plugin.gcp.spanner.common.SpannerUtil;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
 
@@ -91,7 +92,7 @@ public class SpannerSinkConfig extends GCPReferenceSinkConfig {
   protected String cmekKey;
 
   public SpannerSinkConfig(String referenceName, String table, @Nullable Integer batchSize, String instance,
-                           String database, @Nullable String keys, String schema) {
+                           String database, @Nullable String keys, String schema, @Nullable String cmekKey) {
     this.referenceName = referenceName;
     this.table = table;
     this.batchSize = batchSize;
@@ -99,6 +100,7 @@ public class SpannerSinkConfig extends GCPReferenceSinkConfig {
     this.database = database;
     this.keys = keys;
     this.schema = schema;
+    this.cmekKey = cmekKey;
   }
 
   public String getTable() {
@@ -118,8 +120,9 @@ public class SpannerSinkConfig extends GCPReferenceSinkConfig {
     return keys;
   }
 
-  public void validate(FailureCollector collector) {
-    super.validate(collector);
+  @Override
+  public void validate(FailureCollector collector, Map<String, String> arguments) {
+    super.validate(collector, arguments);
     Schema schema = getSchema(collector);
     if (!containsMacro(NAME_SCHEMA) && schema != null) {
       // validate output schema
@@ -140,11 +143,9 @@ public class SpannerSinkConfig extends GCPReferenceSinkConfig {
         }
       }
     }
-    /* Commenting out this code for 6.5.1
-    if (!containsMacro(NAME_CMEK_KEY) && !Strings.isNullOrEmpty(cmekKey)) {
-      CmekUtils.getCmekKey(cmekKey, collector);
+    if (!containsMacro(NAME_CMEK_KEY)) {
+      CmekUtils.getCmekKey(cmekKey, arguments, collector);
     }
-    */
   }
   /**
    * Returns schema object.

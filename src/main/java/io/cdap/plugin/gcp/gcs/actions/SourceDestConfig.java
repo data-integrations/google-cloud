@@ -32,6 +32,8 @@ import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 
+import java.util.Collections;
+import java.util.Map;
 import javax.annotation.Nullable;
 
 /**
@@ -101,6 +103,10 @@ public class SourceDestConfig extends GCPConfig {
   }
 
   public void validate(FailureCollector collector) {
+    validate(collector, Collections.emptyMap());
+  }
+  
+  public void validate(FailureCollector collector, Map<String, String> arguments) {
     if (!containsMacro("sourcePath")) {
       try {
         getSourcePath();
@@ -115,17 +121,15 @@ public class SourceDestConfig extends GCPConfig {
         collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_DEST_PATH);
       }
     }
-    /* Commenting out this code for 6.5.1
-    if (!containsMacro(NAME_CMEK_KEY) && !Strings.isNullOrEmpty(cmekKey)) {
-      validateCmekKey(collector);
+    if (!containsMacro(NAME_CMEK_KEY)) {
+      validateCmekKey(collector, arguments);
     }
-    */
     collector.getOrThrowException();
   }
 
   //This method validated the pattern of CMEK Key resource ID.
-  void validateCmekKey(FailureCollector failureCollector) {
-    CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(cmekKey, failureCollector);
+  void validateCmekKey(FailureCollector failureCollector, Map<String, String> arguments) {
+    CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(cmekKey, arguments, failureCollector);
 
     //these fields are needed to check if bucket exists or not and for location validation
     if (cmekKeyName == null || containsMacro(NAME_DEST_PATH) || containsMacro(NAME_LOCATION) ||

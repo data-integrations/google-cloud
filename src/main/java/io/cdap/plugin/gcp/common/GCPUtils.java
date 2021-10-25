@@ -43,7 +43,6 @@ import javax.annotation.Nullable;
  * GCP utility class to get service account credentials
  */
 public class GCPUtils {
-  public static final String CMEK_KEY = "gcp.cmek.key.name";
   public static final String FS_GS_PROJECT_ID = "fs.gs.project.id";
   public static final String CLOUD_JSON_KEYFILE_SUFFIX = "auth.service.account.json.keyfile";
   public static final String CLOUD_JSON_KEYFILE_PREFIX = "google.cloud";

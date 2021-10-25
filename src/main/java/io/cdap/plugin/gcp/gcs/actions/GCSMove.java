@@ -20,10 +20,12 @@ import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
+import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.action.Action;
 import io.cdap.cdap.etl.api.action.ActionContext;
@@ -33,6 +35,7 @@ import io.cdap.plugin.gcp.gcs.GCSPath;
 import io.cdap.plugin.gcp.gcs.StorageClient;
 
 import java.io.IOException;
+import java.util.Collections;
 import javax.annotation.Nullable;
 
 
@@ -53,20 +56,21 @@ public class GCSMove extends Action {
 
   @Override
   public void run(ActionContext context) throws IOException {
-    config.validate(context.getFailureCollector());
+    FailureCollector collector = context.getFailureCollector();
+    config.validate(collector, context.getArguments().asMap());
 
     Boolean isServiceAccountFilePath = config.isServiceAccountFilePath();
     if (isServiceAccountFilePath == null) {
-      context.getFailureCollector().addFailure("Service account type is undefined.",
-                                               "Must be `filePath` or `JSON`");
-      context.getFailureCollector().getOrThrowException();
+      collector.addFailure("Service account type is undefined.",
+                           "Must be `filePath` or `JSON`");
+      collector.getOrThrowException();
       return;
     }
     StorageClient storageClient = StorageClient.create(config.getProject(), config.getServiceAccount(),
                                                        isServiceAccountFilePath);
     GCSPath destPath = config.getDestPath();
-    CryptoKeyName cmekKeyName = config.getCmekKey(context.getArguments(), context.getFailureCollector());
-    context.getFailureCollector().getOrThrowException();
+    CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(config.cmekKey, context.getArguments().asMap(), collector);
+    collector.getOrThrowException();
 
     // create the destination bucket if not exist
     storageClient.createBucketIfNotExists(destPath, config.location, cmekKeyName);

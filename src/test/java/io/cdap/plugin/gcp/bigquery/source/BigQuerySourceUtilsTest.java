@@ -32,7 +32,7 @@ public class BigQuerySourceUtilsTest {
   @Test
   public void getOrCreateBucket() throws IllegalAccessException, NoSuchFieldException, IOException {
     Configuration configuration = new Configuration();
-    BigQuerySourceConfig config = new BigQuerySourceConfig();
+    BigQuerySourceConfig config = BigQuerySourceConfig.builder().build();
 
     Dataset ds = Mockito.mock(Dataset.class);
     Storage st = Mockito.mock(Storage.class);
@@ -45,9 +45,7 @@ public class BigQuerySourceUtilsTest {
     Assert.assertEquals("bq-source-bucket-some-path", bucket1);
 
     // Test with a bucket specified
-    Field bucket = BigQuerySourceConfig.class.getDeclaredField("bucket");
-    bucket.setAccessible(true);
-    bucket.set(config, "a-bucket");
+    config = BigQuerySourceConfig.builder().setBucket("a-bucket").build();
     String bucket2 = BigQuerySourceUtils.getOrCreateBucket(configuration, st, config.getBucket(), ds,
                                                            "some-path", null);
     Assert.assertEquals("a-bucket", bucket2);

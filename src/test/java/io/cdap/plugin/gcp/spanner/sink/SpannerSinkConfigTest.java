@@ -14,13 +14,12 @@
  *  the License.
  */
 
-package io.cdap.plugin.gcp.spanner;
+package io.cdap.plugin.gcp.spanner.sink;
 
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.validation.CauseAttributes;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.cdap.etl.mock.validation.MockFailureCollector;
-import io.cdap.plugin.gcp.spanner.sink.SpannerSinkConfig;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -39,7 +38,7 @@ public class SpannerSinkConfigTest {
                                     Schema.Field.of("timestamp",
                                                     Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))));
 
-    SpannerSinkConfig config = new SpannerSinkConfig("r", null, -1, null, null, "zip, name", schema.toString());
+    SpannerSinkConfig config = new SpannerSinkConfig("r", null, -1, null, null, "zip, name", schema.toString(), null);
     MockFailureCollector collector = new MockFailureCollector();
     config.validate(collector);
 
@@ -69,9 +68,30 @@ public class SpannerSinkConfigTest {
                                     Schema.Field.of("timestamp",
                                                     Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))));
 
-    SpannerSinkConfig config = new SpannerSinkConfig("r", null, null, null, null, "id, name", schema.toString());
+    SpannerSinkConfig config = new SpannerSinkConfig("r", null, null, null, null, "id, name", schema.toString(), null);
     MockFailureCollector collector = new MockFailureCollector();
     config.validate(collector);
     Assert.assertEquals(0, collector.getValidationFailures().size());
+  }
+
+  @Test
+  public void testValidCmekKey() {
+    String cmekKey = "projects/project-id/locations/key-location/keyRings/my_ring/cryptoKeys/test_key";
+    SpannerSinkConfig config = new SpannerSinkConfig("r", null, null, null, null, "id, name", null, cmekKey);
+    MockFailureCollector collector = new MockFailureCollector();
+    config.validate(collector);
+    Assert.assertEquals(0, collector.getValidationFailures().size());
+  }
+
+  @Test
+  public void testInvalidCmekKey() {
+    String cmekKey = "invalidCmekKey";
+    SpannerSinkConfig config = new SpannerSinkConfig("r", null, null, null, null, "id, name", null, cmekKey);
+    MockFailureCollector collector = new MockFailureCollector();
+    config.validate(collector);
+    ValidationFailure failure = collector.getValidationFailures().get(0);
+    List<ValidationFailure.Cause> causes = failure.getCauses();
+    Assert.assertEquals(2, causes.size());
+    Assert.assertEquals("cmekKey", causes.get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
   }
 }

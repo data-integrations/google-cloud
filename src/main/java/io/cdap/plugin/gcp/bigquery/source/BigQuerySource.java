@@ -51,6 +51,7 @@ import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnector;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
+import io.cdap.plugin.gcp.common.CmekUtils;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import org.apache.avro.generic.GenericData;
 import org.apache.hadoop.conf.Configuration;
@@ -114,7 +115,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
   @Override
   public void prepareRun(BatchSourceContext context) throws Exception {
     FailureCollector collector = context.getFailureCollector();
-    config.validate(collector);
+    config.validate(collector, context.getArguments().asMap());
 
     if (getBQSchema(collector).getFields().isEmpty()) {
       collector.addFailure(String.format("BigQuery table %s.%s does not have a schema.",
@@ -134,7 +135,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
 
     // Get Configuration for this run
     bucketPath = UUID.randomUUID().toString();
-    CryptoKeyName cmekKeyName = config.getCmekKey(context.getArguments(), collector);
+    CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(config.cmekKey, context.getArguments().asMap(), collector);
     collector.getOrThrowException();
     configuration = BigQueryUtil.getBigQueryConfig(serviceAccount, config.getProject(), cmekKeyName,
                                                    config.getServiceAccountType());

@@ -39,6 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -77,7 +78,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
     Schema inputSchema = configurer.getInputSchema();
     Schema configuredSchema = config.getSchema(collector);
 
-    config.validate(inputSchema, configuredSchema, collector);
+    config.validate(inputSchema, configuredSchema, collector, Collections.emptyMap());
 
     if (config.tryGetProject() == null || config.getServiceAccountType() == null ||
       (config.isServiceAccountFilePath() && config.autoServiceAccountUnavailable())) {
@@ -98,7 +99,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
   @Override
   protected void prepareRunValidation(BatchSinkContext context) {
     FailureCollector collector = context.getFailureCollector();
-    config.validate(context.getInputSchema(), config.getSchema(collector), collector);
+    config.validate(context.getInputSchema(), config.getSchema(collector), collector, context.getArguments().asMap());
     collector.getOrThrowException();
   }
 
