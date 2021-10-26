@@ -219,7 +219,7 @@ public final class BigQueryUtil {
    * @return A CDAP schema field
    */
   @Nullable
-  public static Schema.Field getSchemaField(Field field, @Nullable FailureCollector collector,
+  private static Schema.Field getSchemaField(Field field, @Nullable FailureCollector collector,
                                             @Nullable String recordPrefix) {
     Schema schema = convertFieldType(field, collector, recordPrefix);
     if (schema == null) {
