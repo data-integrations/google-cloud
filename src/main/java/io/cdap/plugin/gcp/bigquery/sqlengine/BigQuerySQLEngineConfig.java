@@ -28,6 +28,8 @@ import io.cdap.plugin.gcp.bigquery.common.BigQueryBaseConfig;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.CmekUtils;
 
+import java.util.Collections;
+import java.util.Map;
 import javax.annotation.Nullable;
 
 /**
@@ -82,6 +84,20 @@ public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
     "its priority is changed to 'interactive'")
   private String jobPriority;
 
+  private BigQuerySQLEngineConfig(@Nullable String project, @Nullable String serviceAccountType,
+                                  @Nullable String serviceFilePath, @Nullable String serviceAccountJson,
+                                  @Nullable String dataset, @Nullable String location,
+                                  @Nullable String cmekKey, @Nullable String bucket) {
+    this.project = project;
+    this.serviceAccountType = serviceAccountType;
+    this.serviceFilePath = serviceFilePath;
+    this.serviceAccountJson = serviceAccountJson;
+    this.dataset = dataset;
+    this.location = location;
+    this.cmekKey = cmekKey;
+    this.bucket = bucket;
+  }
+
   @Nullable
   public String getLocation() {
     return location;
@@ -113,6 +129,10 @@ public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
   }
 
   public void validate(FailureCollector failureCollector) {
+    validate(failureCollector, Collections.emptyMap());
+  }
+
+  public void validate(FailureCollector failureCollector, Map<String, String> arguments) {
     validate();
     String bucket = getBucket();
     if (!containsMacro(NAME_BUCKET)) {
@@ -121,18 +141,87 @@ public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
     if (!containsMacro(NAME_DATASET)) {
       BigQueryUtil.validateDataset(dataset, NAME_DATASET, failureCollector);
     }
-    /* Commenting out this code for 6.5.1
-    if (!containsMacro(NAME_CMEK_KEY) && !Strings.isNullOrEmpty(cmekKey)) {
-      validateCmekKey(failureCollector);
+    if (!containsMacro(NAME_CMEK_KEY)) {
+      validateCmekKey(failureCollector, arguments);
     }
-    */
   }
 
-  public void validateCmekKey(FailureCollector failureCollector) {
-    CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(cmekKey, failureCollector);
+  void validateCmekKey(FailureCollector failureCollector, Map<String, String> arguments) {
+    CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(cmekKey, arguments, failureCollector);
     if (containsMacro(NAME_LOCATION)) {
       return;
     }
     validateCmekKeyLocation(cmekKeyName, null, location, failureCollector);
+  }
+
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  /**
+   * BigQuery SQlEngine configuration builder.
+   */
+  public static class Builder {
+    private String serviceAccountType;
+    private String serviceFilePath;
+    private String serviceAccountJson;
+    private String project;
+    private String dataset;
+    private String cmekKey;
+    private String location;
+    private String bucket;
+
+    public Builder setProject(@Nullable String project) {
+      this.project = project;
+      return this;
+    }
+
+    public Builder setServiceAccountType(@Nullable String serviceAccountType) {
+      this.serviceAccountType = serviceAccountType;
+      return this;
+    }
+
+    public Builder setServiceFilePath(@Nullable String serviceFilePath) {
+      this.serviceFilePath = serviceFilePath;
+      return this;
+    }
+
+    public Builder setServiceAccountJson(@Nullable String serviceAccountJson) {
+      this.serviceAccountJson = serviceAccountJson;
+      return this;
+    }
+
+    public Builder setDataset(@Nullable String dataset) {
+      this.dataset = dataset;
+      return this;
+    }
+
+    public Builder setCmekKey(@Nullable String cmekKey) {
+      this.cmekKey = cmekKey;
+      return this;
+    }
+
+    public Builder setLocation(@Nullable String location) {
+      this.location = location;
+      return this;
+    }
+
+    public Builder setBucket(@Nullable String bucket) {
+      this.bucket = bucket;
+      return this;
+    }
+
+    public BigQuerySQLEngineConfig build() {
+      return new BigQuerySQLEngineConfig(
+        project,
+        serviceAccountType,
+        serviceFilePath,
+        serviceAccountJson,
+        dataset,
+        location,
+        cmekKey,
+        bucket
+      );
+    }
   }
 }

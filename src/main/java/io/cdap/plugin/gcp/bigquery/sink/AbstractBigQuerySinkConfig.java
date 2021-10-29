@@ -30,6 +30,8 @@ import io.cdap.plugin.gcp.bigquery.common.BigQueryBaseConfig;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.CmekUtils;
 
+import java.util.Collections;
+import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
 
@@ -118,6 +120,10 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
   }
 
   public void validate(FailureCollector collector) {
+    validate(collector, Collections.emptyMap());
+  }
+  
+  public void validate(FailureCollector collector, Map<String, String> arguments) {
     IdUtils.validateReferenceName(referenceName, collector);
 
     String bucket = getBucket();
@@ -130,15 +136,13 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
     if (!containsMacro(NAME_DATASET)) {
       BigQueryUtil.validateDataset(dataset, NAME_DATASET, collector);
     }
-    /* Commenting out this code for 6.5.1
-    if (!containsMacro(NAME_CMEK_KEY) && !Strings.isNullOrEmpty(cmekKey)) {
-      validateCmekKey(collector);
+    if (!containsMacro(NAME_CMEK_KEY)) {
+      validateCmekKey(collector, arguments);
     }
-    */
   }
 
-  void validateCmekKey(FailureCollector failureCollector) {
-    CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(cmekKey, failureCollector);
+  void validateCmekKey(FailureCollector failureCollector, Map<String, String> arguments) {
+    CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(cmekKey, arguments, failureCollector);
     //these fields are needed to check if bucket exists or not and for location validation
     if (containsMacro(NAME_LOCATION)) {
       return;

@@ -52,6 +52,7 @@ import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.common.ReferenceBatchSink;
 import io.cdap.plugin.common.batch.sink.SinkOutputFormatProvider;
+import io.cdap.plugin.gcp.common.CmekUtils;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.spanner.common.SpannerUtil;
 import org.apache.hadoop.conf.Configuration;
@@ -104,7 +105,7 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
   @Override
   public void prepareRun(BatchSinkContext context) throws Exception {
     FailureCollector collector = context.getFailureCollector();
-    config.validate(collector);
+    config.validate(collector, context.getArguments().asMap());
     // throw a validation exception if any failures were added to the collector.
     collector.getOrThrowException();
 
@@ -200,7 +201,8 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
       // Create database
       Database.Builder dbBuilder = dbAdminClient
         .newDatabaseBuilder(DatabaseId.of(config.getProject(), config.getInstance(), config.getDatabase()));
-      CryptoKeyName cmekKeyName = config.getCmekKey(context.getArguments(), context.getFailureCollector());
+      CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(config.cmekKey, context.getArguments().asMap(),
+                                                       context.getFailureCollector());
       context.getFailureCollector().getOrThrowException();
       if (cmekKeyName != null) {
         dbBuilder.setEncryptionConfig(EncryptionConfigs.customerManagedEncryption(cmekKeyName.toString()));

@@ -27,6 +27,7 @@ import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
+import io.cdap.cdap.etl.api.Arguments;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchActionContext;
@@ -42,6 +43,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import javax.annotation.Nullable;
 
 /**
@@ -64,7 +68,8 @@ public class GCSDoneFileMarker extends PostAction {
   @Override
   public void run(BatchActionContext batchActionContext) throws IOException {
     FailureCollector collector = batchActionContext.getFailureCollector();
-    config.validate(collector);
+    Map<String, String> runtimeArgs = getArgumentsAsMap(batchActionContext.getArguments());
+    config.validate(collector, runtimeArgs);
 
     Boolean isServiceAccountFilePath = config.isServiceAccountFilePath();
     if (isServiceAccountFilePath == null) {
@@ -80,10 +85,18 @@ public class GCSDoneFileMarker extends PostAction {
 
     GCSPath markerFilePath = GCSPath.from(config.path);
     String serviceAccount = config.getServiceAccount();
-    CryptoKeyName cmekKeyName = config.getCmekKey(batchActionContext.getArguments(),
-                                                  batchActionContext.getFailureCollector());
+    CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(config.cmekKey, runtimeArgs, collector);
+    collector.getOrThrowException();
     createFileMarker(config.getProject(), markerFilePath, serviceAccount, config.isServiceAccountFilePath(),
                      cmekKeyName);
+  }
+
+  public Map<String, String> getArgumentsAsMap(Arguments arguments) {
+    Map<String, String> convertedArguments = new HashMap<>(Collections.emptyMap());
+    for (Map.Entry<String, String> stringStringEntry : arguments) {
+      convertedArguments.put(stringStringEntry.getKey(), stringStringEntry.getValue());
+    }
+    return convertedArguments;
   }
 
   /**
@@ -131,6 +144,10 @@ public class GCSDoneFileMarker extends PostAction {
     }
 
     void validate(FailureCollector collector) {
+      validate(collector, Collections.emptyMap());
+    }
+
+    void validate(FailureCollector collector, Map<String, String> arguments) {
       if (!this.containsMacro(NAME_RUN_CONDITION)) {
         new ConditionConfig(runCondition).validate(collector);
       }
@@ -158,17 +175,15 @@ public class GCSDoneFileMarker extends PostAction {
         collector.addFailure("Required property 'Service Account JSON' has no value.", "")
           .withConfigProperty(NAME_SERVICE_ACCOUNT_JSON);
       }
-      /* Commenting out this code for 6.5.1
-      if (!containsMacro(NAME_CMEK_KEY) && !Strings.isNullOrEmpty(cmekKey)) {
-        validateCmekKey(collector);
+      if (!containsMacro(NAME_CMEK_KEY)) {
+        validateCmekKey(collector, arguments);
       }
-      */
 
       collector.getOrThrowException();
     }
 
-    void validateCmekKey(FailureCollector collector) {
-      CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(cmekKey, collector);
+    void validateCmekKey(FailureCollector collector, Map<String, String> arguments) {
+      CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(cmekKey, arguments, collector);
 
       //these fields are needed to check if bucket exists or not and for location validation
       if (cmekKeyName == null || containsMacro(NAME_PATH) || projectOrServiceAccountContainsMacro()) {

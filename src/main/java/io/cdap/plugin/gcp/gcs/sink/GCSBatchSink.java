@@ -30,6 +30,7 @@ import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.etl.api.Arguments;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.StageMetrics;
@@ -101,14 +102,15 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
   @Override
   public void prepareRun(BatchSinkContext context) throws Exception {
     super.prepareRun(context);
-    CryptoKeyName cmekKeyName = config.getCmekKey(context.getArguments(), context.getFailureCollector());
-    context.getFailureCollector().getOrThrowException();
+    FailureCollector collector = context.getFailureCollector();
+    CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(config.cmekKey, context.getArguments().asMap(), collector);
+    collector.getOrThrowException();
 
     Boolean isServiceAccountFilePath = config.isServiceAccountFilePath();
     if (isServiceAccountFilePath == null) {
-      context.getFailureCollector().addFailure("Service account type is undefined.",
+      collector.addFailure("Service account type is undefined.",
                                                "Must be `filePath` or `JSON`");
-      context.getFailureCollector().getOrThrowException();
+      collector.getOrThrowException();
       return;
     }
     Credentials credentials = config.getServiceAccount() == null ?
@@ -346,8 +348,8 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     }
 
     @Override
-    public void validate(FailureCollector collector) {
-      super.validate(collector);
+    public void validate(FailureCollector collector, Map<String, String> arguments) {
+      super.validate(collector, arguments);
       // validate that path is valid
       if (!containsMacro(NAME_PATH)) {
         try {
@@ -373,11 +375,9 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
         }
       }
 
-      /* Commenting out this code for 6.5.1
-      if (!containsMacro(NAME_CMEK_KEY) && !Strings.isNullOrEmpty(cmekKey)) {
-        validateCmekKey(collector);
+      if (!containsMacro(NAME_CMEK_KEY)) {
+        validateCmekKey(collector, arguments);
       }
-      */
 
       try {
         getSchema();
@@ -567,8 +567,8 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     }
 
     //This method validated the pattern of CMEK Key resource ID.
-    void validateCmekKey(FailureCollector failureCollector) {
-      CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(cmekKey, failureCollector);
+    void validateCmekKey(FailureCollector failureCollector, Map<String, String> arguments) {
+      CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(cmekKey, arguments, failureCollector);
 
       //these fields are needed to check if bucket exists or not and for location validation
       if (cmekKeyName == null || containsMacro(NAME_PATH) || containsMacro(NAME_LOCATION) ||

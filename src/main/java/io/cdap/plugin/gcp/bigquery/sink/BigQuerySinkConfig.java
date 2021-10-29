@@ -39,6 +39,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -189,7 +190,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   private BigQuerySinkConfig(@Nullable String referenceName, @Nullable String project,
                             @Nullable String serviceAccountType, @Nullable String serviceFilePath,
                             @Nullable String serviceAccountJson, @Nullable String dataset, @Nullable String table,
-                            @Nullable String location, @Nullable String cmekKey) {
+                            @Nullable String location, @Nullable String cmekKey, @Nullable String bucket) {
     this.referenceName = referenceName;
     this.project = project;
     this.serviceAccountType = serviceAccountType;
@@ -199,6 +200,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     this.table = table;
     this.location = location;
     this.cmekKey = cmekKey;
+    this.bucket = bucket;
   }
 
   public String getTable() {
@@ -291,8 +293,8 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   }
 
   @Override
-  public void validate(FailureCollector collector) {
-    super.validate(collector);
+  public void validate(FailureCollector collector, Map<String, String> arguments) {
+    super.validate(collector, arguments);
 
     if (!containsMacro(NAME_TABLE)) {
       BigQueryUtil.validateTable(table, NAME_TABLE, collector);
@@ -314,8 +316,9 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
    * @param outputSchema output schema to BigQuery sink
    * @param collector failure collector
    */
-  public void validate(@Nullable Schema inputSchema, @Nullable Schema outputSchema, FailureCollector collector) {
-    validate(collector);
+  public void validate(@Nullable Schema inputSchema, @Nullable Schema outputSchema, FailureCollector collector,
+                       Map<String, String> arguments) {
+    validate(collector, arguments);
     if (!containsMacro(NAME_SCHEMA)) {
       Schema schema = outputSchema == null ? inputSchema : outputSchema;
       validatePartitionProperties(schema, collector);
@@ -662,8 +665,8 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   }
 
   @Override
-  void validateCmekKey(FailureCollector failureCollector) {
-    CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(cmekKey, failureCollector);
+  void validateCmekKey(FailureCollector failureCollector, Map<String, String> arguments) {
+    CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(cmekKey, arguments, failureCollector);
     //these fields are needed to check if bucket exists or not and for location validation
     if (containsMacro(NAME_LOCATION) || containsMacro(NAME_TABLE) || Strings.isNullOrEmpty(table)) {
       return;
@@ -701,6 +704,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     private String table;
     private String cmekKey;
     private String location;
+    private String bucket;
 
     public BigQuerySinkConfig.Builder setReferenceName(@Nullable String referenceName) {
       this.referenceName = referenceName;
@@ -747,6 +751,11 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
       return this;
     }
 
+    public BigQuerySinkConfig.Builder setBucket(@Nullable String bucket) {
+      this.bucket = bucket;
+      return this;
+    }
+
     public BigQuerySinkConfig build() {
       return new BigQuerySinkConfig(
         referenceName,
@@ -757,7 +766,8 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
         dataset,
         table,
         location,
-        cmekKey
+        cmekKey,
+        bucket
       );
     }
 

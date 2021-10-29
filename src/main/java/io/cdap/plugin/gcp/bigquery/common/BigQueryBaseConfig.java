@@ -23,7 +23,9 @@ import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.kms.v1.CryptoKeyName;
+import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageException;
 import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
@@ -95,9 +97,23 @@ public class BigQueryBaseConfig extends GCPConfig {
     return bucket;
   }
 
+  /* returns the bucket if it exists otherwise null.
+   */
+  private Bucket getBucketIfExists(Storage storage, String bucketName) {
+    Bucket bucket = null;
+    try {
+      bucket = storage.get(bucketName);
+    } catch (StorageException e) {
+      // If there is an exception getting bucket information during config validation, it will be ignored because
+      // service account used can be different.
+    }
+    return bucket;
+  }
+
   public void validateCmekKeyLocation(@Nullable CryptoKeyName cmekKeyName, @Nullable String tableName,
                                       @Nullable String location, FailureCollector failureCollector) {
-    if (cmekKeyName == null || containsMacro(NAME_DATASET) || projectOrServiceAccountContainsMacro()) {
+    if (cmekKeyName == null || containsMacro(NAME_DATASET) || projectOrServiceAccountContainsMacro()
+      || containsMacro(NAME_BUCKET)) {
       return;
     }
     String datasetProjectId = getDatasetProject();
@@ -106,16 +122,21 @@ public class BigQueryBaseConfig extends GCPConfig {
     TableId tableId = tableName == null ? null : TableId.of(datasetProjectId, datasetName, tableName);
     Credentials credentials = getCredentials(failureCollector);
     BigQuery bigQuery = GCPUtils.getBigQuery(getProject(), credentials);
-    if (bigQuery == null) {
+    Storage storage = GCPUtils.getStorage(getProject(), credentials);
+    if (bigQuery == null || storage == null) {
       return;
     }
+    String bucketName = getBucket();
+    Bucket bucket = bucketName == null ? null : getBucketIfExists(storage, bucketName);
+    // if bucket exists then dataset and table will be created in location of bucket if they do not exist.
+    location = bucket == null ? location : bucket.getLocation();
     Dataset dataset = CmekUtils.validateCmekKeyAndDatasetOrTableLocation(bigQuery, datasetId, tableId, cmekKeyName,
                                                                          location, failureCollector);
-    Storage storage = GCPUtils.getStorage(getProject(), credentials);
-    if (dataset == null || storage == null || containsMacro(NAME_BUCKET) || Strings.isNullOrEmpty(bucket)) {
-      return;
+    if (bucket == null && dataset != null) {
+      // if dataset exists then bucket will be created in the location of dataset.
+      location = dataset.getLocation();
+      GCSPath gcsPath = Strings.isNullOrEmpty(bucketName) ? null : GCSPath.from(bucketName);
+      CmekUtils.validateCmekKeyAndBucketLocation(storage, gcsPath, cmekKeyName, location, failureCollector);
     }
-    CmekUtils.validateCmekKeyAndBucketLocation(storage, GCSPath.from(bucket), cmekKeyName,
-                                               dataset.getLocation(), failureCollector);
   }
 }

@@ -48,6 +48,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -72,15 +73,16 @@ public final class GCSBucketCreate extends Action {
 
   @Override
   public void run(ActionContext context) throws Exception {
-    config.validate(context.getFailureCollector());
+    FailureCollector collector = context.getFailureCollector();
+    config.validate(collector, context.getArguments().asMap());
 
     Configuration configuration = new Configuration();
 
     Boolean isServiceAccountFilePath = config.isServiceAccountFilePath();
     if (isServiceAccountFilePath == null) {
-      context.getFailureCollector().addFailure("Service account type is undefined.",
-                                               "Must be `filePath` or `JSON`");
-      context.getFailureCollector().getOrThrowException();
+      collector.addFailure("Service account type is undefined.",
+                           "Must be `filePath` or `JSON`");
+      collector.getOrThrowException();
       return;
     }
     String serviceAccount = config.getServiceAccount();
@@ -111,6 +113,8 @@ public final class GCSBucketCreate extends Action {
     Storage storage = GCPUtils.getStorage(config.getProject(), credentials);
     boolean rollback = false;
     try {
+      CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(config.cmekKey, context.getArguments().asMap(), collector);
+      collector.getOrThrowException();
       for (String path : config.getPaths()) {
         GCSPath gcsPath = GCSPath.from(path);
         GCSPath bucketPath = GCSPath.from(GCSPath.SCHEME + gcsPath.getBucket());
@@ -131,8 +135,6 @@ public final class GCSBucketCreate extends Action {
               + "Ensure you entered the correct bucket path and have permissions for it.", e);
         }
         if (bucket == null) {
-          CryptoKeyName cmekKeyName = config.getCmekKey(context.getArguments(), context.getFailureCollector());
-          context.getFailureCollector().getOrThrowException();
           GCPUtils.createBucket(storage, gcsPath.getBucket(), config.location, cmekKeyName);
           undoBucket.add(bucketPath);
         } else if (gcsPath.equals(bucketPath) && config.failIfExists()) {
@@ -239,8 +241,11 @@ public final class GCSBucketCreate extends Action {
     public boolean failIfExists() {
       return failIfExists;
     }
-
     void validate(FailureCollector collector) {
+      validate(collector, Collections.emptyMap());
+    }
+    
+    void validate(FailureCollector collector, Map<String, String> arguments) {
       if (!containsMacro("paths")) {
         for (String path : getPaths()) {
           try {
@@ -250,17 +255,15 @@ public final class GCSBucketCreate extends Action {
           }
         }
       }
-      /* Commenting out this code for 6.5.1
-      if (!containsMacro(NAME_CMEK_KEY) && !Strings.isNullOrEmpty(cmekKey)) {
-        validateCmekKey(collector);
+      if (!containsMacro(NAME_CMEK_KEY)) {
+        validateCmekKey(collector, arguments);
       }
-      */
       collector.getOrThrowException();
     }
 
     //This method validated the pattern of CMEK Key resource ID.
-    void validateCmekKey(FailureCollector failureCollector) {
-      CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(cmekKey, failureCollector);
+    void validateCmekKey(FailureCollector failureCollector, Map<String, String> arguments) {
+      CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(cmekKey, arguments, failureCollector);
 
       //these fields are needed to check if bucket exists or not and for location validation
       if (cmekKeyName == null || containsMacro(NAME_PATHS) || containsMacro(NAME_LOCATION) ||

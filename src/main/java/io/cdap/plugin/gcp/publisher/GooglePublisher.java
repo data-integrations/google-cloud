@@ -49,6 +49,7 @@ import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
@@ -105,7 +106,8 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, S
         } catch (NotFoundException e) {
           try {
             Topic.Builder request = Topic.newBuilder().setName(projectTopicName.toString());
-            CryptoKeyName cmekKeyName = config.getCmekKey(context.getArguments(), context.getFailureCollector());
+            CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(config.cmekKey, context.getArguments().asMap(),
+                                                             context.getFailureCollector());
             context.getFailureCollector().getOrThrowException();
             if (cmekKeyName != null) {
               request.setKmsKeyName(cmekKeyName.toString());
@@ -221,8 +223,9 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, S
       this.retryTimeoutSeconds = retryTimeoutSeconds;
     }
 
-    public void validate(FailureCollector collector) {
-      super.validate(collector);
+    @Override
+    public void validate(FailureCollector collector, Map<String, String> arguments) {
+      super.validate(collector, arguments);
       if (!containsMacro(NAME_MESSAGE_COUNT_BATCH_SIZE) && messageCountBatchSize != null && messageCountBatchSize < 1) {
         collector.addFailure("Invalid maximum count of messages in a batch.", "Ensure the value is a positive number.")
           .withConfigProperty(NAME_MESSAGE_COUNT_BATCH_SIZE);
@@ -252,11 +255,9 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, S
                              "Ensure the delimiter is provided.")
           .withConfigProperty(delimiter);
       }
-      /* Commenting out this code for 6.5.1
-      if (!containsMacro(NAME_CMEK_KEY) && !Strings.isNullOrEmpty(cmekKey)) {
-        CmekUtils.getCmekKey(cmekKey, collector);
+      if (!containsMacro(NAME_CMEK_KEY)) {
+        CmekUtils.getCmekKey(cmekKey, arguments, collector);
       }
-      */
       collector.getOrThrowException();
     }
 
