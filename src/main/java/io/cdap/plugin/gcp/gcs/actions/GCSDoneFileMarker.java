@@ -88,7 +88,7 @@ public class GCSDoneFileMarker extends PostAction {
     CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(config.cmekKey, runtimeArgs, collector);
     collector.getOrThrowException();
     createFileMarker(config.getProject(), markerFilePath, serviceAccount, config.isServiceAccountFilePath(),
-                     cmekKeyName);
+                     cmekKeyName, config.location);
   }
 
   public Map<String, String> getArgumentsAsMap(Arguments arguments) {
@@ -105,6 +105,7 @@ public class GCSDoneFileMarker extends PostAction {
   public static class Config extends GCPConfig {
     public static final String NAME_PATH = "path";
     public static final String NAME_RUN_CONDITION = "runCondition";
+    public static final String NAME_LOCATION = "location";
 
     @Name(NAME_RUN_CONDITION)
     @Description("When to run the action. Must be 'completion', 'success', or 'failure'. Defaults to 'completion'. " +
@@ -119,6 +120,13 @@ public class GCSDoneFileMarker extends PostAction {
     @Macro
     public String path;
 
+    @Name(NAME_LOCATION)
+    @Macro
+    @Nullable
+    @Description("The location where the GCS bucket will get created. " +
+      "This value is ignored if the bucket already exists.")
+    private String location;
+
     @Name(NAME_CMEK_KEY)
     @Macro
     @Nullable
@@ -132,8 +140,8 @@ public class GCSDoneFileMarker extends PostAction {
     }
 
     private Config(String project, String serviceAccountType, @Nullable String serviceFilePath,
-                  @Nullable String serviceAccountJson, String gcsPath, @Nullable String cmekKey,
-                  String runCondition) {
+                   @Nullable String serviceAccountJson, String gcsPath, @Nullable String location,
+                   @Nullable String cmekKey, String runCondition) {
       this.serviceAccountType = serviceAccountType;
       this.serviceAccountJson = serviceAccountJson;
       this.serviceFilePath = serviceFilePath;
@@ -141,6 +149,7 @@ public class GCSDoneFileMarker extends PostAction {
       this.path = gcsPath;
       this.cmekKey = cmekKey;
       this.runCondition = runCondition;
+      this.location = location;
     }
 
     void validate(FailureCollector collector) {
@@ -186,14 +195,15 @@ public class GCSDoneFileMarker extends PostAction {
       CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(cmekKey, arguments, collector);
 
       //these fields are needed to check if bucket exists or not and for location validation
-      if (cmekKeyName == null || containsMacro(NAME_PATH) || projectOrServiceAccountContainsMacro()) {
+      if (cmekKeyName == null || containsMacro(NAME_PATH) || containsMacro(NAME_LOCATION) ||
+        projectOrServiceAccountContainsMacro()) {
         return;
       }
       Storage storage = GCPUtils.getStorage(getProject(), getCredentials(collector));
       if (storage == null) {
         return;
       }
-      CmekUtils.validateCmekKeyAndBucketLocation(storage, GCSPath.from(path), cmekKeyName, null, collector);
+      CmekUtils.validateCmekKeyAndBucketLocation(storage, GCSPath.from(path), cmekKeyName, location, collector);
     }
 
     public boolean shouldRun(BatchActionContext actionContext) {
@@ -215,6 +225,7 @@ public class GCSDoneFileMarker extends PostAction {
       private String gcsPath;
       private String cmekKey;
       private String runCondition;
+      private String location;
 
       public Builder setProject(@Nullable String project) {
         this.project = project;
@@ -241,6 +252,11 @@ public class GCSDoneFileMarker extends PostAction {
         return this;
       }
 
+      public Builder setLocation(String location) {
+        this.location = location;
+        return this;
+      }
+
       public Builder setCmekKey(@Nullable String cmekKey) {
         this.cmekKey = cmekKey;
         return this;
@@ -258,6 +274,7 @@ public class GCSDoneFileMarker extends PostAction {
           serviceFilePath,
           serviceAccountJson,
           gcsPath,
+          location,
           cmekKey,
           runCondition
         );
@@ -274,10 +291,12 @@ public class GCSDoneFileMarker extends PostAction {
    * @param path The GCS path to the file marker.
    * @param serviceAccount The service account.
    * @param isServiceAccountFilePath True, if a path is provided to the service account json file. False otherwise.
-   * @param cmekKeyName CMEK name used for this bucket.
+   * @param cmekKeyName CMEK name used for this bucket. If the bucket already exists, this is ignored.
+   * @param location where the bucket will get created if does not exists.
    */
   private static void createFileMarker(String project, GCSPath path, String serviceAccount,
-                                       Boolean isServiceAccountFilePath, CryptoKeyName cmekKeyName) {
+                                       Boolean isServiceAccountFilePath, CryptoKeyName cmekKeyName,
+                                       @Nullable String location) {
     Credentials credentials = null;
     if (serviceAccount != null) {
       try {
@@ -291,7 +310,7 @@ public class GCSDoneFileMarker extends PostAction {
     Storage storage = GCPUtils.getStorage(project, credentials);
     if (storage.get(path.getBucket()) == null) {
       try {
-        GCPUtils.createBucket(storage, path.getBucket(), null, cmekKeyName);
+        GCPUtils.createBucket(storage, path.getBucket(), location, cmekKeyName);
       } catch (StorageException e) {
         throw new RuntimeException(String.format("Failed to create bucket %s: %s.", path.getBucket(),
                                                  e.getMessage()), e);

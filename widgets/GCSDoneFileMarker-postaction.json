@@ -34,14 +34,6 @@
           "widget-attributes": {
             "placeholder": "gs://<bucket-name>/directory/marker-file"
           }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Encryption Key Name",
-          "name": "cmekKey",
-          "widget-attributes": {
-            "placeholder": "projects/<gcp-project-id>/locations/<key-location>/keyRings/<key-ring-name>/cryptoKeys/<key-name>"
-          }
         }
       ]
     },
@@ -79,6 +71,27 @@
           "widget-type": "textbox",
           "label": "Service Account JSON",
           "name": "serviceAccountJSON"
+        }
+      ]
+    },
+    {
+      "label": "Auto Create",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Location",
+          "name": "location",
+          "widget-attributes": {
+            "default": "us"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Encryption Key Name",
+          "name": "cmekKey",
+          "widget-attributes": {
+            "placeholder": "projects/<gcp-project-id>/locations/<key-location>/keyRings/<key-ring-name>/cryptoKeys/<key-name>"
+          }
         }
       ]
     }
