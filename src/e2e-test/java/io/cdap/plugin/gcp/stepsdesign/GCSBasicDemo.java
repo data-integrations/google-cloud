@@ -206,4 +206,14 @@ public class GCSBasicDemo implements CdfHelper {
         BeforeActions.scenario.write("Table Deleted Successfully");
     }
 
+    @Then("Enter CmekKey property in BigQuery Sink {string}")
+    public void enterCmekKey(String arg0) throws IOException, InterruptedException {
+        CdfBigQueryPropertiesActions.enterCmekProperty(arg0);
+    }
+
+    @Then("Verify the CmekKey {string} used to create table {string}")
+    public void verifyCmekKeyUsedToCreateTable(String arg0, String arg1) throws IOException {
+        Assert.assertTrue(gcpClient.verifyCmekKey(SeleniumHelper.readParameters(arg1),
+                                                  SeleniumHelper.readParameters(arg0)));
+    }
 }
