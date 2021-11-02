@@ -251,7 +251,7 @@ public final class BigQuerySourceConfig extends PluginConfig {
   void validateCmekKey(FailureCollector collector, Map<String, String> arguments) {
     CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(cmekKey, arguments, collector);
     //these fields are needed to check if bucket exists or not and for location validation
-    if (cmekKeyName == null || !canConnect() || containsMacro(NAME_BUCKET) || Strings.isNullOrEmpty(bucket)) {
+    if (cmekKeyName == null || !canConnect() || containsMacro(NAME_BUCKET)) {
       return;
     }
     DatasetId datasetId = DatasetId.of(getDatasetProject(), getDataset());
@@ -268,7 +268,7 @@ public final class BigQuerySourceConfig extends PluginConfig {
       return;
     }
     Storage storage = GCPUtils.getStorage(getProject(), credentials);
-    if (dataset == null || storage == null || containsMacro(NAME_BUCKET)) {
+    if (dataset == null || storage == null) {
       return;
     }
     GCSPath gcsPath = Strings.isNullOrEmpty(bucket) ? null : GCSPath.from(bucket);
