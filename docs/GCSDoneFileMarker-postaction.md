@@ -38,9 +38,6 @@ For example `gs://billing-data/2021-01-21/__SUCCESS`. The marker file will get c
 marker file in that path. Otherwise, creating a new marker file will be skipped. If the bucket does not exist, it
 will get created automatically.
 
-**Encryption Key Name**: Used to encrypt data written to any bucket created by the plugin.
-If the bucket already exists, this is ignored.
-
 * **Service Account**  Service account key used for authorization
 
 * **File Path**: Path on the local file system of the service account key used for
@@ -48,6 +45,12 @@ authorization. Can be set to 'auto-detect' when running on a Dataproc cluster.
 When running on other clusters, the file must be present on every node in the cluster.
 
 **JSON**: Contents of the service account JSON file.
+
+**Location:** The location where the GCS bucket will get created.
+This value is ignored if the bucket already exists.
+
+**Encryption Key Name**: Used to encrypt data written to any bucket created by the plugin.
+If the bucket already exists, this is ignored.
 
 Example
 -------
