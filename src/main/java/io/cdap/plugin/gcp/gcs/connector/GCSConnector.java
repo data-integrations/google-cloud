@@ -27,6 +27,7 @@ import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.connector.BrowseDetail;
 import io.cdap.cdap.etl.api.connector.BrowseEntity;
@@ -46,6 +47,8 @@ import io.cdap.plugin.format.connector.FileTypeDetector;
 import io.cdap.plugin.gcp.common.GCPConnectorConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.GCSPath;
+import io.cdap.plugin.gcp.gcs.sink.GCSBatchSink;
+import io.cdap.plugin.gcp.gcs.sink.GCSMultiBatchSink;
 import io.cdap.plugin.gcp.gcs.source.GCSSource;
 
 import java.io.File;
@@ -144,18 +147,26 @@ public class GCSConnector extends AbstractFileConnector<GCPConnectorConfig> {
   @Override
   protected void setConnectorSpec(ConnectorSpecRequest request, ConnectorSpec.Builder builder) {
     super.setConnectorSpec(request, builder);
-    Map<String, String> properties = new HashMap<>();
-    properties.put(GCSSource.GCSSourceConfig.NAME_PATH, getFullPath(request.getPath()));
-    properties.put(GCSSource.GCSSourceConfig.NAME_FORMAT, FileTypeDetector.detectFileFormat(
+    Map<String, String> sourceProperties = new HashMap<>();
+    Map<String, String> sinkProperties = new HashMap<>();
+    String path = getFullPath(request.getPath());
+    sourceProperties.put(GCSSource.GCSSourceConfig.NAME_PATH, path);
+    sinkProperties.put(GCSBatchSink.GCSBatchSinkConfig.NAME_PATH, path);
+    sourceProperties.put(GCSSource.GCSSourceConfig.NAME_FORMAT, FileTypeDetector.detectFileFormat(
       FileTypeDetector.detectFileType(request.getPath())).name().toLowerCase());
-    properties.put(ConfigUtil.NAME_USE_CONNECTION, "true");
-    properties.put(ConfigUtil.NAME_CONNECTION, request.getConnectionWithMacro());
-    if (!isRoot(request.getPath())) {
-      GCSPath gcsPath = GCSPath.from(request.getPath());
-      properties.put(Constants.Reference.REFERENCE_NAME,
-                     ReferenceNames.cleanseReferenceName(gcsPath.getBucket() + "." + gcsPath.getName()));
+    sourceProperties.put(ConfigUtil.NAME_USE_CONNECTION, "true");
+    sinkProperties.put(ConfigUtil.NAME_USE_CONNECTION, "true");
+    sourceProperties.put(ConfigUtil.NAME_CONNECTION, request.getConnectionWithMacro());
+    sinkProperties.put(ConfigUtil.NAME_CONNECTION, request.getConnectionWithMacro());
+    if (!isRoot(path)) {
+      GCSPath gcsPath = GCSPath.from(path);
+      String referenceName = ReferenceNames.cleanseReferenceName(gcsPath.getBucket() + "." + gcsPath.getName());
+      sourceProperties.put(Constants.Reference.REFERENCE_NAME, referenceName);
+      sinkProperties.put(Constants.Reference.REFERENCE_NAME, referenceName);
     }
-    builder.addRelatedPlugin(new PluginSpec(GCSSource.NAME, BatchSource.PLUGIN_TYPE, properties));
+    builder.addRelatedPlugin(new PluginSpec(GCSSource.NAME, BatchSource.PLUGIN_TYPE, sourceProperties));
+    builder.addRelatedPlugin(new PluginSpec(GCSBatchSink.NAME, BatchSink.PLUGIN_TYPE, sinkProperties));
+    builder.addRelatedPlugin(new PluginSpec(GCSMultiBatchSink.NAME, BatchSink.PLUGIN_TYPE, sinkProperties));
   }
 
   private BrowseDetail browseBuckets(int limit) throws IOException {

@@ -6,6 +6,75 @@
   "display-name": "GCS",
   "configuration-groups": [
     {
+      "label": "Connection",
+      "properties": [
+        {
+          "widget-type": "toggle",
+          "label": "Use Connection",
+          "name": "useConnection",
+          "widget-attributes" : {
+            "on": {
+              "value": "true",
+              "label": "YES"
+            },
+            "off": {
+              "value": "false",
+              "label": "NO"
+            },
+            "default": "false"
+          }
+        },
+        {
+          "widget-type": "connection-select",
+          "label": "Connection",
+          "name": "connection",
+          "widget-attributes": {
+            "connectionType": "GCS"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Project ID",
+          "name": "project",
+          "widget-attributes" : {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "name": "serviceAccountType",
+          "label": "Service Account Type",
+          "widget-type": "radio-group",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "filePath",
+            "options": [
+              {
+                "id": "filePath",
+                "label": "File Path"
+              },
+              {
+                "id": "JSON",
+                "label": "JSON"
+              }
+            ]
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes": {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Service Account JSON",
+          "name": "serviceAccountJSON"
+        }
+      ]
+    },
+    {
       "label": "Basic",
       "properties": [
         {
@@ -17,11 +86,11 @@
           }
         },
         {
-          "widget-type": "textbox",
-          "label": "Project ID",
-          "name": "project",
-          "widget-attributes" : {
-            "default": "auto-detect"
+          "widget-type": "connection-browser",
+          "widget-category": "plugin",
+          "widget-attributes": {
+            "connectionType": "GCS",
+            "label": "Browse"
           }
         },
         {
@@ -71,43 +140,6 @@
               "label": "False"
             }
           }
-        }
-      ]
-    },
-    {
-      "label" : "Credentials",
-      "properties" : [
-        {
-          "name": "serviceAccountType",
-          "label": "Service Account Type",
-          "widget-type": "radio-group",
-          "widget-attributes": {
-            "layout": "inline",
-            "default": "filePath",
-            "options": [
-              {
-                "id": "filePath",
-                "label": "File Path"
-              },
-              {
-                "id": "JSON",
-                "label": "JSON"
-              }
-            ]
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Service Account File Path",
-          "name": "serviceFilePath",
-          "widget-attributes" : {
-            "default": "auto-detect"
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Service Account JSON",
-          "name": "serviceAccountJSON"
         }
       ]
     },
@@ -193,7 +225,7 @@
     {
       "name": "ServiceAuthenticationTypeFilePath",
       "condition": {
-        "expression": "serviceAccountType == 'filePath'"
+        "expression": "useConnection == false && serviceAccountType == 'filePath'"
       },
       "show": [
         {
@@ -205,12 +237,40 @@
     {
       "name": "ServiceAuthenticationTypeJSON",
       "condition": {
-        "expression": "serviceAccountType == 'JSON'"
+        "expression": "useConnection == false && serviceAccountType == 'JSON'"
       },
       "show": [
         {
           "type": "property",
           "name": "serviceAccountJSON"
+        }
+      ]
+    },
+    {
+      "name": "showConnectionProperties ",
+      "condition": {
+        "expression": "useConnection == false"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "project"
+        },
+        {
+          "type": "property",
+          "name": "serviceAccountType"
+        }
+      ]
+    },
+    {
+      "name": "showConnectionId",
+      "condition": {
+        "expression": "useConnection == true"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "connection"
         }
       ]
     },
