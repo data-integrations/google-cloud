@@ -72,6 +72,9 @@ authorization. Can be set to 'auto-detect' when running on a Dataproc cluster.
 When running on other clusters, the file must be present on every node in the cluster.
 * **JSON**: Contents of the service account JSON file.
 
+**Use Transactions**: Whether to use transactions or not when committing record batches into Datastore.
+See the [Datastore documentation on Transactions](https://cloud.google.com/datastore/docs/concepts/transactions)
+
 Examples
 --------
 ***Example 1:*** Insert new entities with key type `Auto-generated key` to Cloud Datastore.
