@@ -26,6 +26,20 @@ jobs:
   build:
     runs-on: k8s-runner-e2e
 
+    # We allow builds:
+    # 1) When triggered manually
+    # 2) When it's a merge into a branch
+    # 3) For PRs that are labeled as build and
+    #  - It's a code change
+    #  - A build label was just added
+    # A bit complex, but prevents builds when other labels are manipulated
+    if: >
+      github.event_name == 'workflow_dispatch'
+      || github.event_name == 'push'
+      || (contains(github.event.pull_request.labels.*.name, 'build')
+         && (github.event.action != 'labeled' || github.event.label.name == 'build')
+         )
+
     steps:
       # Pinned 1.0.0 version
       - uses: actions/checkout@v2.3.4
@@ -63,7 +77,7 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./plugin/target/cucumber-reports
-          destination_dir: cucumber-reports/branches/develop
+          destination_dir: cucumber-reports/${{ github.ref }}
           
       - name: github-status-action
         uses: Sibz/github-status-action@67af1f4042a5a790681aad83c44008ca6cfab83d
@@ -72,5 +86,7 @@ jobs:
           authToken: ${{ secrets.GITHUB_TOKEN }}
           state: success
           context: Cucumber report
-          target_url: https://data-integrations.github.io/google-cloud/cucumber-reports/branches/develop/advanced-reports/cucumber-html-reports/overview-features.html
+          target_url: https://data-integrations.github.io/google-cloud/cucumber-reports/${{ github.ref }}/advanced-reports/cucumber-html-reports/overview-features.html
+          sha: ${{github.event.pull_request.head.sha || github.sha}}
+
           
