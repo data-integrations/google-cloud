@@ -142,6 +142,22 @@
             "min": "1",
             "max": "500"
           }
+        },
+        {
+          "widget-type": "toggle",
+          "label": "Use transactions",
+          "name": "useTransactions",
+          "widget-attributes" : {
+            "on": {
+              "value": "true",
+              "label": "YES"
+            },
+            "off": {
+              "value": "false",
+              "label": "NO"
+            },
+            "default": "true"
+          }
         }
       ]
     }
