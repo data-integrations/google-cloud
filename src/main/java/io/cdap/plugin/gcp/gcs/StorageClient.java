@@ -27,6 +27,7 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
 import com.google.common.annotations.VisibleForTesting;
+import io.cdap.plugin.gcp.common.GCPConnectorConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -322,6 +323,10 @@ public class StorageClient {
     }
     Storage storage = builder.build().getService();
     return new StorageClient(storage);
+  }
+
+  public static StorageClient create(GCPConnectorConfig config) throws IOException {
+    return create(config.getProject(), config.getServiceAccount(), config.isServiceAccountFilePath());
   }
 
   /**
