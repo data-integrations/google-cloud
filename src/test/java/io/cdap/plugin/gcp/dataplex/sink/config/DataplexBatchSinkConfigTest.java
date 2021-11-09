@@ -110,7 +110,7 @@ public class DataplexBatchSinkConfigTest {
     } catch (Exception e) {
       e.getMessage();
     }
-    assertEquals(1, mockFailureCollector.getValidationFailures().size());
+    assertEquals(0, mockFailureCollector.getValidationFailures().size());
   }
 
   @Test
@@ -127,7 +127,7 @@ public class DataplexBatchSinkConfigTest {
     } catch (Exception e) {
       e.getMessage();
     }
-    assertEquals(1, mockFailureCollector.getValidationFailures().size());
+    assertEquals(0, mockFailureCollector.getValidationFailures().size());
   }
 
   @Test
@@ -151,9 +151,11 @@ public class DataplexBatchSinkConfigTest {
 
   @Test
   public void validateAssetConfigurationWhenLocationIsNull() throws Exception {
-    DataplexBatchSinkConfig dataplexBatchSinkConfig = new DataplexBatchSinkConfig();
+    DataplexBatchSinkConfig dataplexBatchSinkConfig = PowerMockito.spy(new DataplexBatchSinkConfig());
     MockFailureCollector mockFailureCollector = new MockFailureCollector();
     DataplexInterface dataplexInterface = mock(DataplexInterface.class);
+    GoogleCredentials googleCredentials = PowerMockito.mock(GoogleCredentials.class);
+    doReturn(googleCredentials).when(dataplexBatchSinkConfig).getCredentials();
 
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("referenceName"),
       "test");
@@ -507,12 +509,6 @@ public class DataplexBatchSinkConfigTest {
   }
 
   @Test
-  public void autoServiceAccountUnavailableWhenConnectionIsNull() {
-    DataplexBatchSinkConfig dataplexBatchSinkConfig = PowerMockito.spy(new DataplexBatchSinkConfig());
-    assertTrue(dataplexBatchSinkConfig.autoServiceAccountUnavailable());
-  }
-
-  @Test
   public void autoServiceAccountUnavailableWhenConnectionIsNullWithMock() throws Exception {
     DataplexBatchSinkConfig dataplexBatchSinkConfig = PowerMockito.spy(new DataplexBatchSinkConfig());
     GCPConnectorConfig dataplexConnectorConfig = PowerMockito.spy(new GCPConnectorConfig("", "", "filePath",
@@ -528,9 +524,7 @@ public class DataplexBatchSinkConfigTest {
     MockFailureCollector mockFailureCollector = new MockFailureCollector();
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("format"),
       "avro");
-    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("contentType"),
-      "application/avros");
-    assertEquals(1, mockFailureCollector.getValidationFailures().size());
+    assertEquals(0, mockFailureCollector.getValidationFailures().size());
   }
 
   @Test
@@ -539,9 +533,7 @@ public class DataplexBatchSinkConfigTest {
     MockFailureCollector mockFailureCollector = new MockFailureCollector();
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("format"),
       "json");
-    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("contentType"),
-      "application/jsons");
-    assertEquals(1, mockFailureCollector.getValidationFailures().size());
+    assertEquals(0, mockFailureCollector.getValidationFailures().size());
   }
 
   @Test
@@ -550,9 +542,7 @@ public class DataplexBatchSinkConfigTest {
     MockFailureCollector mockFailureCollector = new MockFailureCollector();
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("format"),
       "csv");
-    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("contentType"),
-      "application/csvs");
-    assertEquals(1, mockFailureCollector.getValidationFailures().size());
+    assertEquals(0, mockFailureCollector.getValidationFailures().size());
   }
 
   @Test
@@ -561,9 +551,7 @@ public class DataplexBatchSinkConfigTest {
     MockFailureCollector mockFailureCollector = new MockFailureCollector();
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("format"),
       "parquet");
-    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("contentType"),
-      "application/parquets");
-    assertEquals(1, mockFailureCollector.getValidationFailures().size());
+    assertEquals(0, mockFailureCollector.getValidationFailures().size());
   }
 
   @Test
@@ -572,9 +560,7 @@ public class DataplexBatchSinkConfigTest {
     MockFailureCollector mockFailureCollector = new MockFailureCollector();
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("format"),
       "orc");
-    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("contentType"),
-      "application/orcs");
-    assertEquals(1, mockFailureCollector.getValidationFailures().size());
+    assertEquals(0, mockFailureCollector.getValidationFailures().size());
   }
 
   @Test
@@ -583,9 +569,7 @@ public class DataplexBatchSinkConfigTest {
     MockFailureCollector mockFailureCollector = new MockFailureCollector();
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("format"),
       "test");
-    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("contentType"),
-      "application/csv");
-    assertEquals(1, mockFailureCollector.getValidationFailures().size());
+    assertEquals(0, mockFailureCollector.getValidationFailures().size());
   }
 
   @Test
@@ -606,6 +590,8 @@ public class DataplexBatchSinkConfigTest {
     PowerMockito.doNothing().when(dataplexBatchSinkConfig, "validateFormatForStorageBucket", any(), any());
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("suffix"),
       "test");
+    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("table"),
+      "table");
     when(dataplexBatchSinkConfig.getSchema(any())).thenThrow(IllegalArgumentException.class);
     dataplexBatchSinkConfig.validateStorageBucket(mockFailureCollector);
     assertEquals(2, mockFailureCollector.getValidationFailures().size());
@@ -619,6 +605,8 @@ public class DataplexBatchSinkConfigTest {
     PowerMockito.doNothing().when(dataplexBatchSinkConfig, "validateFormatForStorageBucket", any(), any());
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("suffix"),
       "yyyy-MM-dd");
+    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("table"),
+      "table");
     dataplexBatchSinkConfig.validateStorageBucket(mockFailureCollector);
     assertEquals(0, mockFailureCollector.getValidationFailures().size());
   }
@@ -643,8 +631,6 @@ public class DataplexBatchSinkConfigTest {
     PipelineConfigurer pipelineConfigurer = mock(PipelineConfigurer.class);
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("format"),
       "csv");
-    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("contentType"),
-      "other");
     try {
       dataplexBatchSinkConfig.validateFormatForStorageBucket(pipelineConfigurer, mockFailureCollector);
     } catch (Exception e) {

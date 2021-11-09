@@ -34,13 +34,14 @@ must have permission in this project to create buckets.
 
 * **JSON**: Contents of the service account JSON file.
 
-**Location ID**: Location ID in which Dataplex Lake has been created.
+**Location ID**: Location ID in which the Dataplex lake has been created. On the lake page, click the name of the lake.
+The lake page has the location ID.
 
-**Lake ID**: ID for the Dataplex Lake.
+**Lake ID**: ID for the Dataplex lake. You can find it on the lake detail page in Dataplex.
 
-**Zone ID**: ID for the Dataplex Zone.
+**Zone ID**: ID for the Dataplex zone. You can find it on the zone detail page in Dataplex.
 
-**Asset ID**: ID for the Dataplex Asset.
+**Asset ID**: ID for the Dataplex asset. You can find it on the asset detail page in Dataplex.
 
 **Asset Type**: Type of asset selected to ingest the data in Dataplex.
 * Bigquery Dataset - Asset is of type BigQuery dataset.
@@ -167,18 +168,6 @@ If not specified, nothing will be appended to the path."
 The format must be one of 'json', 'avro', 'parquet', 'csv', 'orc' in case of raw zone
 and 'avro', 'parquet', 'orc' in case of curated zone.
 If the format is a macro, only the pre-packaged formats can be used.
-
-**Content Type:** The Content Type entity is used to indicate the media type of the resource.
-Defaults to 'application/octet-stream'. The following table shows valid content types for each format.
-
-| Format type   | Content type                                                                               |
-|---------------|--------------------------------------------------------------------------------------------|
-| avro          | application/avro, application/octet-stream                                                 |
-| csv           | text/csv, application/csv, text/plain, application/octet-stream                            |
-| json          | application/json, text/plain, application/octet-stream                                     |
-| orc           | application/octet-stream                                                                   |
-| parquet       | application/octet-stream                                                                   |
-
 
 **Schema:** Schema of the data to write.
 The 'avro' and 'parquet' formats require a schema but other formats do not.

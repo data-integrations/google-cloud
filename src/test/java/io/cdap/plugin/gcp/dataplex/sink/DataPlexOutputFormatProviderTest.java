@@ -21,9 +21,13 @@ import io.cdap.cdap.api.data.format.StructuredRecord;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.JobContext;
+import org.apache.hadoop.mapreduce.JobID;
 import org.apache.hadoop.mapreduce.JobStatus;
 import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.apache.hadoop.mapreduce.TaskAttemptID;
+import org.apache.hadoop.mapreduce.TaskID;
+import org.apache.hadoop.mapreduce.TaskType;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter;
 import org.junit.Assert;
 import org.junit.Test;
@@ -77,6 +81,15 @@ public class DataPlexOutputFormatProviderTest {
   @Test
   public void testDataPexOutputCommitter() throws IOException, InterruptedException {
     DataplexOutputCommitter committer = new DataplexOutputCommitter();
+    JobID jobID = new JobID();
+    TaskID taskID = new TaskID(jobID, TaskType.REDUCE, 1);
+    TaskAttemptID taskAttemptID = new TaskAttemptID(taskID, 1);
+    Configuration configuration = new Configuration();
+    configuration.set(DataplexOutputFormatProvider.DATAPLEX_ASSET_TYPE, DataplexBatchSink.BIGQUERY_DATASET_ASSET_TYPE);
+
+    when(mockContext.getConfiguration()).thenReturn(configuration);
+    when(mockContext.getTaskAttemptID()).thenReturn(taskAttemptID);
+
     committer.addDataplexOutputCommitterFromOutputFormat(fileOutputCommitter, mockContext);
     DataplexOutputCommitter committerToTest = spy(committer);
     JobStatus.State mockState = JobStatus.State.SUCCEEDED;
@@ -94,15 +107,6 @@ public class DataPlexOutputFormatProviderTest {
     committerToTest.commitJob(mockJobContext);
     verify(fileOutputCommitter, times(1)).commitJob(mockJobContext);
 
-    committerToTest.isCommitJobRepeatable(mockJobContext);
-    verify(fileOutputCommitter, times(1)).isCommitJobRepeatable(mockJobContext);
-
-    committerToTest.isRecoverySupported();
-    verify(fileOutputCommitter, times(1)).isRecoverySupported();
-
-    committerToTest.isRecoverySupported(mockJobContext);
-    verify(fileOutputCommitter, times(1)).isRecoverySupported(mockJobContext);
-
     committerToTest.needsTaskCommit(mockContext);
     verify(fileOutputCommitter, times(1)).needsTaskCommit(mockContext);
 
@@ -113,10 +117,8 @@ public class DataPlexOutputFormatProviderTest {
     verify(fileOutputCommitter, times(1)).setupJob(mockJobContext);
 
     committerToTest.setupTask(mockContext);
-    verify(fileOutputCommitter, times(1)).setupTask(mockContext);
+    verify(fileOutputCommitter, times(2)).setupTask(mockContext);
 
-    Configuration configuration = new Configuration();
-    when(mockContext.getConfiguration()).thenReturn(configuration);
     committerToTest.commitTask(mockContext);
     verify(fileOutputCommitter, times(1)).commitTask(mockContext);
   }

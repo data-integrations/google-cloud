@@ -57,6 +57,7 @@ import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
 import io.cdap.plugin.gcp.bigquery.sink.PartitionType;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
+import io.cdap.plugin.gcp.common.CmekUtils;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.dataplex.sink.config.DataplexBatchSinkConfig;
 import io.cdap.plugin.gcp.dataplex.sink.connection.DataplexInterface;
@@ -66,7 +67,6 @@ import io.cdap.plugin.gcp.gcs.GCSPath;
 import io.cdap.plugin.gcp.gcs.StorageClient;
 import io.cdap.plugin.gcp.gcs.sink.GCSBatchSink;
 
-import org.apache.avro.ValidateAll;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -214,13 +214,13 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     FailureCollector collector = context.getFailureCollector();
     Credentials credentials = config.getCredentials();
     String project = config.getProject();
-    String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
+    String cmekKey = context.getArguments().get(CmekUtils.CMEK_KEY);
     CryptoKeyName cmekKeyName = null;
     if (!Strings.isNullOrEmpty(cmekKey)) {
       cmekKeyName = CryptoKeyName.parse(cmekKey);
     }
     baseConfiguration = getBaseConfiguration(cmekKeyName);
-    String[] assetValues = assetBean.getAssetResourceSpec().name.split("/");
+    String[] assetValues = assetBean.getAssetResourceSpec().getName().split("/");
     String dataset = assetValues[assetValues.length - 1];
     String datasetProject = assetValues[assetValues.length - 3];
     bigQuery = GCPUtils.getBigQuery(datasetProject, credentials);
@@ -428,7 +428,7 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     outputProperties.putAll(getFileSystemProperties());
     context.addOutput(Output.of(config.getReferenceName(),
       new SinkOutputFormatProvider(validatingOutputFormat.getOutputFormatClassName(), outputProperties)));
-    String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
+    String cmekKey = context.getArguments().get(CmekUtils.CMEK_KEY);
     CryptoKeyName cmekKeyName = null;
     if (!Strings.isNullOrEmpty(cmekKey)) {
       cmekKeyName = CryptoKeyName.parse(cmekKey);
