@@ -32,6 +32,7 @@ import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.connector.BrowseDetail;
 import io.cdap.cdap.etl.api.connector.BrowseEntity;
@@ -49,6 +50,7 @@ import io.cdap.plugin.common.Constants;
 import io.cdap.plugin.common.ReferenceNames;
 import io.cdap.plugin.gcp.common.GCPConnectorConfig;
 import io.cdap.plugin.gcp.spanner.common.SpannerUtil;
+import io.cdap.plugin.gcp.spanner.sink.SpannerSink;
 import io.cdap.plugin.gcp.spanner.source.ResultSetToRecordTransformer;
 import io.cdap.plugin.gcp.spanner.source.SpannerSource;
 import io.cdap.plugin.gcp.spanner.source.SpannerSourceConfig;
@@ -173,7 +175,9 @@ public class SpannerConnector implements DirectConnector {
       Schema schema = getTableSchema(instanceName, databaseName, tableName, context.getFailureCollector());
       specBuilder.setSchema(schema);
     }
-    return specBuilder.addRelatedPlugin(new PluginSpec(SpannerSource.NAME, BatchSource.PLUGIN_TYPE, properties))
+    return specBuilder
+      .addRelatedPlugin(new PluginSpec(SpannerSource.NAME, BatchSource.PLUGIN_TYPE, properties))
+      .addRelatedPlugin(new PluginSpec(SpannerSink.NAME, BatchSink.PLUGIN_TYPE, properties))
       .build();
   }
 
