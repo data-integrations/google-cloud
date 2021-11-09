@@ -41,7 +41,6 @@ import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.connector.Connector;
 import io.cdap.cdap.etl.api.validation.ValidatingOutputFormat;
 import io.cdap.plugin.common.batch.sink.SinkOutputFormatProvider;
-import io.cdap.plugin.format.FileFormat;
 import io.cdap.plugin.gcp.common.CmekUtils;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.connector.GCSConnector;
@@ -82,7 +81,7 @@ public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable,
     config.validate(collector);
     collector.getOrThrowException();
 
-    FileFormat format = config.getFormat();
+    String format = config.getFormatName();
     // add schema as a macro since we don't know it until runtime
     PluginProperties.Builder formatPropertiesBuilder = PluginProperties.builder()
       .addAll(config.getProperties().getProperties());
@@ -94,12 +93,11 @@ public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable,
     PluginProperties formatProperties = formatPropertiesBuilder.build();
 
     OutputFormatProvider outputFormatProvider =
-      pipelineConfigurer.usePlugin(ValidatingOutputFormat.PLUGIN_TYPE, format.name().toLowerCase(),
-                                   FORMAT_PLUGIN_ID, formatProperties);
+      pipelineConfigurer.usePlugin(ValidatingOutputFormat.PLUGIN_TYPE, format, FORMAT_PLUGIN_ID, formatProperties);
     if (outputFormatProvider == null) {
       collector.addFailure(
-        String.format("Could not find the '%s' output format plugin.", format.name().toLowerCase()), null)
-        .withPluginNotFound(FORMAT_PLUGIN_ID, format.name().toLowerCase(), ValidatingOutputFormat.PLUGIN_TYPE);
+        String.format("Could not find the '%s' output format plugin.", format), null)
+        .withPluginNotFound(FORMAT_PLUGIN_ID, format, ValidatingOutputFormat.PLUGIN_TYPE);
     }
   }
 

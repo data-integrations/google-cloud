@@ -207,7 +207,8 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     }
 
     Map<String, String> fileSystemProperties = config.getFileSystemProperties();
-    if (fileSystemProperties.containsKey(AVRO_NAMED_OUTPUT) && config.getFormat() == FileFormat.AVRO) {
+    if (fileSystemProperties.containsKey(AVRO_NAMED_OUTPUT) &&
+      FileFormat.AVRO.name().toLowerCase().equals(config.getFormatName())) {
       return fileSystemProperties.get(AVRO_NAMED_OUTPUT);
     }
     if (fileSystemProperties.containsKey(COMMON_NAMED_OUTPUT)) {
