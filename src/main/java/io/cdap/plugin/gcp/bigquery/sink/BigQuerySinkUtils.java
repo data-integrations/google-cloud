@@ -264,27 +264,61 @@ public final class BigQuerySinkUtils {
       .collect(Collectors.toList());
   }
 
-  private static BigQueryTableFieldSchema generateTableFieldSchema(Schema.Field field) {
-    BigQueryTableFieldSchema fieldSchema = new BigQueryTableFieldSchema();
-    fieldSchema.setName(field.getName());
-    fieldSchema.setMode(getMode(field.getSchema()).name());
-    LegacySQLTypeName type = getTableDataType(field.getSchema());
-    fieldSchema.setType(type.name());
+  public static BigQueryTableFieldSchema generateTableFieldSchema(Schema.Field field) {
+    BigQueryTableFieldSchema bqFieldSchema = new BigQueryTableFieldSchema();
+    Schema fieldSchema = field.getSchema();
+    bqFieldSchema.setName(field.getName());
+    bqFieldSchema.setMode(getMode(fieldSchema).name());
+    LegacySQLTypeName type = getTableDataType(fieldSchema);
+    bqFieldSchema.setType(type.name());
     if (type == LegacySQLTypeName.RECORD) {
       List<Schema.Field> schemaFields;
-      if (Schema.Type.ARRAY == field.getSchema().getType()) {
-        schemaFields = Objects.requireNonNull(field.getSchema().getComponentSchema()).getFields();
+
+      if (fieldIsArray(field)) {
+        // In case of NULLABLES array of records
+        Schema nonNullableSchema = fieldSchema.isNullable()
+                ? fieldSchema.getNonNullable()
+                : fieldSchema;
+        Schema componentSchema = nonNullableSchema.getComponentSchema();
+
+        // In case of array of NULLABLE records
+        Schema nonNullableComponentSchema = componentSchema.isNullable()
+                ? componentSchema.getNonNullable()
+                : componentSchema;
+        schemaFields = Objects.requireNonNull(nonNullableComponentSchema).getFields();
       } else {
         schemaFields = field.getSchema().isNullable()
           ? field.getSchema().getNonNullable().getFields()
           : field.getSchema().getFields();
       }
-      fieldSchema.setFields(Objects.requireNonNull(schemaFields).stream()
+      bqFieldSchema.setFields(Objects.requireNonNull(schemaFields).stream()
                               .map(BigQuerySinkUtils::generateTableFieldSchema)
                               .collect(Collectors.toList()));
 
     }
-    return fieldSchema;
+    return bqFieldSchema;
+  }
+
+  /**
+   * Return true if field is of type array and false else
+   * @param field the field
+   * @return isArray
+   */
+  private static boolean fieldIsArray(Schema.Field field) {
+    Schema fieldSchema = field.getSchema();
+
+    if (fieldSchema.getType().equals(Schema.Type.ARRAY)) {
+      return true;
+    }
+    if (fieldSchema.getType().equals(Schema.Type.UNION)) {
+      for (Schema s: fieldSchema.getUnionSchemas()) {
+        if (s.getType().equals(Schema.Type.ARRAY)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
   }
 
   private static Field.Mode getMode(Schema schema) {
