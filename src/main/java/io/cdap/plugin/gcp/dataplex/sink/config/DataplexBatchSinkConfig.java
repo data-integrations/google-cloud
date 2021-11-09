@@ -473,7 +473,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
       try {
         Asset assetBean = dataplexInterface.getAsset(getCredentials(), tryGetProject(), location,
           lake, zone, asset);
-        String[] assetValues = assetBean.getAssetResourceSpec().name.split("/");
+        String[] assetValues = assetBean.getAssetResourceSpec().getName().split("/");
         String dataset = assetValues[assetValues.length - 1];
         String datasetProject = assetValues[assetValues.length - 3];
         validatePartitionProperties(schema, collector, dataset, datasetProject);
