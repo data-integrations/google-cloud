@@ -22,12 +22,18 @@ import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.api.plugin.PluginConfig;
 import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.plugin.common.ConfigUtil;
+import io.cdap.plugin.common.Constants;
+import io.cdap.plugin.common.IdUtils;
 import io.cdap.plugin.gcp.common.CmekUtils;
+import io.cdap.plugin.gcp.common.GCPConnectorConfig;
 import io.cdap.plugin.gcp.common.GCPReferenceSinkConfig;
 import io.cdap.plugin.gcp.spanner.common.SpannerUtil;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
@@ -35,7 +41,7 @@ import javax.annotation.Nullable;
 /**
  * Spanner sink config
  */
-public class SpannerSinkConfig extends GCPReferenceSinkConfig {
+public class SpannerSinkConfig extends PluginConfig {
   private static final int DEFAULT_SPANNER_WRITE_BATCH_SIZE = 100;
   private static final Set<Schema.Type> SUPPORTED_TYPES =
     ImmutableSet.of(Schema.Type.BOOLEAN, Schema.Type.STRING, Schema.Type.INT, Schema.Type.LONG,
@@ -47,6 +53,7 @@ public class SpannerSinkConfig extends GCPReferenceSinkConfig {
   public static final String NAME_DATABASE = "database";
   public static final String NAME_KEYS = "keys";
   public static final String NAME_SCHEMA = "schema";
+  private static final String NAME_CMEK_KEY = "cmekKey";
 
   @Name(NAME_TABLE)
   @Description("Cloud Spanner table id. Uniquely identifies your table within the Cloud Spanner database")
@@ -91,6 +98,21 @@ public class SpannerSinkConfig extends GCPReferenceSinkConfig {
     "any database created by the plugin. If the database already exists, this is ignored.")
   protected String cmekKey;
 
+  @Name(Constants.Reference.REFERENCE_NAME)
+  @Description("This will be used to uniquely identify this source for lineage, annotating metadata, etc.")
+  public String referenceName;
+
+  @Name(ConfigUtil.NAME_USE_CONNECTION)
+  @Nullable
+  @Description("Whether to use an existing connection.")
+  private Boolean useConnection;
+
+  @Name(ConfigUtil.NAME_CONNECTION)
+  @Macro
+  @Nullable
+  @Description("The existing connection to use.")
+  protected GCPConnectorConfig connection;
+
   public SpannerSinkConfig(String referenceName, String table, @Nullable Integer batchSize, String instance,
                            String database, @Nullable String keys, String schema, @Nullable String cmekKey) {
     this.referenceName = referenceName;
@@ -101,6 +123,10 @@ public class SpannerSinkConfig extends GCPReferenceSinkConfig {
     this.keys = keys;
     this.schema = schema;
     this.cmekKey = cmekKey;
+  }
+  
+  public String getReferenceName() {
+    return referenceName;
   }
 
   public String getTable() {
@@ -120,9 +146,13 @@ public class SpannerSinkConfig extends GCPReferenceSinkConfig {
     return keys;
   }
 
-  @Override
+  public void validate(FailureCollector collector) {
+    validate(collector, Collections.emptyMap());
+  }
+
   public void validate(FailureCollector collector, Map<String, String> arguments) {
-    super.validate(collector, arguments);
+    IdUtils.validateReferenceName(referenceName, collector);
+    ConfigUtil.validateConnection(this, useConnection, connection, collector);
     Schema schema = getSchema(collector);
     if (!containsMacro(NAME_SCHEMA) && schema != null) {
       // validate output schema
