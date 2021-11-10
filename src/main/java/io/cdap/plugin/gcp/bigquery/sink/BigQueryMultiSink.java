@@ -19,6 +19,8 @@ import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.Table;
 import com.google.common.annotations.VisibleForTesting;
 import io.cdap.cdap.api.annotation.Description;
+import io.cdap.cdap.api.annotation.Metadata;
+import io.cdap.cdap.api.annotation.MetadataProperty;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.batch.Output;
@@ -29,6 +31,8 @@ import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
+import io.cdap.cdap.etl.api.connector.Connector;
+import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnector;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import org.apache.hadoop.conf.Configuration;
@@ -43,11 +47,13 @@ import java.util.regex.Pattern;
  * This plugin allows users to write {@link StructuredRecord} entries to multiple Google Big Query tables.
  */
 @Plugin(type = BatchSink.PLUGIN_TYPE)
-@Name("BigQueryMultiTable")
+@Name(BigQueryMultiSink.NAME)
 @Description("Writes records to one or more Big Query tables. "
   + "BigQuery is Google's serverless, highly scalable, enterprise data warehouse. "
   + "Data is first written to a temporary location on Google Cloud Storage, then loaded into BigQuery from there.")
+@Metadata(properties = {@MetadataProperty(key = Connector.PLUGIN_TYPE, value = BigQueryConnector.NAME)})
 public class BigQueryMultiSink extends AbstractBigQuerySink {
+  public static final String NAME = "BigQueryMultiTable";
   private static final String TABLE_PREFIX = "multisink.";
   private static final String OUTPUT_PATTERN = "[A-Za-z0-9_-]+";
   private final BigQueryMultiSinkConfig config;
