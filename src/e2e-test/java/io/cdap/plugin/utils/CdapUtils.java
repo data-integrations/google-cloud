@@ -15,9 +15,10 @@
  */
 package io.cdap.plugin.utils;
 
+import org.apache.log4j.Logger;
+
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Properties;
 
 /**
@@ -25,16 +26,24 @@ import java.util.Properties;
  */
 public class CdapUtils {
 
-  public static String pluginProp(String property) throws IOException {
-    Properties prop = new Properties();
-    InputStream input = null;
+  private static Properties pluginProperties = new Properties();
+  private static Properties errorProperties = new Properties();
+  private static final Logger logger = Logger.getLogger(CdapUtils.class);
+
+  static {
     try {
-      input = new FileInputStream("src/e2e-test/resources/PluginParameters.properties");
-      prop.load(input);
-      return prop.getProperty(property);
+      pluginProperties.load(new FileInputStream("src/e2e-test/resources/pluginParameters.properties"));
+      errorProperties.load(new FileInputStream("src/e2e-test/resources/errorMessage.properties"));
     } catch (IOException e) {
-      e.printStackTrace();
+      logger.error("Error while reading properties file" + e);
     }
-    return property;
+  }
+
+  public static String pluginProp(String property) throws IOException {
+    return pluginProperties.getProperty(property);
+  }
+
+  public static String errorProp(String property) throws IOException {
+    return errorProperties.getProperty(property);
   }
 }

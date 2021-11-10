@@ -27,6 +27,9 @@ import org.openqa.selenium.support.PageFactory;
 import java.io.IOException;
 import java.util.UUID;
 
+import static io.cdap.e2e.utils.ConstantsUtil.DATASET;
+import static io.cdap.e2e.utils.ConstantsUtil.PROJECT_ID;
+
 /**
  * Actions of BigQuery Multitable.
  */
@@ -64,41 +67,41 @@ public class CdfBQMTActions implements CdfHelper {
   }
 
   public static void referenceNameValidation() throws Exception {
-    String expectedErrorMessage = SeleniumHelper.readErrors("ERROR_MESSAGE_REFERENCE");
+    String expectedErrorMessage = CdapUtils.errorProp("errorMessageReference");
     String actualErrorMessage = cdfBQMTLocators.bqmtReferenceNameValidation.getText();
     WebElement referenceName = cdfBQMTLocators.bqmtReferenceNameValidation;
     Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
     String actualColor = validateErrorColor(referenceName);
-    String expectedColor = SeleniumHelper.readErrors("errorMessageColor");
+    String expectedColor = CdapUtils.errorProp("errorMessageColor");
     Assert.assertEquals(expectedColor, actualColor);
   }
 
   public static void dataSetValidation() throws Exception {
     WebElement dataSet = cdfBQMTLocators.bqmtDataSetValidation;
-    String expectedErrorMessage = SeleniumHelper.readErrors("ERROR_MESSAGE_DATASET");
+    String expectedErrorMessage = CdapUtils.errorProp("errorMessageDataset");
     String actualErrorMessage = dataSet.getText();
     Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
     String actualColor = validateErrorColor(dataSet);
-    String expectedColor = SeleniumHelper.readErrors("errorMessageColor");
+    String expectedColor = CdapUtils.errorProp("errorMessageColor");
     Assert.assertEquals(expectedColor, actualColor);
   }
 
   public static void temporaryBucketNameValidation() throws Exception {
     WebElement bucketName = cdfBQMTLocators.bqmtTemporaryBucketError;
-    String expectedErrorMessage = SeleniumHelper.readErrors("ERROR_MESSAGE_TEMPORARY_BUCKET");
+    String expectedErrorMessage = CdapUtils.errorProp("errorMessageTemporaryBucket");
     String actualErrorMessage = bucketName.getText();
     Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
     String actualColor = validateErrorColor(bucketName);
-    String expectedColor = SeleniumHelper.readErrors("errorMessageColor");
+    String expectedColor = CdapUtils.errorProp("errorMessageColor");
     Assert.assertEquals(expectedColor, actualColor);
   }
 
   public static void enterProjectId() throws IOException {
-    cdfBQMTLocators.bqmtProjectID.sendKeys(SeleniumHelper.readParameters("Project-ID"));
+    cdfBQMTLocators.bqmtProjectID.sendKeys(SeleniumHelper.readParameters(PROJECT_ID));
   }
 
   public static void enterDataset() throws IOException {
-    cdfBQMTLocators.bqmtDataSet.sendKeys(SeleniumHelper.readParameters("Data-Set"));
+    cdfBQMTLocators.bqmtDataSet.sendKeys(SeleniumHelper.readParameters(DATASET));
   }
 
   public static void truncateTable() {

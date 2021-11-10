@@ -26,6 +26,7 @@ import io.cdap.e2e.utils.CdfHelper;
 import io.cdap.e2e.utils.GcpClient;
 import io.cdap.e2e.utils.SeleniumDriver;
 import io.cdap.e2e.utils.SeleniumHelper;
+import io.cdap.plugin.utils.CdapUtils;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
@@ -44,13 +45,11 @@ import java.util.UUID;
  * DemoTestCase GCP.
  */
 public class GCSBasicDemo implements CdfHelper {
-  static int i = 0;
   GcpClient gcpClient = new GcpClient();
 
   @Given("Open Datafusion Project to configure pipeline")
-  public void openDatafusionProjectToConfigurePipeline() throws IOException, InterruptedException {
+  public void openDatafusionProjectToConfigurePipeline() throws IOException {
     openCdf();
-
   }
 
   @When("Source is GCS bucket")
@@ -58,14 +57,13 @@ public class GCSBasicDemo implements CdfHelper {
     CdfStudioActions.selectGCS();
   }
 
-
   @When("Target is BigQuery")
   public void targetIsBigQuery() {
     CdfStudioActions.sinkBigQuery();
   }
 
   @Then("Link Source and Sink to establish connection")
-  public void linkSourceAndSinkToEstablishConnection() throws InterruptedException {
+  public void linkSourceAndSinkToEstablishConnection() {
     SeleniumHelper.waitElementIsVisible(CdfStudioLocators.toBigQiery);
     SeleniumHelper.dragAndDrop(CdfStudioLocators.fromGCS, CdfStudioLocators.toBigQiery);
   }
@@ -76,24 +74,22 @@ public class GCSBasicDemo implements CdfHelper {
     CdfGcsActions.gcsProperties();
     CdfGcsActions.enterReferenceName();
     CdfGcsActions.enterProjectId();
-    CdfGcsActions.enterGcsBucket(SeleniumHelper.readParameters(bucket));
-    CdfGcsActions.selectFormat(formatType);
+    CdfGcsActions.enterGcsBucket(CdapUtils.pluginProp(bucket));
+    CdfGcsActions.selectFormat(CdapUtils.pluginProp(formatType));
     CdfGcsActions.skipHeader();
     CdfGcsActions.getSchema();
     SeleniumHelper.waitElementIsVisible(CdfGCSLocators.getSchemaButton);
   }
 
-
   @Then("Run and Preview")
-  public void runAndPreview() throws InterruptedException {
-
+  public void runAndPreview() {
     CdfStudioActions.runAndPreviewData();
   }
 
   @Then("Save and Deploy Pipeline")
   public void saveAndDeployPipeline() {
     CdfStudioActions.pipelineName();
-    CdfStudioActions.pipelineNameIp("TestPipeline" + UUID.randomUUID().toString());
+    CdfStudioActions.pipelineNameIp("TestPipeline" + UUID.randomUUID());
     CdfStudioActions.pipelineSave();
     CdfStudioActions.pipelineDeploy();
   }
@@ -139,12 +135,10 @@ public class GCSBasicDemo implements CdfHelper {
     CdfLogActions.validateSucceeded();
   }
 
-
   @Then("Enter the BigQuery Properties for table {string}")
   public void enterTheBigQueryPropertiesForTable(String arg0) throws InterruptedException, IOException {
-    CdfBigQueryPropertiesActions.enterBigQueryProperties(SeleniumHelper.readParameters(arg0));
+    CdfBigQueryPropertiesActions.enterBigQueryProperties(CdapUtils.pluginProp(arg0));
   }
-
 
   @Then("Close the GCS Properties")
   public void closeTheGCSProperties() {
@@ -159,15 +153,14 @@ public class GCSBasicDemo implements CdfHelper {
   @Then("Get Count of no of records transferred to BigQuery in {string}")
   public void getCountOfRecordsTransferredToBigQueryIn(String arg0) throws IOException, InterruptedException {
     int countRecords;
-    countRecords = gcpClient.countBqQuery(SeleniumHelper.readParameters(arg0));
+    countRecords = gcpClient.countBqQuery(CdapUtils.pluginProp(arg0));
     BeforeActions.scenario.write("**********No of Records Transferred******************:" + countRecords);
     Assert.assertTrue(countRecords > 0);
   }
 
   @Then("Delete the table {string}")
   public void deleteTheTable(String arg0) throws IOException, InterruptedException {
-    gcpClient.dropBqQuery(SeleniumHelper.readParameters(arg0));
+    gcpClient.dropBqQuery(CdapUtils.pluginProp(arg0));
     BeforeActions.scenario.write("Table Deleted Successfully");
   }
-
 }

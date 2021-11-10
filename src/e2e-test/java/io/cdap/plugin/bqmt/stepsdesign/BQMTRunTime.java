@@ -44,7 +44,7 @@ public class BQMTRunTime implements CdfHelper {
 
   @When("Source selected is GCS bucket")
   public void sourceSelectedIsGCSBucket() throws InterruptedException {
-    selectSourceGCS();
+    CdfStudioActions.selectGCS();
   }
 
   @Then("Link GCS to {string} to establish connection")
@@ -58,7 +58,7 @@ public class BQMTRunTime implements CdfHelper {
     throws IOException, InterruptedException {
     CdfGcsActions.gcsProperties();
     CdfGcsActions.enterGcsBucket(CdapUtils.pluginProp(bucket));
-    gcsProperties(formatType);
+    gcsProperties(CdapUtils.pluginProp(formatType));
   }
 
   @Then("Enter the GCS format with {string} GCS bucket")
