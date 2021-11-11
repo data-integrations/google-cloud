@@ -57,7 +57,7 @@ public class BQMTRunTime implements CdfHelper {
   public void enterTheSourceGCSPropertiesWithFormatGCSBucket(String formatType, String bucket)
     throws IOException, InterruptedException {
     CdfGcsActions.gcsProperties();
-    CdfGcsActions.enterGcsBucket(CdapUtils.pluginProp(bucket));
+    CdfGcsActions.getGcsBucket(CdapUtils.pluginProp(bucket));
     gcsProperties(CdapUtils.pluginProp(formatType));
   }
 
@@ -139,9 +139,9 @@ public class BQMTRunTime implements CdfHelper {
   @Then("Get Count of no of records transferred to BigQuery {string} {string} {string}")
   public void getCountOfNoOfRecordsTransferredToBigQuery(String table1, String table2, String table3)
     throws IOException, InterruptedException {
-    int countTable1 = getCountOfNoOfRecordsTransferredToBigQueryIn(table1);
-    int countTable2 = getCountOfNoOfRecordsTransferredToBigQueryIn(table2);
-    int countTable3 = getCountOfNoOfRecordsTransferredToBigQueryIn(table3);
+    int countTable1 = countOfNoOfRecordsTransferredToBigQueryIn(table1);
+    int countTable2 = countOfNoOfRecordsTransferredToBigQueryIn(table2);
+    int countTable3 = countOfNoOfRecordsTransferredToBigQueryIn(table3);
     int countRecords = countTable1 + countTable2 + countTable3;
     Assert.assertTrue(countRecords > 0);
   }

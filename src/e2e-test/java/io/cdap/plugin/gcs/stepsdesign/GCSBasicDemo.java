@@ -48,7 +48,7 @@ public class GCSBasicDemo implements CdfHelper {
   GcpClient gcpClient = new GcpClient();
 
   @Given("Open Datafusion Project to configure pipeline")
-  public void openDatafusionProjectToConfigurePipeline() throws IOException {
+  public void openDatafusionProjectToConfigurePipeline() throws IOException, InterruptedException {
     openCdf();
   }
 
@@ -74,7 +74,7 @@ public class GCSBasicDemo implements CdfHelper {
     CdfGcsActions.gcsProperties();
     CdfGcsActions.enterReferenceName();
     CdfGcsActions.enterProjectId();
-    CdfGcsActions.enterGcsBucket(CdapUtils.pluginProp(bucket));
+    CdfGcsActions.getGcsBucket(CdapUtils.pluginProp(bucket));
     CdfGcsActions.selectFormat(CdapUtils.pluginProp(formatType));
     CdfGcsActions.skipHeader();
     CdfGcsActions.getSchema();
