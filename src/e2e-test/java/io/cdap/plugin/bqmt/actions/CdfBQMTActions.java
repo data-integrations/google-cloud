@@ -16,30 +16,37 @@
 package io.cdap.plugin.bqmt.actions;
 
 import io.cdap.e2e.utils.CdfHelper;
-import io.cdap.e2e.utils.SeleniumDriver;
+import io.cdap.e2e.utils.ConstantsUtil;
 import io.cdap.e2e.utils.SeleniumHelper;
+import io.cdap.plugin.bqmt.locators.CdfBQMTLocators;
 import io.cdap.plugin.utils.CdapUtils;
 import org.junit.Assert;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebElement;
-import org.openqa.selenium.support.PageFactory;
 
 import java.io.IOException;
 import java.util.UUID;
 
 import static io.cdap.e2e.utils.ConstantsUtil.DATASET;
 import static io.cdap.e2e.utils.ConstantsUtil.PROJECT_ID;
+import static io.cdap.plugin.utils.GCConstants.A;
+import static io.cdap.plugin.utils.GCConstants.BQMT_LABEL;
+import static io.cdap.plugin.utils.GCConstants.CDF_ATHENA_BQMTABLE;
+import static io.cdap.plugin.utils.GCConstants.COMMENT_BQMT;
+import static io.cdap.plugin.utils.GCConstants.ERROR_MSG_COLOR;
+import static io.cdap.plugin.utils.GCConstants.ERROR_MSG_DATASET;
+import static io.cdap.plugin.utils.GCConstants.ERROR_MSG_REF;
+import static io.cdap.plugin.utils.GCConstants.ERROR_MSG_TEMP_BUCKET;
 
 /**
  * Actions of BigQuery Multitable.
  */
 public class CdfBQMTActions implements CdfHelper {
 
-  public static io.cdap.plugin.bqmt.locators.CdfBQMTLocators cdfBQMTLocators;
+  public static CdfBQMTLocators cdfBQMTLocators;
 
   static {
-    cdfBQMTLocators = PageFactory.initElements(SeleniumDriver.getDriver(),
-                                               io.cdap.plugin.bqmt.locators.CdfBQMTLocators.class);
+    cdfBQMTLocators = SeleniumHelper.getPropertiesLocators(CdfBQMTLocators.class);
   }
 
   public static void enterReferenceName() {
@@ -47,10 +54,8 @@ public class CdfBQMTActions implements CdfHelper {
   }
 
   public static String validateErrorColor(WebElement referenceName) {
-
-    String color = referenceName.getCssValue("color");
+    String color = referenceName.getCssValue(ConstantsUtil.COLOR);
     String[] hexValue = color.replace("rgba(", "").replace(")", "").split(",");
-
     int hexValue1 = Integer.parseInt(hexValue[0]);
     hexValue[1] = hexValue[1].trim();
     int hexValue2 = Integer.parseInt(hexValue[1]);
@@ -61,38 +66,38 @@ public class CdfBQMTActions implements CdfHelper {
   }
 
   public static void labelNameValidation() throws Exception {
-    String expectedTextInLabel = SeleniumHelper.readParameters("BQMT_Labelname");
+    String expectedTextInLabel = SeleniumHelper.readParameters(BQMT_LABEL);
     String actualTextInLabel = cdfBQMTLocators.bqmtLabel.getText();
     Assert.assertEquals(expectedTextInLabel, actualTextInLabel);
   }
 
   public static void referenceNameValidation() throws Exception {
-    String expectedErrorMessage = CdapUtils.errorProp("errorMessageReference");
+    String expectedErrorMessage = CdapUtils.errorProp(ERROR_MSG_REF);
     String actualErrorMessage = cdfBQMTLocators.bqmtReferenceNameValidation.getText();
     WebElement referenceName = cdfBQMTLocators.bqmtReferenceNameValidation;
     Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
     String actualColor = validateErrorColor(referenceName);
-    String expectedColor = CdapUtils.errorProp("errorMessageColor");
+    String expectedColor = CdapUtils.errorProp(ERROR_MSG_COLOR);
     Assert.assertEquals(expectedColor, actualColor);
   }
 
   public static void dataSetValidation() throws Exception {
     WebElement dataSet = cdfBQMTLocators.bqmtDataSetValidation;
-    String expectedErrorMessage = CdapUtils.errorProp("errorMessageDataset");
+    String expectedErrorMessage = CdapUtils.errorProp(ERROR_MSG_DATASET);
     String actualErrorMessage = dataSet.getText();
     Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
     String actualColor = validateErrorColor(dataSet);
-    String expectedColor = CdapUtils.errorProp("errorMessageColor");
+    String expectedColor = CdapUtils.errorProp(ERROR_MSG_COLOR);
     Assert.assertEquals(expectedColor, actualColor);
   }
 
   public static void temporaryBucketNameValidation() throws Exception {
     WebElement bucketName = cdfBQMTLocators.bqmtTemporaryBucketError;
-    String expectedErrorMessage = CdapUtils.errorProp("errorMessageTemporaryBucket");
+    String expectedErrorMessage = CdapUtils.errorProp(ERROR_MSG_TEMP_BUCKET);
     String actualErrorMessage = bucketName.getText();
     Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
     String actualColor = validateErrorColor(bucketName);
-    String expectedColor = CdapUtils.errorProp("errorMessageColor");
+    String expectedColor = CdapUtils.errorProp(ERROR_MSG_COLOR);
     Assert.assertEquals(expectedColor, actualColor);
   }
 
@@ -121,7 +126,7 @@ public class CdfBQMTActions implements CdfHelper {
   }
 
   public static void temporaryBucketName() {
-    cdfBQMTLocators.bqmtTemporaryBucketName.sendKeys("cdf-athena-bq-bq-multitable");
+    cdfBQMTLocators.bqmtTemporaryBucketName.sendKeys(CDF_ATHENA_BQMTABLE);
   }
 
   public static void allowFlexibleSchemaInOutput() {
@@ -142,12 +147,12 @@ public class CdfBQMTActions implements CdfHelper {
 
   public static void clearLabel() {
     cdfBQMTLocators.bqmtLabel.click();
-    cdfBQMTLocators.bqmtLabel.sendKeys(Keys.COMMAND + "a");
+    cdfBQMTLocators.bqmtLabel.sendKeys(Keys.COMMAND + A);
     cdfBQMTLocators.bqmtLabel.sendKeys(Keys.BACK_SPACE);
   }
 
   public static void clickValidateButton() {
-    io.cdap.plugin.bqmt.locators.CdfBQMTLocators.validateBtn.click();
+    CdfBQMTLocators.validateBtn.click();
   }
 
   public static void clickActionButton() {
@@ -167,10 +172,10 @@ public class CdfBQMTActions implements CdfHelper {
   }
 
   public static void addComment() throws IOException {
-    cdfBQMTLocators.addComment.sendKeys(CdapUtils.pluginProp("COMMENT_BQMT"));
+    cdfBQMTLocators.addComment.sendKeys(CdapUtils.pluginProp(COMMENT_BQMT));
   }
 
-  public static void saveComment() throws IOException {
+  public static void saveComment() {
     cdfBQMTLocators.enabledCommentButton.click();
   }
 
@@ -188,9 +193,8 @@ public class CdfBQMTActions implements CdfHelper {
 
   public static void clearComments() {
     cdfBQMTLocators.addComment.click();
-    cdfBQMTLocators.addComment.sendKeys(Keys.COMMAND + "a");
+    cdfBQMTLocators.addComment.sendKeys(Keys.COMMAND + A);
     cdfBQMTLocators.addComment.sendKeys(Keys.BACK_SPACE);
-
   }
 
   public static void clickHamburgerMenu() {

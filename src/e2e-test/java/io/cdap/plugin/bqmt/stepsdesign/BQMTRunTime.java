@@ -20,6 +20,7 @@ import io.cdap.e2e.pages.actions.CdfPipelineRunAction;
 import io.cdap.e2e.pages.actions.CdfStudioActions;
 import io.cdap.e2e.pages.locators.CdfStudioLocators;
 import io.cdap.e2e.utils.CdfHelper;
+import io.cdap.e2e.utils.GcpClient;
 import io.cdap.e2e.utils.SeleniumHelper;
 import io.cdap.plugin.bqmt.actions.CdfBQMTActions;
 import io.cdap.plugin.bqmt.locators.CdfBQMTLocators;
@@ -28,9 +29,12 @@ import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.junit.Assert;
+import stepsdesign.BeforeActions;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
+
+import static io.cdap.plugin.utils.GCConstants.DELIMITED;
+import static io.cdap.plugin.utils.GCConstants.TABLE_DEL_MSG;
 
 /**
  * BQMT RunTime test cases.
@@ -48,7 +52,7 @@ public class BQMTRunTime implements CdfHelper {
   }
 
   @Then("Link GCS to {string} to establish connection")
-  public void linkGCSToToEstablishConnection(String pluginName) throws IOException, InterruptedException {
+  public void linkGCSToToEstablishConnection(String pluginName) {
     waitForSinkOnCanvas(pluginName);
     SeleniumHelper.dragAndDrop(CdfStudioLocators.fromGCS, linkSinkPlugin(pluginName));
   }
@@ -64,19 +68,18 @@ public class BQMTRunTime implements CdfHelper {
   @Then("Enter the GCS format with {string} GCS bucket")
   public void enterTheGCSFormatWithGCSBucket(String format) throws IOException, InterruptedException {
     CdfGcsActions.selectFormat(format);
-    String expectedString = "delimited";
+    String expectedString = DELIMITED;
     String actualString = SeleniumHelper.readParameters(format);
     if (expectedString.equalsIgnoreCase(actualString)) {
       CdfGcsActions.delimiter();
     }
     CdfGcsActions.skipHeader();
     CdfGcsActions.getSchema();
-
   }
 
   @Then("Verify the get schema status")
   public void verifyTheGetSchemaStatus() throws InterruptedException {
-    Thread.sleep(10000);
+    Thread.sleep(10000); //TODO remove this
     CdfGcsActions.clickValidateButton();
     CdfPipelineRunAction.schemaStatusValidation();
   }
@@ -97,7 +100,7 @@ public class BQMTRunTime implements CdfHelper {
   }
 
   @Then("Enter the BQMT Properties")
-  public void enterTheBQMTProperties() throws InterruptedException, IOException {
+  public void enterTheBQMTProperties() throws IOException {
     CdfBQMTActions.bqmtProperties();
     SeleniumHelper.waitElementIsVisible(CdfBQMTLocators.bqmtPropertyHeader);
     CdfBQMTActions.enterReferenceName();
@@ -120,25 +123,24 @@ public class BQMTRunTime implements CdfHelper {
   }
 
   @Then("Wait till pipeline run")
-  public void waitTillPipe() throws InterruptedException {
+  public void waitTillPipe() {
     waitTillPipelineToComplete();
   }
 
   @Then("Verify the pipeline status is {string} for the pipeline")
-  public void verifyThePipelineStatus(String status) throws InterruptedException {
+  public void verifyThePipelineStatus(String status) {
     verifyThePipelineStatusIsForTheCurrentPipeline(status);
-
   }
 
   @Then("Open and capture Logs")
-  public void openAndCaptureLogs() throws FileNotFoundException {
+  public void openAndCaptureLogs() {
     captureLogs();
   }
-
 
   @Then("Get Count of no of records transferred to BigQuery {string} {string} {string}")
   public void getCountOfNoOfRecordsTransferredToBigQuery(String table1, String table2, String table3)
     throws IOException, InterruptedException {
+    //TODO verify in and out count from UI , both should be greater than zero, and equal, remove this table records count
     int countTable1 = countOfNoOfRecordsTransferredToBigQueryIn(table1);
     int countTable2 = countOfNoOfRecordsTransferredToBigQueryIn(table2);
     int countTable3 = countOfNoOfRecordsTransferredToBigQueryIn(table3);
@@ -151,7 +153,7 @@ public class BQMTRunTime implements CdfHelper {
   }
 
   @When("Target is {string}")
-  public void targetIs(String target) throws IOException, InterruptedException {
+  public void targetIs(String target) {
     CdfStudioActions.clickSink();
     selectSinkPlugin(target);
   }

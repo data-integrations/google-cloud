@@ -26,13 +26,16 @@ import org.junit.Assert;
 
 import java.io.IOException;
 
+import static io.cdap.plugin.utils.GCConstants.COMMENT_BQMT;
+import static io.cdap.plugin.utils.GCConstants.INVALID_TESTDATA;
+
 /**
  * BQMT DesignTime testcases.
  */
 public class BQMTDesignTime implements CdfHelper {
 
   @Then("Open BQMT Properties")
-  public void openBQMTProperties() throws InterruptedException {
+  public void openBQMTProperties() {
     CdfBQMTActions.bqmtProperties();
     SeleniumHelper.waitElementIsVisible(CdfBQMTLocators.bqmtPropertyHeader);
   }
@@ -43,7 +46,7 @@ public class BQMTDesignTime implements CdfHelper {
   }
 
   @Then("Validate Pipeline")
-  public void validatePipeline() throws InterruptedException {
+  public void validatePipeline() {
     CdfBQMTActions.clickValidateButton();
     SeleniumHelper.waitElementIsVisible(CdfBQMTLocators.validateMultiErrorMsg);
   }
@@ -59,18 +62,16 @@ public class BQMTDesignTime implements CdfHelper {
   }
 
   @Then("Enter Reference Name & DataSet Fields with Invalid Test Data")
-  public void enterTheBQMTwithInvalidTestData() throws InterruptedException {
-
+  public void enterTheBQMTwithInvalidTestData() {
     CdfBQMTActions.bqmtProperties();
-    CdfBQMTLocators.bqmtReferenceName.sendKeys("#@#@#@#@#@");
-    CdfBQMTLocators.bqmtDataSet.sendKeys("$#$#$#$#$#");
-
+    CdfBQMTLocators.bqmtReferenceName.sendKeys(INVALID_TESTDATA);
+    CdfBQMTLocators.bqmtDataSet.sendKeys(INVALID_TESTDATA);
     CdfBQMTActions.clickValidateButton();
     SeleniumHelper.waitElementIsVisible(CdfBQMTLocators.validateMultiErrorMsg);
   }
 
   @Then("Verify Reference Name & DataSet Fields with Invalid Test Data")
-  public void verifyTheBQMTwithInvalidTestData() throws InterruptedException {
+  public void verifyTheBQMTwithInvalidTestData() {
     Assert.assertTrue(CdfBQMTLocators.bqmtReferencenameError.isDisplayed());
     Assert.assertTrue(CdfBQMTLocators.bqmtDataSetError.isDisplayed());
   }
@@ -80,14 +81,14 @@ public class BQMTDesignTime implements CdfHelper {
     CdfBQMTActions.bqmtProperties();
     CdfBQMTActions.enterReferenceName();
     CdfBQMTActions.enterDataset();
-    CdfBQMTLocators.bqmtTemporaryBucketName.sendKeys("#,#@#@#@#@");
+    CdfBQMTLocators.bqmtTemporaryBucketName.sendKeys(INVALID_TESTDATA);
     CdfBQMTActions.clickValidateButton();
     CdfBQMTActions.temporaryBucketNameValidation();
     SeleniumHelper.waitElementIsVisible(CdfBQMTLocators.validateSingleErrorMsg);
   }
 
   @Then("Add and Save Comments")
-  public void addComments() throws InterruptedException, IOException {
+  public void addComments() throws IOException {
     CdfBQMTActions.bqmtProperties();
     SeleniumHelper.waitElementIsVisible(CdfBQMTLocators.bqmtPropertyHeader);
     CdfBQMTActions.clickComment();
@@ -96,7 +97,7 @@ public class BQMTDesignTime implements CdfHelper {
   }
 
   @Then("Edit Comments")
-  public void editComments() throws InterruptedException, IOException {
+  public void editComments() throws IOException {
     CdfBQMTActions.editComment();
     CdfBQMTActions.clickEdit();
     SeleniumHelper.waitElementIsVisible(CdfBQMTLocators.enabledCommentButton);
@@ -114,8 +115,7 @@ public class BQMTDesignTime implements CdfHelper {
   }
 
   @Then("Validate Comment")
-  public void validateComment() throws InterruptedException, IOException {
-    CdfBQMTActions.validateComment(CdapUtils.pluginProp("COMMENT_BQMT"),
-                                   CdfBQMTLocators.addComment.getText());
+  public void validateComment() throws IOException {
+    CdfBQMTActions.validateComment(CdapUtils.pluginProp(COMMENT_BQMT), CdfBQMTLocators.addComment.getText());
   }
 }

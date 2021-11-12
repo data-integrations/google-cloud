@@ -41,6 +41,8 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.UUID;
 
+import static io.cdap.plugin.utils.GCConstants.TABLE_DEL_MSG;
+
 /**
  * DemoTestCase GCP.
  */
@@ -101,7 +103,6 @@ public class GCSBasicDemo implements CdfHelper {
 
   @Then("Wait till pipeline is in running state")
   public void waitTillPipelineIsInRunningState() {
-    Boolean bool = true;
     WebDriverWait wait = new WebDriverWait(SeleniumDriver.getDriver(), 1000000);
     wait.until(ExpectedConditions.or(ExpectedConditions.visibilityOfElementLocated(
       By.xpath("//*[@data-cy='Succeeded']")), ExpectedConditions.visibilityOfElementLocated(
@@ -110,8 +111,7 @@ public class GCSBasicDemo implements CdfHelper {
 
   @Then("Verify the pipeline status is {string}")
   public void verifyThePipelineStatusIs(String status) {
-    boolean webelement = false;
-    webelement = SeleniumHelper.verifyElementPresent("//*[@data-cy='" + status + "']");
+    boolean webelement = SeleniumHelper.verifyElementPresent("//*[@data-cy='" + status + "']");
     Assert.assertTrue(webelement);
   }
 
@@ -119,9 +119,15 @@ public class GCSBasicDemo implements CdfHelper {
   public void openLogs() throws FileNotFoundException {
     CdfPipelineRunAction.logsClick();
     BeforeActions.scenario.write(CdfPipelineRunAction.captureRawLogs());
-    PrintWriter out = new PrintWriter(BeforeActions.myObj);
-    out.println(CdfPipelineRunAction.captureRawLogs());
-    out.close();
+    PrintWriter out = null;
+    try {
+      out = new PrintWriter(BeforeActions.myObj);
+      out.println(CdfPipelineRunAction.captureRawLogs());
+    } finally {
+      if (out != null) {
+        out.close();
+      }
+    }
   }
 
   @Then("validate successMessage is displayed")
@@ -136,8 +142,8 @@ public class GCSBasicDemo implements CdfHelper {
   }
 
   @Then("Enter the BigQuery Properties for table {string}")
-  public void enterTheBigQueryPropertiesForTable(String arg0) throws InterruptedException, IOException {
-    CdfBigQueryPropertiesActions.enterBigQueryProperties(CdapUtils.pluginProp(arg0));
+  public void enterTheBigQueryPropertiesForTable(String table) throws InterruptedException, IOException {
+    CdfBigQueryPropertiesActions.enterBigQueryProperties(CdapUtils.pluginProp(table));
   }
 
   @Then("Close the GCS Properties")
@@ -151,16 +157,16 @@ public class GCSBasicDemo implements CdfHelper {
   }
 
   @Then("Get Count of no of records transferred to BigQuery in {string}")
-  public void getCountOfRecordsTransferredToBigQueryIn(String arg0) throws IOException, InterruptedException {
-    int countRecords;
-    countRecords = gcpClient.countBqQuery(CdapUtils.pluginProp(arg0));
+  public void getCountOfRecordsTransferredToBigQueryIn(String table) throws IOException, InterruptedException {
+    //TODO verify in and out count from UI , remove this table records count
+    int countRecords = gcpClient.countBqQuery(CdapUtils.pluginProp(table));
     BeforeActions.scenario.write("**********No of Records Transferred******************:" + countRecords);
     Assert.assertTrue(countRecords > 0);
   }
 
   @Then("Delete the table {string}")
-  public void deleteTheTable(String arg0) throws IOException, InterruptedException {
-    gcpClient.dropBqQuery(CdapUtils.pluginProp(arg0));
-    BeforeActions.scenario.write("Table Deleted Successfully");
+  public void deleteTheTable(String table) throws IOException, InterruptedException {
+    gcpClient.dropBqQuery(CdapUtils.pluginProp(table));
+    BeforeActions.scenario.write(TABLE_DEL_MSG);
   }
 }

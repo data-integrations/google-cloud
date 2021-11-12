@@ -39,11 +39,11 @@ public class CdapUtils {
     }
   }
 
-  public static String pluginProp(String property) throws IOException {
+  public static String pluginProp(String property) {
     return pluginProperties.getProperty(property);
   }
 
-  public static String errorProp(String property) throws IOException {
+  public static String errorProp(String property) {
     return errorProperties.getProperty(property);
   }
 }
