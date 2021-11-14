@@ -105,6 +105,4 @@ public class BigQueryUtilTest {
     Schema expectedSchema = Schema.recordOf("output", cdapFieldList);
     assertEquals(expectedSchema, tableSchema);
   }
-
-
 }
