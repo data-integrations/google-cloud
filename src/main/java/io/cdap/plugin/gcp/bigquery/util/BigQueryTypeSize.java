@@ -17,14 +17,14 @@
 package io.cdap.plugin.gcp.bigquery.util;
 
 /**
- * Stores the Precision and Scale for the different Numeric (Decimal) types
+ * Stores the Precision and Scale for the different types
  * provided by BigQuery
- * https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#numeric_types
  */
 public final class BigQueryTypeSize {
 
   /**
    * Precision and scale of BigQuery Numeric class
+   *  * https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#numeric_types
    */
   public static final class Numeric {
     public static final int PRECISION = 38;
@@ -33,10 +33,19 @@ public final class BigQueryTypeSize {
 
   /**
    * Precision and Scale of BigQuery BigNumeric class
+   * https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#numeric_types
    */
   public static final class BigNumeric {
     public static final int PRECISION = 77;
     public static final int SCALE = 38;
+  }
+
+  /**
+   * Maxium depth of Bigquery nested Struct
+   * https://cloud.google.com/bigquery/docs/nested-repeated
+   */
+  public static final class Struct {
+    public static final int MAX_DEPTH = 15;
   }
 
   private BigQueryTypeSize() {

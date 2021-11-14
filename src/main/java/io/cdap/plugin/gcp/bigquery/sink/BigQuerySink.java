@@ -241,6 +241,9 @@ public final class BigQuerySink extends AbstractBigQuerySink {
       return;
     }
 
+    // Check that nested records do not go pass mast depth
+    validateRecordDepth(schema, collector);
+
     String tableName = config.getTable();
     Table table = BigQueryUtil.getBigQueryTable(config.getDatasetProject(), config.getDataset(), tableName,
                                                 config.getServiceAccount(), config.isServiceAccountFilePath(),
@@ -249,6 +252,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
     if (table != null && !config.containsMacro(AbstractBigQuerySinkConfig.NAME_UPDATE_SCHEMA)) {
       // if table already exists, validate schema against underlying bigquery table
       com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
+
       if (config.getOperation().equals(Operation.INSERT)) {
         validateInsertSchema(table, schema, collector);
       } else if (config.getOperation().equals(Operation.UPSERT)) {

@@ -59,6 +59,7 @@ public final class BigQuerySinkUtils {
   public static final String GS_PATH_FORMAT = "gs://%s/%s";
   private static final String TEMPORARY_BUCKET_FORMAT = GS_PATH_FORMAT + "/input/%s-%s";
   private static final String DATETIME = "DATETIME";
+  private static final String RECORD = "RECORD";
 
   /**
    * Creates the given dataset and bucket if they do not already exist. If the dataset already exists but the
@@ -359,6 +360,12 @@ public final class BigQuerySinkUtils {
     for (BigQueryTableFieldSchema field : fields) {
       if (DATETIME.equals(field.getType())) {
         return BigQueryFileFormat.NEWLINE_DELIMITED_JSON;
+      }
+      // If the field is a record we have to check its subfields.
+      if (RECORD.equals(field.getType())) {
+        if (getFileFormat(field.getFields()) == BigQueryFileFormat.NEWLINE_DELIMITED_JSON) {
+          return BigQueryFileFormat.NEWLINE_DELIMITED_JSON;
+        }
       }
     }
     return BigQueryFileFormat.AVRO;
