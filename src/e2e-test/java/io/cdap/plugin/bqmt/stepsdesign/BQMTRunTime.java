@@ -140,7 +140,8 @@ public class BQMTRunTime implements CdfHelper {
   @Then("Get Count of no of records transferred to BigQuery {string} {string} {string}")
   public void getCountOfNoOfRecordsTransferredToBigQuery(String table1, String table2, String table3)
     throws IOException, InterruptedException {
-    //TODO verify in and out count from UI , both should be greater than zero, and equal, remove this table records count
+    //TODO verify in and out count from UI ,
+    // both should be greater than zero, and equal, remove this table records count
     int countTable1 = countOfNoOfRecordsTransferredToBigQueryIn(table1);
     int countTable2 = countOfNoOfRecordsTransferredToBigQueryIn(table2);
     int countTable3 = countOfNoOfRecordsTransferredToBigQueryIn(table3);
