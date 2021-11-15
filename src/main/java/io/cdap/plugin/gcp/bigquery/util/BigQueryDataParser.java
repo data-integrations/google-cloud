@@ -66,8 +66,7 @@ public final class BigQueryDataParser {
   public static StructuredRecord getStructuredRecord(Schema schema, FieldList fields, FieldValueList fieldValues) {
 
     StructuredRecord.Builder recordBuilder = StructuredRecord.builder(schema);
-    for (int i = 0; i < fields.size(); i++) {
-      Field field = fields.get(i);
+    for (Field field: fields) {
       String fieldName = field.getName();
       FieldValue fieldValue = fieldValues.get(fieldName);
       Attribute attribute = fieldValue.getAttribute();
