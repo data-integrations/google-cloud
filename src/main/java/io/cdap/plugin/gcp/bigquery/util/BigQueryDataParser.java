@@ -75,14 +75,14 @@ public final class BigQueryDataParser {
         continue;
       }
 
-      Schema.Field localSchemaField = schema.getField(fieldName);
+      Schema.Field localField = schema.getField(fieldName);
       Schema localSchema;
-      if (localSchemaField != null) {
-        localSchema = localSchemaField.getSchema();
+      if (localField != null) {
+        localSchema = localField.getSchema();
       } else {
         continue;
       }
-      FieldList localFields = field.getSubFields();
+      FieldList subFields = field.getSubFields();
 
       if (attribute == Attribute.REPEATED) {
         // Process each field of the array and then add it to the StructuredRecord
@@ -94,9 +94,9 @@ public final class BigQueryDataParser {
           if (localValue.getValue() instanceof FieldValueList) {
             FieldValueList localFieldValueListNoSchema = localValue.getRecordValue();
             FieldValueList localFieldValueList =
-                FieldValueList.of(localFieldValueListNoSchema, localFields);
+                FieldValueList.of(localFieldValueListNoSchema, subFields);
             StructuredRecord componentRecord =
-                getStructuredRecord(localSchema.getComponentSchema(), localFields, localFieldValueList);
+                getStructuredRecord(localSchema.getComponentSchema(), subFields, localFieldValueList);
             list.add(componentRecord);
           } else {
             list.add(convertValue(field, localValue));
@@ -112,8 +112,8 @@ public final class BigQueryDataParser {
           // If one of the fields is a record
           FieldValueList localFieldValueListNoSchema = localValue.getRecordValue();
           FieldValueList localFieldValueList =
-              FieldValueList.of(localFieldValueListNoSchema, localFields);
-          value = getStructuredRecord(localSchema.getNonNullable(), localFields, localFieldValueList);
+              FieldValueList.of(localFieldValueListNoSchema, subFields);
+          value = getStructuredRecord(localSchema.getNonNullable(), subFields, localFieldValueList);
         } else {
           value = convertValue(field, localValue);
         }
