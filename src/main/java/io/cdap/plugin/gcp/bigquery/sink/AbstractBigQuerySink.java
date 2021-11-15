@@ -302,17 +302,18 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
 
     for (Schema.Field field: fields) {
       String fieldName = prefix + field.getName();
+      if (depth == BigQueryTypeSize.Struct.MAX_DEPTH) {
+        collector.addFailure(
+          String.format("Field '%s' exceeds BigQuery maximum allowed depth of %d.",
+                        fieldName, BigQueryTypeSize.Struct.MAX_DEPTH),
+          "Please flatten the schema to contain fewer levels.");
+        continue;
+      }
+
       Schema fieldSchema = BigQueryUtil.getNonNullableSchema(field.getSchema());
       switch(fieldSchema.getType()) {
         case RECORD:
-          if (depth == BigQueryTypeSize.Struct.MAX_DEPTH) {
-            collector.addFailure(
-              String.format("Field '%s' exceeds BigQuery maximum allowed depth of %d.",
-                            fieldName, BigQueryTypeSize.Struct.MAX_DEPTH),
-              "Please flatten the schema to contain fewer levels.");
-          } else {
-            validateRecordDepth(fieldSchema, collector, depth + 1, fieldName + ".");
-          }
+          validateRecordDepth(fieldSchema, collector, depth + 1, fieldName + ".");
           break;
         case ARRAY:
           if (fieldSchema.getComponentSchema() == null) {
@@ -320,14 +321,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
           }
           Schema componentSchema = BigQueryUtil.getNonNullableSchema(fieldSchema.getComponentSchema());
           if (componentSchema.getType() == Schema.Type.RECORD) {
-            if (depth == BigQueryTypeSize.Struct.MAX_DEPTH) {
-              collector.addFailure(
-                String.format("Field '%s' exceeds BigQuery maximum allowed depth of %d.",
-                              fieldName, BigQueryTypeSize.Struct.MAX_DEPTH),
-                "Please flatten the schema to contain fewer levels.");
-            } else {
-              validateRecordDepth(componentSchema, collector, depth + 1, fieldName + ".");
-            }
+            validateRecordDepth(componentSchema, collector, depth + 1, fieldName + ".");
           } else {
             validateRecordDepth(componentSchema, collector, depth, fieldName + ".");
           }

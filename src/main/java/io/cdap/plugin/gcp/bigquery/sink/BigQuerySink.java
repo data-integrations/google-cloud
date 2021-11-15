@@ -241,7 +241,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
       return;
     }
 
-    // Check that nested records do not go pass mast depth
+    // Check that nested records do not go pass max depth
     validateRecordDepth(schema, collector);
 
     String tableName = config.getTable();
