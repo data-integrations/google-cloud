@@ -64,6 +64,8 @@ public class E2EPocODP implements CdfHelper {
 
   @Given("Open CDF application to configure pipeline")
   public void openCDFApplicationToConfigurePipeline() throws IOException, InterruptedException {
+    System.out.println(System.getenv("username"));
+    System.out.println(System.getenv("password"));
     openCdf();
   }
 
