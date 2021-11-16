@@ -37,6 +37,7 @@ import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.connector.BrowseDetail;
 import io.cdap.cdap.etl.api.connector.BrowseEntity;
@@ -52,6 +53,8 @@ import io.cdap.cdap.etl.api.validation.ValidationException;
 import io.cdap.plugin.common.ConfigUtil;
 import io.cdap.plugin.common.Constants;
 import io.cdap.plugin.common.ReferenceNames;
+import io.cdap.plugin.gcp.bigquery.sink.BigQueryMultiSink;
+import io.cdap.plugin.gcp.bigquery.sink.BigQuerySink;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySource;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceConfig;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryDataParser;
@@ -286,7 +289,10 @@ public final class BigQueryConnector implements DirectConnector {
       properties.put(Constants.Reference.REFERENCE_NAME,
                      ReferenceNames.cleanseReferenceName(datasetName + "." + tableName));
     }
-    return specBuilder.addRelatedPlugin(new PluginSpec(BigQuerySource.NAME, BatchSource.PLUGIN_TYPE, properties))
+    return specBuilder
+      .addRelatedPlugin(new PluginSpec(BigQuerySource.NAME, BatchSource.PLUGIN_TYPE, properties))
+      .addRelatedPlugin(new PluginSpec(BigQuerySink.NAME, BatchSink.PLUGIN_TYPE, properties))
+      .addRelatedPlugin(new PluginSpec(BigQueryMultiSink.NAME, BatchSink.PLUGIN_TYPE, properties))
       .build();
   }
 }

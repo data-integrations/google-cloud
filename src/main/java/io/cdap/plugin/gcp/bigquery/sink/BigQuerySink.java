@@ -23,6 +23,8 @@ import com.google.cloud.bigquery.JobId;
 import com.google.cloud.bigquery.JobStatistics;
 import com.google.cloud.bigquery.Table;
 import io.cdap.cdap.api.annotation.Description;
+import io.cdap.cdap.api.annotation.Metadata;
+import io.cdap.cdap.api.annotation.MetadataProperty;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.batch.OutputFormatProvider;
@@ -32,6 +34,8 @@ import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.StageConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
+import io.cdap.cdap.etl.api.connector.Connector;
+import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnector;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import org.apache.hadoop.conf.Configuration;
@@ -56,6 +60,7 @@ import java.util.stream.Collectors;
 @Description("This sink writes to a BigQuery table. "
   + "BigQuery is Google's serverless, highly scalable, enterprise data warehouse. "
   + "Data is first written to a temporary location on Google Cloud Storage, then loaded into BigQuery from there.")
+@Metadata(properties = {@MetadataProperty(key = Connector.PLUGIN_TYPE, value = BigQueryConnector.NAME)})
 public final class BigQuerySink extends AbstractBigQuerySink {
 
   public static final String NAME = "BigQueryTable";
@@ -80,8 +85,8 @@ public final class BigQuerySink extends AbstractBigQuerySink {
 
     config.validate(inputSchema, configuredSchema, collector, Collections.emptyMap());
 
-    if (config.tryGetProject() == null || config.getServiceAccountType() == null ||
-      (config.isServiceAccountFilePath() && config.autoServiceAccountUnavailable())) {
+    if (config.connection == null || config.tryGetProject() == null || config.getServiceAccountType() == null ||
+      (config.isServiceAccountFilePath() && config.connection.autoServiceAccountUnavailable())) {
       return;
     }
     // validate schema with underlying table

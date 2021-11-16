@@ -17,6 +17,7 @@
 package io.cdap.plugin.gcp.common;
 
 import com.google.auth.Credentials;
+import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.ServiceOptions;
 import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.common.base.Strings;
@@ -167,5 +168,23 @@ public class GCPConnectorConfig extends PluginConfig {
       collector.addFailure(e.getMessage(), null);
     }
     return credentials;
+  }
+
+  /**
+   * Return true if the service account is set to auto-detect but it can't be fetched from the environment.
+   * This shouldn't result in a deployment failure, as the credential could be detected at runtime if the pipeline
+   * runs on dataproc. This should primarily be used to check whether certain validation logic should be skipped.
+   *
+   * @return true if the service account is set to auto-detect but it can't be fetched from the environment.
+   */
+  public boolean autoServiceAccountUnavailable() {
+    if (getServiceAccountFilePath() == null && SERVICE_ACCOUNT_FILE_PATH.equals(getServiceAccountType())) {
+      try {
+        ServiceAccountCredentials.getApplicationDefault();
+      } catch (IOException e) {
+        return true;
+      }
+    }
+    return false;
   }
 }

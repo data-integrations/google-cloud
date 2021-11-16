@@ -149,11 +149,12 @@ public class GCSConnector extends AbstractFileConnector<GCPConnectorConfig> {
     super.setConnectorSpec(request, builder);
     Map<String, String> sourceProperties = new HashMap<>();
     Map<String, String> sinkProperties = new HashMap<>();
-    String path = getFullPath(request.getPath());
-    sourceProperties.put(GCSSource.GCSSourceConfig.NAME_PATH, path);
-    sinkProperties.put(GCSBatchSink.GCSBatchSinkConfig.NAME_PATH, path);
+    String path = request.getPath();
+    String fullPath = getFullPath(path);
+    sourceProperties.put(GCSSource.GCSSourceConfig.NAME_PATH, fullPath);
+    sinkProperties.put(GCSBatchSink.GCSBatchSinkConfig.NAME_PATH, fullPath);
     sourceProperties.put(GCSSource.GCSSourceConfig.NAME_FORMAT, FileTypeDetector.detectFileFormat(
-      FileTypeDetector.detectFileType(request.getPath())).name().toLowerCase());
+      FileTypeDetector.detectFileType(path)).name().toLowerCase());
     sourceProperties.put(ConfigUtil.NAME_USE_CONNECTION, "true");
     sinkProperties.put(ConfigUtil.NAME_USE_CONNECTION, "true");
     sourceProperties.put(ConfigUtil.NAME_CONNECTION, request.getConnectionWithMacro());

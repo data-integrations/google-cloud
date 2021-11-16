@@ -5,14 +5,30 @@
   "display-name": "BigQuery",
   "configuration-groups": [
     {
-      "label": "Basic",
+      "label": "Connection",
       "properties": [
         {
-          "widget-type": "textbox",
-          "label": "Reference Name",
-          "name": "referenceName",
+          "widget-type": "toggle",
+          "label": "Use connection",
+          "name": "useConnection",
           "widget-attributes": {
-            "placeholder": "Name used to identify this sink for lineage"
+            "on": {
+              "value": "true",
+              "label": "YES"
+            },
+            "off": {
+              "value": "false",
+              "label": "NO"
+            },
+            "default": "false"
+          }
+        },
+        {
+          "widget-type": "connection-select",
+          "label": "Connection",
+          "name": "connection",
+          "widget-attributes": {
+            "connectionType": "BigQuery"
           }
         },
         {
@@ -28,7 +44,61 @@
           "label": "Dataset Project ID",
           "name": "datasetProject",
           "widget-attributes": {
-            "placeholder": "The project in which the dataset is located/should be created. Defaults to the project specified in the Project Id property."
+            "placeholder": "Project the dataset belongs to, if different from the Project ID."
+          }
+        },
+        {
+          "name": "serviceAccountType",
+          "label": "Service Account Type",
+          "widget-type": "radio-group",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "filePath",
+            "options": [
+              {
+                "id": "filePath",
+                "label": "File Path"
+              },
+              {
+                "id": "JSON",
+                "label": "JSON"
+              }
+            ]
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes": {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Service Account JSON",
+          "name": "serviceAccountJSON"
+        }
+      ]
+    },
+    {
+      "label": "Basic",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Reference Name",
+          "name": "referenceName",
+          "widget-attributes": {
+            "placeholder": "Name used to identify this sink for lineage"
+          }
+        },
+        {
+          "label": "browse",
+          "widget-type": "connection-browser",
+          "widget-category": "plugin",
+          "widget-attributes": {
+            "connectionType": "BIGQUERY",
+            "label": "Browse"
           }
         },
         {
@@ -62,43 +132,6 @@
           "widget-attributes": {
             "placeholder": "GCS upload request chunk size in bytes"
           }
-        }
-      ]
-    },
-    {
-      "label": "Credentials",
-      "properties": [
-        {
-          "name": "serviceAccountType",
-          "label": "Service Account Type",
-          "widget-type": "radio-group",
-          "widget-attributes": {
-            "layout": "inline",
-            "default": "filePath",
-            "options": [
-              {
-                "id": "filePath",
-                "label": "File Path"
-              },
-              {
-                "id": "JSON",
-                "label": "JSON"
-              }
-            ]
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Service Account File Path",
-          "name": "serviceFilePath",
-          "widget-attributes": {
-            "default": "auto-detect"
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Service Account JSON",
-          "name": "serviceAccountJSON"
         }
       ]
     },
@@ -365,7 +398,7 @@
     {
       "name": "ServiceAuthenticationTypeFilePath",
       "condition": {
-        "expression": "serviceAccountType == 'filePath'"
+        "expression": "useConnection == false && serviceAccountType == 'filePath'"
       },
       "show": [
         {
@@ -377,12 +410,44 @@
     {
       "name": "ServiceAuthenticationTypeJSON",
       "condition": {
-        "expression": "serviceAccountType == 'JSON'"
+        "expression": "useConnection == false && serviceAccountType == 'JSON'"
       },
       "show": [
         {
           "type": "property",
           "name": "serviceAccountJSON"
+        }
+      ]
+    },
+    {
+      "name": "showConnectionProperties ",
+      "condition": {
+        "expression": "useConnection == false"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "project"
+        },
+        {
+          "type": "property",
+          "name": "datasetProject"
+        },
+        {
+          "type": "property",
+          "name": "serviceAccountType"
+        }
+      ]
+    },
+    {
+      "name": "showConnectionId",
+      "condition": {
+        "expression": "useConnection == true"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "connection"
         }
       ]
     },
