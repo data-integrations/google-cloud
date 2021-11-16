@@ -136,6 +136,7 @@
         <enabled>true</enabled>
       </snapshots>
     </repository>
+
   </repositories>
 
   <dependencies>
@@ -869,6 +870,32 @@
           <artifactId>cdap-e2e-framework</artifactId>
           <version>0.0.1-SNAPSHOT</version>
           <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.ehcache</groupId>
+          <artifactId>ehcache</artifactId>
+          <version>3.8.1</version>
+        </dependency>
+        <dependency>
+          <groupId>com.sap.conn.jco</groupId>
+          <artifactId>sapjco3</artifactId>
+          <version>3.0.14</version>
+          <scope>system</scope>
+          <systemPath>${basedir}/src/e2e-test/java/io/cdap/plugin/odp/lib/sapjco3.jar</systemPath>
+        </dependency>
+        <dependency>
+          <groupId>com.sap.conn.idoc</groupId>
+          <artifactId>sapidoc3</artifactId>
+          <version>3.0.12</version>
+          <scope>system</scope>
+          <systemPath>${basedir}/src/e2e-test/java/io/cdap/plugin/odp/lib/sapidoc3.jar</systemPath>
+        </dependency>
+        <dependency>
+          <groupId>com.google.adaptor</groupId>
+          <artifactId>cs</artifactId>
+          <version>0.0.1</version>
+          <scope>system</scope>
+          <systemPath>${basedir}/src/e2e-test/java/io/cdap/plugin/odp/lib/com.google.adapter.cs-0.0.1.jar</systemPath>
         </dependency>
       </dependencies>
 
