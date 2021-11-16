@@ -95,9 +95,11 @@ public class BigQueryUtilTest {
     Schema.Field cdapSubStringField = Schema.Field.of("subStringField",
         Schema.nullableOf(Schema.of(Schema.Type.STRING)));
     Schema.Field cdapSubRecordField = Schema.Field.of("subStructure",
-        Schema.nullableOf(Schema.recordOf("structure.subStructure", cdapSubStringField)));
+        Schema.nullableOf(Schema.recordOf("structure.subStructure" +
+                                            Schema.recordOf(cdapSubStringField).getRecordName(), cdapSubStringField)));
     Schema.Field cdapRecordField = Schema.Field.of("structure",
-        Schema.nullableOf(Schema.recordOf("structure", cdapSubRecordField)));
+        Schema.nullableOf(Schema.recordOf("structure" +
+          Schema.recordOf(cdapSubRecordField).getRecordName(), cdapSubRecordField)));
     cdapFieldList.add(cdapRecordField);
 
     Schema expectedSchema = Schema.recordOf("output", cdapFieldList);
