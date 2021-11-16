@@ -77,7 +77,6 @@ public class Security implements CdfHelper {
 
   @Then("Link Source and Sink table")
   public void linkSourceAndSinkTable() throws InterruptedException {
-    waitForSinkOnCanvas("BigQueryTable");
     SeleniumHelper.dragAndDrop(CdfStudioLocators.fromSAPODP, CdfStudioLocators.toBigQiery);
   }
 

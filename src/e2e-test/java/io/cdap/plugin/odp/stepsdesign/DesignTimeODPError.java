@@ -24,7 +24,8 @@ public class DesignTimeODPError {
     }
     ODPLocators.validateButton.click();
     color = ODPLocators.rowError.getCssValue("border-color");
-    errorExist = CDAPUtils.getErrorProp(errorMessage).toLowerCase().contains(ODPLocators.rowError.getText().toLowerCase());
+    errorExist = CDAPUtils.getErrorProp(errorMessage).toLowerCase().contains(ODPLocators.rowError.getText()
+            .toLowerCase());
   }
 
   @Then("User is able to validate the validate the error")
@@ -42,7 +43,8 @@ public class DesignTimeODPError {
     SeleniumDriver.getDriver().findElement(By.xpath("//*[@data-cy='" + arg0 + "' and @class='MuiInputBase-input']"))
       .sendKeys(input);
     ODPLocators.validateButton.click();
-    errorExist = CDAPUtils.getErrorProp(errorMessage).toLowerCase().contains(ODPLocators.jcoError.getText().toLowerCase());
+    errorExist = CDAPUtils.getErrorProp(errorMessage).toLowerCase().contains(ODPLocators.jcoError.getText()
+            .toLowerCase());
   }
 
   @Then("User is able to set parameter {string} as {string} and getting {string} for wrong input of password")
@@ -54,7 +56,8 @@ public class DesignTimeODPError {
         .sendKeys(Keys.BACK_SPACE);
     }
     ODPLocators.validateButton.click();
-    errorExist = CDAPUtils.getErrorProp(errorMessage).toLowerCase().contains(ODPLocators.jcoError.getText().toLowerCase());
+    errorExist = CDAPUtils.getErrorProp(errorMessage).toLowerCase().contains(ODPLocators.jcoError.getText()
+            .toLowerCase());
     color = ODPLocators.rowError.getCssValue("border-color");
   }
 
@@ -69,7 +72,8 @@ public class DesignTimeODPError {
     SeleniumDriver.getDriver().findElement(By.xpath("//*[@data-cy='" + option + "' and @class='MuiInputBase-input']")).
       sendKeys(input);
     ODPLocators.validateButton.click();
-    errorExist = CDAPUtils.getErrorProp(errorMessage).toLowerCase().contains(ODPLocators.rowError.getText().toLowerCase());
+    errorExist = CDAPUtils.getErrorProp(errorMessage).toLowerCase().contains(ODPLocators.rowError.getText()
+            .toLowerCase());
     color = ODPLocators.rowError.getCssValue("border-color");
   }
 
@@ -81,7 +85,8 @@ public class DesignTimeODPError {
     ODPLocators.filterEqualKey.sendKeys(filteroption);
     ODPLocators.filterEqualVal.sendKeys(query);
     ODPLocators.validateButton.click();
-    errorExist = ODPLocators.rowError.getText().toLowerCase().contains(CDAPUtils.getErrorProp(errorMessage).toLowerCase());
+    errorExist = ODPLocators.rowError.getText().toLowerCase().contains(CDAPUtils.getErrorProp(errorMessage)
+            .toLowerCase());
     color = ODPLocators.rowError.getCssValue("border-color");
   }
 

@@ -41,7 +41,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-${{ github.workflow }}
       - name: Build with Maven
-        run: mvn clean test -fae -T 2 -B -V -DcloudBuild -Dmaven.wagon.http.retryHandler.count=3 -Dmaven.wagon.httpconnectionManager.ttlSeconds=25 -DuserName=abc -DuserPassword=efg
+        env:
+          userName: ${{ secrets.AUTH_USERNAME }}
+          userPassword: ${{ secrets.AUTH_PASSWORD }}
+        run: mvn clean test -fae -T 2 -B -V -DcloudBuild -Dmaven.wagon.http.retryHandler.count=3 -Dmaven.wagon.httpconnectionManager.ttlSeconds=25
       - name: Archive build artifacts
         uses: actions/upload-artifact@v2.2.2
         if: always()
