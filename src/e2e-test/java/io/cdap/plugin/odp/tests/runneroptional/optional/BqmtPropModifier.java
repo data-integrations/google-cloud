@@ -1,4 +1,4 @@
-package io.cdap.plugin.odp.tests.runnerOptional.optional;
+package io.cdap.plugin.odp.tests.runneroptional.optional;
 
 import cucumber.api.event.EventListener;
 import cucumber.api.event.EventPublisher;
@@ -7,6 +7,9 @@ import io.cdap.plugin.odp.utils.CDAPUtils;
 import java.io.FileInputStream;
 import java.io.IOException;
 
+/**
+ * Event listener to update properties on the run, called as a plugin by TestRunner.
+ */
 public class BqmtPropModifier implements EventListener {
   public BqmtPropModifier(String fileRelativePath) {
     //called in the beginning, before any scenarios are executed

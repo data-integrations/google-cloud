@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package io.cdap.plugin.odp.tests.runnerOptional.mandate;
+package io.cdap.plugin.odp.tests.runneroptional.optional;
 
 import io.cucumber.junit.Cucumber;
 import io.cucumber.junit.CucumberOptions;
@@ -30,7 +30,9 @@ import org.junit.runner.RunWith;
   tags = {"@OPTPROP"},
   monochrome = true,
   plugin = {"pretty", "html:target/cucumber-html-report", "json:target/cucumber-reports/cucumber.json",
-    "junit:target/cucumber-reports/cucumber.xml"}
+    "junit:target/cucumber-reports/cucumber.xml",
+    "io.cdap.plugin.odp.tests.runnerOptional.optional.BqmtPropModifier:" +
+      "src/e2e-test/resources/additional/optionalBqmtParameters.properties"}
 )
-public class TestRunner {
+public class TestRunnerOpt {
 }

@@ -41,7 +41,6 @@ import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.Properties;
 import java.util.Set;
-import java.util.UUID;
 
 /**
  * E2EPocODP.
@@ -71,7 +70,7 @@ public class E2EPocODP implements CdfHelper {
 
 
   public E2EPocODP() throws FileNotFoundException {
-    number=RandomStringUtils.randomAlphanumeric(7);
+    number = RandomStringUtils.randomAlphanumeric(7);
   }
 
   @Given("Open CDF application to configure pipeline")
@@ -178,7 +177,7 @@ public class E2EPocODP implements CdfHelper {
 
   @Then("Create the {string} records with {string} in the ODP datasource from JCO")
   public void createTheRecordsInTheODPDatasourceFromJCO(String recordcount, String rfcName)
-          throws IOException, JCoException {
+    throws IOException, JCoException {
     dsRecordsCount = Integer.parseInt(recordcount);
     presentRecords = presentRecords + dsRecordsCount;
     Properties connection = readPropertyODP();
@@ -205,8 +204,10 @@ public class E2EPocODP implements CdfHelper {
   @Then("Enter the BigQuery Properties for ODP datasource {string}")
   public void enterTheBigQueryPropertiesForODPDatasource(String tableName) throws IOException, InterruptedException {
     CdfStudioLocators.bigQueryProperties.click();
-    CdfBigQueryPropertiesActions.enterFilePath(CDAPUtils.getPluginProp("filePathODP"));//TODO verify if this is to be removed or kept
-    SeleniumHelper.replaceElementValue(CdfBigQueryPropertiesLocators.projectID, CDAPUtils.getPluginProp("ODP-Project-ID"));
+    //TODO verify if below line is to be removed or kept.
+    CdfBigQueryPropertiesActions.enterFilePath(CDAPUtils.getPluginProp("filePathODP"));
+    SeleniumHelper.replaceElementValue(CdfBigQueryPropertiesLocators.projectID,
+                                       CDAPUtils.getPluginProp("ODP-Project-ID"));
     CdfBigQueryPropertiesLocators.bigQueryReferenceName.sendKeys("automation_test");
     CdfBigQueryPropertiesLocators.dataSetProjectID.sendKeys(CDAPUtils.getPluginProp("ODP-Project-ID"));
     CdfBigQueryPropertiesLocators.dataSet.sendKeys(CDAPUtils.getPluginProp("data-Set-ODP"));
@@ -232,8 +233,8 @@ public class E2EPocODP implements CdfHelper {
     Boolean bool = true;
     WebDriverWait wait = new WebDriverWait(SeleniumDriver.getDriver(), 1000000);
     wait.until(ExpectedConditions.or(
-            ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@data-cy='Succeeded']")),
-            ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@data-cy='Failed']"))));
+      ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@data-cy='Succeeded']")),
+      ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@data-cy='Failed']"))));
   }
 
   @Then("Open Logs of ODP Pipeline")
@@ -260,7 +261,7 @@ public class E2EPocODP implements CdfHelper {
 
   @Then("Get Count of no of records transferred from ODP to BigQuery in {string}")
   public void getCountOfNoOfRecordsTransferredFromODPToBigQueryIn(String table)
-          throws IOException, InterruptedException {
+    throws IOException, InterruptedException {
 
     countRecords = gcpClient.countBqQuery(CDAPUtils.getPluginProp(table));
     BeforeActions.scenario.write("**********No of Records Transferred******************:" + countRecords);
@@ -304,8 +305,8 @@ public class E2EPocODP implements CdfHelper {
     WebDriverWait wait = new WebDriverWait(SeleniumDriver.getDriver(), 1000000);
     SeleniumDriver.getDriver().get(SeleniumDriver.getDriver().getCurrentUrl());
     wait.until(ExpectedConditions.or(
-            ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@data-cy='Succeeded']")),
-            ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@data-cy='Failed']"))));
+      ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@data-cy='Succeeded']")),
+      ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@data-cy='Failed']"))));
   }
 
   @Then("Verify the full load transfer is successful")
@@ -318,13 +319,13 @@ public class E2EPocODP implements CdfHelper {
     PrintWriter out = new PrintWriter(BeforeActions.myObj);
     WebDriverWait wait = new WebDriverWait(SeleniumDriver.getDriver(), 10000);
     wait.until(ExpectedConditions.refreshed(ExpectedConditions.visibilityOfElementLocated(By.
-            xpath("//*[@class=\"run-logs-btn\"]"))));
+      xpath("//*[@class=\"run-logs-btn\"]"))));
     CdfPipelineRunAction.logsClick(); //TODO verify the sleep removal
     wait.until(ExpectedConditions.refreshed(ExpectedConditions.visibilityOfElementLocated(By.
-            xpath("(//*[@type=\"button\"])[7]"))));
+      xpath("(//*[@type=\"button\"])[7]"))));
     deltaLog = CdfPipelineRunAction.captureRawLogs();
     BeforeActions.scenario.write(deltaLog);
-    out.println(rawLog.concat("********************+delta"+deltaLog));
+    out.println(rawLog.concat("********************+delta" + deltaLog));
     out.close();
   }
 
