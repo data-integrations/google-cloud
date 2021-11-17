@@ -3,41 +3,41 @@ Feature: Secured macros can be configured and used for the login credentials
 
   @Security-TC-ODP-SECU-01
   Scenario: User is able to configure security macros with auth user and no errors while validating the credentials plus connection parameter
-#    Given Open "HTTP_CALL" link to configure macros
-#    Then Select "PUT" service to configure
-#    Then enter variable for "testuserqa" of the macro
-#    Then enter the "AUTH_USERNAME" of the service username and password
-#    Then send request and verify success message
-#    Then enter variable for "testpasswordqa" of the macro
-#    Then enter the "AUTH_PASSWORD" of the service username and password
-#    Then send request and verify success message
-#    Then enter variable for "testjcoclient" of the macro
-#    Then enter the "macroS4_jco_client" of the service
-#    Then send request and verify success message
-#    Then enter variable for "testjcoserver" of the macro
-#    Then enter the "macroS4_jco_server" of the service
-#    Then send request and verify success message
-#    Then enter variable for "testjcosysnr" of the macro
-#    Then enter the "macroS4_jco_sysnr" of the service
-#    Then send request and verify success message
-#    Then enter variable for "testjcodatasourcename" of the macro
-#    Then enter the "macroS4_jco_DataSourceName" of the service
-#    Then send request and verify success message
-#    Then enter variable for "testjcosplit" of the macro
-#    Then enter the "macroS4_jco_split" of the service
-#    Then send request and verify success message
-#    Then enter variable for "testjcopackagesize" of the macro
-#    Then enter the "macroS4_jco_packageSize" of the service
-#    Then send request and verify success message
-#    Then enter variable for "testgcspath" of the macro
-#    Then enter the "macroS4_jco_gcspath" of the service
-#    Then send request and verify success message
-#    Then enter variable for "testlang" of the macro
-#    Then enter the "macroS4_jco_lang" of the service
-#    Then send request and verify success message
-#    Then enter variable for "testloadtype" of the macro
-#    Then enter the "macroS4_jco_load" of the service
-#    Then send request and verify success message
+    Given Open "HTTP_CALL" link to configure macros
+    Then Select "PUT" service to configure
+    Then enter variable for "testuserqa" of the macro
+    Then enter the "AUTH_USERNAME" of the service username and password
+    Then send request and verify success message
+    Then enter variable for "testpasswordqa" of the macro
+    Then enter the "AUTH_PASSWORD" of the service username and password
+    Then send request and verify success message
+    Then enter variable for "testjcoclient" of the macro
+    Then enter the "macroS4_jco_client" of the service
+    Then send request and verify success message
+    Then enter variable for "testjcoserver" of the macro
+    Then enter the "macroS4_jco_server" of the service
+    Then send request and verify success message
+    Then enter variable for "testjcosysnr" of the macro
+    Then enter the "macroS4_jco_sysnr" of the service
+    Then send request and verify success message
+    Then enter variable for "testjcodatasourcename" of the macro
+    Then enter the "macroS4_jco_DataSourceName" of the service
+    Then send request and verify success message
+    Then enter variable for "testjcosplit" of the macro
+    Then enter the "macroS4_jco_split" of the service
+    Then send request and verify success message
+    Then enter variable for "testjcopackagesize" of the macro
+    Then enter the "macroS4_jco_packageSize" of the service
+    Then send request and verify success message
+    Then enter variable for "testgcspath" of the macro
+    Then enter the "macroS4_jco_gcspath" of the service
+    Then send request and verify success message
+    Then enter variable for "testlang" of the macro
+    Then enter the "macroS4_jco_lang" of the service
+    Then send request and verify success message
+    Then enter variable for "testloadtype" of the macro
+    Then enter the "macroS4_jco_load" of the service
+    Then send request and verify success message
     Given Open CDF application to configure pipeline
     When Source is SAP ODP
     When Target is BigQuery for ODP data transfer
