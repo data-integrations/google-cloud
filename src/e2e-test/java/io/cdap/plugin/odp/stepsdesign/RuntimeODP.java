@@ -49,7 +49,7 @@ public class RuntimeODP implements CdfHelper {
   private ExceptionUtils exceptionUtils;
   static int dsRecordsCount;
   static int countRecords;
-  static int presentRecords = 0;
+  static int presentRecords;
   static int i = 0;
   static String number;
   static String deltaLog;
@@ -72,8 +72,6 @@ public class RuntimeODP implements CdfHelper {
   @Given("Open CDF application to configure pipeline")
   public void openCDFApplicationToConfigurePipeline() throws IOException, InterruptedException {
     openCdf();
-    countRecords=0;
-    presentRecords=0;
   }
 
   @When("Source is SAP ODP")
@@ -177,8 +175,8 @@ public class RuntimeODP implements CdfHelper {
   @Then("Create the {string} records with {string} in the ODP datasource from JCO")
   public void createTheRecordsInTheODPDatasourceFromJCO(String recordcount, String rfcName)
     throws IOException, JCoException {
-    dsRecordsCount = Integer.parseInt(recordcount);
-    presentRecords = presentRecords + dsRecordsCount;
+      dsRecordsCount = Integer.parseInt(recordcount);
+      presentRecords = presentRecords + dsRecordsCount;
     Properties connection = readPropertyODP();
     sapProps = SAPProperties.getDefault(connection);
     errorCapture = new ErrorCapture(exceptionUtils);
@@ -194,7 +192,7 @@ public class RuntimeODP implements CdfHelper {
       String records = response.toString().replaceAll("\\D", "");
       BeforeActions.scenario.write("No of records created:-" + records);
       Assert.assertEquals(records, recordcount);
-      Thread.sleep(180000);
+      Thread.sleep(60000);
     } catch (Exception e) {
       throw SystemException.throwException(e.getMessage(), e);
     }
@@ -263,17 +261,14 @@ public class RuntimeODP implements CdfHelper {
 
     countRecords = gcpClient.countBqQuery(CDAPUtils.getPluginProp(table));
     BeforeActions.scenario.write("**********No of Records Transferred******************:" + countRecords);
-    if (i == 0) {
-      presentRecords = presentRecords + countRecords;
+    if (i == 0){
+      presentRecords = presentRecords + countRecords ;
     }
     i++;
-
-
   }
 
-  @Then("Verify the Delta load transfer is successfull")
+  @Then("Verify the Delta load transfer is successful")
   public void verifyTheDeltaLoadTransferIsSuccessfull() {
-    System.out.println("preset" + presentRecords);
     Assert.assertEquals(presentRecords, countRecords);
   }
 
@@ -335,5 +330,16 @@ public class RuntimeODP implements CdfHelper {
   @Then("Save and Deploy ODP Pipeline")
   public void saveAndDeployODPPipeline() throws InterruptedException {
     saveAndDeployPipeline();
+  }
+
+  @Then("Reset the parameters")
+  public void resetTheParameters() {
+    countRecords=0;
+    presentRecords=0;
+    dsRecordsCount=0;
+    i=0;
+    BeforeActions.scenario.write("countRecords=0;\n" +
+            "    presentRecords=0;\n" +
+            "    dsRecordsCount=0;");
   }
 }
