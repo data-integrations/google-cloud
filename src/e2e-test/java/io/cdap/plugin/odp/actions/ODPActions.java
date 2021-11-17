@@ -42,7 +42,6 @@ public class ODPActions {
     odpLocators.splitRow.sendKeys(CDAPUtils.getPluginProp(splitRow));
     odpLocators.packageSize.sendKeys(CDAPUtils.getPluginProp(packSize) != null ?
                                        CDAPUtils.getPluginProp(packSize) : StringUtils.EMPTY);
-    Thread.sleep(10000); //TODO remove, just for pause execution for trial
   }
 
   public static void enterLoadConnectionProperties(String client, String asHost, String msServ, String systemID,
