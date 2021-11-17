@@ -10,8 +10,8 @@ import java.io.IOException;
 /**
  * Event listener to update properties on the run, called as a plugin by TestRunner.
  */
-public class BqmtPropModifier implements EventListener {
-  public BqmtPropModifier(String fileRelativePath) {
+public class PropModifier implements EventListener {
+  public PropModifier(String fileRelativePath) {
     //called in the beginning, before any scenarios are executed
     appendToProps(fileRelativePath);
   }

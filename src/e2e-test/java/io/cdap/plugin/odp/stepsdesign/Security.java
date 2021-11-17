@@ -59,9 +59,9 @@ public class Security implements CdfHelper {
   @Then("enter the {string} of the service")
   public void enterTheOfTheService(String request) throws IOException {
 
-      for (int i = 0; i <= 100; i++) {
-        CdfSysAdminLocators.requestBody.sendKeys(Keys.BACK_SPACE);
-      }
+    for (int i = 0; i <= 100; i++) {
+      CdfSysAdminLocators.requestBody.sendKeys(Keys.BACK_SPACE);
+    }
     CdfSysAdminActions.enterRequestBody(CDAPUtils.getPluginProp(request));
 
   }
@@ -171,8 +171,8 @@ public class Security implements CdfHelper {
 //    CdfSysAdminActions.enterRequestBody("\"description\": \"secure login creds\",\"data\": \""+System.getenv(request)+
 //            "\",\"properties\": {}}");
 
-    CdfSysAdminActions.enterRequestBody("{\"description\": \"secure login creds\",\"data\": \""+CDAPUtils.
-            getPluginProp(request)+ "\",\"properties\": {}}");
+    CdfSysAdminActions.enterRequestBody("{\"description\": \"secure login creds\",\"data\": \"" + CDAPUtils.
+      getPluginProp(request) + "\",\"properties\": {}}");
 
   }
 
@@ -185,6 +185,6 @@ public class Security implements CdfHelper {
   public void rfcAuthErrorIsDisplayed(String rfcError) {
     ODPActions.getSchema();
     errorExist = ODPLocators.mainStreamError.getText().toLowerCase().contains(CDAPUtils.getErrorProp(rfcError)
-            .toLowerCase());
+                                                                                .toLowerCase());
   }
 }

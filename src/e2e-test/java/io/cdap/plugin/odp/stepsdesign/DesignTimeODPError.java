@@ -25,7 +25,7 @@ public class DesignTimeODPError {
     ODPLocators.validateButton.click();
     color = ODPLocators.rowError.getCssValue("border-color");
     errorExist = CDAPUtils.getErrorProp(errorMessage).toLowerCase().contains(ODPLocators.rowError.getText()
-            .toLowerCase());
+                                                                               .toLowerCase());
   }
 
   @Then("User is able to validate the validate the error")
@@ -44,7 +44,7 @@ public class DesignTimeODPError {
       .sendKeys(input);
     ODPLocators.validateButton.click();
     errorExist = CDAPUtils.getErrorProp(errorMessage).toLowerCase().contains(ODPLocators.jcoError.getText()
-            .toLowerCase());
+                                                                               .toLowerCase());
   }
 
   @Then("User is able to set parameter {string} as {string} and getting {string} for wrong input of password")
@@ -57,7 +57,7 @@ public class DesignTimeODPError {
     }
     ODPLocators.validateButton.click();
     errorExist = CDAPUtils.getErrorProp(errorMessage).toLowerCase().contains(ODPLocators.jcoError.getText()
-            .toLowerCase());
+                                                                               .toLowerCase());
     color = ODPLocators.rowError.getCssValue("border-color");
   }
 
@@ -73,7 +73,7 @@ public class DesignTimeODPError {
       sendKeys(input);
     ODPLocators.validateButton.click();
     errorExist = CDAPUtils.getErrorProp(errorMessage).toLowerCase().contains(ODPLocators.rowError.getText()
-            .toLowerCase());
+                                                                               .toLowerCase());
     color = ODPLocators.rowError.getCssValue("border-color");
   }
 
@@ -86,7 +86,7 @@ public class DesignTimeODPError {
     ODPLocators.filterEqualVal.sendKeys(query);
     ODPLocators.validateButton.click();
     errorExist = ODPLocators.rowError.getText().toLowerCase().contains(CDAPUtils.getErrorProp(errorMessage)
-            .toLowerCase());
+                                                                         .toLowerCase());
     color = ODPLocators.rowError.getCssValue("border-color");
   }
 
@@ -99,9 +99,9 @@ public class DesignTimeODPError {
 
 
   @Then("^User is able to set parameters filterRangeKey as (.+) and its filterRangeVal " +
-          "as (.+) and getting row (.+) for wrong input$")
-  public void FilterRangeKeyAsFilterOptionAndItsFilterRangeValAsQueryAndGettingRowErrorMessageForWrongInput
-          (String filteroption, String query, String errorMessage) throws Throwable {
+    "as (.+) and getting row (.+) for wrong input$")
+  public void filterRangeKeyAsFilterOptionAndItsFilterRangeValAsQueryAndGettingRowErrorMessageForWrongInput
+    (String filteroption, String query, String errorMessage) throws Throwable {
     ODPLocators.filterRangeKey.sendKeys(filteroption);
     ODPLocators.filterRangeVal.sendKeys(query);
     ODPLocators.validateButton.click();

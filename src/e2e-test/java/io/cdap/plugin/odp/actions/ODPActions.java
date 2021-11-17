@@ -29,6 +29,35 @@ public class ODPActions {
     odpLocators.sapODPProperties.click();
   }
 
+  public static void enterConnectionProperties(
+    String client, String sysnr, String asHost, String dsName, String gcsPath, String splitRow,
+    String packSize, String msServ, String systemID, String lgrp) throws IOException, InterruptedException {
+    odpLocators.referenceName.sendKeys(UUID.randomUUID().toString());
+    odpLocators.sapClient.sendKeys(CDAPUtils.getPluginProp(client));
+    if (CDAPUtils.getPluginProp(msServ) != null) {
+      /*For load connection*/
+      odpLocators.loadServer.click();
+      odpLocators.msHost.sendKeys(CDAPUtils.getPluginProp(asHost) != null ?
+                                    CDAPUtils.getPluginProp(asHost) : StringUtils.EMPTY);
+      odpLocators.portNumber.sendKeys(CDAPUtils.getPluginProp(msServ));
+      odpLocators.systemID.sendKeys(CDAPUtils.getPluginProp(systemID) != null ?
+                                      CDAPUtils.getPluginProp(systemID) : StringUtils.EMPTY);
+      ODPLocators.logonGroup.sendKeys(CDAPUtils.getPluginProp(lgrp) != null ?
+                                        CDAPUtils.getPluginProp(lgrp) : StringUtils.EMPTY);
+    } else {
+      /*For direct connection*/
+      odpLocators.systemNumber.sendKeys(CDAPUtils.getPluginProp(sysnr));
+      odpLocators.sapApplicationServerHost.sendKeys(CDAPUtils.getPluginProp(asHost));
+    }
+    odpLocators.dataSourceName.sendKeys(CDAPUtils.getPluginProp(dsName));
+    JavascriptExecutor js = (JavascriptExecutor) SeleniumDriver.getDriver();
+    js.executeScript("window.scrollBy(0,350)", "");
+    odpLocators.gcsPath.sendKeys(CDAPUtils.getPluginProp(gcsPath));
+    odpLocators.splitRow.sendKeys(CDAPUtils.getPluginProp(splitRow));
+    odpLocators.packageSize.sendKeys(CDAPUtils.getPluginProp(packSize) != null ?
+                                       CDAPUtils.getPluginProp(packSize) : StringUtils.EMPTY);
+  }
+
   public static void enterDirectConnectionProperties(String client, String sysnr, String asHost, String dsName
     , String gcsPath, String splitRow, String packSize) throws IOException, InterruptedException {
     odpLocators.referenceName.sendKeys(UUID.randomUUID().toString());

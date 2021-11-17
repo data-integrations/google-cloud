@@ -27,12 +27,12 @@ import org.junit.runner.RunWith;
 @CucumberOptions(
   features = {"src/e2e-test/features"},
   glue = {"io.cdap.plugin.odp.stepsdesign", "stepsdesign"},
-  tags = {"@OPTPROP"},
+  tags = {"@LOADnDIR"},
   monochrome = true,
   plugin = {"pretty", "html:target/cucumber-html-report", "json:target/cucumber-reports/cucumber.json",
     "junit:target/cucumber-reports/cucumber.xml",
-    "io.cdap.plugin.odp.tests.runnerOptional.optional.BqmtPropModifier:" +
-      "src/e2e-test/resources/additional/optionalBqmtParameters.properties"}
+    "io.cdap.plugin.odp.tests.runneroptional.optional.PropModifier:" +
+      "src/e2e-test/resources/additional/optional_odploadconnect.properties"}
 )
 public class TestRunnerOpt {
 }

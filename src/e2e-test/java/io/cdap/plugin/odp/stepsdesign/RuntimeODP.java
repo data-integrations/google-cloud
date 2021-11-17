@@ -9,8 +9,13 @@ import com.google.adapter.exceptions.SystemException;
 import com.google.adapter.util.ErrorCapture;
 import com.google.adapter.util.ExceptionUtils;
 import com.sap.conn.jco.JCoException;
-import io.cdap.e2e.pages.actions.*;
+import io.cdap.e2e.pages.actions.CdfBigQueryPropertiesActions;
+import io.cdap.e2e.pages.actions.CdfGcsActions;
+import io.cdap.e2e.pages.actions.CdfLogActions;
+import io.cdap.e2e.pages.actions.CdfPipelineRunAction;
+import io.cdap.e2e.pages.actions.CdfStudioActions;
 import io.cdap.e2e.pages.locators.CdfBigQueryPropertiesLocators;
+import io.cdap.e2e.pages.locators.CdfPipelineRunLocators;
 import io.cdap.e2e.pages.locators.CdfStudioLocators;
 import io.cdap.e2e.utils.CdfHelper;
 import io.cdap.e2e.utils.GcpClient;
@@ -25,6 +30,7 @@ import io.cucumber.java.en.When;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Assert;
 import org.openqa.selenium.By;
+import org.openqa.selenium.Keys;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import stepsdesign.BeforeActions;
@@ -55,6 +61,8 @@ public class RuntimeODP implements CdfHelper {
   static String deltaLog;
   static String rawLog;
   static PrintWriter out;
+  public static CdfPipelineRunLocators cdfPipelineRunLocators =
+    (CdfPipelineRunLocators) SeleniumHelper.getPropertiesLocators(CdfPipelineRunLocators.class);
 
   static {
     try {
@@ -91,10 +99,19 @@ public class RuntimeODP implements CdfHelper {
     ODPActions.enterDirectConnectionProperties(client, sysnr, asHost, dsName, gcsPath, splitRow, packageSize);
   }
 
+  @When(
+    "Configure Connection {string} {string} {string} {string} {string} {string} {string} {string} {string} {string}")
+  public void configureConnection(String client, String sysnr, String asHost, String dsName, String gcsPath,
+                                  String splitRow, String packageSize, String msServ, String systemID,
+                                  String lgrp) throws IOException, InterruptedException {
+    ODPActions.getODPProperties();
+    ODPActions.enterConnectionProperties(client, sysnr, asHost, dsName, gcsPath, splitRow, packageSize,
+                                         msServ, systemID, lgrp);
+  }
+
   @When("Username and Password is provided")
   public void usernameAndPasswordIsProvided() throws IOException {
-    // ODPActions.enterUserNamePassword(System.getenv("AUTH_USERNAME"), System.getenv("AUTH_PASSWORD"));
-    ODPActions.enterUserNamePassword("dhiraj", "Google@123");
+    ODPActions.enterUserNamePassword(System.getenv("AUTH_USERNAME"), System.getenv("AUTH_PASSWORD"));
   }
 
 
@@ -175,8 +192,8 @@ public class RuntimeODP implements CdfHelper {
   @Then("Create the {string} records with {string} in the ODP datasource from JCO")
   public void createTheRecordsInTheODPDatasourceFromJCO(String recordcount, String rfcName)
     throws IOException, JCoException {
-      dsRecordsCount = Integer.parseInt(recordcount);
-      presentRecords = presentRecords + dsRecordsCount;
+    dsRecordsCount = Integer.parseInt(recordcount);
+    presentRecords = presentRecords + dsRecordsCount;
     Properties connection = readPropertyODP();
     sapProps = SAPProperties.getDefault(connection);
     errorCapture = new ErrorCapture(exceptionUtils);
@@ -201,7 +218,7 @@ public class RuntimeODP implements CdfHelper {
   @Then("Enter the BigQuery Properties for ODP datasource {string}")
   public void enterTheBigQueryPropertiesForODPDatasource(String tableName) throws IOException, InterruptedException {
     CdfStudioLocators.bigQueryProperties.click();
-    CdfBigQueryPropertiesActions cdfBigQueryPropertiesActions=new CdfBigQueryPropertiesActions();
+    CdfBigQueryPropertiesActions cdfBigQueryPropertiesActions = new CdfBigQueryPropertiesActions();
     SeleniumHelper.replaceElementValue(CdfBigQueryPropertiesLocators.projectID,
                                        CDAPUtils.getPluginProp("ODP-Project-ID"));
     CdfBigQueryPropertiesLocators.bigQueryReferenceName.sendKeys("automation_test");
@@ -261,8 +278,8 @@ public class RuntimeODP implements CdfHelper {
 
     countRecords = gcpClient.countBqQuery(CDAPUtils.getPluginProp(table));
     BeforeActions.scenario.write("**********No of Records Transferred******************:" + countRecords);
-    if (i == 0){
-      presentRecords = presentRecords + countRecords ;
+    if (i == 0) {
+      presentRecords = presentRecords + countRecords;
     }
     i++;
   }
@@ -313,7 +330,7 @@ public class RuntimeODP implements CdfHelper {
     WebDriverWait wait = new WebDriverWait(SeleniumDriver.getDriver(), 10000);
     wait.until(ExpectedConditions.refreshed(ExpectedConditions.visibilityOfElementLocated(By.
       xpath("//*[@class=\"run-logs-btn\"]"))));
-    CdfPipelineRunAction.logsClick(); //TODO verify the sleep removal
+    CdfPipelineRunAction.logsClick();
     wait.until(ExpectedConditions.refreshed(ExpectedConditions.visibilityOfElementLocated(By.
       xpath("(//*[@type=\"button\"])[7]"))));
     deltaLog = CdfPipelineRunAction.captureRawLogs();
@@ -334,12 +351,12 @@ public class RuntimeODP implements CdfHelper {
 
   @Then("Reset the parameters")
   public void resetTheParameters() {
-    countRecords=0;
-    presentRecords=0;
-    dsRecordsCount=0;
-    i=0;
+    countRecords = 0;
+    presentRecords = 0;
+    dsRecordsCount = 0;
+    i = 0;
     BeforeActions.scenario.write("countRecords=0;\n" +
-            "    presentRecords=0;\n" +
-            "    dsRecordsCount=0;");
+                                   "    presentRecords=0;\n" +
+                                   "    dsRecordsCount=0;");
   }
 }
