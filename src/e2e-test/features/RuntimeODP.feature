@@ -1,6 +1,6 @@
 Feature: Run Time E2E
 
-  @ODP @DesignTime-TC-ODP-RNTM-07-01
+  @ODP @RunTime-TC-ODP-RNTM-07-01
   Scenario:User configured Load connection parameters and Security parameters by providing values on SAP UI(ENV)
     Given Open CDF application to configure pipeline
     When Source is SAP ODP
@@ -25,7 +25,7 @@ Feature: Run Time E2E
     Then Reset the parameters
 
 
-  @ODP @DesignTime-TC-ODP-RNTM-01(Direct)
+  @ODP @RunTime-TC-ODP-RNTM-01(Direct)
   Scenario: Multi subscriber
     Given Open CDF application to configure pipeline
     When Source is SAP ODP
@@ -68,10 +68,10 @@ Feature: Run Time E2E
     Then Verify the ODP pipeline status is "Succeeded"
     Then validate successMessage is displayed for the ODP pipeline
     Then Get Count of no of records transferred from ODP to BigQuery in "tableDemo"
-    Then Verify the Delta load transfer is successfull
+    Then Verify the Delta load transfer is successful
     Then Reset the parameters
 
-  @ODP @DesignTime-TC-ODP-RNTM-09-01(Direct)
+  @ODP @RunTime-TC-ODP-RNTM-09-01(Direct)
   Scenario: User is able to Login and transfer delta load for 2LIS_02_HDR
     Given Open CDF application to configure pipeline
     When Source is SAP ODP
@@ -101,11 +101,11 @@ Feature: Run Time E2E
     Then Verify the ODP pipeline status is "Succeeded"
     Then validate successMessage is displayed for the ODP pipeline
     Then Get Count of no of records transferred from ODP to BigQuery in "tableDemo"
-    Then Verify the Delta load transfer is successfull
+    Then Verify the Delta load transfer is successful
     Then Reset the parameters
 
 
-  @ODP @DesignTime-TC-ODP-RNTM-09-02
+  @ODP @RunTime-TC-ODP-RNTM-09-02
   Scenario: User is able to Login and configure the connection parameter to establish the direct connection
     Given Open CDF application to configure pipeline
     When Source is SAP ODP
@@ -139,7 +139,7 @@ Feature: Run Time E2E
     Then Reset the parameters
 
 
-  @ODP @DesignTime-TC-ODP-RNTM-09-01-Full
+  @ODP @RunTime-TC-ODP-RNTM-09-01-Full
   Scenario: User is able to Login and run the full load on SAP Transactional Data
     Given Open CDF application to configure pipeline
     When Source is SAP ODP
@@ -163,7 +163,7 @@ Feature: Run Time E2E
     Then Verify the full load transfer is successful
     Then Reset the parameters
 
-  @ODP @DesignTime-TC-ODP-RNTM-09-02-Full
+  @ODP @RunTime-TC-ODP-RNTM-09-02-Full
   Scenario: User is able to Login and run the full load on SAP master attribute Data source
     Given Open CDF application to configure pipeline
     When Source is SAP ODP
@@ -187,7 +187,7 @@ Feature: Run Time E2E
     Then Verify the full load transfer is successful
     Then Reset the parameters
 
-  @ODP @DesignTime-TC-ODP-RNTM-09-04
+  @ODP @RunTime-TC-ODP-RNTM-09-04
   Scenario: User is able to Login and run the full load on SAP  attribute Data source
     Given Open CDF application to configure pipeline
     When Source is SAP ODP
@@ -212,7 +212,7 @@ Feature: Run Time E2E
     Then Reset the parameters
 
 
-  @ODP @DesignTime-TC-ODP-RNTM-03-00
+  @ODP @RunTime-TC-ODP-RNTM-03-00
   Scenario:User configured Load connection parameters and all the supported data types are getting to BQ
     Given Open CDF application to configure pipeline
     When Source is SAP ODP
@@ -234,5 +234,3 @@ Feature: Run Time E2E
     Then Get Count of no of records transferred from ODP to BigQuery in "tableDemo"
     Then Verify the full load transfer is successful
     Then Reset the parameters
-
-
