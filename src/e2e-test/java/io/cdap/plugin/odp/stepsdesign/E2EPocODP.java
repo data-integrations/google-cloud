@@ -15,7 +15,6 @@ import io.cdap.e2e.pages.actions.CdfLogActions;
 import io.cdap.e2e.pages.actions.CdfPipelineRunAction;
 import io.cdap.e2e.pages.actions.CdfStudioActions;
 import io.cdap.e2e.pages.locators.CdfBigQueryPropertiesLocators;
-import io.cdap.e2e.pages.locators.CdfPipelineRunLocators;
 import io.cdap.e2e.pages.locators.CdfStudioLocators;
 import io.cdap.e2e.utils.CdfHelper;
 import io.cdap.e2e.utils.GcpClient;
@@ -27,6 +26,7 @@ import io.cdap.plugin.odp.utils.CDAPUtils;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Assert;
 import org.openqa.selenium.By;
 import org.openqa.selenium.support.ui.ExpectedConditions;
@@ -41,12 +41,12 @@ import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.Properties;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * E2EPocODP.
  */
 public class E2EPocODP implements CdfHelper {
-  private static CdfPipelineRunLocators cdfPipelineRunLocators = SeleniumHelper.getPropertiesLocators(CdfPipelineRunLocators.class);
   GcpClient gcpClient = new GcpClient();
   private SAPProperties sapProps;
   private ErrorCapture errorCapture;
@@ -56,10 +56,22 @@ public class E2EPocODP implements CdfHelper {
   static int countRecords;
   static int presentRecords = 0;
   static int i = 0;
-  PrintWriter out = new PrintWriter(BeforeActions.myObj);
+  static String number;
+  static String deltaLog;
+  static String rawLog;
+  static PrintWriter out;
+
+  static {
+    try {
+      out = new PrintWriter(BeforeActions.myObj);
+    } catch (FileNotFoundException e) {
+      e.printStackTrace();
+    }
+  }
 
 
   public E2EPocODP() throws FileNotFoundException {
+    number=RandomStringUtils.randomAlphanumeric(7);
   }
 
   @Given("Open CDF application to configure pipeline")
@@ -84,9 +96,10 @@ public class E2EPocODP implements CdfHelper {
     ODPActions.enterDirectConnectionProperties(client, sysnr, asHost, dsName, gcsPath, splitRow, packageSize);
   }
 
-  @When("Username {string} and Password {string} is provided")
-  public void usernameAndPasswordIsProvided(String userName, String password) throws IOException {
-    ODPActions.enterUserNamePassword(userName, password);
+  @When("Username and Password is provided")
+  public void usernameAndPasswordIsProvided() throws IOException {
+    // ODPActions.enterUserNamePassword(System.getenv("AUTH_USERNAME"), System.getenv("AUTH_PASSWORD"));
+    ODPActions.enterUserNamePassword("dhiraj", "Google@123");
   }
 
 
@@ -115,7 +128,6 @@ public class E2EPocODP implements CdfHelper {
 
   @Then("link source and target")
   public void linkSourceAndTarget() {
-    waitForSinkOnCanvas("BigQueryTable");
     SeleniumHelper.dragAndDrop(ODPLocators.fromODP, CdfStudioLocators.toBigQiery);
   }
 
@@ -165,7 +177,8 @@ public class E2EPocODP implements CdfHelper {
   }
 
   @Then("Create the {string} records with {string} in the ODP datasource from JCO")
-  public void createTheRecordsInTheODPDatasourceFromJCO(String recordcount, String rfcName) throws IOException, JCoException {
+  public void createTheRecordsInTheODPDatasourceFromJCO(String recordcount, String rfcName)
+          throws IOException, JCoException {
     dsRecordsCount = Integer.parseInt(recordcount);
     presentRecords = presentRecords + dsRecordsCount;
     Properties connection = readPropertyODP();
@@ -183,7 +196,7 @@ public class E2EPocODP implements CdfHelper {
       String records = response.toString().replaceAll("\\D", "");
       BeforeActions.scenario.write("No of records created:-" + records);
       Assert.assertEquals(records, recordcount);
-      Thread.sleep(60000);
+      Thread.sleep(180000);
     } catch (Exception e) {
       throw SystemException.throwException(e.getMessage(), e);
     }
@@ -192,7 +205,7 @@ public class E2EPocODP implements CdfHelper {
   @Then("Enter the BigQuery Properties for ODP datasource {string}")
   public void enterTheBigQueryPropertiesForODPDatasource(String tableName) throws IOException, InterruptedException {
     CdfStudioLocators.bigQueryProperties.click();
-    CdfBigQueryPropertiesActions.enterFilePath(CDAPUtils.getPluginProp("filePathODP"));
+    CdfBigQueryPropertiesActions.enterFilePath(CDAPUtils.getPluginProp("filePathODP"));//TODO verify if this is to be removed or kept
     SeleniumHelper.replaceElementValue(CdfBigQueryPropertiesLocators.projectID, CDAPUtils.getPluginProp("ODP-Project-ID"));
     CdfBigQueryPropertiesLocators.bigQueryReferenceName.sendKeys("automation_test");
     CdfBigQueryPropertiesLocators.dataSetProjectID.sendKeys(CDAPUtils.getPluginProp("ODP-Project-ID"));
@@ -208,34 +221,28 @@ public class E2EPocODP implements CdfHelper {
     CdfGcsActions.closeButton();
   }
 
-  @Then("Save and Deploy ODP Pipeline")
-  public void saveAndDeployODPPipeline() throws InterruptedException {
-    saveAndDeployPipeline();
-  }
 
   @Then("Run the ODP Pipeline in Runtime")
   public void runTheODPPipelineInRuntime() throws InterruptedException {
     CdfPipelineRunAction.runClick();
-    SeleniumDriver.getDriver().get(SeleniumDriver.getDriver().getCurrentUrl());
   }
 
   @Then("Wait till ODP pipeline is in running state")
   public void waitTillODPPipelineIsInRunningState() {
     Boolean bool = true;
     WebDriverWait wait = new WebDriverWait(SeleniumDriver.getDriver(), 1000000);
-    SeleniumDriver.getDriver().get(SeleniumDriver.getDriver().getCurrentUrl());
     wait.until(ExpectedConditions.or(
-      ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@data-cy='Succeeded']")),
-      ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@data-cy='Failed']"))));
+            ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@data-cy='Succeeded']")),
+            ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@data-cy='Failed']"))));
   }
 
   @Then("Open Logs of ODP Pipeline")
-  public void openLogsOfODPPipeline() throws FileNotFoundException {
-    String rawLogs;
+  public void openLogsOfODPPipeline() throws InterruptedException, FileNotFoundException {
     CdfPipelineRunAction.logsClick();
-    rawLogs = CdfPipelineRunAction.captureRawLogs();
-    BeforeActions.scenario.write(rawLogs);
-    out.println(rawLogs);
+    Thread.sleep(5000);
+    rawLog = CdfPipelineRunAction.captureRawLogs();
+    BeforeActions.scenario.write(rawLog);
+    out.println(rawLog);
     out.close();
   }
 
@@ -253,7 +260,7 @@ public class E2EPocODP implements CdfHelper {
 
   @Then("Get Count of no of records transferred from ODP to BigQuery in {string}")
   public void getCountOfNoOfRecordsTransferredFromODPToBigQueryIn(String table)
-    throws IOException, InterruptedException {
+          throws IOException, InterruptedException {
 
     countRecords = gcpClient.countBqQuery(CDAPUtils.getPluginProp(table));
     BeforeActions.scenario.write("**********No of Records Transferred******************:" + countRecords);
@@ -261,6 +268,7 @@ public class E2EPocODP implements CdfHelper {
       presentRecords = presentRecords + countRecords;
     }
     i++;
+
 
   }
 
@@ -296,8 +304,8 @@ public class E2EPocODP implements CdfHelper {
     WebDriverWait wait = new WebDriverWait(SeleniumDriver.getDriver(), 1000000);
     SeleniumDriver.getDriver().get(SeleniumDriver.getDriver().getCurrentUrl());
     wait.until(ExpectedConditions.or(
-      ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@data-cy='Succeeded']")),
-      ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@data-cy='Failed']"))));
+            ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@data-cy='Succeeded']")),
+            ExpectedConditions.visibilityOfElementLocated(By.xpath("//*[@data-cy='Failed']"))));
   }
 
   @Then("Verify the full load transfer is successful")
@@ -306,17 +314,27 @@ public class E2EPocODP implements CdfHelper {
   }
 
   @Then("Open Logs of ODP Pipeline to capture delta logs")
-  public void openLogsOfODPPipelineToCaptureDeltaLogs() throws InterruptedException {
-    String deltaLog;
-    SeleniumDriver.getDriver().get(SeleniumDriver.getDriver().getCurrentUrl());
-    CdfPipelineRunAction.logsClick();//TODO verify the sleep removal
+  public void openLogsOfODPPipelineToCaptureDeltaLogs() throws InterruptedException, FileNotFoundException {
+    PrintWriter out = new PrintWriter(BeforeActions.myObj);
     WebDriverWait wait = new WebDriverWait(SeleniumDriver.getDriver(), 10000);
     wait.until(ExpectedConditions.refreshed(ExpectedConditions.visibilityOfElementLocated(By.
-      xpath("(//*[@type=\"button\"])[7]"))));
+            xpath("//*[@class=\"run-logs-btn\"]"))));
+    CdfPipelineRunAction.logsClick(); //TODO verify the sleep removal
+    wait.until(ExpectedConditions.refreshed(ExpectedConditions.visibilityOfElementLocated(By.
+            xpath("(//*[@type=\"button\"])[7]"))));
     deltaLog = CdfPipelineRunAction.captureRawLogs();
     BeforeActions.scenario.write(deltaLog);
-    out.println(deltaLog);
+    out.println(rawLog.concat("********************+delta"+deltaLog));
     out.close();
   }
 
+  @When("Subscriber is entered")
+  public void subscriberIsEntered() {
+    ODPLocators.subsName.sendKeys(number);
+  }
+
+  @Then("Save and Deploy ODP Pipeline")
+  public void saveAndDeployODPPipeline() throws InterruptedException {
+    saveAndDeployPipeline();
+  }
 }

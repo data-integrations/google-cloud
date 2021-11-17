@@ -5,7 +5,7 @@ Feature: Fetch schema of all the datasources active in SAP
     Given Open CDF application to configure pipeline
     When Source is SAP ODP
     When Configure Direct Connection "S4client" "S4sysnr" "S4asHost" "S4dsName" "S4gcsPath" "S4Splitrow" "S4pkgSize"
-    When Username "TestUsername" and Password "TestPassword" is provided
+    When Username and Password is provided
     When data source as "<datasource>" is added
     Then Validate that schema is created
     Examples:

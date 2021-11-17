@@ -64,8 +64,8 @@ public class ODPActions {
   }
 
   public static void enterUserNamePassword(String username, String password) throws IOException {
-    odpLocators.usernameCredentials.sendKeys(CDAPUtils.getPluginProp(username));
-    odpLocators.passwordCredentials.sendKeys(CDAPUtils.getPluginProp(password));
+    odpLocators.usernameCredentials.sendKeys(username);
+    odpLocators.passwordCredentials.sendKeys(password);
   }
 
   public static void selectSync() {

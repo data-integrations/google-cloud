@@ -6,7 +6,7 @@ Feature: Run Time E2E
     When Source is SAP ODP
     When Target is BigQuery for ODP data transfer
     When Configure Direct Connection "S4client" "S4sysnr" "S4asHost" "S4dsName" "S4gcsPath" "S4Splitrow" "S4pkgSize"
-    When Username "TestUsername" and Password "TestPassword" is provided
+    When Username and Password is provided
     When Run one Mode is Sync mode
     Then Validate the Schema created
     Then Close the ODP Properties
@@ -39,7 +39,7 @@ Feature: Run Time E2E
     When Source is SAP ODP
     When Target is BigQuery for ODP data transfer
     When Configure Direct Connection "S4client" "S4sysnr" "S4asHost" "dstransact" "S4gcsPath" "S4Splitrow" "S4pkgSize"
-    When Username "TestUsername" and Password "TestPassword" is provided
+    When Username and Password is provided
     When Run one Mode is Sync mode
     Then Validate the Schema created
     Then Close the ODP Properties
@@ -62,7 +62,7 @@ Feature: Run Time E2E
     When Source is SAP ODP
     When Target is BigQuery for ODP data transfer
     When Configure Direct Connection "S4client" "S4sysnr" "S4asHost" "dsMasterAttr" "S4gcsPath" "S4Splitrow" "S4pkgSize"
-    When Username "TestUsername" and Password "TestPassword" is provided
+    When Username and Password is provided
     When Run one Mode is Sync mode
     Then Validate the Schema created
     Then Close the ODP Properties
@@ -85,7 +85,7 @@ Feature: Run Time E2E
     When Source is SAP ODP
     When Target is BigQuery for ODP data transfer
     When Configure Direct Connection "S4client" "S4sysnr" "S4asHost" "S4dsName" "S4gcsPath" "S4Splitrow" "S4pkgSize"
-    When Username "TestUsername" and Password "TestPassword" is provided
+    When Username and Password is provided
     When Run one Mode is Sync mode
     Then Validate the Schema created
     Then Close the ODP Properties
@@ -108,7 +108,7 @@ Feature: Run Time E2E
     When Source is SAP ODP
     When Target is BigQuery for ODP data transfer
     When Configure Direct Connection "S4client" "S4sysnr" "S4asHost" "S4dsName" "S4gcsPath" "S4Splitrow" "S4pkgSize"
-    When Username "TestUsername" and Password "TestPassword" is provided
+    When Username and Password is provided
     When Run one Mode is Sync mode
     Then Validate the Schema created
     Then Close the ODP Properties
@@ -131,7 +131,7 @@ Feature: Run Time E2E
     When Source is SAP ODP
     When Target is BigQuery for ODP data transfer
     When Configure Direct Connection "S4client" "S4sysnr" "S4asHost" "allTypeDsName" "S4gcsPath" "S4Splitrow" "S4pkgSize"
-    When Username "TestUsername" and Password "TestPassword" is provided
+    When Username and Password is provided
     When Run one Mode is Sync mode
     Then Validate the Schema created
     Then Close the ODP Properties
@@ -155,7 +155,7 @@ Feature: Run Time E2E
     When Target is BigQuery for ODP data transfer
     Then link source and target
     When Configure Direct Connection "S4client" "S4sysnr" "S4asHost" "S4dsName" "S4gcsPath" "S4Splitrow" "S4pkgSize"
-    When Username "TestUsername" and Password "TestPassword" is provided
+    When Username and Password is provided
     When Run one Mode is Sync mode
     Then Validate the Schema created
     Then Close the ODP Properties
@@ -176,7 +176,7 @@ Feature: Run Time E2E
     Given Open CDF application to configure pipeline
     When Source is SAP ODP
     When LoadProp "S4client" "S4asHost" "S4msServ" "S4systemID" "S4dsName" "S4gcsPath" "S4Splitrow" "S4pkgSize" "S4lgp"
-    When Username "TestUsername" and Password "TestPassword" is provided
+    When Username and Password is provided
     When Run one Mode is Sync mode
     Then Validate the Schema created
     Then Close the ODP Properties
@@ -193,14 +193,14 @@ Feature: Run Time E2E
     Then Verify the Delta load transfer is successfull
 
   @ODP @DesignTime-TC-ODP-RNTM-01(Direct)
-  Scenario:
+  Scenario: Multi subscriber
     Given Open CDF application to configure pipeline
     When Source is SAP ODP
     When Target is BigQuery for ODP data transfer
     Then link source and target
     When Configure Direct Connection "S4client" "S4sysnr" "S4asHost" "S4dsName" "S4gcsPath" "S4Splitrow" "S4pkgSize"
-    When Username "TestUsername" and Password "TestPassword" is provided
-    When Subscriber is entered "SubscriberID"
+    When Username and Password is provided
+    When Subscriber is entered
     When Run one Mode is Sync mode
     Then Validate the Schema created
     Then Close the ODP Properties
@@ -210,15 +210,41 @@ Feature: Run Time E2E
     Then Save and Deploy ODP Pipeline
     Then Run the ODP Pipeline in Runtime
     Then Wait till ODP pipeline is in running state
+    Then Create the "4" records with "RFC_2LIS_VAHDR" in the ODP datasource from JCO
+    Then Open Logs of ODP Pipeline
+    Then Verify the ODP pipeline status is "Succeeded"
+    Then validate successMessage is displayed for the ODP pipeline
+    Then Get Count of no of records transferred from ODP to BigQuery in "tableDemo"
+    Then Verify the full load transfer is successful
+    Given Open CDF application to configure pipeline
+    When Source is SAP ODP
+    When Target is BigQuery for ODP data transfer
+    Then link source and target
+    When Configure Direct Connection "S4client" "S4sysnr" "S4asHost" "S4dsName" "S4gcsPath" "S4Splitrow" "S4pkgSize"
+    When Username and Password is provided
+    When Subscriber is entered
+    When Run one Mode is Sync mode
+    Then Validate the Schema created
+    Then Close the ODP Properties
+    Then Enter the BigQuery Properties for ODP datasource "tableDemo"
+    Then Close the BQ Properties
+    Then Save and Deploy ODP Pipeline
+    Then Run the ODP Pipeline in Runtime
+    Then Wait till ODP pipeline is in running state
+    Then Open Logs of ODP Pipeline to capture delta logs
+    Then Verify the ODP pipeline status is "Succeeded"
+    Then validate successMessage is displayed for the ODP pipeline
+    Then Get Count of no of records transferred from ODP to BigQuery in "tableDemo"
+    Then Verify the Delta load transfer is successfull
 
-  @ODP @DesignTime-TC-ODP-RNTM-01(Direct)
+  @ODP @DesignTime-TC-ODP-RNTM-09-01(Direct)
   Scenario: User is able to Login and transfer delta load for 2LIS_02_HDR
     Given Open CDF application to configure pipeline
     When Source is SAP ODP
     When Target is BigQuery for ODP data transfer
     Then link source and target
     When Configure Direct Connection "S4client" "S4sysnr" "S4asHost" "dsHdr" "S4gcsPath" "S4Splitrow" "S4pkgSize"
-    When Username "TestUsername" and Password "TestPassword" is provided
+    When Username and Password is provided
     When Run one Mode is Sync mode
     Then Validate the Schema created
     Then Close the ODP Properties
