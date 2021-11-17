@@ -3,6 +3,7 @@ package io.cdap.plugin.odp.actions;
 import io.cdap.e2e.utils.SeleniumDriver;
 import io.cdap.plugin.odp.locators.ODPLocators;
 import io.cdap.plugin.odp.utils.CDAPUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.support.PageFactory;
 
@@ -29,39 +30,42 @@ public class ODPActions {
   }
 
   public static void enterDirectConnectionProperties(String client, String sysnr, String asHost, String dsName
-    , String gcsPath, String splitRow) throws IOException, InterruptedException {
+    , String gcsPath, String splitRow, String packSize) throws IOException, InterruptedException {
     odpLocators.referenceName.sendKeys(UUID.randomUUID().toString());
-    odpLocators.sapClient.sendKeys(CDAPUtils.pluginProp(client));
-    odpLocators.systemNumber.sendKeys(CDAPUtils.pluginProp(sysnr));
-    odpLocators.sapApplicationServerHost.sendKeys(CDAPUtils.pluginProp(asHost));
-    odpLocators.dataSourceName.sendKeys(CDAPUtils.pluginProp(dsName));
+    odpLocators.sapClient.sendKeys(CDAPUtils.getPluginProp(client));
+    odpLocators.systemNumber.sendKeys(CDAPUtils.getPluginProp(sysnr));
+    odpLocators.sapApplicationServerHost.sendKeys(CDAPUtils.getPluginProp(asHost));
+    odpLocators.dataSourceName.sendKeys(CDAPUtils.getPluginProp(dsName));
     JavascriptExecutor js = (JavascriptExecutor) SeleniumDriver.getDriver();
     js.executeScript("window.scrollBy(0,350)", "");
-    odpLocators.gcsPath.sendKeys(CDAPUtils.pluginProp(gcsPath));
-    odpLocators.splitRow.sendKeys(CDAPUtils.pluginProp(splitRow));
+    odpLocators.gcsPath.sendKeys(CDAPUtils.getPluginProp(gcsPath));
+    odpLocators.splitRow.sendKeys(CDAPUtils.getPluginProp(splitRow));
+    odpLocators.packageSize.sendKeys(CDAPUtils.getPluginProp(packSize) != null ?
+                                       CDAPUtils.getPluginProp(packSize) : StringUtils.EMPTY);
+    Thread.sleep(10000); //TODO remove, just for pause execution for trial
   }
 
   public static void enterLoadConnectionProperties(String client, String asHost, String msServ, String systemID,
                                                    String lgrp, String dsName, String gcsPath, String splitrow,
                                                    String packageSize) throws IOException, InterruptedException {
     odpLocators.referenceName.sendKeys(UUID.randomUUID().toString());
-    odpLocators.sapClient.sendKeys(CDAPUtils.pluginProp(client));
+    odpLocators.sapClient.sendKeys(CDAPUtils.getPluginProp(client));
     odpLocators.loadServer.click();
-    odpLocators.msHost.sendKeys(CDAPUtils.pluginProp(asHost));
-    odpLocators.portNumber.sendKeys(CDAPUtils.pluginProp(msServ));
-    odpLocators.systemID.sendKeys(CDAPUtils.pluginProp(systemID));
-    ODPLocators.logonGroup.sendKeys(CDAPUtils.pluginProp(lgrp));
-    odpLocators.dataSourceName.sendKeys(CDAPUtils.pluginProp(dsName));
+    odpLocators.msHost.sendKeys(CDAPUtils.getPluginProp(asHost));
+    odpLocators.portNumber.sendKeys(CDAPUtils.getPluginProp(msServ));
+    odpLocators.systemID.sendKeys(CDAPUtils.getPluginProp(systemID));
+    ODPLocators.logonGroup.sendKeys(CDAPUtils.getPluginProp(lgrp));
+    odpLocators.dataSourceName.sendKeys(CDAPUtils.getPluginProp(dsName));
     JavascriptExecutor js = (JavascriptExecutor) SeleniumDriver.getDriver();
     js.executeScript("window.scrollBy(0,350)", "");
-    odpLocators.gcsPath.sendKeys(CDAPUtils.pluginProp(gcsPath));
-    odpLocators.splitRow.sendKeys(CDAPUtils.pluginProp(splitrow));
-    odpLocators.packageSize.sendKeys(CDAPUtils.pluginProp(packageSize));
+    odpLocators.gcsPath.sendKeys(CDAPUtils.getPluginProp(gcsPath));
+    odpLocators.splitRow.sendKeys(CDAPUtils.getPluginProp(splitrow));
+    odpLocators.packageSize.sendKeys(CDAPUtils.getPluginProp(packageSize));
   }
 
   public static void enterUserNamePassword(String username, String password) throws IOException {
-    odpLocators.usernameCredentials.sendKeys(CDAPUtils.pluginProp(username));
-    odpLocators.passwordCredentials.sendKeys(CDAPUtils.pluginProp(password));
+    odpLocators.usernameCredentials.sendKeys(CDAPUtils.getPluginProp(username));
+    odpLocators.passwordCredentials.sendKeys(CDAPUtils.getPluginProp(password));
   }
 
   public static void selectSync() {

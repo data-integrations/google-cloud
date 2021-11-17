@@ -28,7 +28,7 @@ public class Security implements CdfHelper {
 
   @Given("Open {string} link to configure macros")
   public void openLinkToConfigureMacros(String link) throws IOException {
-    SeleniumDriver.getDriver().get(CDAPUtils.pluginProp(link));
+    SeleniumDriver.getDriver().get(CDAPUtils.getPluginProp(link));
     SeleniumDriver.waitForPageToLoad();
     try {
       SeleniumDriver.getDriver().switchTo().alert().accept();
@@ -64,7 +64,7 @@ public class Security implements CdfHelper {
         CdfSysAdminLocators.requestBody.sendKeys(Keys.BACK_SPACE);
       }
     }
-    CdfSysAdminActions.enterRequestBody(CDAPUtils.pluginProp(request));
+    CdfSysAdminActions.enterRequestBody(CDAPUtils.getPluginProp(request));
   }
 
   @Then("send request and verify success message")

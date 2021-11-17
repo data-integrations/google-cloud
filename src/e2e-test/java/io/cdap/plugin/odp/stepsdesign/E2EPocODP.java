@@ -81,7 +81,7 @@ public class E2EPocODP implements CdfHelper {
   public void configureDirectConnection(String client, String sysnr, String asHost, String dsName, String gcsPath,
                                         String splitRow, String packageSize) throws IOException, InterruptedException {
     ODPActions.getODPProperties();
-    ODPActions.enterDirectConnectionProperties(client, sysnr, asHost, dsName, gcsPath, splitRow);
+    ODPActions.enterDirectConnectionProperties(client, sysnr, asHost, dsName, gcsPath, splitRow, packageSize);
   }
 
   @When("Username {string} and Password {string} is provided")
@@ -109,7 +109,7 @@ public class E2EPocODP implements CdfHelper {
 
   @Then("Delete the existing Odp table {string} in bigquery")
   public void deleteTheExistingOdpTableInBigquery(String table) throws IOException, InterruptedException {
-    gcpClient.dropBqQuery(CDAPUtils.pluginProp(table));
+    gcpClient.dropBqQuery(CDAPUtils.getPluginProp(table));
     BeforeActions.scenario.write("Table Deleted Successfully");
   }
 
@@ -173,7 +173,7 @@ public class E2EPocODP implements CdfHelper {
     errorCapture = new ErrorCapture(exceptionUtils);
     sapAdapterImpl = new SAPAdapterImpl(errorCapture, connection);
     HashMap<String, String> opProps = new HashMap<>();
-    opProps.put("RFC", CDAPUtils.pluginProp(rfcName));
+    opProps.put("RFC", CDAPUtils.getPluginProp(rfcName));
     opProps.put("autoCommit", "true");
     try {
       ObjectMapper mapper = new ObjectMapper();
@@ -192,12 +192,12 @@ public class E2EPocODP implements CdfHelper {
   @Then("Enter the BigQuery Properties for ODP datasource {string}")
   public void enterTheBigQueryPropertiesForODPDatasource(String tableName) throws IOException, InterruptedException {
     CdfStudioLocators.bigQueryProperties.click();
-    CdfBigQueryPropertiesActions.enterFilePath(CDAPUtils.pluginProp("filePathODP"));
-    SeleniumHelper.replaceElementValue(CdfBigQueryPropertiesLocators.projectID, CDAPUtils.pluginProp("ODP-Project-ID"));
+    CdfBigQueryPropertiesActions.enterFilePath(CDAPUtils.getPluginProp("filePathODP"));
+    SeleniumHelper.replaceElementValue(CdfBigQueryPropertiesLocators.projectID, CDAPUtils.getPluginProp("ODP-Project-ID"));
     CdfBigQueryPropertiesLocators.bigQueryReferenceName.sendKeys("automation_test");
-    CdfBigQueryPropertiesLocators.dataSetProjectID.sendKeys(CDAPUtils.pluginProp("ODP-Project-ID"));
-    CdfBigQueryPropertiesLocators.dataSet.sendKeys(CDAPUtils.pluginProp("data-Set-ODP"));
-    CdfBigQueryPropertiesLocators.bigQueryTable.sendKeys(CDAPUtils.pluginProp(tableName));
+    CdfBigQueryPropertiesLocators.dataSetProjectID.sendKeys(CDAPUtils.getPluginProp("ODP-Project-ID"));
+    CdfBigQueryPropertiesLocators.dataSet.sendKeys(CDAPUtils.getPluginProp("data-Set-ODP"));
+    CdfBigQueryPropertiesLocators.bigQueryTable.sendKeys(CDAPUtils.getPluginProp(tableName));
     CdfBigQueryPropertiesLocators.validateBttn.click();
     SeleniumHelper.waitElementIsVisible(CdfBigQueryPropertiesLocators.textSuccess, 1L);
   }
@@ -255,7 +255,7 @@ public class E2EPocODP implements CdfHelper {
   public void getCountOfNoOfRecordsTransferredFromODPToBigQueryIn(String table)
     throws IOException, InterruptedException {
 
-    countRecords = gcpClient.countBqQuery(CDAPUtils.pluginProp(table));
+    countRecords = gcpClient.countBqQuery(CDAPUtils.getPluginProp(table));
     BeforeActions.scenario.write("**********No of Records Transferred******************:" + countRecords);
     if (i == 0) {
       presentRecords = presentRecords + countRecords;
@@ -279,9 +279,9 @@ public class E2EPocODP implements CdfHelper {
   @Then("delete table {string} in BQ if not empty")
   public void deleteTableInBQIfNotEmpty(String table) throws IOException, InterruptedException {
     try {
-      int existingRecords = gcpClient.countBqQuery(CDAPUtils.pluginProp(table));
+      int existingRecords = gcpClient.countBqQuery(CDAPUtils.getPluginProp(table));
       if (existingRecords > 0) {
-        gcpClient.dropBqQuery(CDAPUtils.pluginProp(table));
+        gcpClient.dropBqQuery(CDAPUtils.getPluginProp(table));
         BeforeActions.scenario.write("Table Deleted Successfully");
       }
     } catch (Exception e) {
