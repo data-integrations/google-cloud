@@ -92,13 +92,19 @@ public class ODPLocators {
   @FindBy(how = How.XPATH, using = "//*[@data-cy='property-row-error']")
   public static WebElement rowError;
 
+  @FindBy(how = How.XPATH, using = "//*[contains(text(),\"SAP connection test failed\")]")
+  public static WebElement mainStreamError;
+
   @FindBy(how = How.XPATH, using = "//*[@class=\"text-danger\"]")
   public static WebElement jcoError;
 
-  @FindBy(how = How.XPATH, using = "//*[@data-cy=\"filterOptionsRange\" and @type='text']")
+  @FindBy(how = How.XPATH, using = "(//*[@data-cy='filterOptionsRange'])[2]/div/div/div[1]/input")
   public static WebElement filterRangeKey;
 
-  @FindBy(how = How.XPATH, using = "//*[@data-cy='filterOptionsRange' and  @type='text']")
+  @FindBy(how = How.XPATH, using = "(//*[@data-cy='filterOptionsRange'])[2]")
+  public static WebElement filterRangeMacros;
+
+  @FindBy(how = How.XPATH, using = "//*[@placeholder=\"'ACT-DCD-00' AND 'ACT-DCD-12'\"]")
   public static WebElement filterRangeVal;
 
   @FindBy(how = How.XPATH, using = "(//*[@data-cy=\"filterOptionsEq\"])[2]/div/div/div[1]/input")
@@ -106,6 +112,9 @@ public class ODPLocators {
 
   @FindBy(how = How.XPATH, using = "//*[@placeholder=\"'FERT'\"]")
   public static WebElement filterEqualVal;
+
+  @FindBy(how = How.XPATH, using = "(//*[@data-cy='filterOptionsEq'])[2]")
+  public static WebElement filterEqualMacros;
 
   @FindBy(how = How.XPATH, using = "//*[@data-cy='jco.client.passwd' and  @type='text']")
   public static WebElement macroPass;

@@ -11,6 +11,7 @@ import io.cdap.plugin.odp.locators.ODPLocators;
 import io.cdap.plugin.odp.utils.CDAPUtils;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
+import io.cucumber.java.en.When;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.NoAlertPresentException;
 
@@ -25,6 +26,8 @@ public class Security implements CdfHelper {
   String arr[] = new String[11];
   HashMap map = new HashMap();
   public static int countarr = 0;
+  static boolean errorExist;
+  public static String color;
 
   @Given("Open {string} link to configure macros")
   public void openLinkToConfigureMacros(String link) throws IOException {
@@ -55,16 +58,12 @@ public class Security implements CdfHelper {
 
   @Then("enter the {string} of the service")
   public void enterTheOfTheService(String request) throws IOException {
-    try {
+
       for (int i = 0; i <= 100; i++) {
         CdfSysAdminLocators.requestBody.sendKeys(Keys.BACK_SPACE);
       }
-    } finally {
-      for (int i = 0; i <= 100; i++) {
-        CdfSysAdminLocators.requestBody.sendKeys(Keys.BACK_SPACE);
-      }
-    }
     CdfSysAdminActions.enterRequestBody(CDAPUtils.getPluginProp(request));
+
   }
 
   @Then("send request and verify success message")
@@ -133,8 +132,8 @@ public class Security implements CdfHelper {
       ODPLocators.splitRow.sendKeys(Keys.BACK_SPACE);
       ODPLocators.gcsPath.sendKeys(Keys.BACK_SPACE);
       ODPLocators.subsName.sendKeys(Keys.BACK_SPACE);
-      ODPLocators.filterEqualVal.sendKeys(Keys.BACK_SPACE);
-      ODPLocators.filterRangeVal.sendKeys(Keys.BACK_SPACE);
+      ODPLocators.filterEqualMacros.sendKeys(Keys.BACK_SPACE);
+      ODPLocators.filterEqualMacros.sendKeys(Keys.BACK_SPACE);
     }
     ODPActions.clickMacroElement(4);
     ODPActions.clickMacroElement(10);
@@ -155,5 +154,37 @@ public class Security implements CdfHelper {
     ODPLocators.packageSize.sendKeys("${secure(testjcopackagesize)}");
     ODPLocators.validateButton.click();
     ODPLocators.successMessage.isDisplayed();
+  }
+
+  @Then("enter the {string} of the service username and password")
+  public void enterTheOfTheServiceUsernameAndPassword(String request) throws IOException {
+    try {
+      for (int i = 0; i <= 100; i++) {
+        CdfSysAdminLocators.requestBody.sendKeys(Keys.BACK_SPACE);
+      }
+    } finally {
+      for (int i = 0; i <= 100; i++) {
+        CdfSysAdminLocators.requestBody.sendKeys(Keys.BACK_SPACE);
+      }
+    }
+
+//    CdfSysAdminActions.enterRequestBody("\"description\": \"secure login creds\",\"data\": \""+System.getenv(request)+
+//            "\",\"properties\": {}}");
+
+    CdfSysAdminActions.enterRequestBody("{\"description\": \"secure login creds\",\"data\": \""+CDAPUtils.
+            getPluginProp(request)+ "\",\"properties\": {}}");
+
+  }
+
+  @When("Username {string} and Password {string} is provided")
+  public void usernameAndPasswordIsProvided(String userName, String password) throws IOException {
+    ODPActions.enterUserNamePassword(CDAPUtils.getPluginProp(userName), CDAPUtils.getPluginProp(password));
+  }
+
+  @Then("RFC auth error is displayed {string}")
+  public void rfcAuthErrorIsDisplayed(String rfcError) {
+    ODPActions.getSchema();
+    errorExist = ODPLocators.mainStreamError.getText().toLowerCase().contains(CDAPUtils.getErrorProp(rfcError)
+            .toLowerCase());
   }
 }

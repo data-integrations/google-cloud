@@ -9,11 +9,7 @@ import com.google.adapter.exceptions.SystemException;
 import com.google.adapter.util.ErrorCapture;
 import com.google.adapter.util.ExceptionUtils;
 import com.sap.conn.jco.JCoException;
-import io.cdap.e2e.pages.actions.CdfBigQueryPropertiesActions;
-import io.cdap.e2e.pages.actions.CdfGcsActions;
-import io.cdap.e2e.pages.actions.CdfLogActions;
-import io.cdap.e2e.pages.actions.CdfPipelineRunAction;
-import io.cdap.e2e.pages.actions.CdfStudioActions;
+import io.cdap.e2e.pages.actions.*;
 import io.cdap.e2e.pages.locators.CdfBigQueryPropertiesLocators;
 import io.cdap.e2e.pages.locators.CdfStudioLocators;
 import io.cdap.e2e.utils.CdfHelper;
@@ -43,9 +39,9 @@ import java.util.Properties;
 import java.util.Set;
 
 /**
- * E2EPocODP.
+ * RuntimeODP.
  */
-public class E2EPocODP implements CdfHelper {
+public class RuntimeODP implements CdfHelper {
   GcpClient gcpClient = new GcpClient();
   private SAPProperties sapProps;
   private ErrorCapture errorCapture;
@@ -69,13 +65,15 @@ public class E2EPocODP implements CdfHelper {
   }
 
 
-  public E2EPocODP() throws FileNotFoundException {
+  public RuntimeODP() throws FileNotFoundException {
     number = RandomStringUtils.randomAlphanumeric(7);
   }
 
   @Given("Open CDF application to configure pipeline")
   public void openCDFApplicationToConfigurePipeline() throws IOException, InterruptedException {
     openCdf();
+    countRecords=0;
+    presentRecords=0;
   }
 
   @When("Source is SAP ODP")
@@ -111,7 +109,8 @@ public class E2EPocODP implements CdfHelper {
   public void validateTheSchemaCreated() throws InterruptedException {
     ODPActions.getSchema();
     WebDriverWait wait = new WebDriverWait(SeleniumDriver.getDriver(), 20000);
-    wait.until(ExpectedConditions.numberOfElementsToBeMoreThan(By.xpath("//*[@placeholder=\"Field name\"]"), 2));
+    wait.until(ExpectedConditions.numberOfElementsToBeMoreThan
+      (By.xpath("//*[@placeholder=\"Field name\"]"), 2));
   }
 
   @Then("Close the ODP Properties")
@@ -170,9 +169,9 @@ public class E2EPocODP implements CdfHelper {
 
   public static void main(String args[]) throws IOException, JCoException, InterruptedException {
 
-    E2EPocODP e2EPocODP = new E2EPocODP();
+    RuntimeODP runtimeODP = new RuntimeODP();
     //e2EPocODP.deleteAllExistingRecordsInDatasource();
-    e2EPocODP.deleteTheExistingOdpTableInBigquery("tab_src01");
+    runtimeODP.deleteTheExistingOdpTableInBigquery("tab_src01");
   }
 
   @Then("Create the {string} records with {string} in the ODP datasource from JCO")
@@ -204,8 +203,7 @@ public class E2EPocODP implements CdfHelper {
   @Then("Enter the BigQuery Properties for ODP datasource {string}")
   public void enterTheBigQueryPropertiesForODPDatasource(String tableName) throws IOException, InterruptedException {
     CdfStudioLocators.bigQueryProperties.click();
-    //TODO verify if below line is to be removed or kept.
-    CdfBigQueryPropertiesActions.enterFilePath(CDAPUtils.getPluginProp("filePathODP"));
+    CdfBigQueryPropertiesActions cdfBigQueryPropertiesActions=new CdfBigQueryPropertiesActions();
     SeleniumHelper.replaceElementValue(CdfBigQueryPropertiesLocators.projectID,
                                        CDAPUtils.getPluginProp("ODP-Project-ID"));
     CdfBigQueryPropertiesLocators.bigQueryReferenceName.sendKeys("automation_test");

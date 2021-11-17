@@ -1,6 +1,6 @@
 Feature: User has entered all the details of the connection with below mentioned wrong parameter
   and by pressing validate button all the parameters are validated and error is thrown.
-f
+
   @DesignTime-TC-ODP-DSGN-03.02
   Scenario: User is able to view error messages if empty referenceName parameter is provided
     Given Open CDF application to configure pipeline
@@ -24,7 +24,7 @@ f
     Given Open CDF application to configure pipeline
     When Source is SAP ODP
     When Configure Direct Connection "S4client" "S4sysnr" "S4asHost" "S4dsName" "S4gcsPath" "S4Splitrow" "S4pkgSize"
-    When Username "TestUsername" and Password "TestPassword" is provided
+    When Username and Password is provided
     Then "jco.client.lang" as "" and getting "noJcoLang"
     Then User is able to validate the validate the error
     Then User is able to validate the text box is highlighted
@@ -158,12 +158,20 @@ f
       | filterOption         | query             | errorMessage |
       |BALANCE               |"&*^%$#"           |invalidDSCondition|
 
-  @DesignTime-TC-ODP-DSGN-03.02
-  Scenario: User is able to view error messages if wrong filter options are given
+  @ODP @DesignTime-TC-ODP-DSGN-03.02
+  Scenario Outline: User is able to view error messages if wrong filter options are given in range
     Given Open CDF application to configure pipeline
     When Source is SAP ODP
     When Configure Direct Connection "S4client" "S4sysnr" "S4asHost" "S4dsName" "S4gcsPath" "S4Splitrow" "S4pkgSize"
     When Username and Password is provided
+    Then User is able to set parameters filterRangeKey as <filterOption> and its filterRangeVal as <query> and getting row <errorMessage> for wrong input
+    Then User is able to validate the validate the error
+    Then User is able to validate the text box is highlighted
+    Examples:
+      | filterOption         | query             | errorMessage |
+      |BALANCE               |10 AND 15          | invalidRangeCondition|
+      |RYEAR                 |10  15             | invalidDateRangeCondition|
+
 
 
 

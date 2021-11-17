@@ -16,7 +16,7 @@ Feature: Design Time ODP Scenario
     When Username and Password is provided
     Then Connection is established
 
-  @DesignTime-TC-ODP-DSGN-01.05
+  @ODP @DesignTime-TC-ODP-DSGN-01.02
   Scenario: User is able to configure Security parameters using macros in direct connection
     Given Open CDF application to configure pipeline
     When Source is SAP ODP
@@ -35,7 +35,7 @@ Feature: Design Time ODP Scenario
     When User has selected gcsPath macro to configure
     Then User is validate without any error
 
-  @DesignTime-TC-ODP-DSGN-01.05
+  @ODP @DesignTime-TC-ODP-DSGN-01.05
   Scenario: User is able to configure Security parameters using macros in load connection
     Given Open CDF application to configure pipeline
     When Source is SAP ODP
@@ -47,6 +47,29 @@ Feature: Design Time ODP Scenario
     Then User is validate without any error
     When User has selected UserName and Password macro to configure
     Then User is validate without any error
+
+  @ODP @DesignTime-TC-ODP-DSGN-05.01
+  Scenario:User is able to get the schema of the datasources supporting all the datatype
+    Given Open CDF application to configure pipeline
+    When Source is SAP ODP
+    When Configure Direct Connection "S4client" "S4sysnr" "S4asHost" "dsAllDataType" "S4gcsPath" "S4Splitrow" "S4pkgSize"
+    When Username and Password is provided
+    Then Validate the Schema created
+
+
+  @ODP @DesignTime-TC-ODP-DSGN-09.01
+  Scenario Outline: User is able to get the schema of the SAP Datasource
+    Given Open CDF application to configure pipeline
+    When Source is SAP ODP
+    When Configure Direct Connection "S4client" "S4sysnr" "S4asHost" "S4dsName" "S4gcsPath" "S4Splitrow" "S4pkgSize"
+    When Username and Password is provided
+    When data source as "<datasource>" is added
+    Then Validate the Schema created
+    Examples:
+      |datasource|
+      |2LIS_02_ITM|
+      |2LIS_11_VAITM|
+      |0MATERIAL_LPRH_HIER|
 
 
 

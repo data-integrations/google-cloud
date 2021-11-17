@@ -98,4 +98,14 @@ public class DesignTimeODPError {
   }
 
 
+  @Then("^User is able to set parameters filterRangeKey as (.+) and its filterRangeVal " +
+          "as (.+) and getting row (.+) for wrong input$")
+  public void FilterRangeKeyAsFilterOptionAndItsFilterRangeValAsQueryAndGettingRowErrorMessageForWrongInput
+          (String filteroption, String query, String errorMessage) throws Throwable {
+    ODPLocators.filterRangeKey.sendKeys(filteroption);
+    ODPLocators.filterRangeVal.sendKeys(query);
+    ODPLocators.validateButton.click();
+
+  }
+
 }

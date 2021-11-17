@@ -106,4 +106,16 @@ public class DesginTimeODP {
     ODPLocators.usernameCredentials.sendKeys(Keys.chord(Keys.CONTROL, "a"));
     ODPLocators.usernameCredentials.sendKeys("${userName}");
   }
+
+
+  @When("data source as {string} is added")
+  public void dataSourceAsIsAdded(String datasource) throws InterruptedException {
+
+    for (int i = 0; i < 15; i++) {
+      ODPLocators.dataSourceName.sendKeys(Keys.BACK_SPACE);
+    }
+    ODPLocators.dataSourceName.sendKeys(datasource);
+    ODPLocators.validateButton.click();
+    ODPLocators.successMessage.isDisplayed();
+  }
 }
