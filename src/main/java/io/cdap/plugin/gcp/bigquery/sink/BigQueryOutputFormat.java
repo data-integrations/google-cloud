@@ -284,9 +284,8 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
             .execute();
         } else if (allowSchemaRelaxationOnEmptyOutput) {
           // If the table requires a schema update, apply if even when there are no records to write.
-          Table table = new Table();
+          Table table = bigQueryHelper.getTable(tableRef);
           table.setSchema(schema);
-          table.setTableReference(tableRef);
           bigQueryHelper.getRawBigquery().tables()
             .update(tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId(), table)
             .execute();
