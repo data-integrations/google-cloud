@@ -182,6 +182,7 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     private static final String TABLE = "table";
     private static final String NAME_LOCATION = "location";
     public static final String DATASET_PROJECT_ID = "datasetProject";
+    private static final int ERROR_CODE_NOT_FOUND = 404;
 
     @Name(DATASET_PROJECT_ID)
     @Macro
@@ -247,15 +248,10 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     @Macro
     private String rowAsArguments;
 
-    public Config(String dialect, String sql, String mode) {
-      this.dialect = dialect;
-      this.sql = sql;
-      this.mode = mode;
-    }
-
     private Config(@Nullable String project, @Nullable String serviceAccountType, @Nullable String serviceFilePath,
                    @Nullable String serviceAccountJson, @Nullable String dataset, @Nullable String table,
-                   @Nullable String location, @Nullable String cmekKey) {
+                   @Nullable String location, @Nullable String cmekKey, @Nullable String dialect, @Nullable String sql,
+                   @Nullable String mode) {
       this.project = project;
       this.serviceAccountType = serviceAccountType;
       this.serviceFilePath = serviceFilePath;
@@ -264,6 +260,9 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
       this.table = table;
       this.location = location;
       this.cmekKey = cmekKey;
+      this.dialect = dialect;
+      this.sql = sql;
+      this.mode = mode;
     }
 
     public boolean isLegacySQL() {
@@ -384,8 +383,16 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
       try {
         bigQuery.create(JobInfo.of(queryJobConfiguration));
       } catch (BigQueryException e) {
-        failureCollector.addFailure(String.format("%s.", e.getMessage()), "Please specify a valid query.")
-          .withConfigProperty(SQL);
+          final String errorMessage;
+          if (e.getCode() == ERROR_CODE_NOT_FOUND)  {
+            errorMessage = String.format("Resource was not found. Please verify the resource name. If the resource " +
+              "will be created at runtime, then update to use a macro for the resource name. Error message received " +
+              "was: %s", e.getMessage());
+          } else {
+               errorMessage = e.getMessage();
+          }
+          failureCollector.addFailure(String.format("%s.", errorMessage), "Please specify a valid query.")
+                    .withConfigProperty(SQL);
       }
     }
 
@@ -417,6 +424,9 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
       private String table;
       private String cmekKey;
       private String location;
+      private String dialect;
+      private String sql;
+      private String mode;
 
       public Builder setProject(@Nullable String project) {
         this.project = project;
@@ -458,6 +468,21 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
         return this;
       }
 
+      public Builder setDialect(@Nullable String dialect) {
+        this.dialect = dialect;
+        return this;
+      }
+
+      public Builder setMode(@Nullable String mode) {
+        this.mode = mode;
+        return this;
+      }
+
+      public Builder setSql(@Nullable String sql) {
+        this.sql = sql;
+        return this;
+      }
+
       public Config build() {
         return new Config(
           project,
@@ -467,7 +492,10 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
           dataset,
           table,
           location,
-          cmekKey
+          cmekKey,
+          dialect,
+          sql,
+          mode
         );
       }
 
