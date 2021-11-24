@@ -20,6 +20,8 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.JobStatus;
 import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -41,8 +43,6 @@ public class DataplexOutputCommitter extends OutputCommitter {
   public void addDataplexOutputCommitterFromOutputFormat(OutputCommitter outputCommitter,
                                                          TaskAttemptContext context)
     throws IOException, InterruptedException {
-    outputCommitter.setupJob(context);
-    outputCommitter.setupTask(context);
     String assetType = context.getConfiguration().get(DataplexOutputFormatProvider.DATAPLEX_ASSET_TYPE);
     // Only one committer is required for BigQuery otherwise it is trying to delete the temporary data twice while
     // clean up.

@@ -157,7 +157,7 @@
               "orc",
               "parquet"
             ],
-            "default": "json"
+            "default": "parquet"
           }
         },
         {

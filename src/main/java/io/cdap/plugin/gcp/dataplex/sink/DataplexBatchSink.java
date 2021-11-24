@@ -52,6 +52,7 @@ import io.cdap.cdap.etl.api.validation.FormatContext;
 import io.cdap.cdap.etl.api.validation.ValidatingOutputFormat;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.common.batch.sink.SinkOutputFormatProvider;
+import io.cdap.plugin.format.FileFormat;
 import io.cdap.plugin.gcp.bigquery.sink.AbstractBigQuerySink;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
 import io.cdap.plugin.gcp.bigquery.sink.PartitionType;
@@ -190,11 +191,11 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
 
     Path gcsPath = new Path(String.format("gs://%s", runUUID));
     try {
-        FileSystem fs = gcsPath.getFileSystem(baseConfiguration);
-        if (fs.exists(gcsPath)) {
-          fs.delete(gcsPath, true);
-          LOG.debug("Deleted temporary directory '{}'", gcsPath);
-        }
+      FileSystem fs = gcsPath.getFileSystem(baseConfiguration);
+      if (fs.exists(gcsPath)) {
+        fs.delete(gcsPath, true);
+        LOG.debug("Deleted temporary directory '{}'", gcsPath);
+      }
       emitMetricsForBigQueryDataset(succeeded, context);
     } catch (IOException e) {
       LOG.warn("Failed to delete temporary directory '{}': {}", gcsPath, e.getMessage());
@@ -426,6 +427,10 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     outputProperties.put(DataplexOutputFormatProvider.DATAPLEX_OUTPUT_BASE_DIR, outputDir);
     outputProperties.put(DataplexOutputFormatProvider.DATAPLEX_ASSET_TYPE, config.getAssetType());
     outputProperties.putAll(getFileSystemProperties());
+    outputProperties.put("mapreduce.fileoutputcommitter.marksuccessfuljobs", "false");
+    if (config.getFormat().equals(FileFormat.PARQUET)) {
+      outputProperties.put("parquet.enable.summary-metadata", "false");
+    }
     context.addOutput(Output.of(config.getReferenceName(),
       new SinkOutputFormatProvider(validatingOutputFormat.getOutputFormatClassName(), outputProperties)));
     String cmekKey = context.getArguments().get(CmekUtils.CMEK_KEY);
