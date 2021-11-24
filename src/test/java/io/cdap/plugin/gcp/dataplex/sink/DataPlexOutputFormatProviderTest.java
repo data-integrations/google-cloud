@@ -117,7 +117,7 @@ public class DataPlexOutputFormatProviderTest {
     verify(fileOutputCommitter, times(1)).setupJob(mockJobContext);
 
     committerToTest.setupTask(mockContext);
-    verify(fileOutputCommitter, times(2)).setupTask(mockContext);
+    verify(fileOutputCommitter, times(1)).setupTask(mockContext);
 
     committerToTest.commitTask(mockContext);
     verify(fileOutputCommitter, times(1)).commitTask(mockContext);
