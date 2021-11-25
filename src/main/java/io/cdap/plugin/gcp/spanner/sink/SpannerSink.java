@@ -36,6 +36,8 @@ import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
 import com.google.spanner.admin.database.v1.CreateDatabaseRequest;
 import com.google.spanner.admin.database.v1.UpdateDatabaseDdlMetadata;
 import io.cdap.cdap.api.annotation.Description;
+import io.cdap.cdap.api.annotation.Metadata;
+import io.cdap.cdap.api.annotation.MetadataProperty;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.annotation.Requirements;
@@ -49,12 +51,14 @@ import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
+import io.cdap.cdap.etl.api.connector.Connector;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.common.ReferenceBatchSink;
 import io.cdap.plugin.common.batch.sink.SinkOutputFormatProvider;
 import io.cdap.plugin.gcp.common.CmekUtils;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.spanner.common.SpannerUtil;
+import io.cdap.plugin.gcp.spanner.connector.SpannerConnector;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.slf4j.Logger;
@@ -83,6 +87,7 @@ import javax.annotation.Nullable;
 @Description("Batch sink to write to Cloud Spanner. Cloud Spanner is a fully managed, mission-critical, " +
   "relational database service that offers transactional consistency at global scale, schemas, " +
   "SQL (ANSI 2011 with extensions), and automatic, synchronous replication for high availability.")
+@Metadata(properties = {@MetadataProperty(key = Connector.PLUGIN_TYPE, value = SpannerConnector.NAME)})
 public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable, Mutation> {
   private static final Logger LOG = LoggerFactory.getLogger(SpannerSink.class);
   public static final String NAME = "Spanner";
@@ -112,13 +117,12 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
     Schema configuredSchema = config.getSchema(collector);
     Schema schema = configuredSchema == null ? context.getInputSchema() : configuredSchema;
     if (!context.isPreviewEnabled()) {
-      try (Spanner spanner = SpannerUtil.getSpannerService(config.getServiceAccount(),
-                                                           config.isServiceAccountFilePath(), config.getProject())) {
+      try (Spanner spanner = SpannerUtil.getSpannerService(config.connection)) {
         // create database
         DatabaseAdminClient dbAdminClient = spanner.getDatabaseAdminClient();
         Database database = getOrCreateDatabase(context, dbAdminClient);
 
-        DatabaseId db = DatabaseId.of(config.getProject(), config.getInstance(), config.getDatabase());
+        DatabaseId db = DatabaseId.of(config.connection.getProject(), config.getInstance(), config.getDatabase());
         DatabaseClient dbClient = spanner.getDatabaseClient(db);
         if (!isTablePresent(dbClient) && schema == null) {
           throw new IllegalArgumentException(String.format("Spanner table %s does not exist. To create it from the " +
@@ -200,7 +204,7 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
       LOG.debug("Database not found. Creating database {} in instance {}.", config.getDatabase(), config.getInstance());
       // Create database
       Database.Builder dbBuilder = dbAdminClient
-        .newDatabaseBuilder(DatabaseId.of(config.getProject(), config.getInstance(), config.getDatabase()));
+        .newDatabaseBuilder(DatabaseId.of(config.connection.getProject(), config.getInstance(), config.getDatabase()));
       CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(config.cmekKey, context.getArguments().asMap(),
                                                        context.getFailureCollector());
       context.getFailureCollector().getOrThrowException();

@@ -38,6 +38,12 @@ Properties
 **Reference Name:** This along with the table name will be used to uniquely identify this sink for lineage, 
 annotating metadata, etc.
 
+**Use Connection** Whether to use a connection, if a connection is used,
+the credentials does not need to be provided.
+
+**Connection** Name of the connection to use, should use the macro function ${conn(connection-name)} to provide.
+Project and service account information will be provided by the connection.
+
 **Project ID:** The Google Cloud Project ID, which uniquely identifies a project.
 It can be found on the Dashboard in the Google Cloud Platform Console.
 

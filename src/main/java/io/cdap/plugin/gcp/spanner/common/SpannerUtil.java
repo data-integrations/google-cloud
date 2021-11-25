@@ -31,6 +31,7 @@ import com.google.spanner.v1.PartialResultSet;
 import com.google.spanner.v1.ResultSet;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.plugin.gcp.common.GCPConnectorConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.spanner.SpannerArrayConstants;
 import io.grpc.CallOptions;
@@ -71,6 +72,10 @@ public class SpannerUtil {
     throws IOException {
     SpannerOptions.Builder optionsBuilder = buildSpannerOptions(serviceAccount, isServiceAccountFilePath, projectId);
     return optionsBuilder.build().getService();
+  }
+
+  public static Spanner getSpannerService(GCPConnectorConfig config) throws IOException {
+    return getSpannerService(config.getServiceAccount(), config.isServiceAccountFilePath(), config.getProject());
   }
 
   /**

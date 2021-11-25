@@ -35,6 +35,7 @@ import io.cdap.cdap.etl.common.AbstractStageContext;
 import io.cdap.cdap.etl.mock.common.MockStageMetrics;
 import io.cdap.cdap.etl.mock.validation.MockFailureCollector;
 import io.cdap.cdap.etl.spark.batch.SparkBatchSinkContext;
+import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mock;
@@ -42,6 +43,8 @@ import org.mockito.Mockito;
 import org.mockito.internal.util.reflection.FieldSetter;
 
 import java.util.List;
+
+import javax.annotation.Nullable;
 
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -302,6 +305,32 @@ public class BigQuerySinkTest {
     MockFailureCollector collector = new MockFailureCollector("bqsink");
     config.validate(collector);
     Assert.assertEquals(1, collector.getValidationFailures().size());
+  }
+
+
+  @Test
+  public void testBigQueryDepthValidation() throws NoSuchFieldException {
+    BigQuerySink sink = getValidationTestSink(false);
+
+    // At maximum depth. There should be no error.
+    Schema shouldPassSchema = getRecordOfDepth(BigQueryTypeSize.Struct.MAX_DEPTH);
+    MockFailureCollector shouldPassCollector = new MockFailureCollector("bqsink");
+    sink.validateRecordDepth(shouldPassSchema, shouldPassCollector);
+    Assert.assertEquals(0, shouldPassCollector.getValidationFailures().size());
+
+    // One deeper than Maximum depth. There should be one error.
+    Schema shouldNotPass = getRecordOfDepth(BigQueryTypeSize.Struct.MAX_DEPTH + 1);
+    MockFailureCollector shouldNotPassCollector = new MockFailureCollector("bqsink");
+    sink.validateRecordDepth(shouldNotPass, shouldNotPassCollector);
+    Assert.assertEquals(1, shouldNotPassCollector.getValidationFailures().size());
+  }
+
+  private Schema getRecordOfDepth(int n) {
+    if (n <= 0) {
+      return Schema.of(Schema.Type.STRING);
+    }
+    return Schema.recordOf("R" + String.valueOf(n),
+                           Schema.Field.of("R" + String.valueOf(n - 1), getRecordOfDepth(n - 1)));
   }
 
   private Table getTestSchema() {

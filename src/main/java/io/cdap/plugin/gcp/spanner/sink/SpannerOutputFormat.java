@@ -50,11 +50,11 @@ public class SpannerOutputFormat extends OutputFormat<NullWritable, Mutation> {
    * @param schema        schema for spanner table
    */
   public static void configure(Configuration configuration, SpannerSinkConfig config, Schema schema) {
-    String projectId = config.getProject();
+    String projectId = config.connection.getProject();
     configuration.set(SpannerConstants.PROJECT_ID, projectId);
-    String serviceAccount = config.getServiceAccount();
+    String serviceAccount = config.connection.getServiceAccount();
     if (serviceAccount != null) {
-      String type = config.isServiceAccountFilePath() ? SpannerConstants.SERVICE_ACCOUNT_TYPE_FILE_PATH :
+      String type = config.connection.isServiceAccountFilePath() ? SpannerConstants.SERVICE_ACCOUNT_TYPE_FILE_PATH :
         SpannerConstants.SERVICE_ACCOUNT_TYPE_JSON;
       configuration.set(SpannerConstants.SERVICE_ACCOUNT_TYPE, type);
       configuration.set(SpannerConstants.SERVICE_ACCOUNT, serviceAccount);
