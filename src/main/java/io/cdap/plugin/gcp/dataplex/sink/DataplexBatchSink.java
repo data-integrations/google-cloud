@@ -427,7 +427,9 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     outputProperties.put(DataplexOutputFormatProvider.DATAPLEX_OUTPUT_BASE_DIR, outputDir);
     outputProperties.put(DataplexOutputFormatProvider.DATAPLEX_ASSET_TYPE, config.getAssetType());
     outputProperties.putAll(getFileSystemProperties());
+    // Added to not create _SUCCESS file in the output directory.
     outputProperties.put("mapreduce.fileoutputcommitter.marksuccessfuljobs", "false");
+    // Added to not write metadata files for parquet format in the output directory.
     if (config.getFormat().equals(FileFormat.PARQUET)) {
       outputProperties.put("parquet.enable.summary-metadata", "false");
     }
