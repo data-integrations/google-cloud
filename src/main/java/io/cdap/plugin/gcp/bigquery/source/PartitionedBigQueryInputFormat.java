@@ -130,7 +130,7 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
     if (partitionFromDate == null && partitionToDate == null && filter == null) {
       return null;
     }
-    String queryTemplate = "select * from %s where %s";
+    String queryTemplate = "select * from `%s` where %s";
     com.google.cloud.bigquery.Table sourceTable = BigQueryUtil.getBigQueryTable(datasetProject, dataset, table,
                                                                                 serviceAccount,
                                                                                 isServiceAccountFilePath);
@@ -160,7 +160,7 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
   }
 
   private String generateQueryForMaterializingView(String datasetProject, String dataset, String table, String filter) {
-    String queryTemplate = "select * from %s %s";
+    String queryTemplate = "select * from `%s` %s";
     StringBuilder condition = new StringBuilder();
 
     if (!Strings.isNullOrEmpty(filter)) {
