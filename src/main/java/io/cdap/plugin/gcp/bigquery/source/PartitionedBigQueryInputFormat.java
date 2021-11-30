@@ -18,6 +18,7 @@ import com.google.cloud.hadoop.io.bigquery.BigQueryHelper;
 import com.google.cloud.hadoop.io.bigquery.BigQueryUtils;
 import com.google.cloud.hadoop.io.bigquery.ExportFileFormat;
 import com.google.cloud.hadoop.util.ConfigurationUtil;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.sun.istack.Nullable;
@@ -124,9 +125,10 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
     }
   }
 
-  private String generateQuery(String partitionFromDate, String partitionToDate, String filter, String project,
-                               String datasetProject, String dataset, String table, @Nullable String serviceAccount,
-                               @Nullable Boolean isServiceAccountFilePath) {
+  @VisibleForTesting
+  String generateQuery(String partitionFromDate, String partitionToDate, String filter, String project,
+                       String datasetProject, String dataset, String table, @Nullable String serviceAccount,
+                       @Nullable Boolean isServiceAccountFilePath) {
     if (partitionFromDate == null && partitionToDate == null && filter == null) {
       return null;
     }
@@ -159,8 +161,9 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
     return String.format(queryTemplate, tableName, condition.toString());
   }
 
-  private String generateQueryForMaterializingView(String datasetProject, String dataset, String table, String filter) {
-    String queryTemplate = "select * from `%s` %s";
+  @VisibleForTesting
+  String generateQueryForMaterializingView(String datasetProject, String dataset, String table, String filter) {
+    String queryTemplate = "select * from `%s`%s";
     StringBuilder condition = new StringBuilder();
 
     if (!Strings.isNullOrEmpty(filter)) {
