@@ -27,7 +27,7 @@ import org.junit.runner.RunWith;
 @CucumberOptions(
   features = {"src/e2e-test/features/Gcs_bigquery.feature"},
   glue = {"io.cdap.plugin.gcs.stepsdesign", "stepsdesign"},
-  tags = {"@TC-plugin-857"},
+  tags = {"@GCS"},
   monochrome = true,
   plugin = {"pretty", "html:target/cucumber-html-report", "json:target/cucumber-reports/cucumber.json",
     "junit:target/cucumber-reports/cucumber.xml"}
