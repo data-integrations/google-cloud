@@ -346,6 +346,18 @@
       ]
     },
     {
+      "name": "showConnectionId",
+      "condition": {
+        "expression": "useConnection == true"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "connection"
+        }
+      ]
+    },
+    {
       "name": "CustomContentType",
       "condition": {
         "expression": "contentType == 'other'"
