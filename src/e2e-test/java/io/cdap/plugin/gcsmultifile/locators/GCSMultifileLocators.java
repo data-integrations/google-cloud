@@ -48,9 +48,6 @@ public class GCSMultifileLocators {
   @FindBy(how = How.XPATH, using = "//*[@data-cy='property-row-error' and contains(text(),'path')]")
   public static WebElement pathError;
 
-  @FindBy(how = How.XPATH, using = "//*[@data-cy='project' and @class='MuiInputBase-input']")
-  public static WebElement ProjectId;
-
   @FindBy(how = How.XPATH, using = "//*[@data-cy='datasetProject' and @class='MuiInputBase-input']")
   public static WebElement datasetProjectId;
 
@@ -59,7 +56,6 @@ public class GCSMultifileLocators {
 
   @FindBy(how = How.XPATH, using = "//*[@data-cy='valium-banner-hydrator']")
   public static WebElement pipelineSaveSuccessBanner;
-
 }
 
 

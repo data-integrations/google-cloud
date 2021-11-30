@@ -1,6 +1,6 @@
 package io.cdap.plugin.gcsmultifile.stepsdesign;
 
-import io.cdap.e2e.pages.actions.CdfBQActions;
+import io.cdap.e2e.pages.actions.CdfBigQueryPropertiesActions;
 import io.cdap.e2e.pages.actions.CdfGcsActions;
 import io.cdap.e2e.pages.actions.CdfLogActions;
 import io.cdap.e2e.pages.actions.CdfPipelineRunAction;
@@ -67,13 +67,13 @@ public class GCSMultifileConnector implements CdfHelper {
   @Then("Enter the BigQuery Properties for table {string} amd dataset {string} for source")
   public void enterTheBigQueryPropertiesForTableForSource(String table, String dataset)
     throws IOException, InterruptedException {
-    CdfBQActions.clickBigqueryProperties();
+    CdfBigQueryPropertiesActions.clickBigQueryProperties();
     BigQueryMulifileActions.enterProjectId();
     BigQueryMulifileActions.enterdatasetProjectId();
-    CdfBQActions.enterReferenceName();
-    CdfBQActions.enterDataset(CdapUtils.pluginProp("dataset"));
-    CdfBQActions.enterTable(CdapUtils.pluginProp("multitable"));
-    CdfBQActions.getSchema();
+    CdfBigQueryPropertiesActions.enterReferenceName();
+    CdfBigQueryPropertiesActions.enterDataset(CdapUtils.pluginProp("dataset"));
+    CdfBigQueryPropertiesActions.enterTable(CdapUtils.pluginProp("multitable"));
+    CdfBigQueryPropertiesActions.getSchema();
     SeleniumHelper.waitElementIsVisible(
       SeleniumDriver.getDriver().findElement(
         By.xpath("//*[@data-cy='get-schema-btn']//span[text()='Get Schema']")));
@@ -81,11 +81,12 @@ public class GCSMultifileConnector implements CdfHelper {
 
   @Then("Close the BigQuery Properties")
   public void closeTheBigQueryProperties() {
-    CdfBQActions.closeButton();
+    CdfBigQueryPropertiesActions.closeButton();
   }
 
   @Then("Enter the Gcs Multifile Properties for table {string} and format {string}")
-  public void enterTheGcsMultifilePropertiesForTableForSource(String path, String formatType) throws IOException, InterruptedException {
+  public void enterTheGcsMultifilePropertiesForTableForSource(String path, String formatType)
+    throws IOException, InterruptedException {
     BigQueryMulifileActions.gcsMultifileProperties();
     BigQueryMulifileActions.enterReferenceName();
     BigQueryMulifileActions.enterProjectId();
