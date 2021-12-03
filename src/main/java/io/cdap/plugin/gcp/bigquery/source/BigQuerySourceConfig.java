@@ -65,6 +65,7 @@ public final class BigQuerySourceConfig extends PluginConfig {
 
   @Name(NAME_TEMPORARY_EXPORT_TABLE_PROJECT)
   @Macro
+  @Nullable
   @Description("The BigQuery source splits partitions across temporary table, by default this will be in the same "
       + "project as the dataset."
       + "This property allows the project in which the temporary tables are created to be explicitly set.")
@@ -72,6 +73,7 @@ public final class BigQuerySourceConfig extends PluginConfig {
 
   @Name(NAME_TEMPORARY_EXPORT_TABLE_DATASET)
   @Macro
+  @Nullable
   @Description("The BigQuery source splits partitions across temporary table, by default the temporary table will be "
       + "created in the same dataset as the source dataset."
       + "This property allows the dataset in which the temporary tables are created to be explicitly set.")
