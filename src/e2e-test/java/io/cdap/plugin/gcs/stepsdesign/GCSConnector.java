@@ -24,6 +24,7 @@ import io.cdap.e2e.pages.locators.CdfBigQueryPropertiesLocators;
 import io.cdap.e2e.pages.locators.CdfGCSLocators;
 import io.cdap.e2e.pages.locators.CdfStudioLocators;
 import io.cdap.e2e.utils.CdfHelper;
+import io.cdap.e2e.utils.GcpClient;
 import io.cdap.e2e.utils.SeleniumDriver;
 import io.cdap.e2e.utils.SeleniumHelper;
 import io.cdap.plugin.utils.CdapUtils;
@@ -40,6 +41,7 @@ import stepsdesign.BeforeActions;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -47,6 +49,8 @@ import java.util.UUID;
  * GCSrefactor.
  */
 public class GCSConnector implements CdfHelper {
+  List<String> propertiesOutputSchema = new ArrayList<String>();
+  GcpClient gcpClient = new GcpClient();
 
   @Given("Open Datafusion Project to configure pipeline")
   public void openDatafusionProjectToConfigurePipeline() throws IOException, InterruptedException {
@@ -75,9 +79,9 @@ public class GCSConnector implements CdfHelper {
     CdfGcsActions.gcsProperties();
     CdfGcsActions.enterProjectId();
     CdfGcsActions.enterReferenceName();
-    CdfGcsActions.enterSamplesize();
     CdfGcsActions.getGcsBucket(CdapUtils.pluginProp(bucket));
     CdfGcsActions.selectFormat(CdapUtils.pluginProp(format));
+    //CdfGcsActions.enterSamplesize();
     CdfGcsActions.skipHeader();
     CdfGcsActions.getSchema();
     SeleniumHelper.waitElementIsVisible(CdfGCSLocators.getSchemaLoadComplete, 30);
@@ -91,7 +95,7 @@ public class GCSConnector implements CdfHelper {
     CdfGcsActions.selectFormat(CdapUtils.pluginProp(format));
   }
 
-  @Then("verify the schema in output")
+  @Then("Verify the schema in output")
   public void verifyTheSchemaInOutput() {
     CdfGcsActions.validateSchema();
   }
@@ -108,22 +112,19 @@ public class GCSConnector implements CdfHelper {
     Assert.assertTrue(flag);
   }
 
-  @Then("Enter the GCS Properties with GCS bucket {string} and format {string} by entering all fields")
-  public void enterTheGCSPropertiesWithAllFieldsGCSBucket(String bucket, String format)
+  @Then("Enter the GCS Properties with GCS bucket {string}, format {string} and Pathfield {string} value")
+  public void enterTheGCSPropertiesWithAllFieldsGCSBucket(String bucket, String format, String outputpath)
     throws IOException, InterruptedException {
     CdfGcsActions.gcsProperties();
     CdfGcsActions.enterProjectId();
     CdfGcsActions.enterReferenceName();
-    CdfGcsActions.enterSamplesize();
+    //CdfGcsActions.enterSamplesize();
     CdfGcsActions.getGcsBucket(CdapUtils.pluginProp(bucket));
     CdfGcsActions.selectFormat(CdapUtils.pluginProp(format));
     CdfGcsActions.skipHeader();
-    CdfGcsActions.enterMaxSplitSize(CdapUtils.pluginProp("gcsMaxsplitSize"));
-    CdfGcsActions.enterMinSplitSize(CdapUtils.pluginProp("gcsMinsplitSize"));
-    CdfGcsActions.enterRegexPath(CdapUtils.pluginProp("gcsRegexpath"));
-    CdfGcsActions.enterPathField(CdapUtils.pluginProp("gcspathField"));
+    CdfGcsActions.enterPathField(CdapUtils.pluginProp(outputpath));
     CdfGcsActions.getSchema();
-    SeleniumHelper.waitElementIsVisible(CdfGCSLocators.getSchemaLoadComplete, 30);
+    SeleniumHelper.waitElementIsVisible(CdfGCSLocators.getSchemaLoadComplete, 50);
   }
 
   @Then("Enter the GCS Properties with GCS bucket {string} , format {string} and fileEncoding {int}")
@@ -148,6 +149,7 @@ public class GCSConnector implements CdfHelper {
     CdfBigQueryPropertiesActions.enterProjectId(CdapUtils.pluginProp("ProjectId"));
     CdfBigQueryPropertiesActions.enterBigQueryDataset(CdapUtils.pluginProp("dataset"));
     CdfBigQueryPropertiesActions.enterBigQueryTable(CdapUtils.pluginProp(tableName));
+
     CdfBigQueryPropertiesActions.clickUpdateTable();
     CdfBigQueryPropertiesActions.clickTruncatableSwitch();
     CdfBigQueryPropertiesActions.clickValidateButton();
@@ -172,7 +174,7 @@ public class GCSConnector implements CdfHelper {
 
   @Then("Wait till pipeline is in running state")
   public void waitTillPipelineIsInRunningState() throws InterruptedException {
-    WebDriverWait wait = new WebDriverWait(SeleniumDriver.getDriver(), 180);
+    WebDriverWait wait = new WebDriverWait(SeleniumDriver.getDriver(), 300);
     wait.until(ExpectedConditions.or(ExpectedConditions.
                                        visibilityOfElementLocated(By.xpath("//*[@data-cy='Succeeded']")),
                                      ExpectedConditions.
@@ -252,12 +254,159 @@ public class GCSConnector implements CdfHelper {
     CdfGcsActions.gcsProperties();
     CdfGcsActions.enterProjectId();
     CdfGcsActions.enterReferenceName();
-    CdfGcsActions.enterSamplesize();
+    //CdfGcsActions.enterSamplesize();
     CdfGcsActions.getGcsBucket(CdapUtils.pluginProp(bucket));
     CdfGcsActions.selectFormat(CdapUtils.pluginProp(format));
     CdfGcsActions.enterOverride(CdapUtils.pluginProp("gcsOverride"));
+    CdfGcsActions.clickOverrideDataType(CdapUtils.pluginProp("datatype"));
     CdfGcsActions.skipHeader();
     CdfGcsActions.getSchema();
     SeleniumHelper.waitElementIsVisible(CdfGCSLocators.getSchemaLoadComplete, 30);
   }
+
+  @Then("Get Count of no of records transferred to BigQuery in {string}")
+  public void getCountOfNoOfRecordsTransferredToBigQueryIn(String tableName) throws IOException, InterruptedException {
+    int countRecords;
+    countRecords = gcpClient.countBqQuery(CdapUtils.pluginProp(tableName));
+    BeforeActions.scenario.write("**********No of Records Transferred******************:" + countRecords);
+    Assert.assertTrue(countRecords > 0);
+  }
+
+  @Then("Capture output schema")
+  public void captureOutputSchema() {
+    SeleniumDriver.getDriver().findElement(By.xpath("//button[@data-cy='plugin-properties-validate-btn']")).click();
+    SeleniumHelper.waitElementIsVisible(SeleniumDriver.getDriver().findElement(
+      By.xpath("//*[@data-cy='plugin-validation-success-msg']")), 10L);
+    SeleniumHelper.waitElementIsVisible(SeleniumDriver.getDriver().findElement(
+      By.xpath("//div[@data-cy='schema-fields-list']//*[@placeholder='Field name']")), 10L);
+    List<WebElement> propertiesOutputSchemaElements = SeleniumDriver.getDriver().findElements(
+      By.xpath("//div[@data-cy='schema-fields-list']//*[@placeholder='Field name']"));
+    for (WebElement element : propertiesOutputSchemaElements) {
+      propertiesOutputSchema.add(element.getAttribute("value"));
+    }
+    System.out.println(propertiesOutputSchema.size());
+    List<String> propertiesOutputSchema = new ArrayList<String>();
+  }
+
+  @Then("Save the pipeline")
+  public void saveThePipeline() {
+    CdfStudioActions.pipelineName();
+    CdfStudioActions.pipelineNameIp("GCS_" + UUID.randomUUID().toString());
+    CdfStudioActions.pipelineSave();
+    SeleniumHelper.waitElementIsVisible(CdfStudioLocators.pipelineSaveSuccessBanner);
+    WebDriverWait wait = new WebDriverWait(SeleniumDriver.getDriver(), 5);
+    wait.until(ExpectedConditions.invisibilityOf(CdfStudioLocators.pipelineSaveSuccessBanner));
+  }
+
+  @Then("Preview and run the pipeline")
+  public void previewAndRunThePipeline() {
+    SeleniumHelper.waitElementIsVisible(CdfStudioLocators.preview, 5);
+    CdfStudioLocators.preview.click();
+    CdfStudioLocators.runButton.click();
+  }
+
+  @Then("Verify the preview of pipeline is {string}")
+  public void verifyThePreviewOfPipelineIs(String previewStatus) {
+    WebDriverWait wait = new WebDriverWait(SeleniumDriver.getDriver(), 180);
+    wait.until(ExpectedConditions.visibilityOfElementLocated(
+      By.xpath("//*[@data-cy='valium-banner-hydrator']//span[contains(text(),'" + previewStatus + "')]")));
+    if (!previewStatus.equalsIgnoreCase("failed")) {
+      wait.until(ExpectedConditions.invisibilityOfElementLocated(By.xpath("//*[@data-cy='valium-banner-hydrator']")));
+    }
+  }
+
+  @Then("Click on PreviewData for GCS")
+  public void clickOnPreviewDataForHttp() {
+    CdfGcsActions.clickGcsPreviewData();
+  }
+
+  @Then("Verify Preview output schema matches the outputSchema captured in properties")
+  public void verifyPreviewOutputSchemaMatchesTheOutputSchemaCapturedInProperties() {
+    List<String> previewOutputSchema = new ArrayList<String>();
+    List<WebElement> previewOutputSchemaElements = SeleniumDriver.getDriver().findElements(
+      By.xpath("(//h2[text()='Output Records']/parent::div/div/div/div/div)[1]//div[text()!='']"));
+    for (WebElement element : previewOutputSchemaElements) {
+      previewOutputSchema.add(element.getAttribute("title"));
+    }
+    System.out.println(previewOutputSchema.size());
+    Assert.assertTrue(previewOutputSchema.equals(propertiesOutputSchema));
+  }
+
+  @Then("Close the Preview")
+  public void closeThePreview() {
+    CdfGCSLocators.closeButton.click();
+    CdfStudioActions.previewSelect();
+  }
+
+  @Then("Deploy the pipeline")
+  public void deployThePipeline() {
+    SeleniumHelper.waitElementIsVisible(CdfStudioLocators.pipelineDeploy, 2);
+    CdfStudioActions.pipelineDeploy();
+  }
+
+  @Then("Validate GCS properties")
+  public void clickonVAlidate() {
+    CdfGcsActions.clickValidateButton();
+    Assert.assertTrue(SeleniumDriver.getDriver().findElement
+      (By.xpath("//*[@data-cy='plugin-validation-success-msg']")).isDisplayed());
+  }
+
+  @Then("Delete the table {string}")
+  public void deleteTheTable(String arg0) throws IOException, InterruptedException {
+    gcpClient.dropBqQuery(SeleniumHelper.readParameters(arg0));
+    BeforeActions.scenario.write("Table Deleted Successfully");
+  }
+
+  @Then("Enter the GCS Properties with GCS bucket {string} and format {string} with Delimiter field")
+  public void enterTheGCSPropertiesWithGCSBucketStringAndFormatStringWithDelimiterField(String bucket, String format)
+    throws IOException, InterruptedException {
+    CdfGcsActions.gcsProperties();
+    CdfGcsActions.enterProjectId();
+    CdfGcsActions.enterReferenceName();
+    CdfGcsActions.getGcsBucket(CdapUtils.pluginProp(bucket));
+    CdfGcsActions.selectFormat(CdapUtils.pluginProp(format));
+    CdfGcsActions.enterDelimiterField(CdapUtils.pluginProp("delimiter"));
+    CdfGcsActions.skipHeader();
+    CdfGcsActions.getSchema();
+    SeleniumHelper.waitElementIsVisible(CdfGCSLocators.getSchemaLoadComplete, 30);
+  }
+
+  @Then("Enter the GCS Properties with GCS bucket {string} and format {string} with MaxMinField")
+  public void enterTheGCSPropertiesWithGCSBucketAndFormatWithMaxMinField(String bucket, String format)
+    throws InterruptedException, IOException {
+    CdfGcsActions.gcsProperties();
+    CdfGcsActions.enterProjectId();
+    CdfGcsActions.enterReferenceName();
+    CdfGcsActions.getGcsBucket(CdapUtils.pluginProp(bucket));
+    CdfGcsActions.selectFormat(CdapUtils.pluginProp(format));
+    CdfGcsActions.enterMaxSplitSize(CdapUtils.pluginProp("gcsMaxsplitSize"));
+    CdfGcsActions.enterMinSplitSize(CdapUtils.pluginProp("gcsMinsplitSize"));
+    CdfGcsActions.skipHeader();
+    CdfGcsActions.getSchema();
+    SeleniumHelper.waitElementIsVisible(CdfGCSLocators.getSchemaLoadComplete, 30);
+  }
+
+  @Then("Enter the GCS Properties with GCS bucket {string} and format {string} using Regexpath filter")
+  public void enterTheGCSPropertiesWithGCSBucketAndFormatUsingRegexpathFilter(String bucket, String format)
+    throws IOException, InterruptedException {
+    CdfGcsActions.gcsProperties();
+    CdfGcsActions.enterProjectId();
+    CdfGcsActions.enterReferenceName();
+    CdfGcsActions.getGcsBucket(CdapUtils.pluginProp(bucket));
+    CdfGcsActions.selectFormat(CdapUtils.pluginProp(format));
+    CdfGcsActions.enterRegexPath(CdapUtils.pluginProp("gcsRegexpath"));
+    CdfGcsActions.skipHeader();
+    CdfGcsActions.getSchema();
+    SeleniumHelper.waitElementIsVisible(CdfGCSLocators.getSchemaLoadComplete, 30);
+  }
+
+  @Then("Verify OutputPath field Error Message")
+  public void verifyOutputPathFieldErrorMessage() {
+    CdfGcsActions.clickValidateButton();
+    String expectedErrorMessage = CdapUtils.errorProp("errorMessageWrongPath");
+    String actualErrorMessage = CdfGCSLocators.outputPathFieldError.getText();
+    Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
+    CdfGcsActions.outputFieldPathErrorColor();
+  }
 }
+
