@@ -60,6 +60,9 @@ public final class BigQuerySourceConfig extends PluginConfig {
     ImmutableSet.of(Schema.Type.LONG, Schema.Type.STRING, Schema.Type.DOUBLE, Schema.Type.BOOLEAN, Schema.Type.BYTES,
                     Schema.Type.ARRAY, Schema.Type.RECORD);
 
+  public static final String NAME_TEMPORARY_EXPORT_TABLE_PROJECT = "temporaryExportTableProject";
+  public static final String NAME_TEMPORARY_EXPORT_TABLE_DATASET = "temporaryExportTableDataset";
+
   public static final String NAME_DATASET = "dataset";
   public static final String NAME_TABLE = "table";
   public static final String NAME_BUCKET = "bucket";
@@ -71,6 +74,22 @@ public final class BigQuerySourceConfig extends PluginConfig {
   public static final String NAME_VIEW_MATERIALIZATION_PROJECT = "viewMaterializationProject";
   public static final String NAME_VIEW_MATERIALIZATION_DATASET = "viewMaterializationDataset";
   public static final String NAME_CMEK_KEY = "cmekKey";
+
+  @Name(NAME_TEMPORARY_EXPORT_TABLE_PROJECT)
+  @Macro
+  @Nullable
+  @Description("The BigQuery source splits partitions across temporary table, by default this will be in the same "
+      + "project as the dataset."
+      + "This property allows the project in which the temporary tables are created to be explicitly set.")
+  private String temporaryExportTableProject;
+
+  @Name(NAME_TEMPORARY_EXPORT_TABLE_DATASET)
+  @Macro
+  @Nullable
+  @Description("The BigQuery source splits partitions across temporary table, by default the temporary table will be "
+      + "created in the same dataset as the source dataset."
+      + "This property allows the dataset in which the temporary tables are created to be explicitly set.")
+  private String temporaryExportTableDataset;
 
   @Name(Constants.Reference.REFERENCE_NAME)
   @Description("This will be used to uniquely identify this source for lineage, annotating metadata, etc.")
@@ -164,6 +183,22 @@ public final class BigQuerySourceConfig extends PluginConfig {
     "any bucket created by the plugin. If the bucket already exists, this is ignored.")
   protected String cmekKey;
 
+  public String getTemporaryExportTableDataset() {
+    if (temporaryExportTableDataset == null) {
+      return getDataset();
+    }
+
+    return temporaryExportTableDataset;
+  }
+
+
+  public String getTemporaryExportTableProject() {
+    if (temporaryExportTableProject == null) {
+      return getDatasetProject();
+    }
+
+    return temporaryExportTableProject;
+  }
 
   public String getDataset() {
     return dataset;

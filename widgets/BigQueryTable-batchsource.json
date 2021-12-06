@@ -166,6 +166,22 @@
           "widget-attributes": {
             "placeholder": "projects/<gcp-project-id>/locations/<key-location>/keyRings/<key-ring-name>/cryptoKeys/<key-name>"
           }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Temporary Export Table Project",
+          "name": "temporaryExportTableProject",
+          "widget-attributes": {
+            "placeholder": "The project to use to create temporary export tables, defaults to source dataset project id"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Temporary Export Table Dataset",
+          "name": "temporaryExportTableDataset",
+          "widget-attributes": {
+            "placeholder": "The dataset to use to create temporary export tables, defaults to source dataset"
+          }
         }
       ]
     },
