@@ -20,6 +20,7 @@ import com.google.gson.stream.JsonWriter;
 import io.cdap.cdap.api.common.Bytes;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 
 import java.io.IOException;
@@ -271,13 +272,38 @@ public final class BigQueryRecordToJson {
 
   private static BigDecimal getDecimal(String name, byte[] value, Schema schema) {
     int scale = schema.getScale();
+    // Checks from https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#numeric_types
     BigDecimal decimal = new BigDecimal(new BigInteger(value), scale);
-    if (decimal.precision() > 38 || decimal.scale() > 9) {
+    if (decimal.precision() > BigQueryTypeSize.BigNumeric.PRECISION ||
+      decimal.scale() > BigQueryTypeSize.BigNumeric.SCALE) {
       throw new IllegalArgumentException(
         String.format("Numeric Field '%s' has invalid precision '%s' and scale '%s'. " +
-                        "Precision must be at most 38 and scale must be at most 9.",
+                        "Precision must be at most '%s' and scale must be at most '%s'.",
+                      name, decimal.precision(), decimal.scale(),
+                      BigQueryTypeSize.BigNumeric.PRECISION, BigQueryTypeSize.BigNumeric.SCALE));
+    }
+    if (decimal.precision() < 1) {
+      throw new IllegalArgumentException(
+        String.format("Numeric Field '%s' has invalid precision '%s' Precision has to be greater than or equal to 1. ",
+                      name, decimal.precision()));
+    }
+    if (decimal.precision() < decimal.scale()) {
+      throw new IllegalArgumentException(
+        String.format("Numeric Field '%s' has invalid precision '%s' and scale '%s'." +
+                        "Precision has to be greater than or equal to the Scale. ",
                       name, decimal.precision(), decimal.scale()));
     }
+
+    // The -1 at the end is caused by Precision in BigNumeric BQ not being a whole number.
+    if ((decimal.precision() - decimal.scale()) >
+      BigQueryTypeSize.BigNumeric.PRECISION - BigQueryTypeSize.BigNumeric.SCALE - 1) {
+      throw new IllegalArgumentException(
+        String.format("Numeric Field '%s' has invalid precision '%s' and scale '%s'." +
+                        "The difference between precision and scale cannot be greater than '%s'.",
+                      name, decimal.precision(), decimal.scale(),
+                      BigQueryTypeSize.BigNumeric.PRECISION - BigQueryTypeSize.BigNumeric.SCALE - 1));
+    }
+
     return decimal;
   }
 
