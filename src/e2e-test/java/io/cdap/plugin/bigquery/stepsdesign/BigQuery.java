@@ -381,7 +381,7 @@ public class BigQuery implements CdfHelper {
     } else if (property.equalsIgnoreCase("table")) {
       SeleniumHelper.replaceElementValue(CdfBigQueryPropertiesLocators.bigQueryTable, CdapUtils.pluginProp(value));
     } else if (property.equalsIgnoreCase("datasetProject")) {
-      SeleniumHelper.replaceElementValue(CdfBigQueryPropertiesLocators.datasetProjectId, CdapUtils.pluginProp(value));
+      SeleniumHelper.replaceElementValue(CdfBigQueryPropertiesLocators.datasetProjectID, CdapUtils.pluginProp(value));
     }
   }
 
@@ -414,10 +414,10 @@ public class BigQuery implements CdfHelper {
     throws IOException, InterruptedException {
     enterTheBigQueryPropertiesForTable("bqTableName");
     if (field.equalsIgnoreCase("datasetProject")) {
-      SeleniumHelper.replaceElementValue(CdfBigQueryPropertiesLocators.datasetProjectId, CdapUtils.pluginProp(value));
+      SeleniumHelper.replaceElementValue(CdfBigQueryPropertiesLocators.datasetProjectID, CdapUtils.pluginProp(value));
     } else if (field.equalsIgnoreCase("project")) {
-      SeleniumHelper.replaceElementValue(CdfBigQueryPropertiesLocators.datasetProjectId, "");
-      SeleniumHelper.replaceElementValue(CdfBigQueryPropertiesLocators.projectId, CdapUtils.pluginProp(value));
+      SeleniumHelper.replaceElementValue(CdfBigQueryPropertiesLocators.datasetProjectID, "");
+      SeleniumHelper.replaceElementValue(CdfBigQueryPropertiesLocators.projectID, CdapUtils.pluginProp(value));
     }
   }
 
