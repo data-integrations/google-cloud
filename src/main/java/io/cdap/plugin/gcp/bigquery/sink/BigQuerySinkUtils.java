@@ -314,7 +314,10 @@ public final class BigQuerySinkUtils {
         case TIMESTAMP_MICROS:
           return LegacySQLTypeName.TIMESTAMP;
         case DECIMAL:
-          if ((schema.getScale() <= Numeric.SCALE) && (schema.getPrecision() <= Numeric.PRECISION)) {
+          // Following the restrictions given by:
+          // https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#numeric_types
+          if ((schema.getScale() <= Numeric.SCALE) && (schema.getPrecision() <= Numeric.PRECISION) &&
+            ((schema.getPrecision() - schema.getScale()) <= (Numeric.PRECISION - Numeric.SCALE))) {
             return LegacySQLTypeName.NUMERIC;
           }
           return LegacySQLTypeName.BIGNUMERIC;
