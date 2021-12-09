@@ -870,6 +870,14 @@
           <version>0.0.1-SNAPSHOT</version>
           <scope>test</scope>
         </dependency>
+
+        <!-- https://mvnrepository.com/artifact/com.google.cloud/google-cloud-storage -->
+        <dependency>
+          <groupId>com.google.cloud</groupId>
+          <artifactId>google-cloud-storage</artifactId>
+          <version>2.2.2</version>
+        </dependency>
+
       </dependencies>
 
     </profile>
