@@ -1,6 +1,6 @@
-Feature: Verify Errors
+Feature: GCS Multifile Plugin Error scenarios
 
-  @Multifile1
+  @Multifile
   Scenario Outline: Verify mandatory fields error validation in GCS multifile sink plugin
     Given Open Datafusion Project to configure pipeline
     When Target is GcsMultifile
@@ -12,15 +12,14 @@ Feature: Verify Errors
       | path            |
       | splitField      |
 
-  @Multifile2
+  @Multifile
   Scenario: To verify Error message for invalid bucket name
     Given Open Datafusion Project to configure pipeline
     When Target is GcsMultifile
     Then Enter the Gcs Multifile Properties for table "multifileInvalidPath" and format "gcsCSVFileFormat"
     Then Verify invalid path name error message is displayed for path "multifileInvalidPath"
 
-
-  @Multifile3
+  @Multifile
   Scenario: To Verify Valid Content Type in avro Format
     Given Open Datafusion Project to configure pipeline
     When Target is GcsMultifile

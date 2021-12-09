@@ -1,3 +1,18 @@
+/*
+ * Copyright © 2021 Cask Data, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package io.cdap.plugin.gcsmultifile.locators;
 
 import org.openqa.selenium.WebElement;
@@ -42,12 +57,6 @@ public class GCSMultifileLocators {
   @FindBy(how = How.XPATH, using = "//*[@class='fa fa-remove']")
   public static WebElement closeButton;
 
-  @FindBy(how = How.XPATH, using = "//*[@data-cy='property-row-error' and contains(text(),'referenceName')]")
-  public static WebElement referenceError;
-
-  @FindBy(how = How.XPATH, using = "//*[@data-cy='property-row-error' and contains(text(),'path')]")
-  public static WebElement pathError;
-
   @FindBy(how = How.XPATH, using = "//*[@data-cy='datasetProject' and @class='MuiInputBase-input']")
   public static WebElement datasetProjectId;
 
@@ -63,19 +72,9 @@ public class GCSMultifileLocators {
   @FindBy(how = How.XPATH, using = "//*[@data-cy=\"select-contentType\"]")
   public static WebElement selectContentType;
 
-  @FindBy(how = How.XPATH, using = "//*[@data-cy='property-row-error' and contains(text(),'content types')]")
-  public static WebElement contentTypeError;
-
   @FindBy(how = How.XPATH, using = "//*[@data-cy='get-schema-btn']//span[text()='Get Schema']")
   public static WebElement getSchemaLoadComplete;
 
   @FindBy(how = How.XPATH, using = "//*[@data-cy=\"delimiter\" and @class=\"MuiInputBase-input\"]")
   public static WebElement delimiter;
 }
-
-
-
-
-
-
-

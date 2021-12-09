@@ -15,12 +15,18 @@
  */
 package io.cdap.plugin.utils;
 
+import com.google.api.gax.paging.Page;
+import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.Bucket;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageOptions;
 import io.cdap.e2e.utils.ConstantsUtil;
 import io.cdap.e2e.utils.SeleniumDriver;
 import org.apache.log4j.Logger;
 import org.junit.Assert;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebElement;
+import stepsdesign.BeforeActions;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -81,5 +87,29 @@ public class CdapUtils {
     hexValue[2] = hexValue[2].trim();
     int hexValue3 = Integer.parseInt(hexValue[2]);
     return String.format("#%02x%02x%02x", hexValue1, hexValue2, hexValue3);
+  }
+
+  public static void deleteBucket(String projectId, String bucketName) {
+    try {
+      Storage storage = StorageOptions.newBuilder().setProjectId(projectId).build().getService();
+      Bucket bucket = storage.get(bucketName);
+      bucket.delete();
+      BeforeActions.scenario.write("Bucket " + bucket.getName() + " was deleted");
+    } catch (Exception e) {
+      BeforeActions.scenario.write("Table doesn/t exist");
+    }
+  }
+
+  public static String listObjects(String projectId, String bucketName) {
+    String folderName = null;
+    Storage storage = StorageOptions.newBuilder().setProjectId(projectId).build().getService();
+    Page<Blob> blobs = storage.list(bucketName);
+    for (Blob blob : blobs.iterateAll()) {
+      if (blob.getName().contains("part")) {
+        folderName = blob.getName();
+        break;
+      }
+    }
+    return folderName;
   }
 }

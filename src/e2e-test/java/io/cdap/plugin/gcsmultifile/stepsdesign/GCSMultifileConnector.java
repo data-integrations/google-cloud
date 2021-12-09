@@ -1,3 +1,18 @@
+/*
+ * Copyright © 2021 Cask Data, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package io.cdap.plugin.gcsmultifile.stepsdesign;
 
 import io.cdap.e2e.pages.actions.CdfBigQueryPropertiesActions;
@@ -5,8 +20,10 @@ import io.cdap.e2e.pages.actions.CdfGcsActions;
 import io.cdap.e2e.pages.actions.CdfLogActions;
 import io.cdap.e2e.pages.actions.CdfPipelineRunAction;
 import io.cdap.e2e.pages.actions.CdfStudioActions;
+import io.cdap.e2e.pages.locators.CdfBigQueryPropertiesLocators;
 import io.cdap.e2e.pages.locators.CdfStudioLocators;
 import io.cdap.e2e.utils.CdfHelper;
+import io.cdap.e2e.utils.GcpClient;
 import io.cdap.e2e.utils.SeleniumDriver;
 import io.cdap.e2e.utils.SeleniumHelper;
 import io.cdap.plugin.gcsmultifile.actions.GCSMulifileActions;
@@ -29,11 +46,15 @@ import java.util.UUID;
 
 import static io.cdap.plugin.utils.GCConstants.ERROR_MSG_COLOR;
 import static io.cdap.plugin.utils.GCConstants.ERROR_MSG_GCS_INVALID_BUCKET_NAME;
+import static io.cdap.plugin.utils.GCConstants.ERROR_MSG_VALIDATION;
 
 /**
- * GCSmultifileconnector.
+ * GCSmultifile connector related design.
  */
 public class GCSMultifileConnector implements CdfHelper {
+
+  public static String folderName;
+  public static int inputCount;
 
   @Given("Open Datafusion Project to configure pipeline")
   public void openDatafusionProjectToConfigurePipeline() throws IOException, InterruptedException {
@@ -70,7 +91,7 @@ public class GCSMultifileConnector implements CdfHelper {
   @Then("Enter the BigQuery Properties for table {string} amd dataset {string} for source")
   public void enterTheBigQueryPropertiesForTableForSource(String table, String dataset)
     throws IOException, InterruptedException {
-    CdfStudioLocators.bigQueryProperties.click();
+    CdfStudioActions.clickProperties("BigQuery");
     CdfBigQueryPropertiesActions.enterProjectId(CdapUtils.pluginProp("projectId"));
     CdfBigQueryPropertiesActions.enterDatasetProjectId(CdapUtils.pluginProp("projectId"));
     CdfBigQueryPropertiesActions.enterBigQueryReferenceName(CdapUtils.pluginProp("gcsBqRefName"));
@@ -90,7 +111,7 @@ public class GCSMultifileConnector implements CdfHelper {
     throws IOException, InterruptedException {
     GCSMulifileActions.gcsMultifileProperties();
     GCSMulifileActions.enterReferenceName();
-    GCSMulifileActions.enterProjectId();
+    GCSMulifileActions.enterProjectId(CdapUtils.pluginProp("projectId"));
     GCSMulifileActions.enterGcsMultifilepath(CdapUtils.pluginProp(path));
     GCSMulifileActions.selectFormat(CdapUtils.pluginProp(formatType));
     GCSMulifileActions.selectAllowFlexibleSchema();
@@ -184,22 +205,6 @@ public class GCSMultifileConnector implements CdfHelper {
     SeleniumHelper.waitElementIsVisible(GCSMultifileLocators.getSchemaLoadComplete);
   }
 
-  @Then("Verify reference name validation")
-  public void verifyReferenceNameValidation() {
-    String expectedErrorMessage = CdapUtils.errorProp("errorMessageReference");
-    String actualErrorMessage = GCSMultifileLocators.referenceError.getText();
-    Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
-    GCSMulifileActions.getReferenceErrorColor();
-  }
-
-  @Then("Verify path validation")
-  public void verifyPathValidation() {
-    String expectedErrorMessage = CdapUtils.errorProp("errorMessagePath");
-    String actualErrorMessage = GCSMultifileLocators.pathError.getText();
-    Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
-    GCSMulifileActions.getPathErrorColor();
-  }
-
   @Then("Click on Source")
   public void clickOnSource() {
     GCSMulifileActions.clickSource();
@@ -209,7 +214,7 @@ public class GCSMultifileConnector implements CdfHelper {
   public void verifyContentTypeValidation() {
     CdfStudioActions.clickValidateButton();
     String expectedErrorMessage = CdapUtils.errorProp("errorMessageContentType");
-    String actualErrorMessage = CdapUtils.findPropertyErrorElement("select-contentType").getText();
+    String actualErrorMessage = CdapUtils.findPropertyErrorElement("contentType").getText();
     Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
   }
 
@@ -263,17 +268,98 @@ public class GCSMultifileConnector implements CdfHelper {
   }
 
   @Then("Enter the Gcs Multifile Properties for table {string} and delimited format {string} and delimiter {string}")
-  public void enterTheGcsMultifilePropertiesForTableAndDelimitedFormatAndDelimiter(String path, String formatType,
-                                                                                   String delimiter)
+  public void enterTheGcsMultifilePropertiesForTableAndDelimitedFormatAndDelimiter(
+    String path, String formatType, String delimiter)
     throws IOException, InterruptedException {
     enterTheGcsMultifilePropertiesForTableAndFormat(path, formatType);
     GCSMulifileActions.enterDelimiter(CdapUtils.pluginProp(delimiter));
     CdfStudioActions.clickValidateButton();
+  }
 
+  @Given("Cloud Storage bucket should not exist in {string} with the name {string}")
+  public void projectIdcloudStorageBucketShouldNotExistInWithTheName(String projectId, String bucketName) {
+    CdapUtils.deleteBucket(CdapUtils.pluginProp(projectId), CdapUtils.pluginProp(bucketName));
+  }
+
+  @When("Target is selected as BigQuery")
+  public void targetIsSelectedAsBigQuery() {
+    CdfStudioActions.sinkBigQuery();
+  }
+
+  @Then("Link Source GCS and Sink bigquery to establish connection")
+  public void linkSourceGCSAndSinkBigqueryToEstablishConnection() {
+    SeleniumHelper.waitElementIsVisible(CdfStudioLocators.fromGCS);
+    SeleniumHelper.dragAndDrop(CdfStudioLocators.fromGCS, CdfStudioLocators.toBigQiery);
+  }
+
+  @Then("Verify the folder created in {string} with bucket name {string}")
+  public void verifyTheFolderCreatedInWithBucketName(String projectID, String bucketName) {
+    folderName = CdapUtils.listObjects(CdapUtils.pluginProp(projectID),
+                                       CdapUtils.pluginProp(bucketName));
+    Assert.assertTrue(folderName != null);
 
   }
+
+  @Then("Enter the GCS Properties with {string} GCS bucket and skip header")
+  public void enterTheGCSPropertiesWithGCSBucketAndSkipHeader(String bucketName)
+    throws InterruptedException, IOException {
+    CdfGcsActions.gcsProperties();
+    CdfGcsActions.enterReferenceName();
+    CdfGcsActions.enterProjectId();
+    CdfGcsActions.getGcsBucket(CdapUtils.pluginProp(bucketName) + "/" + folderName);
+    CdfGcsActions.selectFormat(CdapUtils.pluginProp("gcsCSVFileFormat"));
+    CdfGcsActions.getSchema();
+    SeleniumHelper.waitElementIsVisible(GCSMultifileLocators.getSchemaLoadComplete);
+  }
+
+  @Then("Get the count of the records transferred")
+  public void getTheCountOfTheRecordsTransferred() {
+    inputCount = recordOut();
+    BeforeActions.scenario.write("Records Transferred :" + inputCount);
+  }
+
+  @Then("Get Count of no of records transferred to BigQuery from GCS {string}")
+  public void getCountOfNoOfRecordsTransferredToBigQueryFromGCS(String tableName)
+    throws IOException, InterruptedException {
+    int countRecords;
+    countRecords = GcpClient.countBqQuery(CdapUtils.pluginProp(tableName));
+    BeforeActions.scenario.write("**********No of Records Transferred******************:" + countRecords);
+    Assert.assertTrue(countRecords == inputCount);
+  }
+
+  @Then("Enter the BigQuery Properties for Sink {string}")
+  public void enterTheBigQueryPropertiesForSink(String table) throws InterruptedException, IOException {
+    CdfStudioLocators.bigQueryProperties.click();
+    CdfBigQueryPropertiesActions.enterBigQueryReferenceName(CdapUtils.pluginProp("gcsBqRefName"));
+    CdfBigQueryPropertiesActions.enterProjectId(CdapUtils.pluginProp("projectId"));
+    CdfBigQueryPropertiesActions.enterBigQueryDataset(CdapUtils.pluginProp("dataset"));
+    CdfBigQueryPropertiesActions.enterBigQueryTable(CdapUtils.pluginProp(table));
+    CdfBigQueryPropertiesActions.clickUpdateTable();
+    CdfBigQueryPropertiesActions.clickTruncatableSwitch();
+    CdfStudioActions.clickValidateButton();
+    SeleniumHelper.waitElementIsVisible(CdfBigQueryPropertiesLocators.textSuccess, 1L);
+  }
+
+  public static void validatePluginProperties() {
+    CdfStudioActions.clickValidateButton();
+    SeleniumHelper.waitElementIsVisible(CdfStudioLocators.pluginValidationSuccessMsg, 10L);
+    String expectedErrorMessage = CdapUtils.errorProp(ERROR_MSG_VALIDATION);
+    String actualErrorMessage = CdfStudioLocators.pluginValidationSuccessMsg.getText();
+    Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
+  }
+
+  @Then("Validate GCS Multifile properties")
+  public void validateGCSMultifileProperties() {
+    validatePluginProperties();
+  }
+
+  @Then("Validate BigQuery properties")
+  public void validateBigQueryProperties() {
+    validatePluginProperties();
+  }
+
+  @Then("Validate GCS properties")
+  public void validateGCSProperties() {
+    validatePluginProperties();
+  }
 }
-
-
-
-
