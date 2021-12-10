@@ -16,17 +16,29 @@
 
 package io.cdap.plugin.gcp.bigquery.sqlengine;
 
+import com.google.auth.Credentials;
+import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.Dataset;
+import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.QueryJobConfiguration;
+import com.google.cloud.bigquery.TableId;
 import com.google.cloud.kms.v1.CryptoKeyName;
+import com.google.cloud.storage.Bucket;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageException;
 import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
+import io.cdap.cdap.api.plugin.PluginConfig;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.engine.sql.SQLEngineException;
-import io.cdap.plugin.gcp.bigquery.common.BigQueryBaseConfig;
+import io.cdap.plugin.common.ConfigUtil;
+import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnectorConfig;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.CmekUtils;
+import io.cdap.plugin.gcp.common.GCPUtils;
+import io.cdap.plugin.gcp.gcs.GCSPath;
 
 import java.util.Collections;
 import java.util.Map;
@@ -35,17 +47,32 @@ import javax.annotation.Nullable;
 /**
  * Configuration for SQL Engine.
  */
-public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
+public class BigQuerySQLEngineConfig extends PluginConfig {
 
   public static final String NAME_LOCATION = "location";
   public static final String NAME_RETAIN_TABLES = "retainTables";
   public static final String NAME_TEMP_TABLE_TTL_HOURS = "tempTableTTLHours";
   public static final String NAME_JOB_PRIORITY = "jobPriority";
   public static final String NAME_USE_STORAGE_READ_API = "useStorageReadAPI";
+  public static final String NAME_SERVICE_ACCOUNT_FILE_PATH = "serviceFilePath";
+  public static final String NAME_SERVICE_ACCOUNT_JSON = "serviceAccountJSON";
+  public static final String NAME_SERVICE_ACCOUNT_TYPE = "serviceAccountType";
+  public static final String SERVICE_ACCOUNT_JSON = "JSON";
+  public static final String AUTO_DETECT = "auto-detect";
 
   // Job priority options
   public static final String PRIORITY_BATCH = "batch";
   public static final String PRIORITY_INTERACTIVE = "interactive";
+  private static final String NAME_BUCKET = "bucket";
+  private static final String NAME_CMEK_KEY = "cmekKey";
+  protected static final String NAME_DATASET = "dataset";
+  private static final String SCHEME = "gs://";
+
+  @Name(NAME_DATASET)
+  @Macro
+  @Description("The dataset to write to. A dataset is contained within a specific project. "
+          + "Datasets are top-level containers that are used to organize and control access to tables and views.")
+  protected String dataset;
 
   @Name(NAME_LOCATION)
   @Macro
@@ -53,6 +80,15 @@ public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
   @Description("The location where the BigQuery dataset will get created. " +
     "This value is ignored if the dataset or temporary bucket already exists.")
   protected String location;
+
+  @Name(NAME_BUCKET)
+  @Macro
+  @Nullable
+  @Description("The Google Cloud Storage bucket to store temporary data in. "
+          + "Cloud Storage data will be deleted after it is loaded into BigQuery. "
+          + "If it is not provided, a unique bucket will be automatically created and then deleted after the run " +
+          "finishes. The service account must have permission to create buckets in the configured project.")
+  protected String bucket;
 
   @Name(NAME_CMEK_KEY)
   @Macro
@@ -84,7 +120,18 @@ public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
     "are available, usually within a few minutes. If the job hasn't started within 3 hours, " +
     "its priority is changed to 'interactive'")
   private String jobPriority;
+  
+  @Name(ConfigUtil.NAME_USE_CONNECTION)
+  @Nullable
+  @Description("Whether to use an existing connection.")
+  private Boolean useConnection;
 
+  @Name(ConfigUtil.NAME_CONNECTION)
+  @Macro
+  @Nullable
+  @Description("The existing connection to use.")
+  protected BigQueryConnectorConfig connection;
+  
   @Name(NAME_USE_STORAGE_READ_API)
   @Macro
   @Nullable
@@ -94,23 +141,29 @@ public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
     "installed in the execution environment.")
   private Boolean useStorageReadAPI;
 
-  private BigQuerySQLEngineConfig(@Nullable String project, @Nullable String serviceAccountType,
-                                  @Nullable String serviceFilePath, @Nullable String serviceAccountJson,
+
+  private BigQuerySQLEngineConfig(@Nullable BigQueryConnectorConfig connection, @Nullable String project,
                                   @Nullable String dataset, @Nullable String location,
                                   @Nullable String cmekKey, @Nullable String bucket) {
-    this.project = project;
-    this.serviceAccountType = serviceAccountType;
-    this.serviceFilePath = serviceFilePath;
-    this.serviceAccountJson = serviceAccountJson;
     this.dataset = dataset;
     this.location = location;
     this.cmekKey = cmekKey;
     this.bucket = bucket;
+    this.connection = connection;
   }
 
-  @Nullable
-  public String getLocation() {
-    return location;
+  private BigQuerySQLEngineConfig(@Nullable BigQueryConnectorConfig connection, @Nullable String project,
+                                  @Nullable String datasetProject, @Nullable String dataset, @Nullable String location,
+                                  @Nullable String cmekKey, @Nullable String bucket) {
+    this.dataset = dataset;
+    this.location = location;
+    this.cmekKey = cmekKey;
+    this.bucket = bucket;
+    this.connection = connection;
+  }
+
+  public BigQueryConnectorConfig getConnection() {
+    return connection;
   }
 
   public Boolean shouldRetainTables() {
@@ -148,6 +201,7 @@ public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
 
   public void validate(FailureCollector failureCollector, Map<String, String> arguments) {
     validate();
+    ConfigUtil.validateConnection(this, useConnection, connection, failureCollector);
     String bucket = getBucket();
     if (!containsMacro(NAME_BUCKET)) {
       BigQueryUtil.validateBucket(bucket, NAME_BUCKET, failureCollector);
@@ -168,6 +222,121 @@ public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
     validateCmekKeyLocation(cmekKeyName, null, location, failureCollector);
   }
 
+
+  public String getDataset() {
+    return dataset;
+  }
+
+  public String getDatasetProject() {
+    return connection == null ? null : connection.getDatasetProject();
+  }
+
+  public String getProject() {
+    if (connection == null) {
+      throw new IllegalArgumentException(
+              "Could not get project information, connection should not be null!");
+    }
+    return connection.getProject();
+  }
+
+  @Nullable
+  public String tryGetProject() {
+    return connection == null ? null : connection.tryGetProject();
+  }
+
+  @Nullable
+  public String getServiceAccount() {
+    return connection == null ? null : connection.getServiceAccount();
+  }
+
+  @Nullable
+  public Boolean isServiceAccountFilePath() {
+    return connection == null ? null : connection.isServiceAccountFilePath();
+  }
+
+  @Nullable
+  public String getServiceAccountType() {
+    return connection == null ? null : connection.getServiceAccountType();
+  }
+
+  @Nullable
+  public String getServiceAccountFilePath() {
+    return connection == null ? null : connection.getServiceAccountFilePath();
+  }
+
+  @Nullable
+  public Boolean isServiceAccountJson() {
+    return connection == null ? null : connection.isServiceAccountJson();
+  }
+
+  @Nullable
+  public String getServiceAccountJson() {
+    return connection == null ? null : connection.getServiceAccountJson();
+  }
+
+  @Nullable
+  public String getLocation() {
+    return location;
+  }
+
+  @Nullable
+  public String getBucket() {
+    if (bucket != null) {
+      bucket = bucket.trim();
+      if (bucket.isEmpty()) {
+        return null;
+      }
+      // remove the gs:// scheme from the bucket name
+      if (bucket.startsWith(SCHEME)) {
+        bucket = bucket.substring(SCHEME.length());
+      }
+    }
+    return bucket;
+  }
+
+  /* returns the bucket if it exists otherwise null.
+   */
+  private Bucket getBucketIfExists(Storage storage, String bucketName) {
+    Bucket bucket = null;
+    try {
+      bucket = storage.get(bucketName);
+    } catch (StorageException e) {
+      // If there is an exception getting bucket information during config validation, it will be ignored because
+      // service account used can be different.
+    }
+    return bucket;
+  }
+
+  public void validateCmekKeyLocation(@Nullable CryptoKeyName cmekKeyName, @Nullable String tableName,
+                                      @Nullable String location, FailureCollector failureCollector) {
+    if (cmekKeyName == null || containsMacro(NAME_DATASET) || connection == null || !connection.canConnect()
+            || containsMacro(NAME_BUCKET)) {
+      return;
+    }
+    String datasetProjectId = connection.getDatasetProject();
+    String datasetName = getDataset();
+    DatasetId datasetId = DatasetId.of(datasetProjectId, datasetName);
+    TableId tableId = tableName == null ? null : TableId.of(datasetProjectId, datasetName, tableName);
+    Credentials credentials = connection.getCredentials(failureCollector);
+    BigQuery bigQuery = GCPUtils.getBigQuery(connection.getProject(), credentials);
+    Storage storage = GCPUtils.getStorage(connection.getProject(), credentials);
+    if (bigQuery == null || storage == null) {
+      return;
+    }
+    String bucketName = getBucket();
+    Bucket bucket = bucketName == null ? null : getBucketIfExists(storage, bucketName);
+    // if bucket exists then dataset and table will be created in location of bucket if they do not exist.
+    location = bucket == null ? location : bucket.getLocation();
+    Dataset dataset = CmekUtils.validateCmekKeyAndDatasetOrTableLocation(bigQuery, datasetId, tableId, cmekKeyName,
+            location, failureCollector);
+    if (bucket == null && dataset != null) {
+      // if dataset exists then bucket will be created in the location of dataset.
+      location = dataset.getLocation();
+      GCSPath gcsPath = Strings.isNullOrEmpty(bucketName) ? null : GCSPath.from(bucketName);
+      CmekUtils.validateCmekKeyAndBucketLocation(storage, gcsPath, cmekKeyName, location, failureCollector);
+    }
+  }
+
   public static Builder builder() {
     return new Builder();
   }
@@ -176,32 +345,20 @@ public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
    * BigQuery SQlEngine configuration builder.
    */
   public static class Builder {
-    private String serviceAccountType;
-    private String serviceFilePath;
-    private String serviceAccountJson;
     private String project;
     private String dataset;
     private String cmekKey;
     private String location;
     private String bucket;
+    private BigQueryConnectorConfig connection;
+
+    public Builder setConnection(@Nullable BigQueryConnectorConfig connection) {
+      this.connection = connection;
+      return this;
+    }
 
     public Builder setProject(@Nullable String project) {
       this.project = project;
-      return this;
-    }
-
-    public Builder setServiceAccountType(@Nullable String serviceAccountType) {
-      this.serviceAccountType = serviceAccountType;
-      return this;
-    }
-
-    public Builder setServiceFilePath(@Nullable String serviceFilePath) {
-      this.serviceFilePath = serviceFilePath;
-      return this;
-    }
-
-    public Builder setServiceAccountJson(@Nullable String serviceAccountJson) {
-      this.serviceAccountJson = serviceAccountJson;
       return this;
     }
 
@@ -227,10 +384,8 @@ public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
 
     public BigQuerySQLEngineConfig build() {
       return new BigQuerySQLEngineConfig(
+        connection,
         project,
-        serviceAccountType,
-        serviceFilePath,
-        serviceAccountJson,
         dataset,
         location,
         cmekKey,
