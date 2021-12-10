@@ -5,21 +5,48 @@
   "display-name": "BigQuery Pushdown",
   "configuration-groups": [
     {
-      "label": "Basic",
+      "label": "Connection",
       "properties": [
         {
-          "widget-type": "textbox",
-          "label": "BigQuery Dataset",
-          "name": "dataset",
+          "widget-type": "toggle",
+          "label": "Use connection",
+          "name": "useConnection",
           "widget-attributes": {
-            "placeholder": "Dataset to use to store temporary tables when pipeline is run."
+            "on": {
+              "value": "true",
+              "label": "YES"
+            },
+            "off": {
+              "value": "false",
+              "label": "NO"
+            },
+            "default": "false"
           }
-        }
-      ]
-    },
-    {
-      "label": "Credentials",
-      "properties": [
+        },
+        {
+          "widget-type": "connection-select",
+          "label": "Connection",
+          "name": "connection",
+          "widget-attributes": {
+            "connectionType": "BigQuery"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Dataset Project ID",
+          "name": "datasetProject",
+          "widget-attributes": {
+            "placeholder": "Project in which the dataset is located or should be created. Defaults to Project ID."
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Project ID",
+          "name": "project",
+          "widget-attributes": {
+            "default": "auto-detect"
+          }
+        },
         {
           "name": "serviceAccountType",
           "label": "Service Account Type",
@@ -55,24 +82,30 @@
       ]
     },
     {
-      "label": "Advanced",
+      "label": "Basic",
       "properties": [
         {
           "widget-type": "textbox",
-          "label": "Project ID",
-          "name": "project",
+          "label": "BigQuery Dataset",
+          "name": "dataset",
           "widget-attributes": {
-            "default": "auto-detect"
+            "placeholder": "Dataset to use to store temporary tables when pipeline is run."
           }
         },
         {
-          "widget-type": "textbox",
-          "label": "Dataset Project ID",
-          "name": "datasetProject",
+          "label": "browse",
+          "widget-type": "connection-browser",
+          "widget-category": "plugin",
           "widget-attributes": {
-            "placeholder": "Project in which the dataset is located or should be created. Defaults to Project ID."
+            "connectionType": "BIGQUERY",
+            "label": "Browse"
           }
-        },
+        }
+      ]
+    },
+    {
+      "label": "Advanced",
+      "properties": [
         {
           "widget-type": "textbox",
           "label": "Temporary Bucket Name",
@@ -149,7 +182,7 @@
     {
       "name": "ServiceAuthenticationTypeFilePath",
       "condition": {
-        "expression": "serviceAccountType == 'filePath'"
+        "expression": "useConnection == false && serviceAccountType == 'filePath'"
       },
       "show": [
         {
@@ -161,12 +194,44 @@
     {
       "name": "ServiceAuthenticationTypeJSON",
       "condition": {
-        "expression": "serviceAccountType == 'JSON'"
+        "expression": "useConnection == false && serviceAccountType == 'JSON'"
       },
       "show": [
         {
           "type": "property",
           "name": "serviceAccountJSON"
+        }
+      ]
+    },
+    {
+      "name": "showConnectionProperties ",
+      "condition": {
+        "expression": "useConnection == false"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "project"
+        },
+        {
+          "type": "property",
+          "name": "datasetProject"
+        },
+        {
+          "type": "property",
+          "name": "serviceAccountType"
+        }
+      ]
+    },
+    {
+      "name": "showConnectionId",
+      "condition": {
+        "expression": "useConnection == true"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "connection"
         }
       ]
     }
