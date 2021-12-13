@@ -43,6 +43,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static io.cdap.plugin.utils.GCConstants.ERROR_MSG_COLOR;
@@ -56,7 +57,6 @@ import static io.cdap.plugin.utils.GCConstants.ERROR_MSG_VALIDATION;
 
 public class FileConnector implements CdfHelper {
   List<String> propertiesOutputSchema = new ArrayList<String>();
-  GcpClient gcpClient = new GcpClient();
 
   @Given("Open Datafusion Project to configure pipeline")
   public void openDatafusionProjectToConfigurePipeline() throws IOException, InterruptedException {
@@ -229,8 +229,8 @@ public class FileConnector implements CdfHelper {
   @Then("Verify the preview of pipeline is {string}")
   public void verifyThePreviewOfPipelineIs(String previewStatus) {
     WebDriverWait wait = new WebDriverWait(SeleniumDriver.getDriver(), 180);
-    wait.until(ExpectedConditions.visibilityOfElementLocated(
-      By.xpath("//*[@data-cy='valium-banner-hydrator']//span[contains(text(),'" + previewStatus + "')]")));
+    wait.until(ExpectedConditions.visibilityOf(CdfStudioLocators.statusBanner));
+    Assert.assertTrue(CdfStudioLocators.statusBannerText.getText().contains(previewStatus));
     if (!previewStatus.equalsIgnoreCase("failed")) {
       wait.until(ExpectedConditions.invisibilityOf(CdfStudioLocators.statusBanner));
     }
@@ -311,25 +311,29 @@ public class FileConnector implements CdfHelper {
 
   @Then("Get Count of no of records transferred to BigQuery in {string}")
   public void getCountOfNoOfRecordsTransferredToBigQueryIn(String tableName) throws IOException, InterruptedException {
-    int countRecords = gcpClient.countBqQuery(CdapUtils.pluginProp(tableName));
+    int countRecords = GcpClient.countBqQuery(CdapUtils.pluginProp(tableName));
     BeforeActions.scenario.write("**********No of Records Transferred******************:" + countRecords);
     Assert.assertTrue(countRecords > 0);
   }
 
   @Then("Delete the table {string}")
   public void deleteTheTable(String tableName) throws IOException, InterruptedException {
-    gcpClient.dropBqQuery(CdapUtils.pluginProp(tableName));
+    GcpClient.dropBqQuery(CdapUtils.pluginProp(tableName));
     BeforeActions.scenario.write("Table Deleted Successfully");
   }
 
   @Then("Verify output field {string} in target BigQuery table {string} contains source file path {string}")
   public void verifyOutputFieldInTargetBigQueryTableContainsSourceFilePath(
     String outputField, String targetTable, String filePath) throws IOException, InterruptedException {
-    String pathFromBQTable = GcpClient
-      .executeSelectQuery("SELECT distinct " + CdapUtils.pluginProp(outputField) + " as bucket FROM `"
+    Optional<String> result = GcpClient
+      .getSoleQueryResult("SELECT distinct " + CdapUtils.pluginProp(outputField) + " as bucket FROM `"
                             + (CdapUtils.pluginProp("projectId")) + "."
                             + (CdapUtils.pluginProp("dataset")) + "."
                             + CdapUtils.pluginProp(targetTable) + "` ");
+    String pathFromBQTable = StringUtils.EMPTY;
+    if (result.isPresent()) {
+      pathFromBQTable = result.get();
+    }
     BeforeActions.scenario.write("GCC bucket path in BQ Table :" + pathFromBQTable);
     Assert.assertEquals("file:" + CdapUtils.pluginProp(filePath), pathFromBQTable);
   }
@@ -337,11 +341,15 @@ public class FileConnector implements CdfHelper {
   @Then("Verify datatype of field {string} is overridden to data type {string} in target BigQuery table {string}")
   public void verifyDatatypeOfFieldIsOverriddenToDataTypeInTargetBigQueryTable(
     String field, String dataType, String targetTable) throws IOException, InterruptedException {
-    String dataTypeInTargetTable = GcpClient
-      .executeSelectQuery("SELECT data_type FROM `" + (CdapUtils.pluginProp("projectId")) + "."
+    Optional<String> result = GcpClient
+      .getSoleQueryResult("SELECT data_type FROM `" + (CdapUtils.pluginProp("projectId")) + "."
                             + (CdapUtils.pluginProp("dataset")) + ".INFORMATION_SCHEMA.COLUMNS` " +
                             "WHERE table_name = '" + CdapUtils.pluginProp(targetTable)
                             + "' and column_name = '" + CdapUtils.pluginProp(field) + "' ");
+    String dataTypeInTargetTable = StringUtils.EMPTY;
+    if (result.isPresent()) {
+      dataTypeInTargetTable = result.get();
+    }
     BeforeActions.scenario.write("Data type in target BQ Table :" + dataTypeInTargetTable);
     Assert.assertEquals(CdapUtils.pluginProp(dataType),
                         dataTypeInTargetTable.replace("64", StringUtils.EMPTY).toLowerCase());
