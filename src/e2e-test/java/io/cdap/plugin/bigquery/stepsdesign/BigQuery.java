@@ -45,6 +45,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static io.cdap.plugin.utils.GCConstants.ERROR_MSG_COLOR;
@@ -68,8 +69,6 @@ public class BigQuery implements CdfHelper {
       BeforeActions.scenario.write(e.toString());
     }
   }
-
-  GcpClient gcpClient = new GcpClient();
 
   @Given("Open Datafusion Project to configure pipeline")
   public void openDatafusionProjectToConfigurePipeline() throws IOException, InterruptedException {
@@ -201,8 +200,8 @@ public class BigQuery implements CdfHelper {
   @Then("Verify the preview of pipeline is {string}")
   public void verifyThePreviewOfPipelineIs(String previewStatus) {
     WebDriverWait wait = new WebDriverWait(SeleniumDriver.getDriver(), 180);
-    wait.until(ExpectedConditions.visibilityOfElementLocated(
-      By.xpath("//*[@data-cy='valium-banner-hydrator']//span[contains(text(),'" + previewStatus + "')]")));
+    wait.until(ExpectedConditions.visibilityOf(CdfStudioLocators.statusBanner));
+    Assert.assertTrue(CdfStudioLocators.statusBannerText.getText().contains(previewStatus));
     if (!previewStatus.equalsIgnoreCase("failed")) {
       wait.until(ExpectedConditions.invisibilityOf(CdfStudioLocators.statusBanner));
     }
@@ -278,7 +277,7 @@ public class BigQuery implements CdfHelper {
 
   @Then("Get Count of no of records transferred to BigQuery in {string}")
   public void getCountOfNoOfRecordsTransferredToBigQueryIn(String tableName) throws IOException, InterruptedException {
-    countRecords = gcpClient.countBqQuery(CdapUtils.pluginProp(tableName));
+    countRecords = GcpClient.countBqQuery(CdapUtils.pluginProp(tableName));
     BeforeActions.scenario.write("**********No of Records Transferred******************:" + countRecords);
     Assert.assertTrue(countRecords > 0);
   }
@@ -286,9 +285,9 @@ public class BigQuery implements CdfHelper {
   @Then("Delete the table {string}")
   public void deleteTheTable(String table) {
     try {
-      int existingRecords = gcpClient.countBqQuery(CdapUtils.pluginProp(table));
+      int existingRecords = GcpClient.countBqQuery(CdapUtils.pluginProp(table));
       if (existingRecords > 0) {
-        gcpClient.dropBqQuery(CdapUtils.pluginProp(table));
+        GcpClient.dropBqQuery(CdapUtils.pluginProp(table));
         BeforeActions.scenario.write("Table Deleted Successfully");
       }
     } catch (Exception e) {
@@ -308,38 +307,41 @@ public class BigQuery implements CdfHelper {
     String projectId = (CdapUtils.pluginProp("projectId"));
     String datasetName = (CdapUtils.pluginProp("dataset"));
     String selectQuery = "SELECT count(*)  FROM `" + projectId + "." + datasetName + "." + CdapUtils.pluginProp
-      (table) + "` WHERE " +
-      CdapUtils.pluginProp(field);
-    int count = GcpClient.executeQuery(selectQuery);
-    BeforeActions.scenario.write("number of records transferred with respect to filter:"
-                                   + count);
+      (table) + "` WHERE " + CdapUtils.pluginProp(field);
+    Optional<String> result = GcpClient.getSoleQueryResult(selectQuery);
+    int count = result.map(Integer::parseInt).orElse(0);
+    BeforeActions.scenario.write("number of records transferred with respect to filter:" + count);
     Assert.assertEquals(count, countRecords);
   }
 
   @Then("Validate partition date in output partitioned table {string}")
   public void validatePartitionDateInOutputPartitionedTable(String outputTable)
     throws IOException, InterruptedException {
-    String outputDate = GcpClient
-      .executeSelectQuery("SELECT distinct  _PARTITIONDATE as pt FROM `" +
+    Optional<String> result = GcpClient
+      .getSoleQueryResult("SELECT distinct  _PARTITIONDATE as pt FROM `" +
                             (CdapUtils.pluginProp("projectId")) + "." +
                             (CdapUtils.pluginProp("dataset")) + "." +
                             CdapUtils.pluginProp(outputTable) +
                             "` WHERE _PARTITION_LOAD_TIME IS Not NULL ORDER BY _PARTITIONDATE DESC ");
-    BeforeActions.scenario.write("partitioned in output record:" + outputDate);
+    String outputDate = StringUtils.EMPTY;
+    if (result.isPresent()) {
+      outputDate = result.get();
+    }
+    BeforeActions.scenario.write("partitioned date in output record:" + outputDate);
     Assert.assertEquals(new SimpleDateFormat("yyyy-MM-dd").format(new Date()), outputDate);
   }
 
   @Then("Validate the records are not created in output table {string}")
   public void validateTheRecordsAreNotCreatedInOutputTable(String table) throws IOException, InterruptedException {
-    countRecords = gcpClient.countBqQuery(CdapUtils.pluginProp(table));
+    countRecords = GcpClient.countBqQuery(CdapUtils.pluginProp(table));
     BeforeActions.scenario.write("**********No of Records Transferred******************:" + countRecords);
-    Assert.assertTrue(countRecords == 0);
+    Assert.assertEquals(0, countRecords);
   }
 
   @Then("Validate partitioning is not done on the output table {string}")
   public void validatePartioningIsNotDoneOnTheOutputTable(String table) throws IOException, InterruptedException {
     try {
-      String inputDate = GcpClient.executeSelectQuery("SELECT distinct  _PARTITIONDATE as pt FROM `" +
+      GcpClient.getSoleQueryResult("SELECT distinct  _PARTITIONDATE as pt FROM `" +
                                                         (CdapUtils.pluginProp("projectId"))
                                                         + "." + (CdapUtils.pluginProp("dataset")) + "." +
                                                         CdapUtils.pluginProp(table)
