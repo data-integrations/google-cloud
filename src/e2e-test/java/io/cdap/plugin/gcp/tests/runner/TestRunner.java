@@ -24,7 +24,7 @@ import org.junit.runner.RunWith;
  */
 @RunWith(Cucumber.class)
 @CucumberOptions(
-        features = {"src/e2e-test/features"},
+        features = {"src/e2e-test/features/DemoGcs.feature"},
         glue = {"io.cdap.plugin.gcp.stepsdesign", "stepsdesign"},
         monochrome = true,
         plugin = {"pretty", "html:target/cucumber-html-report", "json:target/cucumber-reports/cucumber.json",
