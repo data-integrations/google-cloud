@@ -53,6 +53,7 @@ public class BigQuerySQLEngineConfig extends PluginConfig {
   public static final String NAME_RETAIN_TABLES = "retainTables";
   public static final String NAME_TEMP_TABLE_TTL_HOURS = "tempTableTTLHours";
   public static final String NAME_JOB_PRIORITY = "jobPriority";
+  public static final String NAME_USE_STORAGE_READ_API = "useStorageReadAPI";
 
   // Job priority options
   public static final String PRIORITY_BATCH = "batch";
@@ -125,6 +126,14 @@ public class BigQuerySQLEngineConfig extends PluginConfig {
   @Nullable
   @Description("The existing connection to use.")
   protected BigQueryConnectorConfig connection;
+  @Name(NAME_USE_STORAGE_READ_API)
+  @Macro
+  @Nullable
+  @Description("Select this option to use the BigQuery Storage Read API when extracting records from BigQuery " +
+    "during pipeline execution. This option can increase the performance of the BigQuery ELT Transformation " +
+    "Pushdown execution. The usage of this API incurrs in additional costs. This requires Scala version 2.12 to be " +
+    "installed in the execution environment.")
+  private Boolean useStorageReadAPI;
 
   private BigQuerySQLEngineConfig(@Nullable String project, @Nullable String serviceAccountType,
                                   @Nullable String serviceFilePath, @Nullable String serviceAccountJson,
@@ -157,6 +166,10 @@ public class BigQuerySQLEngineConfig extends PluginConfig {
 
   public Integer getTempTableTTLHours() {
     return tempTableTTLHours != null && tempTableTTLHours > 0 ? tempTableTTLHours : 72;
+  }
+
+  public Boolean shouldUseStorageReadAPI() {
+    return useStorageReadAPI != null ? useStorageReadAPI : false;
   }
 
   public QueryJobConfiguration.Priority getJobPriority() {

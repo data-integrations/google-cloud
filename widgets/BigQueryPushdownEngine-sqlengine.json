@@ -173,6 +173,22 @@
               }
             ]
           }
+        },
+        {
+          "widget-type": "toggle",
+          "label": "Use BigQuery Storage Read API",
+          "name": "useStorageReadAPI",
+          "widget-attributes": {
+            "on": {
+              "value": "true",
+              "label": "YES"
+            },
+            "off": {
+              "value": "false",
+              "label": "NO"
+            },
+            "default": "false"
+          }
         }
       ]
     }
