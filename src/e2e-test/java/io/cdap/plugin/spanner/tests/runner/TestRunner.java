@@ -13,19 +13,19 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package io.cdap.plugin.gcp.tests.runner;
+package io.cdap.plugin.spanner.tests.runner;
 import io.cucumber.junit.Cucumber;
 import io.cucumber.junit.CucumberOptions;
 import org.junit.runner.RunWith;
 
-
 /**
- * Test Runner to execute cases.
+ * Test Runner to execute Spanner testcases.
  */
 @RunWith(Cucumber.class)
 @CucumberOptions(
-        features = {"src/e2e-test/features/DemoGcs.feature"},
-        glue = {"io.cdap.plugin.gcp.stepsdesign", "stepsdesign"},
+        features = {"src/e2e-test/features"},
+        glue = {"io.cdap.plugin.spanner.stepsdesign", "stepsdesign"},
+        tags = {"@Spanner"},
         monochrome = true,
         plugin = {"pretty", "html:target/cucumber-html-report", "json:target/cucumber-reports/cucumber.json",
           "junit:target/cucumber-reports/cucumber.xml"}
