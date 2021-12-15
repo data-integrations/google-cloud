@@ -58,6 +58,12 @@ as soon as possible and counts towards the concurrent rate limit and the daily r
 queued and started as soon as idle resources are available, usually within a few minutes. If the query hasn't
 started within 3 hours, its priority is changed to 'interactive'.
 
+**Use BigQuery Storage Read API**: The [BigQuery Storage Read API](https://cloud.google.com/bigquery/docs/reference/storage) 
+can be used to speed up the process to read records from BigQuery into Spark once the execution in BigQuery has 
+completed. This API can be used if the execution environment for this environment has **Scala 2.12** installed.
+Note that this API has an on-demand price model. See the [Pricing](https://cloud.google.com/bigquery/pricing#storage-api) 
+page for details related to pricing.
+
 **Service Account**  - service account key used for authorization
 
 * **File Path**: Path on the local file system of the service account key used for

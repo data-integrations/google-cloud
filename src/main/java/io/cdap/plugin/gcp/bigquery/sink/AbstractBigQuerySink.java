@@ -39,6 +39,7 @@ import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
+import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.CmekUtils;
 import io.cdap.plugin.gcp.common.GCPUtils;
@@ -265,6 +266,68 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
       }
     }
     collector.getOrThrowException();
+  }
+
+  /**
+   * Check that there are not more than BigQueryTypeSize.Struct.MAX_DEPTH levels in any nested record
+   *
+   * @param schema CDAP schema to check
+   * @param collector Failures will be added to this collector
+   */
+  protected void validateRecordDepth(@Nullable Schema schema, FailureCollector collector) {
+    validateRecordDepth(schema, collector, 0, null);
+  }
+
+  /**
+   * Check that there are not more than BigQueryTypeSize.Struct.MAX_DEPTH levels in any nested record
+   *
+   * @param schema CDAP schema to check
+   * @param collector Failures will be added to this collector
+   * @param depth Current level in hierarchy
+   * @param prefix Used to track hierarchy for error messages
+   */
+  private void validateRecordDepth(@Nullable Schema schema, FailureCollector collector, int depth, String prefix) {
+    // Table is created without schema, so no further validation is required.
+    if (schema == null) {
+      return;
+    }
+    if (prefix == null) {
+      prefix = "";
+    }
+
+    List<Schema.Field> fields = schema.getFields();
+    if (fields == null) {
+      return;
+    }
+
+    for (Schema.Field field: fields) {
+      String fieldName = prefix + field.getName();
+      if (depth == BigQueryTypeSize.Struct.MAX_DEPTH) {
+        collector.addFailure(
+          String.format("Field '%s' exceeds BigQuery maximum allowed depth of %d.",
+                        fieldName, BigQueryTypeSize.Struct.MAX_DEPTH),
+          "Please flatten the schema to contain fewer levels.");
+        continue;
+      }
+
+      Schema fieldSchema = BigQueryUtil.getNonNullableSchema(field.getSchema());
+      switch(fieldSchema.getType()) {
+        case RECORD:
+          validateRecordDepth(fieldSchema, collector, depth + 1, fieldName + ".");
+          break;
+        case ARRAY:
+          if (fieldSchema.getComponentSchema() == null) {
+            break;
+          }
+          Schema componentSchema = BigQueryUtil.getNonNullableSchema(fieldSchema.getComponentSchema());
+          if (componentSchema.getType() == Schema.Type.RECORD) {
+            validateRecordDepth(componentSchema, collector, depth + 1, fieldName + ".");
+          } else {
+            validateRecordDepth(componentSchema, collector, depth, fieldName + ".");
+          }
+          break;
+      }
+    }
   }
 
   /**

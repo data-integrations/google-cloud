@@ -32,6 +32,7 @@ import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.data.schema.Schema.LogicalType;
 import io.cdap.cdap.api.data.schema.Schema.Type;
 import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnectorConfig;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.CmekUtils;
 import org.slf4j.Logger;
@@ -192,10 +193,8 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
                             @Nullable String serviceAccountJson, @Nullable String dataset, @Nullable String table,
                             @Nullable String location, @Nullable String cmekKey, @Nullable String bucket) {
     this.referenceName = referenceName;
-    this.project = project;
-    this.serviceAccountType = serviceAccountType;
-    this.serviceFilePath = serviceFilePath;
-    this.serviceAccountJson = serviceAccountJson;
+    this.connection = new BigQueryConnectorConfig(project, project, serviceAccountType,
+                                                  serviceFilePath, serviceAccountJson);
     this.dataset = dataset;
     this.table = table;
     this.location = location;
@@ -679,11 +678,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
    */
   boolean shouldConnect() {
     return !containsMacro(BigQuerySinkConfig.NAME_DATASET) &&
-      !containsMacro(BigQuerySinkConfig.NAME_TABLE) &&
-      !containsMacro(NAME_SERVICE_ACCOUNT_TYPE) &&
-      !(containsMacro(NAME_SERVICE_ACCOUNT_FILE_PATH) || containsMacro(NAME_SERVICE_ACCOUNT_JSON)) &&
-      !containsMacro(BigQuerySinkConfig.NAME_PROJECT) &&
-      !containsMacro(BigQuerySinkConfig.DATASET_PROJECT_ID) &&
+      !containsMacro(BigQuerySinkConfig.NAME_TABLE) && connection != null && connection.canConnect() &&
       !containsMacro(BigQuerySinkConfig.NAME_SCHEMA);
   }
 

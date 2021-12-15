@@ -20,7 +20,7 @@
 
   <groupId>io.cdap.plugin</groupId>
   <artifactId>google-cloud</artifactId>
-  <version>0.19.0-SNAPSHOT</version>
+  <version>0.20.0-SNAPSHOT</version>
   <name>Google Cloud Plugins</name>
   <packaging>jar</packaging>
   <description>Plugins for Google Big Query</description>
@@ -72,8 +72,8 @@
     <avro.version>1.8.2</avro.version>
     <bigquery.connector.hadoop2.version>hadoop2-1.0.0</bigquery.connector.hadoop2.version>
     <commons.codec.version>1.4</commons.codec.version>
-    <cdap.version>6.6.0-SNAPSHOT</cdap.version>
-    <cdap.plugin.version>2.8.0-SNAPSHOT</cdap.plugin.version>
+    <cdap.version>6.7.0-SNAPSHOT</cdap.version>
+    <cdap.plugin.version>2.9.0-SNAPSHOT</cdap.plugin.version>
     <dropwizard.metrics-core.version>3.2.6</dropwizard.metrics-core.version>
     <flogger.system.backend.version>0.3.1</flogger.system.backend.version>
     <gcs.connector.version>hadoop2-2.0.0</gcs.connector.version>
@@ -97,6 +97,8 @@
     <powermock.version>2.0.2</powermock.version>
     <slf4j.version>1.7.5</slf4j.version>
     <spark.version>2.3.1</spark.version>
+    <spark3.version>3.1.1</spark3.version>
+    <spark-bq-connector.version>0.23.1</spark-bq-connector.version>
     <testSourceLocation>${project.basedir}/src/test/java/</testSourceLocation>
   </properties>
 
@@ -408,9 +410,9 @@
       <version>${gcs.connector.version}</version>
     </dependency>
     <dependency>
-    <groupId>com.google.cloud</groupId>
-    <artifactId>google-cloud-kms</artifactId>
-    <version>${google.cloud.kms.version}</version>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-kms</artifactId>
+      <version>${google.cloud.kms.version}</version>
     </dependency>
     <dependency>
       <groupId>com.google.protobuf</groupId>
@@ -565,6 +567,45 @@
       <artifactId>httpclient</artifactId>
       <version>${httpclient.version}</version>
     </dependency>
+    <!-- Start: dependencies used by the Spark-BigQuery connector -->
+    <dependency>
+      <groupId>io.cdap.cdap</groupId>
+      <artifactId>cdap-etl-api-spark</artifactId>
+      <version>${cdap.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.cdap.cdap</groupId>
+      <artifactId>cdap-api-spark2_2.11</artifactId>
+      <version>${cdap.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.google.cloud.spark</groupId>
+      <artifactId>spark-bigquery-with-dependencies_2.12</artifactId>
+      <version>${spark-bq-connector.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>javax.inject</groupId>
+      <artifactId>javax.inject</artifactId>
+      <version>1</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-sql_2.12</artifactId>
+      <version>${spark3.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>log4j</groupId>
+          <artifactId>log4j</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <!-- End: dependencies used by the Spark-BigQuery connector -->
   </dependencies>
 
   <build>
@@ -649,6 +690,9 @@
               org.apache.spark.streaming.pubsub*;
               org.apache.hadoop.hbase.mapreduce.*;
               org.apache.hadoop.hbase.security.token.*;
+              com.google.cloud.spark.bigquery.*;
+              org.apache.spark.sql.*;
+              org.apache.spark.internal.*;
             </_exportcontents>
           </instructions>
         </configuration>
@@ -668,8 +712,8 @@
         <version>1.1.0</version>
         <configuration>
           <cdapArtifacts>
-            <parent>system:cdap-data-pipeline[6.5.0-SNAPSHOT,7.0.0-SNAPSHOT)</parent>
-            <parent>system:cdap-data-streams[6.5.0-SNAPSHOT,7.0.0-SNAPSHOT)</parent>
+            <parent>system:cdap-data-pipeline[6.7.0-SNAPSHOT,7.0.0-SNAPSHOT)</parent>
+            <parent>system:cdap-data-streams[6.7.0-SNAPSHOT,7.0.0-SNAPSHOT)</parent>
           </cdapArtifacts>
         </configuration>
         <executions>

@@ -22,6 +22,11 @@ Properties
 ----------
 **Reference Name:** Name used to uniquely identify this sink for lineage, annotating metadata, etc.
 
+**Use Connection** Whether to use a connection. If a connection is used, you do not need to provide the credentials.
+
+**Connection** Name of the connection to use. Project and service account information will be provided by the connection.
+You also can use the macro function ${conn(connection-name)}.
+
 **Project ID:** Google Cloud Project ID, which uniquely identifies a project.
 It can be found on the Dashboard in the Google Cloud Platform Console. This is the project
 that the BigQuery job will run in. `BigQuery Job User` role on this project must be granted to the specified service

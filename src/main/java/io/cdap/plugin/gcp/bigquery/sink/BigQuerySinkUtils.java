@@ -59,6 +59,7 @@ public final class BigQuerySinkUtils {
   public static final String GS_PATH_FORMAT = "gs://%s/%s";
   private static final String TEMPORARY_BUCKET_FORMAT = GS_PATH_FORMAT + "/input/%s-%s";
   private static final String DATETIME = "DATETIME";
+  private static final String RECORD = "RECORD";
 
   /**
    * Creates the given dataset and bucket if they do not already exist. If the dataset already exists but the
@@ -272,16 +273,20 @@ public final class BigQuerySinkUtils {
     fieldSchema.setType(type.name());
     if (type == LegacySQLTypeName.RECORD) {
       List<Schema.Field> schemaFields;
-      if (Schema.Type.ARRAY == field.getSchema().getType()) {
-        schemaFields = Objects.requireNonNull(field.getSchema().getComponentSchema()).getFields();
+      Schema fieldCdapSchema = BigQueryUtil.getNonNullableSchema(field.getSchema());
+
+      // If its an Array of records we need to get the component schema of the array
+      // which will be the Record. Which can itself be nullable, and then get the fields
+      // of that record.
+      if (Schema.Type.ARRAY == fieldCdapSchema.getType()) {
+        schemaFields = Objects.requireNonNull(
+            BigQueryUtil.getNonNullableSchema(fieldCdapSchema.getComponentSchema()).getFields());
       } else {
-        schemaFields = field.getSchema().isNullable()
-          ? field.getSchema().getNonNullable().getFields()
-          : field.getSchema().getFields();
+        schemaFields = fieldCdapSchema.getFields();
       }
       fieldSchema.setFields(Objects.requireNonNull(schemaFields).stream()
-                              .map(BigQuerySinkUtils::generateTableFieldSchema)
-                              .collect(Collectors.toList()));
+          .map(BigQuerySinkUtils::generateTableFieldSchema)
+          .collect(Collectors.toList()));
 
     }
     return fieldSchema;
@@ -298,6 +303,10 @@ public final class BigQuerySinkUtils {
     return Field.Mode.REQUIRED;
   }
 
+  /**
+   * This function returns the LegacySQLTypeName that maps to the given CDAP Schema.
+   * If the CDAP Schema is an Array it will return the LegacySQLTypename of the components.
+   */
   private static LegacySQLTypeName getTableDataType(Schema schema) {
     schema = BigQueryUtil.getNonNullableSchema(schema);
     Schema.LogicalType logicalType = schema.getLogicalType();
@@ -351,6 +360,12 @@ public final class BigQuerySinkUtils {
     for (BigQueryTableFieldSchema field : fields) {
       if (DATETIME.equals(field.getType())) {
         return BigQueryFileFormat.NEWLINE_DELIMITED_JSON;
+      }
+      // If the field is a record we have to check its subfields.
+      if (RECORD.equals(field.getType())) {
+        if (getFileFormat(field.getFields()) == BigQueryFileFormat.NEWLINE_DELIMITED_JSON) {
+          return BigQueryFileFormat.NEWLINE_DELIMITED_JSON;
+        }
       }
     }
     return BigQueryFileFormat.AVRO;
