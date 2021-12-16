@@ -26,7 +26,7 @@ import io.cdap.e2e.utils.CdfHelper;
 import io.cdap.e2e.utils.GcpClient;
 import io.cdap.e2e.utils.SeleniumDriver;
 import io.cdap.e2e.utils.SeleniumHelper;
-import io.cdap.plugin.utils.CdapUtils;
+import io.cdap.plugin.utils.E2ETestUtils;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
@@ -48,10 +48,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import static io.cdap.plugin.utils.GCConstants.ERROR_MSG_COLOR;
-import static io.cdap.plugin.utils.GCConstants.ERROR_MSG_ERROR_FOUND_VALIDATION;
-import static io.cdap.plugin.utils.GCConstants.ERROR_MSG_INCORRECT_TABLE;
-import static io.cdap.plugin.utils.GCConstants.ERROR_MSG_VALIDATION;
+import static io.cdap.plugin.utils.E2ETestConstants.ERROR_MSG_COLOR;
+import static io.cdap.plugin.utils.E2ETestConstants.ERROR_MSG_ERROR_FOUND_VALIDATION;
+import static io.cdap.plugin.utils.E2ETestConstants.ERROR_MSG_INCORRECT_TABLE;
+import static io.cdap.plugin.utils.E2ETestConstants.ERROR_MSG_VALIDATION;
 
 /**
  * BigQuery related stepDesigns.
@@ -107,18 +107,18 @@ public class BigQuery implements CdfHelper {
 
   @Then("Enter the BigQuery properties for table {string}")
   public void enterTheBigQueryPropertiesForTable(String tableName) throws InterruptedException, IOException {
-    CdfBigQueryPropertiesActions.enterProjectId(CdapUtils.pluginProp("projectId"));
-    CdfBigQueryPropertiesActions.enterDatasetProjectId(CdapUtils.pluginProp("projectId"));
+    CdfBigQueryPropertiesActions.enterProjectId(E2ETestUtils.pluginProp("projectId"));
+    CdfBigQueryPropertiesActions.enterDatasetProjectId(E2ETestUtils.pluginProp("projectId"));
     CdfBigQueryPropertiesActions.enterBigQueryReferenceName("BQ_Ref_" + UUID.randomUUID().toString());
-    CdfBigQueryPropertiesActions.enterBigQueryDataset(CdapUtils.pluginProp("dataset"));
-    CdfBigQueryPropertiesActions.enterBigQueryTable(CdapUtils.pluginProp(tableName));
+    CdfBigQueryPropertiesActions.enterBigQueryDataset(E2ETestUtils.pluginProp("dataset"));
+    CdfBigQueryPropertiesActions.enterBigQueryTable(E2ETestUtils.pluginProp(tableName));
   }
 
   @Then("Enter the BigQuery Properties for table {string} with filter {string}")
   public void enterTheBigQueryPropertiesForTableWithFilter(String tableName, String filter)
     throws IOException, InterruptedException {
     enterTheBigQueryPropertiesForTable(tableName);
-    CdfBigQueryPropertiesActions.enterFilter(CdapUtils.pluginProp(filter));
+    CdfBigQueryPropertiesActions.enterFilter(E2ETestUtils.pluginProp(filter));
   }
 
   @Then("Enter the BigQuery properties for table {string} with partitionStartDate {string} " +
@@ -126,8 +126,8 @@ public class BigQuery implements CdfHelper {
   public void enterTheBigQueryPropertiesForTableWithPartitionStartDateAndPartitionEndDate
     (String tableName, String partitionStartDate, String partitionEndDate) throws IOException, InterruptedException {
     enterTheBigQueryPropertiesForTable(tableName);
-    CdfBigQueryPropertiesActions.enterPartitionStartDate(CdapUtils.pluginProp(partitionStartDate));
-    CdfBigQueryPropertiesActions.enterPartitionEndDate(CdapUtils.pluginProp(partitionEndDate));
+    CdfBigQueryPropertiesActions.enterPartitionStartDate(E2ETestUtils.pluginProp(partitionStartDate));
+    CdfBigQueryPropertiesActions.enterPartitionEndDate(E2ETestUtils.pluginProp(partitionEndDate));
   }
 
   @Then("Enter the BigQuery Target Properties for table {string}")
@@ -140,7 +140,7 @@ public class BigQuery implements CdfHelper {
   @Then("Validate Bigquery properties")
   public void validateBigqueryProperties() {
     CdfGcsActions.clickValidateButton();
-    String expectedErrorMessage = CdapUtils.errorProp(ERROR_MSG_VALIDATION);
+    String expectedErrorMessage = E2ETestUtils.errorProp(ERROR_MSG_VALIDATION);
     String actualErrorMessage = CdfStudioLocators.pluginValidationSuccessMsg.getText();
     Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
   }
@@ -171,7 +171,7 @@ public class BigQuery implements CdfHelper {
     CdfGcsActions.gcsProperties();
     CdfGcsActions.enterReferenceName();
     CdfGcsActions.enterProjectId();
-    CdfGcsActions.getGcsBucket(CdapUtils.pluginProp("bqGcsBucketName"));
+    CdfGcsActions.getGcsBucket(E2ETestUtils.pluginProp("bqGcsBucketName"));
     CdfGcsActions.selectFormat("json");
     CdfStudioActions.clickValidateButton();
   }
@@ -263,10 +263,6 @@ public class BigQuery implements CdfHelper {
   @Then("Open the Logs and capture raw logs")
   public void openTheLogsAndCaptureRawLogs() throws FileNotFoundException, InterruptedException {
     CdfPipelineRunAction.logsClick();
-    rawLog = CdfPipelineRunAction.captureRawLogs();
-    BeforeActions.scenario.write(rawLog);
-    out.println(rawLog);
-    out.close();
   }
 
   @Then("Validate the output record count")
@@ -277,7 +273,7 @@ public class BigQuery implements CdfHelper {
 
   @Then("Get Count of no of records transferred to BigQuery in {string}")
   public void getCountOfNoOfRecordsTransferredToBigQueryIn(String tableName) throws IOException, InterruptedException {
-    countRecords = GcpClient.countBqQuery(CdapUtils.pluginProp(tableName));
+    countRecords = GcpClient.countBqQuery(E2ETestUtils.pluginProp(tableName));
     BeforeActions.scenario.write("**********No of Records Transferred******************:" + countRecords);
     Assert.assertTrue(countRecords > 0);
   }
@@ -285,9 +281,9 @@ public class BigQuery implements CdfHelper {
   @Then("Delete the table {string}")
   public void deleteTheTable(String table) {
     try {
-      int existingRecords = GcpClient.countBqQuery(CdapUtils.pluginProp(table));
+      int existingRecords = GcpClient.countBqQuery(E2ETestUtils.pluginProp(table));
       if (existingRecords > 0) {
-        GcpClient.dropBqQuery(CdapUtils.pluginProp(table));
+        GcpClient.dropBqQuery(E2ETestUtils.pluginProp(table));
         BeforeActions.scenario.write("Table Deleted Successfully");
       }
     } catch (Exception e) {
@@ -304,10 +300,10 @@ public class BigQuery implements CdfHelper {
     "total no of records")
   public void validateRecordTransferredFromOnTheBasisOfIsEqualToTheTotalNoOfRecords
     (String table, String field) throws IOException, InterruptedException {
-    String projectId = (CdapUtils.pluginProp("projectId"));
-    String datasetName = (CdapUtils.pluginProp("dataset"));
-    String selectQuery = "SELECT count(*)  FROM `" + projectId + "." + datasetName + "." + CdapUtils.pluginProp
-      (table) + "` WHERE " + CdapUtils.pluginProp(field);
+    String projectId = (E2ETestUtils.pluginProp("projectId"));
+    String datasetName = (E2ETestUtils.pluginProp("dataset"));
+    String selectQuery = "SELECT count(*)  FROM `" + projectId + "." + datasetName + "." + E2ETestUtils.pluginProp
+      (table) + "` WHERE " + E2ETestUtils.pluginProp(field);
     Optional<String> result = GcpClient.getSoleQueryResult(selectQuery);
     int count = result.map(Integer::parseInt).orElse(0);
     BeforeActions.scenario.write("number of records transferred with respect to filter:" + count);
@@ -319,9 +315,9 @@ public class BigQuery implements CdfHelper {
     throws IOException, InterruptedException {
     Optional<String> result = GcpClient
       .getSoleQueryResult("SELECT distinct  _PARTITIONDATE as pt FROM `" +
-                            (CdapUtils.pluginProp("projectId")) + "." +
-                            (CdapUtils.pluginProp("dataset")) + "." +
-                            CdapUtils.pluginProp(outputTable) +
+                            (E2ETestUtils.pluginProp("projectId")) + "." +
+                            (E2ETestUtils.pluginProp("dataset")) + "." +
+                            E2ETestUtils.pluginProp(outputTable) +
                             "` WHERE _PARTITION_LOAD_TIME IS Not NULL ORDER BY _PARTITIONDATE DESC ");
     String outputDate = StringUtils.EMPTY;
     if (result.isPresent()) {
@@ -333,7 +329,7 @@ public class BigQuery implements CdfHelper {
 
   @Then("Validate the records are not created in output table {string}")
   public void validateTheRecordsAreNotCreatedInOutputTable(String table) throws IOException, InterruptedException {
-    countRecords = GcpClient.countBqQuery(CdapUtils.pluginProp(table));
+    countRecords = GcpClient.countBqQuery(E2ETestUtils.pluginProp(table));
     BeforeActions.scenario.write("**********No of Records Transferred******************:" + countRecords);
     Assert.assertEquals(0, countRecords);
   }
@@ -342,9 +338,9 @@ public class BigQuery implements CdfHelper {
   public void validatePartioningIsNotDoneOnTheOutputTable(String table) throws IOException, InterruptedException {
     try {
       GcpClient.getSoleQueryResult("SELECT distinct  _PARTITIONDATE as pt FROM `" +
-                                                        (CdapUtils.pluginProp("projectId"))
-                                                        + "." + (CdapUtils.pluginProp("dataset")) + "." +
-                                                        CdapUtils.pluginProp(table)
+                                                        (E2ETestUtils.pluginProp("projectId"))
+                                                        + "." + (E2ETestUtils.pluginProp("dataset")) + "." +
+                                                        E2ETestUtils.pluginProp(table)
                                                         + "` WHERE _PARTITION_LOAD_TIME IS Not NULL ");
     } catch (Exception e) {
       String partitionException = e.toString();
@@ -356,14 +352,14 @@ public class BigQuery implements CdfHelper {
   @Then("Enter the BigQuery Properties with blank property {string}")
   public void enterTheBigQueryPropertiesWithBlankProperty(String property) throws IOException {
     if (property.equalsIgnoreCase("referenceName")) {
-      CdfBigQueryPropertiesActions.enterBigQueryDataset(CdapUtils.pluginProp("dataset"));
-      CdfBigQueryPropertiesActions.enterBigQueryTable(CdapUtils.pluginProp("bqTableName"));
+      CdfBigQueryPropertiesActions.enterBigQueryDataset(E2ETestUtils.pluginProp("dataset"));
+      CdfBigQueryPropertiesActions.enterBigQueryTable(E2ETestUtils.pluginProp("bqTableName"));
     } else if (property.equalsIgnoreCase("dataset")) {
       CdfBigQueryPropertiesActions.enterBigQueryReferenceName("BQ_" + UUID.randomUUID().toString());
-      CdfBigQueryPropertiesActions.enterBigQueryTable(CdapUtils.pluginProp("bqTableName"));
+      CdfBigQueryPropertiesActions.enterBigQueryTable(E2ETestUtils.pluginProp("bqTableName"));
     } else if (property.equalsIgnoreCase("table")) {
       CdfBigQueryPropertiesActions.enterBigQueryReferenceName("BQ_" + UUID.randomUUID().toString());
-      CdfBigQueryPropertiesActions.enterBigQueryDataset(CdapUtils.pluginProp("dataset"));
+      CdfBigQueryPropertiesActions.enterBigQueryDataset(E2ETestUtils.pluginProp("dataset"));
     }
   }
 
@@ -371,7 +367,7 @@ public class BigQuery implements CdfHelper {
   public void validateMandatoryPropertyErrorFor(String property) {
     CdfStudioActions.clickValidateButton();
     SeleniumHelper.waitElementIsVisible(CdfStudioLocators.validateButton, 5L);
-    CdapUtils.validateMandatoryPropertyError(property);
+    E2ETestUtils.validateMandatoryPropertyError(property);
   }
 
   @Then("Enter the BigQuery Properties with incorrect property {string} value {string}")
@@ -379,11 +375,14 @@ public class BigQuery implements CdfHelper {
     throws IOException, InterruptedException {
     enterTheBigQueryPropertiesForTable("bqTableName");
     if (property.equalsIgnoreCase("dataset")) {
-      SeleniumHelper.replaceElementValue(CdfBigQueryPropertiesLocators.bigQueryDataSet, CdapUtils.pluginProp(value));
+      SeleniumHelper.replaceElementValue(CdfBigQueryPropertiesLocators.bigQueryDataSet,
+                                         E2ETestUtils.pluginProp(value));
     } else if (property.equalsIgnoreCase("table")) {
-      SeleniumHelper.replaceElementValue(CdfBigQueryPropertiesLocators.bigQueryTable, CdapUtils.pluginProp(value));
+      SeleniumHelper.replaceElementValue(CdfBigQueryPropertiesLocators.bigQueryTable,
+                                         E2ETestUtils.pluginProp(value));
     } else if (property.equalsIgnoreCase("datasetProject")) {
-      SeleniumHelper.replaceElementValue(CdfBigQueryPropertiesLocators.datasetProjectID, CdapUtils.pluginProp(value));
+      SeleniumHelper.replaceElementValue(CdfBigQueryPropertiesLocators.datasetProjectID,
+                                         E2ETestUtils.pluginProp(value));
     }
   }
 
@@ -393,21 +392,21 @@ public class BigQuery implements CdfHelper {
     SeleniumHelper.waitElementIsVisible(CdfBigQueryPropertiesLocators.getSchemaButton, 5L);
     String tableFullName = StringUtils.EMPTY;
     if (property.equalsIgnoreCase("dataset")) {
-      tableFullName = CdapUtils.pluginProp("projectId") + ":" + CdapUtils.pluginProp(value)
-        + "." + CdapUtils.pluginProp("bqTableName");
+      tableFullName = E2ETestUtils.pluginProp("projectId") + ":" + E2ETestUtils.pluginProp(value)
+        + "." + E2ETestUtils.pluginProp("bqTableName");
     } else if (property.equalsIgnoreCase("table")) {
-      tableFullName = CdapUtils.pluginProp("projectId") + ":" + CdapUtils.pluginProp("dataset")
-        + "." + CdapUtils.pluginProp(value);
+      tableFullName = E2ETestUtils.pluginProp("projectId") + ":" + E2ETestUtils.pluginProp("dataset")
+        + "." + E2ETestUtils.pluginProp(value);
     } else if (property.equalsIgnoreCase("datasetProject")) {
-      tableFullName = CdapUtils.pluginProp(value) + ":" + CdapUtils.pluginProp("dataset")
-        + "." + CdapUtils.pluginProp("bqTableName");
+      tableFullName = E2ETestUtils.pluginProp(value) + ":" + E2ETestUtils.pluginProp("dataset")
+        + "." + E2ETestUtils.pluginProp("bqTableName");
     }
-    String expectedErrorMessage = CdapUtils.errorProp(ERROR_MSG_INCORRECT_TABLE)
+    String expectedErrorMessage = E2ETestUtils.errorProp(ERROR_MSG_INCORRECT_TABLE)
       .replaceAll("TABLENAME", tableFullName);
-    String actualErrorMessage = CdapUtils.findPropertyErrorElement("table").getText();
+    String actualErrorMessage = E2ETestUtils.findPropertyErrorElement("table").getText();
     Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
-    String actualColor = CdapUtils.getErrorColor(CdapUtils.findPropertyErrorElement("table"));
-    String expectedColor = CdapUtils.errorProp(ERROR_MSG_COLOR);
+    String actualColor = E2ETestUtils.getErrorColor(E2ETestUtils.findPropertyErrorElement("table"));
+    String expectedColor = E2ETestUtils.errorProp(ERROR_MSG_COLOR);
     Assert.assertEquals(expectedColor, actualColor);
   }
 
@@ -416,10 +415,11 @@ public class BigQuery implements CdfHelper {
     throws IOException, InterruptedException {
     enterTheBigQueryPropertiesForTable("bqTableName");
     if (field.equalsIgnoreCase("datasetProject")) {
-      SeleniumHelper.replaceElementValue(CdfBigQueryPropertiesLocators.datasetProjectID, CdapUtils.pluginProp(value));
+      SeleniumHelper.replaceElementValue(CdfBigQueryPropertiesLocators.datasetProjectID,
+                                         E2ETestUtils.pluginProp(value));
     } else if (field.equalsIgnoreCase("project")) {
       SeleniumHelper.replaceElementValue(CdfBigQueryPropertiesLocators.datasetProjectID, "");
-      SeleniumHelper.replaceElementValue(CdfBigQueryPropertiesLocators.projectID, CdapUtils.pluginProp(value));
+      SeleniumHelper.replaceElementValue(CdfBigQueryPropertiesLocators.projectID, E2ETestUtils.pluginProp(value));
     }
   }
 
@@ -427,7 +427,7 @@ public class BigQuery implements CdfHelper {
   public void verifyPluginPropertiesValidationFailsWithError() {
     CdfStudioActions.clickValidateButton();
     SeleniumHelper.waitElementIsVisible(CdfStudioLocators.validateButton, 5L);
-    String expectedErrorMessage = CdapUtils.errorProp(ERROR_MSG_ERROR_FOUND_VALIDATION);
+    String expectedErrorMessage = E2ETestUtils.errorProp(ERROR_MSG_ERROR_FOUND_VALIDATION);
     String actualErrorMessage = CdfStudioLocators.pluginValidationErrorMsg.getText();
     Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
   }
