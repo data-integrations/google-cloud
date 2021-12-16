@@ -16,9 +16,16 @@
 
 package io.cdap.plugin.gcp.bigquery.sink;
 
+import com.google.cloud.bigquery.LegacySQLTypeName;
+import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
+import io.cdap.cdap.api.data.schema.Schema;
+
+import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize;
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.List;
 
 /**
  * Test for {@link BigQuerySinkUtils}
@@ -48,4 +55,50 @@ public class BigQuerySinkUtilsTest {
     Assert.assertTrue(configuration.getBoolean("fs.gs.impl.disable.cache", false));
     Assert.assertFalse(configuration.getBoolean("fs.gs.metadata.cache.enable", true));
   }
+
+  @Test
+  public void testNumericPrecision() {
+    List<BigQueryTableFieldSchema> bqSchema;
+
+    // Maximum Numeric precision and scale.
+    bqSchema = BigQuerySinkUtils.getBigQueryTableFieldsFromSchema(
+      Schema.recordOf("testName", Schema.Field.of(
+        "testField", Schema.decimalOf(BigQueryTypeSize.Numeric.PRECISION, BigQueryTypeSize.Numeric.SCALE)
+      )));
+    Assert.assertEquals(bqSchema.get(0).getType(), LegacySQLTypeName.NUMERIC.toString());
+
+    // Precision higher than Numeric
+    bqSchema = BigQuerySinkUtils.getBigQueryTableFieldsFromSchema(
+      Schema.recordOf("testName", Schema.Field.of(
+        "testField", Schema.decimalOf(BigQueryTypeSize.Numeric.PRECISION + 1,
+                                      BigQueryTypeSize.Numeric.SCALE)
+      )));
+    Assert.assertEquals(bqSchema.get(0).getType(), LegacySQLTypeName.BIGNUMERIC.toString());
+
+    // Scale higher than Numeric
+    bqSchema = BigQuerySinkUtils.getBigQueryTableFieldsFromSchema(
+      Schema.recordOf("testName", Schema.Field.of(
+        "testField", Schema.decimalOf(BigQueryTypeSize.Numeric.PRECISION,
+                                      BigQueryTypeSize.Numeric.SCALE + 1)
+      )));
+    Assert.assertEquals(bqSchema.get(0).getType(), LegacySQLTypeName.BIGNUMERIC.toString());
+
+    // Precision and Scale higher than Numeric
+    bqSchema = BigQuerySinkUtils.getBigQueryTableFieldsFromSchema(
+      Schema.recordOf("testName", Schema.Field.of(
+        "testField", Schema.decimalOf(BigQueryTypeSize.Numeric.PRECISION + 1,
+                                      BigQueryTypeSize.Numeric.SCALE + 1)
+      )));
+    Assert.assertEquals(bqSchema.get(0).getType(), LegacySQLTypeName.BIGNUMERIC.toString());
+
+    // Difference between Precision and Scale larger than Numeric max difference.
+    bqSchema = BigQuerySinkUtils.getBigQueryTableFieldsFromSchema(
+      Schema.recordOf("testName", Schema.Field.of(
+        "testField", Schema.decimalOf(BigQueryTypeSize.Numeric.PRECISION,
+                                      BigQueryTypeSize.Numeric.SCALE - 1)
+      )));
+    Assert.assertEquals(bqSchema.get(0).getType(), LegacySQLTypeName.BIGNUMERIC.toString());
+  }
+
+
 }
