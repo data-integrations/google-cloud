@@ -33,15 +33,6 @@ public class CdfCloudSqlPostGreSqlLocators {
     @FindBy(how = How.XPATH, using = "//*[text()='Sink ']")
     public static WebElement sink;
 
-    @FindBy(how = How.XPATH, using = "//*[contains(@class,'plugin-endpoint_CloudSQL-PostgreSQL')]")
-    public static WebElement fromCloudSqlPsqlSource;
-
-    @FindBy(how = How.XPATH, using = "//*[contains(@class,'plugin-endpoint_BigQuery')]")
-    public static WebElement fromBigQuerySource;
-
-    @FindBy(how = How.XPATH, using = "//*[@title=\"CloudSQL MySQL\"]//following-sibling::div")
-    public static WebElement toCloudSqlMysqlSink;
-
     @FindBy(how = How.XPATH, using = "//*[@data-cy='referenceName' and @class='MuiInputBase-input']")
     public static WebElement referenceName;
 
@@ -172,4 +163,7 @@ public class CdfCloudSqlPostGreSqlLocators {
     @FindBy(how = How.XPATH, using = "//*[@placeholder='Add a comment']")
     public static WebElement addCommentSink;
 
+    @FindBy(how = How.XPATH, using = "//*[@data-cy='CloudSQLPostgreSQL-preview-data-btn' and " +
+      "@class='node-preview-data-btn ng-scope']")
+    public static WebElement previewData;
 }
