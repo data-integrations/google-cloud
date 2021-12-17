@@ -31,11 +31,13 @@ import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.format.StructuredRecord;
-import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.engine.sql.BatchSQLEngine;
 import io.cdap.cdap.etl.api.engine.sql.SQLEngineException;
+import io.cdap.cdap.etl.api.engine.sql.capability.DefaultPullCapability;
+import io.cdap.cdap.etl.api.engine.sql.capability.PullCapability;
 import io.cdap.cdap.etl.api.engine.sql.dataset.SQLDataset;
+import io.cdap.cdap.etl.api.engine.sql.dataset.SQLDatasetProducer;
 import io.cdap.cdap.etl.api.engine.sql.dataset.SQLPullDataset;
 import io.cdap.cdap.etl.api.engine.sql.dataset.SQLPushDataset;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLJoinDefinition;
@@ -59,10 +61,13 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 /**
  * SQL Engine implementation using BigQuery as the execution engine.
@@ -279,6 +284,29 @@ public class BigQuerySQLEngine
     datasets.put(sqlJoinRequest.getDatasetName(), joinDataset);
 
     return joinDataset;
+  }
+
+  @Nullable
+  @Override
+  public SQLDatasetProducer getProducer(SQLPullRequest pullRequest, PullCapability capability) {
+    // We only support the Spark RDD pull capability if the Storage Read API is enabled.
+    if (!sqlEngineConfig.shouldUseStorageReadAPI() || !(capability == DefaultPullCapability.SPARK_RDD_PULL)) {
+      return null;
+    }
+
+    String table = datasets.get(pullRequest.getDatasetName()).getBigQueryTableName();
+
+    return new BigQuerySparkDatasetProducer(sqlEngineConfig, datasetProject, dataset, table);
+  }
+
+  @Override
+  public Set<PullCapability> getPullCapabilities() {
+    // If the Storage Read API is not enabled, skip this.
+    if (!sqlEngineConfig.shouldUseStorageReadAPI()) {
+      return Collections.emptySet();
+    }
+
+    return Collections.singleton(DefaultPullCapability.SPARK_RDD_PULL);
   }
 
   @Override
