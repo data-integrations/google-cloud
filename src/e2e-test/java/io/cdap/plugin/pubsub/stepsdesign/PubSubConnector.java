@@ -33,6 +33,7 @@ import io.cdap.plugin.utils.E2ETestUtils;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.Assert;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebElement;
@@ -46,7 +47,12 @@ import java.util.List;
 import java.util.UUID;
 
 import static io.cdap.plugin.utils.E2ETestConstants.ERROR_MSG_COLOR;
+import static io.cdap.plugin.utils.E2ETestConstants.ERROR_MSG_PUBSUB_DELAY_THRESHOLD;
+import static io.cdap.plugin.utils.E2ETestConstants.ERROR_MSG_PUBSUB_ERROR_THRESHOLD;
 import static io.cdap.plugin.utils.E2ETestConstants.ERROR_MSG_PUBSUB_INVALID_ADVANCED_FIELDS;
+import static io.cdap.plugin.utils.E2ETestConstants.ERROR_MSG_PUBSUB_MAX_BATCH_COUNT;
+import static io.cdap.plugin.utils.E2ETestConstants.ERROR_MSG_PUBSUB_MAX_BATCH_SIZE;
+import static io.cdap.plugin.utils.E2ETestConstants.ERROR_MSG_PUBSUB_RETRY_TIMEOUT;
 import static io.cdap.plugin.utils.E2ETestConstants.ERROR_MSG_VALIDATION;
 import static org.junit.Assert.assertTrue;
 
@@ -214,19 +220,19 @@ public class PubSubConnector implements CdfHelper {
   public void enterThePubSubAdvancedPropertiesWithIncorrectProperty(String property) {
     if (property.equalsIgnoreCase("messageCountBatchSize")) {
       SeleniumHelper.replaceElementValue(PubSubLocators.maximumBatchcount,
-                                         E2ETestUtils.pluginProp("pubSubIncorrectMaximumBatchCount"));
+                                         E2ETestUtils.pluginProp("pubSubStringValue"));
     } else if (property.equalsIgnoreCase("requestThresholdKB")) {
       SeleniumHelper.replaceElementValue(PubSubLocators.maximumBatchSize,
-                                         E2ETestUtils.pluginProp("pubSubIncorrectMaximumBatchSize"));
+                                         E2ETestUtils.pluginProp("pubSubStringValue"));
     } else if (property.equalsIgnoreCase("publishDelayThresholdMillis")) {
       SeleniumHelper.replaceElementValue(PubSubLocators.publishDelayThreshold,
-                                         E2ETestUtils.pluginProp("pubSubIncorrectPublishDelayThreshold"));
+                                         E2ETestUtils.pluginProp("pubSubStringValue"));
     } else if (property.equalsIgnoreCase("retryTimeoutSeconds")) {
       SeleniumHelper.replaceElementValue(PubSubLocators.retryTimeout,
-                                         E2ETestUtils.pluginProp("pubSubIncorrectRetryTimeOut"));
+                                         E2ETestUtils.pluginProp("pubSubStringValue"));
     } else if (property.equalsIgnoreCase("errorThreshold")) {
       SeleniumHelper.replaceElementValue(PubSubLocators.errorThreshold,
-                                         E2ETestUtils.pluginProp("pubSubIncorrectErrorThreshold"));
+                                         E2ETestUtils.pluginProp("pubSubStringValue"));
     }
   }
 
@@ -242,6 +248,48 @@ public class PubSubConnector implements CdfHelper {
     Assert.assertEquals(expectedColor, actualColor);
   }
 
+  @Then("Enter the PubSub advanced properties with invalid number for property {string}")
+  public void enterThePubSubAdvancedPropertiesWithInvalidNumberForProperty(String property) {
+    if (property.equalsIgnoreCase("messageCountBatchSize")) {
+      SeleniumHelper.replaceElementValue(PubSubLocators.maximumBatchcount,
+                                         E2ETestUtils.pluginProp("pubSubNegativeValue"));
+    } else if (property.equalsIgnoreCase("requestThresholdKB")) {
+      SeleniumHelper.replaceElementValue(PubSubLocators.maximumBatchSize,
+                                         E2ETestUtils.pluginProp("pubSubNegativeValue"));
+    } else if (property.equalsIgnoreCase("publishDelayThresholdMillis")) {
+      SeleniumHelper.replaceElementValue(PubSubLocators.publishDelayThreshold,
+                                         E2ETestUtils.pluginProp("pubSubNegativeValue"));
+    } else if (property.equalsIgnoreCase("retryTimeoutSeconds")) {
+      SeleniumHelper.replaceElementValue(PubSubLocators.retryTimeout,
+                                         E2ETestUtils.pluginProp("pubSubNegativeValue"));
+    } else if (property.equalsIgnoreCase("errorThreshold")) {
+      SeleniumHelper.replaceElementValue(PubSubLocators.errorThreshold,
+                                         E2ETestUtils.pluginProp("pubSubNegativeValue"));
+    }
+  }
+
+  @Then("Validate the number format error message for property {string}")
+  public void validateTheNumberFormatErrorMessageForProperty(String property) {
+    CdfStudioActions.clickValidateButton();
+    String expectedErrorMessage = StringUtils.EMPTY;
+    if (property.equalsIgnoreCase("messageCountBatchSize")) {
+      expectedErrorMessage = E2ETestUtils.errorProp(ERROR_MSG_PUBSUB_MAX_BATCH_COUNT);
+    } else if (property.equalsIgnoreCase("requestThresholdKB")) {
+      expectedErrorMessage = E2ETestUtils.errorProp(ERROR_MSG_PUBSUB_MAX_BATCH_SIZE);
+    } else if (property.equalsIgnoreCase("publishDelayThresholdMillis")) {
+      expectedErrorMessage = E2ETestUtils.errorProp(ERROR_MSG_PUBSUB_DELAY_THRESHOLD);
+    } else if (property.equalsIgnoreCase("retryTimeoutSeconds")) {
+      expectedErrorMessage = E2ETestUtils.errorProp(ERROR_MSG_PUBSUB_RETRY_TIMEOUT);
+    } else if (property.equalsIgnoreCase("errorThreshold")) {
+      expectedErrorMessage = E2ETestUtils.errorProp(ERROR_MSG_PUBSUB_ERROR_THRESHOLD);
+    }
+    String actualErrorMessage = E2ETestUtils.findPropertyErrorElement(property).getText();
+    Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
+    String actualColor = E2ETestUtils.getErrorColor(E2ETestUtils.findPropertyErrorElement(property));
+    String expectedColor = E2ETestUtils.errorProp(ERROR_MSG_COLOR);
+    Assert.assertEquals(expectedColor, actualColor);
+  }
+  
   @Then("Get Schema for GCS")
   public void getSchemaForGCS() {
     CdfGcsActions.getSchema();

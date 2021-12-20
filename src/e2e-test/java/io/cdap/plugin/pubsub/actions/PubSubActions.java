@@ -58,7 +58,7 @@ public class PubSubActions {
   public static void selectFormat(String formatType) {
    PubSubLocators.format.click();
     SeleniumHelper.waitAndClick(SeleniumDriver.getDriver().
-                                  findElement(By.xpath("//*[contains(text(),'" + formatType + "')]")));
+                                  findElement(By.xpath("//li[text()='" + formatType + "']")));
   }
 
   public static void enterMaximumBatchCount(String maximumBatchcount) {

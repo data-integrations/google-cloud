@@ -27,3 +27,19 @@ Feature: Verify PubSub Plugin error Scenarios
       | publishDelayThresholdMillis |
       | retryTimeoutSeconds         |
       | errorThreshold              |
+
+  @PubSub
+  Scenario Outline: Verify errors for negative values  pubsub advanced properties
+    Given Open Datafusion Project to configure pipeline
+    When Target is PubSub
+    Then Open the PubSub Properties
+    Then Enter the PubSub Properties for topic "pubSubTopic" and format "csv"
+    Then Enter the PubSub advanced properties with invalid number for property "<Property>"
+    Then Validate the number format error message for property "<Property>"
+    Examples:
+      | Property                    |
+      | messageCountBatchSize       |
+      | requestThresholdKB          |
+      | publishDelayThresholdMillis |
+      | retryTimeoutSeconds         |
+      | errorThreshold              |
