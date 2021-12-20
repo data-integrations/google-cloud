@@ -1,6 +1,6 @@
 Feature: Verification of BQ to PubSub successful data transfer
 
-  @PubSub
+ @PubSub
   Scenario: To verify data is getting transferred from BQ to PubSub
     Given Open Datafusion Project to configure pipeline
     When  Source is BigQuery
