@@ -14,7 +14,7 @@
  * the License.
  */
 
-package io.cdap.plugin.pubsub.stepsdesign;
+package io.cdap.plugin.pubsubsink.stepsdesign;
 
 import io.cdap.e2e.pages.actions.CdfBigQueryPropertiesActions;
 import io.cdap.e2e.pages.actions.CdfGcsActions;
@@ -24,11 +24,11 @@ import io.cdap.e2e.pages.actions.CdfStudioActions;
 import io.cdap.e2e.pages.locators.CdfGCSLocators;
 import io.cdap.e2e.pages.locators.CdfStudioLocators;
 import io.cdap.e2e.utils.CdfHelper;
-import io.cdap.e2e.utils.GcpClient;
 import io.cdap.e2e.utils.SeleniumDriver;
 import io.cdap.e2e.utils.SeleniumHelper;
-import io.cdap.plugin.pubsub.actions.PubSubActions;
-import io.cdap.plugin.pubsub.locators.PubSubLocators;
+import io.cdap.plugin.pubsubsink.actions.PubSubActions;
+import io.cdap.plugin.pubsubsink.locators.PubSubLocators;
+import io.cdap.plugin.utils.E2ETestConstants;
 import io.cdap.plugin.utils.E2ETestUtils;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
@@ -39,30 +39,18 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
-import stepsdesign.BeforeActions;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-import static io.cdap.plugin.utils.E2ETestConstants.ERROR_MSG_COLOR;
-import static io.cdap.plugin.utils.E2ETestConstants.ERROR_MSG_PUBSUB_DELAY_THRESHOLD;
-import static io.cdap.plugin.utils.E2ETestConstants.ERROR_MSG_PUBSUB_ERROR_THRESHOLD;
-import static io.cdap.plugin.utils.E2ETestConstants.ERROR_MSG_PUBSUB_INVALID_ADVANCED_FIELDS;
-import static io.cdap.plugin.utils.E2ETestConstants.ERROR_MSG_PUBSUB_MAX_BATCH_COUNT;
-import static io.cdap.plugin.utils.E2ETestConstants.ERROR_MSG_PUBSUB_MAX_BATCH_SIZE;
-import static io.cdap.plugin.utils.E2ETestConstants.ERROR_MSG_PUBSUB_RETRY_TIMEOUT;
-import static io.cdap.plugin.utils.E2ETestConstants.ERROR_MSG_VALIDATION;
-import static org.junit.Assert.assertTrue;
-
 /**
  * PubSub connector related step design.
  */
 
 public class PubSubConnector implements CdfHelper {
-  List<String> propertiesOutputSchema = new ArrayList<String>();
-  GcpClient gcpClient = new GcpClient();
+  List<String> propertiesSchemaColumnList = new ArrayList<>();
 
   @Given("Open Datafusion Project to configure pipeline")
   public void openDatafusionProjectToConfigurePipeline() throws IOException, InterruptedException {
@@ -81,7 +69,10 @@ public class PubSubConnector implements CdfHelper {
 
   @Then("Link Source as {string} and Sink as {string} to establish connection")
   public void linkSourceAsAndSinkAsToEstablishConnection(String source, String sink) {
-    CdfStudioActions.connectSourceAndSink(source, sink);
+    if (sink.equalsIgnoreCase("Pub/Sub")) {
+      sink = "GooglePublisher";
+    }
+    PubSubActions.connectSourceAndSink(source, sink);
   }
 
   @Then("Enter the GCS Properties for {string} GCS bucket with format {string}")
@@ -104,7 +95,7 @@ public class PubSubConnector implements CdfHelper {
   public void validateTheGCSProperties() {
     CdfStudioActions.clickValidateButton();
     SeleniumHelper.waitElementIsVisible(CdfStudioLocators.pluginValidationSuccessMsg, 10L);
-    String expectedErrorMessage = E2ETestUtils.errorProp(ERROR_MSG_VALIDATION);
+    String expectedErrorMessage = E2ETestUtils.errorProp(E2ETestConstants.ERROR_MSG_VALIDATION);
     String actualErrorMessage = CdfStudioLocators.pluginValidationSuccessMsg.getText();
     Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
   }
@@ -118,9 +109,9 @@ public class PubSubConnector implements CdfHelper {
     SeleniumHelper.waitElementIsVisible(SeleniumDriver.getDriver().findElement(schemaXpath), 2L);
     List<WebElement> propertiesOutputSchemaElements = SeleniumDriver.getDriver().findElements(schemaXpath);
     for (WebElement element : propertiesOutputSchemaElements) {
-      propertiesOutputSchema.add(element.getAttribute("value"));
+      propertiesSchemaColumnList.add(element.getAttribute("value"));
     }
-    Assert.assertTrue(propertiesOutputSchema.size() >= 1);
+    Assert.assertTrue(propertiesSchemaColumnList.size() >= 1);
   }
 
   @Then("Close the GCS Properties")
@@ -130,7 +121,7 @@ public class PubSubConnector implements CdfHelper {
 
   @Then("Open the PubSub Properties")
   public void openThePubSubProperties() {
-    CdfStudioActions.clickProperties("Pub/Sub");
+    PubSubActions.clickPluginProperties("GooglePublisher");
   }
 
   @Then("Enter the PubSub Properties for topic {string} and format {string}")
@@ -154,7 +145,7 @@ public class PubSubConnector implements CdfHelper {
   public void validateThePubSubProperties() {
     PubSubActions.validate();
     SeleniumHelper.waitElementIsVisible(PubSubLocators.pluginValidationSuccessMsg, 10L);
-    String expectedErrorMessage = E2ETestUtils.errorProp(ERROR_MSG_VALIDATION);
+    String expectedErrorMessage = E2ETestUtils.errorProp(E2ETestConstants.ERROR_MSG_VALIDATION);
     String actualErrorMessage = CdfStudioLocators.pluginValidationSuccessMsg.getText();
     Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
   }
@@ -192,7 +183,7 @@ public class PubSubConnector implements CdfHelper {
   public void verifyThePipelineStatusIs(String status) {
     boolean webelement = false;
     webelement = SeleniumHelper.verifyElementPresent("//*[@data-cy='" + status + "']");
-    assertTrue(webelement);
+    Assert.assertTrue(webelement);
   }
 
   @Then("Open Logs")
@@ -206,6 +197,8 @@ public class PubSubConnector implements CdfHelper {
       PubSubActions.enterPubsubTopic("dummyTopic");
     } else if (property.equalsIgnoreCase("topic")) {
       PubSubActions.enterPubSubReferenceName();
+    } else {
+      Assert.fail("Invalid PubSub Mandatory Field");
     }
   }
 
@@ -233,18 +226,20 @@ public class PubSubConnector implements CdfHelper {
     } else if (property.equalsIgnoreCase("errorThreshold")) {
       SeleniumHelper.replaceElementValue(PubSubLocators.errorThreshold,
                                          E2ETestUtils.pluginProp("pubSubStringValue"));
+    } else {
+      Assert.fail("Invalid PubSub Advanced Property");
     }
   }
 
   @Then("Validate the error message for property {string}")
   public void validateTheErrorMessageForProperty(String property) {
     CdfStudioActions.clickValidateButton();
-    String expectedErrorMessage = E2ETestUtils.errorProp(ERROR_MSG_PUBSUB_INVALID_ADVANCED_FIELDS)
+    String expectedErrorMessage = E2ETestUtils.errorProp(E2ETestConstants.ERROR_MSG_PUBSUB_INVALID_ADVANCED_FIELDS)
       .replaceAll("PROPERTY", property);
     String actualErrorMessage = E2ETestUtils.findPropertyErrorElement(property).getText();
     Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
     String actualColor = E2ETestUtils.getErrorColor(E2ETestUtils.findPropertyErrorElement(property));
-    String expectedColor = E2ETestUtils.errorProp(ERROR_MSG_COLOR);
+    String expectedColor = E2ETestUtils.errorProp(E2ETestConstants.ERROR_MSG_COLOR);
     Assert.assertEquals(expectedColor, actualColor);
   }
 
@@ -265,6 +260,8 @@ public class PubSubConnector implements CdfHelper {
     } else if (property.equalsIgnoreCase("errorThreshold")) {
       SeleniumHelper.replaceElementValue(PubSubLocators.errorThreshold,
                                          E2ETestUtils.pluginProp("pubSubNegativeValue"));
+    } else {
+      Assert.fail("Invalid PubSub Advanced Property");
     }
   }
 
@@ -273,20 +270,22 @@ public class PubSubConnector implements CdfHelper {
     CdfStudioActions.clickValidateButton();
     String expectedErrorMessage = StringUtils.EMPTY;
     if (property.equalsIgnoreCase("messageCountBatchSize")) {
-      expectedErrorMessage = E2ETestUtils.errorProp(ERROR_MSG_PUBSUB_MAX_BATCH_COUNT);
+      expectedErrorMessage = E2ETestUtils.errorProp(E2ETestConstants.ERROR_MSG_PUBSUB_MAX_BATCH_COUNT);
     } else if (property.equalsIgnoreCase("requestThresholdKB")) {
-      expectedErrorMessage = E2ETestUtils.errorProp(ERROR_MSG_PUBSUB_MAX_BATCH_SIZE);
+      expectedErrorMessage = E2ETestUtils.errorProp(E2ETestConstants.ERROR_MSG_PUBSUB_MAX_BATCH_SIZE);
     } else if (property.equalsIgnoreCase("publishDelayThresholdMillis")) {
-      expectedErrorMessage = E2ETestUtils.errorProp(ERROR_MSG_PUBSUB_DELAY_THRESHOLD);
+      expectedErrorMessage = E2ETestUtils.errorProp(E2ETestConstants.ERROR_MSG_PUBSUB_DELAY_THRESHOLD);
     } else if (property.equalsIgnoreCase("retryTimeoutSeconds")) {
-      expectedErrorMessage = E2ETestUtils.errorProp(ERROR_MSG_PUBSUB_RETRY_TIMEOUT);
+      expectedErrorMessage = E2ETestUtils.errorProp(E2ETestConstants.ERROR_MSG_PUBSUB_RETRY_TIMEOUT);
     } else if (property.equalsIgnoreCase("errorThreshold")) {
-      expectedErrorMessage = E2ETestUtils.errorProp(ERROR_MSG_PUBSUB_ERROR_THRESHOLD);
+      expectedErrorMessage = E2ETestUtils.errorProp(E2ETestConstants.ERROR_MSG_PUBSUB_ERROR_THRESHOLD);
+    } else {
+      Assert.fail("Invalid PubSub Advanced Property");
     }
     String actualErrorMessage = E2ETestUtils.findPropertyErrorElement(property).getText();
     Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
     String actualColor = E2ETestUtils.getErrorColor(E2ETestUtils.findPropertyErrorElement(property));
-    String expectedColor = E2ETestUtils.errorProp(ERROR_MSG_COLOR);
+    String expectedColor = E2ETestUtils.errorProp(E2ETestConstants.ERROR_MSG_COLOR);
     Assert.assertEquals(expectedColor, actualColor);
   }
   
@@ -324,20 +323,18 @@ public class PubSubConnector implements CdfHelper {
 
   @Then("Click on PreviewData for PubSub Connector")
   public void clickOnPreviewDataForPubSubConnector() {
-    {
       PubSubActions.clickPreviewData();
     }
-  }
 
   @Then("Verify Preview output schema matches the outputSchema captured in properties")
   public void verifyPreviewOutputSchemaMatchesTheOutputSchemaCapturedInProperties() {
-    List<String> previewOutputSchema = new ArrayList<String>();
+    List<String> previewSchemaColumnList = new ArrayList<>();
     List<WebElement> previewOutputSchemaElements = SeleniumDriver.getDriver().findElements(
       By.xpath("(//h2[text()='Output Records']/parent::div/div/div/div/div)[1]//div[text()!='']"));
     for (WebElement element : previewOutputSchemaElements) {
-      previewOutputSchema.add(element.getAttribute("title"));
+      previewSchemaColumnList.add(element.getAttribute("title"));
     }
-    Assert.assertTrue(previewOutputSchema.equals(propertiesOutputSchema));
+    Assert.assertTrue(previewSchemaColumnList.equals(propertiesSchemaColumnList));
   }
 
   @Then("Close the Preview")
@@ -390,12 +387,5 @@ public class PubSubConnector implements CdfHelper {
   @Then("Click on PreviewData for BigQuery Connector")
   public void clickOnPreviewDataForBigQueryConnector() {
     CdfBigQueryPropertiesActions.clickPreviewData();
-  }
-
-  @Then("Get Count of no of records transferred to BigQuery in {string}")
-  public void getCountOfNoOfRecordsTransferredToBigQueryIn(String tableName) throws IOException, InterruptedException {
-    int countRecords = gcpClient.countBqQuery(E2ETestUtils.pluginProp(tableName));
-    BeforeActions.scenario.write("**********No of Records Transferred******************:" + countRecords);
-    Assert.assertTrue(countRecords > 0);
   }
 }

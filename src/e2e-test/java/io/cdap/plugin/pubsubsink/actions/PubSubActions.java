@@ -1,4 +1,3 @@
-
 /*
  * Copyright © 2021 Cask Data, Inc.
  *
@@ -14,12 +13,12 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package io.cdap.plugin.pubsub.actions;
+package io.cdap.plugin.pubsubsink.actions;
 
 import io.cdap.e2e.pages.locators.CdfStudioLocators;
 import io.cdap.e2e.utils.SeleniumDriver;
 import io.cdap.e2e.utils.SeleniumHelper;
-import io.cdap.plugin.pubsub.locators.PubSubLocators;
+import io.cdap.plugin.pubsubsink.locators.PubSubLocators;
 import org.openqa.selenium.By;
 
 import java.util.UUID;
@@ -91,5 +90,16 @@ public class PubSubActions {
   public static void clickPreviewData() {
     SeleniumHelper.waitAndClick(PubSubLocators.pubSubPreviewData);
 
+  }
+  public static void clickPluginProperties(String plugin) {
+    SeleniumDriver.getDriver().findElement(
+      By.xpath("//*[contains(@data-cy,'plugin-node-" + plugin + "')]//div[@class='node-metadata']/div[2]")).click();
+  }
+  public static void  connectSourceAndSink(String source, String sink) {
+    SeleniumHelper.waitElementIsVisible(SeleniumDriver.getDriver().findElement(
+      By.xpath("//*[contains(@data-cy,'plugin-node-" + sink + "')]")));
+    SeleniumHelper.dragAndDrop(
+      SeleniumDriver.getDriver().findElement(By.xpath("//*[contains(@class,'plugin-endpoint_" + source + "')]")),
+      SeleniumDriver.getDriver().findElement(By.xpath("//*[contains(@data-cy,'plugin-node-" + sink + "')]")));
   }
 }

@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package io.cdap.plugin.pubsub.tests.runner;
+package io.cdap.plugin.pubsubsink.tests.runner;
 import io.cucumber.junit.Cucumber;
 import io.cucumber.junit.CucumberOptions;
 import org.junit.runner.RunWith;
@@ -24,7 +24,7 @@ import org.junit.runner.RunWith;
 @RunWith(Cucumber.class)
 @CucumberOptions(
         features = {"src/e2e-test/features"},
-        glue = {"io.cdap.plugin.pubsub.stepsdesign", "stepsdesign"},
+        glue = {"io.cdap.plugin.pubsubsink.stepsdesign", "stepsdesign"},
         tags = {"@PubSub"},
         monochrome = true,
         plugin = {"pretty", "html:target/cucumber-html-report", "json:target/cucumber-reports/cucumber.json",

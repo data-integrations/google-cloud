@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package io.cdap.plugin.pubsub.locators;
+package io.cdap.plugin.pubsubsink.locators;
 
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.FindBy;
@@ -64,7 +64,7 @@ public class PubSubLocators {
   public static WebElement closeButton;
 
   @FindBy(how = How.XPATH, using = "//*[@title='Pub/Sub']")
-  public  static WebElement toPubsub;
+  public  static WebElement toPubSub;
 
   @FindBy(how = How.XPATH, using = "//*[@data-cy='get-schema-btn']//span[text()='Get Schema']")
   public static WebElement getSchemaLoadComplete;

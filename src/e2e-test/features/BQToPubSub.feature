@@ -27,4 +27,3 @@ Feature: Verification of BQ to PubSub successful data transfer
     Then  Verify the pipeline status is "Succeeded"
     Then  Open Logs
     Then  Validate successMessage is displayed
-    Then  Get Count of no of records transferred to BigQuery in "pubSubBQTableName"
