@@ -1,4 +1,4 @@
 /**
  * Package contains the stepDesign for the PubSub features.
  */
-package io.cdap.plugin.pubsub.stepsdesign;
+package io.cdap.plugin.pubsubsink.stepsdesign;
