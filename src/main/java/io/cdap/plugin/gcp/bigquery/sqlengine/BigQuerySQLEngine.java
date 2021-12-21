@@ -28,10 +28,13 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import io.cdap.cdap.api.RuntimeContext;
 import io.cdap.cdap.api.annotation.Description;
+import io.cdap.cdap.api.annotation.Metadata;
+import io.cdap.cdap.api.annotation.MetadataProperty;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
+import io.cdap.cdap.etl.api.connector.Connector;
 import io.cdap.cdap.etl.api.engine.sql.BatchSQLEngine;
 import io.cdap.cdap.etl.api.engine.sql.SQLEngineException;
 import io.cdap.cdap.etl.api.engine.sql.capability.DefaultPullCapability;
@@ -47,7 +50,9 @@ import io.cdap.cdap.etl.api.engine.sql.request.SQLPushRequest;
 import io.cdap.cdap.etl.api.join.JoinCondition;
 import io.cdap.cdap.etl.api.join.JoinDefinition;
 import io.cdap.cdap.etl.api.join.JoinStage;
+import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnector;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
+import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceUtils;
 import io.cdap.plugin.gcp.bigquery.sqlengine.util.BigQuerySQLEngineUtils;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.CmekUtils;
@@ -77,6 +82,7 @@ import javax.annotation.Nullable;
 @Description("BigQuery SQLEngine implementation, used to push down certain pipeline steps into BigQuery. "
   + "A GCS bucket is used as staging for the read/write operations performed by this engine. "
   + "BigQuery is Google's serverless, highly scalable, enterprise data warehouse.")
+@Metadata(properties = {@MetadataProperty(key = Connector.PLUGIN_TYPE, value = BigQueryConnector.NAME)})
 public class BigQuerySQLEngine
   extends BatchSQLEngine<LongWritable, GenericData.Record, StructuredRecord, NullWritable> {
 
@@ -146,6 +152,9 @@ public class BigQuerySQLEngine
     // Configure GCS bucket that is used to stage temporary files.
     // If the bucket is created for this run, mar it for deletion after executon is completed
     BigQuerySinkUtils.configureBucket(configuration, bucket, runId, sqlEngineConfig.getBucket() == null);
+
+    // Configure credentials for the source
+    BigQuerySourceUtils.configureServiceAccount(configuration, sqlEngineConfig.connection);
   }
 
   @Override
