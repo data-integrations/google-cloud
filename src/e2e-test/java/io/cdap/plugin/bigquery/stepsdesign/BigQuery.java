@@ -26,6 +26,7 @@ import io.cdap.e2e.utils.CdfHelper;
 import io.cdap.e2e.utils.GcpClient;
 import io.cdap.e2e.utils.SeleniumDriver;
 import io.cdap.e2e.utils.SeleniumHelper;
+import io.cdap.plugin.utils.E2ETestConstants;
 import io.cdap.plugin.utils.E2ETestUtils;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
@@ -48,11 +49,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import static io.cdap.plugin.utils.E2ETestConstants.ERROR_MSG_COLOR;
-import static io.cdap.plugin.utils.E2ETestConstants.ERROR_MSG_ERROR_FOUND_VALIDATION;
-import static io.cdap.plugin.utils.E2ETestConstants.ERROR_MSG_INCORRECT_TABLE;
-import static io.cdap.plugin.utils.E2ETestConstants.ERROR_MSG_VALIDATION;
-
 /**
  * BigQuery related stepDesigns.
  */
@@ -60,7 +56,7 @@ public class BigQuery implements CdfHelper {
   static PrintWriter out;
   static String rawLog;
   static int countRecords;
-  List<String> propertiesOutputSchema = new ArrayList<String>();
+  List<String> propertiesSchemaColumnList = new ArrayList<String>();
 
   static {
     try {
@@ -140,7 +136,7 @@ public class BigQuery implements CdfHelper {
   @Then("Validate Bigquery properties")
   public void validateBigqueryProperties() {
     CdfGcsActions.clickValidateButton();
-    String expectedErrorMessage = E2ETestUtils.errorProp(ERROR_MSG_VALIDATION);
+    String expectedErrorMessage = E2ETestUtils.errorProp(E2ETestConstants.ERROR_MSG_VALIDATION);
     String actualErrorMessage = CdfStudioLocators.pluginValidationSuccessMsg.getText();
     Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
   }
@@ -156,9 +152,9 @@ public class BigQuery implements CdfHelper {
     List<WebElement> propertiesOutputSchemaElements = SeleniumDriver.getDriver().findElements(
       By.xpath("//div[@data-cy='schema-fields-list']//*[@placeholder='Field name']"));
     for (WebElement element : propertiesOutputSchemaElements) {
-      propertiesOutputSchema.add(element.getAttribute("value"));
+      propertiesSchemaColumnList.add(element.getAttribute("value"));
     }
-    Assert.assertTrue(propertiesOutputSchema.size() > 2);
+    Assert.assertTrue(propertiesSchemaColumnList.size() > 2);
   }
 
   @Then("Close the BigQuery properties")
@@ -214,13 +210,13 @@ public class BigQuery implements CdfHelper {
 
   @Then("Verify Preview output schema matches the outputSchema captured in properties")
   public void verifyPreviewOutputSchemaMatchesTheOutputSchemaCapturedInProperties() {
-    List<String> previewOutputSchema = new ArrayList<String>();
+    List<String> previewSchemaColumnList = new ArrayList<String>();
     List<WebElement> previewOutputSchemaElements = SeleniumDriver.getDriver().findElements(
       By.xpath("(//h2[text()='Output Records']/parent::div/div/div/div/div)[1]//div[text()!='']"));
     for (WebElement element : previewOutputSchemaElements) {
-      previewOutputSchema.add(element.getAttribute("title"));
+      previewSchemaColumnList.add(element.getAttribute("title"));
     }
-    Assert.assertTrue(previewOutputSchema.equals(propertiesOutputSchema));
+    Assert.assertTrue(previewSchemaColumnList.equals(propertiesSchemaColumnList));
   }
 
   @Then("Close the Preview and deploy the pipeline")
@@ -401,12 +397,12 @@ public class BigQuery implements CdfHelper {
       tableFullName = E2ETestUtils.pluginProp(value) + ":" + E2ETestUtils.pluginProp("dataset")
         + "." + E2ETestUtils.pluginProp("bqTableName");
     }
-    String expectedErrorMessage = E2ETestUtils.errorProp(ERROR_MSG_INCORRECT_TABLE)
+    String expectedErrorMessage = E2ETestUtils.errorProp(E2ETestConstants.ERROR_MSG_INCORRECT_TABLE)
       .replaceAll("TABLENAME", tableFullName);
     String actualErrorMessage = E2ETestUtils.findPropertyErrorElement("table").getText();
     Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
     String actualColor = E2ETestUtils.getErrorColor(E2ETestUtils.findPropertyErrorElement("table"));
-    String expectedColor = E2ETestUtils.errorProp(ERROR_MSG_COLOR);
+    String expectedColor = E2ETestUtils.errorProp(E2ETestConstants.ERROR_MSG_COLOR);
     Assert.assertEquals(expectedColor, actualColor);
   }
 
@@ -427,7 +423,7 @@ public class BigQuery implements CdfHelper {
   public void verifyPluginPropertiesValidationFailsWithError() {
     CdfStudioActions.clickValidateButton();
     SeleniumHelper.waitElementIsVisible(CdfStudioLocators.validateButton, 5L);
-    String expectedErrorMessage = E2ETestUtils.errorProp(ERROR_MSG_ERROR_FOUND_VALIDATION);
+    String expectedErrorMessage = E2ETestUtils.errorProp(E2ETestConstants.ERROR_MSG_ERROR_FOUND_VALIDATION);
     String actualErrorMessage = CdfStudioLocators.pluginValidationErrorMsg.getText();
     Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
   }
