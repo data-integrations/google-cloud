@@ -20,6 +20,7 @@ import io.cdap.e2e.utils.ConstantsUtil;
 import io.cdap.e2e.utils.SeleniumHelper;
 import io.cdap.plugin.bqmt.locators.CdfBQMTLocators;
 import io.cdap.plugin.utils.CdapUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.Assert;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebElement;
@@ -193,8 +194,7 @@ public class CdfBQMTActions implements CdfHelper {
 
   public static void clearComments() {
     cdfBQMTLocators.addComment.click();
-    cdfBQMTLocators.addComment.sendKeys(Keys.COMMAND + A);
-    cdfBQMTLocators.addComment.sendKeys(Keys.BACK_SPACE);
+    SeleniumHelper.replaceElementValue(cdfBQMTLocators.addComment, StringUtils.EMPTY);
   }
 
   public static void clickHamburgerMenu() {
