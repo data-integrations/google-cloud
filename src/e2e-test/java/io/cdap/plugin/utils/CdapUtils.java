@@ -15,7 +15,8 @@
  */
 package io.cdap.plugin.utils;
 
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -28,7 +29,7 @@ public class CdapUtils {
 
   private static Properties pluginProperties = new Properties();
   private static Properties errorProperties = new Properties();
-  private static final Logger logger = Logger.getLogger(CdapUtils.class);
+  private static final Logger logger = LoggerFactory.getLogger(CdapUtils.class);
 
   static {
     try {

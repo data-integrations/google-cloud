@@ -20,7 +20,6 @@ import io.cdap.e2e.pages.actions.CdfPipelineRunAction;
 import io.cdap.e2e.pages.actions.CdfStudioActions;
 import io.cdap.e2e.pages.locators.CdfStudioLocators;
 import io.cdap.e2e.utils.CdfHelper;
-import io.cdap.e2e.utils.GcpClient;
 import io.cdap.e2e.utils.SeleniumHelper;
 import io.cdap.plugin.bqmt.actions.CdfBQMTActions;
 import io.cdap.plugin.bqmt.locators.CdfBQMTLocators;
@@ -29,12 +28,10 @@ import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.junit.Assert;
-import stepsdesign.BeforeActions;
 
 import java.io.IOException;
 
 import static io.cdap.plugin.utils.GCConstants.DELIMITED;
-import static io.cdap.plugin.utils.GCConstants.TABLE_DEL_MSG;
 
 /**
  * BQMT RunTime test cases.
