@@ -42,7 +42,9 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -51,6 +53,7 @@ import java.util.UUID;
 
 public class PubSubConnector implements CdfHelper {
   List<String> propertiesSchemaColumnList = new ArrayList<>();
+  Map<String, String> sourcePropertiesOutputSchema = new HashMap<>();
 
   @Given("Open Datafusion Project to configure pipeline")
   public void openDatafusionProjectToConfigurePipeline() throws IOException, InterruptedException {
@@ -104,12 +107,13 @@ public class PubSubConnector implements CdfHelper {
   public void captureAndValidateOutputSchema() {
     CdfGcsActions.getSchema();
     SeleniumHelper.waitElementIsVisible(PubSubLocators.getSchemaLoadComplete, 10L);
-    Assert.assertFalse(SeleniumHelper.isElementPresent(CdfStudioLocators.pluginValidationErrorMsg));
-    By schemaXpath = By.xpath("//div[@data-cy='schema-fields-list']//*[@placeholder='Field name']");
-    SeleniumHelper.waitElementIsVisible(SeleniumDriver.getDriver().findElement(schemaXpath), 2L);
-    List<WebElement> propertiesOutputSchemaElements = SeleniumDriver.getDriver().findElements(schemaXpath);
-    for (WebElement element : propertiesOutputSchemaElements) {
+    SeleniumHelper.waitElementIsVisible(PubSubLocators.outputSchemaColumnNames.get(0), 2L);
+    int index = 0;
+    for (WebElement element : PubSubLocators.outputSchemaColumnNames) {
       propertiesSchemaColumnList.add(element.getAttribute("value"));
+      sourcePropertiesOutputSchema.put(element.getAttribute("value"),
+                                       PubSubLocators.outputSchemaDataTypes.get(index).getAttribute("title"));
+      index++;
     }
     Assert.assertTrue(propertiesSchemaColumnList.size() >= 1);
   }
@@ -128,7 +132,7 @@ public class PubSubConnector implements CdfHelper {
   public void enterThePubSubPropertiesForTopicAndFormat(String topic, String format) {
     PubSubActions.enterPubSubReferenceName();
     PubSubActions.enterProjectID(E2ETestUtils.pluginProp("projectId"));
-    PubSubActions.enterPubsubTopic(E2ETestUtils.pluginProp(topic));
+    PubSubActions.enterPubSubTopic(E2ETestUtils.pluginProp(topic));
     PubSubActions.selectFormat(format);
   }
 
@@ -194,11 +198,11 @@ public class PubSubConnector implements CdfHelper {
   @Then("Enter the PubSub property with blank property {string}")
   public void enterThePubSubPropertyWithBlankProperty(String property) throws IOException {
     if (property.equalsIgnoreCase("referenceName")) {
-      PubSubActions.enterPubsubTopic("dummyTopic");
+      PubSubActions.enterPubSubTopic("dummyTopic");
     } else if (property.equalsIgnoreCase("topic")) {
       PubSubActions.enterPubSubReferenceName();
     } else {
-      Assert.fail("Invalid PubSub Mandatory Field");
+      Assert.fail("Invalid PubSub Mandatory Field : " + property);
     }
   }
 
@@ -212,7 +216,7 @@ public class PubSubConnector implements CdfHelper {
   @Then("Enter the PubSub advanced properties with incorrect property {string}")
   public void enterThePubSubAdvancedPropertiesWithIncorrectProperty(String property) {
     if (property.equalsIgnoreCase("messageCountBatchSize")) {
-      SeleniumHelper.replaceElementValue(PubSubLocators.maximumBatchcount,
+      SeleniumHelper.replaceElementValue(PubSubLocators.maximumBatchCount,
                                          E2ETestUtils.pluginProp("pubSubStringValue"));
     } else if (property.equalsIgnoreCase("requestThresholdKB")) {
       SeleniumHelper.replaceElementValue(PubSubLocators.maximumBatchSize,
@@ -227,7 +231,7 @@ public class PubSubConnector implements CdfHelper {
       SeleniumHelper.replaceElementValue(PubSubLocators.errorThreshold,
                                          E2ETestUtils.pluginProp("pubSubStringValue"));
     } else {
-      Assert.fail("Invalid PubSub Advanced Property");
+      Assert.fail("Invalid PubSub Advanced Property : " + property);
     }
   }
 
@@ -246,7 +250,7 @@ public class PubSubConnector implements CdfHelper {
   @Then("Enter the PubSub advanced properties with invalid number for property {string}")
   public void enterThePubSubAdvancedPropertiesWithInvalidNumberForProperty(String property) {
     if (property.equalsIgnoreCase("messageCountBatchSize")) {
-      SeleniumHelper.replaceElementValue(PubSubLocators.maximumBatchcount,
+      SeleniumHelper.replaceElementValue(PubSubLocators.maximumBatchCount,
                                          E2ETestUtils.pluginProp("pubSubNegativeValue"));
     } else if (property.equalsIgnoreCase("requestThresholdKB")) {
       SeleniumHelper.replaceElementValue(PubSubLocators.maximumBatchSize,
@@ -261,7 +265,7 @@ public class PubSubConnector implements CdfHelper {
       SeleniumHelper.replaceElementValue(PubSubLocators.errorThreshold,
                                          E2ETestUtils.pluginProp("pubSubNegativeValue"));
     } else {
-      Assert.fail("Invalid PubSub Advanced Property");
+      Assert.fail("Invalid PubSub Advanced Property : " + property);
     }
   }
 
@@ -280,7 +284,7 @@ public class PubSubConnector implements CdfHelper {
     } else if (property.equalsIgnoreCase("errorThreshold")) {
       expectedErrorMessage = E2ETestUtils.errorProp(E2ETestConstants.ERROR_MSG_PUBSUB_ERROR_THRESHOLD);
     } else {
-      Assert.fail("Invalid PubSub Advanced Property");
+      Assert.fail("Invalid PubSub Advanced Property " + property);
     }
     String actualErrorMessage = E2ETestUtils.findPropertyErrorElement(property).getText();
     Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
@@ -288,7 +292,7 @@ public class PubSubConnector implements CdfHelper {
     String expectedColor = E2ETestUtils.errorProp(E2ETestConstants.ERROR_MSG_COLOR);
     Assert.assertEquals(expectedColor, actualColor);
   }
-  
+
   @Then("Get Schema for GCS")
   public void getSchemaForGCS() {
     CdfGcsActions.getSchema();
@@ -323,18 +327,25 @@ public class PubSubConnector implements CdfHelper {
 
   @Then("Click on PreviewData for PubSub Connector")
   public void clickOnPreviewDataForPubSubConnector() {
-      PubSubActions.clickPreviewData();
-    }
+    PubSubActions.clickPreviewData();
+  }
 
   @Then("Verify Preview output schema matches the outputSchema captured in properties")
   public void verifyPreviewOutputSchemaMatchesTheOutputSchemaCapturedInProperties() {
     List<String> previewSchemaColumnList = new ArrayList<>();
-    List<WebElement> previewOutputSchemaElements = SeleniumDriver.getDriver().findElements(
-      By.xpath("(//h2[text()='Output Records']/parent::div/div/div/div/div)[1]//div[text()!='']"));
-    for (WebElement element : previewOutputSchemaElements) {
+    for (WebElement element : PubSubLocators.previewInputRecordColumnNames) {
       previewSchemaColumnList.add(element.getAttribute("title"));
     }
     Assert.assertTrue(previewSchemaColumnList.equals(propertiesSchemaColumnList));
+    PubSubActions.clickPreviewPropertiesTab();
+    Map<String, String> previewSinkInputSchema = new HashMap<>();
+    int index = 0;
+    for (WebElement element : PubSubLocators.inputSchemaColumnNames) {
+      previewSinkInputSchema.put(element.getAttribute("value"),
+                                 PubSubLocators.inputSchemaDataTypes.get(index).getAttribute("title"));
+      index++;
+    }
+    Assert.assertTrue(previewSinkInputSchema.equals(sourcePropertiesOutputSchema));
   }
 
   @Then("Close the Preview")
@@ -371,7 +382,6 @@ public class PubSubConnector implements CdfHelper {
 
   @Then("Enter the BigQuery properties for table {string}")
   public void enterTheBigQueryPropertiesForTable(String tableName) throws IOException {
-    CdfGcsActions.enterProjectId();
     CdfBigQueryPropertiesActions.enterProjectId(E2ETestUtils.pluginProp("projectId"));
     CdfBigQueryPropertiesActions.enterDatasetProjectId(E2ETestUtils.pluginProp("projectId"));
     CdfBigQueryPropertiesActions.enterBigQueryReferenceName("BQ_Ref_" + UUID.randomUUID().toString());
@@ -387,5 +397,10 @@ public class PubSubConnector implements CdfHelper {
   @Then("Click on PreviewData for BigQuery Connector")
   public void clickOnPreviewDataForBigQueryConnector() {
     CdfBigQueryPropertiesActions.clickPreviewData();
+  }
+
+  @Then("Validate OUT record count is equal to IN record count")
+  public void validateOUTRecordCountIsEqualToINRecordCount() {
+    Assert.assertEquals(recordOut(), recordIn());
   }
 }

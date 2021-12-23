@@ -19,13 +19,14 @@ Feature: Verification of GCS to PubSub successful data transfer
     Then  Save the pipeline
     Then  Preview and run the pipeline
     Then  Verify the preview of pipeline is "success"
-    Then  Click on PreviewData for GCS Connector
+    Then  Click on PreviewData for PubSub Connector
     Then  Verify Preview output schema matches the outputSchema captured in properties
     Then  Close the Preview
     Then  Deploy the pipeline
     Then  Run the Pipeline in Runtime
     Then  Wait till pipeline is in running state
     Then  Verify the pipeline status is "Succeeded"
+    Then  Validate OUT record count is equal to IN record count
     Then  Open Logs
     Then  Validate successMessage is displayed
 
@@ -48,13 +49,14 @@ Feature: Verification of GCS to PubSub successful data transfer
     Then  Save the pipeline
     Then  Preview and run the pipeline
     Then  Verify the preview of pipeline is "success"
-    Then  Click on PreviewData for GCS Connector
+    Then  Click on PreviewData for PubSub Connector
     Then  Verify Preview output schema matches the outputSchema captured in properties
     Then  Close the Preview
     Then  Deploy the pipeline
     Then  Run the Pipeline in Runtime
     Then  Wait till pipeline is in running state
     Then  Verify the pipeline status is "Succeeded"
+    Then  Validate OUT record count is equal to IN record count
     Then  Open Logs
     Then  Validate successMessage is displayed
     Examples:

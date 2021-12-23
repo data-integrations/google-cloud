@@ -38,30 +38,30 @@ public class PubSubActions {
     PubSubLocators.pubSubObject.click();
   }
 
-  public static void pubsubProperties() {
-    PubSubLocators.pubsubProperties.click();
+  public static void pubSubProperties() {
+    PubSubLocators.pubSubProperties.click();
   }
 
   public static void enterPubSubReferenceName() {
-    PubSubLocators.pubsubReferenceName.sendKeys(UUID.randomUUID().toString());
+    PubSubLocators.pubSubReferenceName.sendKeys(UUID.randomUUID().toString());
   }
 
   public static void enterProjectID(String projectId) {
     SeleniumHelper.replaceElementValue(PubSubLocators.projectID, projectId);
   }
 
-  public static void enterPubsubTopic(String pubSubTopic) {
-  SeleniumHelper.sendKeys(PubSubLocators.pubsubTopic, pubSubTopic);
+  public static void enterPubSubTopic(String pubSubTopic) {
+    SeleniumHelper.sendKeys(PubSubLocators.pubSubTopic, pubSubTopic);
   }
 
   public static void selectFormat(String formatType) {
-   PubSubLocators.format.click();
+    PubSubLocators.format.click();
     SeleniumHelper.waitAndClick(SeleniumDriver.getDriver().
                                   findElement(By.xpath("//li[text()='" + formatType + "']")));
   }
 
   public static void enterMaximumBatchCount(String maximumBatchcount) {
-    PubSubLocators.maximumBatchcount.sendKeys(maximumBatchcount);
+    PubSubLocators.maximumBatchCount.sendKeys(maximumBatchcount);
   }
 
   public static void enterMaximumBatchSize(String maximumBatchSize) {
@@ -80,26 +80,32 @@ public class PubSubActions {
     PubSubLocators.errorThreshold.sendKeys(errorThreshold);
   }
 
- public  static void validate() {
-  PubSubLocators.pluginValidationSuccessMsg.click();
- }
+  public static void validate() {
+    PubSubLocators.pluginValidationSuccessMsg.click();
+  }
 
- public static void close() {
-   PubSubLocators.closeButton.click(); }
+  public static void close() {
+    PubSubLocators.closeButton.click();
+  }
 
   public static void clickPreviewData() {
     SeleniumHelper.waitAndClick(PubSubLocators.pubSubPreviewData);
-
   }
+
   public static void clickPluginProperties(String plugin) {
     SeleniumDriver.getDriver().findElement(
       By.xpath("//*[contains(@data-cy,'plugin-node-" + plugin + "')]//div[@class='node-metadata']/div[2]")).click();
   }
-  public static void  connectSourceAndSink(String source, String sink) {
+
+  public static void connectSourceAndSink(String source, String sink) {
     SeleniumHelper.waitElementIsVisible(SeleniumDriver.getDriver().findElement(
       By.xpath("//*[contains(@data-cy,'plugin-node-" + sink + "')]")));
     SeleniumHelper.dragAndDrop(
       SeleniumDriver.getDriver().findElement(By.xpath("//*[contains(@class,'plugin-endpoint_" + source + "')]")),
       SeleniumDriver.getDriver().findElement(By.xpath("//*[contains(@data-cy,'plugin-node-" + sink + "')]")));
+  }
+
+  public static void clickPreviewPropertiesTab() {
+    PubSubLocators.previewPropertiesTab.click();
   }
 }
