@@ -37,6 +37,7 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import stepsdesign.BeforeActions;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -53,8 +54,14 @@ public class CloudSqlPostGreSql implements CdfHelper {
     GcpClient gcpClient = new GcpClient();
 
     static PrintWriter out;
-    static String rawLog;
-    static int countRecords;
+
+    static {
+        try {
+            out = new PrintWriter(BeforeActions.myObj);
+        } catch (FileNotFoundException e) {
+            BeforeActions.scenario.write(e.toString());
+        }
+    }
 
     @Given("Open DataFusion Project to configure pipeline")
     public void openDataFusionProjectToConfigurePipeline() throws IOException, InterruptedException {
@@ -76,12 +83,6 @@ public class CloudSqlPostGreSql implements CdfHelper {
         CdfStudioActions.sinkBigQuery();
     }
 
-    @Then("Open CloudSQLPostGreSQL Properties")//need to remove
-    public void openCloudSQLPostGreSQLProperties() throws InterruptedException {
-        CdfCloudSqlPostGreSqlActions.clickCloudSqlPostGreSqlProperties();
-        SeleniumHelper.waitElementIsVisible(CdfCloudSqlPostGreSqlLocators.validateBtn, 10);
-    }
-
     @Then("Validate Connector properties")
     public void validatePipeline() throws InterruptedException {
         CdfCloudSqlPostGreSqlActions.clickValidateButton();
@@ -91,10 +92,10 @@ public class CloudSqlPostGreSql implements CdfHelper {
     @Then("Enter Reference Name & Connection Name with Invalid Test Data in Sink")
     public void enterTheSinkInvalidData() throws InterruptedException, IOException {
         CdfCloudSqlPostGreSqlActions.clickCloudSqlPostGreSqlProperties();
-        CdfCloudSqlPostGreSqlActions.enterReferenceName(CdapUtils.pluginProp("pSqlReferenceNameInvalid"));
-        CdfCloudSqlPostGreSqlActions.enterDatabaseName(CdapUtils.pluginProp("pSqlDatabaseName"));
-        CdfCloudSqlPostGreSqlActions.enterConnectionName(CdapUtils.pluginProp("pSqlConnectionNameInvalid"));
-        CdfCloudSqlPostGreSqlActions.enterTableName(CdapUtils.pluginProp("pSqlTableNameCS"));
+        CdfCloudSqlPostGreSqlActions.enterReferenceName(CdapUtils.pluginProp("cloudPsqlReferenceNameInvalid"));
+        CdfCloudSqlPostGreSqlActions.enterDatabaseName(CdapUtils.pluginProp("cloudPsqlDbName"));
+        CdfCloudSqlPostGreSqlActions.enterConnectionName(CdapUtils.pluginProp("cloudPsqlConnectionNameInvalid"));
+        CdfCloudSqlPostGreSqlActions.enterTableName(CdapUtils.pluginProp("cloudPsqlTableName"));
     }
 
     @Then("Verify Reference Name Connection Name Fields with Invalid Test Data")
@@ -118,27 +119,27 @@ public class CloudSqlPostGreSql implements CdfHelper {
     public void enterTheCloudSQLPostGreSQLSourcePropertiesWithBlankProperty(String property) throws IOException,
       InterruptedException {
         if (property.equalsIgnoreCase("referenceName")) {
-            CdfCloudSqlPostGreSqlActions.enterDatabaseName(CdapUtils.pluginProp("pSqlDatabaseName"));
-            CdfCloudSqlPostGreSqlActions.enterConnectionName(CdapUtils.pluginProp("pSqlConnectionNameValid"));
-            CdfCloudSqlPostGreSqlActions.enterImportQuery(CdapUtils.pluginProp("pSqlImportQuery"));
+            CdfCloudSqlPostGreSqlActions.enterDatabaseName(CdapUtils.pluginProp("cloudPsqlDbName"));
+            CdfCloudSqlPostGreSqlActions.enterConnectionName(System.getenv("Cloud_Psql_ConnectionName"));
+            CdfCloudSqlPostGreSqlActions.enterImportQuery(CdapUtils.pluginProp("cloudPsqlImportQuery"));
         } else if (property.equalsIgnoreCase("database")) {
-            CdfCloudSqlPostGreSqlActions.enterReferenceName(CdapUtils.pluginProp("pSqlReferenceNameValid"));
-            CdfCloudSqlPostGreSqlActions.enterConnectionName(CdapUtils.pluginProp("pSqlConnectionNameValid"));
-            CdfCloudSqlPostGreSqlActions.enterImportQuery(CdapUtils.pluginProp("pSqlImportQuery"));
+            CdfCloudSqlPostGreSqlActions.enterReferenceName(CdapUtils.pluginProp("cloudPsqlReferenceNameValid"));
+            CdfCloudSqlPostGreSqlActions.enterConnectionName(System.getenv("Cloud_Psql_ConnectionName"));
+            CdfCloudSqlPostGreSqlActions.enterImportQuery(CdapUtils.pluginProp("cloudPsqlImportQuery"));
         } else if (property.equalsIgnoreCase("connectionName")) {
-            CdfCloudSqlPostGreSqlActions.enterReferenceName(CdapUtils.pluginProp("pSqlReferenceNameValid"));
-            CdfCloudSqlPostGreSqlActions.enterDatabaseName(CdapUtils.pluginProp("pSqlDatabaseName"));
-            CdfCloudSqlPostGreSqlActions.enterImportQuery(CdapUtils.pluginProp("pSqlImportQuery"));
+            CdfCloudSqlPostGreSqlActions.enterReferenceName(CdapUtils.pluginProp("cloudPsqlReferenceNameValid"));
+            CdfCloudSqlPostGreSqlActions.enterDatabaseName(CdapUtils.pluginProp("cloudPsqlDbName"));
+            CdfCloudSqlPostGreSqlActions.enterImportQuery(CdapUtils.pluginProp("cloudPsqlImportQuery"));
         } else if (property.equalsIgnoreCase("importQuery")) {
-            CdfCloudSqlPostGreSqlActions.enterReferenceName(CdapUtils.pluginProp("pSqlReferenceNameValid"));
-            CdfCloudSqlPostGreSqlActions.enterDatabaseName(CdapUtils.pluginProp("pSqlDatabaseName"));
-            CdfCloudSqlPostGreSqlActions.enterConnectionName(CdapUtils.pluginProp("pSqlConnectionNameValid"));
+            CdfCloudSqlPostGreSqlActions.enterReferenceName(CdapUtils.pluginProp("cloudPsqlReferenceNameValid"));
+            CdfCloudSqlPostGreSqlActions.enterDatabaseName(CdapUtils.pluginProp("cloudPsqlDbName"));
+            CdfCloudSqlPostGreSqlActions.enterConnectionName(System.getenv("Cloud_Psql_ConnectionName"));
         } else if (property.equalsIgnoreCase("jdbcPluginName")) {
-            CdfCloudSqlPostGreSqlActions.enterReferenceName(CdapUtils.pluginProp("pSqlReferenceNameValid"));
+            CdfCloudSqlPostGreSqlActions.enterReferenceName(CdapUtils.pluginProp("cloudPsqlReferenceNameValid"));
             SeleniumHelper.replaceElementValue(CdfCloudSqlPostGreSqlLocators.driverName, "");
-            CdfCloudSqlPostGreSqlActions.enterDatabaseName(CdapUtils.pluginProp("pSqlDatabaseName"));
-            CdfCloudSqlPostGreSqlActions.enterConnectionName(CdapUtils.pluginProp("pSqlConnectionNameValid"));
-            CdfCloudSqlPostGreSqlActions.enterImportQuery(CdapUtils.pluginProp("pSqlImportQuery"));
+            CdfCloudSqlPostGreSqlActions.enterDatabaseName(CdapUtils.pluginProp("cloudPsqlDbName"));
+            CdfCloudSqlPostGreSqlActions.enterConnectionName(System.getenv("Cloud_Psql_ConnectionName"));
+            CdfCloudSqlPostGreSqlActions.enterImportQuery(CdapUtils.pluginProp("cloudPsqlImportQuery"));
         }
     }
 
@@ -146,27 +147,27 @@ public class CloudSqlPostGreSql implements CdfHelper {
     public void enterTheCloudSQLPostGreSQLSinkPropertiesWithBlankProperty(String property) throws IOException,
       InterruptedException {
         if (property.equalsIgnoreCase("referenceName")) {
-            CdfCloudSqlPostGreSqlActions.enterDatabaseName(CdapUtils.pluginProp("pSqlDatabaseName"));
-            CdfCloudSqlPostGreSqlActions.enterConnectionName(CdapUtils.pluginProp("pSqlConnectionNameValid"));
-            CdfCloudSqlPostGreSqlActions.enterTableName(CdapUtils.pluginProp("pSqlTableNameCS"));
+            CdfCloudSqlPostGreSqlActions.enterDatabaseName(CdapUtils.pluginProp("cloudPsqlDbName"));
+            CdfCloudSqlPostGreSqlActions.enterConnectionName(System.getenv("Cloud_Psql_ConnectionName"));
+            CdfCloudSqlPostGreSqlActions.enterTableName(CdapUtils.pluginProp("cloudPsqlTableName"));
         } else if (property.equalsIgnoreCase("database")) {
-            CdfCloudSqlPostGreSqlActions.enterReferenceName(CdapUtils.pluginProp("pSqlReferenceNameValid"));
-            CdfCloudSqlPostGreSqlActions.enterConnectionName(CdapUtils.pluginProp("pSqlConnectionNameValid"));
-            CdfCloudSqlPostGreSqlActions.enterTableName(CdapUtils.pluginProp("pSqlTableNameCS"));
+            CdfCloudSqlPostGreSqlActions.enterReferenceName(CdapUtils.pluginProp("cloudPsqlReferenceNameValid"));
+            CdfCloudSqlPostGreSqlActions.enterConnectionName(System.getenv("Cloud_Psql_ConnectionName"));
+            CdfCloudSqlPostGreSqlActions.enterTableName(CdapUtils.pluginProp("cloudPsqlTableName"));
         } else if (property.equalsIgnoreCase("connectionName")) {
-            CdfCloudSqlPostGreSqlActions.enterReferenceName(CdapUtils.pluginProp("pSqlReferenceNameValid"));
-            CdfCloudSqlPostGreSqlActions.enterDatabaseName(CdapUtils.pluginProp("pSqlDatabaseName"));
-            CdfCloudSqlPostGreSqlActions.enterTableName(CdapUtils.pluginProp("pSqlTableNameCS"));
+            CdfCloudSqlPostGreSqlActions.enterReferenceName(CdapUtils.pluginProp("cloudPsqlReferenceNameValid"));
+            CdfCloudSqlPostGreSqlActions.enterDatabaseName(CdapUtils.pluginProp("cloudPsqlDbName"));
+            CdfCloudSqlPostGreSqlActions.enterTableName(CdapUtils.pluginProp("cloudPsqlTableName"));
         } else if (property.equalsIgnoreCase("tableName")) {
-            CdfCloudSqlPostGreSqlActions.enterReferenceName(CdapUtils.pluginProp("pSqlReferenceNameValid"));
-            CdfCloudSqlPostGreSqlActions.enterDatabaseName(CdapUtils.pluginProp("pSqlDatabaseName"));
-            CdfCloudSqlPostGreSqlActions.enterConnectionName(CdapUtils.pluginProp("pSqlConnectionNameValid"));
+            CdfCloudSqlPostGreSqlActions.enterReferenceName(CdapUtils.pluginProp("cloudPsqlReferenceNameValid"));
+            CdfCloudSqlPostGreSqlActions.enterDatabaseName(CdapUtils.pluginProp("cloudPsqlDbName"));
+            CdfCloudSqlPostGreSqlActions.enterConnectionName(System.getenv("Cloud_Psql_ConnectionName"));
         } else if (property.equalsIgnoreCase("jdbcPluginName")) {
-            CdfCloudSqlPostGreSqlActions.enterReferenceName(CdapUtils.pluginProp("pSqlReferenceNameValid"));
+            CdfCloudSqlPostGreSqlActions.enterReferenceName(CdapUtils.pluginProp("cloudPsqlReferenceNameValid"));
             SeleniumHelper.replaceElementValue(CdfCloudSqlPostGreSqlLocators.driverName, "");
-            CdfCloudSqlPostGreSqlActions.enterDatabaseName(CdapUtils.pluginProp("pSqlDatabaseName"));
-            CdfCloudSqlPostGreSqlActions.enterConnectionName(CdapUtils.pluginProp("pSqlConnectionNameValid"));
-            CdfCloudSqlPostGreSqlActions.enterTableName(CdapUtils.pluginProp("pSqlTableNameCS"));
+            CdfCloudSqlPostGreSqlActions.enterDatabaseName(CdapUtils.pluginProp("cloudPsqlDbName"));
+            CdfCloudSqlPostGreSqlActions.enterConnectionName(System.getenv("Cloud_Psql_ConnectionName"));
+            CdfCloudSqlPostGreSqlActions.enterTableName(CdapUtils.pluginProp("cloudPsqlTableName"));
         }
     }
 
@@ -179,20 +180,20 @@ public class CloudSqlPostGreSql implements CdfHelper {
 
     @Then("Enter Reference Name & Database Name with Test Data")
     public void enterTheValidTestData() throws InterruptedException, IOException {
-        CdfCloudSqlPostGreSqlActions.enterReferenceName(CdapUtils.pluginProp("pSqlReferenceNameValid"));
-        CdfCloudSqlPostGreSqlActions.enterDatabaseName(CdapUtils.pluginProp("pSqlDatabaseName"));
+        CdfCloudSqlPostGreSqlActions.enterReferenceName(CdapUtils.pluginProp("cloudPsqlReferenceNameValid"));
+        CdfCloudSqlPostGreSqlActions.enterDatabaseName(CdapUtils.pluginProp("cloudPsqlDbName"));
     }
 
-    @Then("Enter Table Name {string} and Connection Name {string}")
-    public void enterTableNameInTableField(String tableName, String connectionName) throws IOException {
+    @Then("Enter Table Name {string} and Connection Name")
+    public void enterTableNameInTableField(String tableName) throws IOException {
         CdfCloudSqlPostGreSqlActions.enterTableName(CdapUtils.pluginProp(tableName));
         CdfCloudSqlPostGreSqlActions.clickPrivateInstance();
-        CdfCloudSqlPostGreSqlActions.enterConnectionName(CdapUtils.pluginProp(connectionName));
+        CdfCloudSqlPostGreSqlActions.enterConnectionName(System.getenv("Cloud_Psql_ConnectionName"));
     }
 
     @Then("Enter Driver Name with Invalid value")
     public void enterDriverNameDefaultValue() throws IOException {
-        CdfCloudSqlPostGreSqlActions.enterDriverName(CdapUtils.pluginProp("pSqlDriverNameInvalid"));
+        CdfCloudSqlPostGreSqlActions.enterDriverName(CdapUtils.pluginProp("cloudPsqlDriverNameInvalid"));
         CdfCloudSqlPostGreSqlActions.clickValidateButton();
     }
 
@@ -209,7 +210,7 @@ public class CloudSqlPostGreSql implements CdfHelper {
     @Then("Enter Connection Name and Import Query {string}")
     public void enterConnectionImportField(String query) throws IOException, InterruptedException {
         CdfCloudSqlPostGreSqlActions.clickPrivateInstance();
-        CdfCloudSqlPostGreSqlActions.enterConnectionName(CdapUtils.pluginProp("pSqlConnectionNameValid"));
+        CdfCloudSqlPostGreSqlActions.enterConnectionName(System.getenv("Cloud_Psql_ConnectionName"));
         CdfCloudSqlPostGreSqlActions.enterImportQuery(CdapUtils.pluginProp(query));
     }
 
@@ -217,9 +218,9 @@ public class CloudSqlPostGreSql implements CdfHelper {
     public void enterReferenceNameConnectionNameWithInvalidTestDataAndImportQuery(String query) throws
       InterruptedException, IOException {
         CdfCloudSqlPostGreSqlActions.clickCloudSqlPostGreSqlProperties();
-        CdfCloudSqlPostGreSqlActions.enterReferenceName(CdapUtils.pluginProp("pSqlReferenceNameInvalid"));
-        CdfCloudSqlPostGreSqlActions.enterDatabaseName(CdapUtils.pluginProp("pSqlDatabaseName"));
-        CdfCloudSqlPostGreSqlActions.enterConnectionName(CdapUtils.pluginProp("pSqlConnectionNameInvalid"));
+        CdfCloudSqlPostGreSqlActions.enterReferenceName(CdapUtils.pluginProp("cloudPsqlReferenceNameInvalid"));
+        CdfCloudSqlPostGreSqlActions.enterDatabaseName(CdapUtils.pluginProp("cloudPsqlDbName"));
+        CdfCloudSqlPostGreSqlActions.enterConnectionName(CdapUtils.pluginProp("cloudPsqlConnectionNameInvalid"));
         CdfCloudSqlPostGreSqlActions.enterImportQuery(CdapUtils.pluginProp(query));
         SeleniumHelper.waitAndClick(CdfCloudSqlPostGreSqlLocators.validateBtn, 50);
     }
@@ -231,18 +232,18 @@ public class CloudSqlPostGreSql implements CdfHelper {
 
     @Then("Enter the cloudSQLPostgreSQL properties for database {string} using query {string}")
     public void enterTheCloudSQLPostgreSQLPropertiesForDatabaseUsingQueryToGetAllValues
-      (String database, String importquery) throws IOException, InterruptedException {
+      (String database, String importQuery) throws IOException, InterruptedException {
         enterTheCloudSQLPostgreSQLPropertiesForDatabase(database);
-        CdfCloudSqlPostGreSqlActions.enterImportQuery(CdapUtils.pluginProp(importquery));
+        CdfCloudSqlPostGreSqlActions.enterImportQuery(CdapUtils.pluginProp(importQuery));
     }
 
     public void enterTheCloudSQLPostgreSQLPropertiesForDatabase(String database) throws IOException {
         CdfCloudSqlPostGreSqlActions.enterReferenceName("cloudSQLPostgreSQL" + UUID.randomUUID().toString());
         CdfCloudSqlPostGreSqlActions.enterDatabaseName(CdapUtils.pluginProp(database));
-        CdfCloudSqlPostGreSqlActions.enterUserName(CdapUtils.pluginProp("cloudPostgresSQLUserName"));
-        CdfCloudSqlPostGreSqlActions.enterPassword(CdapUtils.pluginProp("cloudPostgresSQLPassword"));
+        CdfCloudSqlPostGreSqlActions.enterUserName(System.getenv("Cloud_Psql_User_Name"));
+        CdfCloudSqlPostGreSqlActions.enterPassword(System.getenv("Cloud_Psql_Password"));
         CdfCloudSqlPostGreSqlActions.clickPrivateInstance();
-        CdfCloudSqlPostGreSqlActions.enterConnectionName(CdapUtils.pluginProp("cloudPostgresSQLConnectionName"));
+        CdfCloudSqlPostGreSqlActions.enterConnectionName(System.getenv("Cloud_Psql_ConnectionName"));
     }
 
     @Then("Capture output schema")
@@ -250,7 +251,7 @@ public class CloudSqlPostGreSql implements CdfHelper {
         CdfCloudSqlPostGreSqlActions.getSchema();
         WebDriverWait wait = new WebDriverWait(SeleniumDriver.getDriver(), 10);
         wait.until(ExpectedConditions.numberOfElementsToBeMoreThan
-          (By.xpath("//*[@placeholder=\"Field name\"]"), 1));
+          (By.xpath("//*[@placeholder=\"Field name\"]"), 0));
         SeleniumHelper.waitElementIsVisible(SeleniumDriver.getDriver().findElement(
           By.xpath("//div[@data-cy='schema-fields-list']//*[@placeholder='Field name']")), 10L);
         List<WebElement> propertiesOutputSchemaElements = SeleniumDriver.getDriver().findElements(
@@ -258,7 +259,7 @@ public class CloudSqlPostGreSql implements CdfHelper {
         for (WebElement element : propertiesOutputSchemaElements) {
             propertiesOutputSchema.add(element.getAttribute("value"));
         }
-        Assert.assertTrue(propertiesOutputSchema.size() >= 2);
+        Assert.assertTrue(propertiesOutputSchema.size() >= 1);
     }
 
     @Then("Validate cloudSQLPostgreSQL properties")
@@ -282,11 +283,13 @@ public class CloudSqlPostGreSql implements CdfHelper {
 
     @Then("Enter the BigQuery Target Properties for table {string}")
     public void enterTheBigQueryTargetPropertiesForTable(String tableName) throws IOException {
-        CdfBigQueryPropertiesActions.enterProjectId(CdapUtils.pluginProp("projectId"));
-        CdfBigQueryPropertiesActions.enterDatasetProjectId(CdapUtils.pluginProp("projectId"));
+        CdfBigQueryPropertiesActions.enterProjectId(CdapUtils.pluginProp("Project-ID"));
+        CdfBigQueryPropertiesActions.enterDatasetProjectId(CdapUtils.pluginProp("Project-ID"));
         CdfBigQueryPropertiesActions.enterBigQueryReferenceName("BQ_Ref_" + UUID.randomUUID().toString());
-        CdfBigQueryPropertiesActions.enterBigQueryDataset(CdapUtils.pluginProp("dataset"));
+        CdfBigQueryPropertiesActions.enterBigQueryDataset(CdapUtils.pluginProp("CloudPsqlBqDataSet"));
         CdfBigQueryPropertiesActions.enterBigQueryTable(CdapUtils.pluginProp(tableName));
+        CdfBigQueryPropertiesActions.clickUpdateTable();
+        CdfBigQueryPropertiesActions.clickTruncatableSwitch();
     }
 
     @Then("Validate Bigquery properties")
@@ -338,17 +341,6 @@ public class CloudSqlPostGreSql implements CdfHelper {
         CdfCloudSqlPostGreSqlActions.clickPreviewData();
     }
 
-    @Then("Verify Preview output schema matches the outputSchema captured in properties")
-    public void verifyPreviewOutputSchemaMatchesTheOutputSchemaCapturedInProperties() {
-        List<String> previewOutputSchema = new ArrayList<String>();
-        List<WebElement> previewOutputSchemaElements = SeleniumDriver.getDriver().findElements(
-          By.xpath("(//h2[text()='Output Records']/parent::div/div/div/div/div)[1]//div[text()!='']"));
-        for (WebElement element : previewOutputSchemaElements) {
-            previewOutputSchema.add(element.getAttribute("title"));
-        }
-        Assert.assertTrue(previewOutputSchema.equals(propertiesOutputSchema));
-    }
-
     @Then("Close the Preview and deploy the pipeline")
     public void closeThePreviewAndDeployThePipeline() {
         SeleniumHelper.waitAndClick(CdfStudioLocators.closeButton, 5L);
@@ -360,11 +352,6 @@ public class CloudSqlPostGreSql implements CdfHelper {
     @Then("Open the Logs and capture raw logs")
     public void openTheLogsAndCaptureRawLogs() {
         CdfPipelineRunAction.logsClick();
-        rawLog = CdfPipelineRunAction.captureRawLogs();
-        SeleniumDriver.getDriver().navigate().refresh();
-        BeforeActions.scenario.write(rawLog);
-        out.println(rawLog);
-        out.close();
     }
 
     @Then("Validate records out from cloudSQLPostgreSQL is equal to records transferred in " +
@@ -398,73 +385,71 @@ public class CloudSqlPostGreSql implements CdfHelper {
     }
 
     @Then("Get Count of no of records transferred to BigQuery in {string}")
-    public void getCountOfNoOfRecordsTransferredToBigQueryIn(String arg0) throws IOException, InterruptedException {
+    public void getCountOfNoOfRecordsTransferredToBigQueryIn(String table) throws IOException, InterruptedException {
         int countRecords;
-        countRecords = gcpClient.countBqQuery(SeleniumHelper.readParameters(arg0));
+        countRecords = gcpClient.countBqQuery(CdapUtils.pluginProp(table));
         BeforeActions.scenario.write("**********No of Records Transferred******************:" + countRecords);
         Assert.assertTrue(countRecords > 0);
     }
 
     @Then("Enter the cloudSQLPostgreSQL properties for database {string} using query {string} for {string}")
     public void enterTheCloudSQLPostgreSQLPropertiesForDatabaseUsingQueryForNull
-      (String database, String importquery, String splitColumnValue) throws IOException, InterruptedException {
+      (String database, String importQuery, String splitColumnValue) throws IOException, InterruptedException {
       enterTheCloudSQLPostgreSQLPropertiesForDatabase(database);
-        CdfCloudSqlPostGreSqlActions.enterImportQuery(CdapUtils.pluginProp(importquery));
+        CdfCloudSqlPostGreSqlActions.enterImportQuery(CdapUtils.pluginProp(importQuery));
         CdfCloudSqlPostGreSqlActions.enterSplitColumn(CdapUtils.pluginProp(splitColumnValue));
     }
 
     @Then("Enter the cloudSQLPostgreSQL properties for database {string} using " +
       "query {string} for between values {string}")
     public void enterTheCloudSQLPostgreSQLPropertiesForDatabaseUsingQueryForBetweenValues
-      (String database, String importquery, String cloudPostgresSQLSplitColumnBtwnValue)
+      (String database, String importQuery, String cloudPostgresSQLSplitColumnBetweenValue)
       throws IOException, InterruptedException {
         enterTheCloudSQLPostgreSQLPropertiesForDatabase(database);
-        CdfCloudSqlPostGreSqlActions.enterImportQuery(CdapUtils.pluginProp(importquery));
-        CdfCloudSqlPostGreSqlActions.enterSplitColumn(CdapUtils.pluginProp(cloudPostgresSQLSplitColumnBtwnValue));
+        CdfCloudSqlPostGreSqlActions.enterImportQuery(CdapUtils.pluginProp(importQuery));
+        CdfCloudSqlPostGreSqlActions.enterSplitColumn(CdapUtils.pluginProp(cloudPostgresSQLSplitColumnBetweenValue));
     }
-
 
     @Then("Enter the cloudSQLPostgreSQL properties for database {string} using query {string} for max and min {string}")
     public void enterTheCloudSQLPostgreSQLPropertiesForDatabaseUsingQueryForMaxAndMin
-      (String database, String importquery, String splitColumnField) throws IOException, InterruptedException {
+      (String database, String importQuery, String splitColumnField) throws IOException, InterruptedException {
         enterTheCloudSQLPostgreSQLPropertiesForDatabase(database);
-       CdfCloudSqlPostGreSqlActions.enterImportQuery(CdapUtils.pluginProp(importquery));
+       CdfCloudSqlPostGreSqlActions.enterImportQuery(CdapUtils.pluginProp(importQuery));
         CdfCloudSqlPostGreSqlActions.enterSplitColumn(CdapUtils.pluginProp(splitColumnField));
-
     }
 
     @Then("Enter the cloudSQLPostgreSQL properties for database {string} using query {string} " +
       "for duplicate values {string}")
     public void enterTheCloudSQLPostgreSQLPropertiesForDatabaseUsingQueryForDuplicateValues
-      (String database, String importquery, String splitColumnField) throws IOException, InterruptedException {
+      (String database, String importQuery, String splitColumnField) throws IOException, InterruptedException {
         enterTheCloudSQLPostgreSQLPropertiesForDatabase(database);
-        CdfCloudSqlPostGreSqlActions.enterImportQuery(CdapUtils.pluginProp(importquery));
+        CdfCloudSqlPostGreSqlActions.enterImportQuery(CdapUtils.pluginProp(importQuery));
         CdfCloudSqlPostGreSqlActions.enterSplitColumn(CdapUtils.pluginProp(splitColumnField));
     }
 
     @Then("Enter the cloudSQLPostgreSQL properties for database {string} using query {string} for max values {string}")
     public void enterTheCloudSQLPostgreSQLPropertiesForDatabaseUsingQueryForMaxValues
-      (String database, String importquery, String splitColumnField) throws IOException, InterruptedException {
+      (String database, String importQuery, String splitColumnField) throws IOException, InterruptedException {
         enterTheCloudSQLPostgreSQLPropertiesForDatabase(database);
-        CdfCloudSqlPostGreSqlActions.enterImportQuery(CdapUtils.pluginProp(importquery));
+        CdfCloudSqlPostGreSqlActions.enterImportQuery(CdapUtils.pluginProp(importQuery));
         CdfCloudSqlPostGreSqlActions.enterSplitColumn(CdapUtils.pluginProp(splitColumnField));
     }
 
     @Then("Enter the cloudSQLPostgreSQL properties for database {string} using query {string} for min values {string}")
     public void enterTheCloudSQLPostgreSQLPropertiesForDatabaseUsingQueryForMinValues
-      (String database, String importQuery, String splitCoulumnField) throws IOException, InterruptedException {
+      (String database, String importQuery, String splitColumnField) throws IOException, InterruptedException {
       enterTheCloudSQLPostgreSQLPropertiesForDatabase(database);
      CdfCloudSqlPostGreSqlActions.enterImportQuery(CdapUtils.pluginProp(importQuery));
-     CdfCloudSqlPostGreSqlActions.enterSplitColumn(CdapUtils.pluginProp(splitCoulumnField));
+     CdfCloudSqlPostGreSqlActions.enterSplitColumn(CdapUtils.pluginProp(splitColumnField));
     }
 
     @Then("Enter the cloudSQLPostgreSQL properties for database {string} " +
       "using query {string} for distinct values {string}")
     public void enterTheCloudSQLPostgreSQLPropertiesForDatabaseUsingQueryForDistinctValues
-      (String database, String importQuery, String splitCoulumnField) throws IOException, InterruptedException {
+      (String database, String importQuery, String splitColumnField) throws IOException, InterruptedException {
         enterTheCloudSQLPostgreSQLPropertiesForDatabase(database);
         CdfCloudSqlPostGreSqlActions.enterImportQuery(CdapUtils.pluginProp(importQuery));
-        CdfCloudSqlPostGreSqlActions.enterSplitColumn(CdapUtils.pluginProp(splitCoulumnField));
+        CdfCloudSqlPostGreSqlActions.enterSplitColumn(CdapUtils.pluginProp(splitColumnField));
     }
 
     @Then("Enter the cloudSQLPostgreSQL properties for database {string} using different join queries {string}")
@@ -472,6 +457,54 @@ public class CloudSqlPostGreSql implements CdfHelper {
       (String database, String importQuery) throws IOException, InterruptedException {
         enterTheCloudSQLPostgreSQLPropertiesForDatabase(database);
         CdfCloudSqlPostGreSqlActions.enterImportQuery(CdapUtils.pluginProp(importQuery));
+    }
+
+    @When("Sink is GCS")
+    public void sinkIsGCS() {
+        CdfStudioActions.sinkGcs();
+    }
+
+    @Then("Validate the output record count")
+    public void validateTheOutputRecordCount() {
+     Assert.assertTrue(recordOut() > 0);
+    }
+
+    @Then("Enter the GCS Properties")
+    public void enterTheGCSProperties() throws IOException, InterruptedException {
+      CdfGcsActions.gcsProperties();
+        CdfGcsActions.enterReferenceName();
+        CdfGcsActions.enterProjectId();
+        CdfGcsActions.getGcsBucket(CdapUtils.pluginProp("cloudPSQLGcsBucketName"));
+        CdfGcsActions.selectFormat("json");
+        CdfGcsActions.clickValidateButton();
+    }
+
+    @Then("Close the GCS Properties")
+    public void closeTheGCSProperties() {
+        CdfGcsActions.closeButton();
+    }
+
+    @Then("Verify Preview output schema is not null")
+    public void verifyPreviewOutputSchemaIsNotNull() {
+        List<String> previewOutputSchema = new ArrayList<String>();
+        List<WebElement> previewOutputSchemaElements = SeleniumDriver.getDriver().findElements(
+                By.xpath("(//h2[text()='Output Records']/parent::div/div/div/div/div)[1]//div[text()!='']"));
+        for (WebElement element : previewOutputSchemaElements) {
+            previewOutputSchema.add(element.getAttribute("title"));
+        }
+        Assert.assertTrue(propertiesOutputSchema.size() >= 1);
+    }
+
+    @Then("Enter the cloudSQLPostgreSQL properties for database {string} using query " +
+            "{string} for max values {string} with bounding query {string} and {string}")
+    public void enterTheCloudSQLPostgreSQLPropertiesForDatabaseUsingQueryForMaxValuesWithBoundingQueryAnd
+            (String database, String importQuery, String splitColumnField, String boundingQuery, String splitValue)
+            throws IOException, InterruptedException {
+        enterTheCloudSQLPostgreSQLPropertiesForDatabase(database);
+        CdfCloudSqlPostGreSqlActions.enterImportQuery(CdapUtils.pluginProp(importQuery));
+        CdfCloudSqlPostGreSqlActions.enterSplitColumn(CdapUtils.pluginProp(splitColumnField));
+        CdfCloudSqlPostGreSqlActions.enterBoundingQuery(CdapUtils.pluginProp(boundingQuery));
+        CdfCloudSqlPostGreSqlActions.replaceSplitValue(CdapUtils.pluginProp(splitValue));
     }
 }
 

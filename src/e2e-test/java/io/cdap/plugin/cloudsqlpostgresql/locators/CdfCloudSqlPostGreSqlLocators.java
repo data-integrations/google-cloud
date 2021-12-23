@@ -84,84 +84,17 @@ public class CdfCloudSqlPostGreSqlLocators {
     @FindBy(how = How.XPATH, using = "//*[@data-cy='connectionTimeout' and @class='MuiInputBase-input']")
     public static WebElement connectionTimeout;
 
-    @FindBy(how = How.XPATH, using = "//*[@class='plugin-comments-wrapper ng-scope']")
-    public static WebElement clickComment;
-
-    @FindBy(how = How.XPATH, using = "(//div[contains(@class,'MuiPaper-rounded')])[4]/div/textarea[1]")
-    public static WebElement addComment;
-
-    @FindBy(how = How.XPATH, using = "(//div[contains(@class,'MuiPaper-rounded')])[4]/div[2]/div/p")
-    public static WebElement validateComment;
-
-    @FindBy(how = How.XPATH, using = "(//div[contains(@class,'MuiPaper-rounded')])[3]/div[2]/div/p")
-    public static WebElement validateSinkComment;
-
-    @FindBy(how = How.XPATH, using = "(//*[contains(text(), 'Comment')])[2]")
-    public static WebElement saveComment;
-
-    @FindBy(how = How.XPATH, using = "(//*[contains(@class,'MuiIconButton-sizeSmall') and @tabindex='0'])")
-    public static WebElement editComment;
-
-    @FindBy(how = How.XPATH, using = "(//*[@id='menu-list-grow']//child::li)[1]")
-    public static WebElement clickEdit;
-
-    @FindBy(how = How.XPATH, using = "(//*[@id='menu-list-grow']//child::li)[2]")
-    public static WebElement clickDelete;
-
     @FindBy(how = How.XPATH, using = "//*[@class='fa fa-remove']")
     public static WebElement closeButton;
 
     @FindBy(how = How.XPATH, using = "//*[@data-cy='plugin-properties-validate-btn']")
     public static WebElement validateBtn;
 
-    @FindBy(how = How.XPATH, using = "//*[@data-cy='property-row-error' and contains(text(),'referenceName')]")
-    public static WebElement cldMysqlReferenceNameValidation;
-
-    @FindBy(how = How.XPATH, using = "//*[@data-cy='property-row-error' and contains(text(),'database')]")
-    public static WebElement cldMysqlDatabaseNameValidation;
-
-    @FindBy(how = How.XPATH, using = "//*[@data-cy='property-row-error' and contains(text(),'connectionName')]")
-    public static WebElement cldMysqlConnectionNameValidation;
-
-    @FindBy(how = How.XPATH, using = "//*[@data-cy='property-row-error' and contains(text(),'importQuery')]")
-    public static WebElement cldMysqlImportQueryValidation;
-
-    @FindBy(how = How.XPATH, using = "//*[@data-cy='property-row-error' and contains(text(),'tableName')]")
-    public static WebElement cldMysqlTableNameValidation;
-
-    @FindBy(how = How.XPATH, using = "//*[@data-cy='property-row-error' and contains(text(),'jdbcPluginName')]")
-    public static WebElement cldMysqlDriverNameValidation;
-
     @FindBy(how = How.XPATH, using = "//*[@title=\"CloudSQL PostgreSQL\"]//following-sibling::div")
     public static WebElement cloudSqlPSqlProperties;
 
     @FindBy(how = How.XPATH, using = "//*[contains(text(),'Get Schema')]")
     public static WebElement getSchemaButton;
-
-    @FindBy(how = How.XPATH, using = "//*[@class=\"btn pipeline-action-btn pipeline-actions-btn\"]")
-    public static WebElement actionButton;
-
-    @FindBy(how = How.XPATH, using = "//*[@class=\"btn btn-primary save-button\"]")
-    public static WebElement pipelineSave;
-
-    @FindBy(how = How.XPATH, using = "//*[contains(text(),'Duplicate')]")
-    public static WebElement actionDuplicateButton;
-
-    // Later below two locator should be deled when code will re-factor
-    @FindBy(how = How.XPATH, using = "//*[@data-cy='serviceAccountJSON' and @class='MuiInputBase-input']")
-    public static WebElement bigQueryServiceAccountJSON;
-
-    @FindBy(how = How.XPATH, using = "//input [@type='radio' and @value='JSON']")
-    public static WebElement bigQueryJson;
-
-    @FindBy(how = How.XPATH, using = "(//*[@data-cy='plugin-properties-errors-found']")
-    public static WebElement getSchemaStatus;
-
-    @FindBy(how = How.XPATH, using = "//*[@data-cy='plugin-BigQueryTable-batchsource']")
-    public static WebElement selectBigQuerySource;
-
-    @FindBy(how = How.XPATH, using = "//*[@placeholder='Add a comment']")
-    public static WebElement addCommentSink;
 
     @FindBy(how = How.XPATH, using = "//*[@data-cy='CloudSQLPostgreSQL-preview-data-btn' and " +
       "@class='node-preview-data-btn ng-scope']")

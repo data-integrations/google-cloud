@@ -59,6 +59,10 @@ jobs:
             ${{ runner.os }}-maven-${{ github.workflow }}
       - name: Run tests
         run: python3 e2e/src/main/scripts/run_e2e_test.py
+        env:
+          Cloud_Psql_User_Name: ${{secrets.Cloud_Psql_User_Name}}
+          Cloud_Psql_Password: ${{secrets.Cloud_Psql_Password}}
+          Cloud_Psql_ConnectionName: ${{secrets.Cloud_Psql_ConnectionName}}
       - name: Upload report 
         uses: actions/upload-artifact@v2.2.4
         if: always()
