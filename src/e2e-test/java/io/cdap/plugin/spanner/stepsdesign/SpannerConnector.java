@@ -342,7 +342,7 @@ public class SpannerConnector implements CdfHelper {
             CdfSpannerActions.enterInstanceID(E2ETestUtils.pluginProp("spannerInstanceId"));
             CdfSpannerActions.enterDatabaseeName(E2ETestUtils.pluginProp("spannerDatabaseName"));
         } else {
-            Assert.fail("Blank Spanner Connector Mandatory Field : " + property);
+            Assert.fail("Invalid Spanner Connector Mandatory field : " + property);
         }
     }
 

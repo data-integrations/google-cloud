@@ -31,7 +31,7 @@ public class CdfSpannerLocators {
   public static WebElement referenceName;
 
   @FindBy(how = How.XPATH, using = "//*[@data-cy=\"plugin-Spanner-batchsource\"]")
-  public static WebElement spannerBucket;
+  public static WebElement spannerBatchSource;
 
   @FindBy(how = How.XPATH, using = "//*[contains(text(),'Select one')]")
   public static WebElement format;
@@ -61,7 +61,7 @@ public class CdfSpannerLocators {
   public static WebElement spannerInstanceId;
 
   @FindBy(how = How.XPATH, using = "//input[@data-cy='database']")
-  public static WebElement spannerDatabaseeName;
+  public static WebElement spannerDatabaseName;
 
   @FindBy(how = How.XPATH, using = "//input[@data-cy='table']")
   public static WebElement spannerTableName;

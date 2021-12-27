@@ -57,7 +57,7 @@ public class CdfSpannerActions {
     }
 
     public static void enterDatabaseeName(String databaseName) {
-        CdfSpannerLocators.spannerDatabaseeName.sendKeys(databaseName);
+        CdfSpannerLocators.spannerDatabaseName.sendKeys(databaseName);
     }
 
     public static void clickSpannerPreviewData() {
@@ -69,7 +69,7 @@ public class CdfSpannerActions {
     }
 
     public static void selectSpanner() throws InterruptedException {
-        SeleniumHelper.waitAndClick(CdfSpannerLocators.spannerBucket);
+        SeleniumHelper.waitAndClick(CdfSpannerLocators.spannerBatchSource);
     }
 
     public static void clickPreviewPropertiesTab() {
