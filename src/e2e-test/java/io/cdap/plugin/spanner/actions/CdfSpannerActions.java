@@ -56,7 +56,7 @@ public class CdfSpannerActions {
         CdfSpannerLocators.spannerTableName.sendKeys(tableName);
     }
 
-    public static void enterDatabaseeName(String databaseName) {
+    public static void enterDatabaseName(String databaseName) {
         CdfSpannerLocators.spannerDatabaseName.sendKeys(databaseName);
     }
 

@@ -76,7 +76,7 @@ public class SpannerConnector implements CdfHelper {
         CdfSpannerActions.enterProjectId(E2ETestUtils.pluginProp("projectId"));
         CdfSpannerActions.enterReferenceName();
         CdfSpannerActions.enterInstanceID(E2ETestUtils.pluginProp("spannerInstanceId"));
-        CdfSpannerActions.enterDatabaseeName(E2ETestUtils.pluginProp("spannerDatabaseName"));
+        CdfSpannerActions.enterDatabaseName(E2ETestUtils.pluginProp("spannerDatabaseName"));
         CdfSpannerActions.enterTableName(E2ETestUtils.pluginProp("spannerTableName"));
     }
 
@@ -327,11 +327,11 @@ public class SpannerConnector implements CdfHelper {
 
         if (property.equalsIgnoreCase("referenceName")) {
             CdfSpannerActions.enterInstanceID(E2ETestUtils.pluginProp("spannerInstanceId"));
-            CdfSpannerActions.enterDatabaseeName(E2ETestUtils.pluginProp("spannerDatabaseName"));
+            CdfSpannerActions.enterDatabaseName(E2ETestUtils.pluginProp("spannerDatabaseName"));
             CdfSpannerActions.enterTableName(E2ETestUtils.pluginProp("spannerTableName"));
         } else if (property.equalsIgnoreCase("instance")) {
             CdfSpannerActions.enterReferenceName();
-            CdfSpannerActions.enterDatabaseeName(E2ETestUtils.pluginProp("spannerDatabaseName"));
+            CdfSpannerActions.enterDatabaseName(E2ETestUtils.pluginProp("spannerDatabaseName"));
             CdfSpannerActions.enterTableName(E2ETestUtils.pluginProp("spannerTableName"));
         } else if (property.equalsIgnoreCase("database")) {
             CdfSpannerActions.enterReferenceName();
@@ -340,7 +340,7 @@ public class SpannerConnector implements CdfHelper {
         } else if (property.equalsIgnoreCase("table")) {
             CdfSpannerActions.enterReferenceName();
             CdfSpannerActions.enterInstanceID(E2ETestUtils.pluginProp("spannerInstanceId"));
-            CdfSpannerActions.enterDatabaseeName(E2ETestUtils.pluginProp("spannerDatabaseName"));
+            CdfSpannerActions.enterDatabaseName(E2ETestUtils.pluginProp("spannerDatabaseName"));
         } else {
             Assert.fail("Invalid Spanner Connector Mandatory field : " + property);
         }
@@ -352,19 +352,19 @@ public class SpannerConnector implements CdfHelper {
         CdfSpannerActions.enterReferenceName();
         if (property.equalsIgnoreCase("instance")) {
             CdfSpannerActions.enterInstanceID(E2ETestUtils.pluginProp("spannerIncorrectInstanceId"));
-            CdfSpannerActions.enterDatabaseeName(E2ETestUtils.pluginProp("spannerDatabaseName"));
+            CdfSpannerActions.enterDatabaseName(E2ETestUtils.pluginProp("spannerDatabaseName"));
             CdfSpannerActions.enterTableName(E2ETestUtils.pluginProp("spannerTableName"));
         } else if (property.equalsIgnoreCase("database")) {
             CdfSpannerActions.enterInstanceID(E2ETestUtils.pluginProp("spannerInstanceId"));
-            CdfSpannerActions.enterDatabaseeName(E2ETestUtils.pluginProp("spannerIncorrectDatabaseName"));
+            CdfSpannerActions.enterDatabaseName(E2ETestUtils.pluginProp("spannerIncorrectDatabaseName"));
             CdfSpannerActions.enterTableName(E2ETestUtils.pluginProp("spannerTableName"));
         } else if (property.equalsIgnoreCase("table")) {
             CdfSpannerActions.enterInstanceID(E2ETestUtils.pluginProp("spannerInstanceId"));
-            CdfSpannerActions.enterDatabaseeName(E2ETestUtils.pluginProp("spannerDatabaseName"));
+            CdfSpannerActions.enterDatabaseName(E2ETestUtils.pluginProp("spannerDatabaseName"));
             CdfSpannerActions.enterTableName(E2ETestUtils.pluginProp("spannerIncorrectTableName"));
         } else if (property.equalsIgnoreCase("importQuery")) {
             CdfSpannerActions.enterInstanceID(E2ETestUtils.pluginProp("spannerInstanceId"));
-            CdfSpannerActions.enterDatabaseeName(E2ETestUtils.pluginProp("spannerDatabaseName"));
+            CdfSpannerActions.enterDatabaseName(E2ETestUtils.pluginProp("spannerDatabaseName"));
             CdfSpannerActions.enterTableName(E2ETestUtils.pluginProp("spannerTableName"));
             CdfSpannerActions.enterImportQuery(E2ETestUtils.pluginProp("spannerIncorrectQuery"));
         } else {
