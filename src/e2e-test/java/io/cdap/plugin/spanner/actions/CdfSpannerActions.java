@@ -21,7 +21,7 @@ import java.io.IOException;
 import java.util.UUID;
 
 /**
- * Spanner Plugin testcase actions.
+ * Spanner Connector related Actions.
  */
 public class CdfSpannerActions {
     static {
@@ -52,24 +52,28 @@ public class CdfSpannerActions {
         CdfSpannerLocators.validateButton.click();
     }
 
-    public static void enterTablename(String tableName) {
+    public static void enterTableName(String tableName) {
         CdfSpannerLocators.spannerTableName.sendKeys(tableName);
     }
 
-    public static void enterDatabaseename(String databaseName) {
+    public static void enterDatabaseeName(String databaseName) {
         CdfSpannerLocators.spannerDatabaseeName.sendKeys(databaseName);
     }
 
-    public static void clickPreviewData() {
+    public static void clickSpannerPreviewData() {
         SeleniumHelper.waitAndClick(CdfSpannerLocators.spannerPreviewData);
     }
 
-    public static void clickSpannerPreviewDataButton() {
-        CdfSpannerLocators.spannerPreviewDataButton.click();
+    public static void clickGCSPreviewData() {
+        SeleniumHelper.waitAndClick(CdfSpannerLocators.gcsPreviewData);
     }
 
     public static void selectSpanner() throws InterruptedException {
         SeleniumHelper.waitAndClick(CdfSpannerLocators.spannerBucket);
+    }
+
+    public static void clickPreviewPropertiesTab() {
+        CdfSpannerLocators.previewPropertiesTab.click();
     }
 
     public static void closeButton()  {
