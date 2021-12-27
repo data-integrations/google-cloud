@@ -3,7 +3,7 @@ package io.cdap.plugin.utils;
 /**
  * constants.
  */
-public class GCConstants {
+public class E2ETestConstants {
   public static final String ERROR_MSG_COLOR = "errorMessageColor";
   public static final String ERROR_MSG_DATASET = "errorMessageDataset";
   public static final String ERROR_MSG_TEMP_BUCKET = "errorMessageTemporaryBucket";

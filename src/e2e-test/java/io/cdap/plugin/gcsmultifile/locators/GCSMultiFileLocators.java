@@ -20,9 +20,9 @@ import org.openqa.selenium.support.FindBy;
 import org.openqa.selenium.support.How;
 
 /**
- * multifilelocators.
+ * GCSMultiFile connector related locators.
  */
-public class GCSMultifileLocators {
+public class GCSMultiFileLocators {
 
   @FindBy(how = How.XPATH, using = "//*[@data-cy=\"referenceName\" and @class=\"MuiInputBase-input\"]")
   public static WebElement referenceName;

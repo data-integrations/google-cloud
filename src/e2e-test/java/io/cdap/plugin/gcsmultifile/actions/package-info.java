@@ -1,4 +1,4 @@
 /**
- * Package contains the stepDesign for the GCP features.
+ * Package contains the actions for the GCSMultiFile features.
  */
 package io.cdap.plugin.gcsmultifile.actions;

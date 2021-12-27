@@ -1,10 +1,10 @@
-Feature: GCS Multifile Plugin Error scenarios
+Feature: GCS MultiFile Plugin Error scenarios
 
-  @Multifile
-  Scenario Outline: Verify mandatory fields error validation in GCS multifile sink plugin
+  @MultiFile
+  Scenario Outline: Verify mandatory fields error validation in GCS MultiFile sink plugin
     Given Open Datafusion Project to configure pipeline
-    When Target is GcsMultifile
-    Then Enter the GCSMultifile properties with blank property "<property>"
+    When Target is GcsMultiFile
+    Then Enter the GCSMultiFile properties with blank property "<property>"
     Then Verify required property error for "<property>"
     Examples:
       | property        |
@@ -12,16 +12,16 @@ Feature: GCS Multifile Plugin Error scenarios
       | path            |
       | splitField      |
 
-  @Multifile
+  @MultiFile
   Scenario: To verify Error message for invalid bucket name
     Given Open Datafusion Project to configure pipeline
-    When Target is GcsMultifile
-    Then Enter the Gcs Multifile Properties for table "multifileInvalidPath" and format "gcsCSVFileFormat"
-    Then Verify invalid path name error message is displayed for path "multifileInvalidPath"
+    When Target is GcsMultiFile
+    Then Enter the Gcs MultiFile Properties for table "multiFileInvalidPath" and format "gcsCSVFileFormat"
+    Then Verify invalid path name error message is displayed for path "multiFileInvalidPath"
 
-  @Multifile
+  @MultiFile
   Scenario: To Verify Valid Content Type in avro Format
     Given Open Datafusion Project to configure pipeline
-    When Target is GcsMultifile
-    Then Enter the Gcs Multifile Properties for table "gcsMultifilePath" and format "gcsAvroFileFormat" with ContentType "multifileJSONContentType"
+    When Target is GcsMultiFile
+    Then Enter the Gcs MultiFile Properties for table "multiFileGcsPath" and format "gcsAvroFileFormat" with ContentType "multiFileJSONContentType"
     Then Verify Content Type Validation

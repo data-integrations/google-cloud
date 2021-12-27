@@ -1,4 +1,4 @@
 /**
- * Package contains the stepDesign for the GCP features.
+ * Package contains the tests for the GCP features.
  */
 package io.cdap.plugin.gcsmultifile.tests.runner;
