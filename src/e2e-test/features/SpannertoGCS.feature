@@ -17,7 +17,7 @@ Feature: Spanner to GCS data transfer for different file formats
     Then Save the pipeline
     Then Preview and run the pipeline
     Then Verify the preview of pipeline is "success"
-    Then Click on PreviewData for Spanner connector
+    Then Click on PreviewData for GCS connector
     Then Verify Preview output schema matches the outputSchema captured in properties
     Then Close the Preview
     Then Deploy the pipeline
@@ -32,7 +32,6 @@ Feature: Spanner to GCS data transfer for different file formats
       | avro        |
       | parquet     |
       | tsv         |
-      | json        |
 
   @Spanner
   Scenario Outline:: Verify data is getting transferred from Spanner to GCS for different file formats with Import Query.
@@ -51,7 +50,7 @@ Feature: Spanner to GCS data transfer for different file formats
     Then Save the pipeline
     Then Preview and run the pipeline
     Then Verify the preview of pipeline is "success"
-    Then Click on PreviewData for Spanner connector
+    Then Click on PreviewData for GCS connector
     Then Verify Preview output schema matches the outputSchema captured in properties
     Then Close the Preview
     Then Deploy the pipeline
@@ -62,7 +61,6 @@ Feature: Spanner to GCS data transfer for different file formats
     Then Validate successMessage is displayed
     Examples:
       | FileFormat  |
-      | json        |
       | csv         |
       | avro        |
       | parquet     |

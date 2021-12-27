@@ -19,8 +19,10 @@ import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.FindBy;
 import org.openqa.selenium.support.How;
 
+import java.util.List;
+
 /**
- * All Spanner Locators.
+ * Spanner Connector related Locators.
  */
 
 public class CdfSpannerLocators {
@@ -29,7 +31,7 @@ public class CdfSpannerLocators {
   public static WebElement referenceName;
 
   @FindBy(how = How.XPATH, using = "//*[@data-cy=\"plugin-Spanner-batchsource\"]")
-  public static WebElement spannerBucket;
+  public static WebElement spannerBatchSource;
 
   @FindBy(how = How.XPATH, using = "//*[contains(text(),'Select one')]")
   public static WebElement format;
@@ -59,7 +61,7 @@ public class CdfSpannerLocators {
   public static WebElement spannerInstanceId;
 
   @FindBy(how = How.XPATH, using = "//input[@data-cy='database']")
-  public static WebElement spannerDatabaseeName;
+  public static WebElement spannerDatabaseName;
 
   @FindBy(how = How.XPATH, using = "//input[@data-cy='table']")
   public static WebElement spannerTableName;
@@ -73,4 +75,30 @@ public class CdfSpannerLocators {
 
   @FindBy(how = How.XPATH, using = "//*[@data-cy='importQuery']//textarea")
   public static WebElement importQuery;
+
+  @FindBy(how = How.XPATH, using = "//*[@role='tablist']/li[contains(text(),'Properties')]")
+  public static WebElement previewPropertiesTab;
+
+  @FindBy(how = How.XPATH,
+    using = "//div[@data-cy='Output Schema']//div[@data-cy='schema-fields-list']//*[@placeholder='Field name']")
+  public static List<WebElement> outputSchemaColumnNames;
+
+  @FindBy(how = How.XPATH,
+    using = "//div[@data-cy='Output Schema']//div[@data-cy='schema-fields-list']//select")
+  public static List<WebElement> outputSchemaDataTypes;
+
+  @FindBy(how = How.XPATH,
+    using = "//div[@data-cy='Input Schema']//div[@data-cy='schema-fields-list']//*[@placeholder='Field name']")
+  public static List<WebElement> inputSchemaColumnNames;
+
+  @FindBy(how = How.XPATH,
+    using = "//div[@data-cy='Input Schema']//div[@data-cy='schema-fields-list']//select")
+  public static List<WebElement> inputSchemaDataTypes;
+
+  @FindBy(how = How.XPATH, using = "(//h2[text()='Input Records']/parent::div/div/div/div/div)[1]//div[text()!='']")
+  public static List<WebElement> previewInputRecordColumnNames;
+
+  @FindBy(how = How.XPATH, using = "//*[contains(@data-cy,'GCS') and contains(@data-cy,'-preview-data-btn') and " +
+    "@class='node-preview-data-btn ng-scope']")
+  public static WebElement gcsPreviewData;
 }

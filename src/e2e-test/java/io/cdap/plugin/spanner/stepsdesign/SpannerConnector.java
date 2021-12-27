@@ -27,7 +27,9 @@ import io.cdap.e2e.utils.SeleniumDriver;
 import io.cdap.e2e.utils.SeleniumHelper;
 import io.cdap.plugin.spanner.actions.CdfSpannerActions;
 import io.cdap.plugin.spanner.locators.CdfSpannerLocators;
-import io.cdap.plugin.utils.CdapUtils;
+import io.cdap.plugin.utils.E2ETestConstants;
+import io.cdap.plugin.utils.E2ETestUtils;
+import io.cdap.plugin.utils.GcpSpannerClient;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
@@ -40,19 +42,19 @@ import stepsdesign.BeforeActions;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
-import static io.cdap.plugin.utils.GCConstants.ERROR_MSG_ERROR_FOUND_VALIDATION;
-import static io.cdap.plugin.utils.GCConstants.ERROR_MSG_VALIDATION;
-
 /**
- * Step Design for Spanner plugin.
+ * Spanner Connector related Step Design.
  */
 public class SpannerConnector implements CdfHelper {
-
-    List<String> propertiesOutputSchema = new ArrayList<String>();
-    GcpClient gcpClient = new GcpClient();
+    List<String> propertiesSchemaColumnList = new ArrayList<>();
+    Map<String, String> sourcePropertiesOutputSchema = new HashMap<>();
+    int countRecords;
 
     @Given("Open Datafusion Project to configure pipeline")
     public void openDatafusionProjectToConfigurePipeline() throws IOException, InterruptedException {
@@ -71,11 +73,17 @@ public class SpannerConnector implements CdfHelper {
 
     @Then("Enter the Spanner connector Properties")
     public void enterTheSpannerConnectorProperties() throws IOException {
-        CdfSpannerActions.enterProjectId(CdapUtils.pluginProp("projectId"));
+        CdfSpannerActions.enterProjectId(E2ETestUtils.pluginProp("projectId"));
         CdfSpannerActions.enterReferenceName();
-        CdfSpannerActions.enterInstanceID(CdapUtils.pluginProp("spannerInstanceId"));
-        CdfSpannerActions.enterDatabaseename(CdapUtils.pluginProp("spannerDatabaseName"));
-        CdfSpannerActions.enterTablename(CdapUtils.pluginProp("spannerTablename"));
+        CdfSpannerActions.enterInstanceID(E2ETestUtils.pluginProp("spannerInstanceId"));
+        CdfSpannerActions.enterDatabaseName(E2ETestUtils.pluginProp("spannerDatabaseName"));
+        CdfSpannerActions.enterTableName(E2ETestUtils.pluginProp("spannerTableName"));
+    }
+
+    @Then("Enter the Spanner connector Properties with Import Query {string}")
+    public void enterTheSpannerConnectorPropertiesWithImportQuery(String query) throws IOException {
+        enterTheSpannerConnectorProperties();
+        CdfSpannerActions.enterImportQuery(E2ETestUtils.pluginProp(query));
     }
 
     @When("Target is BigQuery")
@@ -90,11 +98,11 @@ public class SpannerConnector implements CdfHelper {
 
     @Then("Enter the BigQuery Sink properties for table {string}")
     public void enterTheBigQuerySinkPropertiesForTable(String tableName) throws IOException {
-        CdfBigQueryPropertiesActions.enterProjectId(CdapUtils.pluginProp("projectId"));
-        CdfBigQueryPropertiesActions.enterDatasetProjectId(CdapUtils.pluginProp("projectId"));
+        CdfBigQueryPropertiesActions.enterProjectId(E2ETestUtils.pluginProp("projectId"));
+        CdfBigQueryPropertiesActions.enterDatasetProjectId(E2ETestUtils.pluginProp("projectId"));
         CdfBigQueryPropertiesActions.enterBigQueryReferenceName("BQ_File_Ref_" + UUID.randomUUID().toString());
-        CdfBigQueryPropertiesActions.enterBigQueryDataset(CdapUtils.pluginProp("dataset"));
-        CdfBigQueryPropertiesActions.enterBigQueryTable(CdapUtils.pluginProp(tableName));
+        CdfBigQueryPropertiesActions.enterBigQueryDataset(E2ETestUtils.pluginProp("dataset"));
+        CdfBigQueryPropertiesActions.enterBigQueryTable(E2ETestUtils.pluginProp(tableName));
         CdfBigQueryPropertiesActions.clickUpdateTable();
         CdfBigQueryPropertiesActions.clickTruncatableSwitch();
     }
@@ -102,15 +110,40 @@ public class SpannerConnector implements CdfHelper {
     @Then("Get Count of no of records transferred to BigQuery in {string}")
     public void getCountOfNoOfRecordsTransferredToBigQueryIn(String tableName)
       throws IOException, InterruptedException {
-        int countRecords = gcpClient.countBqQuery(CdapUtils.pluginProp(tableName));
+        countRecords = GcpClient.countBqQuery(E2ETestUtils.pluginProp(tableName));
         BeforeActions.scenario.write("**********No of Records Transferred******************:" + countRecords);
-        Assert.assertTrue(countRecords > 0);
+        Assert.assertEquals(countRecords, recordOut());
+    }
+
+    @Then("Validate BigQuery records count with record counts of spanner table")
+    public void validateBigQueryRecordsCountWithRecordCountsOfSpannerTable() throws IOException, InterruptedException {
+        int spannerTableRecordCount = GcpSpannerClient.
+          countBqQuery(E2ETestUtils.pluginProp("spannerInstanceId"),
+                       E2ETestUtils.pluginProp("spannerDatabaseName"),
+                       E2ETestUtils.pluginProp("spannerTableName"));
+        BeforeActions.scenario.write("No of Records from Spanner table :" + spannerTableRecordCount);
+        Assert.assertEquals(spannerTableRecordCount, countRecords);
+    }
+
+    @Then("Validate BigQuery records count with record counts of spanner Import Query {string}")
+    public void validateBigQueryRecordsCountWithRecordCountsOfSpannerImportQuery(String query)
+      throws IOException, InterruptedException {
+        Optional<String> result = GcpSpannerClient.
+          getSoleQueryResult(E2ETestUtils.pluginProp("spannerInstanceId"),
+                             E2ETestUtils.pluginProp("spannerDatabaseName"),
+                             E2ETestUtils.pluginProp(query));
+        int spannerQueryRecordCount = 0;
+        if (result.isPresent()) {
+            spannerQueryRecordCount = Integer.parseInt(result.get());
+        }
+        BeforeActions.scenario.write("No of Records from Spanner Query :" + spannerQueryRecordCount);
+        Assert.assertEquals(spannerQueryRecordCount, countRecords);
     }
 
     @Then("Validate BigQuery properties")
     public void validateBigQueryProperties() {
         CdfSpannerActions.clickValidateButton();
-        String expectedErrorMessage = CdapUtils.errorProp(ERROR_MSG_VALIDATION);
+        String expectedErrorMessage = E2ETestUtils.errorProp(E2ETestConstants.ERROR_MSG_VALIDATION);
         String actualErrorMessage = CdfStudioLocators.pluginValidationSuccessMsg.getText();
         Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
     }
@@ -124,21 +157,22 @@ public class SpannerConnector implements CdfHelper {
     public void captureAndValidateOutputSchema() {
         CdfSpannerActions.getSchema();
         SeleniumHelper.waitElementIsVisible(CdfSpannerLocators.getSchemaLoadComplete, 10L);
-        Assert.assertFalse(SeleniumHelper.isElementPresent(CdfStudioLocators.pluginValidationErrorMsg));
-        By schemaXpath = By.xpath("//div[@data-cy='schema-fields-list']//*[@placeholder='Field name']");
-        SeleniumHelper.waitElementIsVisible(SeleniumDriver.getDriver().findElement(schemaXpath), 2L);
-        List<WebElement> propertiesOutputSchemaElements = SeleniumDriver.getDriver().findElements(schemaXpath);
-        for (WebElement element : propertiesOutputSchemaElements) {
-            propertiesOutputSchema.add(element.getAttribute("value"));
+        SeleniumHelper.waitElementIsVisible(CdfSpannerLocators.outputSchemaColumnNames.get(0), 2L);
+        int index = 0;
+        for (WebElement element : CdfSpannerLocators.outputSchemaColumnNames) {
+            propertiesSchemaColumnList.add(element.getAttribute("value"));
+            sourcePropertiesOutputSchema.put(element.getAttribute("value"),
+                                             CdfSpannerLocators.outputSchemaDataTypes.get(index).getAttribute("title"));
+            index++;
         }
-        Assert.assertTrue(propertiesOutputSchema.size() >= 1);
+        Assert.assertTrue(propertiesSchemaColumnList.size() >= 1);
     }
 
     @Then("Validate Spanner connector properties")
     public void thenValidateSpannerConnectorProperties() {
         CdfSpannerActions.clickValidateButton();
         SeleniumHelper.waitElementIsVisible(CdfStudioLocators.pluginValidationSuccessMsg, 10L);
-        String expectedErrorMessage = CdapUtils.errorProp(ERROR_MSG_VALIDATION);
+        String expectedErrorMessage = E2ETestUtils.errorProp(E2ETestConstants.ERROR_MSG_VALIDATION);
         String actualErrorMessage = CdfStudioLocators.pluginValidationSuccessMsg.getText();
         Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
     }
@@ -153,7 +187,7 @@ public class SpannerConnector implements CdfHelper {
         CdfGcsActions.gcsProperties();
         CdfGcsActions.enterReferenceName();
         CdfGcsActions.enterProjectId();
-        CdfGcsActions.getGcsBucket(CdapUtils.pluginProp("spannerPathGCS"));
+        CdfGcsActions.getGcsBucket(E2ETestUtils.pluginProp("spannerPathGCS"));
         CdfGcsActions.selectFormat(fileFormat);
         CdfGcsActions.clickValidateButton();
     }
@@ -161,7 +195,7 @@ public class SpannerConnector implements CdfHelper {
     @Then("Validate GCS properties")
     public void validateGCSProperties() {
         CdfSpannerActions.clickValidateButton();
-        String expectedErrorMessage = CdapUtils.errorProp(ERROR_MSG_VALIDATION);
+        String expectedErrorMessage = E2ETestUtils.errorProp(E2ETestConstants.ERROR_MSG_VALIDATION);
         String actualErrorMessage = CdfStudioLocators.pluginValidationSuccessMsg.getText();
         Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
     }
@@ -179,7 +213,7 @@ public class SpannerConnector implements CdfHelper {
     @Then("Then Validate GCS properties")
     public void thenValidateGCSProperties() {
         CdfSpannerActions.clickValidateButton();
-        String expectedErrorMessage = CdapUtils.errorProp(ERROR_MSG_VALIDATION);
+        String expectedErrorMessage = E2ETestUtils.errorProp(E2ETestConstants.ERROR_MSG_VALIDATION);
         String actualErrorMessage = CdfStudioLocators.pluginValidationSuccessMsg.getText();
         Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
     }
@@ -218,18 +252,25 @@ public class SpannerConnector implements CdfHelper {
 
     @Then("Click on PreviewData for Spanner connector")
     public void clickOnPreviewDataForSpannerConnector() {
-        CdfSpannerActions.clickPreviewData();
+        CdfSpannerActions.clickSpannerPreviewData();
     }
 
     @Then("Verify Preview output schema matches the outputSchema captured in properties")
     public void verifyPreviewOutputSchemaMatchesTheOutputSchemaCapturedInProperties() {
-        List<String> previewOutputSchema = new ArrayList<String>();
-        List<WebElement> previewOutputSchemaElements = SeleniumDriver.getDriver().findElements(
-          By.xpath("(//h2[text()='Output Records']/parent::div/div/div/div/div)[1]//div[text()!='']"));
-        for (WebElement element : previewOutputSchemaElements) {
-            previewOutputSchema.add(element.getAttribute("title"));
+        List<String> previewSchemaColumnList = new ArrayList<>();
+        for (WebElement element : CdfSpannerLocators.previewInputRecordColumnNames) {
+            previewSchemaColumnList.add(element.getAttribute("title"));
         }
-        Assert.assertTrue(previewOutputSchema.equals(propertiesOutputSchema));
+        Assert.assertTrue(previewSchemaColumnList.equals(propertiesSchemaColumnList));
+        CdfSpannerActions.clickPreviewPropertiesTab();
+        Map<String, String> previewSinkInputSchema = new HashMap<>();
+        int index = 0;
+        for (WebElement element : CdfSpannerLocators.inputSchemaColumnNames) {
+            previewSinkInputSchema.put(element.getAttribute("value"),
+                                       CdfSpannerLocators.inputSchemaDataTypes.get(index).getAttribute("title"));
+            index++;
+        }
+        Assert.assertTrue(previewSinkInputSchema.equals(sourcePropertiesOutputSchema));
     }
 
     @Then("Close the Preview")
@@ -273,55 +314,61 @@ public class SpannerConnector implements CdfHelper {
     public void openLogs() throws FileNotFoundException, InterruptedException {
         CdfPipelineRunAction.logsClick();
     }
+
     @Then("Validate mandatory property error for {string}")
     public void validateMandatoryPropertyErrorFor(String property) {
         CdfStudioActions.clickValidateButton();
         SeleniumHelper.waitElementIsVisible(CdfStudioLocators.validateButton);
-        CdapUtils.validateMandatoryPropertyError(property);
+        E2ETestUtils.validateMandatoryPropertyError(property);
     }
+
     @Then("Enter the Spanner connector Properties with blank property {string}")
     public void enterTheSpannerConnectorPropertiesWithBlankProperty(String property) throws IOException {
 
         if (property.equalsIgnoreCase("referenceName")) {
-            CdfSpannerActions.enterInstanceID(CdapUtils.pluginProp("spannerInstanceId"));
-            CdfSpannerActions.enterDatabaseename(CdapUtils.pluginProp("spannerDatabaseName"));
-            CdfSpannerActions.enterTablename(CdapUtils.pluginProp("spannerTablename"));
+            CdfSpannerActions.enterInstanceID(E2ETestUtils.pluginProp("spannerInstanceId"));
+            CdfSpannerActions.enterDatabaseName(E2ETestUtils.pluginProp("spannerDatabaseName"));
+            CdfSpannerActions.enterTableName(E2ETestUtils.pluginProp("spannerTableName"));
         } else if (property.equalsIgnoreCase("instance")) {
             CdfSpannerActions.enterReferenceName();
-            CdfSpannerActions.enterDatabaseename(CdapUtils.pluginProp("spannerDatabaseName"));
-            CdfSpannerActions.enterTablename(CdapUtils.pluginProp("spannerTablename"));
+            CdfSpannerActions.enterDatabaseName(E2ETestUtils.pluginProp("spannerDatabaseName"));
+            CdfSpannerActions.enterTableName(E2ETestUtils.pluginProp("spannerTableName"));
         } else if (property.equalsIgnoreCase("database")) {
             CdfSpannerActions.enterReferenceName();
-            CdfSpannerActions.enterInstanceID(CdapUtils.pluginProp("spannerInstanceId"));
-            CdfSpannerActions.enterTablename(CdapUtils.pluginProp("spannerTablename"));
+            CdfSpannerActions.enterInstanceID(E2ETestUtils.pluginProp("spannerInstanceId"));
+            CdfSpannerActions.enterTableName(E2ETestUtils.pluginProp("spannerTableName"));
         } else if (property.equalsIgnoreCase("table")) {
             CdfSpannerActions.enterReferenceName();
-            CdfSpannerActions.enterInstanceID(CdapUtils.pluginProp("spannerInstanceId"));
-            CdfSpannerActions.enterDatabaseename(CdapUtils.pluginProp("spannerDatabaseName"));
+            CdfSpannerActions.enterInstanceID(E2ETestUtils.pluginProp("spannerInstanceId"));
+            CdfSpannerActions.enterDatabaseName(E2ETestUtils.pluginProp("spannerDatabaseName"));
+        } else {
+            Assert.fail("Invalid Spanner Connector Mandatory field : " + property);
         }
     }
 
     @Then("Enter the Spanner connector Properties with incorrect property {string}")
     public void enterTheSpannerConnectorPropertiesWithIncorrectProperty(String property) throws IOException {
-        CdfSpannerActions.enterProjectId(CdapUtils.pluginProp("projectId"));
+        CdfSpannerActions.enterProjectId(E2ETestUtils.pluginProp("projectId"));
         CdfSpannerActions.enterReferenceName();
         if (property.equalsIgnoreCase("instance")) {
-            CdfSpannerActions.enterInstanceID(CdapUtils.pluginProp("spannerIncorrectInstanceId"));
-            CdfSpannerActions.enterDatabaseename(CdapUtils.pluginProp("spannerDatabaseName"));
-            CdfSpannerActions.enterTablename(CdapUtils.pluginProp("spannerTablename"));
+            CdfSpannerActions.enterInstanceID(E2ETestUtils.pluginProp("spannerIncorrectInstanceId"));
+            CdfSpannerActions.enterDatabaseName(E2ETestUtils.pluginProp("spannerDatabaseName"));
+            CdfSpannerActions.enterTableName(E2ETestUtils.pluginProp("spannerTableName"));
         } else if (property.equalsIgnoreCase("database")) {
-            CdfSpannerActions.enterInstanceID(CdapUtils.pluginProp("spannerInstanceId"));
-            CdfSpannerActions.enterDatabaseename(CdapUtils.pluginProp("spannerIncorrectDatabaseName"));
-            CdfSpannerActions.enterTablename(CdapUtils.pluginProp("spannerTablename"));
+            CdfSpannerActions.enterInstanceID(E2ETestUtils.pluginProp("spannerInstanceId"));
+            CdfSpannerActions.enterDatabaseName(E2ETestUtils.pluginProp("spannerIncorrectDatabaseName"));
+            CdfSpannerActions.enterTableName(E2ETestUtils.pluginProp("spannerTableName"));
         } else if (property.equalsIgnoreCase("table")) {
-            CdfSpannerActions.enterInstanceID(CdapUtils.pluginProp("spannerInstanceId"));
-            CdfSpannerActions.enterDatabaseename(CdapUtils.pluginProp("spannerDatabaseName"));
-            CdfSpannerActions.enterTablename(CdapUtils.pluginProp("spannerIncorrectTablename"));
+            CdfSpannerActions.enterInstanceID(E2ETestUtils.pluginProp("spannerInstanceId"));
+            CdfSpannerActions.enterDatabaseName(E2ETestUtils.pluginProp("spannerDatabaseName"));
+            CdfSpannerActions.enterTableName(E2ETestUtils.pluginProp("spannerIncorrectTableName"));
         } else if (property.equalsIgnoreCase("importQuery")) {
-            CdfSpannerActions.enterInstanceID(CdapUtils.pluginProp("spannerInstanceId"));
-            CdfSpannerActions.enterDatabaseename(CdapUtils.pluginProp("spannerDatabaseName"));
-            CdfSpannerActions.enterTablename(CdapUtils.pluginProp("spannerTablename"));
-            CdfSpannerActions.enterImportQuery(CdapUtils.pluginProp("spannerIncorrectQuery"));
+            CdfSpannerActions.enterInstanceID(E2ETestUtils.pluginProp("spannerInstanceId"));
+            CdfSpannerActions.enterDatabaseName(E2ETestUtils.pluginProp("spannerDatabaseName"));
+            CdfSpannerActions.enterTableName(E2ETestUtils.pluginProp("spannerTableName"));
+            CdfSpannerActions.enterImportQuery(E2ETestUtils.pluginProp("spannerIncorrectQuery"));
+        } else {
+            Assert.fail("Invalid Spanner Advanced Property : " + property);
         }
     }
 
@@ -329,18 +376,23 @@ public class SpannerConnector implements CdfHelper {
     public void verifyPluginValidationFailsWithError() {
         CdfStudioActions.clickValidateButton();
         SeleniumHelper.waitElementIsVisible(CdfStudioLocators.pluginValidationErrorMsg, 10L);
-        String expectedErrorMessage = CdapUtils.errorProp(ERROR_MSG_ERROR_FOUND_VALIDATION);
+        String expectedErrorMessage = E2ETestUtils.errorProp(E2ETestConstants.ERROR_MSG_ERROR_FOUND_VALIDATION);
         String actualErrorMessage = CdfStudioLocators.pluginValidationErrorMsg.getText();
         Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
     }
 
-    @Then("Enter the Spanner connector Properties with Import Query {string}")
-    public void enterTheSpannerConnectorPropertiesWithImportQuery(String query) throws IOException {
-        CdfSpannerActions.enterProjectId(CdapUtils.pluginProp("projectId"));
-        CdfSpannerActions.enterReferenceName();
-        CdfSpannerActions.enterInstanceID(CdapUtils.pluginProp("spannerInstanceId"));
-        CdfSpannerActions.enterDatabaseename(CdapUtils.pluginProp("spannerDatabaseName"));
-        CdfSpannerActions.enterTablename(CdapUtils.pluginProp("spannerTablename"));
-        CdfSpannerActions.enterImportQuery(CdapUtils.pluginProp(query));
+    @Then("Open GCS Properties")
+    public void openGCSProperties() {
+        CdfStudioActions.clickProperties("GCS");
+        }
+
+    @Then("Click on PreviewData for BigQuery connector")
+    public void clickOnPreviewDataForBigQueryConnector() {
+        CdfBigQueryPropertiesActions.clickPreviewData();
+    }
+
+    @Then("Click on PreviewData for GCS connector")
+    public void clickOnPreviewDataForGCSConnector() {
+        CdfSpannerActions.clickGCSPreviewData();
     }
 }

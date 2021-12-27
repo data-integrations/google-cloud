@@ -1,4 +1,4 @@
 /**
- * Package contains the stepDesign for the Spanner features.
+ * Package contains the Actions for the Spanner features.
  */
 package io.cdap.plugin.spanner.actions;

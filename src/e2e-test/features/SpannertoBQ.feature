@@ -18,17 +18,17 @@ Feature: Spanner to BQ data transfer
     Then Save the pipeline
     Then Preview and run the pipeline
     Then Verify the preview of pipeline is "success"
-    Then Click on PreviewData for Spanner connector
+    Then Click on PreviewData for BigQuery connector
     Then Verify Preview output schema matches the outputSchema captured in properties
     Then Close the Preview
     Then Deploy the pipeline
     Then Run the Pipeline in Runtime
     Then Wait till pipeline is in running state
     Then Verify the pipeline status is "Succeeded"
-    Then Get Count of no of records transferred to BigQuery in "spannerBqTableName"
     Then Open Logs
     Then Validate successMessage is displayed
-
+    Then Get Count of no of records transferred to BigQuery in "spannerBqTableName"
+    Then Validate BigQuery records count with record counts of spanner table
 
   @Spanner
   Scenario: Verify data is getting transferred from Spanner to BigQuery with Import Query
@@ -48,13 +48,14 @@ Feature: Spanner to BQ data transfer
     Then Save the pipeline
     Then Preview and run the pipeline
     Then Verify the preview of pipeline is "success"
-    Then Click on PreviewData for Spanner connector
+    Then Click on PreviewData for BigQuery connector
     Then Verify Preview output schema matches the outputSchema captured in properties
     Then Close the Preview
     Then Deploy the pipeline
     Then Run the Pipeline in Runtime
     Then Wait till pipeline is in running state
     Then Verify the pipeline status is "Succeeded"
-    Then Get Count of no of records transferred to BigQuery in "spannerBqTableName"
     Then Open Logs
     Then Validate successMessage is displayed
+    Then Get Count of no of records transferred to BigQuery in "spannerBqTableName"
+    Then Validate BigQuery records count with record counts of spanner Import Query "spannerCountQuery"
