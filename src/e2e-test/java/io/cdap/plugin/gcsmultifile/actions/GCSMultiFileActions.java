@@ -18,75 +18,75 @@ package io.cdap.plugin.gcsmultifile.actions;
 import io.cdap.e2e.pages.locators.CdfStudioLocators;
 import io.cdap.e2e.utils.SeleniumDriver;
 import io.cdap.e2e.utils.SeleniumHelper;
-import io.cdap.plugin.gcsmultifile.locators.GCSMultifileLocators;
+import io.cdap.plugin.gcsmultifile.locators.GCSMultiFileLocators;
 import org.openqa.selenium.By;
 
 import java.io.IOException;
 import java.util.UUID;
 
 /**
- * Multifileactions.
+ * GCSMultiFile connector related actions.
  */
-public class GCSMulifileActions {
+public class GCSMultiFileActions {
 
   static {
-    SeleniumHelper.getPropertiesLocators(GCSMultifileLocators.class);
+    SeleniumHelper.getPropertiesLocators(GCSMultiFileLocators.class);
     SeleniumHelper.getPropertiesLocators(CdfStudioLocators.class);
   }
 
   public static void enterReferenceName() {
-    GCSMultifileLocators.referenceName.sendKeys(UUID.randomUUID().toString());
+    GCSMultiFileLocators.referenceName.sendKeys(UUID.randomUUID().toString());
   }
 
   public static void enterProjectId(String projectId) throws IOException {
-    SeleniumHelper.replaceElementValue(GCSMultifileLocators.projectId, projectId);
+    SeleniumHelper.replaceElementValue(GCSMultiFileLocators.projectId, projectId);
   }
 
-  public static void enterGcsMultifilepath(String bucket) throws IOException {
-    SeleniumHelper.replaceElementValue(GCSMultifileLocators.pathField, bucket);
+  public static void enterGcsMultiFilepath(String bucket) throws IOException {
+    SeleniumHelper.replaceElementValue(GCSMultiFileLocators.pathField, bucket);
   }
 
   public static void selectAllowFlexibleSchema() throws IOException {
-    GCSMultifileLocators.allowFlexible.click();
+    GCSMultiFileLocators.allowFlexible.click();
   }
 
   public static void selectFormat(String formatType) throws InterruptedException {
-    GCSMultifileLocators.format.click();
-    SeleniumHelper.waitAndClick(SeleniumDriver.getDriver().findElement(By.xpath(
-      "//*[contains(text(),'" + formatType + "')]")));
+    GCSMultiFileLocators.format.click();
+    SeleniumHelper.waitAndClick(SeleniumDriver.getDriver().
+                                  findElement(By.xpath("//li[text()='" + formatType + "']")));
   }
 
-  public static void selectGcsMultifile() {
+  public static void selectGcsMultiFile() {
     CdfStudioLocators.sink.click();
-    SeleniumHelper.waitAndClick(GCSMultifileLocators.gcsMultiFileObject);
+    SeleniumHelper.waitAndClick(GCSMultiFileLocators.gcsMultiFileObject);
   }
 
-  public static void gcsMultifileProperties() {
-    GCSMultifileLocators.gcsMultifileProperties.click();
+  public static void gcsMultiFileProperties() {
+    GCSMultiFileLocators.gcsMultiFileProperties.click();
   }
 
-  public static void closeGcsMultifile() {
-    SeleniumHelper.waitElementIsVisible(GCSMultifileLocators.closeButton);
-    GCSMultifileLocators.closeButton.click();
+  public static void closeGcsMultiFile() {
+    SeleniumHelper.waitElementIsVisible(GCSMultiFileLocators.closeButton);
+    GCSMultiFileLocators.closeButton.click();
   }
 
   public static void clickSource() {
-    GCSMultifileLocators.source.click();
+    GCSMultiFileLocators.source.click();
   }
 
   public static void selectCodec(String codecType) throws InterruptedException {
-    GCSMultifileLocators.selectCodec.click();
+    GCSMultiFileLocators.selectCodec.click();
     SeleniumHelper.waitAndClick(SeleniumDriver.getDriver().findElement(By.xpath(
       "//*[contains(text(),'" + codecType + "')]")));
   }
 
   public static void selectContentType(String contentType) throws InterruptedException {
-    GCSMultifileLocators.selectContentType.click();
+    GCSMultiFileLocators.selectContentType.click();
     SeleniumHelper.waitAndClick(SeleniumDriver.getDriver().findElement(By.xpath(
       "//*[contains(text(),'" + contentType + "')]")));
   }
 
   public static void enterDelimiter(String delimiter) {
-    GCSMultifileLocators.delimiter.sendKeys(delimiter);
+    GCSMultiFileLocators.delimiter.sendKeys(delimiter);
   }
 }

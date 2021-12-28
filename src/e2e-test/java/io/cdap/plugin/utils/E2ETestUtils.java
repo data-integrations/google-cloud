@@ -28,27 +28,23 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.WebElement;
 import stepsdesign.BeforeActions;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Properties;
 
-import static io.cdap.plugin.utils.GCConstants.ERROR_MSG_COLOR;
-import static io.cdap.plugin.utils.GCConstants.ERROR_MSG_MANDATORY;
-
 /**
- * CdapUtils contains the helper functions.
+ * E2ETestUtils contains the helper functions.
  */
-public class CdapUtils {
+public class E2ETestUtils {
 
-  private static Properties pluginProperties = new Properties();
-  private static Properties errorProperties = new Properties();
-  private static final Logger logger = Logger.getLogger(CdapUtils.class);
+  private static final Properties pluginProperties = new Properties();
+  private static final Properties errorProperties = new Properties();
+  private static final Logger logger = Logger.getLogger(E2ETestUtils.class);
 
   static {
 
     try {
-      pluginProperties.load(new FileInputStream("src/e2e-test/resources/pluginParameters.properties"));
-      errorProperties.load(new FileInputStream("src/e2e-test/resources/errorMessage.properties"));
+      pluginProperties.load(E2ETestUtils.class.getResourceAsStream("/pluginParameters.properties"));
+      errorProperties.load(E2ETestUtils.class.getResourceAsStream("/errorMessage.properties"));
     } catch (IOException e) {
       logger.error("Error while reading properties file" + e);
     }
@@ -63,12 +59,12 @@ public class CdapUtils {
   }
 
   public static void validateMandatoryPropertyError(String property) {
-    String expectedErrorMessage = errorProp(ERROR_MSG_MANDATORY)
+    String expectedErrorMessage = errorProp(E2ETestConstants.ERROR_MSG_MANDATORY)
       .replaceAll("PROPERTY", property);
     String actualErrorMessage = findPropertyErrorElement(property).getText();
     Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
-    String actualColor = CdapUtils.getErrorColor(CdapUtils.findPropertyErrorElement(property));
-    String expectedColor = CdapUtils.errorProp(ERROR_MSG_COLOR);
+    String actualColor = E2ETestUtils.getErrorColor(E2ETestUtils.findPropertyErrorElement(property));
+    String expectedColor = E2ETestUtils.errorProp(E2ETestConstants.ERROR_MSG_COLOR);
     Assert.assertEquals(expectedColor, actualColor);
   }
 
@@ -96,7 +92,7 @@ public class CdapUtils {
       bucket.delete();
       BeforeActions.scenario.write("Bucket " + bucket.getName() + " was deleted");
     } catch (Exception e) {
-      BeforeActions.scenario.write("Table doesn/t exist");
+      BeforeActions.scenario.write("Table doesn't exist");
     }
   }
 
