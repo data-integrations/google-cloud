@@ -849,6 +849,12 @@
         <testSourceLocation>src/e2e-test/java</testSourceLocation>
       </properties>
       <build>
+        <testResources>
+          <testResource>
+            <directory>src/e2e-test/resources</directory>
+            <filtering>true</filtering>
+          </testResource>
+        </testResources>
       <plugins>
         <plugin>
         <groupId>org.apache.maven.plugins</groupId>
