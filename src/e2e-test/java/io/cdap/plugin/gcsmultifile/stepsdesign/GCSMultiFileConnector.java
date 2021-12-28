@@ -66,20 +66,20 @@ public class GCSMultiFileConnector implements CdfHelper {
   }
 
   @When("Target is GcsMultiFile")
-  public void targetIsGcsMultifile() {
-    GCSMultiFileActions.selectGcsMultifile();
+  public void targetIsGcsMultiFile() {
+    GCSMultiFileActions.selectGcsMultiFile();
   }
 
   @Then("Link Source and Sink to establish connection")
   public void linkSourceAndSinkToEstablishConnection() throws InterruptedException {
-    SeleniumHelper.waitElementIsVisible(GCSMultiFileLocators.toGcsMultifile);
-    SeleniumHelper.dragAndDrop(CdfStudioLocators.fromBigQuery, GCSMultiFileLocators.toGcsMultifile);
+    SeleniumHelper.waitElementIsVisible(GCSMultiFileLocators.toGcsMultiFile);
+    SeleniumHelper.dragAndDrop(CdfStudioLocators.fromBigQuery, GCSMultiFileLocators.toGcsMultiFile);
   }
 
   @Then("Link GCS and GCSMultiFile to establish connection")
   public void linkGCSAndGCSMultiFileToEstablishConnection() throws InterruptedException {
-    SeleniumHelper.waitElementIsVisible(GCSMultiFileLocators.toGcsMultifile);
-    SeleniumHelper.dragAndDrop(CdfStudioLocators.fromGCS, GCSMultiFileLocators.toGcsMultifile);
+    SeleniumHelper.waitElementIsVisible(GCSMultiFileLocators.toGcsMultiFile);
+    SeleniumHelper.dragAndDrop(CdfStudioLocators.fromGCS, GCSMultiFileLocators.toGcsMultiFile);
   }
 
   @Then("Enter the BigQuery Properties for table {string} amd dataset {string} for source")
@@ -101,19 +101,19 @@ public class GCSMultiFileConnector implements CdfHelper {
   }
 
   @Then("Enter the Gcs MultiFile Properties for table {string} and format {string}")
-  public void enterTheGcsMultifilePropertiesForTableAndFormat(String path, String formatType)
+  public void enterTheGcsMultiFilePropertiesForTableAndFormat(String path, String formatType)
     throws IOException, InterruptedException {
-    GCSMultiFileActions.gcsMultifileProperties();
+    GCSMultiFileActions.gcsMultiFileProperties();
     GCSMultiFileActions.enterReferenceName();
     GCSMultiFileActions.enterProjectId(E2ETestUtils.pluginProp("projectId"));
-    GCSMultiFileActions.enterGcsMultifilepath(E2ETestUtils.pluginProp(path));
+    GCSMultiFileActions.enterGcsMultiFilepath(E2ETestUtils.pluginProp(path));
     GCSMultiFileActions.selectFormat(E2ETestUtils.pluginProp(formatType));
     GCSMultiFileActions.selectAllowFlexibleSchema();
   }
 
   @Then("Close Gcs MultiFile Properties")
-  public void closeGcsMultifileProperties() {
-    GCSMultiFileActions.closeGcsMultifile();
+  public void closeGcsMultiFileProperties() {
+    GCSMultiFileActions.closeGcsMultiFile();
   }
 
   @Then("verify the schema in output")
@@ -209,30 +209,30 @@ public class GCSMultiFileConnector implements CdfHelper {
   }
 
   @Then("Enter the Gcs MultiFile Properties for table {string} and format {string} with ContentType {string}")
-  public void enterTheGcsMultifilePropertiesForTableAndFormatWithContentType(String path, String formatType,
+  public void enterTheGcsMultiFilePropertiesForTableAndFormatWithContentType(String path, String formatType,
                                                                              String contentType)
     throws InterruptedException, IOException {
-    enterTheGcsMultifilePropertiesForTableAndFormat(path, formatType);
+    enterTheGcsMultiFilePropertiesForTableAndFormat(path, formatType);
     GCSMultiFileActions.selectContentType(E2ETestUtils.pluginProp(contentType));
   }
 
   @Then("Enter the Gcs MultiFile Properties for table {string}, format {string} with Codec {string}")
-  public void enterTheGcsMultifilePropertiesForTableFormatWithCodec(String path, String formatType, String codecType)
+  public void enterTheGcsMultiFilePropertiesForTableFormatWithCodec(String path, String formatType, String codecType)
     throws IOException, InterruptedException {
-    enterTheGcsMultifilePropertiesForTableAndFormat(path, formatType);
+    enterTheGcsMultiFilePropertiesForTableAndFormat(path, formatType);
     GCSMultiFileActions.selectCodec(E2ETestUtils.pluginProp(codecType));
   }
 
   @Then("Enter the GCSMultiFile properties with blank property {string}")
-  public void enterTheGCSMultifilePropertiesWithBlankProperty(String property) throws IOException {
-    GCSMultiFileActions.gcsMultifileProperties();
+  public void enterTheGCSMultiFilePropertiesWithBlankProperty(String property) throws IOException {
+    GCSMultiFileActions.gcsMultiFileProperties();
     if (property.equalsIgnoreCase("referenceName")) {
-      GCSMultiFileActions.enterGcsMultifilepath(E2ETestUtils.pluginProp("multiFileGcsPath"));
+      GCSMultiFileActions.enterGcsMultiFilepath(E2ETestUtils.pluginProp("multiFileGcsPath"));
     } else if (property.equalsIgnoreCase("path")) {
       GCSMultiFileActions.enterReferenceName();
     } else if (property.equalsIgnoreCase("splitField")) {
       GCSMultiFileActions.enterReferenceName();
-      GCSMultiFileActions.enterGcsMultifilepath(E2ETestUtils.pluginProp("multiFileGcsPath"));
+      GCSMultiFileActions.enterGcsMultiFilepath(E2ETestUtils.pluginProp("multiFileGcsPath"));
       SeleniumHelper.replaceElementValue(GCSMultiFileLocators.splitField, "");
     } else {
       Assert.fail("Invalid multiFile Mandatory Field " + property);
@@ -263,7 +263,7 @@ public class GCSMultiFileConnector implements CdfHelper {
   public void enterTheGcsMultiFilePropertiesForTableAndDelimitedFormatAndDelimiter(
     String path, String formatType, String delimiter)
     throws IOException, InterruptedException {
-    enterTheGcsMultifilePropertiesForTableAndFormat(path, formatType);
+    enterTheGcsMultiFilePropertiesForTableAndFormat(path, formatType);
     GCSMultiFileActions.enterDelimiter(E2ETestUtils.pluginProp(delimiter));
     CdfStudioActions.clickValidateButton();
   }

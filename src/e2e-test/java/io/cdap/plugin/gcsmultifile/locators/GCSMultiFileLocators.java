@@ -49,16 +49,13 @@ public class GCSMultiFileLocators {
   public static WebElement gcsMultiFileObject;
 
   @FindBy(how = How.XPATH, using = "//*[@title='GCS Multi File']")
-  public static WebElement toGcsMultifile;
+  public static WebElement toGcsMultiFile;
 
   @FindBy(how = How.XPATH, using = "//*[@title='GCS Multi File']//following-sibling::div")
-  public static WebElement gcsMultifileProperties;
+  public static WebElement gcsMultiFileProperties;
 
   @FindBy(how = How.XPATH, using = "//*[@class='fa fa-remove']")
   public static WebElement closeButton;
-
-  @FindBy(how = How.XPATH, using = "//*[@data-cy='datasetProject' and @class='MuiInputBase-input']")
-  public static WebElement datasetProjectId;
 
   @FindBy(how = How.XPATH, using = "//*[text()='Source ']")
   public static WebElement source;

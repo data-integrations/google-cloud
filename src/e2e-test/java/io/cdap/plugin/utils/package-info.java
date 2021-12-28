@@ -1,6 +1,4 @@
 /**
- * Package contains the runner for the GCP features.
+ * Package contains the E2E helper utils.
  */
 package io.cdap.plugin.utils;
-
-

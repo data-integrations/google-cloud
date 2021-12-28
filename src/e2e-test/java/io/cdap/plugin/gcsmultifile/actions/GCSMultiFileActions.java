@@ -42,7 +42,7 @@ public class GCSMultiFileActions {
     SeleniumHelper.replaceElementValue(GCSMultiFileLocators.projectId, projectId);
   }
 
-  public static void enterGcsMultifilepath(String bucket) throws IOException {
+  public static void enterGcsMultiFilepath(String bucket) throws IOException {
     SeleniumHelper.replaceElementValue(GCSMultiFileLocators.pathField, bucket);
   }
 
@@ -56,16 +56,16 @@ public class GCSMultiFileActions {
                                   findElement(By.xpath("//li[text()='" + formatType + "']")));
   }
 
-  public static void selectGcsMultifile() {
+  public static void selectGcsMultiFile() {
     CdfStudioLocators.sink.click();
     SeleniumHelper.waitAndClick(GCSMultiFileLocators.gcsMultiFileObject);
   }
 
-  public static void gcsMultifileProperties() {
-    GCSMultiFileLocators.gcsMultifileProperties.click();
+  public static void gcsMultiFileProperties() {
+    GCSMultiFileLocators.gcsMultiFileProperties.click();
   }
 
-  public static void closeGcsMultifile() {
+  public static void closeGcsMultiFile() {
     SeleniumHelper.waitElementIsVisible(GCSMultiFileLocators.closeButton);
     GCSMultiFileLocators.closeButton.click();
   }
