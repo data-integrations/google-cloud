@@ -14,7 +14,7 @@
  * the License.
  */
 
-package io.cdap.plugin.gcp.dataplex.sink.exception;
+package io.cdap.plugin.gcp.dataplex.common.exception;
 
 import javax.annotation.Nullable;
 

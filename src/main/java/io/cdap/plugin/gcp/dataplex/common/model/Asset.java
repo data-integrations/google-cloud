@@ -14,7 +14,7 @@
  * the License.
  */
 
-package io.cdap.plugin.gcp.dataplex.sink.model;
+package io.cdap.plugin.gcp.dataplex.common.model;
 
 import com.google.gson.annotations.SerializedName;
 

@@ -14,28 +14,37 @@
  * the License.
  */
 
-package io.cdap.plugin.gcp.dataplex.sink.model;
+package io.cdap.plugin.gcp.dataplex.common.util;
 
 /**
- * Holds Location details
+ * The enum Dataplex type name.
  */
-public class Location {
-  public String name;
-  public String locationId;
+public enum DataplexTypeName {
+  BOOL,
+  BOOLEAN,
+  BYTE,
+  INT16,
+  INT32,
+  INT64,
+  FLOAT,
+  FLOAT64,
+  DOUBLE,
+  LONG,
+  DECIMAL,
+  NUMERIC,
+  BIGNUMERIC,
+  STRING,
+  BINARY,
+  BYTES,
+  STRUCT,
+  ARRAY,
+  TIMESTAMP,
+  DATE,
+  TIME,
+  DATETIME,
+  GEOGRAPHY;
 
-  public String getName() {
-    return name;
-  }
-
-  public void setName(String name) {
-    this.name = name;
-  }
-
-  public String getLocationId() {
-    return locationId;
-  }
-
-  public void setLocationId(String locationId) {
-    this.locationId = locationId;
+  DataplexTypeName() {
   }
 }
+

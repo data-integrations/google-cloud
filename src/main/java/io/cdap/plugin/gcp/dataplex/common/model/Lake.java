@@ -14,19 +14,27 @@
  * the License.
  */
 
-package io.cdap.plugin.gcp.dataplex.sink.model;
+package io.cdap.plugin.gcp.dataplex.common.model;
+
+import com.google.gson.annotations.Expose;
+import com.google.gson.annotations.SerializedName;
+
+import java.io.Serializable;
 
 /**
- * Holds Zone details
+ * Holds Lake details
  */
-public class Zone {
+public class Lake {
   public String name;
   public String displayName;
   public String uid;
   public String createTime;
   public String updateTime;
   public String state;
-  public String type;
+  public String serviceAccount;
+  @SerializedName("metastore")
+  @Expose
+  private Metastore metastore;
 
   public String getName() {
     return name;
@@ -76,11 +84,38 @@ public class Zone {
     this.state = state;
   }
 
-  public String getType() {
-    return type;
+  public String getServiceAccount() {
+    return serviceAccount;
   }
 
-  public void setType(String type) {
-    this.type = type;
+  public void setServiceAccount(String serviceAccount) {
+    this.serviceAccount = serviceAccount;
   }
+
+
+  public Metastore getMetastore() {
+    return metastore;
+  }
+
+  public void setMetastore(Metastore metastore) {
+    this.metastore = metastore;
+  }
+
+  /**
+   * Information about Metastore
+   */
+  public static class Metastore implements Serializable {
+    @SerializedName("service")
+    @Expose
+    private String service;
+
+    public String getService() {
+      return service;
+    }
+
+    public void setService(String service) {
+      this.service = service;
+    }
+  }
+
 }

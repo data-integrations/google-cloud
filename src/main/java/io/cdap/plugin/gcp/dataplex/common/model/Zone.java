@@ -14,19 +14,19 @@
  * the License.
  */
 
-package io.cdap.plugin.gcp.dataplex.sink.model;
+package io.cdap.plugin.gcp.dataplex.common.model;
 
 /**
- * Holds Lake details
+ * Holds Zone details
  */
-public class Lake {
+public class Zone {
   public String name;
   public String displayName;
   public String uid;
   public String createTime;
   public String updateTime;
   public String state;
-  public String serviceAccount;
+  public String type;
 
   public String getName() {
     return name;
@@ -76,11 +76,11 @@ public class Lake {
     this.state = state;
   }
 
-  public String getServiceAccount() {
-    return serviceAccount;
+  public String getType() {
+    return type;
   }
 
-  public void setServiceAccount(String serviceAccount) {
-    this.serviceAccount = serviceAccount;
+  public void setType(String type) {
+    this.type = type;
   }
 }

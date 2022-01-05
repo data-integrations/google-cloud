@@ -14,7 +14,7 @@
  * the License.
  */
 
-package io.cdap.plugin.gcp.dataplex.sink.model;
+package io.cdap.plugin.gcp.dataplex.common.model;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,6 +27,8 @@ public class ModelWrapper {
   List<Asset> assets  = new ArrayList<>();
   List<Zone> zones  = new ArrayList<>();
   List<Lake> lakes  = new ArrayList<>();
+  List<Entity> entities = new ArrayList<>();
+  List<Job> jobs = new ArrayList<>();
 
   public List<Location> getLocations() {
     return locations;
@@ -58,5 +60,21 @@ public class ModelWrapper {
 
   public void setLakes(List<Lake> lakes) {
     this.lakes = lakes;
+  }
+
+  public List<Entity> getEntities() {
+    return entities;
+  }
+
+  public void setEntities(List<Entity> entities) {
+    this.entities = entities;
+  }
+
+  public List<Job> getJobs() {
+    return jobs;
+  }
+
+  public void setJobs(List<Job> jobs) {
+    this.jobs = jobs;
   }
 }

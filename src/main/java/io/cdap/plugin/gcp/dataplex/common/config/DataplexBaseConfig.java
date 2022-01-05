@@ -16,10 +16,21 @@
 
 package io.cdap.plugin.gcp.dataplex.common.config;
 
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.oauth2.ServiceAccountCredentials;
+import com.google.common.collect.Lists;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.plugin.PluginConfig;
+import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.plugin.gcp.common.GCPConnectorConfig;
+import io.cdap.plugin.gcp.common.GCPUtils;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
 
 import javax.annotation.Nullable;
 
@@ -27,12 +38,12 @@ import javax.annotation.Nullable;
  * Contains Dataplex config properties.
  */
 public class DataplexBaseConfig extends PluginConfig {
-    public static final String REFERENCE_NAME = "referenceName";
-    public static final String NAME_LAKE = "lake";
-    public static final String NAME_ZONE = "zone";
-    public static final String NAME_ASSET = "asset";
-    public static final String NAME_ASSET_TYPE = "assetType";
-    public static final String NAME_LOCATION = "location";
+    protected static final String REFERENCE_NAME = "referenceName";
+    protected static final String NAME_LAKE = "lake";
+    protected static final String NAME_ZONE = "zone";
+    protected static final String NAME_LOCATION = "location";
+    protected static final String NAME_CONNECTION = "connection";
+    private static final Logger LOG = LoggerFactory.getLogger(DataplexBaseConfig.class);
 
     @Name(REFERENCE_NAME)
     @Description("Name used to uniquely identify this sink for lineage, annotating metadata, etc.")
@@ -56,30 +67,17 @@ public class DataplexBaseConfig extends PluginConfig {
       "hierarchical selection.")
     protected String zone;
 
-    @Name(NAME_ASSET)
-    @Macro
-    @Description("Resource id for the Dataplex asset. It represents a cloud resource that is being managed within a" +
-      " lake as a member of a zone. User can type it in or press a browse button which enables " +
-      "hierarchical selection.")
-    protected String asset;
-
-    @Name(NAME_ASSET_TYPE)
+    @Name(NAME_CONNECTION)
     @Nullable
-    @Description("Asset type resource.")
-    protected String assetType;
-
+    @Macro
+    @Description("The existing connection to use.")
+    protected GCPConnectorConfig connection;
 
     public String getReferenceName() {
         return referenceName;
     }
 
-    public String getAsset() {
-        return asset;
-    }
 
-    public String getAssetType() {
-        return assetType;
-    }
 
     public String getLake() {
         return lake;
@@ -100,4 +98,95 @@ public class DataplexBaseConfig extends PluginConfig {
     public String getLocation() {
         return location;
     }
+
+
+    /**
+     * Return true if the service account is set to auto-detect but it can't be fetched from the environment.
+     * This shouldn't result in a deployment failure, as the credential could be detected at runtime if the pipeline
+     * runs on dataproc. This should primarily be used to check whether certain validation logic should be skipped.
+     *
+     * @return true if the service account is set to auto-detect but it can't be fetched from the environment.
+     */
+    public boolean autoServiceAccountUnavailable() {
+        if (connection == null || connection.getServiceAccountFilePath() == null &&
+          connection.isServiceAccountFilePath()) {
+            try {
+                ServiceAccountCredentials.getApplicationDefault();
+            } catch (IOException e) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public GoogleCredentials getCredentials() {
+        GoogleCredentials credentials = null;
+        try {
+            credentials = getCredentialsFromServiceAccount();
+        } catch (IOException e) {
+            LOG.debug("Unable to load service account credentials due to error: {}", e.getMessage());
+        }
+        return credentials;
+    }
+
+    public String getProject() {
+        if (connection == null) {
+            throw new IllegalArgumentException(
+              "Could not get project information, connection should not be null!");
+        }
+        return connection.getProject();
+    }
+
+    public GCPConnectorConfig getConnection() {
+        return connection;
+    }
+
+    @Nullable
+    public String tryGetProject() {
+        return connection == null ? null : connection.tryGetProject();
+    }
+
+    @Nullable
+    public String getServiceAccount() {
+        return connection == null ? null : connection.getServiceAccount();
+    }
+
+    @Nullable
+    public String getServiceAccountType() {
+        return connection == null ? null : connection.getServiceAccountType();
+    }
+
+    @Nullable
+    public Boolean isServiceAccountFilePath() {
+        return connection == null ? null : connection.isServiceAccountFilePath();
+    }
+
+    public void validateServiceAccount(FailureCollector failureCollector) {
+        if (connection.isServiceAccountJson() || connection.getServiceAccountFilePath() != null) {
+            GoogleCredentials credentials = getCredentials();
+            if (credentials == null) {
+                failureCollector.addFailure(String.format("Unable to load credentials from %s.",
+                  connection.isServiceAccountFilePath() ? connection.getServiceAccountFilePath() : "provided JSON key"),
+                  "Ensure the service account file is available on the local filesystem.")
+                  .withConfigProperty("serviceFilePath")
+                  .withConfigProperty("serviceAccountJSON");
+                throw failureCollector.getOrThrowException();
+            }
+        }
+    }
+
+    public GoogleCredentials getCredentialsFromServiceAccount() throws IOException {
+        GoogleCredentials credentials = null;
+        //validate service account
+        if (connection.isServiceAccountJson() || connection.getServiceAccountFilePath() != null) {
+            credentials =
+              GCPUtils.loadServiceAccountCredentials(getServiceAccount(), isServiceAccountFilePath())
+                .createScoped(Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"));
+        } else {
+            credentials = ServiceAccountCredentials.getApplicationDefault().createScoped(
+              Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"));
+        }
+        return credentials;
+    }
+
 }
