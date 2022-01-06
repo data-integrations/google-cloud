@@ -40,7 +40,6 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -102,7 +101,7 @@ public class DataplexBatchSinkConfigTest {
     DataplexBatchSinkConfig dataplexBatchSinkConfig = new DataplexBatchSinkConfig();
     MockFailureCollector mockFailureCollector = new MockFailureCollector();
     GCPConnectorConfig dataplexConnectorConfig = mock(GCPConnectorConfig.class);
-    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("connection"),
+    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("connection"),
       dataplexConnectorConfig);
     when(dataplexConnectorConfig.isServiceAccountJson()).thenReturn(new Boolean(Boolean.TRUE));
     try {
@@ -118,7 +117,7 @@ public class DataplexBatchSinkConfigTest {
     DataplexBatchSinkConfig dataplexBatchSinkConfig = new DataplexBatchSinkConfig();
     MockFailureCollector mockFailureCollector = new MockFailureCollector();
     GCPConnectorConfig dataplexConnectorConfig = mock(GCPConnectorConfig.class);
-    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("connection"),
+    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("connection"),
       dataplexConnectorConfig);
     when(dataplexConnectorConfig.isServiceAccountJson()).thenReturn(new Boolean(Boolean.TRUE));
     when(dataplexConnectorConfig.getServiceAccountFilePath()).thenReturn("test");
@@ -136,7 +135,7 @@ public class DataplexBatchSinkConfigTest {
     MockFailureCollector mockFailureCollector = new MockFailureCollector();
     GCPConnectorConfig dataplexConnectorConfig = mock(GCPConnectorConfig.class);
     GoogleCredentials googleCredentials = PowerMockito.mock(GoogleCredentials.class);
-    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("connection"),
+    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("connection"),
       dataplexConnectorConfig);
     when(dataplexConnectorConfig.isServiceAccountJson()).thenReturn(new Boolean(Boolean.TRUE));
     when(dataplexConnectorConfig.getServiceAccountFilePath()).thenReturn("test");
@@ -340,10 +339,13 @@ public class DataplexBatchSinkConfigTest {
     Asset.AssetResourceSpec assetResourceSpec = mock(Asset.AssetResourceSpec.class);
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("referenceName"),
       "test");
-    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("lake"), "example lake");
-    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("zone"), "example zone");
-    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("asset"), "example asset");
-    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("assetType"),
+    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("lake"),
+      "example lake");
+    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("zone"),
+      "example zone");
+    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("asset"),
+      "example asset");
+    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("assetType"),
       "BIGQUERY_DATASET");
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("location"),
       "test");
@@ -368,11 +370,16 @@ public class DataplexBatchSinkConfigTest {
     Asset.AssetResourceSpec assetResourceSpec = mock(Asset.AssetResourceSpec.class);
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("referenceName"),
       "test");
-    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("lake"), "example lake");
-    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("zone"), "example zone");
-    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("asset"), "example asset");
-    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("assetType"), "BIGQUERY");
-    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("format"), "format");
+    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("lake"),
+      "example lake");
+    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("zone"),
+      "example zone");
+    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("asset"),
+      "example asset");
+    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("assetType"),
+      "BIGQUERY");
+    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("format"),
+      "format");
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("location"),
       "test");
     doReturn(googleCredentials).when(dataplexBatchSinkConfig).getCredentials();
@@ -404,8 +411,10 @@ public class DataplexBatchSinkConfigTest {
       "test");
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("lake"), "example lake");
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("zone"), "example zone");
-    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("asset"), "example asset");
-    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("assetType"), "BIGQUERY");
+    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("asset"),
+      "example asset");
+    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("assetType"),
+      "BIGQUERY");
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("format"), "json");
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("location"),
       "test");
@@ -435,7 +444,8 @@ public class DataplexBatchSinkConfigTest {
       "test");
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("lake"), "example lake");
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("zone"), "example zone");
-    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("asset"), "example asset");
+    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("asset"),
+      "example asset");
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("location"),
       "test");
     doReturn(googleCredentials).when(dataplexBatchSinkConfig).getCredentials();
@@ -458,7 +468,8 @@ public class DataplexBatchSinkConfigTest {
       "test");
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("lake"), "example lake");
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("zone"), "example zone");
-    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("asset"), "example asset");
+    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("asset"),
+      "example asset");
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("location"),
       "test");
     doReturn(googleCredentials).when(dataplexBatchSinkConfig).getCredentials();
@@ -497,7 +508,7 @@ public class DataplexBatchSinkConfigTest {
     Asset asset = mock(Asset.class);
     Asset.AssetResourceSpec assetResourceSpec = mock(Asset.AssetResourceSpec.class);
     FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("table"), "test");
-    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("connection"),
+    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("connection"),
       dataplexConnectorConfig);
     doReturn(googleCredentials).when(dataplexBatchSinkConfig).getCredentials();
     Mockito.when(dataplexInterfaceImpl.getAsset(any(), any(), any(), any(), any(), any())).thenReturn(asset);
@@ -513,7 +524,7 @@ public class DataplexBatchSinkConfigTest {
     DataplexBatchSinkConfig dataplexBatchSinkConfig = PowerMockito.spy(new DataplexBatchSinkConfig());
     GCPConnectorConfig dataplexConnectorConfig = PowerMockito.spy(new GCPConnectorConfig("", "", "filePath",
       ""));
-    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBatchSinkConfig.class.getDeclaredField("connection"),
+    FieldSetter.setField(dataplexBatchSinkConfig, DataplexBaseConfig.class.getDeclaredField("connection"),
       dataplexConnectorConfig);
     assertFalse(dataplexBatchSinkConfig.autoServiceAccountUnavailable());
   }

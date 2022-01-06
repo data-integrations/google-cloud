@@ -21,7 +21,6 @@ import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TimePartitioning;
 import com.google.common.base.Strings;
-import com.google.gson.Gson;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
@@ -40,9 +39,6 @@ import io.cdap.plugin.gcp.dataplex.common.exception.DataplexException;
 import io.cdap.plugin.gcp.dataplex.common.model.Entity;
 import io.cdap.plugin.gcp.dataplex.common.model.Lake;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.time.DateTimeException;
 import java.time.LocalDate;
@@ -55,8 +51,6 @@ import javax.annotation.Nullable;
 public class DataplexBatchSourceConfig extends DataplexBaseConfig {
 
   public static final String NAME_ENTITY = "entity";
-  private static final Logger LOG = LoggerFactory.getLogger(DataplexBatchSourceConfig.class);
-  private static final Gson GSON = new Gson();
   private static final String NAME_PARTITION_FROM = "partitionFrom";
   private static final String NAME_PARTITION_TO = "partitionTo";
   private static final String NAME_FILTER = "filter";
