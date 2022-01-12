@@ -38,6 +38,8 @@ import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySink;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySource;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceConfig;
+import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize.BigNumeric;
+import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize.Numeric;
 import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.GCSPath;
