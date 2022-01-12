@@ -121,7 +121,7 @@ public class GCSBasicDemo implements CdfHelper {
     BeforeActions.scenario.write(CdfPipelineRunAction.captureRawLogs());
     PrintWriter out = null;
     try {
-      out = new PrintWriter(BeforeActions.myObj);
+      out = new PrintWriter(BeforeActions.file);
       out.println(CdfPipelineRunAction.captureRawLogs());
     } finally {
       if (out != null) {
