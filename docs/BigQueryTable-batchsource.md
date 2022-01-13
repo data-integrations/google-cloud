@@ -71,7 +71,8 @@ Temporary data will be deleted after it has been read. If it is not provided, a 
 created and then deleted after the run finishes.
 
 **Encryption Key Name**: Used to encrypt data written to any bucket created by the plugin.
-If the bucket already exists, this is ignored.
+If the bucket already exists, this is ignored. More information can be found at 
+https://cloud.google.com/data-fusion/docs/how-to/customer-managed-encryption-keys"
 
 **Service Account**  - service account key used for authorization
 
