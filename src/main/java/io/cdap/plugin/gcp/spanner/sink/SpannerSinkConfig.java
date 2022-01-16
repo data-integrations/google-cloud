@@ -95,7 +95,8 @@ public class SpannerSinkConfig extends PluginConfig {
   @Macro
   @Nullable
   @Description("The GCP customer managed encryption key (CMEK) name used to encrypt data written to " +
-    "any database created by the plugin. If the database already exists, this is ignored.")
+    "any database created by the plugin. If the database already exists, this is ignored.  More information can be " +
+    "found at https://cloud.google.com/data-fusion/docs/how-to/customer-managed-encryption-keys")
   protected String cmekKey;
 
   @Name(Constants.Reference.REFERENCE_NAME)
