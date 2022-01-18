@@ -19,7 +19,6 @@ package io.cdap.plugin.gcp.bigquery.action;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.QueryJobConfiguration;
-import com.google.cloud.bigquery.QueryJobConfiguration.Builder;
 import com.google.cloud.bigquery.QueryParameterValue;
 import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.Table;
@@ -84,11 +83,13 @@ public final class BigQueryArgumentSetterConfig extends AbstractBigQueryActionCo
       + "A particular use case for this would be country, device")
   private String argumentsColumns;
 
-  public BigQueryArgumentSetterConfig(
+  private BigQueryArgumentSetterConfig(
+    String datasetProject,
     String dataset,
     String table,
     String argumentSelectionConditions,
     String argumentsColumns) {
+    this.datasetProject = datasetProject;
     this.dataset = dataset;
     this.table = table;
     this.argumentSelectionConditions = argumentSelectionConditions;
@@ -178,15 +179,13 @@ public final class BigQueryArgumentSetterConfig extends AbstractBigQueryActionCo
   }
 
   public QueryJobConfiguration getQueryJobConfiguration(FailureCollector collector) {
-    //below one should pass in the dataset project while this config doesn't have a dataset project
-    //project is where the job is run and dataset project is where the dataset is in
-    //TODO: https://cdap.atlassian.net/browse/PLUGIN-926
-    Table sourceTable = BigQueryUtil.getBigQueryTable(getProject(), dataset, table, getServiceAccount(),
+    Table sourceTable = BigQueryUtil.getBigQueryTable(getDatasetProject(), dataset, table, getServiceAccount(),
                                                       isServiceAccountFilePath(), collector);
 
     if (sourceTable == null) {
       // Table does not exist
-      collector.addFailure(String.format("BigQuery table '%s:%s.%s' does not exist.", getProject(), dataset, table),
+      collector.addFailure(String.format("BigQuery table '%s:%s.%s' does not exist.",
+                                         getDatasetProject(), dataset, table),
               "Ensure correct table name is provided.")
               .withConfigProperty(NAME_TABLE);
       throw collector.getOrThrowException();
@@ -205,7 +204,7 @@ public final class BigQueryArgumentSetterConfig extends AbstractBigQueryActionCo
     String tableName = dataset + "." + table;
     String query = String.format(QUERY_TEMPLATE, selectClause, tableName, whereCondition);
 
-    Builder queryJobConfiguration = QueryJobConfiguration.newBuilder(query);
+    QueryJobConfiguration.Builder queryJobConfiguration = QueryJobConfiguration.newBuilder(query);
     getParametersValues(argumentConditionMap.entrySet(), argumentConditionFields)
       .forEach(
         stringQueryParameterValueSimpleEntry ->
@@ -274,5 +273,55 @@ public final class BigQueryArgumentSetterConfig extends AbstractBigQueryActionCo
   private List<String> getArgumentsColumnsList() {
     String[] parts = getArgumentsColumns().split(",");
     return Lists.newArrayList(parts);
+  }
+
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  /**
+   * Builder for testing BigQueryArgumentSetterConfig
+   */
+  public static class Builder {
+
+    private String dataset;
+    private String datasetProject;
+    private String table;
+    private String argumentSelectionConditions;
+    private String argumentsColumns;
+
+    private Builder() {
+    }
+
+    public Builder setDatasetProject(String datasetProject) {
+      this.datasetProject = datasetProject;
+      return this;
+    }
+
+    public Builder setDataset(String dataset) {
+      this.dataset = dataset;
+      return this;
+    }
+
+    public Builder setTable(String table) {
+      this.table = table;
+      return this;
+    }
+
+    public Builder setArgumentSelectionConditions(
+      String argumentSelectionConditions) {
+      this.argumentSelectionConditions = argumentSelectionConditions;
+      return this;
+    }
+
+    public Builder setArgumentsColumns(String argumentsColumns) {
+      this.argumentsColumns = argumentsColumns;
+      return this;
+    }
+
+    public BigQueryArgumentSetterConfig build() {
+      return new BigQueryArgumentSetterConfig(datasetProject, dataset, table,
+                                              argumentSelectionConditions, argumentsColumns);
+    }
   }
 }
