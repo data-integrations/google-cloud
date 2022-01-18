@@ -43,8 +43,8 @@ public class BigQueryArgumentSetterConfigTest {
     validateConfigValidationFail(config, BigQueryArgumentSetterConfig.NAME_ARGUMENTS_COLUMNS);
   }
 
-  private static BigQueryArgumentSetterConfigBuilder getBuilder() {
-    return BigQueryArgumentSetterConfigBuilder.bigQueryArgumentSetterConfig()
+  private static BigQueryArgumentSetterConfig.Builder getBuilder() {
+    return BigQueryArgumentSetterConfig.builder()
       .setDatasetProject(VALID_DATASET_PROJECT)
       .setDataset(VALID_DATASET)
       .setTable(VALID_TABLE)
