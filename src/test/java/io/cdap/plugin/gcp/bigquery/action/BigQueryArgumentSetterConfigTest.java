@@ -26,6 +26,7 @@ import org.junit.Test;
 public class BigQueryArgumentSetterConfigTest {
 
   private static final String VALID_DATASET = "dataset";
+  private static final String VALID_DATASET_PROJECT = "datasetProject";
   private static final String VALID_TABLE = "table";
   private static final String VALID_ARGUMENT_SELECTION_CONDITIONS = "feed=10;id=0";
   private static final String VALID_ARGUMENT_COLUMN = "name";
@@ -44,6 +45,7 @@ public class BigQueryArgumentSetterConfigTest {
 
   private static BigQueryArgumentSetterConfigBuilder getBuilder() {
     return BigQueryArgumentSetterConfigBuilder.bigQueryArgumentSetterConfig()
+      .setDatasetProject(VALID_DATASET_PROJECT)
       .setDataset(VALID_DATASET)
       .setTable(VALID_TABLE)
       .setArgumentSelectionConditions(VALID_ARGUMENT_SELECTION_CONDITIONS)

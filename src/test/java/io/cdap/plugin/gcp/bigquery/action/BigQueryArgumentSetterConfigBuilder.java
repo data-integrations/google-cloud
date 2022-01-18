@@ -22,6 +22,7 @@ package io.cdap.plugin.gcp.bigquery.action;
 public final class BigQueryArgumentSetterConfigBuilder {
 
   private String dataset;
+  private String datasetProject;
   private String table;
   private String argumentSelectionConditions;
   private String argumentsColumns;
@@ -31,6 +32,11 @@ public final class BigQueryArgumentSetterConfigBuilder {
 
   public static BigQueryArgumentSetterConfigBuilder bigQueryArgumentSetterConfig() {
     return new BigQueryArgumentSetterConfigBuilder();
+  }
+
+  public BigQueryArgumentSetterConfigBuilder setDatasetProject(String datasetProject) {
+    this.datasetProject = datasetProject;
+    return this;
   }
 
   public BigQueryArgumentSetterConfigBuilder setDataset(String dataset) {
@@ -55,6 +61,7 @@ public final class BigQueryArgumentSetterConfigBuilder {
   }
 
   public BigQueryArgumentSetterConfig build() {
-    return new BigQueryArgumentSetterConfig(dataset, table, argumentSelectionConditions, argumentsColumns);
+    return new BigQueryArgumentSetterConfig(datasetProject, dataset, table,
+                                            argumentSelectionConditions, argumentsColumns);
   }
 }

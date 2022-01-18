@@ -85,10 +85,12 @@ public final class BigQueryArgumentSetterConfig extends AbstractBigQueryActionCo
   private String argumentsColumns;
 
   public BigQueryArgumentSetterConfig(
+    String datasetProject,
     String dataset,
     String table,
     String argumentSelectionConditions,
     String argumentsColumns) {
+    this.datasetProject = datasetProject;
     this.dataset = dataset;
     this.table = table;
     this.argumentSelectionConditions = argumentSelectionConditions;
@@ -178,15 +180,13 @@ public final class BigQueryArgumentSetterConfig extends AbstractBigQueryActionCo
   }
 
   public QueryJobConfiguration getQueryJobConfiguration(FailureCollector collector) {
-    //below one should pass in the dataset project while this config doesn't have a dataset project
-    //project is where the job is run and dataset project is where the dataset is in
-    //TODO: https://cdap.atlassian.net/browse/PLUGIN-926
-    Table sourceTable = BigQueryUtil.getBigQueryTable(getProject(), dataset, table, getServiceAccount(),
+    Table sourceTable = BigQueryUtil.getBigQueryTable(getDatasetProject(), dataset, table, getServiceAccount(),
                                                       isServiceAccountFilePath(), collector);
 
     if (sourceTable == null) {
       // Table does not exist
-      collector.addFailure(String.format("BigQuery table '%s:%s.%s' does not exist.", getProject(), dataset, table),
+      collector.addFailure(String.format("BigQuery table '%s:%s.%s' does not exist.",
+                                         getDatasetProject(), dataset, table),
               "Ensure correct table name is provided.")
               .withConfigProperty(NAME_TABLE);
       throw collector.getOrThrowException();
