@@ -633,21 +633,8 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
 
       FieldList sourceFields = sourceTable.getDefinition().getSchema().getFields();
       tableFieldsList = sourceFields.stream().map(Field::getName).collect(Collectors.toList());
-      FieldList destinationFields = destinationTable.getDefinition().getSchema().getFields();
-      Map<String, Field> sourceFieldMap = sourceFields.stream()
-        .collect(Collectors.toMap(Field::getName, x -> x));
 
-      List<Field> resultFieldsList = destinationFields.stream()
-        .filter(field -> !sourceFieldMap.containsKey(field.getName()))
-        .collect(Collectors.toList());
-      resultFieldsList.addAll(sourceFields);
-
-      Schema newSchema = Schema.of(resultFieldsList);
-      bigquery.update(
-        destinationTable.toBuilder().setDefinition(
-          destinationTable.getDefinition().toBuilder().setSchema(newSchema).build()
-        ).build()
-      );
+      BigQuerySinkUtils.relaxTableSchema(bigquery, sourceTable, destinationTable);
     }
 
     private String generateQuery(TableReference tableRef) {

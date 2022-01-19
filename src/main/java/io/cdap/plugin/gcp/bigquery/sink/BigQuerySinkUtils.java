@@ -24,6 +24,7 @@ import com.google.cloud.bigquery.DatasetInfo;
 import com.google.cloud.bigquery.EncryptionConfiguration;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.LegacySQLTypeName;
+import com.google.cloud.bigquery.Table;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryOutputConfiguration;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
@@ -43,6 +44,7 @@ import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -263,6 +265,65 @@ public final class BigQuerySinkUtils {
     return inputFields.stream()
       .map(BigQuerySinkUtils::generateTableFieldSchema)
       .collect(Collectors.toList());
+  }
+
+  /**
+   * Relaxes the Destination Table Schema based on the matching field names from the source tbale
+   * @param bigquery BigQuery client
+   * @param sourceTable source table, which contains the updated field definiton
+   * @param destinationTable destination table, whose fields definitions may be relaxed depending on the source table.
+   */
+  public static void relaxTableSchema(BigQuery bigquery, Table sourceTable, Table destinationTable) {
+    // Copy all fields from the source table into the destination table.
+    List<String> sourceTableFields = sourceTable.getDefinition()
+      .getSchema()
+      .getFields()
+      .stream()
+      .map(Field::getName)
+      .collect(Collectors.toList());
+    relaxTableSchema(bigquery, sourceTable, destinationTable, sourceTableFields);
+  }
+
+  /**
+   * Relaxes the Destination Table Schema based on the matching field names from the source tbale
+   * @param bigquery BigQuery client
+   * @param sourceTable source table, which contains the updated field definiton
+   * @param destinationTable destination table, whose fields definitions may be relaxed depending on the source table.
+   */
+  public static void relaxTableSchema(BigQuery bigquery,
+                                      Table sourceTable,
+                                      Table destinationTable,
+                                      List<String> sourceTableFieldsToCopy) {
+    // Keep only the source fields we want to copy into the destination table
+    List<Field> sourceFields = sourceTable.getDefinition()
+      .getSchema()
+      .getFields()
+      .stream()
+      .filter(f -> sourceTableFieldsToCopy.contains(f.getName()))
+      .collect(Collectors.toList());
+    // Get all destination fields
+    List<Field> destinationFields = destinationTable.getDefinition().getSchema().getFields();
+
+    // Collect all fields form the source table
+    Map<String, Field> sourceFieldMap = sourceFields.stream()
+      .collect(Collectors.toMap(Field::getName, x -> x));
+
+    // Collects all fields in the destination table that are not present in the source table, in order to retain them
+    // as-is in the destination schema
+    List<Field> resultFieldsList = destinationFields.stream()
+      .filter(field -> !sourceFieldMap.containsKey(field.getName()))
+      .collect(Collectors.toList());
+
+    // Add fields from the source table into the destination table
+    resultFieldsList.addAll(sourceFields);
+
+    // Update table definition, relaxing field definitions.
+    com.google.cloud.bigquery.Schema newSchema = com.google.cloud.bigquery.Schema.of(resultFieldsList);
+    bigquery.update(
+      destinationTable.toBuilder().setDefinition(
+        destinationTable.getDefinition().toBuilder().setSchema(newSchema).build()
+      ).build()
+    );
   }
 
   private static BigQueryTableFieldSchema generateTableFieldSchema(Schema.Field field) {
