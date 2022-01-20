@@ -64,6 +64,7 @@ import io.cdap.cdap.etl.api.join.JoinStage;
 import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnector;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkConfig;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
+import io.cdap.plugin.gcp.bigquery.sink.Operation;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceUtils;
 import io.cdap.plugin.gcp.bigquery.sqlengine.util.BigQuerySQLEngineUtils;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
@@ -105,6 +106,7 @@ public class BigQuerySQLEngine
 
   public static final String NAME = "BigQueryPushdownEngine";
   public static final String SQL_OUTPUT_TABLE = "table";
+  public static final String SQL_OUTPUT_JOB_ID = "jobId";
   public static final String SQL_OUTPUT_CONFIG = "config";
   public static final String SQL_OUTPUT_FIELDS = "fields";
   public static final String SQL_OUTPUT_SCHEMA = "schema";
@@ -361,7 +363,7 @@ public class BigQuerySQLEngine
 
     Map<String, String> arguments = writeRequest.getOutput().getArguments();
 
-    String jobId = runId + "_" + writeRequest.getOutput().getName();
+    String jobId = arguments.get(SQL_OUTPUT_JOB_ID);
     String sourceTableName = datasets.get(writeRequest.getDatasetName()).getBigQueryTableName();
     BigQuerySinkConfig sinkConfig = GSON.fromJson(arguments.get(SQL_OUTPUT_CONFIG), BigQuerySinkConfig.class);
     Schema schema = GSON.fromJson(arguments.get(SQL_OUTPUT_SCHEMA), Schema.class);
@@ -372,6 +374,10 @@ public class BigQuerySQLEngine
     boolean allowSchemaRelaxation = sinkConfig.isAllowSchemaRelaxation();
     JobInfo.WriteDisposition writeDisposition = sinkConfig.getWriteDisposition();
 
+    if (Operation.INSERT != sinkConfig.getOperation()) {
+      LOG.warn("Direct table copy is only supported for INSERT operations.");
+      return SQLWriteResult.unsupported(datasetName);
+    }
 
     TableId sourceTableId = TableId.of(datasetProject, dataset, sourceTableName);
     TableId destinationTableId = TableId.of(destinationProject, destinationDataset, destinationTableName);
@@ -389,7 +395,7 @@ public class BigQuerySQLEngine
 
     Table destTable = bigQuery.getTable(destinationTableId);
 
-    // TODO(fernst): Add logic to create the table if it doesn't exist.
+    // TODO(CDAP-18435): Add logic to create the table if it doesn't exist.
     if (destTable != null) {
       LOG.info("Destinaton table `{}.{}.{}` already exists.",
                destinationProject, destinationDataset, destinationTableName);
@@ -443,7 +449,7 @@ public class BigQuerySQLEngine
       return SQLWriteResult.faiure(datasetName);
     }
 
-    LOG.info("Copied data from {} to {}", sourceTableName, destinationTableName);
+    LOG.info("Copied {} records from {} to {}", result.getTotalRows(), sourceTableName, destinationTableName);
     return SQLWriteResult.success(datasetName, result.getTotalRows());
   }
 

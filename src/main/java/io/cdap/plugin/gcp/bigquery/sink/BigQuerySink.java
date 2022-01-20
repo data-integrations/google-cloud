@@ -125,7 +125,8 @@ public final class BigQuerySink extends AbstractBigQuerySink {
     configureTable(outputSchema);
     configureBigQuerySink();
     initOutput(context, bigQuery, config.getReferenceName(), config.getTable(), outputSchema, bucket, collector);
-    initSQLEngineOutput(context, bigQuery, config.getReferenceName(), config.getTable(), outputSchema, collector);
+    initSQLEngineOutput(context, bigQuery, config.getReferenceName(), context.getStageName(), config.getTable(),
+                        outputSchema, collector);
   }
 
   @Override
@@ -144,7 +145,8 @@ public final class BigQuerySink extends AbstractBigQuerySink {
    * Initialize output for SQL Engine
    * @param context Sink context
    * @param bigQuery BigQuery client
-   * @param outputName Name for this output
+   * @param outputName Name for this output.
+   * @param stageName Name for this stage. This is used to collect metrics from the SQL engine execution.
    * @param tableName Destination Table name
    * @param tableSchema Destination Table Schema
    * @param collector Failure Collector
@@ -152,6 +154,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
   void initSQLEngineOutput(BatchSinkContext context,
                            BigQuery bigQuery,
                            String outputName,
+                           String stageName,
                            String tableName,
                            @Nullable Schema tableSchema,
                            FailureCollector collector) {
@@ -166,11 +169,14 @@ public final class BigQuerySink extends AbstractBigQuerySink {
 
     arguments
       .put(BigQuerySQLEngine.SQL_OUTPUT_TABLE, tableName)
+      .put(BigQuerySQLEngine.SQL_OUTPUT_JOB_ID, jobId + "_write")
       .put(BigQuerySQLEngine.SQL_OUTPUT_CONFIG, GSON.toJson(config))
       .put(BigQuerySQLEngine.SQL_OUTPUT_SCHEMA, tableSchema != null ? GSON.toJson(tableSchema) : null)
       .put(BigQuerySQLEngine.SQL_OUTPUT_FIELDS, GSON.toJson(fieldNames));
 
-    context.addOutput(new SQLEngineOutput(outputName, BigQuerySQLEngine.class.getName(),
+    context.addOutput(new SQLEngineOutput(outputName,
+                                          stageName,
+                                          BigQuerySQLEngine.class.getName(),
                                           arguments.build()));
   }
 
