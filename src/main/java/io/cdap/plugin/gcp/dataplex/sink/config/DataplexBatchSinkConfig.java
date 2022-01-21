@@ -107,9 +107,6 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   private static final String FORMAT_PARQUET = "parquet";
   private static final Pattern FIELD_PATTERN = Pattern.compile("[a-zA-Z0-9_]+");
 
-  private static final int ERROR_CODE_NOT_FOUND = 404;
-  private static final int ERROR_CODE_FORBIDDEN = 403;
-  private static final int ERROR_CODE_BAD_REQUEST = 400;
   private static final Map<String, String> contentTypeMap = ImmutableMap.of(
     FORMAT_AVRO, CONTENT_TYPE_APPLICATION_AVRO,
     FORMAT_CSV, CONTENT_TYPE_TEXT_CSV,
@@ -453,23 +450,6 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
       }
     }
     collector.getOrThrowException();
-  }
-
-  private void configureDataplexException(String dataplexConfigProperty, String dataplexConfigPropType,
-                                          DataplexException e,
-                                          FailureCollector failureCollector) {
-    if ((ERROR_CODE_NOT_FOUND == e.getCode()) || ERROR_CODE_BAD_REQUEST == e.getCode()) {
-      failureCollector
-        .addFailure("'" + dataplexConfigProperty + "' could not be found. Please ensure that it exists in " +
-          "Dataplex.", null).withConfigProperty(dataplexConfigPropType);
-    } else if (ERROR_CODE_FORBIDDEN == e.getCode()) {
-      failureCollector
-        .addFailure("'" + dataplexConfigProperty + "' could not be accessed. Please ensure that you have required" +
-          " permissions.", null).withConfigProperty(dataplexConfigPropType);
-    } else {
-      failureCollector.addFailure(e.getCode() + ": " + e.getMessage(), null)
-        .withConfigProperty(dataplexConfigPropType);
-    }
   }
 
   public void validateBigQueryDataset(@Nullable Schema inputSchema, @Nullable Schema outputSchema,

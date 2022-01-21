@@ -65,14 +65,14 @@ corresponding CDAP data type for each Dataplex type.
 | bool          | boolean                               |
 | bytes         | bytes                                 |
 | date          | date                                  |
-| datetime      | datetime, string                      |
+| datetime      | datetime(Should be ISO 8601 format)   |
 | float64       | double                                |
 | geo           | unsupported                           |
 | int64         | long                                  |
 | numeric       | decimal (38 digits, 9 decimal places) |
 | record        | record                                |
 | repeated      | array                                 |
-| string        | string, datetime(Should be ISO 8601 format)|
+| string        | string|
 | struct        | record                                |
 | time          | time (microseconds)                   |
 | timestamp     | timestamp (microseconds)              |

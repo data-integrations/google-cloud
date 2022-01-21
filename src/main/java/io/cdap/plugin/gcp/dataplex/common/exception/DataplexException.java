@@ -50,7 +50,7 @@ public class DataplexException extends Exception {
   }
 
   /**
-   * 
+   *
    * @param code exception code
    * @param message exception message
    * @param cause exception cause
@@ -60,7 +60,7 @@ public class DataplexException extends Exception {
   }
 
   /**
-   * 
+   *
    * @param code exception code
    * @param message exception message
    * @param cause exception cause

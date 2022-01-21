@@ -16,16 +16,34 @@
 
 package io.cdap.plugin.gcp.dataplex.common.util;
 
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.bigquery.Field.Mode;
+import com.google.common.collect.Lists;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
+import io.cdap.plugin.gcp.common.GCPConnectorConfig;
+import io.cdap.plugin.gcp.common.GCPUtils;
+import io.cdap.plugin.gcp.dataplex.common.connection.DataplexInterface;
+import io.cdap.plugin.gcp.dataplex.common.connection.impl.DataplexInterfaceImpl;
+import io.cdap.plugin.gcp.dataplex.common.exception.DataplexException;
 import io.cdap.plugin.gcp.dataplex.common.model.Field;
+import io.cdap.plugin.gcp.dataplex.common.model.Job;
 import io.cdap.plugin.gcp.dataplex.sink.DataplexBatchSink;
 import io.cdap.plugin.gcp.dataplex.source.DataplexBatchSource;
+
+import org.apache.hadoop.conf.Configuration;
+import org.awaitility.Awaitility;
+import org.awaitility.core.ConditionTimeoutException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
@@ -34,6 +52,8 @@ import javax.annotation.Nullable;
  * Common Util class for dataplex plugins such as {@link DataplexBatchSource} and {@link DataplexBatchSink}
  */
 public final class DataplexUtil {
+
+  private static final Logger LOG = LoggerFactory.getLogger(DataplexUtil.class);
 
   /**
    * Converts Entity Schema into a CDAP Schema object.
@@ -51,7 +71,7 @@ public final class DataplexUtil {
     List<Schema.Field> schemafields = new ArrayList<>();
 
     for (Field field : fields) {
-      Schema.Field schemaField = getSchemaField(field, null, null);
+      Schema.Field schemaField = getSchemaField(field, collector, null);
       // if schema field is null, that means that there was a validation error. We will still continue in order to
       // collect more errors
       if (schemaField == null) {
@@ -78,9 +98,9 @@ public final class DataplexUtil {
    * @return A CDAP schema field
    */
   @Nullable
-  public static Schema.Field getSchemaField(Field field,
-                                            @Nullable FailureCollector collector,
-                                            @Nullable String recordPrefix) {
+  private static Schema.Field getSchemaField(Field field,
+                                             @Nullable FailureCollector collector,
+                                             @Nullable String recordPrefix) {
     Schema schema = convertFieldType(field, collector, recordPrefix);
     if (schema == null) {
       return null;
@@ -117,9 +137,9 @@ public final class DataplexUtil {
    * @return A CDAP field schema
    */
   @Nullable
-  public static Schema convertFieldType(Field field,
-                                        @Nullable FailureCollector collector,
-                                        @Nullable String recordPrefix) {
+  private static Schema convertFieldType(Field field,
+                                         @Nullable FailureCollector collector,
+                                         @Nullable String recordPrefix) {
     DataplexTypeName standardType = field.getType();
     switch (standardType) {
       case FLOAT:
@@ -198,6 +218,71 @@ public final class DataplexUtil {
         }
         return null;
     }
+  }
+
+  // To fetch the details whether job created by task creation is completed or not.
+  public String getJobCompletion(Configuration conf) throws DataplexException, IOException {
+    GoogleCredentials googleCredentials = getCredentialsFromConfiguration(conf);
+    DataplexInterface dataplexInterface = new DataplexInterfaceImpl();
+    String projectID = conf.get(DataplexConstants.DATAPLEX_PROJECT_ID);
+    String location = conf.get(DataplexConstants.DATAPLEX_LOCATION);
+    String lake = conf.get(DataplexConstants.DATAPLEX_LAKE);
+    String taskId = conf.get(DataplexConstants.DATAPLEX_TASK_ID);
+    List<Job> jobList = dataplexInterface.listJobs(googleCredentials,
+      projectID, location, lake, taskId);
+    Job dataplexJob = jobList.get(0);
+    try {
+      Awaitility.await()
+        .atMost(30, TimeUnit.MINUTES)
+        .pollInterval(15, TimeUnit.SECONDS)
+        .pollDelay(5, TimeUnit.SECONDS)
+        .until(() -> {
+          Job currentJob = dataplexInterface.getJob(googleCredentials,
+            projectID, location, lake, taskId, dataplexJob.getUid());
+          LOG.debug("Job is still in running state");
+          return currentJob.getState() != null && !"RUNNING".equalsIgnoreCase(currentJob.getState());
+        });
+    } catch (ConditionTimeoutException e) {
+      throw new IllegalStateException("Job creation failed in dataproc.", e);
+    }
+    Job completedJob = dataplexInterface.getJob(googleCredentials,
+      projectID, location, lake, taskId, dataplexJob.getUid());
+    if (!"SUCCEEDED".equalsIgnoreCase(completedJob.getState())) {
+      LOG.error(completedJob.getMessage());
+      throw new IllegalStateException("Job failed in dataproc.");
+    }
+    String outputLocation = conf.get("mapreduce.input.fileinputformat.inputdir");
+    outputLocation = outputLocation + completedJob.getName().replace("/jobs/", "/") + "/0/";
+    conf.set("mapreduce.input.fileinputformat.inputdir", outputLocation);
+    return completedJob.getName();
+  }
+
+  private GoogleCredentials getCredentialsFromConfiguration(Configuration configuration) throws IOException {
+    String serviceAccount;
+    String type = configuration.get("cdap.gcs.auth.service.account.type.flag");
+    Boolean isServiceAccountJson = false;
+    if (type == GCPConnectorConfig.SERVICE_ACCOUNT_JSON) {
+      isServiceAccountJson = true;
+      serviceAccount = configuration.get("google.cloud.auth.service.account.json");
+    } else {
+      serviceAccount = configuration.get("google.cloud.auth.service.account.json.keyfile");
+    }
+    String filePath = configuration.get("cdap.gcs.auth.service.account.type.filepath");
+    return getCredentialsFromServiceAccount(isServiceAccountJson, filePath, serviceAccount);
+  }
+
+  private GoogleCredentials getCredentialsFromServiceAccount(Boolean isServiceAccountJson, String filePath,
+                                                             String serviceAccount) throws IOException {
+    GoogleCredentials credentials = null;
+    if (isServiceAccountJson || (filePath != null && !filePath.equalsIgnoreCase("none"))) {
+      credentials =
+        GCPUtils.loadServiceAccountCredentials(serviceAccount, !isServiceAccountJson)
+          .createScoped(Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"));
+    } else {
+      credentials = ServiceAccountCredentials.getApplicationDefault().createScoped(
+        Lists.newArrayList("https://www.googleapis.com/auth/cloud-platform"));
+    }
+    return credentials;
   }
 
 }

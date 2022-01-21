@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.dataplex.common.model;
 
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.gcp.dataplex.common.util.DataplexUtil;
 
 /**
@@ -35,8 +36,8 @@ public class Entity {
   private Format format;
 
 
-  public io.cdap.cdap.api.data.schema.Schema getSchema() {
-    return DataplexUtil.getTableSchema(this.schema, null);
+  public io.cdap.cdap.api.data.schema.Schema getSchema(FailureCollector collector) {
+    return DataplexUtil.getTableSchema(this.schema, collector);
   }
 
   public void setSchema(Schema schema) {

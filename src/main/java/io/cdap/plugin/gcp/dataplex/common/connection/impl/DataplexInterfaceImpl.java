@@ -53,7 +53,7 @@ public class DataplexInterfaceImpl implements DataplexInterface {
   @Override
   public List<Location> listLocations(GoogleCredentials credentials,
                                       String projectId) throws DataplexException {
-    LOGGER.info("Invoking to fetch the list of Dataplex locations for project id '{}'", projectId);
+    LOGGER.debug("Invoking to fetch the list of Dataplex locations for project id '{}'", projectId);
     StringBuilder urlBuilder = new StringBuilder();
     Gson gson = new Gson();
     DataplexApiHelper dataplexApiHelper = new DataplexApiHelper();
@@ -66,7 +66,7 @@ public class DataplexInterfaceImpl implements DataplexInterface {
   @Override
   public Location getLocation(GoogleCredentials credentials, String projectId, String locationId)
     throws DataplexException {
-    LOGGER.info("Retrieves Dataplex location based on location id '{}'", locationId);
+    LOGGER.debug("Retrieves Dataplex location based on location id '{}'", locationId);
     StringBuilder urlBuilder = new StringBuilder();
     Gson gson = new Gson();
     DataplexApiHelper dataplexApiHelper = new DataplexApiHelper();
@@ -77,7 +77,7 @@ public class DataplexInterfaceImpl implements DataplexInterface {
   @Override
   public List<Lake> listLakes(GoogleCredentials credentials, String projectId,
                               String location) throws DataplexException {
-    LOGGER.info("Retrieves the list of Dataplex lakes from location '{}'", location);
+    LOGGER.debug("Retrieves the list of Dataplex lakes from location '{}'", location);
     StringBuilder urlBuilder = new StringBuilder();
     Gson gson = new Gson();
     DataplexApiHelper dataplexApiHelper = new DataplexApiHelper();
@@ -90,7 +90,7 @@ public class DataplexInterfaceImpl implements DataplexInterface {
   @Override
   public Lake getLake(GoogleCredentials credentials, String projectId, String location, String lakeId)
     throws DataplexException {
-    LOGGER.info("Retrieves the Dataplex lake based on lake id '{}'", lakeId);
+    LOGGER.debug("Retrieves the Dataplex lake based on lake id '{}'", lakeId);
     StringBuilder urlBuilder = new StringBuilder();
     Gson gson = new Gson();
     DataplexApiHelper dataplexApiHelper = new DataplexApiHelper();
@@ -102,7 +102,7 @@ public class DataplexInterfaceImpl implements DataplexInterface {
   @Override
   public List<Zone> listZones(GoogleCredentials credentials, String projectId,
                               String location, String lakeId) throws DataplexException {
-    LOGGER.info("Retrieves the list of Dataplex zones by lake id '{}'", lakeId);
+    LOGGER.debug("Retrieves the list of Dataplex zones by lake id '{}'", lakeId);
     StringBuilder urlBuilder = new StringBuilder();
     Gson gson = new Gson();
     DataplexApiHelper dataplexApiHelper = new DataplexApiHelper();
@@ -116,7 +116,7 @@ public class DataplexInterfaceImpl implements DataplexInterface {
   @Override
   public Zone getZone(GoogleCredentials credentials, String projectId, String location, String lakeId,
                       String zoneId) throws DataplexException {
-    LOGGER.info("Retrieves the details of Dataplex zone based on zone id '{}'", zoneId);
+    LOGGER.debug("Retrieves the details of Dataplex zone based on zone id '{}'", zoneId);
     StringBuilder urlBuilder = new StringBuilder();
     Gson gson = new Gson();
     DataplexApiHelper dataplexApiHelper = new DataplexApiHelper();
@@ -128,7 +128,7 @@ public class DataplexInterfaceImpl implements DataplexInterface {
   @Override
   public List<Asset> listAssets(GoogleCredentials credentials, String projectId,
                                 String location, String lakeId, String zoneId) throws DataplexException {
-    LOGGER.info("Retrieves the list of Dataplex assets based on zone Id '{}'", zoneId);
+    LOGGER.debug("Retrieves the list of Dataplex assets based on zone Id '{}'", zoneId);
     StringBuilder urlBuilder = new StringBuilder();
     Gson gson = new Gson();
     DataplexApiHelper dataplexApiHelper = new DataplexApiHelper();
@@ -142,7 +142,7 @@ public class DataplexInterfaceImpl implements DataplexInterface {
   @Override
   public Asset getAsset(GoogleCredentials credentials, String projectId,
                         String location, String lakeId, String zoneId, String assetId) throws DataplexException {
-    LOGGER.info("Retrieves the details of Dataplex asset based on asset Id '{}'", assetId);
+    LOGGER.debug("Retrieves the details of Dataplex asset based on asset Id '{}'", assetId);
     StringBuilder urlBuilder = new StringBuilder();
     Gson gson = new Gson();
     DataplexApiHelper dataplexApiHelper = new DataplexApiHelper();
@@ -155,7 +155,7 @@ public class DataplexInterfaceImpl implements DataplexInterface {
   @Override
   public List<Entity> listEntities(GoogleCredentials credentials, String projectId, String location, String lakeId,
                                    String zoneId) throws DataplexException {
-    LOGGER.info("Retrieves the details of Dataplex Entities based on zone Id '{}'", zoneId);
+    LOGGER.debug("Retrieves the details of Dataplex Entities based on zone Id '{}'", zoneId);
     StringBuilder urlBuilder = new StringBuilder();
     Gson gson = new Gson();
     DataplexApiHelper dataplexApiHelper = new DataplexApiHelper();
@@ -169,7 +169,7 @@ public class DataplexInterfaceImpl implements DataplexInterface {
   @Override
   public Entity getEntity(GoogleCredentials credentials, String projectId, String location, String lakeId,
                           String zoneId, String entityId) throws DataplexException {
-    LOGGER.info("Retrieves the details of Dataplex Entities based on entity Id '{}'", entityId);
+    LOGGER.debug("Retrieves the details of Dataplex Entities based on entity Id '{}'", entityId);
     StringBuilder urlBuilder = new StringBuilder();
     Gson gson = new Gson();
     DataplexApiHelper dataplexApiHelper = new DataplexApiHelper();
@@ -183,9 +183,8 @@ public class DataplexInterfaceImpl implements DataplexInterface {
   @Override
   public String createTask(GoogleCredentials credentials, String projectId,
                            String location, String lakeId, Task task) throws DataplexException {
-    LOGGER.info("create task with task Id '{}'", task.getDescription());
+    LOGGER.debug("create task with task Id '{}'", task.getDescription());
     StringBuilder urlBuilder = new StringBuilder();
-    Gson gson = new Gson();
     DataplexApiHelper dataplexApiHelper = new DataplexApiHelper();
     urlBuilder.append(HOST).append(PROJECT).append(projectId).append(LOCATION).append(location).append(LAKES)
       .append(lakeId).append(TASKS).append("?").append("task_id=").append(task.getDescription());
@@ -195,7 +194,7 @@ public class DataplexInterfaceImpl implements DataplexInterface {
   @Override
   public Task getTasks(GoogleCredentials credentials, String projectId,
                        String location, String lakeId, String taskId) throws DataplexException {
-    LOGGER.info("get task with task Id '{}'", taskId);
+    LOGGER.debug("get task with task Id '{}'", taskId);
     StringBuilder urlBuilder = new StringBuilder();
     Gson gson = new Gson();
     DataplexApiHelper dataplexApiHelper = new DataplexApiHelper();
@@ -207,7 +206,7 @@ public class DataplexInterfaceImpl implements DataplexInterface {
   @Override
   public List<Job> listJobs(GoogleCredentials credentials, String projectId,
                             String location, String lakeId, String taskId) throws DataplexException {
-    LOGGER.info("get jobs with task Id '{}'", taskId);
+    LOGGER.debug("get jobs with task Id '{}'", taskId);
     StringBuilder urlBuilder = new StringBuilder();
     Gson gson = new Gson();
     DataplexApiHelper dataplexApiHelper = new DataplexApiHelper();
@@ -221,7 +220,7 @@ public class DataplexInterfaceImpl implements DataplexInterface {
   @Override
   public boolean isJobCreated(GoogleCredentials credentials, String projectId,
                               String location, String lakeId, String taskId) throws DataplexException {
-    LOGGER.info("checking if jobs available with task Id '{}'", taskId);
+    LOGGER.debug("checking if jobs available with task Id '{}'", taskId);
     StringBuilder urlBuilder = new StringBuilder();
     Gson gson = new Gson();
     DataplexApiHelper dataplexApiHelper = new DataplexApiHelper();
@@ -235,7 +234,7 @@ public class DataplexInterfaceImpl implements DataplexInterface {
   @Override
   public Job getJob(GoogleCredentials credentials, String projectId,
                     String location, String lakeId, String taskId, String jobId) throws DataplexException {
-    LOGGER.info("get job with job Id '{}'", taskId);
+    LOGGER.debug("get job with job Id '{}'", jobId);
     StringBuilder urlBuilder = new StringBuilder();
     Gson gson = new Gson();
     DataplexApiHelper dataplexApiHelper = new DataplexApiHelper();

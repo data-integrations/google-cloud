@@ -39,15 +39,14 @@ public class DataplexOutputCommitter extends OutputCommitter {
   }
 
   public void addDataplexOutputCommitterFromOutputFormat(OutputCommitter outputCommitter,
-                                                         TaskAttemptContext context)
-    throws IOException, InterruptedException {
+                                                         TaskAttemptContext context) {
     String assetType = context.getConfiguration().get(DataplexOutputFormatProvider.DATAPLEX_ASSET_TYPE);
     // Only one committer is required for BigQuery otherwise it is trying to delete the temporary data twice while
     // clean up.
     if (assetType.equalsIgnoreCase(DataplexBatchSink.BIGQUERY_DATASET_ASSET_TYPE) && !committerMap.isEmpty()) {
       return;
     }
-    committerMap.put(DataplexOutputFormatProvider.PARTITION_PREFIX + context.getTaskAttemptID().toString(),
+    committerMap.put(context.getTaskAttemptID().toString(),
       outputCommitter);
   }
 

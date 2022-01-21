@@ -51,7 +51,6 @@ public class DataplexOutputFormatProvider implements ValidatingOutputFormat {
   public static final String DATAPLEX_OUTPUT_BASE_DIR = "dataplex.output.fileoutputformat.baseoutputdir";
   private static final String DELEGATE_OUTPUTFORMAT_CLASSNAME = "gcssink.delegate.outputformat.classname";
   private static final int MAX_LENGTH_FOR_PARTITION_NAME = 10;
-  public static final String PARTITION_PREFIX = "partition=";
   private static DataplexOutputCommitter dataplexOutputCommitter = new DataplexOutputCommitter();
 
   private final ValidatingOutputFormat delegate;
@@ -141,22 +140,6 @@ public class DataplexOutputFormatProvider implements ValidatingOutputFormat {
     public OutputCommitter getOutputCommitter(TaskAttemptContext taskAttemptContext) throws IOException,
       InterruptedException {
       String assetType = taskAttemptContext.getConfiguration().get(DataplexOutputFormatProvider.DATAPLEX_ASSET_TYPE);
-      if (DataplexBatchSink.STORAGE_BUCKET_ASSET_TYPE.equalsIgnoreCase(assetType)) {
-        // setting up the output directory based on taskAttempId to create the folder
-        // in this format -> partition=taskAttemptId
-        String taskAttemptId = taskAttemptContext.getTaskAttemptID().toString();
-        TaskType taskType = taskAttemptContext.getTaskAttemptID().getTaskType();
-        taskAttemptId = taskAttemptId.length() > MAX_LENGTH_FOR_PARTITION_NAME ?
-          taskAttemptId.substring(taskAttemptId.length() - MAX_LENGTH_FOR_PARTITION_NAME) :
-          taskAttemptId;
-        //only reducer jobs are identified as folders should not be created for mapper jobs in output path.
-        if (taskAttemptContext.getConfiguration().get(DATAPLEX_OUTPUT_BASE_DIR) != null
-          && taskType.equals(TaskType.REDUCE)) {
-          String outDir = taskAttemptContext.getConfiguration().get(DATAPLEX_OUTPUT_BASE_DIR) +
-            PARTITION_PREFIX + taskAttemptId;
-          taskAttemptContext.getConfiguration().set(FileOutputFormat.OUTDIR, outDir);
-        }
-      }
       OutputCommitter delegateCommitter = getDelegateFormatInstance(taskAttemptContext.getConfiguration())
         .getOutputCommitter(taskAttemptContext);
       // As we doing hive style partitioning reducer wise, we are setting all the reducer tasks to separate committer.

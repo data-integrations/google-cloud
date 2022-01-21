@@ -25,14 +25,20 @@ import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.api.plugin.InvalidPluginConfigException;
+import io.cdap.cdap.api.plugin.InvalidPluginProperty;
 import io.cdap.cdap.api.plugin.PluginProperties;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
+import io.cdap.cdap.etl.api.batch.BatchSourceContext;
+import io.cdap.cdap.etl.api.validation.FormatContext;
+import io.cdap.cdap.etl.api.validation.ValidatingInputFormat;
 import io.cdap.plugin.common.ConfigUtil;
 import io.cdap.plugin.common.IdUtils;
 import io.cdap.plugin.format.FileFormat;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceConfig;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
+import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.dataplex.common.config.DataplexBaseConfig;
 import io.cdap.plugin.gcp.dataplex.common.connection.DataplexInterface;
 import io.cdap.plugin.gcp.dataplex.common.exception.DataplexException;
@@ -42,6 +48,11 @@ import io.cdap.plugin.gcp.dataplex.common.model.Lake;
 import java.io.IOException;
 import java.time.DateTimeException;
 import java.time.LocalDate;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
 
 import javax.annotation.Nullable;
 
@@ -51,6 +62,7 @@ import javax.annotation.Nullable;
 public class DataplexBatchSourceConfig extends DataplexBaseConfig {
 
   public static final String NAME_ENTITY = "entity";
+  public static final String INPUT_FORMAT = "avro";
   private static final String NAME_PARTITION_FROM = "partitionFrom";
   private static final String NAME_PARTITION_TO = "partitionTo";
   private static final String NAME_FILTER = "filter";
@@ -167,6 +179,7 @@ public class DataplexBatchSourceConfig extends DataplexBaseConfig {
     return null;
   }
 
+
   public void validateBigQueryDataset(FailureCollector collector, String project, String dataset, String tableName) {
     Table sourceTable = BigQueryUtil.getBigQueryTable(project, dataset, tableName, this.getServiceAccount(),
       this.isServiceAccountFilePath(), collector);
@@ -192,7 +205,7 @@ public class DataplexBatchSourceConfig extends DataplexBaseConfig {
         fromDate = LocalDate.parse(partitionFromDate);
       } catch (DateTimeException ex) {
         collector.addFailure("Invalid partition from date format.",
-          "Ensure partition from date is of format 'yyyy-MM-dd'.")
+            "Ensure partition from date is of format 'yyyy-MM-dd'.")
           .withConfigProperty(BigQuerySourceConfig.NAME_PARTITION_FROM);
       }
     }
@@ -211,20 +224,6 @@ public class DataplexBatchSourceConfig extends DataplexBaseConfig {
         .withConfigProperty(BigQuerySourceConfig.NAME_PARTITION_FROM)
         .withConfigProperty(BigQuerySourceConfig.NAME_PARTITION_TO);
     }
-  }
-
-  private void configureDataplexException(String dataplexConfigProperty, String dataplexConfigPropType,
-                                          DataplexException e,
-                                          FailureCollector failureCollector) {
-    if (("404").equals(e.getCode())) {
-      failureCollector
-        .addFailure("'" + dataplexConfigProperty + "' could not be found. Please ensure that it exists in " +
-          "Dataplex.", null).withConfigProperty(dataplexConfigPropType);
-    } else {
-      failureCollector.addFailure(e.getCode() + ": " + e.getMessage(), null)
-        .withConfigProperty(dataplexConfigPropType);
-    }
-    failureCollector.getOrThrowException();
   }
 
   public void validateTable(FailureCollector collector, String project, String dataset, String tableId) {
@@ -264,17 +263,68 @@ public class DataplexBatchSourceConfig extends DataplexBaseConfig {
     return sourceTable != null ? sourceTable.getDefinition().getType() : null;
   }
 
+
+  // Setting validating input format as we are setting same format in task output format.
   public void setupValidatingInputFormat(PipelineConfigurer pipelineConfigurer, FailureCollector collector,
-                                         Entity entity) {
+                                         @Nullable Entity entity) {
     ConfigUtil.validateConnection(this, false, connection, collector);
-    String fileFormat = FileFormat.CSV.toString().toLowerCase();
+    String fileFormat = INPUT_FORMAT;
     collector.getOrThrowException();
-    Schema schema = entity.getSchema();
-    pipelineConfigurer.getStageConfigurer().setOutputSchema(schema);
+    if (entity != null) {
+      Schema schema = entity.getSchema(collector);
+      pipelineConfigurer.getStageConfigurer().setOutputSchema(schema);
+    }
     PluginProperties.Builder builder = PluginProperties.builder();
     builder.addAll(this.getRawProperties().getProperties());
     pipelineConfigurer.usePlugin("validatingInputFormat", fileFormat, fileFormat,
-        builder.build());
+      builder.build());
+  }
+
+
+  public Map<String, String> getFileSystemProperties(String path) {
+    Map<String, String> properties = GCPUtils.getFileSystemProperties(this.getConnection(),
+      path, new HashMap<>());
+    return properties;
+  }
+
+  private void validateInputFormatProvider(FormatContext context, String fileFormat,
+                                           @Nullable ValidatingInputFormat validatingInputFormat) {
+    FailureCollector collector = context.getFailureCollector();
+    if (validatingInputFormat == null) {
+      collector.addFailure(String.format("Could not find the '%s' input format.", fileFormat), null)
+        .withPluginNotFound(fileFormat, fileFormat, "validatingInputFormat");
+    } else {
+      validatingInputFormat.validate(context);
+    }
+
+  }
+
+  public ValidatingInputFormat validateRunStorageBucket(BatchSourceContext batchSourceContext, Entity entity
+  ) throws InstantiationException {
+    FailureCollector collector = batchSourceContext.getFailureCollector();
+    ConfigUtil.validateConnection(this, false, connection, collector);
+    String fileFormat = INPUT_FORMAT;
+    ValidatingInputFormat validatingInputFormat;
+    try {
+      validatingInputFormat = batchSourceContext.newPluginInstance(fileFormat);
+    } catch (InvalidPluginConfigException exception) {
+      Set<String> properties = new HashSet(exception.getMissingProperties());
+      Iterator iterator = exception.getInvalidProperties().iterator();
+
+      while (iterator.hasNext()) {
+        InvalidPluginProperty invalidProperty = (InvalidPluginProperty) iterator.next();
+        properties.add(invalidProperty.getName());
+      }
+      String errorMessage = String.format(
+        "Format '%s' cannot be used because properties %s were not provided or were invalid when the pipeline was " +
+          "deployed. Set the format to a different value, or re-create the pipeline with all required properties.",
+        fileFormat, properties);
+      throw new IllegalArgumentException(errorMessage, exception);
+    }
+    FormatContext formatContext = new FormatContext(collector, batchSourceContext.getInputSchema());
+    this.validateInputFormatProvider(formatContext, fileFormat, validatingInputFormat);
+    collector.getOrThrowException();
+    return validatingInputFormat;
   }
 
   public String getEntity() {
@@ -297,5 +347,5 @@ public class DataplexBatchSourceConfig extends DataplexBaseConfig {
       }
     }
   }
-}
 
+}

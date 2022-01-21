@@ -28,6 +28,7 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
@@ -43,11 +44,10 @@ import java.util.Date;
  */
 public class DataplexApiHelper {
 
-  private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(DataplexApiHelper.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(DataplexApiHelper.class);
   private static AccessToken accessToken = null;
 
   public String invokeDataplexApi(String urlBuilder, GoogleCredentials credentials) throws DataplexException {
-    LOGGER.info("Initiating the api call to fetch the details");
     StringBuilder builder = new StringBuilder();
     try {
 
@@ -82,16 +82,13 @@ public class DataplexApiHelper {
   }
 
 
-
   public String invokeTaskApi(String urlBuilder, GoogleCredentials credentials, Task task) throws DataplexException {
-    LOGGER.info("Creating the task using api call.");
     StringBuilder builder = new StringBuilder();
     try {
       Gson gson = new Gson();
       HttpClient client = HttpClientBuilder.create().build();
       if (accessToken == null || (accessToken != null && accessToken.getExpirationTime().before(new Date()))) {
         accessToken = credentials.refreshAccessToken();
-
       }
       HttpPost request = new HttpPost(urlBuilder);
       request.addHeader("Authorization", "Bearer " + accessToken.getTokenValue());
@@ -99,21 +96,20 @@ public class DataplexApiHelper {
       request.setEntity(new StringEntity(gson.toJson(task), ContentType.APPLICATION_JSON));
       HttpResponse response = client.execute(request);
       int responseCode = response.getStatusLine().getStatusCode();
-      if (responseCode == 400 || responseCode == 401 || responseCode == 402 || responseCode == 403 ||
-        responseCode == 404 || responseCode == 500
-        || responseCode == 501 || responseCode == 502 || responseCode == 503) {
-        throw new DataplexException(responseCode, response.getStatusLine().getReasonPhrase());
-      }
-
       BufferedReader br = new BufferedReader(new InputStreamReader(response.getEntity().getContent()));
       String line;
       while ((line = br.readLine()) != null) {
         builder.append(line);
+      }
+      if (responseCode == 400 || responseCode == 401 || responseCode == 402 || responseCode == 403 ||
+        responseCode == 404 || responseCode == 500
+        || responseCode == 501 || responseCode == 502 || responseCode == 503) {
+        LOGGER.info("Task creation failed. Response is {}", builder);
+        throw new DataplexException(responseCode, builder.toString());
       }
     } catch (IOException e) {
       LOGGER.debug("Dataplex task api call failed due to error: {}", e.getMessage());
     }
     return builder.toString();
   }
-
 }
