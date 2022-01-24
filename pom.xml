@@ -594,6 +594,7 @@
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-sql_2.12</artifactId>
       <version>${spark3.version}</version>
+      <scope>provided</scope>
       <exclusions>
         <exclusion>
           <groupId>org.slf4j</groupId>
@@ -691,8 +692,6 @@
               org.apache.hadoop.hbase.mapreduce.*;
               org.apache.hadoop.hbase.security.token.*;
               com.google.cloud.spark.bigquery.*;
-              org.apache.spark.sql.*;
-              org.apache.spark.internal.*;
             </_exportcontents>
           </instructions>
         </configuration>
