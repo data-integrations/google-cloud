@@ -181,15 +181,7 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     private static final String DATASET = "dataset";
     private static final String TABLE = "table";
     private static final String NAME_LOCATION = "location";
-    public static final String DATASET_PROJECT_ID = "datasetProject";
     private static final int ERROR_CODE_NOT_FOUND = 404;
-
-    @Name(DATASET_PROJECT_ID)
-    @Macro
-    @Nullable
-    @Description("The project in which the dataset specified in the `Dataset Name` is located or should be created."
-      + " Defaults to the project specified in the Project Id property.")
-    private String datasetProject;
 
     @Description("Dialect of the SQL command. The value must be 'legacy' or 'standard'. " +
       "If set to 'standard', the query will use BigQuery's standard SQL: " +
@@ -237,7 +229,8 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     @Macro
     @Nullable
     @Description("The GCP customer managed encryption key (CMEK) name used to encrypt data written to " +
-      "any dataset or table created by the plugin. If the dataset or table already exists, this is ignored.")
+      "any dataset or table created by the plugin. If the dataset or table already exists, this is ignored. More " +
+      "information can be found at https://cloud.google.com/data-fusion/docs/how-to/customer-managed-encryption-keys")
     private String cmekKey;
 
     @Description("Row as arguments. For example, if the query is " +
@@ -287,14 +280,6 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
 
     public QueryJobConfiguration.Priority getMode() {
       return QueryJobConfiguration.Priority.valueOf(mode.toUpperCase());
-    }
-
-    @Nullable
-    public String getDatasetProject() {
-      if (GCPConfig.AUTO_DETECT.equalsIgnoreCase(datasetProject)) {
-        return ServiceOptions.getDefaultProjectId();
-      }
-      return Strings.isNullOrEmpty(datasetProject) ? getProject() : datasetProject;
     }
 
     @Nullable

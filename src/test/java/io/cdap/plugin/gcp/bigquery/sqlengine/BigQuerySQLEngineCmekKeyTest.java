@@ -92,9 +92,7 @@ public class BigQuerySQLEngineCmekKeyTest {
 
   @Test
   public void testServiceAccountPath() throws Exception {
-    BigQuerySQLEngineConfig.Builder builder = getBuilder()
-      .setServiceAccountType(GCPConfig.SERVICE_ACCOUNT_FILE_PATH)
-      .setServiceFilePath(serviceAccountFilePath);
+    BigQuerySQLEngineConfig.Builder builder = getBuilder();
     testValidCmekKey(builder);
     testInvalidCmekKeyName(builder);
     testInvalidCmekKeyLocation(builder);
@@ -105,9 +103,7 @@ public class BigQuerySQLEngineCmekKeyTest {
 
   @Test
   public void testServiceAccountJson() throws Exception {
-    BigQuerySQLEngineConfig.Builder builder = getBuilder()
-      .setServiceAccountType(GCPConfig.SERVICE_ACCOUNT_JSON)
-      .setServiceAccountJson(serviceAccountKey);
+    BigQuerySQLEngineConfig.Builder builder = getBuilder();
     testValidCmekKey(builder);
     testInvalidCmekKeyName(builder);
     testInvalidCmekKeyLocation(builder);
