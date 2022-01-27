@@ -22,6 +22,9 @@ import com.google.cloud.bigquery.JobConfiguration;
 import com.google.cloud.bigquery.JobId;
 import com.google.cloud.bigquery.JobStatistics;
 import com.google.cloud.bigquery.Table;
+import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
+import com.google.common.collect.ImmutableMap;
+import com.google.gson.Gson;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Metadata;
 import io.cdap.cdap.api.annotation.MetadataProperty;
@@ -35,7 +38,9 @@ import io.cdap.cdap.etl.api.StageConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.connector.Connector;
+import io.cdap.cdap.etl.api.engine.sql.SQLEngineOutput;
 import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnector;
+import io.cdap.plugin.gcp.bigquery.sqlengine.BigQuerySQLEngine;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import org.apache.hadoop.conf.Configuration;
@@ -48,6 +53,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 /**
  * This class <code>BigQuerySink</code> is a plugin that would allow users
@@ -63,13 +69,14 @@ import java.util.stream.Collectors;
 @Metadata(properties = {@MetadataProperty(key = Connector.PLUGIN_TYPE, value = BigQueryConnector.NAME)})
 public final class BigQuerySink extends AbstractBigQuerySink {
 
+  private static final Logger LOG = LoggerFactory.getLogger(BigQuerySink.class);
+  private static final Gson GSON = new Gson();
+
   public static final String NAME = "BigQueryTable";
 
   private final BigQuerySinkConfig config;
 
   private final String jobId = UUID.randomUUID().toString();
-
-  private static final Logger LOG = LoggerFactory.getLogger(BigQuerySink.class);
 
   public BigQuerySink(BigQuerySinkConfig config) {
     this.config = config;
@@ -118,6 +125,8 @@ public final class BigQuerySink extends AbstractBigQuerySink {
     configureTable(outputSchema);
     configureBigQuerySink();
     initOutput(context, bigQuery, config.getReferenceName(), config.getTable(), outputSchema, bucket, collector);
+    initSQLEngineOutput(context, bigQuery, config.getReferenceName(), context.getStageName(), config.getTable(),
+                        outputSchema, collector);
   }
 
   @Override
@@ -130,6 +139,45 @@ public final class BigQuerySink extends AbstractBigQuerySink {
       LOG.warn("Exception while trying to emit metric. No metric will be emitted for the number of affected rows.",
                exception);
     }
+  }
+
+  /**
+   * Initialize output for SQL Engine
+   * @param context Sink context
+   * @param bigQuery BigQuery client
+   * @param outputName Name for this output.
+   * @param stageName Name for this stage. This is used to collect metrics from the SQL engine execution.
+   * @param tableName Destination Table name
+   * @param tableSchema Destination Table Schema
+   * @param collector Failure Collector
+   */
+  void initSQLEngineOutput(BatchSinkContext context,
+                           BigQuery bigQuery,
+                           String outputName,
+                           String stageName,
+                           String tableName,
+                           @Nullable Schema tableSchema,
+                           FailureCollector collector) {
+    List<BigQueryTableFieldSchema> fields = getBigQueryTableFields(bigQuery, tableName, tableSchema,
+                                                                   getConfig().isAllowSchemaRelaxation(), collector);
+    List<String> fieldNames = fields.stream()
+      .map(BigQueryTableFieldSchema::getName)
+      .collect(Collectors.toList());
+
+    // Add output for SQL Engine Direct copy
+    ImmutableMap.Builder<String, String> arguments = new ImmutableMap.Builder<>();
+
+    arguments
+      .put(BigQuerySQLEngine.SQL_OUTPUT_TABLE, tableName)
+      .put(BigQuerySQLEngine.SQL_OUTPUT_JOB_ID, jobId + "_write")
+      .put(BigQuerySQLEngine.SQL_OUTPUT_CONFIG, GSON.toJson(config))
+      .put(BigQuerySQLEngine.SQL_OUTPUT_SCHEMA, tableSchema != null ? GSON.toJson(tableSchema) : null)
+      .put(BigQuerySQLEngine.SQL_OUTPUT_FIELDS, GSON.toJson(fieldNames));
+
+    context.addOutput(new SQLEngineOutput(outputName,
+                                          stageName,
+                                          BigQuerySQLEngine.class.getName(),
+                                          arguments.build()));
   }
 
   void recordMetric(boolean succeeded, BatchSinkContext context) {

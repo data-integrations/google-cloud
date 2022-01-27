@@ -27,6 +27,7 @@ import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
 import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
 import io.cdap.cdap.api.data.batch.Output;
 import io.cdap.cdap.api.data.batch.OutputFormatProvider;
 import io.cdap.cdap.api.data.format.StructuredRecord;
@@ -36,8 +37,10 @@ import io.cdap.cdap.etl.api.Emitter;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
+import io.cdap.cdap.etl.api.engine.sql.SQLEngineOutput;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.plugin.common.LineageRecorder;
+import io.cdap.plugin.gcp.bigquery.sqlengine.BigQuerySQLEngine;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
@@ -429,10 +432,10 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
    * @param collector failure collector
    * @return list of Big Query fields
    */
-  private List<BigQueryTableFieldSchema> getBigQueryTableFields(BigQuery bigQuery, String tableName,
-                                                                @Nullable Schema tableSchema,
-                                                                boolean allowSchemaRelaxation,
-                                                                FailureCollector collector) {
+  protected List<BigQueryTableFieldSchema> getBigQueryTableFields(BigQuery bigQuery, String tableName,
+                                                                  @Nullable Schema tableSchema,
+                                                                  boolean allowSchemaRelaxation,
+                                                                  FailureCollector collector) {
     if (tableSchema == null) {
       return Collections.emptyList();
     }
