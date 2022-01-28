@@ -1,12 +1,12 @@
 Feature: Demo1
 
-  @TC-Demo-1
+  @GCS @TC-Demo-1
   Scenario: User is able to Login and confirm data is getting transferred from GCS to BigQuery
     Given Open Datafusion Project to configure pipeline
     When Source is GCS bucket
     When Target is BigQuery
     Then Link Source and Sink to establish connection
-    Then Enter the GCS Properties with "@TC-Demo-1_GCS" GCS bucket
+    Then Enter the GCS Properties with "@TC-Demo-1_GCS" GCS bucket and "@TC-File_Format1"
     Then Close the GCS Properties
     Then Enter the BigQuery Properties for table "tableDemo"
     Then Close the BigQuery Properties
