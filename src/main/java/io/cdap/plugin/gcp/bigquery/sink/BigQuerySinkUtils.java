@@ -23,8 +23,10 @@ import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.DatasetInfo;
 import com.google.cloud.bigquery.EncryptionConfiguration;
 import com.google.cloud.bigquery.Field;
+import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.Table;
+import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryOutputConfiguration;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
@@ -33,6 +35,8 @@ import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
+import com.google.common.reflect.TypeToken;
+import com.google.gson.Gson;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize.Numeric;
@@ -43,6 +47,9 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 
 import java.io.IOException;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -62,6 +69,20 @@ public final class BigQuerySinkUtils {
   private static final String TEMPORARY_BUCKET_FORMAT = GS_PATH_FORMAT + "/input/%s-%s";
   private static final String DATETIME = "DATETIME";
   private static final String RECORD = "RECORD";
+  private static final Gson GSON = new Gson();
+  private static final Type LIST_OF_FIELD_TYPE = new TypeToken<ArrayList<Field>>() { }.getType();
+
+  // Fields used to build update/upsert queries
+  private static final String CRITERIA_TEMPLATE = "T.%s = S.%s";
+  private static final String SOURCE_DATA_QUERY = "(SELECT * FROM (SELECT row_number() OVER (PARTITION BY %s%s) " +
+    "as rowid, * FROM %s) where rowid = 1)";
+  private static final String UPDATE_QUERY = "UPDATE %s T SET %s FROM %s S WHERE %s";
+  private static final String UPSERT_QUERY = "MERGE %s T USING %s S ON %s WHEN MATCHED THEN UPDATE SET %s " +
+    "WHEN NOT MATCHED THEN INSERT (%s) VALUES(%s)";
+  private static final List<String> COMPARISON_OPERATORS =
+    Arrays.asList("=", "<", ">", "<=", ">=", "!=", "<>",
+                  "LIKE", "NOT LIKE", "BETWEEN", "NOT BETWEEN", "IN", "NOT IN", "IS NULL", "IS NOT NULL",
+                  "IS TRUE", "IS NOT TRUE", "IS FALSE", "IS NOT FALSE");
 
   /**
    * Creates the given dataset and bucket if they do not already exist. If the dataset already exists but the
@@ -268,42 +289,32 @@ public final class BigQuerySinkUtils {
   }
 
   /**
-   * Relaxes the Destination Table Schema based on the matching field names from the source tbale
+   * Relaxes the Destination Table Schema based on the matching field names from the source table
    * @param bigquery BigQuery client
-   * @param sourceTable source table, which contains the updated field definiton
-   * @param destinationTable destination table, whose fields definitions may be relaxed depending on the source table.
-   */
-  public static void relaxTableSchema(BigQuery bigquery, Table sourceTable, Table destinationTable) {
-    // Copy all fields from the source table into the destination table.
-    List<String> sourceTableFields = sourceTable.getDefinition()
-      .getSchema()
-      .getFields()
-      .stream()
-      .map(Field::getName)
-      .collect(Collectors.toList());
-    relaxTableSchema(bigquery, sourceTable, destinationTable, sourceTableFields);
-  }
-
-  /**
-   * Relaxes the Destination Table Schema based on the matching field names from the source tbale
-   * @param bigquery BigQuery client
-   * @param sourceTable source table, which contains the updated field definiton
+   * @param sourceTable source table, which contains the updated field definition
    * @param destinationTable destination table, whose fields definitions may be relaxed depending on the source table.
    */
   public static void relaxTableSchema(BigQuery bigquery,
                                       Table sourceTable,
-                                      Table destinationTable,
-                                      List<String> sourceTableFieldsToCopy) {
-    // Keep only the source fields we want to copy into the destination table
-    List<Field> sourceFields = sourceTable.getDefinition()
-      .getSchema()
-      .getFields()
-      .stream()
-      .filter(f -> sourceTableFieldsToCopy.contains(f.getName()))
-      .collect(Collectors.toList());
-    // Get all destination fields
+                                      Table destinationTable) {
+    List<Field> sourceFields = sourceTable.getDefinition().getSchema().getFields();
     List<Field> destinationFields = destinationTable.getDefinition().getSchema().getFields();
 
+    relaxTableSchema(bigquery, destinationTable, sourceFields, destinationFields);
+  }
+
+
+  /**
+   * Relaxes the Destination Table Schema based on the matching field names from the source table
+   * @param bigquery BigQuery client
+   * @param destinationTable destination table, whose fields definitions may be relaxed depending on the source fields.
+   * @param sourceFields fields in the source table that need to be used to relax the destination table
+   * @param destinationFields fields in the destination table that may be relaxed depending on the source fields
+   */
+  public static void relaxTableSchema(BigQuery bigquery,
+                                      Table destinationTable,
+                                      List<Field> sourceFields,
+                                      List<Field> destinationFields) {
     // Collect all fields form the source table
     Map<String, Field> sourceFieldMap = sourceFields.stream()
       .collect(Collectors.toMap(Field::getName, x -> x));
@@ -351,6 +362,56 @@ public final class BigQuerySinkUtils {
 
     }
     return fieldSchema;
+  }
+
+  public static com.google.cloud.bigquery.Schema convertCdapSchemaToBigQuerySchema(Schema schema) {
+    List<Schema.Field> inputFields = Objects.requireNonNull(schema.getFields(), "Schema must have fields");
+    List<com.google.cloud.bigquery.Field> fields = inputFields.stream()
+      .map(BigQuerySinkUtils::convertCdapFieldToBigQueryField)
+      .collect(Collectors.toList());
+    return com.google.cloud.bigquery.Schema.of(fields);
+  }
+
+  private static Field convertCdapFieldToBigQueryField(Schema.Field field) {
+    String name = field.getName();
+    LegacySQLTypeName type = getTableDataType(field.getSchema());
+    Field.Mode mode = getMode(field.getSchema());
+
+    Field.Builder fieldBuilder;
+
+    // For record fields, we need to get all subfields and re-create the builder.
+    if (type == LegacySQLTypeName.RECORD) {
+      List<Schema.Field> schemaFields;
+      Schema fieldCdapSchema = BigQueryUtil.getNonNullableSchema(field.getSchema());
+
+      // If its an Array of records we need to get the component schema of the array
+      // which will be the Record. Which can itself be nullable, and then get the fields
+      // of that record.
+      if (Schema.Type.ARRAY == fieldCdapSchema.getType()) {
+        schemaFields = Objects.requireNonNull(
+          BigQueryUtil.getNonNullableSchema(fieldCdapSchema.getComponentSchema()).getFields());
+      } else {
+        schemaFields = fieldCdapSchema.getFields();
+      }
+
+      FieldList subFields = FieldList.of(Objects.requireNonNull(schemaFields).stream()
+                                           .map(BigQuerySinkUtils::convertCdapFieldToBigQueryField)
+                                           .collect(Collectors.toList()));
+
+      fieldBuilder = Field.newBuilder(name, type, subFields);
+    } else {
+      fieldBuilder = Field.newBuilder(name, type);
+    }
+
+    fieldBuilder.setMode(mode);
+
+    // Set prevision for numeric fields
+    if (type == LegacySQLTypeName.NUMERIC || type == LegacySQLTypeName.BIGNUMERIC) {
+      fieldBuilder.setPrecision((long) field.getSchema().getPrecision());
+      fieldBuilder.setScale((long) field.getSchema().getScale());
+    }
+
+    return fieldBuilder.build();
   }
 
   private static Field.Mode getMode(Schema schema) {
@@ -440,5 +501,55 @@ public final class BigQuerySinkUtils {
       return TextOutputFormat.class;
     }
     return AvroOutputFormat.class;
+  }
+
+  public static String generateUpdateUpsertQuery(Operation operation,
+                                                 TableId sourceTableId,
+                                                 TableId destinationTableId,
+                                                 List<String> tableFieldsList,
+                                                 List<String> tableKeyList,
+                                                 List<String> orderedByList,
+                                                 String partitionFilter) {
+
+    String source = String.format("`%s.%s.%s`",
+                                  sourceTableId.getProject(),
+                                  sourceTableId.getDataset(),
+                                  sourceTableId.getTable());
+    String destination = String.format("`%s.%s.%s`",
+                                       destinationTableId.getProject(),
+                                       destinationTableId.getDataset(),
+                                       destinationTableId.getTable());
+
+    String criteria = tableKeyList.stream().map(s -> String.format(CRITERIA_TEMPLATE, s, s))
+      .collect(Collectors.joining(" AND "));
+    criteria = partitionFilter != null ? String.format("(%s) AND %s",
+                                                       formatPartitionFilter(partitionFilter), criteria) : criteria;
+    String fieldsForUpdate = tableFieldsList.stream().filter(s -> !tableKeyList.contains(s))
+      .map(s -> String.format(CRITERIA_TEMPLATE, s, s)).collect(Collectors.joining(", "));
+    String orderedBy = orderedByList.isEmpty() ? "" : " ORDER BY " + String.join(", ", orderedByList);
+    String sourceTable = String.format(SOURCE_DATA_QUERY, String.join(", ", tableKeyList), orderedBy, source);
+    switch (operation) {
+      case UPDATE:
+        return String.format(UPDATE_QUERY, destination, fieldsForUpdate, sourceTable, criteria);
+      case UPSERT:
+        String insertFields = String.join(", ", tableFieldsList);
+        return String.format(UPSERT_QUERY, destination, sourceTable, criteria, fieldsForUpdate,
+                             insertFields, insertFields);
+      default:
+        return "";
+    }
+  }
+
+  private static String formatPartitionFilter(String partitionFilter) {
+    String[] queryWords = partitionFilter.split(" ");
+    int index = 0;
+    for (String word: queryWords) {
+      if (COMPARISON_OPERATORS.contains(word.toUpperCase())) {
+        queryWords[index - 1] = queryWords[index - 1].replace(queryWords[index - 1],
+                                                              "T." + queryWords[index - 1]);
+      }
+      index++;
+    }
+    return String.join(" ", queryWords);
   }
 }

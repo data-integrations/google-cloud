@@ -19,7 +19,6 @@ package io.cdap.plugin.gcp.bigquery.sink;
 import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
 import io.cdap.cdap.api.data.schema.Schema;
-
 import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize;
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Assert;

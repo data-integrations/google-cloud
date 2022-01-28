@@ -41,6 +41,7 @@ import io.cdap.cdap.etl.api.connector.Connector;
 import io.cdap.cdap.etl.api.engine.sql.SQLEngineOutput;
 import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnector;
 import io.cdap.plugin.gcp.bigquery.sqlengine.BigQuerySQLEngine;
+import io.cdap.plugin.gcp.bigquery.sqlengine.BigQueryWrite;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import org.apache.hadoop.conf.Configuration;
@@ -168,11 +169,10 @@ public final class BigQuerySink extends AbstractBigQuerySink {
     ImmutableMap.Builder<String, String> arguments = new ImmutableMap.Builder<>();
 
     arguments
-      .put(BigQuerySQLEngine.SQL_OUTPUT_TABLE, tableName)
-      .put(BigQuerySQLEngine.SQL_OUTPUT_JOB_ID, jobId + "_write")
-      .put(BigQuerySQLEngine.SQL_OUTPUT_CONFIG, GSON.toJson(config))
-      .put(BigQuerySQLEngine.SQL_OUTPUT_SCHEMA, tableSchema != null ? GSON.toJson(tableSchema) : null)
-      .put(BigQuerySQLEngine.SQL_OUTPUT_FIELDS, GSON.toJson(fieldNames));
+      .put(BigQueryWrite.SQL_OUTPUT_JOB_ID, jobId + "_write")
+      .put(BigQueryWrite.SQL_OUTPUT_CONFIG, GSON.toJson(config))
+      .put(BigQueryWrite.SQL_OUTPUT_SCHEMA, tableSchema != null ? GSON.toJson(tableSchema) : null)
+      .put(BigQueryWrite.SQL_OUTPUT_FIELDS, GSON.toJson(fieldNames));
 
     context.addOutput(new SQLEngineOutput(outputName,
                                           stageName,

@@ -98,15 +98,6 @@ import javax.annotation.Nullable;
 public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<StructuredRecord, NullWritable> {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryOutputFormat.class);
 
-  private static final String SOURCE_DATA_QUERY = "(SELECT * FROM (SELECT row_number() OVER (PARTITION BY %s%s) " +
-    "as rowid, * FROM %s) where rowid = 1)";
-  private static final String UPDATE_QUERY = "UPDATE %s T SET %s FROM %s S WHERE %s";
-  private static final String UPSERT_QUERY = "MERGE %s T USING %s S ON %s WHEN MATCHED THEN UPDATE SET %s " +
-    "WHEN NOT MATCHED THEN INSERT (%s) VALUES(%s)";
-  private static final List<String> COMPARISON_OPERATORS = Arrays.asList("=", "<", ">", "<=", ">=", "!=", "<>",
-          "LIKE", "NOT LIKE", "BETWEEN", "NOT BETWEEN", "IN", "NOT IN", "IS NULL", "IS NOT NULL",
-          "IS TRUE", "IS NOT TRUE", "IS FALSE", "IS NOT FALSE");
-
   @Override
   public RecordWriter<StructuredRecord, NullWritable> getRecordWriter(TaskAttemptContext taskAttemptContext)
     throws IOException, InterruptedException {
@@ -592,7 +583,19 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
       if (allowSchemaRelaxation) {
         updateTableSchema(tableRef);
       }
-      String query = generateQuery(tableRef);
+      TableId sourceTableId = TableId.of(temporaryTableReference.getProjectId(),
+                                         temporaryTableReference.getDatasetId(),
+                                         temporaryTableReference.getTableId());
+      TableId destinationTableId = TableId.of(tableRef.getProjectId(),
+                                              tableRef.getDatasetId(),
+                                              tableRef.getTableId());
+      String query = BigQuerySinkUtils.generateUpdateUpsertQuery(operation,
+                                                                 sourceTableId,
+                                                                 destinationTableId,
+                                                                 tableFieldsList,
+                                                                 tableKeyList,
+                                                                 orderedByList,
+                                                                 partitionFilter);
       LOG.info("Update/Upsert query: " + query);
 
       BigQuery bigquery = getBigQuery(config);
@@ -635,33 +638,6 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
       tableFieldsList = sourceFields.stream().map(Field::getName).collect(Collectors.toList());
 
       BigQuerySinkUtils.relaxTableSchema(bigquery, sourceTable, destinationTable);
-    }
-
-    private String generateQuery(TableReference tableRef) {
-      String criteriaTemplate = "T.%s = S.%s";
-      String destinationTable = String.format("`%s.%s.%s`", tableRef.getProjectId(), tableRef.getDatasetId(),
-                                              tableRef.getTableId());
-      String criteria = tableKeyList.stream().map(s -> String.format(criteriaTemplate, s, s))
-        .collect(Collectors.joining(" AND "));
-      criteria = partitionFilter != null ? String.format("(%s) AND %s",
-                                                         formatPartitionFilter(partitionFilter), criteria) : criteria;
-      String fieldsForUpdate = tableFieldsList.stream().filter(s -> !tableKeyList.contains(s))
-        .map(s -> String.format(criteriaTemplate, s, s)).collect(Collectors.joining(", "));
-      String orderedBy = orderedByList.isEmpty() ? "" : " ORDER BY " + String.join(", ", orderedByList);
-      String tempTable = String.format("`%s.%s.%s`", temporaryTableReference.getProjectId(),
-                                       temporaryTableReference.getDatasetId(), temporaryTableReference.getTableId());
-      String sourceTable = String.format(SOURCE_DATA_QUERY, String.join(", ", tableKeyList), orderedBy,
-                                         tempTable);
-      switch (operation) {
-        case UPDATE:
-          return String.format(UPDATE_QUERY, destinationTable, fieldsForUpdate, sourceTable, criteria);
-        case UPSERT:
-          String insertFields = String.join(", ", tableFieldsList);
-          return String.format(UPSERT_QUERY, destinationTable, sourceTable, criteria, fieldsForUpdate,
-                               insertFields, insertFields);
-        default:
-          return "";
-      }
     }
 
     private static TableSchema createTableSchemaFromFields(String fieldsJson) throws IOException {
@@ -708,19 +684,6 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
                   temporaryTableReference.getTableId())
           .execute();
       }
-    }
-
-    private static String formatPartitionFilter(String partitionFilter) {
-      String[] queryWords = partitionFilter.split(" ");
-      int index = 0;
-      for (String word: queryWords) {
-        if (COMPARISON_OPERATORS.contains(word.toUpperCase())) {
-          queryWords[index - 1] = queryWords[index - 1].replace(queryWords[index - 1],
-                                                                "T." + queryWords[index - 1]);
-        }
-        index++;
-      }
-      return String.join(" ", queryWords);
     }
 
     private Range createRangeForIntegerPartitioning(Configuration conf) {
