@@ -150,7 +150,6 @@ public class BigQueryWrite {
 
     // Get relevant sink configuration
     boolean allowSchemaRelaxation = sinkConfig.isAllowSchemaRelaxation();
-    JobInfo.WriteDisposition writeDisposition = sinkConfig.getWriteDisposition();
     Operation operation = sinkConfig.getOperation();
 
     // Check if both datasets are in the same Location. If not, the direct copy operation cannot be performed.
@@ -171,11 +170,17 @@ public class BigQueryWrite {
       return SQLWriteResult.unsupported(datasetName);
     }
 
+    // Inserts with Truncate are not supported by the Direct write operation
+    if (sinkConfig.isTruncateTableSet() && operation == Operation.INSERT) {
+      LOG.warn("Direct table copy is not supported for the INSERT operation when Truncate Table is enabled.");
+      return SQLWriteResult.unsupported(datasetName);
+    }
+
     // Get destination table instance
     Table destTable = bigQuery.getTable(destinationTableId);
 
     // If the operation is an UPSERT and the table doesn't exist, update the operation to become an Insert.
-    if (destTable == null && Operation.UPSERT.equals(operation)) {
+    if (destTable == null && operation == Operation.UPSERT) {
       operation = Operation.INSERT;
     }
 
@@ -195,8 +200,8 @@ public class BigQueryWrite {
     // Get query job configuration based on wether the job is an insert or update/upsert
     QueryJobConfiguration.Builder queryConfigBuilder;
 
-    if (Operation.INSERT.equals(operation)) {
-      queryConfigBuilder = getInsertQueryJobBuilder(sourceTableId, destinationTableId, fields, writeDisposition);
+    if (operation == Operation.INSERT) {
+      queryConfigBuilder = getInsertQueryJobBuilder(sourceTableId, destinationTableId, fields);
     } else {
       queryConfigBuilder = getUpdateUpsertQueryJobBuilder(sourceTableId, destinationTableId, fields, sinkConfig);
     }
@@ -313,8 +318,7 @@ public class BigQueryWrite {
 
   protected QueryJobConfiguration.Builder getInsertQueryJobBuilder(TableId sourceTableId,
                                                                    TableId destinationTableId,
-                                                                   List<String> fields,
-                                                                   JobInfo.WriteDisposition writeDisposition) {
+                                                                   List<String> fields) {
     String query = String.format("SELECT %s FROM `%s.%s.%s`",
                                  String.join(",", fields),
                                  sourceTableId.getProject(),
@@ -328,7 +332,7 @@ public class BigQueryWrite {
     return QueryJobConfiguration.newBuilder(query)
       .setDestinationTable(destinationTableId)
       .setCreateDisposition(JobInfo.CreateDisposition.CREATE_NEVER)
-      .setWriteDisposition(writeDisposition)
+      .setWriteDisposition(JobInfo.WriteDisposition.WRITE_APPEND)
       .setPriority(sqlEngineConfig.getJobPriority())
       .setLabels(BigQuerySQLEngineUtils.getJobTags("copy"));
   }

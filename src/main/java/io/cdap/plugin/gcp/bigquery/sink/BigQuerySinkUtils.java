@@ -405,10 +405,11 @@ public final class BigQuerySinkUtils {
 
     fieldBuilder.setMode(mode);
 
-    // Set prevision for numeric fields
+    // Set precision for numeric fields
     if (type == LegacySQLTypeName.NUMERIC || type == LegacySQLTypeName.BIGNUMERIC) {
-      fieldBuilder.setPrecision((long) field.getSchema().getPrecision());
-      fieldBuilder.setScale((long) field.getSchema().getScale());
+      Schema decimalFieldSchema = BigQueryUtil.getNonNullableSchema(field.getSchema());
+      fieldBuilder.setPrecision((long) decimalFieldSchema.getPrecision());
+      fieldBuilder.setScale((long) decimalFieldSchema.getScale());
     }
 
     return fieldBuilder.build();
