@@ -32,9 +32,10 @@
 
 **Dataset Project ID**: Project the dataset belongs to. This is only required if the dataset is not in 
 the same project that the BigQuery job will run in. If no value is given, it will default to the
-configured Project ID. 
+configured Project ID. `BigQuery Data Viewer` role on this project must be granted to the specified service account 
+to read BigQuery data from this project. 
 
- **Dataset**: Dataset the table belongs to. A dataset is contained within a specific project.
+ **Dataset Name**: Dataset the table belongs to. A dataset is contained within a specific project.
  Datasets are top-level containers that are used to organize and control access to tables and views.
 
  **Table**: Table to read from. A table contains individual records organized in rows.
