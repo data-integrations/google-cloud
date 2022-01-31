@@ -36,7 +36,7 @@ public abstract class AbstractBigQueryActionConfig extends GCPConfig {
   @Macro
   @Nullable
   @Description("The project in which the dataset specified in the `Dataset Name` is located or should be created."
-    + " Defaults to the project specified in the Project Id property.")
+    + " Defaults to the project specified in the Project ID property.")
   protected String datasetProject;
 
   @Nullable
