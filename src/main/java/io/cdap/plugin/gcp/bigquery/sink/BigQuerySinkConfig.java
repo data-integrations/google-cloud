@@ -40,7 +40,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -176,10 +175,9 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
                             @Nullable String bucket, @Nullable String schema, @Nullable String partitioningType,
                             @Nullable Long rangeStart, @Nullable Long rangeEnd, @Nullable Long rangeInterval,
                             @Nullable String gcsChunkSize) {
+    super(null, dataset, null, bucket);
     this.referenceName = referenceName;
-    this.dataset = dataset;
     this.table = table;
-    this.bucket = bucket;
     this.schema = schema;
     this.partitioningType = partitioningType;
     this.rangeStart = rangeStart;
@@ -192,14 +190,11 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
                             @Nullable String serviceAccountType, @Nullable String serviceFilePath,
                             @Nullable String serviceAccountJson, @Nullable String dataset, @Nullable String table,
                             @Nullable String location, @Nullable String cmekKey, @Nullable String bucket) {
+    super(new BigQueryConnectorConfig(project, project, serviceAccountType,
+            serviceFilePath, serviceAccountJson), dataset, cmekKey, bucket);
     this.referenceName = referenceName;
-    this.connection = new BigQueryConnectorConfig(project, project, serviceAccountType,
-                                                  serviceFilePath, serviceAccountJson);
-    this.dataset = dataset;
     this.table = table;
     this.location = location;
-    this.cmekKey = cmekKey;
-    this.bucket = bucket;
   }
 
   public String getTable() {

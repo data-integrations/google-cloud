@@ -32,7 +32,8 @@ It can be found on the Dashboard in the Google Cloud Platform Console.
 parquet, and text. Default is text.
 
 **Encryption Key Name**: Used to encrypt data written to any topic created by the plugin.
-If the topic already exists, this is ignored.
+If the topic already exists, this is ignored. More information can be found at 
+https://cloud.google.com/data-fusion/docs/how-to/customer-managed-encryption-keys"
 
 **Service Account**  - service account key used for authorization
 * **File Path**: Path on the local file system of the service account key used for

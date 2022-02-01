@@ -16,12 +16,36 @@
 
 package io.cdap.plugin.gcp.bigquery.action;
 
+import com.google.cloud.ServiceOptions;
+import com.google.common.base.Strings;
+import io.cdap.cdap.api.annotation.Description;
+import io.cdap.cdap.api.annotation.Macro;
+import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.gcp.common.GCPConfig;
+
+import javax.annotation.Nullable;
 
 /**
  * Base class for Big Query action configs.
  */
 public abstract class AbstractBigQueryActionConfig extends GCPConfig {
+  public static final String DATASET_PROJECT_ID = "datasetProject";
+
+  @Name(DATASET_PROJECT_ID)
+  @Macro
+  @Nullable
+  @Description("The project in which the dataset specified in the `Dataset Name` is located or should be created."
+    + " Defaults to the project specified in the Project ID property.")
+  protected String datasetProject;
+
+  @Nullable
+  public String getDatasetProject() {
+    if (GCPConfig.AUTO_DETECT.equalsIgnoreCase(datasetProject)) {
+      return ServiceOptions.getDefaultProjectId();
+    }
+    return Strings.isNullOrEmpty(datasetProject) ? getProject() : datasetProject;
+  }
+
   public abstract void validate(FailureCollector failureCollector);
 }

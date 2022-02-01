@@ -19,33 +19,53 @@ package io.cdap.plugin.gcp.bigquery.sqlengine;
 import com.google.auth.Credentials;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
+import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.Job;
+import com.google.cloud.bigquery.JobId;
+import com.google.cloud.bigquery.JobInfo;
+import com.google.cloud.bigquery.QueryJobConfiguration;
+import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
+import com.google.cloud.bigquery.TableResult;
 import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.Storage;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
+import com.google.common.reflect.TypeToken;
+import com.google.gson.Gson;
 import io.cdap.cdap.api.RuntimeContext;
 import io.cdap.cdap.api.annotation.Description;
+import io.cdap.cdap.api.annotation.Metadata;
+import io.cdap.cdap.api.annotation.MetadataProperty;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.format.StructuredRecord;
-import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
+import io.cdap.cdap.etl.api.connector.Connector;
 import io.cdap.cdap.etl.api.engine.sql.BatchSQLEngine;
 import io.cdap.cdap.etl.api.engine.sql.SQLEngineException;
+import io.cdap.cdap.etl.api.engine.sql.capability.DefaultPullCapability;
+import io.cdap.cdap.etl.api.engine.sql.capability.PullCapability;
 import io.cdap.cdap.etl.api.engine.sql.dataset.SQLDataset;
+import io.cdap.cdap.etl.api.engine.sql.dataset.SQLDatasetProducer;
 import io.cdap.cdap.etl.api.engine.sql.dataset.SQLPullDataset;
 import io.cdap.cdap.etl.api.engine.sql.dataset.SQLPushDataset;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLJoinDefinition;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLJoinRequest;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLPullRequest;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLPushRequest;
+import io.cdap.cdap.etl.api.engine.sql.request.SQLWriteRequest;
+import io.cdap.cdap.etl.api.engine.sql.request.SQLWriteResult;
 import io.cdap.cdap.etl.api.join.JoinCondition;
 import io.cdap.cdap.etl.api.join.JoinDefinition;
 import io.cdap.cdap.etl.api.join.JoinStage;
+import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnector;
+import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkConfig;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
+import io.cdap.plugin.gcp.bigquery.sink.Operation;
+import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceUtils;
 import io.cdap.plugin.gcp.bigquery.sqlengine.util.BigQuerySQLEngineUtils;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.CmekUtils;
@@ -58,11 +78,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 /**
  * SQL Engine implementation using BigQuery as the execution engine.
@@ -72,12 +97,20 @@ import java.util.stream.Collectors;
 @Description("BigQuery SQLEngine implementation, used to push down certain pipeline steps into BigQuery. "
   + "A GCS bucket is used as staging for the read/write operations performed by this engine. "
   + "BigQuery is Google's serverless, highly scalable, enterprise data warehouse.")
+@Metadata(properties = {@MetadataProperty(key = Connector.PLUGIN_TYPE, value = BigQueryConnector.NAME)})
 public class BigQuerySQLEngine
   extends BatchSQLEngine<LongWritable, GenericData.Record, StructuredRecord, NullWritable> {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigQuerySQLEngine.class);
+  private static final Gson GSON = new Gson();
 
   public static final String NAME = "BigQueryPushdownEngine";
+  public static final String SQL_OUTPUT_TABLE = "table";
+  public static final String SQL_OUTPUT_JOB_ID = "jobId";
+  public static final String SQL_OUTPUT_CONFIG = "config";
+  public static final String SQL_OUTPUT_FIELDS = "fields";
+  public static final String SQL_OUTPUT_SCHEMA = "schema";
+  private static final Type LIST_OF_STRINGS_TYPE = new TypeToken<ArrayList<String>>() { }.getType();
 
   private final BigQuerySQLEngineConfig sqlEngineConfig;
   private BigQuery bigQuery;
@@ -141,6 +174,9 @@ public class BigQuerySQLEngine
     // Configure GCS bucket that is used to stage temporary files.
     // If the bucket is created for this run, mar it for deletion after executon is completed
     BigQuerySinkUtils.configureBucket(configuration, bucket, runId, sqlEngineConfig.getBucket() == null);
+
+    // Configure credentials for the source
+    BigQuerySourceUtils.configureServiceAccount(configuration, sqlEngineConfig.connection);
   }
 
   @Override
@@ -279,6 +315,142 @@ public class BigQuerySQLEngine
     datasets.put(sqlJoinRequest.getDatasetName(), joinDataset);
 
     return joinDataset;
+  }
+
+  @Nullable
+  @Override
+  public SQLDatasetProducer getProducer(SQLPullRequest pullRequest, PullCapability capability) {
+    // We only support the Spark RDD pull capability if the Storage Read API is enabled.
+    if (!sqlEngineConfig.shouldUseStorageReadAPI() || !(capability == DefaultPullCapability.SPARK_RDD_PULL)) {
+      return null;
+    }
+
+    String table = datasets.get(pullRequest.getDatasetName()).getBigQueryTableName();
+
+    return new BigQuerySparkDatasetProducer(sqlEngineConfig, datasetProject, dataset, table);
+  }
+
+  @Override
+  public Set<PullCapability> getPullCapabilities() {
+    // If the Storage Read API is not enabled, skip this.
+    if (!sqlEngineConfig.shouldUseStorageReadAPI()) {
+      return Collections.emptySet();
+    }
+
+    return Collections.singleton(DefaultPullCapability.SPARK_RDD_PULL);
+  }
+
+  @Override
+  public SQLWriteResult write(SQLWriteRequest writeRequest) {
+    try {
+      return writeInternal(writeRequest);
+    } catch (InterruptedException e) {
+      LOG.error("Interrupted exception during BigQuery write operation.", e);
+    } catch (BigQueryException bqe) {
+      LOG.error("BigQuery exception during BigQuery write operation", bqe);
+    }
+
+    // Return as a failure if the operation threw an exception.
+    return SQLWriteResult.faiure(writeRequest.getDatasetName());
+  }
+
+  private SQLWriteResult writeInternal(SQLWriteRequest writeRequest) throws BigQueryException, InterruptedException {
+    String datasetName = writeRequest.getDatasetName();
+    if (!getClass().getName().equals(writeRequest.getOutput().getSqlEngineClassName())) {
+      LOG.debug("Got output for another SQL engine {}, skipping", writeRequest.getOutput().getSqlEngineClassName());
+      return SQLWriteResult.unsupported(datasetName);
+    }
+
+    Map<String, String> arguments = writeRequest.getOutput().getArguments();
+
+    String jobId = arguments.get(SQL_OUTPUT_JOB_ID);
+    String sourceTableName = datasets.get(writeRequest.getDatasetName()).getBigQueryTableName();
+    BigQuerySinkConfig sinkConfig = GSON.fromJson(arguments.get(SQL_OUTPUT_CONFIG), BigQuerySinkConfig.class);
+    Schema schema = GSON.fromJson(arguments.get(SQL_OUTPUT_SCHEMA), Schema.class);
+    String destinationDataset = sinkConfig.getDataset();
+    String destinationTableName = arguments.get(SQL_OUTPUT_TABLE);
+    String destinationProject = sinkConfig.getDatasetProject();
+    List<String> fields = GSON.fromJson(arguments.get(SQL_OUTPUT_FIELDS), LIST_OF_STRINGS_TYPE);
+    boolean allowSchemaRelaxation = sinkConfig.isAllowSchemaRelaxation();
+    JobInfo.WriteDisposition writeDisposition = sinkConfig.getWriteDisposition();
+
+    if (Operation.INSERT != sinkConfig.getOperation()) {
+      LOG.warn("Direct table copy is only supported for INSERT operations.");
+      return SQLWriteResult.unsupported(datasetName);
+    }
+
+    TableId sourceTableId = TableId.of(datasetProject, dataset, sourceTableName);
+    TableId destinationTableId = TableId.of(destinationProject, destinationDataset, destinationTableName);
+
+    // Check if both datasets are in the same Location. If not, the direct copy operation cannot be performed.
+    DatasetId sourceDatasetId = DatasetId.of(datasetProject, dataset);
+    DatasetId destinationDatasetId = DatasetId.of(destinationProject, destinationDataset);
+    Dataset srcDataset = bigQuery.getDataset(sourceDatasetId);
+    Dataset destDataset = bigQuery.getDataset(destinationDatasetId);
+    if (srcDataset != null && destDataset != null
+      && !Objects.equals(srcDataset.getLocation(), destDataset.getLocation())) {
+      LOG.warn("Direct table copy is only supported if both datasets are in the same location.");
+      return SQLWriteResult.unsupported(datasetName);
+    }
+
+    Table destTable = bigQuery.getTable(destinationTableId);
+
+    // TODO(CDAP-18435): Add logic to create the table if it doesn't exist.
+    if (destTable != null) {
+      LOG.info("Destinaton table `{}.{}.{}` already exists.",
+               destinationProject, destinationDataset, destinationTableName);
+      // Relax schema if the table exists
+      if (allowSchemaRelaxation) {
+        List<String> fieldsToCopy = schema.getFields().stream().map(Schema.Field::getName).collect(Collectors.toList());
+        Table sourceTable = bigQuery.getTable(sourceTableId);
+        BigQuerySinkUtils.relaxTableSchema(bigQuery, sourceTable, destTable, fieldsToCopy);
+      }
+    } else {
+      LOG.warn("Direct table copy is not supported for non existing tables.");
+      return SQLWriteResult.unsupported(datasetName);
+    }
+
+    String query = String.format("SELECT %s FROM `%s.%s.%s`",
+                                 String.join(",", fields),
+                                 sourceTableId.getProject(),
+                                 sourceTableId.getDataset(),
+                                 sourceTableId.getTable());
+    LOG.info("Copying data from `{}.{}.{}` to `{}.{}.{}` using SQL statement: {} ",
+             sourceTableId.getProject(), sourceTableId.getDataset(), sourceTableId.getTable(),
+             destinationTableId.getProject(), destinationTableId.getDataset(), destinationTableId.getTable(),
+             query);
+
+    QueryJobConfiguration.Builder queryConfigBuilder =
+      QueryJobConfiguration.newBuilder(query)
+        .setDestinationTable(destinationTableId)
+        .setCreateDisposition(JobInfo.CreateDisposition.CREATE_IF_NEEDED)
+        .setWriteDisposition(writeDisposition)
+        .setPriority(sqlEngineConfig.getJobPriority())
+        .setLabels(BigQuerySQLEngineUtils.getJobTags("copy"));
+
+    QueryJobConfiguration queryConfig = queryConfigBuilder.build();
+    // Create a job ID so that we can safely retry.
+    JobId bqJobId = JobId.newBuilder()
+      .setJob(jobId)
+      .setLocation(sqlEngineConfig.getLocation())
+      .setProject(project)
+      .build();
+    Job queryJob = bigQuery.create(JobInfo.newBuilder(queryConfig).setJobId(bqJobId).build());
+    TableResult result = null;
+
+    // Wait for the query to complete.
+    queryJob = queryJob.waitFor();
+    result = queryJob.getQueryResults();
+
+    // Check for errors
+    if (queryJob.getStatus().getError() != null) {
+      LOG.error("Error executing BigQuery Job: '{}' in Project '{}', Dataset '{}': {}",
+                jobId, project, dataset, queryJob.getStatus().getError().toString());
+      return SQLWriteResult.faiure(datasetName);
+    }
+
+    LOG.info("Copied {} records from {} to {}", result.getTotalRows(), sourceTableName, destinationTableName);
+    return SQLWriteResult.success(datasetName, result.getTotalRows());
   }
 
   @Override

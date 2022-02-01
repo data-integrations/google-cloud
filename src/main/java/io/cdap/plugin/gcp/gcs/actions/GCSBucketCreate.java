@@ -219,7 +219,8 @@ public final class GCSBucketCreate extends Action {
     @Macro
     @Nullable
     @Description("The GCP customer managed encryption key (CMEK) name used to encrypt data written to " +
-      "any bucket created by the plugin. If the bucket already exists, this is ignored.")
+      "any bucket created by the plugin. If the bucket already exists, this is ignored. More information can be found" +
+      " at https://cloud.google.com/data-fusion/docs/how-to/customer-managed-encryption-keys")
     private String cmekKey;
 
     public Config(@Nullable String project, @Nullable String serviceAccountType, @Nullable String serviceFilePath,

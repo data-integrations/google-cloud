@@ -20,6 +20,11 @@ must be readable by all users running the job.
 
 Properties
 ----------
+**Use Connection:** Whether to use a connection, if a connection is used,
+the credentials does not need to be provided.
+
+**Connection:** Name of the connection to use, should use the macro function ${conn(connection-name)} to provide.
+Project and service account information will be provided by the connection.
 
 **Project ID**: Google Cloud Project ID, which uniquely identifies a project.
 It can be found on the Dashboard in the Google Cloud Platform Console. This is the project
@@ -44,7 +49,8 @@ bucket will be created and then deleted after the run finishes.
 if the dataset or temporary bucket already exist.
 
 **Encryption Key Name**: Used to encrypt data written to any bucket, dataset, or table created by the plugin.
-If the bucket, dataset, or table already exists, this is ignored.
+If the bucket, dataset, or table already exists, this is ignored. More information can be found at 
+https://cloud.google.com/data-fusion/docs/how-to/customer-managed-encryption-keys"
 
 **Retain BigQuery tables after completion**: By Default, the temporary BigQuery tables used to execute operations
 will be deleted after execution is completed. Use this setting to override the default behavior and retain tables.
@@ -57,6 +63,12 @@ in case the pipeline is interrupted abruptly, and the cleanup process is not com
 as soon as possible and counts towards the concurrent rate limit and the daily rate limit. A batch query is
 queued and started as soon as idle resources are available, usually within a few minutes. If the query hasn't
 started within 3 hours, its priority is changed to 'interactive'.
+
+**Use BigQuery Storage Read API**: The [BigQuery Storage Read API](https://cloud.google.com/bigquery/docs/reference/storage) 
+can be used to speed up the process to read records from BigQuery into Spark once the execution in BigQuery has 
+completed. This API can be used if the execution environment for this environment has **Scala 2.12** installed.
+Note that this API has an on-demand price model. See the [Pricing](https://cloud.google.com/bigquery/pricing#storage-api) 
+page for details related to pricing.
 
 **Service Account**  - service account key used for authorization
 
