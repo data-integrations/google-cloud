@@ -20,6 +20,11 @@ must be readable by all users running the job.
 
 Properties
 ----------
+**Use Connection:** Whether to use a connection, if a connection is used,
+the credentials does not need to be provided.
+
+**Connection:** Name of the connection to use, should use the macro function ${conn(connection-name)} to provide.
+Project and service account information will be provided by the connection.
 
 **Project ID**: Google Cloud Project ID, which uniquely identifies a project.
 It can be found on the Dashboard in the Google Cloud Platform Console. This is the project
@@ -44,7 +49,8 @@ bucket will be created and then deleted after the run finishes.
 if the dataset or temporary bucket already exist.
 
 **Encryption Key Name**: Used to encrypt data written to any bucket, dataset, or table created by the plugin.
-If the bucket, dataset, or table already exists, this is ignored.
+If the bucket, dataset, or table already exists, this is ignored. More information can be found at 
+https://cloud.google.com/data-fusion/docs/how-to/customer-managed-encryption-keys"
 
 **Retain BigQuery tables after completion**: By Default, the temporary BigQuery tables used to execute operations
 will be deleted after execution is completed. Use this setting to override the default behavior and retain tables.

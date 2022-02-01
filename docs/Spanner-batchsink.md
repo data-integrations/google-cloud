@@ -46,7 +46,8 @@ If the table does not exist, it will get created.
 The key can be a composite key of multiple fields in the schema. This is not required if the table already exists.
 
 **Encryption Key Name**: Used to encrypt data written to any database created by the plugin.
-If the database already exists, this is ignored.
+If the database already exists, this is ignored. More information can be found at 
+https://cloud.google.com/data-fusion/docs/how-to/customer-managed-encryption-keys"
 
 **Service Account**  - service account key used for authorization
 * **File Path**: Path on the local file system of the service account key used for
