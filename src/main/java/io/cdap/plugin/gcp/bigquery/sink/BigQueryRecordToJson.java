@@ -282,28 +282,6 @@ public final class BigQueryRecordToJson {
                       name, decimal.precision(), decimal.scale(),
                       BigQueryTypeSize.BigNumeric.PRECISION, BigQueryTypeSize.BigNumeric.SCALE));
     }
-    if (decimal.precision() < 1) {
-      throw new IllegalArgumentException(
-        String.format("Numeric Field '%s' has invalid precision '%s' Precision has to be greater than or equal to 1. ",
-                      name, decimal.precision()));
-    }
-    if (decimal.precision() < decimal.scale()) {
-      throw new IllegalArgumentException(
-        String.format("Numeric Field '%s' has invalid precision '%s' and scale '%s'." +
-                        "Precision has to be greater than or equal to the Scale. ",
-                      name, decimal.precision(), decimal.scale()));
-    }
-
-    // The -1 at the end is caused by Precision in BigNumeric BQ not being a whole number.
-    if ((decimal.precision() - decimal.scale()) >
-      BigQueryTypeSize.BigNumeric.PRECISION - BigQueryTypeSize.BigNumeric.SCALE - 1) {
-      throw new IllegalArgumentException(
-        String.format("Numeric Field '%s' has invalid precision '%s' and scale '%s'." +
-                        "The difference between precision and scale cannot be greater than '%s'.",
-                      name, decimal.precision(), decimal.scale(),
-                      BigQueryTypeSize.BigNumeric.PRECISION - BigQueryTypeSize.BigNumeric.SCALE - 1));
-    }
-
     return decimal;
   }
 
