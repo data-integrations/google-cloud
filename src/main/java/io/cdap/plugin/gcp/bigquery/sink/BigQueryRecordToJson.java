@@ -272,8 +272,16 @@ public final class BigQueryRecordToJson {
 
   private static BigDecimal getDecimal(String name, byte[] value, Schema schema) {
     int scale = schema.getScale();
+    // Checks from https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#numeric_types
     BigDecimal decimal = new BigDecimal(new BigInteger(value), scale);
-
+    if (decimal.precision() > BigQueryTypeSize.BigNumeric.PRECISION ||
+      decimal.scale() > BigQueryTypeSize.BigNumeric.SCALE) {
+      throw new IllegalArgumentException(
+        String.format("Numeric Field '%s' has invalid precision '%s' and scale '%s'. " +
+                        "Precision must be at most '%s' and scale must be at most '%s'.",
+                      name, decimal.precision(), decimal.scale(),
+                      BigQueryTypeSize.BigNumeric.PRECISION, BigQueryTypeSize.BigNumeric.SCALE));
+    }
     return decimal;
   }
 
