@@ -257,6 +257,12 @@
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-shaded-client</artifactId>
       <version>${hbase-shaded-client.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <!--
@@ -267,6 +273,12 @@
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-shaded-server</artifactId>
       <version>${hbase-shaded-server.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>io.dropwizard.metrics</groupId>
@@ -848,6 +860,11 @@
         <testSourceLocation>src/e2e-test/java</testSourceLocation>
       </properties>
       <build>
+        <testResources>
+          <testResource>
+            <directory>src/e2e-test/resources</directory>
+          </testResource>
+        </testResources>
       <plugins>
         <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -912,6 +929,12 @@
           <artifactId>cdap-e2e-framework</artifactId>
           <version>0.0.1-SNAPSHOT</version>
           <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>ch.qos.logback</groupId>
+          <artifactId>logback-classic</artifactId>
+          <version>1.2.8</version>
+          <scope>runtime</scope>
         </dependency>
       </dependencies>
 
