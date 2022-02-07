@@ -147,6 +147,7 @@ public class DataplexBatchSource extends BatchSource<Object, Object, StructuredR
       config.validateTable(collector, datasetProject, dataset, tableId);
       prepareRunBigQueryDataset(context);
     } else {
+      config.checkMetastoreForGCSEntity(dataplexInterface, collector);
       prepareRunStorageBucket(context);
     }
   }
@@ -250,9 +251,8 @@ public class DataplexBatchSource extends BatchSource<Object, Object, StructuredR
     Job job = JobUtils.createInstance();
     configuration = job.getConfiguration();
     Storage storage = GCPUtils.getStorage(config.getProject(), config.getCredentials());
-    String test = getOrCreateBucket(configuration, storage, config.getLocation(),
+    getOrCreateBucket(configuration, storage, config.getLocation(),
       GCS_TEMP_BUCKET_NAME);
-    LOG.info("Bucket created {}", test);
     config.checkMetastoreForGCSEntity(dataplexInterface, collector);
     String outputLocation = GCSPath.SCHEME + GCS_TEMP_BUCKET_NAME;
     String query = formatQuery(entityBean, context.isPreviewEnabled());
@@ -382,8 +382,6 @@ public class DataplexBatchSource extends BatchSource<Object, Object, StructuredR
                                    Credentials credentials,
                                    String bucketName) {
     String bucket = String.format(BQ_TEMP_BUCKET_NAME_TEMPLATE, bucketName);
-    // By default, this option is false, meaning the job can not delete the bucket. So enable it only when bucket name
-    // is not provided.
     configuration.setBoolean("fs.gs.bucket.delete.enable", true);
 
     // the dataset existence is validated before, so this cannot be null

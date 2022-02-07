@@ -69,9 +69,7 @@ public class DataplexBatchSourceConfig extends DataplexBaseConfig {
   private static final String NAME_SCHEMA = "schema";
   @Name(NAME_ENTITY)
   @Macro
-  @Description("Resource id for the Dataplex entity. It represents a cloud resource that is being managed within a" +
-    " lake as a member of a zone. User can type it in or press a browse button which enables " +
-    "hierarchical selection.")
+  @Description("Resource id for the Dataplex entity. You can find it in discovery tab.")
   protected String entity;
 
   @Name(NAME_PARTITION_FROM)
@@ -205,7 +203,7 @@ public class DataplexBatchSourceConfig extends DataplexBaseConfig {
         fromDate = LocalDate.parse(partitionFromDate);
       } catch (DateTimeException ex) {
         collector.addFailure("Invalid partition from date format.",
-            "Ensure partition from date is of format 'yyyy-MM-dd'.")
+           "Ensure partition from date is of format 'yyyy-MM-dd'.")
           .withConfigProperty(BigQuerySourceConfig.NAME_PARTITION_FROM);
       }
     }

@@ -221,7 +221,7 @@ public final class DataplexUtil {
   }
 
   // To fetch the details whether job created by task creation is completed or not.
-  public String getJobCompletion(Configuration conf) throws DataplexException, IOException {
+  public static String getJobCompletion(Configuration conf) throws DataplexException, IOException {
     GoogleCredentials googleCredentials = getCredentialsFromConfiguration(conf);
     DataplexInterface dataplexInterface = new DataplexInterfaceImpl();
     String projectID = conf.get(DataplexConstants.DATAPLEX_PROJECT_ID);
@@ -257,7 +257,7 @@ public final class DataplexUtil {
     return completedJob.getName();
   }
 
-  private GoogleCredentials getCredentialsFromConfiguration(Configuration configuration) throws IOException {
+  private static GoogleCredentials getCredentialsFromConfiguration(Configuration configuration) throws IOException {
     String serviceAccount;
     String type = configuration.get("cdap.gcs.auth.service.account.type.flag");
     Boolean isServiceAccountJson = false;
@@ -271,7 +271,7 @@ public final class DataplexUtil {
     return getCredentialsFromServiceAccount(isServiceAccountJson, filePath, serviceAccount);
   }
 
-  private GoogleCredentials getCredentialsFromServiceAccount(Boolean isServiceAccountJson, String filePath,
+  private static GoogleCredentials getCredentialsFromServiceAccount(Boolean isServiceAccountJson, String filePath,
                                                              String serviceAccount) throws IOException {
     GoogleCredentials credentials = null;
     if (isServiceAccountJson || (filePath != null && !filePath.equalsIgnoreCase("none"))) {

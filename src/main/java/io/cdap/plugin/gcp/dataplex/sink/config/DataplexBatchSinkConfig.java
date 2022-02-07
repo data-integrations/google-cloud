@@ -119,8 +119,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   @Name(NAME_ASSET)
   @Macro
   @Description("Resource id for the Dataplex asset. It represents a cloud resource that is being managed within a" +
-    " lake as a member of a zone. User can type it in or press a browse button which enables " +
-    "hierarchical selection.")
+    " lake as a member of a zone.")
   protected String asset;
 
   @Name(NAME_ASSET_TYPE)
@@ -133,7 +132,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   @Nullable
   @Macro
   @Description("The format to write the records in. The format for raw zone must be one of 'json', 'avro', 'csv', " +
-    "'delimited', 'json', 'orc', or, 'parquet'. The format for curated zone must be one of 'avro', 'orc', or, " +
+    "'orc', or, 'parquet'. The format for curated zone must be one of 'avro', 'orc', or, " +
     "'parquet'.")
   protected String format;
 

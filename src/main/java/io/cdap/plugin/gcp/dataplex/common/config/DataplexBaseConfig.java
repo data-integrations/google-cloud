@@ -51,25 +51,23 @@ public class DataplexBaseConfig extends PluginConfig {
   private static final int ERROR_CODE_BAD_REQUEST = 400;
 
   @Name(REFERENCE_NAME)
-  @Description("Name used to uniquely identify this sink for lineage, annotating metadata, etc.")
+  @Description("Name used to uniquely identify this plugin for lineage, annotating metadata, etc.")
   protected String referenceName;
 
   @Name(NAME_LOCATION)
   @Macro
-  @Description("Resource id for the Dataplex location. User can type it in or press a browse button which enables" +
-    " hierarchical selection.")
+  @Description("Resource id for the Dataplex location. On the lake page, click the name of the lake. " +
+    "The lake page has the location ID.")
   protected String location;
 
   @Name(NAME_LAKE)
   @Macro
-  @Description("Resource id for the Dataplex lake. User can type it in or press a browse button which enables " +
-    "hierarchical selection.")
+  @Description("Resource id for the Dataplex lake. You can find it on the lake detail page in Dataplex.")
   protected String lake;
 
   @Name(NAME_ZONE)
   @Macro
-  @Description("Resource id for the Dataplex zone. User can type it in or press a browse button which enables " +
-    "hierarchical selection.")
+  @Description("Resource id for the Dataplex zone. You can find it on the zone detail page in Dataplex.")
   protected String zone;
 
   @Name(NAME_CONNECTION)

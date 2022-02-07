@@ -87,6 +87,7 @@ public class DataplexInputFormatProvider implements InputFormatProvider {
    */
   public static class DataplexInputFormat extends InputFormat<Object, Object> {
     private InputFormat delegateFormat;
+
     public DataplexInputFormat() {
       delegateFormat = new CombineAvroInputFormat();
     }
@@ -94,10 +95,10 @@ public class DataplexInputFormatProvider implements InputFormatProvider {
     @Override
     public List<InputSplit> getSplits(JobContext jobContext) throws IOException, InterruptedException {
       try {
-        new DataplexUtil().getJobCompletion(jobContext.getConfiguration());
+        DataplexUtil.getJobCompletion(jobContext.getConfiguration());
       } catch (Exception e) {
         LOG.error("Job failed in getSplits.");
-        throw new IllegalStateException("Job creation failed in dataproc.", e);
+        throw new IOException("Job creation failed in dataproc.", e);
       }
       return delegateFormat.getSplits(jobContext);
     }
