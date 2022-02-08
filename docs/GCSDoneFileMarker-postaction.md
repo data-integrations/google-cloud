@@ -50,8 +50,8 @@ When running on other clusters, the file must be present on every node in the cl
 This value is ignored if the bucket already exists.
 
 **Encryption Key Name**: Used to encrypt data written to any bucket created by the plugin.
-If the bucket already exists, this is ignored. More information can be found at 
-https://cloud.google.com/data-fusion/docs/how-to/customer-managed-encryption-keys"
+If the bucket already exists, this is ignored. More information can be found 
+[here](https://cloud.google.com/data-fusion/docs/how-to/customer-managed-encryption-keys)
 
 Example
 -------
