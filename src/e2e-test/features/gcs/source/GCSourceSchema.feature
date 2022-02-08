@@ -1,9 +1,9 @@
 @GCS_Source
-Feature: Validate GCS plugin output schema for different formats
+Feature: GCS source - Validate GCS plugin output schema for different formats
 
   Scenario Outline:GCS Source output schema validation
     Given Open Datafusion Project to configure pipeline
-    When Source is GCS bucket
+    When Source is GCS
     Then Open GCS source properties
     Then Enter GCS property projectId and reference name
     Then Enter GCS source property path "<GcsPath>"
@@ -26,7 +26,7 @@ Feature: Validate GCS plugin output schema for different formats
   @GCS_Source
   Scenario Outline:GCS Source output schema validation for delimited files
     Given Open Datafusion Project to configure pipeline
-    When Source is GCS bucket
+    When Source is GCS
     Then Open GCS source properties
     Then Enter GCS property projectId and reference name
     Then Enter GCS source property path "<GcsPath>"
