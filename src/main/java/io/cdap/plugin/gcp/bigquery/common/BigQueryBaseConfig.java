@@ -169,6 +169,11 @@ public class BigQueryBaseConfig extends PluginConfig {
     }
 
     @Nullable
+    public String getCmekKey() {
+        return cmekKey;
+    }
+
+    @Nullable
     public String getBucket() {
         if (bucket != null) {
             bucket = bucket.trim();

@@ -43,6 +43,7 @@ public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
     public static final String NAME_TEMP_TABLE_TTL_HOURS = "tempTableTTLHours";
     public static final String NAME_JOB_PRIORITY = "jobPriority";
     public static final String NAME_USE_STORAGE_READ_API = "useStorageReadAPI";
+    public static final String NAME_DIRECT_SINK_WRITE = "useDirectSinkWrite";
 
     // Job priority options
     public static final String PRIORITY_BATCH = "batch";
@@ -83,10 +84,19 @@ public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
     @Macro
     @Nullable
     @Description("Select this option to use the BigQuery Storage Read API when extracting records from BigQuery " +
-            "during pipeline execution. This option can increase the performance of the BigQuery ELT Transformation " +
-            "Pushdown execution. The usage of this API incurrs in additional costs. " +
-            "This requires Scala version 2.12 to be installed in the execution environment.")
+      "during pipeline execution. This option can increase the performance of the BigQuery ELT Transformation " +
+      "Pushdown execution. The usage of this API incurrs additional costs. " +
+      "This requires Scala version 2.12 to be installed in the execution environment.")
     private Boolean useStorageReadAPI;
+
+    @Name(NAME_DIRECT_SINK_WRITE)
+    @Macro
+    @Nullable
+    @Description("If enabled, the SQL engine will try to write output directly to BigQuery sinks using a BigQuery " +
+      "job. This requires the service account used by the BigQuery ELT Transformation Pushdown to have permissions " +
+      "in both datasets, and both datasets must be located in the same location. If this operation does not " +
+      "succeed, the standard sink workflow will continue to execute.")
+    private Boolean useDirectSinkWrite;
 
 
     private BigQuerySQLEngineConfig(@Nullable BigQueryConnectorConfig connection,
@@ -113,6 +123,10 @@ public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
 
     public Boolean shouldUseStorageReadAPI() {
         return useStorageReadAPI != null ? useStorageReadAPI : false;
+    }
+
+    public Boolean shouldUseDirectSinkWrite() {
+        return useDirectSinkWrite != null ? useDirectSinkWrite : false;
     }
 
     public QueryJobConfiguration.Priority getJobPriority() {

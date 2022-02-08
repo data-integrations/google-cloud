@@ -16,10 +16,10 @@
 
 package io.cdap.plugin.gcp.bigquery.sink;
 
+import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
 import io.cdap.cdap.api.data.schema.Schema;
-
 import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize;
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Assert;
@@ -100,5 +100,300 @@ public class BigQuerySinkUtilsTest {
     Assert.assertEquals(bqSchema.get(0).getType(), LegacySQLTypeName.BIGNUMERIC.toString());
   }
 
+  @Test
+  public void testCDAPtoBQSchemaMappingForLogicalTypes() {
+    Schema cdapSchema;
+    com.google.cloud.bigquery.Schema bqSchema;
+
+    cdapSchema = Schema.recordOf(
+      "testName",
+      Schema.Field.of("dateField", Schema.of(Schema.LogicalType.DATE)),
+      Schema.Field.of("timeMillisField", Schema.of(Schema.LogicalType.TIME_MILLIS)),
+      Schema.Field.of("timeMicrosField", Schema.of(Schema.LogicalType.TIME_MICROS)),
+      Schema.Field.of("tsMillisField", Schema.of(Schema.LogicalType.TIMESTAMP_MILLIS)),
+      Schema.Field.of("tsMicrosField", Schema.of(Schema.LogicalType.TIMESTAMP_MICROS)),
+      Schema.Field.of("decimalSmallField",
+                      Schema.decimalOf(BigQueryTypeSize.Numeric.PRECISION,
+                                       BigQueryTypeSize.Numeric.SCALE)),
+      Schema.Field.of("decimalLargeField",
+                      Schema.decimalOf(BigQueryTypeSize.Numeric.PRECISION + 1,
+                                       BigQueryTypeSize.Numeric.SCALE + 1)),
+      Schema.Field.of("datetimeField",
+                      Schema.of(Schema.LogicalType.DATETIME))
+    );
+    bqSchema = BigQuerySinkUtils.convertCdapSchemaToBigQuerySchema(cdapSchema);
+
+    // Check date field
+    Assert.assertEquals(bqSchema.getFields().get(0).getName(), "dateField");
+    Assert.assertEquals(bqSchema.getFields().get(0).getMode(), Field.Mode.REQUIRED);
+    Assert.assertEquals(bqSchema.getFields().get(0).getType(), LegacySQLTypeName.DATE);
+
+    // Check time fields
+    Assert.assertEquals(bqSchema.getFields().get(1).getName(), "timeMillisField");
+    Assert.assertEquals(bqSchema.getFields().get(1).getMode(), Field.Mode.REQUIRED);
+    Assert.assertEquals(bqSchema.getFields().get(1).getType(), LegacySQLTypeName.TIME);
+    Assert.assertEquals(bqSchema.getFields().get(2).getName(), "timeMicrosField");
+    Assert.assertEquals(bqSchema.getFields().get(2).getMode(), Field.Mode.REQUIRED);
+    Assert.assertEquals(bqSchema.getFields().get(2).getType(), LegacySQLTypeName.TIME);
+
+    // Check Timestamp Fields
+    Assert.assertEquals(bqSchema.getFields().get(3).getName(), "tsMillisField");
+    Assert.assertEquals(bqSchema.getFields().get(3).getMode(), Field.Mode.REQUIRED);
+    Assert.assertEquals(bqSchema.getFields().get(3).getType(), LegacySQLTypeName.TIMESTAMP);
+    Assert.assertEquals(bqSchema.getFields().get(4).getName(), "tsMicrosField");
+    Assert.assertEquals(bqSchema.getFields().get(4).getMode(), Field.Mode.REQUIRED);
+    Assert.assertEquals(bqSchema.getFields().get(4).getType(), LegacySQLTypeName.TIMESTAMP);
+
+    // Check Decimal Fields
+    Assert.assertEquals(bqSchema.getFields().get(5).getName(), "decimalSmallField");
+    Assert.assertEquals(bqSchema.getFields().get(5).getMode(), Field.Mode.REQUIRED);
+    Assert.assertEquals(bqSchema.getFields().get(5).getType(), LegacySQLTypeName.NUMERIC);
+    Assert.assertEquals(bqSchema.getFields().get(5).getPrecision(),
+                        Long.valueOf(BigQueryTypeSize.Numeric.PRECISION));
+    Assert.assertEquals(bqSchema.getFields().get(5).getScale(),
+                        Long.valueOf(BigQueryTypeSize.Numeric.SCALE));
+    Assert.assertEquals(bqSchema.getFields().get(6).getName(), "decimalLargeField");
+    Assert.assertEquals(bqSchema.getFields().get(6).getMode(), Field.Mode.REQUIRED);
+    Assert.assertEquals(bqSchema.getFields().get(6).getType(), LegacySQLTypeName.BIGNUMERIC);
+    Assert.assertEquals(bqSchema.getFields().get(6).getPrecision(),
+                        Long.valueOf(BigQueryTypeSize.Numeric.PRECISION + 1));
+    Assert.assertEquals(bqSchema.getFields().get(6).getScale(),
+                        Long.valueOf(BigQueryTypeSize.Numeric.SCALE + 1));
+
+    // Check datetime field
+    Assert.assertEquals(bqSchema.getFields().get(7).getName(), "datetimeField");
+    Assert.assertEquals(bqSchema.getFields().get(7).getMode(), Field.Mode.REQUIRED);
+    Assert.assertEquals(bqSchema.getFields().get(7).getType(), LegacySQLTypeName.DATETIME);
+  }
+
+  @Test
+  public void testCDAPtoBQSchemaMappingForNullableLogicalTypes() {
+    Schema cdapSchema;
+    com.google.cloud.bigquery.Schema bqSchema;
+
+    cdapSchema = Schema.recordOf(
+      "testName",
+      Schema.Field.of("dateField", Schema.nullableOf(Schema.of(Schema.LogicalType.DATE))),
+      Schema.Field.of("timeMillisField", Schema.nullableOf(Schema.of(Schema.LogicalType.TIME_MILLIS))),
+      Schema.Field.of("timeMicrosField", Schema.nullableOf(Schema.of(Schema.LogicalType.TIME_MICROS))),
+      Schema.Field.of("tsMillisField", Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MILLIS))),
+      Schema.Field.of("tsMicrosField", Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))),
+      Schema.Field.of("decimalSmallField",
+                      Schema.nullableOf(Schema.decimalOf(BigQueryTypeSize.Numeric.PRECISION,
+                                                         BigQueryTypeSize.Numeric.SCALE))),
+      Schema.Field.of("decimalLargeField",
+                      Schema.nullableOf(Schema.decimalOf(BigQueryTypeSize.Numeric.PRECISION + 1,
+                                                         BigQueryTypeSize.Numeric.SCALE + 1))),
+      Schema.Field.of("datetimeField",
+                      Schema.nullableOf(Schema.of(Schema.LogicalType.DATETIME)))
+    );
+    bqSchema = BigQuerySinkUtils.convertCdapSchemaToBigQuerySchema(cdapSchema);
+
+    // Check date field
+    Assert.assertEquals(bqSchema.getFields().get(0).getName(), "dateField");
+    Assert.assertEquals(bqSchema.getFields().get(0).getMode(), Field.Mode.NULLABLE);
+    Assert.assertEquals(bqSchema.getFields().get(0).getType(), LegacySQLTypeName.DATE);
+
+    // Check time fields
+    Assert.assertEquals(bqSchema.getFields().get(1).getName(), "timeMillisField");
+    Assert.assertEquals(bqSchema.getFields().get(1).getMode(), Field.Mode.NULLABLE);
+    Assert.assertEquals(bqSchema.getFields().get(1).getType(), LegacySQLTypeName.TIME);
+    Assert.assertEquals(bqSchema.getFields().get(2).getName(), "timeMicrosField");
+    Assert.assertEquals(bqSchema.getFields().get(2).getMode(), Field.Mode.NULLABLE);
+    Assert.assertEquals(bqSchema.getFields().get(2).getType(), LegacySQLTypeName.TIME);
+
+    // Check Timestamp Fields
+    Assert.assertEquals(bqSchema.getFields().get(3).getName(), "tsMillisField");
+    Assert.assertEquals(bqSchema.getFields().get(3).getMode(), Field.Mode.NULLABLE);
+    Assert.assertEquals(bqSchema.getFields().get(3).getType(), LegacySQLTypeName.TIMESTAMP);
+    Assert.assertEquals(bqSchema.getFields().get(4).getName(), "tsMicrosField");
+    Assert.assertEquals(bqSchema.getFields().get(4).getMode(), Field.Mode.NULLABLE);
+    Assert.assertEquals(bqSchema.getFields().get(4).getType(), LegacySQLTypeName.TIMESTAMP);
+
+    // Check Decimal Fields
+    Assert.assertEquals(bqSchema.getFields().get(5).getName(), "decimalSmallField");
+    Assert.assertEquals(bqSchema.getFields().get(5).getMode(), Field.Mode.NULLABLE);
+    Assert.assertEquals(bqSchema.getFields().get(5).getType(), LegacySQLTypeName.NUMERIC);
+    Assert.assertEquals(bqSchema.getFields().get(5).getPrecision(),
+                        Long.valueOf(BigQueryTypeSize.Numeric.PRECISION));
+    Assert.assertEquals(bqSchema.getFields().get(5).getScale(),
+                        Long.valueOf(BigQueryTypeSize.Numeric.SCALE));
+    Assert.assertEquals(bqSchema.getFields().get(6).getName(), "decimalLargeField");
+    Assert.assertEquals(bqSchema.getFields().get(6).getMode(), Field.Mode.NULLABLE);
+    Assert.assertEquals(bqSchema.getFields().get(6).getType(), LegacySQLTypeName.BIGNUMERIC);
+    Assert.assertEquals(bqSchema.getFields().get(6).getPrecision(),
+                        Long.valueOf(BigQueryTypeSize.Numeric.PRECISION + 1));
+    Assert.assertEquals(bqSchema.getFields().get(6).getScale(),
+                        Long.valueOf(BigQueryTypeSize.Numeric.SCALE + 1));
+
+    // Check datetime field
+    Assert.assertEquals(bqSchema.getFields().get(7).getName(), "datetimeField");
+    Assert.assertEquals(bqSchema.getFields().get(7).getMode(), Field.Mode.NULLABLE);
+    Assert.assertEquals(bqSchema.getFields().get(7).getType(), LegacySQLTypeName.DATETIME);
+  }
+
+  @Test
+  public void testCDAPtoBQSchemaMappingForBasicTypes() {
+    Schema cdapSchema;
+    com.google.cloud.bigquery.Schema bqSchema;
+
+    Schema nestedSchema = Schema.recordOf(
+      "nested",
+      Schema.Field.of("nestedIntField", Schema.of(Schema.Type.INT)),
+      Schema.Field.of("nestedBooleanField", Schema.of(Schema.Type.BOOLEAN))
+    );
+    cdapSchema = Schema.recordOf(
+      "testName",
+      Schema.Field.of("intField", Schema.of(Schema.Type.INT)),
+      Schema.Field.of("longField", Schema.of(Schema.Type.LONG)),
+      Schema.Field.of("stringField", Schema.of(Schema.Type.STRING)),
+      Schema.Field.of("floatField", Schema.of(Schema.Type.FLOAT)),
+      Schema.Field.of("doubleField", Schema.of(Schema.Type.DOUBLE)),
+      Schema.Field.of("booleanField", Schema.of(Schema.Type.BOOLEAN)),
+      Schema.Field.of("bytesField", Schema.of(Schema.Type.BYTES)),
+      Schema.Field.of("intArrayField", Schema.arrayOf(Schema.of(Schema.Type.INT))),
+      Schema.Field.of("stringArrayField", Schema.arrayOf(Schema.of(Schema.Type.STRING))),
+      Schema.Field.of("recordField", nestedSchema)
+    );
+    bqSchema = BigQuerySinkUtils.convertCdapSchemaToBigQuerySchema(cdapSchema);
+
+    // Check int/long fields
+    Assert.assertEquals(bqSchema.getFields().get(0).getName(), "intField");
+    Assert.assertEquals(bqSchema.getFields().get(0).getMode(), Field.Mode.REQUIRED);
+    Assert.assertEquals(bqSchema.getFields().get(0).getType(), LegacySQLTypeName.INTEGER);
+    Assert.assertEquals(bqSchema.getFields().get(1).getName(), "longField");
+    Assert.assertEquals(bqSchema.getFields().get(1).getMode(), Field.Mode.REQUIRED);
+    Assert.assertEquals(bqSchema.getFields().get(1).getType(), LegacySQLTypeName.INTEGER);
+
+    // check string field
+    Assert.assertEquals(bqSchema.getFields().get(2).getName(), "stringField");
+    Assert.assertEquals(bqSchema.getFields().get(2).getMode(), Field.Mode.REQUIRED);
+    Assert.assertEquals(bqSchema.getFields().get(2).getType(), LegacySQLTypeName.STRING);
+
+    // check float/double fields
+    Assert.assertEquals(bqSchema.getFields().get(3).getName(), "floatField");
+    Assert.assertEquals(bqSchema.getFields().get(3).getMode(), Field.Mode.REQUIRED);
+    Assert.assertEquals(bqSchema.getFields().get(3).getType(), LegacySQLTypeName.FLOAT);
+    Assert.assertEquals(bqSchema.getFields().get(4).getName(), "doubleField");
+    Assert.assertEquals(bqSchema.getFields().get(4).getMode(), Field.Mode.REQUIRED);
+    Assert.assertEquals(bqSchema.getFields().get(4).getType(), LegacySQLTypeName.FLOAT);
+
+    // check boolean field
+    Assert.assertEquals(bqSchema.getFields().get(5).getName(), "booleanField");
+    Assert.assertEquals(bqSchema.getFields().get(5).getMode(), Field.Mode.REQUIRED);
+    Assert.assertEquals(bqSchema.getFields().get(5).getType(), LegacySQLTypeName.BOOLEAN);
+
+    // check bytes field
+    Assert.assertEquals(bqSchema.getFields().get(6).getName(), "bytesField");
+    Assert.assertEquals(bqSchema.getFields().get(6).getMode(), Field.Mode.REQUIRED);
+    Assert.assertEquals(bqSchema.getFields().get(6).getType(), LegacySQLTypeName.BYTES);
+
+    // check arrayFields field
+    Assert.assertEquals(bqSchema.getFields().get(7).getName(), "intArrayField");
+    Assert.assertEquals(bqSchema.getFields().get(7).getMode(), Field.Mode.REPEATED);
+    Assert.assertEquals(bqSchema.getFields().get(7).getType(), LegacySQLTypeName.INTEGER);
+    Assert.assertEquals(bqSchema.getFields().get(8).getName(), "stringArrayField");
+    Assert.assertEquals(bqSchema.getFields().get(8).getMode(), Field.Mode.REPEATED);
+    Assert.assertEquals(bqSchema.getFields().get(8).getType(), LegacySQLTypeName.STRING);
+
+    // check record field
+    Assert.assertEquals(bqSchema.getFields().get(9).getName(), "recordField");
+    Assert.assertEquals(bqSchema.getFields().get(9).getMode(), Field.Mode.REQUIRED);
+    Assert.assertEquals(bqSchema.getFields().get(9).getType(), LegacySQLTypeName.RECORD);
+    Assert.assertEquals(bqSchema.getFields().get(9).getSubFields().get(0).getName(),
+                        "nestedIntField");
+    Assert.assertEquals(bqSchema.getFields().get(9).getSubFields().get(0).getMode(),
+                        Field.Mode.REQUIRED);
+    Assert.assertEquals(bqSchema.getFields().get(9).getSubFields().get(0).getType(),
+                        LegacySQLTypeName.INTEGER);
+    Assert.assertEquals(bqSchema.getFields().get(9).getSubFields().get(1).getName(),
+                        "nestedBooleanField");
+    Assert.assertEquals(bqSchema.getFields().get(9).getSubFields().get(1).getMode(),
+                        Field.Mode.REQUIRED);
+    Assert.assertEquals(bqSchema.getFields().get(9).getSubFields().get(1).getType(),
+                        LegacySQLTypeName.BOOLEAN);
+  }
+
+  @Test
+  public void testCDAPtoBQSchemaMappingForNullableBasicTypes() {
+    Schema cdapSchema;
+    com.google.cloud.bigquery.Schema bqSchema;
+
+    Schema nestedSchema = Schema.recordOf(
+      "nested",
+      Schema.Field.of("nestedIntField", Schema.of(Schema.Type.INT)),
+      Schema.Field.of("nestedBooleanField", Schema.of(Schema.Type.BOOLEAN))
+    );
+    cdapSchema = Schema.recordOf(
+      "testName",
+      Schema.Field.of("intField", Schema.nullableOf(Schema.of(Schema.Type.INT))),
+      Schema.Field.of("longField", Schema.nullableOf(Schema.of(Schema.Type.LONG))),
+      Schema.Field.of("stringField", Schema.nullableOf(Schema.of(Schema.Type.STRING))),
+      Schema.Field.of("floatField", Schema.nullableOf(Schema.of(Schema.Type.FLOAT))),
+      Schema.Field.of("doubleField", Schema.nullableOf(Schema.of(Schema.Type.DOUBLE))),
+      Schema.Field.of("booleanField", Schema.nullableOf(Schema.of(Schema.Type.BOOLEAN))),
+      Schema.Field.of("bytesField", Schema.nullableOf(Schema.of(Schema.Type.BYTES))),
+      Schema.Field.of("intArrayField", Schema.nullableOf(Schema.arrayOf(Schema.of(Schema.Type.INT)))),
+      Schema.Field.of("stringArrayField", Schema.arrayOf(Schema.nullableOf(Schema.of(Schema.Type.STRING)))),
+      Schema.Field.of("recordField", Schema.nullableOf(nestedSchema))
+    );
+    bqSchema = BigQuerySinkUtils.convertCdapSchemaToBigQuerySchema(cdapSchema);
+
+    // Check int/long fields
+    Assert.assertEquals(bqSchema.getFields().get(0).getName(), "intField");
+    Assert.assertEquals(bqSchema.getFields().get(0).getMode(), Field.Mode.NULLABLE);
+    Assert.assertEquals(bqSchema.getFields().get(0).getType(), LegacySQLTypeName.INTEGER);
+    Assert.assertEquals(bqSchema.getFields().get(1).getName(), "longField");
+    Assert.assertEquals(bqSchema.getFields().get(1).getMode(), Field.Mode.NULLABLE);
+    Assert.assertEquals(bqSchema.getFields().get(1).getType(), LegacySQLTypeName.INTEGER);
+
+    // check string field
+    Assert.assertEquals(bqSchema.getFields().get(2).getName(), "stringField");
+    Assert.assertEquals(bqSchema.getFields().get(2).getMode(), Field.Mode.NULLABLE);
+    Assert.assertEquals(bqSchema.getFields().get(2).getType(), LegacySQLTypeName.STRING);
+
+    // check float/double fields
+    Assert.assertEquals(bqSchema.getFields().get(3).getName(), "floatField");
+    Assert.assertEquals(bqSchema.getFields().get(3).getMode(), Field.Mode.NULLABLE);
+    Assert.assertEquals(bqSchema.getFields().get(3).getType(), LegacySQLTypeName.FLOAT);
+    Assert.assertEquals(bqSchema.getFields().get(4).getName(), "doubleField");
+    Assert.assertEquals(bqSchema.getFields().get(4).getMode(), Field.Mode.NULLABLE);
+    Assert.assertEquals(bqSchema.getFields().get(4).getType(), LegacySQLTypeName.FLOAT);
+
+    // check boolean field
+    Assert.assertEquals(bqSchema.getFields().get(5).getName(), "booleanField");
+    Assert.assertEquals(bqSchema.getFields().get(5).getMode(), Field.Mode.NULLABLE);
+    Assert.assertEquals(bqSchema.getFields().get(5).getType(), LegacySQLTypeName.BOOLEAN);
+
+    // check bytes field
+    Assert.assertEquals(bqSchema.getFields().get(6).getName(), "bytesField");
+    Assert.assertEquals(bqSchema.getFields().get(6).getMode(), Field.Mode.NULLABLE);
+    Assert.assertEquals(bqSchema.getFields().get(6).getType(), LegacySQLTypeName.BYTES);
+
+    // check arrayFields field
+    Assert.assertEquals(bqSchema.getFields().get(7).getName(), "intArrayField");
+    Assert.assertEquals(bqSchema.getFields().get(7).getMode(), Field.Mode.REPEATED);
+    Assert.assertEquals(bqSchema.getFields().get(7).getType(), LegacySQLTypeName.INTEGER);
+    Assert.assertEquals(bqSchema.getFields().get(8).getName(), "stringArrayField");
+    Assert.assertEquals(bqSchema.getFields().get(8).getMode(), Field.Mode.REPEATED);
+    Assert.assertEquals(bqSchema.getFields().get(8).getType(), LegacySQLTypeName.STRING);
+
+    // check record field
+    Assert.assertEquals(bqSchema.getFields().get(9).getName(), "recordField");
+    Assert.assertEquals(bqSchema.getFields().get(9).getMode(), Field.Mode.NULLABLE);
+    Assert.assertEquals(bqSchema.getFields().get(9).getType(), LegacySQLTypeName.RECORD);
+    Assert.assertEquals(bqSchema.getFields().get(9).getSubFields().get(0).getName(),
+                        "nestedIntField");
+    Assert.assertEquals(bqSchema.getFields().get(9).getSubFields().get(0).getMode(),
+                        Field.Mode.REQUIRED);
+    Assert.assertEquals(bqSchema.getFields().get(9).getSubFields().get(0).getType(),
+                        LegacySQLTypeName.INTEGER);
+    Assert.assertEquals(bqSchema.getFields().get(9).getSubFields().get(1).getName(),
+                        "nestedBooleanField");
+    Assert.assertEquals(bqSchema.getFields().get(9).getSubFields().get(1).getMode(),
+                        Field.Mode.REQUIRED);
+    Assert.assertEquals(bqSchema.getFields().get(9).getSubFields().get(1).getType(),
+                        LegacySQLTypeName.BOOLEAN);
+  }
 
 }
