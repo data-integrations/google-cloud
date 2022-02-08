@@ -13,25 +13,25 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package io.cdap.plugin.gcs.runners.sinkrunner;
+package io.cdap.plugin.bigquery.runners.sourcerunner;
 
 import io.cucumber.junit.Cucumber;
 import io.cucumber.junit.CucumberOptions;
 import org.junit.runner.RunWith;
 
 /**
- * Test Runner to execute GCS sink cases.
+ * Test Runner to execute BigQuery source plugin test cases.
  */
 @RunWith(Cucumber.class)
 @CucumberOptions(
   features = {"src/e2e-test/features"},
-  glue = {"io.cdap.plugin.gcs.stepsdesign", "io.cdap.plugin.bigquery.stepsdesign",
+  glue = {"io.cdap.plugin.bigquery.stepsdesign", "io.cdap.plugin.gcs.stepsdesign",
     "stepsdesign", "io.cdap.plugin.common.stepsdesign"},
-  tags = {"@GCS_Sink"},
+  tags = {"@BigQuery_Source"},
   monochrome = true,
-  plugin = {"pretty", "html:target/cucumber-html-report/gcs-sink",
-    "json:target/cucumber-reports/cucumber-gcs-sink.json",
-    "junit:target/cucumber-reports/cucumber-gcs-sink.xml"}
+  plugin = {"pretty", "html:target/cucumber-html-report/bigquery-source",
+    "json:target/cucumber-reports/cucumber-bigquery-source.json",
+    "junit:target/cucumber-reports/cucumber-bigquery-source.xml"}
 )
 public class TestRunner {
 }

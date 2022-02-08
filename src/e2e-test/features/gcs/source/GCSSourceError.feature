@@ -1,9 +1,9 @@
 @GCS_Source
-Feature: Verify GCS Source plugin error scenarios
+Feature: GCS source - Verify GCS Source plugin error scenarios
 
   Scenario Outline:Verify GCS Source properties validation errors for mandatory fields
     Given Open Datafusion Project to configure pipeline
-    When Source is GCS bucket
+    When Source is GCS
     Then Open GCS source properties
     Then Enter the GCS properties with blank property "<property>"
     Then Validate mandatory property error for "<property>"
@@ -15,7 +15,7 @@ Feature: Verify GCS Source plugin error scenarios
 
   Scenario: To verify Error message for invalid bucket name
     Given Open Datafusion Project to configure pipeline
-    When Source is GCS bucket
+    When Source is GCS
     Then Open GCS source properties
     Then Enter GCS property projectId and reference name
     Then Enter GCS property path "gcsInvalidBucketName"
@@ -25,7 +25,7 @@ Feature: Verify GCS Source plugin error scenarios
   @GCS_OUTPUT_FIELD_TEST
   Scenario: To verify Error message for incorrect output path field value
     Given Open Datafusion Project to configure pipeline
-    When Source is GCS bucket
+    When Source is GCS
     Then Open GCS source properties
     Then Enter GCS property projectId and reference name
     Then Enter GCS source property path "gcsOutputFieldTestFile"
@@ -36,7 +36,7 @@ Feature: Verify GCS Source plugin error scenarios
   @GCS_DELIMITED_TEST
   Scenario: To verify Error for incorrect delimiter
     Given Open Datafusion Project to configure pipeline
-    When Source is GCS bucket
+    When Source is GCS
     Then Open GCS source properties
     Then Enter GCS property projectId and reference name
     Then Enter GCS source property path "gcsDelimitedFile"
@@ -48,7 +48,7 @@ Feature: Verify GCS Source plugin error scenarios
   @GCS_OUTPUT_FIELD_TEST
   Scenario: To verify Error for incorrect override field
     Given Open Datafusion Project to configure pipeline
-    When Source is GCS bucket
+    When Source is GCS
     Then Open GCS source properties
     Then Enter GCS property projectId and reference name
     Then Enter GCS source property path "gcsOutputFieldTestFile"
@@ -57,11 +57,11 @@ Feature: Verify GCS Source plugin error scenarios
     Then Toggle GCS source property skip header to true
     Then Verify get schema fails with error
 
-  @GCS_CSV_TEST @BQ_TARGET_TEST
+  @GCS_CSV_TEST @BQ_SINK_TEST
   Scenario: To verify Pipeline preview gets failed for incorrect Regex-Path
     Given Open Datafusion Project to configure pipeline
-    When Source is GCS bucket
-    When Target is BigQuery
+    When Source is GCS
+    When Sink is BigQuery
     Then Connect source as "GCS" and sink as "BigQuery" to establish connection
     Then Open GCS source properties
     Then Enter GCS property projectId and reference name
@@ -71,11 +71,11 @@ Feature: Verify GCS Source plugin error scenarios
     Then Toggle GCS source property skip header to true
     Then Validate output schema with expectedSchema "gcsCsvFileSchema"
     Then Validate "GCS" plugin properties
-    Then Close the GCS Properties
+    Then Close the GCS properties
     Then Open BigQuery sink properties
-    Then Enter the BigQuery sink properties
+    Then Enter the BigQuery sink mandatory properties
     Then Validate "BigQuery" plugin properties
-    Then Close the BigQuery Properties
+    Then Close the BigQuery properties
     Then Save the pipeline
     Then Preview and run the pipeline
     Then Verify the preview of pipeline is "failed"
