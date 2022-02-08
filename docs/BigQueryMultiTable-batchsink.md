@@ -55,8 +55,8 @@ Should only be used with the Insert operation.
 if the dataset or temporary bucket already exist.
 
 **Encryption Key Name**: Used to encrypt data written to any bucket, dataset, or table created by the plugin.
-If the bucket, dataset, or table already exists, this is ignored. More information can be found at 
-https://cloud.google.com/data-fusion/docs/how-to/customer-managed-encryption-keys"
+If the bucket, dataset, or table already exists, this is ignored. More information can be found 
+[here](https://cloud.google.com/data-fusion/docs/how-to/customer-managed-encryption-keys)
 
 **Split Field:** The name of the field that will be used to determine which table to write to. If unspecified, it
 defaults to `tablename`. This field is used when Allow Flexible Schemas in Output configuration is enabled.

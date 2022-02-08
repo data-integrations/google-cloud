@@ -77,8 +77,8 @@ the update operation will be performed only in the partitions meeting the criter
 if the dataset or temporary bucket already exist.
 
 **Encryption Key Name**: Used to encrypt data written to any bucket, dataset, or table created by the plugin.
-If the bucket, dataset, or table already exists, this is ignored. More information can be found at 
-https://cloud.google.com/data-fusion/docs/how-to/customer-managed-encryption-keys"
+If the bucket, dataset, or table already exists, this is ignored. More information can be found 
+[here](https://cloud.google.com/data-fusion/docs/how-to/customer-managed-encryption-keys)
 
 **Create Partitioned Table  [DEPRECATED]**: Whether to create the BigQuery table with time partitioning. This value
 is ignored if the table already exists.
