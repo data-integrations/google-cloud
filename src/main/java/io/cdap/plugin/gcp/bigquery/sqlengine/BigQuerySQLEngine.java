@@ -33,6 +33,7 @@ import io.cdap.cdap.api.annotation.MetadataProperty;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.format.StructuredRecord;
+import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.connector.Connector;
 import io.cdap.cdap.etl.api.engine.sql.BatchSQLEngine;
@@ -47,12 +48,20 @@ import io.cdap.cdap.etl.api.engine.sql.request.SQLJoinDefinition;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLJoinRequest;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLPullRequest;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLPushRequest;
+import io.cdap.cdap.etl.api.engine.sql.request.SQLRelationDefinition;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLWriteRequest;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLWriteResult;
 import io.cdap.cdap.etl.api.join.JoinCondition;
 import io.cdap.cdap.etl.api.join.JoinDefinition;
 import io.cdap.cdap.etl.api.join.JoinStage;
+import io.cdap.cdap.etl.api.relational.Capability;
+import io.cdap.cdap.etl.api.relational.Engine;
+import io.cdap.cdap.etl.api.relational.ExpressionFactory;
+import io.cdap.cdap.etl.api.relational.Relation;
+import io.cdap.cdap.etl.api.relational.StringExpressionFactoryType;
 import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnector;
+import io.cdap.plugin.gcp.bigquery.relational.BigQueryRelation;
+import io.cdap.plugin.gcp.bigquery.relational.SQLExpressionFactory;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceUtils;
 import io.cdap.plugin.gcp.bigquery.sqlengine.util.BigQuerySQLEngineUtils;
@@ -70,6 +79,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -86,7 +96,8 @@ import javax.annotation.Nullable;
   + "BigQuery is Google's serverless, highly scalable, enterprise data warehouse.")
 @Metadata(properties = {@MetadataProperty(key = Connector.PLUGIN_TYPE, value = BigQueryConnector.NAME)})
 public class BigQuerySQLEngine
-  extends BatchSQLEngine<LongWritable, GenericData.Record, StructuredRecord, NullWritable> {
+  extends BatchSQLEngine<LongWritable, GenericData.Record, StructuredRecord, NullWritable>
+  implements Engine {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigQuerySQLEngine.class);
 
@@ -399,6 +410,43 @@ public class BigQuerySQLEngine
     if (ex != null) {
       throw ex;
     }
+  }
+
+  /**
+   *
+   * @return capabilities provided by {@link BigQuerySQLEngine}, which include {@link StringExpressionFactoryType}.SQL.
+   */
+  @Override
+  public Set<Capability> getCapabilities() {
+    return Collections.singleton(StringExpressionFactoryType.SQL);
+  }
+
+  /**
+   *
+   * @return the single expression factory provided by {@link BigQuerySQLEngine}, which is {@link SQLExpressionFactory}.
+   */
+  @Override
+  public List<ExpressionFactory<?>> getExpressionFactories() {
+    return Collections.singletonList(new SQLExpressionFactory());
+  }
+
+  @Override
+  public Relation getRelation(SQLRelationDefinition relationDefinition) {
+    Set<String> columnSet = new HashSet<>();
+
+    List<Schema.Field> fields = relationDefinition.getSchema().getFields();
+    if (fields != null) {
+      for (Schema.Field field: fields) {
+        columnSet.add(field.getName());
+      }
+    }
+
+    return new BigQueryRelation(relationDefinition.getDatasetName(), columnSet);
+  }
+
+  @Override
+  public Engine getRelationalEngine() {
+    return this;
   }
 
   /**
