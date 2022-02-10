@@ -49,6 +49,8 @@ import io.cdap.cdap.etl.api.engine.sql.request.SQLJoinRequest;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLPullRequest;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLPushRequest;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLRelationDefinition;
+import io.cdap.cdap.etl.api.engine.sql.request.SQLTransformDefinition;
+import io.cdap.cdap.etl.api.engine.sql.request.SQLTransformRequest;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLWriteRequest;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLWriteResult;
 import io.cdap.cdap.etl.api.join.JoinCondition;
@@ -64,6 +66,7 @@ import io.cdap.plugin.gcp.bigquery.relational.BigQueryRelation;
 import io.cdap.plugin.gcp.bigquery.relational.SQLExpressionFactory;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceUtils;
+import io.cdap.plugin.gcp.bigquery.sqlengine.builder.BigQueryJoinSQLBuilder;
 import io.cdap.plugin.gcp.bigquery.sqlengine.util.BigQuerySQLEngineUtils;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.CmekUtils;
@@ -79,7 +82,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -291,21 +294,18 @@ public class BigQuerySQLEngine
 
   @Override
   public SQLDataset join(SQLJoinRequest sqlJoinRequest) throws SQLEngineException {
-    LOG.info("Executing join operation for dataset {}", sqlJoinRequest.getDatasetName());
+    // Get SQL builder for this Join operation
+    BigQueryJoinSQLBuilder builder = new BigQueryJoinSQLBuilder(
+      sqlJoinRequest.getJoinDefinition(),
+      DatasetId.of(datasetProject, dataset),
+      getStageNameToBQTableNameMap());
 
-    BigQueryJoinDataset joinDataset = BigQueryJoinDataset.getInstance(sqlJoinRequest,
-                                                                      getStageNameToBQTableNameMap(),
-                                                                      sqlEngineConfig,
-                                                                      bigQuery,
-                                                                      project,
-                                                                      DatasetId.of(datasetProject, dataset),
-                                                                      runId);
-
-    LOG.info("Executed join operation for dataset {}", sqlJoinRequest.getDatasetName());
-
-    datasets.put(sqlJoinRequest.getDatasetName(), joinDataset);
-
-    return joinDataset;
+    // Execute Select job with the supplied query.
+    return executeSelect(
+      sqlJoinRequest.getDatasetName(),
+      sqlJoinRequest.getJoinDefinition().getOutputSchema(),
+      BigQueryJobType.JOIN,
+      builder.getQuery());
   }
 
   @Nullable
@@ -432,8 +432,8 @@ public class BigQuerySQLEngine
 
   @Override
   public Relation getRelation(SQLRelationDefinition relationDefinition) {
-    Set<String> columnSet = new HashSet<>();
-
+    // Builds set of columns to be used for this relation based on the schema. This set maintains field order
+    Set<String> columnSet = new LinkedHashSet<>();
     List<Schema.Field> fields = relationDefinition.getSchema().getFields();
     if (fields != null) {
       for (Schema.Field field: fields) {
@@ -441,12 +441,70 @@ public class BigQuerySQLEngine
       }
     }
 
-    return new BigQueryRelation(relationDefinition.getDatasetName(), columnSet);
+    BigQuerySQLDataset sqlDataset = datasets.get(relationDefinition.getDatasetName());
+
+    return BigQueryRelation.getInstance(datasetProject, dataset, sqlDataset, columnSet);
   }
 
   @Override
   public Engine getRelationalEngine() {
     return this;
+  }
+
+  @Override
+  public boolean supportsRelationalTranform() {
+    return true;
+  }
+
+  @Override
+  public boolean canTransform(SQLTransformDefinition transformDefinition) {
+    Relation relation = transformDefinition.getOutputRelation();
+    return relation instanceof BigQueryRelation && relation.isValid();
+  }
+
+  @Override
+  public SQLDataset transform(SQLTransformRequest context) throws SQLEngineException {
+    // Get relation instance
+    BigQueryRelation relation = (BigQueryRelation) context.getOutputRelation();
+    return executeSelect(
+      context.getOutputDatasetName(),
+      context.getOutputSchema(),
+      BigQueryJobType.TRANSFORM,
+      relation.getTransformExpression());
+  }
+
+  private BigQuerySelectDataset executeSelect(String datasetName,
+                                              Schema outputSchema,
+                                              BigQueryJobType jobType,
+                                              String query) {
+    LOG.info("Executing {} operation for dataset {}", jobType.getType(), datasetName);
+
+    // Get new Job ID for this push operation
+    String jobId = BigQuerySQLEngineUtils.newIdentifier();
+
+    // Build new table name for this dataset
+    String table = BigQuerySQLEngineUtils.getNewTableName(runId);
+
+    // Create empty table to store query results.
+    BigQuerySQLEngineUtils.createEmptyTable(sqlEngineConfig, bigQuery, project, dataset, table);
+
+    BigQuerySelectDataset selectDataset = BigQuerySelectDataset.getInstance(
+      datasetName,
+      outputSchema,
+      sqlEngineConfig,
+      bigQuery,
+      project,
+      DatasetId.of(datasetProject, dataset),
+      table,
+      jobId,
+      jobType,
+      query
+    ).execute();
+
+    datasets.put(datasetName, selectDataset);
+
+    LOG.info("Executed {} operation for dataset {}", jobType.getType(), datasetName);
+    return selectDataset;
   }
 
   /**

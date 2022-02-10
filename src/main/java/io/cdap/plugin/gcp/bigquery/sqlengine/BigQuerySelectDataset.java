@@ -1,19 +1,3 @@
-/*
- * Copyright © 2021 Cask Data, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy of
- * the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
- */
-
 package io.cdap.plugin.gcp.bigquery.sqlengine;
 
 import com.google.cloud.bigquery.BigQuery;
@@ -29,110 +13,100 @@ import com.google.cloud.bigquery.TableId;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.engine.sql.SQLEngineException;
 import io.cdap.cdap.etl.api.engine.sql.dataset.SQLDataset;
-import io.cdap.cdap.etl.api.engine.sql.request.SQLJoinRequest;
-import io.cdap.cdap.etl.api.join.JoinDefinition;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
-import io.cdap.plugin.gcp.bigquery.sqlengine.builder.BigQueryJoinSQLBuilder;
 import io.cdap.plugin.gcp.bigquery.sqlengine.util.BigQuerySQLEngineUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
-import java.util.Map;
 import javax.annotation.Nullable;
 
 /**
- * SQL Dataset that represents the result of a Join operation that is executed in BigQuery.
+ * SQL Dataset that represents the result of a "Select" operation, such as join, that is executed in BigQuery.
  */
-public class BigQueryJoinDataset implements SQLDataset, BigQuerySQLDataset {
+public class BigQuerySelectDataset implements SQLDataset, BigQuerySQLDataset {
 
-  private static final Logger LOG = LoggerFactory.getLogger(BigQueryJoinDataset.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BigQuerySelectDataset.class);
 
   private final String datasetName;
-  private final JoinDefinition joinDefinition;
+  private final Schema outputSchema;
   private final BigQuerySQLEngineConfig sqlEngineConfig;
   private final BigQuery bigQuery;
   private final String project;
   private final DatasetId bqDataset;
   private final String bqTable;
   private final String jobId;
-  private final BigQueryJoinSQLBuilder queryBuilder;
+  private final BigQueryJobType operation;
+  private final String selectQuery;
   private Long numRows;
 
-  private BigQueryJoinDataset(String datasetName,
-                              JoinDefinition joinDefinition,
-                              BigQuerySQLEngineConfig sqlEngineConfig,
-                              Map<String, String> stageToTableNameMap,
-                              BigQuery bigQuery,
-                              String project,
-                              DatasetId bqDataset,
-                              String bqTable,
-                              String jobId) {
+  public static BigQuerySelectDataset getInstance(String datasetName,
+                                                  Schema outputSchema,
+                                                  BigQuerySQLEngineConfig sqlEngineConfig,
+                                                  BigQuery bigQuery,
+                                                  String project,
+                                                  DatasetId bqDataset,
+                                                  String bqTable,
+                                                  String jobId,
+                                                  BigQueryJobType jobType,
+                                                  String selectQuery) {
+
+    return new BigQuerySelectDataset(datasetName,
+                                     outputSchema,
+                                     sqlEngineConfig,
+                                     bigQuery,
+                                     project,
+                                     bqDataset,
+                                     bqTable,
+                                     jobId,
+                                     jobType,
+                                     selectQuery);
+  }
+
+  private BigQuerySelectDataset(String datasetName,
+                                Schema outputSchema,
+                                BigQuerySQLEngineConfig sqlEngineConfig,
+                                BigQuery bigQuery,
+                                String project,
+                                DatasetId bqDataset,
+                                String bqTable,
+                                String jobId,
+                                BigQueryJobType operation,
+                                String selectQuery) {
     this.datasetName = datasetName;
-    this.joinDefinition = joinDefinition;
+    this.outputSchema = outputSchema;
     this.sqlEngineConfig = sqlEngineConfig;
     this.bigQuery = bigQuery;
     this.project = project;
     this.bqDataset = bqDataset;
     this.bqTable = bqTable;
     this.jobId = jobId;
-    this.queryBuilder = new BigQueryJoinSQLBuilder(this.joinDefinition, this.bqDataset, stageToTableNameMap);
+    this.operation = operation;
+    this.selectQuery = selectQuery;
   }
 
-  public static BigQueryJoinDataset getInstance(SQLJoinRequest joinRequest,
-                                                Map<String, String> bqTableNamesMap,
-                                                BigQuerySQLEngineConfig sqlEngineConfig,
-                                                BigQuery bigQuery,
-                                                String project,
-                                                DatasetId dataset,
-                                                String runId) {
-
-    // Get new Job ID for this push operation
-    String jobId = BigQuerySQLEngineUtils.newIdentifier();
-
-    // Build new table name for this dataset
-    String table = BigQuerySQLEngineUtils.getNewTableName(runId);
-
-    // Create empty table to store join results.
-    BigQuerySQLEngineUtils.createEmptyTable(sqlEngineConfig, bigQuery, dataset.getProject(), dataset.getDataset(),
-                                            table);
-
-    BigQueryJoinDataset instance = new BigQueryJoinDataset(joinRequest.getDatasetName(),
-                                                           joinRequest.getJoinDefinition(),
-                                                           sqlEngineConfig,
-                                                           bqTableNamesMap,
-                                                           bigQuery,
-                                                           project,
-                                                           dataset,
-                                                           table,
-                                                           jobId);
-    instance.executeJoin();
-    return instance;
-  }
-
-  public void executeJoin() {
+  public BigQuerySelectDataset execute() {
     TableId destinationTable = TableId.of(bqDataset.getProject(), bqDataset.getDataset(), bqTable);
 
     // Get location for target dataset. This way, the job will run in the same location as the dataset
     Dataset dataset = bigQuery.getDataset(bqDataset);
     String location = dataset.getLocation();
 
-    String query = queryBuilder.getQuery();
-    LOG.info("Creating table `{}` using job: {} with SQL statement: {}", bqTable, jobId, query);
-
     // Update destination table schema to match configured schema in the pipeline.
-    updateTableSchema(destinationTable, joinDefinition.getOutputSchema());
+    updateTableSchema(destinationTable, outputSchema);
 
-    // Run BigQuery job with generated SQL statement, store results in a new table, and set priority to BATCH
-    // TODO: Make priority configurable
+    LOG.info("Creating table `{}` using job: {} with SQL statement: {}", bqTable, jobId,
+             selectQuery);
+
+    // Run BigQuery job with supplied SQL statement, storing results in a new table
     QueryJobConfiguration queryConfig =
-      QueryJobConfiguration.newBuilder(query)
+      QueryJobConfiguration.newBuilder(selectQuery)
         .setDestinationTable(destinationTable)
         .setCreateDisposition(JobInfo.CreateDisposition.CREATE_NEVER)
         .setWriteDisposition(JobInfo.WriteDisposition.WRITE_APPEND)
         .setSchemaUpdateOptions(Collections.singletonList(JobInfo.SchemaUpdateOption.ALLOW_FIELD_ADDITION))
         .setPriority(sqlEngineConfig.getJobPriority())
-        .setLabels(BigQuerySQLEngineUtils.getJobTags("join"))
+        .setLabels(BigQuerySQLEngineUtils.getJobTags(operation))
         .build();
 
     // Create a job ID so that we can safely retry.
@@ -156,6 +130,7 @@ public class BigQueryJoinDataset implements SQLDataset, BigQuerySQLDataset {
     }
 
     LOG.info("Created BigQuery table `{}` using Job: {}", bqTable, jobId);
+    return this;
   }
 
   @Override
@@ -165,7 +140,7 @@ public class BigQueryJoinDataset implements SQLDataset, BigQuerySQLDataset {
 
   @Override
   public Schema getSchema() {
-    return joinDefinition.getOutputSchema();
+    return outputSchema;
   }
 
   @Override

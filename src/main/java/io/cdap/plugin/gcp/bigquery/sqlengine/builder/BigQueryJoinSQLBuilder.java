@@ -36,22 +36,7 @@ import java.util.stream.Collectors;
  * <p>
  * Many methods in this class have proteced visibility for the purposes of testing.
  */
-public class BigQuerySQLBuilder {
-
-  private static final String SELECT = "SELECT ";
-  private static final String FROM = " FROM ";
-  private static final String SPACE = " ";
-  private static final String JOIN = " JOIN ";
-  private static final String AS = " AS ";
-  private static final String ON = " ON ";
-  private static final String EQ = " = ";
-  private static final String AND = " AND ";
-  private static final String OR = " OR ";
-  private static final String DOT = ".";
-  private static final String COMMA = " , ";
-  private static final String IS_NULL = " IS NULL";
-  private static final String OPEN_GROUP = "(";
-  private static final String CLOSE_GROUP = ")";
+public class BigQueryJoinSQLBuilder extends BigQueryBaseSQLBuilder {
 
   private final JoinDefinition joinDefinition;
   private final StringBuilder builder;
@@ -60,9 +45,9 @@ public class BigQuerySQLBuilder {
   private final Map<String, String> stageToFullTableNameMap;
   private final Map<String, String> stageToTableAliasMap;
 
-  public BigQuerySQLBuilder(JoinDefinition joinDefinition,
-                            DatasetId dataset,
-                            Map<String, String> stageToBQTableNameMap) {
+  public BigQueryJoinSQLBuilder(JoinDefinition joinDefinition,
+                                DatasetId dataset,
+                                Map<String, String> stageToBQTableNameMap) {
     this(joinDefinition,
          dataset,
          stageToBQTableNameMap,
@@ -72,12 +57,12 @@ public class BigQuerySQLBuilder {
   }
 
   @VisibleForTesting
-  protected BigQuerySQLBuilder(JoinDefinition joinDefinition,
-                               DatasetId dataset,
-                               Map<String, String> stageToBQTableNameMap,
-                               Map<String, String> stageToFullTableNameMap,
-                               Map<String, String> stageToTableAliasMap,
-                               StringBuilder builder) {
+  protected BigQueryJoinSQLBuilder(JoinDefinition joinDefinition,
+                                   DatasetId dataset,
+                                   Map<String, String> stageToBQTableNameMap,
+                                   Map<String, String> stageToFullTableNameMap,
+                                   Map<String, String> stageToTableAliasMap,
+                                   StringBuilder builder) {
     this.joinDefinition = joinDefinition;
     this.builder = builder;
     this.dataset = dataset;
@@ -86,6 +71,7 @@ public class BigQuerySQLBuilder {
     this.stageToTableAliasMap = stageToTableAliasMap;
   }
 
+  @Override
   public String getQuery() {
     if (joinDefinition.getCondition().getOp() == JoinCondition.Op.KEY_EQUALITY) {
       return getFieldEqualityQuery();

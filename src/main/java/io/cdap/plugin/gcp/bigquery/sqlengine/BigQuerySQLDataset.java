@@ -16,6 +16,8 @@
 
 package io.cdap.plugin.gcp.bigquery.sqlengine;
 
+import io.cdap.cdap.etl.api.engine.sql.dataset.SQLDataset;
+
 import javax.annotation.Nullable;
 
 /**
@@ -23,7 +25,7 @@ import javax.annotation.Nullable;
  *
  * These methods are used to ensure that the cleanup removes all GCS object and BigQuery tables.
  */
-public interface BigQuerySQLDataset {
+public interface BigQuerySQLDataset extends SQLDataset {
 
   /**
    * Return table name where records for this dataset are stored in BigQuery.
