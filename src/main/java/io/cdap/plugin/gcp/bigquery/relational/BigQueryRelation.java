@@ -1,5 +1,6 @@
 package io.cdap.plugin.gcp.bigquery.relational;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.cdap.cdap.etl.api.aggregation.DeduplicateAggregationDefinition;
 import io.cdap.cdap.etl.api.aggregation.GroupByAggregationDefinition;
 import io.cdap.cdap.etl.api.relational.Expression;
@@ -28,8 +29,6 @@ public class BigQueryRelation implements Relation {
   private final BigQuerySQLDataset sourceDataset;
   private final BigQueryRelation parent;
   private final String transformExpression;
-  private final boolean isValid;
-  private final String validationError;
 
   /**
    * Gets a new BigQueryRelation instance
@@ -51,6 +50,7 @@ public class BigQueryRelation implements Relation {
     return new BigQueryRelation(sourceDataset, columnNames, null, transformExpression, true, null);
   }
 
+  @VisibleForTesting
   protected BigQueryRelation(BigQuerySQLDataset sourceDataset,
                           Set<String> columns,
                           BigQueryRelation parent,
@@ -61,8 +61,6 @@ public class BigQueryRelation implements Relation {
     this.sourceDataset = sourceDataset;
     this.parent = parent;
     this.transformExpression = transformExpression;
-    this.isValid = true;
-    this.validationError = null;
   }
 
   private Relation getInvalidRelation(String validationError) {
@@ -71,12 +69,12 @@ public class BigQueryRelation implements Relation {
 
   @Override
   public boolean isValid() {
-    return isValid;
+    return true;
   }
 
   @Override
   public String getValidationError() {
-    return isValid() ? null : validationError;
+    return null;
   }
 
   public Relation getParent() {
@@ -85,6 +83,10 @@ public class BigQueryRelation implements Relation {
 
   public String getTransformExpression() {
     return transformExpression;
+  }
+
+  public Set<String> getColumns() {
+    return columns;
   }
 
   @Override
@@ -104,10 +106,15 @@ public class BigQueryRelation implements Relation {
 
   @Override
   public Relation dropColumn(String column) {
+    // check if all expressions are supported and valid
+    if (!columns.contains(column)) {
+      return getInvalidRelation("Trying to remove non existing column in Relation: " + column);
+    }
+
+    // Remove column
     Map<String, Expression> selectedColumns = getSelectedColumns(columns);
     selectedColumns.remove(column);
 
-    // Build new transform expression and return new instance.
     String expression = buildNestedSelect(selectedColumns, transformExpression, sourceDataset.getDatasetName(), null);
     return new BigQueryRelation(sourceDataset, selectedColumns.keySet(), this, expression, true, null);
   }
@@ -228,7 +235,8 @@ public class BigQueryRelation implements Relation {
    * @param def {@link GroupByAggregationDefinition} to verify.
    * @return boolean specifying if all expressions are supported or not.
    */
-  private boolean supportsGroupByAggregationDefinition(GroupByAggregationDefinition def) {
+  @VisibleForTesting
+  protected boolean supportsGroupByAggregationDefinition(GroupByAggregationDefinition def) {
     // Gets all expressions defined in this definition
     Collection<Expression> selectExpressions = def.getSelectExpressions().values();
     Collection<Expression> groupByExpressions = def.getGroupByExpressions();
@@ -245,7 +253,8 @@ public class BigQueryRelation implements Relation {
    * @param def {@link DeduplicateAggregationDefinition} to verify.
    * @return boolean specifying if all expressions are supported or not.
    */
-  private boolean supportsDeduplicateAggregationDefinition(DeduplicateAggregationDefinition def) {
+  @VisibleForTesting
+  protected boolean supportsDeduplicateAggregationDefinition(DeduplicateAggregationDefinition def) {
     // Gets all expressions defined in this definition
     Collection<Expression> selectExpressions = def.getSelectExpressions().values();
     Collection<Expression> dedupExpressions = def.getGroupByExpressions();
@@ -267,7 +276,8 @@ public class BigQueryRelation implements Relation {
    * @param expressions collection containing expressions to verify
    * @return boolean specifying if all expressions are supported or not.
    */
-  private boolean supportsExpressions(Collection<Expression> expressions) {
+  @VisibleForTesting
+  protected boolean supportsExpressions(Collection<Expression> expressions) {
     return expressions.stream().allMatch(this::supportsExpression);
   }
 
@@ -277,7 +287,8 @@ public class BigQueryRelation implements Relation {
    * @param expression expression to verity
    * @return boolean specifying if the expression is supported and valid.
    */
-  private boolean supportsExpression(Expression expression) {
+  @VisibleForTesting
+  protected boolean supportsExpression(Expression expression) {
     return expression instanceof SQLExpression && expression.isValid();
   }
 
