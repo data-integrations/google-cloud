@@ -6,6 +6,8 @@ import io.cdap.cdap.etl.api.relational.Expression;
 import io.cdap.cdap.etl.api.relational.ExpressionFactory;
 import io.cdap.cdap.etl.api.relational.ExpressionFactoryType;
 import io.cdap.cdap.etl.api.relational.ExtractableExpression;
+import io.cdap.cdap.etl.api.relational.InvalidExtractableExpression;
+import io.cdap.cdap.etl.api.relational.InvalidExtractableExpressionException;
 import io.cdap.cdap.etl.api.relational.InvalidRelation;
 import io.cdap.cdap.etl.api.relational.Relation;
 import io.cdap.cdap.etl.api.relational.StringExpressionFactoryType;
@@ -66,7 +68,7 @@ public class SQLExpressionFactory implements ExpressionFactory<String> {
   public ExtractableExpression<String> getQualifiedDataSetName(Relation relation) {
     // Ensure relation is BigQueryRelation
     if (!(relation instanceof BigQueryRelation)) {
-      return new InvalidExtractableExpression("Relation is not BigQueryRelation");
+      return new InvalidExtractableExpression<>("Relation is not BigQueryRelation");
     }
 
     // Return Dataset name wrapped in quotes.
@@ -87,14 +89,14 @@ public class SQLExpressionFactory implements ExpressionFactory<String> {
   public ExtractableExpression<String> getQualifiedColumnName(Relation relation, String column) {
     // Ensure relation is BigQueryRelation
     if (!(relation instanceof BigQueryRelation)) {
-      return new InvalidExtractableExpression("Relation is not BigQueryRelation");
+      return new InvalidExtractableExpression<>("Relation is not BigQueryRelation");
     }
 
     BigQueryRelation bqRelation = (BigQueryRelation) relation;
 
     // Ensure column is present in relation.
     if (!bqRelation.getColumns().contains(column)) {
-      return new InvalidExtractableExpression("Column " + column + " is not present in dataset");
+      return new InvalidExtractableExpression<>("Column " + column + " is not present in dataset");
     }
 
     return new SQLExpression(qualify(column));
@@ -117,31 +119,5 @@ public class SQLExpressionFactory implements ExpressionFactory<String> {
    */
   public String qualify(String identifier) {
     return BigQueryBaseSQLBuilder.QUOTE + identifier + BigQueryBaseSQLBuilder.QUOTE;
-  }
-
-  /**
-   * Class used to return an invalid extractable expression.
-   */
-  protected static final class InvalidExtractableExpression implements ExtractableExpression<String> {
-    String validationError;
-
-    public InvalidExtractableExpression(String validationError) {
-      this.validationError = validationError;
-    }
-
-    @Override
-    public String extract() {
-      return null;
-    }
-
-    @Override
-    public boolean isValid() {
-      return false;
-    }
-
-    @Override
-    public String getValidationError() {
-      return validationError;
-    }
   }
 }
