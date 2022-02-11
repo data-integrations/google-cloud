@@ -13,24 +13,25 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package io.cdap.plugin.common.runners.cmekrunner;
-
+package io.cdap.plugin.pubsubsink.runners;
 import io.cucumber.junit.Cucumber;
 import io.cucumber.junit.CucumberOptions;
 import org.junit.runner.RunWith;
 
 /**
- * Test Runner to execute test cases wth cmek enabled.
+ * Test Runner to execute PubSub sink cases.
  */
 @RunWith(Cucumber.class)
 @CucumberOptions(
-  features = {"src/e2e-test/features"},
-  glue = {"io.cdap.plugin.gcs.stepsdesign", "io.cdap.plugin.bigquery.stepsdesign",
-    "stepsdesign", "io.cdap.plugin.common.stepsdesign", "io.cdap.plugin.pubsubsink.stepsdesign"},
-  tags = {"@CMEK"},
-  plugin = {"pretty", "html:target/cucumber-html-report/cmek", "json:target/cucumber-reports/cucumber-cmek.json",
-    "junit:target/cucumber-reports/cucumber-cmek.xml", "io.cdap.e2e.utils.PropModifier:cmek-config.properties"},
-  monochrome = true
+        features = {"src/e2e-test/features"},
+        glue = {"io.cdap.plugin.pubsubsink.stepsdesign", "io.cdap.plugin.gcs.stepsdesign",
+          "io.cdap.plugin.common.stepsdesign", "io.cdap.plugin.bigquery.stepsdesign" , "stepsdesign"},
+        tags = {"@PubSub_Sink"},
+        monochrome = true,
+        plugin = {"pretty", "html:target/cucumber-html-report/pubsub-sink",
+          "json:target/cucumber-reports/cucumber-pubsub-sink.json",
+          "junit:target/cucumber-reports/cucumber-pubsub-sink.xml"}
 )
+
 public class TestRunner {
 }
