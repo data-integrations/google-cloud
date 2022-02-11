@@ -301,11 +301,10 @@ public class BigQuerySQLEngine
       getStageNameToBQTableNameMap());
 
     // Execute Select job with the supplied query.
-    return executeSelect(
-      sqlJoinRequest.getDatasetName(),
-      sqlJoinRequest.getJoinDefinition().getOutputSchema(),
-      BigQueryJobType.JOIN,
-      builder.getQuery());
+    return executeSelect(sqlJoinRequest.getDatasetName(),
+                         sqlJoinRequest.getJoinDefinition().getOutputSchema(),
+                         BigQueryJobType.JOIN,
+                         builder.getQuery());
   }
 
   @Nullable
@@ -466,11 +465,10 @@ public class BigQuerySQLEngine
   public SQLDataset transform(SQLTransformRequest context) throws SQLEngineException {
     // Get relation instance
     BigQueryRelation relation = (BigQueryRelation) context.getOutputRelation();
-    return executeSelect(
-      context.getOutputDatasetName(),
-      context.getOutputSchema(),
-      BigQueryJobType.TRANSFORM,
-      relation.getTransformExpression());
+    return executeSelect(context.getOutputDatasetName(),
+                         context.getOutputSchema(),
+                         BigQueryJobType.TRANSFORM,
+                         relation.getTransformExpression());
   }
 
   private BigQuerySelectDataset executeSelect(String datasetName,

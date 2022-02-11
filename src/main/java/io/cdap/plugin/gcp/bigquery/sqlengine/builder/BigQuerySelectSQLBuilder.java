@@ -17,6 +17,7 @@
 package io.cdap.plugin.gcp.bigquery.sqlengine.builder;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.cdap.cdap.etl.api.relational.Expression;
 
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -26,13 +27,13 @@ import java.util.stream.Collectors;
  */
 public class BigQuerySelectSQLBuilder extends BigQueryBaseSQLBuilder {
 
-  protected final Map<String, String> columns;
+  protected final Map<String, Expression> columns;
   protected final String sourceTable;
   protected final String sourceAlias;
   protected final String filter;
   protected final StringBuilder builder;
 
-  public BigQuerySelectSQLBuilder(Map<String, String> columns,
+  public BigQuerySelectSQLBuilder(Map<String, Expression> columns,
                                   String sourceTable,
                                   String sourceAlias,
                                   String filter) {
@@ -74,9 +75,7 @@ public class BigQuerySelectSQLBuilder extends BigQueryBaseSQLBuilder {
    */
   @VisibleForTesting
   protected String getSelectedFields() {
-    return columns.entrySet()
-      .stream()
-      .map(e -> e.getValue() + AS + QUOTE + e.getKey() + QUOTE)
+    return getSelectColumnsStream(columns)
       .collect(Collectors.joining(COMMA));
   }
 

@@ -16,6 +16,13 @@
 
 package io.cdap.plugin.gcp.bigquery.sqlengine.builder;
 
+import io.cdap.cdap.etl.api.relational.Expression;
+import io.cdap.plugin.gcp.bigquery.relational.SQLExpression;
+
+import java.util.Collection;
+import java.util.Map;
+import java.util.stream.Stream;
+
 /**
  * Base class which defines convenience variables to be used then building SQL expressions
  */
@@ -35,6 +42,7 @@ public abstract class BigQueryBaseSQLBuilder {
   protected static final String OPEN_GROUP = "(";
   protected static final String CLOSE_GROUP = ")";
   protected static final String WHERE = " WHERE ";
+  protected static final String GROUP_BY = " GROUP BY ";
   protected static final String QUOTE = "`";
   protected static final String ORDER_DESC = "DESC";
   protected static final String ORDER_ASC = "ASC";
@@ -46,4 +54,30 @@ public abstract class BigQueryBaseSQLBuilder {
    * Builds SQL statement
    */
   public abstract String getQuery();
+
+  /**
+   * Generates a {@link Stream} of {@link String} containing field selection expressions for the input columns.
+   *
+   * The key for this map is used as an alias and the expression value is used as the selected column/function.
+   * For example,: "field_name AS `field_alias`".
+   * @param selectFields Map of "alias" -> "field expression"
+   * @return Stream containing select expressions
+   */
+  protected Stream<String> getSelectColumnsStream(Map<String, Expression> selectFields) {
+    return selectFields.entrySet()
+      .stream()
+      .map(e -> ((SQLExpression) e.getValue()).getExpression() + AS + QUOTE + e.getKey() + QUOTE);
+  }
+
+  /**
+   * Generates a {@link Stream} of {@link String} containing values enclosed by Expressions.
+   *
+   * @param expressions expressions
+   * @return Stream containing extracted expressions as Strings
+   */
+  protected Stream<String> getExpressionSQLStream(Collection<Expression> expressions) {
+    return expressions
+      .stream()
+      .map(e -> ((SQLExpression) e).getExpression());
+  }
 }

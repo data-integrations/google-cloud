@@ -33,12 +33,12 @@ import java.util.Map;
 @RunWith(MockitoJUnitRunner.class)
 public class BigQueryDeduplicateSQLBuilderTest {
 
-  BigQueryDeduplicateSQLBuilder helper;
-  SQLExpressionFactory factory;
-  Map<String, Expression> selectFields;
-  List<Expression> dedupFields;
-  List<DeduplicateAggregationDefinition.FilterExpression> filterFields;
-  DeduplicateAggregationDefinition def;
+  private BigQueryDeduplicateSQLBuilder helper;
+  private SQLExpressionFactory factory;
+  private Map<String, Expression> selectFields;
+  private List<Expression> dedupFields;
+  private List<DeduplicateAggregationDefinition.FilterExpression> filterFields;
+  private DeduplicateAggregationDefinition def;
 
   @Before
   public void setUp() {
@@ -54,7 +54,7 @@ public class BigQueryDeduplicateSQLBuilderTest {
     selectFields.put("e", factory.compile("e"));
     selectFields.put("f", factory.compile("f"));
 
-    dedupFields = new ArrayList<>(2);
+    dedupFields = new ArrayList<>(3);
     dedupFields.add(factory.compile("c"));
     dedupFields.add(factory.compile("d"));
     dedupFields.add(factory.compile("e"));

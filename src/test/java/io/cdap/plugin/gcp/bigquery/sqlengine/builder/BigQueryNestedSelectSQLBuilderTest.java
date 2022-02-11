@@ -16,6 +16,8 @@
 
 package io.cdap.plugin.gcp.bigquery.sqlengine.builder;
 
+import io.cdap.cdap.etl.api.relational.Expression;
+import io.cdap.plugin.gcp.bigquery.relational.SQLExpressionFactory;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -31,18 +33,21 @@ import static org.powermock.api.mockito.PowerMockito.spy;
 @RunWith(MockitoJUnitRunner.class)
 public class BigQueryNestedSelectSQLBuilderTest {
 
-  BigQueryNestedSelectSQLBuilder helper;
-  Map<String, String> columns;
-  Map<String, String> singleColumn;
+  private BigQueryNestedSelectSQLBuilder helper;
+  private SQLExpressionFactory factory;
+  private Map<String, Expression> columns;
+  private Map<String, Expression> singleColumn;
 
   @Before
   public void setUp() {
+    factory = new SQLExpressionFactory();
+
     // ensure columns are in order
     columns = new LinkedHashMap<>();
-    columns.put("a", "a");
-    columns.put("b", "function(b)");
-    columns.put("c", "d");
-    singleColumn = Collections.singletonMap("conCols", "CONCAT(col1, col2)");
+    columns.put("a", factory.compile("a"));
+    columns.put("b", factory.compile("function(b)"));
+    columns.put("c", factory.compile("d"));
+    singleColumn = Collections.singletonMap("conCols", factory.compile("CONCAT(col1, col2)"));
   }
 
   @Test

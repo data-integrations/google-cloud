@@ -39,10 +39,10 @@ public class BigQueryDeduplicateSQLBuilder extends BigQueryBaseSQLBuilder {
   private final String rowNumColumnAlias;
 
   public BigQueryDeduplicateSQLBuilder(DeduplicateAggregationDefinition deduplicationDefinition,
-                                       String source,
+                                       String sourceExpression,
                                        String sourceAlias) {
     this(deduplicationDefinition,
-         source,
+         sourceExpression,
          sourceAlias,
          ROW_NUM_PREFIX + BigQuerySQLEngineUtils.newIdentifier());
   }
@@ -83,9 +83,7 @@ public class BigQueryDeduplicateSQLBuilder extends BigQueryBaseSQLBuilder {
    */
   @VisibleForTesting
   protected String getSelectedFields(DeduplicateAggregationDefinition def) {
-    Set<String> columns = def.getSelectExpressions().entrySet()
-      .stream()
-      .map(e -> ((SQLExpression) e.getValue()).getExpression() + AS + QUOTE + e.getKey() + QUOTE)
+    Set<String> columns = getSelectColumnsStream(def.getSelectExpressions())
       .collect(Collectors.toCollection(LinkedHashSet::new));
     columns.add(getRowNumColumn(def));
     return String.join(COMMA, columns);
@@ -113,9 +111,7 @@ public class BigQueryDeduplicateSQLBuilder extends BigQueryBaseSQLBuilder {
    */
   @VisibleForTesting
   protected String getPartitionByFields(List<Expression> partitionByExpressions) {
-    return partitionByExpressions
-      .stream()
-      .map(e -> ((SQLExpression) e).getExpression())
+    return getExpressionSQLStream(partitionByExpressions)
       .collect(Collectors.joining(COMMA));
   }
 

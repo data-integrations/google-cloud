@@ -16,6 +16,8 @@
 
 package io.cdap.plugin.gcp.bigquery.sqlengine.builder;
 
+import io.cdap.cdap.etl.api.relational.Expression;
+
 import java.util.Map;
 
 /**
@@ -26,11 +28,11 @@ import java.util.Map;
  */
 public class BigQueryNestedSelectSQLBuilder extends BigQuerySelectSQLBuilder {
 
-  public BigQueryNestedSelectSQLBuilder(Map<String, String> columns,
-                                        String source,
+  public BigQueryNestedSelectSQLBuilder(Map<String, Expression> columns,
+                                        String sourceExpression,
                                         String sourceAlias,
                                         String filter) {
-    super(columns, source, sourceAlias, filter);
+    super(columns, sourceExpression, sourceAlias, filter);
   }
 
   /**
