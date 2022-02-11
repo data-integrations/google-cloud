@@ -55,7 +55,7 @@ BigQueryRelationTest {
     columns.add("a");
     columns.add("b");
 
-    baseRelation = new BigQueryRelation(ds, columns, null, "select * from tbl", true, null);
+    baseRelation = new BigQueryRelation(ds, columns, null, "select * from tbl");
   }
 
   @Test

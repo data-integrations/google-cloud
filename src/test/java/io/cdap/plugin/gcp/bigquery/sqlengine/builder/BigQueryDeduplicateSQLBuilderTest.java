@@ -73,49 +73,49 @@ public class BigQueryDeduplicateSQLBuilderTest {
 
   @Test
   public void testGetQuery() {
-    Assert.assertEquals("SELECT * EXCEPT(`rn`) FROM ("
+    Assert.assertEquals("SELECT * EXCEPT(rn) FROM ("
                           + "SELECT "
-                          + "a AS `alias_a` , "
-                          + "b AS `alias_b` , "
-                          + "c AS `c` , "
-                          + "d AS `d` , "
-                          + "e AS `e` , "
-                          + "f AS `f` , "
-                          + "ROW_NUMBER() OVER ( PARTITION BY c , d , e ORDER BY e DESC , f ASC ) AS `rn` "
-                          + "FROM ( select * from tbl ) AS `ds`"
-                          + ") WHERE `rn` = 1",
+                          + "a AS alias_a , "
+                          + "b AS alias_b , "
+                          + "c AS c , "
+                          + "d AS d , "
+                          + "e AS e , "
+                          + "f AS f , "
+                          + "ROW_NUMBER() OVER ( PARTITION BY c , d , e ORDER BY e DESC , f ASC ) AS rn "
+                          + "FROM ( select * from tbl ) AS ds"
+                          + ") WHERE rn = 1",
                         helper.getQuery());
   }
 
   @Test
   public void testGetInnerSelect() {
     Assert.assertEquals("SELECT "
-                          + "a AS `alias_a` , "
-                          + "b AS `alias_b` , "
-                          + "c AS `c` , "
-                          + "d AS `d` , "
-                          + "e AS `e` , "
-                          + "f AS `f` , "
-                          + "ROW_NUMBER() OVER ( PARTITION BY c , d , e ORDER BY e DESC , f ASC ) AS `rn` "
-                          + "FROM ( select * from tbl ) AS `ds`",
+                          + "a AS alias_a , "
+                          + "b AS alias_b , "
+                          + "c AS c , "
+                          + "d AS d , "
+                          + "e AS e , "
+                          + "f AS f , "
+                          + "ROW_NUMBER() OVER ( PARTITION BY c , d , e ORDER BY e DESC , f ASC ) AS rn "
+                          + "FROM ( select * from tbl ) AS ds",
                         helper.getInnerSelect());
   }
 
   @Test
   public void testGetSelectedFields() {
-    Assert.assertEquals("a AS `alias_a` , "
-                          + "b AS `alias_b` , "
-                          + "c AS `c` , "
-                          + "d AS `d` , "
-                          + "e AS `e` , "
-                          + "f AS `f` , "
-                          + "ROW_NUMBER() OVER ( PARTITION BY c , d , e ORDER BY e DESC , f ASC ) AS `rn`",
+    Assert.assertEquals("a AS alias_a , "
+                          + "b AS alias_b , "
+                          + "c AS c , "
+                          + "d AS d , "
+                          + "e AS e , "
+                          + "f AS f , "
+                          + "ROW_NUMBER() OVER ( PARTITION BY c , d , e ORDER BY e DESC , f ASC ) AS rn",
                         helper.getSelectedFields(def));
   }
 
   @Test
   public void testGetRowNumColumn() {
-    Assert.assertEquals("ROW_NUMBER() OVER ( PARTITION BY c , d , e ORDER BY e DESC , f ASC ) AS `rn`",
+    Assert.assertEquals("ROW_NUMBER() OVER ( PARTITION BY c , d , e ORDER BY e DESC , f ASC ) AS rn",
                         helper.getRowNumColumn(def));
   }
 

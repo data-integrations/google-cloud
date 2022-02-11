@@ -28,8 +28,6 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import static org.powermock.api.mockito.PowerMockito.spy;
-
 @RunWith(MockitoJUnitRunner.class)
 public class BigQueryNestedSelectSQLBuilderTest {
 
@@ -52,40 +50,40 @@ public class BigQueryNestedSelectSQLBuilderTest {
 
   @Test
   public void testBuildSelectedFields() {
-    helper = spy(new BigQueryNestedSelectSQLBuilder(columns,
-                                                    "select * from other-tbl",
-                                                    "source-alias",
-                                                    null));
+    helper = new BigQueryNestedSelectSQLBuilder(columns,
+                                                "select * from other-tbl",
+                                                "source-alias",
+                                                null);
 
     String selectedFields = helper.getSelectedFields();
-    Assert.assertTrue(selectedFields.contains("a AS `a`"));
-    Assert.assertTrue(selectedFields.contains("function(b) AS `b`"));
-    Assert.assertTrue(selectedFields.contains("d AS `c`"));
-    Assert.assertEquals("a AS `a` , function(b) AS `b` , d AS `c`",
+    Assert.assertTrue(selectedFields.contains("a AS a"));
+    Assert.assertTrue(selectedFields.contains("function(b) AS b"));
+    Assert.assertTrue(selectedFields.contains("d AS c"));
+    Assert.assertEquals("a AS a , function(b) AS b , d AS c",
                         selectedFields);
   }
 
   @Test
   public void testSelect() {
-    helper = spy(new BigQueryNestedSelectSQLBuilder(singleColumn,
-                                                    "select * from other-tbl",
-                                                    "source-alias",
-                                                    null));
+    helper = new BigQueryNestedSelectSQLBuilder(singleColumn,
+                                                "select * from other-tbl",
+                                                "source-alias",
+                                                null);
     String query = helper.getQuery();
-    Assert.assertEquals("SELECT CONCAT(col1, col2) AS `conCols` " +
-                          "FROM (select * from other-tbl) AS `source-alias`",
+    Assert.assertEquals("SELECT CONCAT(col1, col2) AS conCols " +
+                          "FROM (select * from other-tbl) AS source-alias",
                         query);
   }
 
   @Test
   public void testSelectWithFilter() {
-    helper = spy(new BigQueryNestedSelectSQLBuilder(singleColumn,
-                                                    "select * from other-tbl",
-                                                    "source-alias",
-                                                    "some-col = some-other-col"));
+    helper = new BigQueryNestedSelectSQLBuilder(singleColumn,
+                                                "select * from other-tbl",
+                                                "source-alias",
+                                                "some-col = some-other-col");
     String query = helper.getQuery();
-    Assert.assertEquals("SELECT CONCAT(col1, col2) AS `conCols` " +
-                          "FROM (select * from other-tbl) AS `source-alias` " +
+    Assert.assertEquals("SELECT CONCAT(col1, col2) AS conCols " +
+                          "FROM (select * from other-tbl) AS source-alias " +
                           "WHERE some-col = some-other-col",
                         query);
   }

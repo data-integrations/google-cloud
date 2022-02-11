@@ -49,7 +49,7 @@ public class BigQueryGroupBySQLBuilder extends BigQueryBaseSQLBuilder {
     // FROM (select ... from ...) AS `source_alias`
     builder.append(FROM);
     builder.append(OPEN_GROUP).append(SPACE).append(sourceExpression).append(SPACE).append(CLOSE_GROUP);
-    builder.append(AS).append(QUOTE).append(sourceAlias).append(QUOTE);
+    builder.append(AS).append(sourceAlias);
 
     // GROUP BY
     builder.append(GROUP_BY).append(getGroupByFields(aggregationDefinition.getGroupByExpressions()));

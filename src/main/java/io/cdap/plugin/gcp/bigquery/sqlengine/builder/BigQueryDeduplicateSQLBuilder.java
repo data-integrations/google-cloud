@@ -73,7 +73,7 @@ public class BigQueryDeduplicateSQLBuilder extends BigQueryBaseSQLBuilder {
   @VisibleForTesting
   protected String getInnerSelect() {
     return SELECT + getSelectedFields(deduplicationDefinition) +
-      FROM + OPEN_GROUP + SPACE + source + SPACE + CLOSE_GROUP + AS + QUOTE + sourceAlias + QUOTE;
+      FROM + OPEN_GROUP + SPACE + source + SPACE + CLOSE_GROUP + AS + sourceAlias;
   }
 
   /**
@@ -145,7 +145,7 @@ public class BigQueryDeduplicateSQLBuilder extends BigQueryBaseSQLBuilder {
     }
 
     // some_field ASC/DESC
-    return ((SQLExpression) filterExpression.getExpression()).getExpression() + SPACE + order;
+    return ((SQLExpression) filterExpression.getExpression()).extract() + SPACE + order;
   }
 
 }

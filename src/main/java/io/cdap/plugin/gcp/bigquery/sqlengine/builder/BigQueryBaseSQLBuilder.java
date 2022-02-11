@@ -27,28 +27,28 @@ import java.util.stream.Stream;
  * Base class which defines convenience variables to be used then building SQL expressions
  */
 public abstract class BigQueryBaseSQLBuilder {
-  protected static final String SELECT = "SELECT ";
-  protected static final String FROM = " FROM ";
-  protected static final String SPACE = " ";
-  protected static final String JOIN = " JOIN ";
-  protected static final String AS = " AS ";
-  protected static final String ON = " ON ";
-  protected static final String EQ = " = ";
-  protected static final String AND = " AND ";
-  protected static final String OR = " OR ";
-  protected static final String DOT = ".";
-  protected static final String COMMA = " , ";
-  protected static final String IS_NULL = " IS NULL";
-  protected static final String OPEN_GROUP = "(";
-  protected static final String CLOSE_GROUP = ")";
-  protected static final String WHERE = " WHERE ";
-  protected static final String GROUP_BY = " GROUP BY ";
-  protected static final String QUOTE = "`";
-  protected static final String ORDER_DESC = "DESC";
-  protected static final String ORDER_ASC = "ASC";
-  protected static final String SELECT_DEDUPLICATE_STATEMENT = "SELECT * EXCEPT(`%s`) FROM (%s) WHERE `%s` = 1";
-  protected static final String ROW_NUMBER_PARTITION_COLUMN =
-    "ROW_NUMBER() OVER ( PARTITION BY %s ORDER BY %s ) AS `%s`";
+  public static final String SELECT = "SELECT ";
+  public static final String FROM = " FROM ";
+  public static final String SPACE = " ";
+  public static final String JOIN = " JOIN ";
+  public static final String AS = " AS ";
+  public static final String ON = " ON ";
+  public static final String EQ = " = ";
+  public static final String AND = " AND ";
+  public static final String OR = " OR ";
+  public static final String DOT = ".";
+  public static final String COMMA = " , ";
+  public static final String IS_NULL = " IS NULL";
+  public static final String OPEN_GROUP = "(";
+  public static final String CLOSE_GROUP = ")";
+  public static final String WHERE = " WHERE ";
+  public static final String GROUP_BY = " GROUP BY ";
+  public static final String QUOTE = "`";
+  public static final String ORDER_DESC = "DESC";
+  public static final String ORDER_ASC = "ASC";
+  public static final String SELECT_DEDUPLICATE_STATEMENT = "SELECT * EXCEPT(%s) FROM (%s) WHERE %s = 1";
+  public static final String ROW_NUMBER_PARTITION_COLUMN =
+    "ROW_NUMBER() OVER ( PARTITION BY %s ORDER BY %s ) AS %s";
 
   /**
    * Builds SQL statement
@@ -63,10 +63,10 @@ public abstract class BigQueryBaseSQLBuilder {
    * @param selectFields Map of "alias" -> "field expression"
    * @return Stream containing select expressions
    */
-  protected Stream<String> getSelectColumnsStream(Map<String, Expression> selectFields) {
+  public Stream<String> getSelectColumnsStream(Map<String, Expression> selectFields) {
     return selectFields.entrySet()
       .stream()
-      .map(e -> ((SQLExpression) e.getValue()).getExpression() + AS + QUOTE + e.getKey() + QUOTE);
+      .map(e -> ((SQLExpression) e.getValue()).extract() + AS + e.getKey());
   }
 
   /**
@@ -75,9 +75,9 @@ public abstract class BigQueryBaseSQLBuilder {
    * @param expressions expressions
    * @return Stream containing extracted expressions as Strings
    */
-  protected Stream<String> getExpressionSQLStream(Collection<Expression> expressions) {
+  public Stream<String> getExpressionSQLStream(Collection<Expression> expressions) {
     return expressions
       .stream()
-      .map(e -> ((SQLExpression) e).getExpression());
+      .map(e -> ((SQLExpression) e).extract());
   }
 }

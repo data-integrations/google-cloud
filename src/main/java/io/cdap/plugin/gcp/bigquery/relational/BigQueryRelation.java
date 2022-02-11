@@ -44,19 +44,19 @@ public class BigQueryRelation implements Relation {
                                              BigQuerySQLDataset sourceDataset,
                                              Set<String> columnNames) {
     Map<String, Expression> selectedColumns = getSelectedColumns(columnNames);
-    String sourceTableName = String.format("`%s.%s.%s`", bqProject, bqDataset, sourceDataset.getBigQueryTableName());
-    String transformExpression = buildBaseSelect(selectedColumns, sourceTableName, sourceDataset.getDatasetName());
+    // Build qualified source table and dataset names for base query.
+    String sourceTable = String.format("%s.%s.%s", bqProject, bqDataset, sourceDataset.getBigQueryTableName());
+    String datasetName = sourceDataset.getDatasetName();
+    String transformExpression = buildBaseSelect(selectedColumns, sourceTable, datasetName);
 
-    return new BigQueryRelation(sourceDataset, columnNames, null, transformExpression, true, null);
+    return new BigQueryRelation(sourceDataset, columnNames, null, transformExpression);
   }
 
   @VisibleForTesting
   protected BigQueryRelation(BigQuerySQLDataset sourceDataset,
-                          Set<String> columns,
-                          BigQueryRelation parent,
-                          String transformExpression,
-                          boolean isValid,
-                          String validationError) {
+                             Set<String> columns,
+                             BigQueryRelation parent,
+                             String transformExpression) {
     this.columns = columns;
     this.sourceDataset = sourceDataset;
     this.parent = parent;
@@ -89,6 +89,10 @@ public class BigQueryRelation implements Relation {
     return columns;
   }
 
+  public BigQuerySQLDataset getSourceDataset() {
+    return sourceDataset;
+  }
+
   @Override
   public Relation setColumn(String column, Expression value) {
     // check if expression is supported and valid
@@ -101,7 +105,7 @@ public class BigQueryRelation implements Relation {
 
     // Build new transform expression and return new instance.
     String expression = buildNestedSelect(selectedColumns, transformExpression, sourceDataset.getDatasetName(), null);
-    return new BigQueryRelation(sourceDataset, selectedColumns.keySet(), this, expression, true, null);
+    return new BigQueryRelation(sourceDataset, selectedColumns.keySet(), this, expression);
   }
 
   @Override
@@ -116,7 +120,7 @@ public class BigQueryRelation implements Relation {
     selectedColumns.remove(column);
 
     String expression = buildNestedSelect(selectedColumns, transformExpression, sourceDataset.getDatasetName(), null);
-    return new BigQueryRelation(sourceDataset, selectedColumns.keySet(), this, expression, true, null);
+    return new BigQueryRelation(sourceDataset, selectedColumns.keySet(), this, expression);
   }
 
   @Override
@@ -128,7 +132,7 @@ public class BigQueryRelation implements Relation {
 
     // Build new transform expression and return new instance.
     String expression = buildNestedSelect(columns, transformExpression, sourceDataset.getDatasetName(), null);
-    return new BigQueryRelation(sourceDataset, columns.keySet(), this, expression, true, null);
+    return new BigQueryRelation(sourceDataset, columns.keySet(), this, expression);
   }
 
   @Override
@@ -140,7 +144,7 @@ public class BigQueryRelation implements Relation {
 
     Map<String, Expression> selectedColumns = getSelectedColumns(columns);
     String expression = buildNestedSelect(selectedColumns, transformExpression, sourceDataset.getDatasetName(), filter);
-    return new BigQueryRelation(sourceDataset, columns, this, expression, true, null);
+    return new BigQueryRelation(sourceDataset, columns, this, expression);
   }
 
   @Override
@@ -153,7 +157,7 @@ public class BigQueryRelation implements Relation {
 
     Set<String> columns = definition.getSelectExpressions().keySet();
     String expression = buildGroupBy(definition, transformExpression, sourceDataset.getDatasetName());
-    return new BigQueryRelation(sourceDataset, columns, this, expression, true, null);
+    return new BigQueryRelation(sourceDataset, columns, this, expression);
   }
 
   @Override
@@ -166,16 +170,16 @@ public class BigQueryRelation implements Relation {
 
     Set<String> columns = definition.getSelectExpressions().keySet();
     String expression = buildDeduplicate(definition, transformExpression, sourceDataset.getDatasetName());
-    return new BigQueryRelation(sourceDataset, columns, this, expression, true, null);
+    return new BigQueryRelation(sourceDataset, columns, this, expression);
   }
 
   private static String buildBaseSelect(Map<String, Expression> columns,
-                                        String sourceExpression,
+                                        String sourceTable,
                                         String datasetName) {
-    // Instantiate query builder and generate select expression
-    BigQuerySelectSQLBuilder builder = new BigQuerySelectSQLBuilder(columns,
-                                                                    sourceExpression,
-                                                                    datasetName,
+    // We qualify all inputs when building the SQL query.
+    BigQuerySelectSQLBuilder builder = new BigQuerySelectSQLBuilder(qualifyKeys(columns),
+                                                                    qualify(sourceTable),
+                                                                    qualify(datasetName),
                                                                     null);
     return builder.getQuery();
   }
@@ -185,38 +189,60 @@ public class BigQueryRelation implements Relation {
                                           String datasetName,
                                           @Nullable Expression filter) {
     // Get filter conditions
-    String filterCondition = filter != null ? ((SQLExpression) filter).getExpression() : null;
+    String filterCondition = filter != null ? ((SQLExpression) filter).extract() : null;
 
     // Instantiate query builder and generate select expression
-    BigQueryNestedSelectSQLBuilder builder = new BigQueryNestedSelectSQLBuilder(columns,
+    BigQueryNestedSelectSQLBuilder builder = new BigQueryNestedSelectSQLBuilder(qualifyKeys(columns),
                                                                                 sourceExpression,
-                                                                                datasetName,
+                                                                                qualify(datasetName),
                                                                                 filterCondition);
     return builder.getQuery();
   }
 
-  private static String buildGroupBy(GroupByAggregationDefinition group,
+  private static String buildGroupBy(GroupByAggregationDefinition definition,
                                      String sourceExpression,
                                      String datasetName) {
     // Instantiate query builder and generate select expression
-    BigQueryGroupBySQLBuilder builder = new BigQueryGroupBySQLBuilder(group,
+    BigQueryGroupBySQLBuilder builder = new BigQueryGroupBySQLBuilder(qualify(definition),
                                                                       sourceExpression,
                                                                       datasetName);
     return builder.getQuery();
   }
 
-  private static String buildDeduplicate(DeduplicateAggregationDefinition deduplicateAggregationDefinition,
+  private static String buildDeduplicate(DeduplicateAggregationDefinition definition,
                                          String sourceExpression,
                                          String datasetName) {
     // Instantiate query builder and generate select expression
-    BigQueryDeduplicateSQLBuilder builder = new BigQueryDeduplicateSQLBuilder(deduplicateAggregationDefinition,
+    BigQueryDeduplicateSQLBuilder builder = new BigQueryDeduplicateSQLBuilder(qualify(definition),
                                                                               sourceExpression,
                                                                               datasetName);
     return builder.getQuery();
   }
 
   /**
-   * Builds selected columns map based on an input set of columns.
+   * Use the {@link SQLExpressionFactory} to qualify identifiers (Columns names/aliases or table names/aliases)
+   * @param identifier identifier to qualify
+   * @return qualified identifier
+   */
+  private static String qualify(String identifier) {
+    return factory.qualify(identifier);
+  }
+
+  /**
+   * Transform a map containing alias -> column expression by qualifying the Alias.
+   * @param columns map containing column aliases and expressions
+   * @return Map with aliases qualified
+   */
+  private static Map<String, Expression> qualifyKeys(Map<String, Expression> columns) {
+    // Keep the order of the original map
+    Map<String, Expression> qualified = new LinkedHashMap<>();
+    // We always qualify keys as we use them to build "column AS `key`"
+    columns.forEach((k, v) -> qualified.put(qualify(k), v));
+    return qualified;
+  }
+
+  /**
+   * Builds selected columns map based on an input set of columns. Note that the column expression is qualified.
    * <p>
    * The output Map maintains the field order from the supplied set.
    *
@@ -225,7 +251,7 @@ public class BigQueryRelation implements Relation {
    */
   private static Map<String, Expression> getSelectedColumns(Set<String> columns) {
     Map<String, Expression> selectedColumns = new LinkedHashMap<>();
-    columns.forEach(c -> selectedColumns.put(c, factory.compile(c)));
+    columns.forEach(c -> selectedColumns.put(c, factory.compile(qualify(c))));
     return selectedColumns;
   }
 
@@ -236,7 +262,7 @@ public class BigQueryRelation implements Relation {
    * @return boolean specifying if all expressions are supported or not.
    */
   @VisibleForTesting
-  protected boolean supportsGroupByAggregationDefinition(GroupByAggregationDefinition def) {
+  protected static boolean supportsGroupByAggregationDefinition(GroupByAggregationDefinition def) {
     // Gets all expressions defined in this definition
     Collection<Expression> selectExpressions = def.getSelectExpressions().values();
     Collection<Expression> groupByExpressions = def.getGroupByExpressions();
@@ -244,7 +270,18 @@ public class BigQueryRelation implements Relation {
     // Verify all supplied expressions are both supported and valid.
     return supportsExpressions(selectExpressions)
       && supportsExpressions(groupByExpressions);
+  }
 
+  /**
+   * Builds a new {@link GroupByAggregationDefinition} with qualified aliases for the Select Expression.
+   * @param def supplied {@link GroupByAggregationDefinition}
+   * @return {@link GroupByAggregationDefinition} with qualified column aliases
+   */
+  protected static GroupByAggregationDefinition qualify(GroupByAggregationDefinition def) {
+    GroupByAggregationDefinition.Builder builder = GroupByAggregationDefinition.builder();
+    builder.select(qualifyKeys(def.getSelectExpressions()));
+    builder.groupBy(def.getGroupByExpressions());
+    return builder.build();
   }
 
   /**
@@ -254,7 +291,7 @@ public class BigQueryRelation implements Relation {
    * @return boolean specifying if all expressions are supported or not.
    */
   @VisibleForTesting
-  protected boolean supportsDeduplicateAggregationDefinition(DeduplicateAggregationDefinition def) {
+  protected static boolean supportsDeduplicateAggregationDefinition(DeduplicateAggregationDefinition def) {
     // Gets all expressions defined in this definition
     Collection<Expression> selectExpressions = def.getSelectExpressions().values();
     Collection<Expression> dedupExpressions = def.getGroupByExpressions();
@@ -267,7 +304,19 @@ public class BigQueryRelation implements Relation {
     return supportsExpressions(selectExpressions)
       && supportsExpressions(dedupExpressions)
       && supportsExpressions(orderExpressions);
+  }
 
+  /**
+   * Builds a new {@link DeduplicateAggregationDefinition} with qualified aliases for the Select Expression.
+   * @param def supplied {@link DeduplicateAggregationDefinition}
+   * @return {@link DeduplicateAggregationDefinition} with qualified column aliases
+   */
+  protected static DeduplicateAggregationDefinition qualify(DeduplicateAggregationDefinition def) {
+    DeduplicateAggregationDefinition.Builder builder = DeduplicateAggregationDefinition.builder();
+    builder.select(qualifyKeys(def.getSelectExpressions()));
+    builder.dedupOn(def.getGroupByExpressions());
+    builder.filterDuplicatesBy(def.getFilterExpressions());
+    return builder.build();
   }
 
   /**
@@ -277,8 +326,8 @@ public class BigQueryRelation implements Relation {
    * @return boolean specifying if all expressions are supported or not.
    */
   @VisibleForTesting
-  protected boolean supportsExpressions(Collection<Expression> expressions) {
-    return expressions.stream().allMatch(this::supportsExpression);
+  protected static boolean supportsExpressions(Collection<Expression> expressions) {
+    return expressions.stream().allMatch(BigQueryRelation::supportsExpression);
   }
 
   /**
@@ -288,7 +337,7 @@ public class BigQueryRelation implements Relation {
    * @return boolean specifying if the expression is supported and valid.
    */
   @VisibleForTesting
-  protected boolean supportsExpression(Expression expression) {
+  protected static boolean supportsExpression(Expression expression) {
     return expression instanceof SQLExpression && expression.isValid();
   }
 

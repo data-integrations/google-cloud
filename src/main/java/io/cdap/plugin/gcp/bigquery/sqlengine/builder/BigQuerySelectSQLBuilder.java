@@ -48,7 +48,7 @@ public class BigQuerySelectSQLBuilder extends BigQueryBaseSQLBuilder {
     // SELECT ...
     builder.append(SELECT).append(getSelectedFields());
     // FROM some_from_table AS `some_alias`
-    builder.append(FROM).append(getFromSource()).append(AS).append(QUOTE).append(sourceAlias).append(QUOTE);
+    builder.append(FROM).append(getFromSource()).append(AS).append(sourceAlias);
 
     if (filter != null) {
       // WHERE ...

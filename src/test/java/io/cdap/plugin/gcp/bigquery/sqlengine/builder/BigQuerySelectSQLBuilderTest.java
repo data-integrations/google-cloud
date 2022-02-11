@@ -51,38 +51,38 @@ public class BigQuerySelectSQLBuilderTest {
 
   @Test
   public void testBuildSelectedFields() {
-    helper = spy(new BigQuerySelectSQLBuilder(columns,
-                                              "source-table",
-                                              "source-alias",
-                                              null));
+    helper = new BigQuerySelectSQLBuilder(columns,
+                                          "source-table",
+                                          "source-alias",
+                                          null);
 
     String selectedFields = helper.getSelectedFields();
-    Assert.assertTrue(selectedFields.contains("a AS `a`"));
-    Assert.assertTrue(selectedFields.contains("function(b) AS `b`"));
-    Assert.assertTrue(selectedFields.contains("d AS `c`"));
-    Assert.assertEquals("a AS `a` , function(b) AS `b` , d AS `c`",
+    Assert.assertTrue(selectedFields.contains("a AS a"));
+    Assert.assertTrue(selectedFields.contains("function(b) AS b"));
+    Assert.assertTrue(selectedFields.contains("d AS c"));
+    Assert.assertEquals("a AS a , function(b) AS b , d AS c",
                         selectedFields);
   }
 
   @Test
   public void testSelect() {
-    helper = spy(new BigQuerySelectSQLBuilder(singleColumn,
-                                              "source-table",
-                                              "source-alias",
-                                              null));
+    helper = new BigQuerySelectSQLBuilder(singleColumn,
+                                          "source-table",
+                                          "source-alias",
+                                          null);
     String query = helper.getQuery();
-    Assert.assertEquals("SELECT CONCAT(col1, col2) AS `conCols` FROM source-table AS `source-alias`",
+    Assert.assertEquals("SELECT CONCAT(col1, col2) AS conCols FROM source-table AS source-alias",
                         query);
   }
 
   @Test
   public void testSelectWithFilter() {
-    helper = spy(new BigQuerySelectSQLBuilder(singleColumn,
-                                              "source-table",
-                                              "source-alias",
-                                              "some-col = some-other-col"));
+    helper = new BigQuerySelectSQLBuilder(singleColumn,
+                                          "source-table",
+                                          "source-alias",
+                                          "some-col = some-other-col");
     String query = helper.getQuery();
-    Assert.assertEquals("SELECT CONCAT(col1, col2) AS `conCols` FROM source-table AS `source-alias` " +
+    Assert.assertEquals("SELECT CONCAT(col1, col2) AS conCols FROM source-table AS source-alias " +
                           "WHERE some-col = some-other-col",
                         query);
   }

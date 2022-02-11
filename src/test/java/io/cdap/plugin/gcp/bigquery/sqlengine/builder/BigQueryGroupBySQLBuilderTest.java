@@ -63,8 +63,8 @@ public class BigQueryGroupBySQLBuilderTest {
 
   @Test
   public void testGetQuery() {
-    Assert.assertEquals("SELECT a AS `a` , MAX(b) AS `b` , MIN(col_c) AS `c` , d AS `d` "
-                          + "FROM ( select * from tbl ) AS `ds` "
+    Assert.assertEquals("SELECT a AS a , MAX(b) AS b , MIN(col_c) AS c , d AS d "
+                          + "FROM ( select * from tbl ) AS ds "
                           + "GROUP BY a , d",
                         helper.getQuery());
   }
@@ -72,10 +72,10 @@ public class BigQueryGroupBySQLBuilderTest {
 
   @Test
   public void testGetSelectedFields() {
-    Assert.assertEquals("a AS `a` , "
-                          + "MAX(b) AS `b` , "
-                          + "MIN(col_c) AS `c` , "
-                          + "d AS `d`",
+    Assert.assertEquals("a AS a , "
+                          + "MAX(b) AS b , "
+                          + "MIN(col_c) AS c , "
+                          + "d AS d",
                         helper.getSelectedFields(selectFields));
   }
 
@@ -86,7 +86,7 @@ public class BigQueryGroupBySQLBuilderTest {
 //
 //  @Test
 //  public void testGetRowNumColumn() {
-//    Assert.assertEquals("ROW_NUMBER() OVER ( PARTITION BY c , d , e ORDER BY e DESC , f ASC ) AS `rn`",
+//    Assert.assertEquals("ROW_NUMBER() OVER ( PARTITION BY c , d , e ORDER BY e DESC , f ASC ) AS rn",
 //                        helper.getRowNumColumn(def));
 //  }
 //
