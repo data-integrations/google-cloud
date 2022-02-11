@@ -1,14 +1,17 @@
 package io.cdap.plugin.gcp.bigquery.relational;
 
 import io.cdap.cdap.etl.api.relational.Capability;
+import io.cdap.cdap.etl.api.relational.CoreExpressionCapabilities;
 import io.cdap.cdap.etl.api.relational.Expression;
 import io.cdap.cdap.etl.api.relational.ExpressionFactory;
 import io.cdap.cdap.etl.api.relational.ExpressionFactoryType;
 import io.cdap.cdap.etl.api.relational.ExtractableExpression;
+import io.cdap.cdap.etl.api.relational.InvalidRelation;
 import io.cdap.cdap.etl.api.relational.Relation;
 import io.cdap.cdap.etl.api.relational.StringExpressionFactoryType;
 import io.cdap.plugin.gcp.bigquery.sqlengine.builder.BigQueryBaseSQLBuilder;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
@@ -47,7 +50,10 @@ public class SQLExpressionFactory implements ExpressionFactory<String> {
    */
   @Override
   public Set<Capability> getCapabilities() {
-    return new HashSet<>(Collections.singleton(StringExpressionFactoryType.SQL));
+    return new HashSet<>(Arrays.asList(StringExpressionFactoryType.SQL,
+                                       CoreExpressionCapabilities.CAN_GET_QUALIFIED_DATASET_NAME,
+                                       CoreExpressionCapabilities.CAN_GET_QUALIFIED_COLUMN_NAME,
+                                       CoreExpressionCapabilities.CAN_SET_DATASET_ALIAS));
   }
 
   /**
@@ -92,6 +98,16 @@ public class SQLExpressionFactory implements ExpressionFactory<String> {
     }
 
     return new SQLExpression(qualify(column));
+  }
+
+  @Override
+  public Relation setDataSetAlias(Relation relation, String alias) {    // Ensure relation is BigQueryRelation
+    if (!(relation instanceof BigQueryRelation)) {
+      return new InvalidRelation("Alias cannot be set when the relation is not BigQueryRelation");
+    }
+
+    BigQueryRelation bqRelation = (BigQueryRelation) relation;
+    return bqRelation.setDatasetName(alias);
   }
 
   /**

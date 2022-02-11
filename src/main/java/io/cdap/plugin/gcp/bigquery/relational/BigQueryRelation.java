@@ -25,6 +25,7 @@ import javax.annotation.Nullable;
 public class BigQueryRelation implements Relation {
   private static final SQLExpressionFactory factory = new SQLExpressionFactory();
 
+  private final String datasetName;
   private final Set<String> columns;
   private final BigQuerySQLDataset sourceDataset;
   private final BigQueryRelation parent;
@@ -49,14 +50,16 @@ public class BigQueryRelation implements Relation {
     String datasetName = sourceDataset.getDatasetName();
     String transformExpression = buildBaseSelect(selectedColumns, sourceTable, datasetName);
 
-    return new BigQueryRelation(sourceDataset, columnNames, null, transformExpression);
+    return new BigQueryRelation(datasetName, sourceDataset, columnNames, null, transformExpression);
   }
 
   @VisibleForTesting
-  protected BigQueryRelation(BigQuerySQLDataset sourceDataset,
+  protected BigQueryRelation(String datasetName,
+                           BigQuerySQLDataset sourceDataset,
                              Set<String> columns,
                              BigQueryRelation parent,
                              String transformExpression) {
+    this.datasetName = datasetName;
     this.columns = columns;
     this.sourceDataset = sourceDataset;
     this.parent = parent;
@@ -93,6 +96,10 @@ public class BigQueryRelation implements Relation {
     return sourceDataset;
   }
 
+  public Relation setDatasetName(String datasetName) {
+    return new BigQueryRelation(datasetName, sourceDataset, columns, this, transformExpression);
+  }
+
   @Override
   public Relation setColumn(String column, Expression value) {
     // check if expression is supported and valid
@@ -104,8 +111,8 @@ public class BigQueryRelation implements Relation {
     selectedColumns.put(column, value);
 
     // Build new transform expression and return new instance.
-    String expression = buildNestedSelect(selectedColumns, transformExpression, sourceDataset.getDatasetName(), null);
-    return new BigQueryRelation(sourceDataset, selectedColumns.keySet(), this, expression);
+    String expression = buildNestedSelect(selectedColumns, transformExpression, datasetName, null);
+    return new BigQueryRelation(datasetName, sourceDataset, selectedColumns.keySet(), this, expression);
   }
 
   @Override
@@ -119,8 +126,8 @@ public class BigQueryRelation implements Relation {
     Map<String, Expression> selectedColumns = getSelectedColumns(columns);
     selectedColumns.remove(column);
 
-    String expression = buildNestedSelect(selectedColumns, transformExpression, sourceDataset.getDatasetName(), null);
-    return new BigQueryRelation(sourceDataset, selectedColumns.keySet(), this, expression);
+    String expression = buildNestedSelect(selectedColumns, transformExpression, datasetName, null);
+    return new BigQueryRelation(datasetName, sourceDataset, selectedColumns.keySet(), this, expression);
   }
 
   @Override
@@ -131,8 +138,8 @@ public class BigQueryRelation implements Relation {
     }
 
     // Build new transform expression and return new instance.
-    String expression = buildNestedSelect(columns, transformExpression, sourceDataset.getDatasetName(), null);
-    return new BigQueryRelation(sourceDataset, columns.keySet(), this, expression);
+    String expression = buildNestedSelect(columns, transformExpression, datasetName, null);
+    return new BigQueryRelation(datasetName, sourceDataset, columns.keySet(), this, expression);
   }
 
   @Override
@@ -143,8 +150,8 @@ public class BigQueryRelation implements Relation {
     }
 
     Map<String, Expression> selectedColumns = getSelectedColumns(columns);
-    String expression = buildNestedSelect(selectedColumns, transformExpression, sourceDataset.getDatasetName(), filter);
-    return new BigQueryRelation(sourceDataset, columns, this, expression);
+    String expression = buildNestedSelect(selectedColumns, transformExpression, datasetName, filter);
+    return new BigQueryRelation(datasetName, sourceDataset, columns, this, expression);
   }
 
   @Override
@@ -156,8 +163,8 @@ public class BigQueryRelation implements Relation {
     }
 
     Set<String> columns = definition.getSelectExpressions().keySet();
-    String expression = buildGroupBy(definition, transformExpression, sourceDataset.getDatasetName());
-    return new BigQueryRelation(sourceDataset, columns, this, expression);
+    String expression = buildGroupBy(definition, transformExpression, datasetName);
+    return new BigQueryRelation(datasetName, sourceDataset, columns, this, expression);
   }
 
   @Override
@@ -169,8 +176,8 @@ public class BigQueryRelation implements Relation {
     }
 
     Set<String> columns = definition.getSelectExpressions().keySet();
-    String expression = buildDeduplicate(definition, transformExpression, sourceDataset.getDatasetName());
-    return new BigQueryRelation(sourceDataset, columns, this, expression);
+    String expression = buildDeduplicate(definition, transformExpression, datasetName);
+    return new BigQueryRelation(datasetName, sourceDataset, columns, this, expression);
   }
 
   private static String buildBaseSelect(Map<String, Expression> columns,

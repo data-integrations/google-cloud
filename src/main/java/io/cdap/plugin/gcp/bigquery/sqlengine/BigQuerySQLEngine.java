@@ -57,6 +57,7 @@ import io.cdap.cdap.etl.api.join.JoinCondition;
 import io.cdap.cdap.etl.api.join.JoinDefinition;
 import io.cdap.cdap.etl.api.join.JoinStage;
 import io.cdap.cdap.etl.api.relational.Capability;
+import io.cdap.cdap.etl.api.relational.CoreExpressionCapabilities;
 import io.cdap.cdap.etl.api.relational.Engine;
 import io.cdap.cdap.etl.api.relational.ExpressionFactory;
 import io.cdap.cdap.etl.api.relational.Relation;
@@ -80,6 +81,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
