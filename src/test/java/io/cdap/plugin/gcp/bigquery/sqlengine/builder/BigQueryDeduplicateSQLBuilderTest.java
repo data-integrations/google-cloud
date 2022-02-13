@@ -10,7 +10,7 @@
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
+ * License for the specific language govethe_row_numbering permissions and limitations under
  * the License.
  */
 
@@ -68,12 +68,12 @@ public class BigQueryDeduplicateSQLBuilderTest {
     builder.select(selectFields).dedupOn(dedupFields).filterDuplicatesBy(filterFields);
     def = builder.build();
 
-    helper = new BigQueryDeduplicateSQLBuilder(def, "select * from tbl", "ds", "rn");
+    helper = new BigQueryDeduplicateSQLBuilder(def, "select * from tbl", "ds", "the_row_number");
   }
 
   @Test
   public void testGetQuery() {
-    Assert.assertEquals("SELECT * EXCEPT(rn) FROM ("
+    Assert.assertEquals("SELECT * EXCEPT(`the_row_number`) FROM ("
                           + "SELECT "
                           + "a AS alias_a , "
                           + "b AS alias_b , "
@@ -81,9 +81,9 @@ public class BigQueryDeduplicateSQLBuilderTest {
                           + "d AS d , "
                           + "e AS e , "
                           + "f AS f , "
-                          + "ROW_NUMBER() OVER ( PARTITION BY c , d , e ORDER BY e DESC , f ASC ) AS rn "
+                          + "ROW_NUMBER() OVER ( PARTITION BY c , d , e ORDER BY e DESC , f ASC ) AS `the_row_number` "
                           + "FROM ( select * from tbl ) AS ds"
-                          + ") WHERE rn = 1",
+                          + ") WHERE `the_row_number` = 1",
                         helper.getQuery());
   }
 
@@ -96,7 +96,7 @@ public class BigQueryDeduplicateSQLBuilderTest {
                           + "d AS d , "
                           + "e AS e , "
                           + "f AS f , "
-                          + "ROW_NUMBER() OVER ( PARTITION BY c , d , e ORDER BY e DESC , f ASC ) AS rn "
+                          + "ROW_NUMBER() OVER ( PARTITION BY c , d , e ORDER BY e DESC , f ASC ) AS `the_row_number` "
                           + "FROM ( select * from tbl ) AS ds",
                         helper.getInnerSelect());
   }
@@ -109,13 +109,13 @@ public class BigQueryDeduplicateSQLBuilderTest {
                           + "d AS d , "
                           + "e AS e , "
                           + "f AS f , "
-                          + "ROW_NUMBER() OVER ( PARTITION BY c , d , e ORDER BY e DESC , f ASC ) AS rn",
+                          + "ROW_NUMBER() OVER ( PARTITION BY c , d , e ORDER BY e DESC , f ASC ) AS `the_row_number`",
                         helper.getSelectedFields(def));
   }
 
   @Test
   public void testGetRowNumColumn() {
-    Assert.assertEquals("ROW_NUMBER() OVER ( PARTITION BY c , d , e ORDER BY e DESC , f ASC ) AS rn",
+    Assert.assertEquals("ROW_NUMBER() OVER ( PARTITION BY c , d , e ORDER BY e DESC , f ASC ) AS `the_row_number`",
                         helper.getRowNumColumn(def));
   }
 

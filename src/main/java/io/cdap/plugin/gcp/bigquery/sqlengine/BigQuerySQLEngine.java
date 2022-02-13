@@ -57,7 +57,6 @@ import io.cdap.cdap.etl.api.join.JoinCondition;
 import io.cdap.cdap.etl.api.join.JoinDefinition;
 import io.cdap.cdap.etl.api.join.JoinStage;
 import io.cdap.cdap.etl.api.relational.Capability;
-import io.cdap.cdap.etl.api.relational.CoreExpressionCapabilities;
 import io.cdap.cdap.etl.api.relational.Engine;
 import io.cdap.cdap.etl.api.relational.ExpressionFactory;
 import io.cdap.cdap.etl.api.relational.Relation;
@@ -81,7 +80,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -209,7 +207,7 @@ public class BigQuerySQLEngine
 
       LOG.info("Executing Push operation for dataset {} stored in table {}",
                sqlPushRequest.getDatasetName(),
-               pushDataset.getBigQueryTableName());
+               pushDataset.getBigQueryTable());
 
       datasets.put(sqlPushRequest.getDatasetName(), pushDataset);
       return pushDataset;
@@ -226,7 +224,7 @@ public class BigQuerySQLEngine
                                                  sqlPullRequest.getDatasetName()));
     }
 
-    String table = datasets.get(sqlPullRequest.getDatasetName()).getBigQueryTableName();
+    String table = datasets.get(sqlPullRequest.getDatasetName()).getBigQueryTable();
 
     LOG.info("Executing Pull operation for dataset {} stored in table {}", sqlPullRequest.getDatasetName(), table);
 
@@ -317,7 +315,7 @@ public class BigQuerySQLEngine
       return null;
     }
 
-    String table = datasets.get(pullRequest.getDatasetName()).getBigQueryTableName();
+    String table = datasets.get(pullRequest.getDatasetName()).getBigQueryTable();
 
     return new BigQuerySparkDatasetProducer(sqlEngineConfig, datasetProject, dataset, table);
   }
@@ -348,7 +346,7 @@ public class BigQuerySQLEngine
     }
 
     // Get source table information (from the stage we are attempting to write into the sink)
-    String sourceTable = datasets.get(writeRequest.getDatasetName()).getBigQueryTableName();
+    String sourceTable = datasets.get(writeRequest.getDatasetName()).getBigQueryTable();
     TableId sourceTableId = TableId.of(datasetProject, dataset, sourceTable);
 
     // Build Big Query Write instance and execute write operation.
@@ -386,7 +384,7 @@ public class BigQuerySQLEngine
       deleteTable(datasetName, bqDataset);
     } catch (BigQueryException e) {
       LOG.error("Exception when deleting BigQuery table '{}' for stage '{}': {}",
-                bqDataset.getBigQueryTableName(), datasetName, e.getMessage());
+                bqDataset.getBigQueryTable(), datasetName, e.getMessage());
       if (ex == null) {
         ex = new SQLEngineException(String.format("Exception when executing cleanup for stage '%s'", datasetName), e);
       } else {
@@ -441,10 +439,9 @@ public class BigQuerySQLEngine
         columnSet.add(field.getName());
       }
     }
+    String datasetName = relationDefinition.getDatasetName();
 
-    BigQuerySQLDataset sqlDataset = datasets.get(relationDefinition.getDatasetName());
-
-    return BigQueryRelation.getInstance(datasetProject, dataset, sqlDataset, columnSet);
+    return BigQueryRelation.getInstance(datasetName, columnSet);
   }
 
   @Override
@@ -467,6 +464,18 @@ public class BigQuerySQLEngine
   public SQLDataset transform(SQLTransformRequest context) throws SQLEngineException {
     // Get relation instance
     BigQueryRelation relation = (BigQueryRelation) context.getOutputRelation();
+
+    // Set input datasets
+    Map<String, BigQuerySQLDataset> bqDatasets = context.getInputDataSets().entrySet()
+      .stream()
+      .collect(Collectors.toMap(
+        Map.Entry::getKey,
+        e -> (BigQuerySQLDataset) e.getValue()));
+
+    // Set input datasets for relation.
+    relation.setInputDatasets(bqDatasets);
+
+    // Execute select with the generated expression.
     return executeSelect(context.getOutputDatasetName(),
                          context.getOutputSchema(),
                          BigQueryJobType.TRANSFORM,
@@ -517,7 +526,7 @@ public class BigQuerySQLEngine
       .stream()
       .collect(Collectors.toMap(
         Map.Entry::getKey,
-        e -> e.getValue().getBigQueryTableName()
+        e -> e.getValue().getBigQueryTable()
       ));
   }
 
@@ -540,7 +549,7 @@ public class BigQuerySQLEngine
       return;
     }
 
-    String tableName = bqDataset.getBigQueryTableName();
+    String tableName = bqDataset.getBigQueryTable();
     Job job = bigQuery.getJob(jobId);
 
     if (job == null) {
@@ -564,7 +573,7 @@ public class BigQuerySQLEngine
       return;
     }
 
-    String tableName = bqDataset.getBigQueryTableName();
+    String tableName = bqDataset.getBigQueryTable();
     TableId tableId = TableId.of(datasetProject, dataset, tableName);
 
     if (!bigQuery.delete(tableId)) {

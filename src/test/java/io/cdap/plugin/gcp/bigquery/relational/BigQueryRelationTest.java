@@ -55,20 +55,29 @@ BigQueryRelationTest {
     columns.add("a");
     columns.add("b");
 
-    baseRelation = new BigQueryRelation("ds", ds, columns, null, "select * from tbl");
+    baseRelation = new BigQueryRelation("ds",
+                                        columns,
+                                        null,
+                                        () -> "select * from tbl");
+    baseRelation.setInputDatasets(Collections.singletonMap("ds", ds));
   }
 
   @Test
   public void testSetColumn() {
-    Relation rel = baseRelation.setColumn("c", factory.compile("a+b"));
-    Assert.assertTrue(rel instanceof BigQueryRelation);
-    Assert.assertEquals(baseRelation, ((BigQueryRelation) rel).getParent());
+    Relation relation = baseRelation.setColumn("c", factory.compile("a+b"));
+    Assert.assertTrue(relation instanceof BigQueryRelation);
 
-    Set<String> columns = ((BigQueryRelation) rel).getColumns();
+    // Cast to BigQueryRelation
+    BigQueryRelation bqRelation = (BigQueryRelation) relation;
+    Assert.assertEquals(baseRelation, bqRelation.getParent());
+
+    Set<String> columns = bqRelation.getColumns();
     Assert.assertEquals(3, columns.size());
     Assert.assertTrue(columns.contains("a"));
     Assert.assertTrue(columns.contains("b"));
     Assert.assertTrue(columns.contains("c"));
+    Assert.assertEquals("SELECT `a` AS `a` , `b` AS `b` , a+b AS `c` FROM (select * from tbl) AS `ds`",
+                        bqRelation.getTransformExpression());
   }
 
   @Test
@@ -84,13 +93,18 @@ BigQueryRelationTest {
 
   @Test
   public void testDropColumn() {
-    Relation rel = baseRelation.dropColumn("b");
-    Assert.assertTrue(rel instanceof BigQueryRelation);
-    Assert.assertEquals(baseRelation, ((BigQueryRelation) rel).getParent());
+    Relation relation = baseRelation.dropColumn("b");
+    Assert.assertTrue(relation instanceof BigQueryRelation);
 
-    Set<String> columns = ((BigQueryRelation) rel).getColumns();
+    // Cast to BigQueryRelation
+    BigQueryRelation bqRelation = (BigQueryRelation) relation;
+    Assert.assertEquals(baseRelation, bqRelation.getParent());
+
+    Set<String> columns = bqRelation.getColumns();
     Assert.assertEquals(1, columns.size());
     Assert.assertTrue(columns.contains("a"));
+    Assert.assertEquals("SELECT `a` AS `a` FROM (select * from tbl) AS `ds`",
+                        bqRelation.getTransformExpression());
   }
 
   @Test
@@ -105,14 +119,19 @@ BigQueryRelationTest {
     selectColumns.put("new_a", factory.compile("a"));
     selectColumns.put("new_b", factory.compile("b"));
 
-    Relation rel = baseRelation.select(selectColumns);
-    Assert.assertTrue(rel instanceof BigQueryRelation);
-    Assert.assertEquals(baseRelation, ((BigQueryRelation) rel).getParent());
+    Relation relation = baseRelation.select(selectColumns);
+    Assert.assertTrue(relation instanceof BigQueryRelation);
 
-    Set<String> columns = ((BigQueryRelation) rel).getColumns();
+    // Cast to BigQueryRelation
+    BigQueryRelation bqRelation = (BigQueryRelation) relation;
+    Assert.assertEquals(baseRelation, bqRelation.getParent());
+
+    Set<String> columns = bqRelation.getColumns();
     Assert.assertEquals(2, columns.size());
     Assert.assertTrue(columns.contains("new_a"));
     Assert.assertTrue(columns.contains("new_b"));
+    Assert.assertEquals("SELECT a AS `new_a` , b AS `new_b` FROM (select * from tbl) AS `ds`",
+                        bqRelation.getTransformExpression());
   }
 
   @Test
@@ -130,14 +149,19 @@ BigQueryRelationTest {
   public void testFilter() {
     Expression filter = factory.compile("a > 2");
 
-    Relation rel = baseRelation.filter(filter);
-    Assert.assertTrue(rel instanceof BigQueryRelation);
-    Assert.assertEquals(baseRelation, ((BigQueryRelation) rel).getParent());
+    Relation relation = baseRelation.filter(filter);
+    Assert.assertTrue(relation instanceof BigQueryRelation);
 
-    Set<String> columns = ((BigQueryRelation) rel).getColumns();
+    // Cast to BigQueryRelation
+    BigQueryRelation bqRelation = (BigQueryRelation) relation;
+    Assert.assertEquals(baseRelation, bqRelation.getParent());
+
+    Set<String> columns = bqRelation.getColumns();
     Assert.assertEquals(2, columns.size());
     Assert.assertTrue(columns.contains("a"));
     Assert.assertTrue(columns.contains("b"));
+    Assert.assertEquals("SELECT `a` AS `a` , `b` AS `b` FROM (select * from tbl) AS `ds` WHERE a > 2",
+                        bqRelation.getTransformExpression());
   }
 
   @Test
@@ -157,7 +181,6 @@ BigQueryRelationTest {
     GroupByAggregationDefinition.Builder builder;
     Map<String, Expression> selectFields;
     List<Expression> groupByFields;
-    Relation rel;
 
     // Create builder for aggregation definitions
     builder = new GroupByAggregationDefinition.Builder();
@@ -175,16 +198,23 @@ BigQueryRelationTest {
     builder.select(selectFields).groupBy(groupByFields);
     def = builder.build();
 
-    rel = baseRelation.groupBy(def);
-    Assert.assertTrue(rel instanceof BigQueryRelation);
-    Assert.assertEquals(baseRelation, ((BigQueryRelation) rel).getParent());
+    Relation relation = baseRelation.groupBy(def);
+    Assert.assertTrue(relation instanceof BigQueryRelation);
 
-    Set<String> columns = ((BigQueryRelation) rel).getColumns();
+    // Cast to BigQueryRelation
+    BigQueryRelation bqRelation = (BigQueryRelation) relation;
+    Assert.assertEquals(baseRelation, bqRelation.getParent());
+
+    Set<String> columns = bqRelation.getColumns();
     Assert.assertEquals(4, columns.size());
     Assert.assertTrue(columns.contains("a"));
     Assert.assertTrue(columns.contains("b"));
     Assert.assertTrue(columns.contains("c"));
     Assert.assertTrue(columns.contains("d"));
+    Assert.assertEquals("SELECT a AS `a` , MAX(a) AS `b` , MIN(b) AS `c` , d AS `d` "
+                          + "FROM ( select * from tbl ) AS ds "
+                          + "GROUP BY a , d",
+                        bqRelation.getTransformExpression());
   }
 
   @Test
@@ -193,7 +223,6 @@ BigQueryRelationTest {
     GroupByAggregationDefinition.Builder builder;
     Map<String, Expression> selectFields;
     List<Expression> groupByFields;
-    Relation rel;
 
     // Create builder for aggregation definitions
     builder = new GroupByAggregationDefinition.Builder();
@@ -207,7 +236,7 @@ BigQueryRelationTest {
     builder.select(selectFields).groupBy(groupByFields);
     def = builder.build();
 
-    rel = baseRelation.groupBy(def);
+    Relation rel = baseRelation.groupBy(def);
     Assert.assertTrue(rel instanceof InvalidRelation);
   }
 
@@ -218,7 +247,6 @@ BigQueryRelationTest {
     Map<String, Expression> selectFields;
     List<Expression> dedupFields;
     List<DeduplicateAggregationDefinition.FilterExpression> filterFields;
-    Relation rel;
 
     // Create builder for aggregation definitions
     builder = new DeduplicateAggregationDefinition.Builder();
@@ -240,16 +268,25 @@ BigQueryRelationTest {
     builder.select(selectFields).dedupOn(dedupFields).filterDuplicatesBy(filterFields);
     def = builder.build();
 
-    rel = baseRelation.deduplicate(def);
-    Assert.assertTrue(rel instanceof BigQueryRelation);
-    Assert.assertEquals(baseRelation, ((BigQueryRelation) rel).getParent());
+    Relation relation = baseRelation.deduplicate(def);
+    Assert.assertTrue(relation instanceof BigQueryRelation);
 
-    Set<String> columns = ((BigQueryRelation) rel).getColumns();
+    // Cast to BigQueryRelation
+    BigQueryRelation bqRelation = (BigQueryRelation) relation;
+    Assert.assertEquals(baseRelation, bqRelation.getParent());
+
+    Set<String> columns = bqRelation.getColumns();
     Assert.assertEquals(4, columns.size());
     Assert.assertTrue(columns.contains("a"));
     Assert.assertTrue(columns.contains("b"));
     Assert.assertTrue(columns.contains("c"));
     Assert.assertTrue(columns.contains("d"));
+    String transformExpression = bqRelation.getTransformExpression();
+    Assert.assertTrue(transformExpression.startsWith("SELECT * EXCEPT(`rn_"));
+    Assert.assertTrue(transformExpression.contains("`) FROM (SELECT a AS `a` , b AS `b` , c AS `c` , d AS `d` , " +
+                                                     "ROW_NUMBER() OVER ( PARTITION BY a , d ORDER BY a DESC ) AS `"));
+    Assert.assertTrue(transformExpression.contains("` FROM ( select * from tbl ) AS ds) WHERE `rn_"));
+    Assert.assertTrue(transformExpression.endsWith("` = 1"));
   }
 
   @Test
@@ -448,6 +485,7 @@ BigQueryRelationTest {
       return false;
     }
   }
+
   /**
    * Expression class that doesn't extend from SQLExpression
    */

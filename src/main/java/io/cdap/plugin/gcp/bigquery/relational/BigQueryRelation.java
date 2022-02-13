@@ -16,6 +16,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
@@ -27,43 +28,48 @@ public class BigQueryRelation implements Relation {
 
   private final String datasetName;
   private final Set<String> columns;
-  private final BigQuerySQLDataset sourceDataset;
   private final BigQueryRelation parent;
-  private final String transformExpression;
+  private Map<String, BigQuerySQLDataset> sourceDatasets;
+  private final Supplier<String> expressionSupplier;
 
   /**
    * Gets a new BigQueryRelation instance
    *
-   * @param bqProject     Project where the source SQL table is stored
-   * @param bqDataset     Dataset where the source SQL table is stored
-   * @param sourceDataset source SQL Dataset instance
-   * @param columnNames   column names to use when initializing this relation.
+   * @param datasetName source dataset name
+   * @param columnNames column names to use when initializing this relation.
    * @return new BigQueryRelation instance for this table.
    */
-  public static BigQueryRelation getInstance(String bqProject,
-                                             String bqDataset,
-                                             BigQuerySQLDataset sourceDataset,
+  public static BigQueryRelation getInstance(String datasetName,
                                              Set<String> columnNames) {
-    Map<String, Expression> selectedColumns = getSelectedColumns(columnNames);
-    // Build qualified source table and dataset names for base query.
-    String sourceTable = String.format("%s.%s.%s", bqProject, bqDataset, sourceDataset.getBigQueryTableName());
-    String datasetName = sourceDataset.getDatasetName();
-    String transformExpression = buildBaseSelect(selectedColumns, sourceTable, datasetName);
-
-    return new BigQueryRelation(datasetName, sourceDataset, columnNames, null, transformExpression);
+    return new BigQueryRelation(datasetName, columnNames);
   }
 
   @VisibleForTesting
   protected BigQueryRelation(String datasetName,
-                           BigQuerySQLDataset sourceDataset,
-                             Set<String> columns,
-                             BigQueryRelation parent,
-                             String transformExpression) {
+                             Set<String> columns) {
     this.datasetName = datasetName;
     this.columns = columns;
-    this.sourceDataset = sourceDataset;
+    this.parent = null;
+    this.expressionSupplier = () -> {
+      BigQuerySQLDataset sourceDataset = sourceDatasets.get(datasetName);
+      Map<String, Expression> selectedColumns = getSelectedColumns(columns);
+      String sourceTable = String.format("%s.%s.%s",
+                                         sourceDataset.getBigQueryProject(),
+                                         sourceDataset.getBigQueryDataset(),
+                                         sourceDataset.getBigQueryTable());
+      return buildBaseSelect(selectedColumns, sourceTable, datasetName);
+    };
+  }
+
+  @VisibleForTesting
+  protected BigQueryRelation(String datasetName,
+                             Set<String> columns,
+                             BigQueryRelation parent,
+                             Supplier<String> expressionSupplier) {
+    this.datasetName = datasetName;
+    this.columns = columns;
     this.parent = parent;
-    this.transformExpression = transformExpression;
+    this.expressionSupplier = expressionSupplier;
   }
 
   private Relation getInvalidRelation(String validationError) {
@@ -80,24 +86,62 @@ public class BigQueryRelation implements Relation {
     return null;
   }
 
+  /**
+   * Get parent relation
+   * @return parent relation instance. This can be null for a base relation.
+   */
+  @Nullable
   public Relation getParent() {
     return parent;
   }
 
+  /**
+   * Method use to materialize the transform expression from this dataset.
+   * @return transform expression used when executing SQL statements.
+   */
   public String getTransformExpression() {
-    return transformExpression;
+    return expressionSupplier.get();
   }
 
+  /**
+   * Get columns defined in this relation
+   * @return Columns defined in this relation.
+   */
   public Set<String> getColumns() {
     return columns;
   }
 
-  public BigQuerySQLDataset getSourceDataset() {
-    return sourceDataset;
+  /**
+   * Sets input datasets for this instance and the parent instance (if defined)
+   */
+  public void setInputDatasets(Map<String, BigQuerySQLDataset> datasets) {
+    this.sourceDatasets = datasets;
+
+    // Propagate datasets into parent.
+    if (parent != null) {
+      parent.setInputDatasets(datasets);
+    }
   }
 
-  public Relation setDatasetName(String datasetName) {
-    return new BigQueryRelation(datasetName, sourceDataset, columns, this, transformExpression);
+  /**
+   * Get the dataset name for this relation.
+   * @return dataset name
+   */
+  public String getDatasetName() {
+    return datasetName;
+  }
+
+  /**
+   * Get a new relation with a redefined dataset name.
+   * @param newDatasetName new dataset name for this relation.
+   * @return new Relation with the new dataset name.
+   */
+  public Relation setDatasetName(String newDatasetName) {
+    Map<String, Expression> selectedColumns = getSelectedColumns(columns);
+    // Build new transform expression and return new instance.
+    Supplier<String> supplier =
+      () -> buildNestedSelect(selectedColumns, getTransformExpression(), newDatasetName, null);
+    return new BigQueryRelation(newDatasetName, columns, this, supplier);
   }
 
   @Override
@@ -111,8 +155,9 @@ public class BigQueryRelation implements Relation {
     selectedColumns.put(column, value);
 
     // Build new transform expression and return new instance.
-    String expression = buildNestedSelect(selectedColumns, transformExpression, datasetName, null);
-    return new BigQueryRelation(datasetName, sourceDataset, selectedColumns.keySet(), this, expression);
+    Supplier<String> supplier =
+      () -> buildNestedSelect(selectedColumns, getTransformExpression(), datasetName, null);
+    return new BigQueryRelation(datasetName, selectedColumns.keySet(), this, supplier);
   }
 
   @Override
@@ -126,8 +171,10 @@ public class BigQueryRelation implements Relation {
     Map<String, Expression> selectedColumns = getSelectedColumns(columns);
     selectedColumns.remove(column);
 
-    String expression = buildNestedSelect(selectedColumns, transformExpression, datasetName, null);
-    return new BigQueryRelation(datasetName, sourceDataset, selectedColumns.keySet(), this, expression);
+    // Build new transform expression and return new instance.
+    Supplier<String> supplier =
+      () -> buildNestedSelect(selectedColumns, getTransformExpression(), datasetName, null);
+    return new BigQueryRelation(datasetName, selectedColumns.keySet(), this, supplier);
   }
 
   @Override
@@ -138,8 +185,9 @@ public class BigQueryRelation implements Relation {
     }
 
     // Build new transform expression and return new instance.
-    String expression = buildNestedSelect(columns, transformExpression, datasetName, null);
-    return new BigQueryRelation(datasetName, sourceDataset, columns.keySet(), this, expression);
+    Supplier<String> supplier =
+      () -> buildNestedSelect(columns, getTransformExpression(), datasetName, null);
+    return new BigQueryRelation(datasetName, columns.keySet(), this, supplier);
   }
 
   @Override
@@ -150,8 +198,10 @@ public class BigQueryRelation implements Relation {
     }
 
     Map<String, Expression> selectedColumns = getSelectedColumns(columns);
-    String expression = buildNestedSelect(selectedColumns, transformExpression, datasetName, filter);
-    return new BigQueryRelation(datasetName, sourceDataset, columns, this, expression);
+    // Build new transform expression and return new instance.
+    Supplier<String> supplier =
+      () -> buildNestedSelect(selectedColumns, getTransformExpression(), datasetName, filter);
+    return new BigQueryRelation(datasetName, columns, this, supplier);
   }
 
   @Override
@@ -163,8 +213,11 @@ public class BigQueryRelation implements Relation {
     }
 
     Set<String> columns = definition.getSelectExpressions().keySet();
-    String expression = buildGroupBy(definition, transformExpression, datasetName);
-    return new BigQueryRelation(datasetName, sourceDataset, columns, this, expression);
+
+    // Build new transform expression and return new instance.
+    Supplier<String> supplier =
+      () -> buildGroupBy(definition, getTransformExpression(), datasetName);
+    return new BigQueryRelation(datasetName, columns, this, supplier);
   }
 
   @Override
@@ -176,8 +229,9 @@ public class BigQueryRelation implements Relation {
     }
 
     Set<String> columns = definition.getSelectExpressions().keySet();
-    String expression = buildDeduplicate(definition, transformExpression, datasetName);
-    return new BigQueryRelation(datasetName, sourceDataset, columns, this, expression);
+    Supplier<String> supplier =
+      () -> buildDeduplicate(definition, getTransformExpression(), datasetName);
+    return new BigQueryRelation(datasetName, columns, this, supplier);
   }
 
   private static String buildBaseSelect(Map<String, Expression> columns,
@@ -228,6 +282,7 @@ public class BigQueryRelation implements Relation {
 
   /**
    * Use the {@link SQLExpressionFactory} to qualify identifiers (Columns names/aliases or table names/aliases)
+   *
    * @param identifier identifier to qualify
    * @return qualified identifier
    */
@@ -237,6 +292,7 @@ public class BigQueryRelation implements Relation {
 
   /**
    * Transform a map containing alias -> column expression by qualifying the Alias.
+   *
    * @param columns map containing column aliases and expressions
    * @return Map with aliases qualified
    */
@@ -281,6 +337,7 @@ public class BigQueryRelation implements Relation {
 
   /**
    * Builds a new {@link GroupByAggregationDefinition} with qualified aliases for the Select Expression.
+   *
    * @param def supplied {@link GroupByAggregationDefinition}
    * @return {@link GroupByAggregationDefinition} with qualified column aliases
    */
@@ -315,6 +372,7 @@ public class BigQueryRelation implements Relation {
 
   /**
    * Builds a new {@link DeduplicateAggregationDefinition} with qualified aliases for the Select Expression.
+   *
    * @param def supplied {@link DeduplicateAggregationDefinition}
    * @return {@link DeduplicateAggregationDefinition} with qualified column aliases
    */

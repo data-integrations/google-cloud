@@ -7,14 +7,12 @@ import io.cdap.cdap.etl.api.relational.ExpressionFactory;
 import io.cdap.cdap.etl.api.relational.ExpressionFactoryType;
 import io.cdap.cdap.etl.api.relational.ExtractableExpression;
 import io.cdap.cdap.etl.api.relational.InvalidExtractableExpression;
-import io.cdap.cdap.etl.api.relational.InvalidExtractableExpressionException;
 import io.cdap.cdap.etl.api.relational.InvalidRelation;
 import io.cdap.cdap.etl.api.relational.Relation;
 import io.cdap.cdap.etl.api.relational.StringExpressionFactoryType;
 import io.cdap.plugin.gcp.bigquery.sqlengine.builder.BigQueryBaseSQLBuilder;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -72,8 +70,7 @@ public class SQLExpressionFactory implements ExpressionFactory<String> {
     }
 
     // Return Dataset name wrapped in quotes.
-    BigQueryRelation bqRelation = (BigQueryRelation) relation;
-    String datasetName = bqRelation.getSourceDataset().getDatasetName();
+    String datasetName = ((BigQueryRelation) relation).getDatasetName();
     return new SQLExpression(qualify(datasetName));
   }
 

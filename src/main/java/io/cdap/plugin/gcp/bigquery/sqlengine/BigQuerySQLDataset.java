@@ -28,10 +28,22 @@ import javax.annotation.Nullable;
 public interface BigQuerySQLDataset extends SQLDataset {
 
   /**
-   * Return table name where records for this dataset are stored in BigQuery.
+   * Return project name where records are stored in BigQuery
    * @return Table names for these records.
    */
-  String getBigQueryTableName();
+  String getBigQueryProject();
+
+  /**
+   * Return dataset name where records are stored in BigQuery.
+   * @return Table names for these records.
+   */
+  String getBigQueryDataset();
+
+  /**
+   * Return table name where records are stored in BigQuery.
+   * @return Table names for these records.
+   */
+  String getBigQueryTable();
 
   /**
    * Gets the Job ID for the jobs that are triggered by this Dataset operation.
