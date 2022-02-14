@@ -21,6 +21,7 @@ import com.google.cloud.storage.StorageException;
 import io.cdap.e2e.utils.BigQueryClient;
 import io.cdap.e2e.utils.PluginPropertyUtils;
 import io.cdap.e2e.utils.StorageClient;
+import io.cdap.plugin.utils.PubSubClient;
 import io.cucumber.java.After;
 import io.cucumber.java.Before;
 import org.apache.commons.lang3.StringUtils;
@@ -41,6 +42,7 @@ public class TestSetupHooks {
   public static String gcsTargetBucketName = StringUtils.EMPTY;
   public static String bqTargetTable = StringUtils.EMPTY;
   public static String bqSourceTable = StringUtils.EMPTY;
+  public static String pubSubTargetTopic = StringUtils.EMPTY;
 
   @Before(order = 1, value = "@GCS_CSV_TEST")
   public static void createBucketWithCSVFile() throws IOException, URISyntaxException {
@@ -120,7 +122,7 @@ public class TestSetupHooks {
    */
   @Before(order = 1, value = "@BQ_SOURCE_TEST")
   public static void createTempSourceBQTable() throws IOException, InterruptedException {
-    bqSourceTable = "E2E_TEST_SOURCE_" + (int) (Math.random() * (10000) + 1);
+    bqSourceTable = "E2E_SOURCE_" + UUID.randomUUID().toString().replaceAll("-", "_");
     StringBuilder records = new StringBuilder(StringUtils.EMPTY);
     for (int index = 2; index <= 25; index++) {
       records.append(" (").append(index).append(", ").append((int) (Math.random() * (1000) + 1)).append(", '")
@@ -153,7 +155,7 @@ public class TestSetupHooks {
    */
   @Before(order = 1, value = "@BQ_PARTITIONED_SOURCE_TEST")
   public static void createTempPartitionedSourceBQTable() throws IOException, InterruptedException {
-    bqSourceTable = "E2E_TEST_SOURCE_" + (int) (Math.random() * (10000) + 1);
+    bqSourceTable = "E2E_SOURCE_" + UUID.randomUUID().toString().replaceAll("-", "_");
       BigQueryClient.getSoleQueryResult("create table `test_automation." + bqSourceTable + "` " +
                                           "(transaction_id INT64, transaction_uid STRING, transaction_date DATE ) " +
                                           "PARTITION BY _PARTITIONDATE");
@@ -186,6 +188,27 @@ public class TestSetupHooks {
     } catch (StorageException | IOException e) {
       if (e.getMessage().contains("The specified bucket does not exist")) {
         BeforeActions.scenario.write("GCS Bucket " + bucketName + " does not exist.");
+      } else {
+        Assert.fail(e.getMessage());
+      }
+    }
+  }
+
+  @Before(order = 1, value = "@PUBSUB_SINK_TEST")
+  public static void createTargetPubSubTopic() {
+    pubSubTargetTopic = "cdf-e2e-test-" + UUID.randomUUID();
+    BeforeActions.scenario.write("Target PubSub topic " + pubSubTargetTopic);
+  }
+
+  @After(order = 1, value = "@PUBSUB_SINK_TEST")
+  public static void deleteTargetPubSubTopic() {
+    try {
+      PubSubClient.deleteTopic(pubSubTargetTopic);
+      BeforeActions.scenario.write("Deleted target PubSub topic " + pubSubTargetTopic);
+      pubSubTargetTopic = StringUtils.EMPTY;
+    } catch (Exception e) {
+      if (e.getMessage().contains("Invalid resource name given") || e.getMessage().contains("Resource not found")) {
+        BeforeActions.scenario.write("Target PubSub topic " + pubSubTargetTopic + " does not exist.");
       } else {
         Assert.fail(e.getMessage());
       }
