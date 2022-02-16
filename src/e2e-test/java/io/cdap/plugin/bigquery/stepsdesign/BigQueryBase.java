@@ -21,8 +21,10 @@ import io.cdap.e2e.pages.locators.CdfStudioLocators;
 import io.cdap.e2e.utils.BigQueryClient;
 import io.cdap.e2e.utils.CdfHelper;
 import io.cdap.e2e.utils.PluginPropertyUtils;
+import io.cdap.e2e.utils.SeleniumDriver;
 import io.cdap.e2e.utils.SeleniumHelper;
 import io.cdap.plugin.common.stepsdesign.TestSetupHooks;
+import io.cucumber.java.en.And;
 import io.cucumber.java.en.Then;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.Assert;
@@ -165,5 +167,14 @@ public class BigQueryBase implements CdfHelper {
     } else {
       BeforeActions.scenario.write("CMEK not enabled");
     }
+  }
+
+  /**
+   * Workaround till https://cdap.atlassian.net/browse/CDAP-18862 gets fixed.
+   * Remove once issue is fixed
+   */
+  @And("Wait for page to render properly")
+  public void waitForPageToRenderProperly() {
+    SeleniumDriver.waitForPageToLoad();
   }
 }
