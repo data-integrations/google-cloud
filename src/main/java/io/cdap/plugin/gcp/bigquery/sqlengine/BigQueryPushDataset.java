@@ -138,7 +138,17 @@ public class BigQueryPushDataset extends BigQueryOutputFormatProvider
   }
 
   @Override
-  public String getBigQueryTableName() {
+  public String getBigQueryProject() {
+    return bqDataset.getProject();
+  }
+
+  @Override
+  public String getBigQueryDataset() {
+    return bqDataset.getDataset();
+  }
+
+  @Override
+  public String getBigQueryTable() {
     return bqTable;
   }
 

@@ -16,6 +16,8 @@
 
 package io.cdap.plugin.gcp.bigquery.sqlengine;
 
+import io.cdap.cdap.etl.api.engine.sql.dataset.SQLDataset;
+
 import javax.annotation.Nullable;
 
 /**
@@ -23,13 +25,25 @@ import javax.annotation.Nullable;
  *
  * These methods are used to ensure that the cleanup removes all GCS object and BigQuery tables.
  */
-public interface BigQuerySQLDataset {
+public interface BigQuerySQLDataset extends SQLDataset {
 
   /**
-   * Return table name where records for this dataset are stored in BigQuery.
+   * Return project name where records are stored in BigQuery
    * @return Table names for these records.
    */
-  String getBigQueryTableName();
+  String getBigQueryProject();
+
+  /**
+   * Return dataset name where records are stored in BigQuery.
+   * @return Table names for these records.
+   */
+  String getBigQueryDataset();
+
+  /**
+   * Return table name where records are stored in BigQuery.
+   * @return Table names for these records.
+   */
+  String getBigQueryTable();
 
   /**
    * Gets the Job ID for the jobs that are triggered by this Dataset operation.

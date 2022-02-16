@@ -45,7 +45,7 @@ import static org.powermock.api.mockito.PowerMockito.spy;
 import static org.powermock.api.mockito.PowerMockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
-public class BigQuerySQLBuilderTest {
+public class BigQueryJoinSQLBuilderTest {
   private JoinDefinition joinDefinition;
   private StringBuilder builder;
   private Map<String, String> stageToBQTableNameMap;
@@ -53,7 +53,7 @@ public class BigQuerySQLBuilderTest {
   private Map<String, String> stageToTableAliasMap;
   private String project;
   private String dataset;
-  private BigQuerySQLBuilder helper;
+  private BigQueryJoinSQLBuilder helper;
 
   @Before
   public void setUp() {
@@ -86,12 +86,12 @@ public class BigQuerySQLBuilderTest {
     project = "project";
     dataset = "dataset";
 
-    helper = spy(new BigQuerySQLBuilder(joinDefinition,
-                                        DatasetId.of(project, dataset),
-                                        stageToBQTableNameMap,
-                                        stageToFullTableNameMap,
-                                        stageToTableAliasMap,
-                                        builder));
+    helper = spy(new BigQueryJoinSQLBuilder(joinDefinition,
+                                            DatasetId.of(project, dataset),
+                                            stageToBQTableNameMap,
+                                            stageToFullTableNameMap,
+                                            stageToTableAliasMap,
+                                            builder));
   }
 
   @Test
@@ -118,8 +118,8 @@ public class BigQuerySQLBuilderTest {
     stateToBqTableNames.put("Users", "u");
     stateToBqTableNames.put("Purchases", "p");
 
-    BigQuerySQLBuilder helper =
-      new BigQuerySQLBuilder(joinDefinition, DatasetId.of("my-project", "MY_DS"), stateToBqTableNames);
+    BigQueryJoinSQLBuilder helper =
+      new BigQueryJoinSQLBuilder(joinDefinition, DatasetId.of("my-project", "MY_DS"), stateToBqTableNames);
 
     Assert.assertEquals(
       "SELECT `Users`.id AS `user_id` , `Purchases`.id AS `purchase_id` "
@@ -156,8 +156,8 @@ public class BigQuerySQLBuilderTest {
     stateToBqTableNames.put("FromAddresses", "from-addr");
     stateToBqTableNames.put("ToAddresses", "to-addr");
 
-    BigQuerySQLBuilder helper =
-      new BigQuerySQLBuilder(joinDefinition, DatasetId.of("my-project", "MY_DS"), stateToBqTableNames);
+    BigQueryJoinSQLBuilder helper =
+      new BigQueryJoinSQLBuilder(joinDefinition, DatasetId.of("my-project", "MY_DS"), stateToBqTableNames);
 
     Assert.assertEquals(
       "SELECT `Shipments`.id AS `shipment_id` , `FromAddresses`.zip AS `from_zip` , `ToAddresses`.zip AS `to_zip` "
@@ -204,8 +204,8 @@ public class BigQuerySQLBuilderTest {
     stateToBqTableNames.put("Users", "u");
     stateToBqTableNames.put("Purchases", "p");
 
-    BigQuerySQLBuilder helper =
-      new BigQuerySQLBuilder(joinDefinition, DatasetId.of("my-project", "MY_DS"), stateToBqTableNames);
+    BigQueryJoinSQLBuilder helper =
+      new BigQueryJoinSQLBuilder(joinDefinition, DatasetId.of("my-project", "MY_DS"), stateToBqTableNames);
 
     Assert.assertEquals(
       "SELECT `Users`.id AS `user_id` , `purch`.id AS `purchase_id` , `purch`.price "

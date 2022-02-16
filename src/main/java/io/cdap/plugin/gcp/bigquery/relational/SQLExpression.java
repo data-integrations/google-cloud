@@ -1,6 +1,6 @@
 package io.cdap.plugin.gcp.bigquery.relational;
 
-import io.cdap.cdap.etl.api.relational.Expression;
+import io.cdap.cdap.etl.api.relational.ExtractableExpression;
 
 import java.util.Objects;
 
@@ -10,7 +10,7 @@ import java.util.Objects;
  * It is the responsibility of the factory creating {@link SQLExpression} objects to enforce correctness of
  * the expression.
  */
-public class SQLExpression implements Expression {
+public class SQLExpression implements ExtractableExpression<String> {
   private final String expression;
 
   /**
@@ -25,7 +25,8 @@ public class SQLExpression implements Expression {
    *
    * @return the SQL string contained in the {@link SQLExpression} object.
    */
-  public String getExpression() {
+  @Override
+  public String extract() {
     return expression;
   }
 
@@ -63,11 +64,11 @@ public class SQLExpression implements Expression {
       return false;
     }
     SQLExpression that = (SQLExpression) o;
-    return Objects.equals(getExpression(), that.getExpression());
+    return Objects.equals(extract(), that.extract());
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(getExpression());
+    return Objects.hash(extract());
   }
 }
