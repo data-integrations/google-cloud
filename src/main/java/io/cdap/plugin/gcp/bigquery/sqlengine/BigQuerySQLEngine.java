@@ -479,7 +479,7 @@ public class BigQuerySQLEngine
     return executeSelect(context.getOutputDatasetName(),
                          context.getOutputSchema(),
                          BigQueryJobType.TRANSFORM,
-                         relation.getTransformExpression());
+                         relation.getSQLStatement());
   }
 
   private BigQuerySelectDataset executeSelect(String datasetName,

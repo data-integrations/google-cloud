@@ -29,6 +29,8 @@ import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -77,7 +79,7 @@ BigQueryRelationTest {
     Assert.assertTrue(columns.contains("b"));
     Assert.assertTrue(columns.contains("c"));
     Assert.assertEquals("SELECT `a` AS `a` , `b` AS `b` , a+b AS `c` FROM (select * from tbl) AS `ds`",
-                        bqRelation.getTransformExpression());
+                        bqRelation.getSQLStatement());
   }
 
   @Test
@@ -104,7 +106,7 @@ BigQueryRelationTest {
     Assert.assertEquals(1, columns.size());
     Assert.assertTrue(columns.contains("a"));
     Assert.assertEquals("SELECT `a` AS `a` FROM (select * from tbl) AS `ds`",
-                        bqRelation.getTransformExpression());
+                        bqRelation.getSQLStatement());
   }
 
   @Test
@@ -131,7 +133,7 @@ BigQueryRelationTest {
     Assert.assertTrue(columns.contains("new_a"));
     Assert.assertTrue(columns.contains("new_b"));
     Assert.assertEquals("SELECT a AS `new_a` , b AS `new_b` FROM (select * from tbl) AS `ds`",
-                        bqRelation.getTransformExpression());
+                        bqRelation.getSQLStatement());
   }
 
   @Test
@@ -161,7 +163,7 @@ BigQueryRelationTest {
     Assert.assertTrue(columns.contains("a"));
     Assert.assertTrue(columns.contains("b"));
     Assert.assertEquals("SELECT `a` AS `a` , `b` AS `b` FROM (select * from tbl) AS `ds` WHERE a > 2",
-                        bqRelation.getTransformExpression());
+                        bqRelation.getSQLStatement());
   }
 
   @Test
@@ -214,7 +216,7 @@ BigQueryRelationTest {
     Assert.assertEquals("SELECT a AS `a` , MAX(a) AS `b` , MIN(b) AS `c` , d AS `d` "
                           + "FROM ( select * from tbl ) AS ds "
                           + "GROUP BY a , d",
-                        bqRelation.getTransformExpression());
+                        bqRelation.getSQLStatement());
   }
 
   @Test
@@ -281,7 +283,7 @@ BigQueryRelationTest {
     Assert.assertTrue(columns.contains("b"));
     Assert.assertTrue(columns.contains("c"));
     Assert.assertTrue(columns.contains("d"));
-    String transformExpression = bqRelation.getTransformExpression();
+    String transformExpression = bqRelation.getSQLStatement();
     Assert.assertTrue(transformExpression.startsWith("SELECT * EXCEPT(`rn_"));
     Assert.assertTrue(transformExpression.contains("`) FROM (SELECT a AS `a` , b AS `b` , c AS `c` , d AS `d` , " +
                                                      "ROW_NUMBER() OVER ( PARTITION BY a , d ORDER BY a DESC ) AS `"));
@@ -331,35 +333,77 @@ BigQueryRelationTest {
     // Check valid definition
     selectFields.put("a", factory.compile("a"));
     groupByFields.add(factory.compile("a"));
-    Assert.assertTrue(baseRelation.supportsGroupByAggregationDefinition(def));
+    Assert.assertTrue(BigQueryRelation.supportsGroupByAggregationDefinition(def));
     selectFields.clear();
     groupByFields.clear();
 
     // Check invalid select field
-    selectFields.put("a", new InvalidSQLExpression("a"));
+    selectFields.put("a", new InvalidSQLExpression("a", "oops"));
     groupByFields.add(factory.compile("a"));
-    Assert.assertFalse(baseRelation.supportsGroupByAggregationDefinition(def));
+    Assert.assertFalse(BigQueryRelation.supportsGroupByAggregationDefinition(def));
     selectFields.clear();
     groupByFields.clear();
 
     // Check unsupported Select field
     selectFields.put("a", new NonSQLExpression());
     groupByFields.add(factory.compile("a"));
-    Assert.assertFalse(baseRelation.supportsGroupByAggregationDefinition(def));
+    Assert.assertFalse(BigQueryRelation.supportsGroupByAggregationDefinition(def));
     selectFields.clear();
     groupByFields.clear();
 
     // Check invalid groupByField field
     selectFields.put("a", factory.compile("a"));
     groupByFields.add(new InvalidSQLExpression("a"));
-    Assert.assertFalse(baseRelation.supportsGroupByAggregationDefinition(def));
+    Assert.assertFalse(BigQueryRelation.supportsGroupByAggregationDefinition(def));
     selectFields.clear();
     groupByFields.clear();
 
     // Check unsupported groupByField field
     selectFields.put("a", factory.compile("a"));
     groupByFields.add(new NonSQLExpression());
-    Assert.assertFalse(baseRelation.supportsGroupByAggregationDefinition(def));
+    Assert.assertFalse(BigQueryRelation.supportsGroupByAggregationDefinition(def));
+    selectFields.clear();
+    groupByFields.clear();
+  }
+
+  @Test
+  public void testCollectGroupByAggregationDefinitionErrors() {
+    Map<String, Expression> selectFields = new LinkedHashMap<>();
+    List<Expression> groupByFields = new ArrayList<>(1);
+
+    // Set up mocks
+    GroupByAggregationDefinition def = mock(GroupByAggregationDefinition.class);
+    when(def.getSelectExpressions()).thenReturn(selectFields);
+    when(def.getGroupByExpressions()).thenReturn(groupByFields);
+
+    // Check valid definition
+    selectFields.put("a", factory.compile("a"));
+    groupByFields.add(factory.compile("a"));
+    Assert.assertNull(BigQueryRelation.collectGroupByAggregationDefinitionErrors(def));
+    selectFields.clear();
+    groupByFields.clear();
+
+    // Check invalid select field
+    selectFields.put("a", new InvalidSQLExpression("a", "oops1"));
+    groupByFields.add(factory.compile("a"));
+    Assert.assertEquals("Select fields: oops1",
+                        BigQueryRelation.collectGroupByAggregationDefinitionErrors(def));
+    selectFields.clear();
+    groupByFields.clear();
+
+    // Check invalid groupByField field
+    selectFields.put("a", factory.compile("a"));
+    groupByFields.add(new InvalidSQLExpression("a", "oops2"));
+    Assert.assertEquals("Grouping fields: oops2",
+                        BigQueryRelation.collectGroupByAggregationDefinitionErrors(def));
+    selectFields.clear();
+    groupByFields.clear();
+
+    // Check invalid select and group by field
+    selectFields.put("a", new InvalidSQLExpression("a", "oops1"));
+    groupByFields.add(new InvalidSQLExpression("a", "oops2"));
+    Assert.assertEquals("Select fields: oops1 - Grouping fields: oops2",
+                        BigQueryRelation.collectGroupByAggregationDefinitionErrors(def));
     selectFields.clear();
     groupByFields.clear();
   }
@@ -381,7 +425,7 @@ BigQueryRelationTest {
     dedupFields.add(factory.compile("a"));
     filterFields.add(new DeduplicateAggregationDefinition.FilterExpression(
       factory.compile("a"), DeduplicateAggregationDefinition.FilterFunction.MAX));
-    Assert.assertTrue(baseRelation.supportsDeduplicateAggregationDefinition(def));
+    Assert.assertTrue(BigQueryRelation.supportsDeduplicateAggregationDefinition(def));
     selectFields.clear();
     dedupFields.clear();
     filterFields.clear();
@@ -392,7 +436,7 @@ BigQueryRelationTest {
     dedupFields.add(factory.compile("a"));
     filterFields.add(new DeduplicateAggregationDefinition.FilterExpression(
       factory.compile("a"), DeduplicateAggregationDefinition.FilterFunction.MAX));
-    Assert.assertFalse(baseRelation.supportsDeduplicateAggregationDefinition(def));
+    Assert.assertFalse(BigQueryRelation.supportsDeduplicateAggregationDefinition(def));
     selectFields.clear();
     dedupFields.clear();
     filterFields.clear();
@@ -402,7 +446,7 @@ BigQueryRelationTest {
     dedupFields.add(factory.compile("a"));
     filterFields.add(new DeduplicateAggregationDefinition.FilterExpression(
       factory.compile("a"), DeduplicateAggregationDefinition.FilterFunction.MAX));
-    Assert.assertFalse(baseRelation.supportsDeduplicateAggregationDefinition(def));
+    Assert.assertFalse(BigQueryRelation.supportsDeduplicateAggregationDefinition(def));
     selectFields.clear();
     dedupFields.clear();
     filterFields.clear();
@@ -412,7 +456,7 @@ BigQueryRelationTest {
     dedupFields.add(new InvalidSQLExpression("a"));
     filterFields.add(new DeduplicateAggregationDefinition.FilterExpression(
       factory.compile("a"), DeduplicateAggregationDefinition.FilterFunction.MAX));
-    Assert.assertFalse(baseRelation.supportsDeduplicateAggregationDefinition(def));
+    Assert.assertFalse(BigQueryRelation.supportsDeduplicateAggregationDefinition(def));
     selectFields.clear();
     dedupFields.clear();
     filterFields.clear();
@@ -422,7 +466,7 @@ BigQueryRelationTest {
     dedupFields.add(new NonSQLExpression());
     filterFields.add(new DeduplicateAggregationDefinition.FilterExpression(
       factory.compile("a"), DeduplicateAggregationDefinition.FilterFunction.MAX));
-    Assert.assertFalse(baseRelation.supportsDeduplicateAggregationDefinition(def));
+    Assert.assertFalse(BigQueryRelation.supportsDeduplicateAggregationDefinition(def));
     selectFields.clear();
     dedupFields.clear();
     filterFields.clear();
@@ -432,7 +476,7 @@ BigQueryRelationTest {
     dedupFields.add(factory.compile("a"));
     filterFields.add(new DeduplicateAggregationDefinition.FilterExpression(
       new InvalidSQLExpression("a"), DeduplicateAggregationDefinition.FilterFunction.MAX));
-    Assert.assertFalse(baseRelation.supportsDeduplicateAggregationDefinition(def));
+    Assert.assertFalse(BigQueryRelation.supportsDeduplicateAggregationDefinition(def));
     selectFields.clear();
     dedupFields.clear();
     filterFields.clear();
@@ -442,7 +486,81 @@ BigQueryRelationTest {
     dedupFields.add(factory.compile("a"));
     filterFields.add(new DeduplicateAggregationDefinition.FilterExpression(
       new NonSQLExpression(), DeduplicateAggregationDefinition.FilterFunction.MAX));
-    Assert.assertFalse(baseRelation.supportsDeduplicateAggregationDefinition(def));
+    Assert.assertFalse(BigQueryRelation.supportsDeduplicateAggregationDefinition(def));
+    selectFields.clear();
+    dedupFields.clear();
+    filterFields.clear();
+  }
+
+  @Test
+  public void testCollectDeduplicateAggregationDefinitionErrors() {
+    Map<String, Expression> selectFields = new LinkedHashMap<>();
+    List<Expression> dedupFields = new ArrayList<>(1);
+    List<DeduplicateAggregationDefinition.FilterExpression> filterFields = new ArrayList<>(1);
+
+    // Set up mocks
+    DeduplicateAggregationDefinition def = mock(DeduplicateAggregationDefinition.class);
+    when(def.getSelectExpressions()).thenReturn(selectFields);
+    when(def.getGroupByExpressions()).thenReturn(dedupFields);
+    when(def.getFilterExpressions()).thenReturn(filterFields);
+
+    // Check valid definition
+    selectFields.put("a", factory.compile("a"));
+    dedupFields.add(factory.compile("a"));
+    filterFields.add(new DeduplicateAggregationDefinition.FilterExpression(
+      factory.compile("a"), DeduplicateAggregationDefinition.FilterFunction.MAX));
+    Assert.assertNull(BigQueryRelation.collectDeduplicateAggregationDefinitionErrors(def));
+    selectFields.clear();
+    dedupFields.clear();
+    filterFields.clear();
+
+
+    // Check invalid select field
+    selectFields.put("a", new InvalidSQLExpression("a", "oops1"));
+    dedupFields.add(factory.compile("a"));
+    filterFields.add(new DeduplicateAggregationDefinition.FilterExpression(
+      factory.compile("a"), DeduplicateAggregationDefinition.FilterFunction.MAX));
+    Assert.assertEquals("Select fields: oops1",
+                        BigQueryRelation.collectDeduplicateAggregationDefinitionErrors(def));
+    selectFields.clear();
+    dedupFields.clear();
+    filterFields.clear();
+
+    // Check invalid deduplication field
+    selectFields.put("a", factory.compile("a"));
+    dedupFields.add(new InvalidSQLExpression("a", "oops2"));
+    filterFields.add(new DeduplicateAggregationDefinition.FilterExpression(
+      factory.compile("a"), DeduplicateAggregationDefinition.FilterFunction.MAX));
+    Assert.assertEquals("Deduplication fields: oops2",
+                        BigQueryRelation.collectDeduplicateAggregationDefinitionErrors(def));
+    selectFields.clear();
+    dedupFields.clear();
+    filterFields.clear();
+
+    // Check invalid filter field
+    selectFields.put("a", factory.compile("a"));
+    dedupFields.add(factory.compile("a"));
+    filterFields.add(new DeduplicateAggregationDefinition.FilterExpression(
+      new InvalidSQLExpression("a", "oops3"), DeduplicateAggregationDefinition.FilterFunction.MAX));
+    Assert.assertEquals("Order fields: oops3",
+                        BigQueryRelation.collectDeduplicateAggregationDefinitionErrors(def));
+    selectFields.clear();
+    dedupFields.clear();
+    filterFields.clear();
+
+    // Check all invalid fields
+    selectFields.put("a", new InvalidSQLExpression("a", "oops1a"));
+    selectFields.put("b", new InvalidSQLExpression("b", "oops1b"));
+    dedupFields.add(new InvalidSQLExpression("a", "oops2a"));
+    dedupFields.add(new InvalidSQLExpression("b", "oops2b"));
+    filterFields.add(new DeduplicateAggregationDefinition.FilterExpression(
+      new InvalidSQLExpression("a", "oops3a"), DeduplicateAggregationDefinition.FilterFunction.MAX));
+    filterFields.add(new DeduplicateAggregationDefinition.FilterExpression(
+      new InvalidSQLExpression("b", "oops3b"), DeduplicateAggregationDefinition.FilterFunction.MAX));
+    Assert.assertEquals("Select fields: oops1a ; oops1b" +
+                          " - Deduplication fields: oops2a ; oops2b" +
+                          " - Order fields: oops3a ; oops3b",
+                        BigQueryRelation.collectDeduplicateAggregationDefinitionErrors(def));
     selectFields.clear();
     dedupFields.clear();
     filterFields.clear();
@@ -452,37 +570,75 @@ BigQueryRelationTest {
   public void testSupportsExpressions() {
     List<Expression> expressions = new ArrayList<>(2);
     expressions.add(factory.compile("a"));
-    Assert.assertTrue(baseRelation.supportsExpressions(expressions));
+    Assert.assertTrue(BigQueryRelation.supportsExpressions(expressions));
 
     expressions.add(new InvalidSQLExpression("a"));
-    Assert.assertFalse(baseRelation.supportsExpressions(expressions));
+    Assert.assertFalse(BigQueryRelation.supportsExpressions(expressions));
 
     expressions.remove(1);
     expressions.add(new NonSQLExpression());
-    Assert.assertFalse(baseRelation.supportsExpressions(expressions));
+    Assert.assertFalse(BigQueryRelation.supportsExpressions(expressions));
 
     expressions.remove(1);
-    Assert.assertTrue(baseRelation.supportsExpressions(expressions));
+    Assert.assertTrue(BigQueryRelation.supportsExpressions(expressions));
   }
 
   @Test
   public void testSupportsExpression() {
-    Assert.assertTrue(baseRelation.supportsExpression(factory.compile("a")));
-    Assert.assertFalse(baseRelation.supportsExpression(new InvalidSQLExpression("a")));
-    Assert.assertFalse(baseRelation.supportsExpression(new NonSQLExpression()));
+    Assert.assertTrue(BigQueryRelation.supportsExpression(factory.compile("a")));
+    Assert.assertFalse(BigQueryRelation.supportsExpression(new InvalidSQLExpression("a")));
+    Assert.assertFalse(BigQueryRelation.supportsExpression(new NonSQLExpression()));
+  }
+
+  @Test
+  public void testGetInvalidExpressionCauses() {
+    Collection<Expression> goodExpressions = Collections.singletonList(factory.compile("a"));
+    Assert.assertNull(BigQueryRelation.getInvalidExpressionCauses(goodExpressions));
+
+    Collection<Expression> badExpressions = Arrays.asList(null, new InvalidSQLExpression("a", "this is not valid"));
+    Assert.assertEquals(
+      "Expression is null ; this is not valid",
+      BigQueryRelation.getInvalidExpressionCauses(badExpressions));
+  }
+
+  @Test
+  public void testGetInvalidExpressionCause() {
+    Assert.assertNull(BigQueryRelation.getInvalidExpressionCause(factory.compile("a")));
+    Assert.assertEquals(
+      "Expression is null",
+      BigQueryRelation.getInvalidExpressionCause(null));
+    Assert.assertEquals(
+      "Unsupported Expression type " +
+        "\"io.cdap.plugin.gcp.bigquery.relational.BigQueryRelationTest.NonSQLExpression\"",
+      BigQueryRelation.getInvalidExpressionCause(new NonSQLExpression()));
+    Assert.assertEquals(
+      "this is not valid",
+      BigQueryRelation.getInvalidExpressionCause(new InvalidSQLExpression("a", "this is not valid")));
   }
 
   /**
    * Invalid SQL expression with the correct class
    */
   private static class InvalidSQLExpression extends SQLExpression {
+    private final String validationError;
+
     public InvalidSQLExpression(String expression) {
+      this(expression, "Undefined");
+    }
+
+    public InvalidSQLExpression(String expression, String validationError) {
       super(expression);
+      this.validationError = validationError;
     }
 
     @Override
     public boolean isValid() {
       return false;
+    }
+
+    @Override
+    public String getValidationError() {
+      return validationError;
     }
   }
 
