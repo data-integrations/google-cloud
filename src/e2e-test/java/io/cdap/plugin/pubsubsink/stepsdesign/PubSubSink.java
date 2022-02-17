@@ -218,4 +218,11 @@ public class PubSubSink implements CdfHelper {
       BeforeActions.scenario.write("CMEK not enabled");
     }
   }
+
+  @Then("Enter the PubSub sink mandatory properties")
+  public void enterThePubSubSinkMandatoryProperties() {
+    PubSubActions.enterPubSubReferenceName();
+    PubSubActions.enterProjectID(PluginPropertyUtils.pluginProp("projectId"));
+    PubSubActions.enterPubSubTopic(TestSetupHooks.pubSubTargetTopic);
+  }
 }
