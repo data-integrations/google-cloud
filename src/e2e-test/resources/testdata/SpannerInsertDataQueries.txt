@@ -1,0 +1,8 @@
+INSERT INTO EmployeeDetails ( EmployeeDepartment, EmployeeName , AgeInYears, DateOfBirth, Salary, TimeOfBirth, Workhours ) VALUES 
+('Electrician', 'Justin', 45.60, Date('1961-08-31'), 10000, '05:28:26 AM', 9) ,
+('Plumber', 'Olson', 55.95, Date('1999-02-21'), 10000, '05:28:26 AM', 3) ,
+('HR', 'Steve', 65.95, Date('1971-09-11'), 10000, '05:28:26 AM', 8) ,
+('Security', 'Arnold', 32.51, Date('1990-08-31'), 10000, '05:28:26 AM', 8) ,
+('Frontdesk', 'Kayla', 21.45, Date('1965-08-31'), 10000, '05:28:26 AM', 1) ,
+('Plumber', 'Cisco', 68.12, Date('1986-08-31'), 10000, '05:28:26 AM', 3) ,
+('HR', 'Kacie', 23.34, Date('2000-07-01'), 10000, '05:28:26 AM', 5)

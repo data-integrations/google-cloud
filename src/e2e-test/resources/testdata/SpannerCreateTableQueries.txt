@@ -1,0 +1,2 @@
+CREATE TABLE EmployeeDetails ( EmployeeDepartment STRING(1024), EmployeeName STRING(1024), Salary INT64, Workhours INT64, DateOfBirth DATE, TimeOfBirth STRING(1024), AgeInYears FLOAT64 ) PRIMARY KEY(EmployeeDepartment, EmployeeName)
+CREATE TABLE Singers ( RowId INT64 NOT NULL, FirstName STRING(1024), LastName STRING(1024), BirthDate DATE, LastUpdated TIMESTAMP, ActiveRecord BOOL, CostOfItem NUMERIC, CostOfItem1 FLOAT64, RecordValue JSON ) PRIMARY KEY(RowId)
