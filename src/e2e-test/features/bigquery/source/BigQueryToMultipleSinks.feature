@@ -30,7 +30,7 @@ Feature: BigQuery source - Verification of BigQuery to Multiple sinks successful
     Then Close the BigQuery properties
     Then Open the PubSub sink properties
     Then Enter the PubSub sink mandatory properties
-    Then Enter PubSub property encryption key name "cmekPubSub" if cmek is enabled
+    Then Enter PubSub sink property encryption key name "cmekPubSub" if cmek is enabled
     Then Validate "PubSub" plugin properties
     Then Close the PubSub properties
     Then Save the pipeline

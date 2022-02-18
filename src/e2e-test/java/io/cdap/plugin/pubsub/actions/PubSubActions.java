@@ -13,18 +13,18 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package io.cdap.plugin.pubsubsink.actions;
+package io.cdap.plugin.pubsub.actions;
 
 import io.cdap.e2e.pages.locators.CdfStudioLocators;
 import io.cdap.e2e.utils.SeleniumDriver;
 import io.cdap.e2e.utils.SeleniumHelper;
-import io.cdap.plugin.pubsubsink.locators.PubSubLocators;
+import io.cdap.plugin.pubsub.locators.PubSubLocators;
 import org.openqa.selenium.By;
 
 import java.util.UUID;
 
 /**
- * PubSub sink plugin step actions.
+ * PubSub plugin step actions.
  */
 public class PubSubActions {
 
@@ -78,4 +78,13 @@ public class PubSubActions {
   public static void enterEncryptionKeyName(String cmek) {
     PubSubLocators.cmekKey.sendKeys(cmek);
   }
+
+  public static void enterSubscription(String subscription) {
+    PubSubLocators.subscription.sendKeys(subscription);
+  }
+
+  public static void enterNumberOfReaders(String numberOfReaders) {
+    SeleniumHelper.replaceElementValue(PubSubLocators.numberOfReaders, numberOfReaders);
+  }
+
 }

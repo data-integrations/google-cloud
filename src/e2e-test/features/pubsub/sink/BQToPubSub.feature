@@ -14,14 +14,14 @@ Feature: PubSub-Sink - Verification of BigQuery to PubSub successful data transf
     Then Open the PubSub sink properties
     Then Enter PubSub property projectId "projectId"
     Then Enter PubSub property reference name
-    Then Enter PubSub topic name
+    Then Enter PubSub sink property topic name
+    Then Enter PubSub sink property encryption key name "cmekPubSub" if cmek is enabled
+    Then Enter PubSub sink property MaximumBatchCount "pubSubMaximumBatchCount"
+    Then Enter PubSub sink property MaximumBatchSize "pubSubMaximumBatchSize"
+    Then Enter PubSub sink property PublishDelayThreshold "pubSubPublishDelayThreshold"
+    Then Enter PubSub sink property RetryTimeOut "pubSubRetryTimeOut"
+    Then Enter PubSub sink property ErrorThreshold "pubSubErrorThreshold"
     Then Select PubSub property format "csv"
-    Then Enter PubSub property encryption key name "cmekPubSub" if cmek is enabled
-    Then Enter PubSub property MaximumBatchCount "pubSubMaximumBatchCount"
-    Then Enter PubSub property MaximumBatchSize "pubSubMaximumBatchSize"
-    Then Enter PubSub property PublishDelayThreshold "pubSubPublishDelayThreshold"
-    Then Enter PubSub property RetryTimeOut "pubSubRetryTimeOut"
-    Then Enter PubSub property ErrorThreshold "pubSubErrorThreshold"
     Then Validate "PubSub" plugin properties
     Then Close the PubSub properties
     Then Save the pipeline

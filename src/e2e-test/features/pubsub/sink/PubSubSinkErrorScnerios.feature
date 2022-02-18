@@ -5,7 +5,7 @@ Feature: PubSub-Sink - Verify PubSub sink plugin error Scenarios
     Given Open Datafusion Project to configure pipeline
     When Sink is PubSub
     Then Open the PubSub sink properties
-    Then Enter the PubSub property with blank property "<property>"
+    Then Enter the PubSub sink properties with blank property "<property>"
     Then Validate mandatory property error for "<property>"
     Examples:
       | property      |
@@ -20,8 +20,8 @@ Feature: PubSub-Sink - Verify PubSub sink plugin error Scenarios
     Then Enter PubSub property projectId "projectId"
     Then Enter PubSub topic name "dummytopic"
     Then Select PubSub property format "csv"
-    Then Enter the PubSub advanced properties with incorrect property "<Property>"
-    Then Validate the error message for invalid PubSub advanced property "<Property>"
+    Then Enter the PubSub sink advanced properties with incorrect property "<Property>"
+    Then Validate the error message for invalid PubSub sink advanced property "<Property>"
     Examples:
       | Property                    |
       | messageCountBatchSize       |
@@ -38,8 +38,8 @@ Feature: PubSub-Sink - Verify PubSub sink plugin error Scenarios
     Then Enter PubSub property projectId "projectId"
     Then Enter PubSub topic name "dummytopic"
     Then Select PubSub property format "csv"
-    Then Enter the PubSub advanced properties with invalid number for property "<Property>"
-    Then Validate the number format error message for PubSub property "<Property>"
+    Then Enter the PubSub sink advanced properties with invalid number for property "<Property>"
+    Then Validate the number format error message for PubSub sink property "<Property>"
     Examples:
       | Property                    |
       | messageCountBatchSize       |
