@@ -317,7 +317,11 @@ public class BigQuerySQLEngine
 
     String table = datasets.get(pullRequest.getDatasetName()).getBigQueryTable();
 
-    return new BigQuerySparkDatasetProducer(sqlEngineConfig, datasetProject, dataset, table);
+    return new BigQuerySparkDatasetProducer(sqlEngineConfig,
+                                            datasetProject,
+                                            dataset,
+                                            table,
+                                            pullRequest.getDatasetSchema());
   }
 
   @Override
