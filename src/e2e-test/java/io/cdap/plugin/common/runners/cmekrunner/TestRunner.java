@@ -26,7 +26,7 @@ import org.junit.runner.RunWith;
 @CucumberOptions(
   features = {"src/e2e-test/features"},
   glue = {"io.cdap.plugin.gcs.stepsdesign", "io.cdap.plugin.bigquery.stepsdesign",
-    "stepsdesign", "io.cdap.plugin.common.stepsdesign", "io.cdap.plugin.pubsubsink.stepsdesign"},
+    "stepsdesign", "io.cdap.plugin.common.stepsdesign", "io.cdap.plugin.pubsub.stepsdesign"},
   tags = {"@CMEK"},
   plugin = {"pretty", "html:target/cucumber-html-report/cmek", "json:target/cucumber-reports/cucumber-cmek.json",
     "junit:target/cucumber-reports/cucumber-cmek.xml", "io.cdap.e2e.utils.PropModifier:cmek-config.properties"},

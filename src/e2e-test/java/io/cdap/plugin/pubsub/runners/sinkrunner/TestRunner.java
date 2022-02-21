@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package io.cdap.plugin.pubsubsink.runners;
+package io.cdap.plugin.pubsub.runners.sinkrunner;
 import io.cucumber.junit.Cucumber;
 import io.cucumber.junit.CucumberOptions;
 import org.junit.runner.RunWith;
@@ -24,7 +24,7 @@ import org.junit.runner.RunWith;
 @RunWith(Cucumber.class)
 @CucumberOptions(
         features = {"src/e2e-test/features"},
-        glue = {"io.cdap.plugin.pubsubsink.stepsdesign", "io.cdap.plugin.gcs.stepsdesign",
+        glue = {"io.cdap.plugin.pubsub.stepsdesign", "io.cdap.plugin.gcs.stepsdesign",
           "io.cdap.plugin.common.stepsdesign", "io.cdap.plugin.bigquery.stepsdesign" , "stepsdesign"},
         tags = {"@PubSub_Sink"},
         monochrome = true,
