@@ -18,11 +18,8 @@ package io.cdap.plugin.pubsub.stepsdesign;
 
 import io.cdap.e2e.utils.CdfHelper;
 import io.cdap.e2e.utils.PluginPropertyUtils;
-import io.cdap.e2e.utils.SeleniumDriver;
-import io.cdap.e2e.utils.SeleniumHelper;
 import io.cdap.plugin.pubsub.actions.PubSubActions;
 import io.cucumber.java.en.Then;
-import org.openqa.selenium.By;
 
 /**
  * PubSub Plugin related common step design.

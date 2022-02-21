@@ -14,13 +14,13 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer
     Then Enter PubSub property projectId "projectId"
     Then Enter PubSub property reference name
     Then Enter PubSub sink property topic name
+    Then Select PubSub property format "csv"
     Then Enter PubSub sink property encryption key name "cmekPubSub" if cmek is enabled
     Then Enter PubSub sink property MaximumBatchCount "pubSubMaximumBatchCount"
     Then Enter PubSub sink property MaximumBatchSize "pubSubMaximumBatchSize"
     Then Enter PubSub sink property PublishDelayThreshold "pubSubPublishDelayThreshold"
     Then Enter PubSub sink property RetryTimeOut "pubSubRetryTimeOut"
     Then Enter PubSub sink property ErrorThreshold "pubSubErrorThreshold"
-    Then Select PubSub property format "csv"
     Then Validate "PubSub" plugin properties
     Then Close the PubSub properties
     Then Connect source as "GCS" and sink as "GooglePublisher" to establish connection
@@ -49,12 +49,12 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer
     Then Enter PubSub property projectId "projectId"
     Then Enter PubSub property reference name
     Then Enter PubSub sink property topic name
+    Then Select PubSub property format "<FileFormat>"
     Then Enter PubSub sink property MaximumBatchCount "pubSubMaximumBatchCount"
     Then Enter PubSub sink property MaximumBatchSize "pubSubMaximumBatchSize"
     Then Enter PubSub sink property PublishDelayThreshold "pubSubPublishDelayThreshold"
     Then Enter PubSub sink property RetryTimeOut "pubSubRetryTimeOut"
     Then Enter PubSub sink property ErrorThreshold "pubSubErrorThreshold"
-    Then Select PubSub property format "<FileFormat>"
     Then Validate "PubSub" plugin properties
     Then Close the PubSub properties
     Then Connect source as "GCS" and sink as "GooglePublisher" to establish connection
