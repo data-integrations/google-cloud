@@ -13,8 +13,10 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package io.cdap.plugin.pubsubsink.locators;
+package io.cdap.plugin.pubsub.locators;
 
+import io.cdap.e2e.utils.SeleniumDriver;
+import org.openqa.selenium.By;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.FindBy;
 import org.openqa.selenium.support.How;
@@ -56,4 +58,14 @@ public class PubSubLocators {
 
   @FindBy(how = How.XPATH, using = "//input[@data-cy='cmekKey']")
   public static WebElement cmekKey;
+
+  @FindBy(how = How.XPATH, using = "//input[@data-cy='subscription']")
+  public static WebElement subscription;
+
+  @FindBy(how = How.XPATH, using = "//input[@data-cy='numberOfReaders']")
+  public static WebElement numberOfReaders;
+
+  public static WebElement formatType(String formatType) {
+    return SeleniumDriver.getDriver().findElement(By.xpath("//li[@data-value='" + formatType + "']"));
+  }
 }

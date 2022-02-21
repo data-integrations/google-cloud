@@ -14,7 +14,7 @@
  * the License.
  */
 
-package io.cdap.plugin.pubsubsink.stepsdesign;
+package io.cdap.plugin.pubsub.stepsdesign;
 
 import io.cdap.e2e.pages.actions.CdfStudioActions;
 import io.cdap.e2e.utils.CdfHelper;
@@ -22,8 +22,8 @@ import io.cdap.e2e.utils.ConstantsUtil;
 import io.cdap.e2e.utils.PluginPropertyUtils;
 import io.cdap.e2e.utils.SeleniumHelper;
 import io.cdap.plugin.common.stepsdesign.TestSetupHooks;
-import io.cdap.plugin.pubsubsink.actions.PubSubActions;
-import io.cdap.plugin.pubsubsink.locators.PubSubLocators;
+import io.cdap.plugin.pubsub.actions.PubSubActions;
+import io.cdap.plugin.pubsub.locators.PubSubLocators;
 import io.cdap.plugin.utils.E2ETestConstants;
 import io.cdap.plugin.utils.PubSubClient;
 import io.cucumber.java.en.Then;
@@ -46,48 +46,28 @@ public class PubSubSink implements CdfHelper {
     selectSinkPlugin("GooglePublisher");
   }
 
-  @Then("Close the PubSub properties")
-  public void closeThePubSubProperties() {
-    PubSubActions.close();
-  }
-
-  @Then("Enter PubSub property projectId {string}")
-  public void enterPubSubPropertyProjectId(String projectId) {
-    PubSubActions.enterProjectID(PluginPropertyUtils.pluginProp(projectId));
-  }
-
-  @Then("Enter PubSub property reference name")
-  public void enterPubSubPropertyReferenceName() {
-    PubSubActions.enterPubSubReferenceName();
-  }
-
-  @Then("Select PubSub property format {string}")
-  public void selectPubSubPropertyFormat(String format) {
-    PubSubActions.selectFormat(format);
-  }
-
-  @Then("Enter PubSub property MaximumBatchCount {string}")
-  public void enterPubSubPropertyMaximumBatchCount(String pubSubMaximumBatchCount) {
+  @Then("Enter PubSub sink property MaximumBatchCount {string}")
+  public void enterPubSubSinkPropertyMaximumBatchCount(String pubSubMaximumBatchCount) {
     PubSubActions.enterMaximumBatchCount(PluginPropertyUtils.pluginProp(pubSubMaximumBatchCount));
   }
 
-  @Then("Enter PubSub property MaximumBatchSize {string}")
-  public void enterPubSubPropertyMaximumBatchSize(String pubSubMaximumBatchSize) {
+  @Then("Enter PubSub sink property MaximumBatchSize {string}")
+  public void enterPubSubSinkPropertyMaximumBatchSize(String pubSubMaximumBatchSize) {
     PubSubActions.enterMaximumBatchSize(PluginPropertyUtils.pluginProp(pubSubMaximumBatchSize));
   }
 
-  @Then("Enter PubSub property PublishDelayThreshold {string}")
-  public void enterPubSubPropertyPublishDelayThreshold(String pubSubPublishDelayThreshold) {
+  @Then("Enter PubSub sink property PublishDelayThreshold {string}")
+  public void enterPubSubSinkPropertyPublishDelayThreshold(String pubSubPublishDelayThreshold) {
     PubSubActions.enterPublishDelayThreshold(PluginPropertyUtils.pluginProp(pubSubPublishDelayThreshold));
   }
 
-  @Then("Enter PubSub property RetryTimeOut {string}")
-  public void enterPubSubPropertyRetryTimeOut(String pubSubRetryTimeOut) {
+  @Then("Enter PubSub sink property RetryTimeOut {string}")
+  public void enterPubSubSinkPropertyRetryTimeOut(String pubSubRetryTimeOut) {
     PubSubActions.enterRetryTimeOut(PluginPropertyUtils.pluginProp(pubSubRetryTimeOut));
   }
 
-  @Then("Enter PubSub property ErrorThreshold {string}")
-  public void enterPubSubPropertyErrorThreshold(String pubSubErrorThreshold) {
+  @Then("Enter PubSub sink property ErrorThreshold {string}")
+  public void enterPubSubSinkPropertyErrorThreshold(String pubSubErrorThreshold) {
     PubSubActions.enterErrorThreshold(PluginPropertyUtils.pluginProp(pubSubErrorThreshold));
   }
 
@@ -96,18 +76,13 @@ public class PubSubSink implements CdfHelper {
     openSinkPluginProperties("GooglePublisher");
   }
 
-  @Then("Enter PubSub topic name")
-  public void enterPubSubTopicName() {
+  @Then("Enter PubSub sink property topic name")
+  public void enterPubSubSinkPropertyTopicName() {
     PubSubActions.enterPubSubTopic(TestSetupHooks.pubSubTargetTopic);
   }
 
-  @Then("Enter PubSub topic name {string}")
-  public void enterPubSubTopicName(String topicName) {
-    PubSubActions.enterPubSubTopic(topicName);
-  }
-
-  @Then("Enter the PubSub property with blank property {string}")
-  public void enterThePubSubPropertyWithBlankProperty(String property) {
+  @Then("Enter the PubSub sink properties with blank property {string}")
+  public void enterThePubSubSinkPropertiesWithBlankProperty(String property) {
     if (property.equalsIgnoreCase("referenceName")) {
       PubSubActions.enterPubSubTopic("dummyTopic");
     } else if (property.equalsIgnoreCase("topic")) {
@@ -117,8 +92,8 @@ public class PubSubSink implements CdfHelper {
     }
   }
 
-  @Then("Enter the PubSub advanced properties with incorrect property {string}")
-  public void enterThePubSubAdvancedPropertiesWithIncorrectProperty(String property) {
+  @Then("Enter the PubSub sink advanced properties with incorrect property {string}")
+  public void enterThePubSubSinkAdvancedPropertiesWithIncorrectProperty(String property) {
     if (property.equalsIgnoreCase("messageCountBatchSize")) {
       SeleniumHelper.replaceElementValue(PubSubLocators.maximumBatchCount,
                                          PluginPropertyUtils.pluginProp("pubSubStringValue"));
@@ -139,8 +114,8 @@ public class PubSubSink implements CdfHelper {
     }
   }
 
-  @Then("Validate the error message for invalid PubSub advanced property {string}")
-  public void validateTheErrorMessageForInvalidPubSubAdvancedProperty(String property) {
+  @Then("Validate the error message for invalid PubSub sink advanced property {string}")
+  public void validateTheErrorMessageForInvalidPubSubSinkAdvancedProperty(String property) {
     CdfStudioActions.clickValidateButton();
     String expectedErrorMessage = PluginPropertyUtils
       .errorProp(E2ETestConstants.ERROR_MSG_PUBSUB_INVALID_ADVANCED_FIELDS).replaceAll("PROPERTY", property);
@@ -151,8 +126,8 @@ public class PubSubSink implements CdfHelper {
     Assert.assertEquals(expectedColor, actualColor);
   }
 
-  @Then("Enter the PubSub advanced properties with invalid number for property {string}")
-  public void enterThePubSubAdvancedPropertiesWithInvalidNumberForProperty(String property) {
+  @Then("Enter the PubSub sink advanced properties with invalid number for property {string}")
+  public void enterThePubSubSinkAdvancedPropertiesWithInvalidNumberForProperty(String property) {
     if (property.equalsIgnoreCase("messageCountBatchSize")) {
       SeleniumHelper.replaceElementValue(PubSubLocators.maximumBatchCount,
                                          PluginPropertyUtils.pluginProp("pubSubNegativeValue"));
@@ -169,12 +144,12 @@ public class PubSubSink implements CdfHelper {
       SeleniumHelper.replaceElementValue(PubSubLocators.errorThreshold,
                                          PluginPropertyUtils.pluginProp("pubSubNegativeValue"));
     } else {
-      Assert.fail("Invalid PubSub advanced property : " + property);
+      Assert.fail("Invalid PubSub sink advanced property : " + property);
     }
   }
 
-  @Then("Validate the number format error message for PubSub property {string}")
-  public void validateTheNumberFormatErrorMessageForPubSubProperty(String property) {
+  @Then("Validate the number format error message for PubSub sink property {string}")
+  public void validateTheNumberFormatErrorMessageForPubSubSinkProperty(String property) {
     CdfStudioActions.clickValidateButton();
     String expectedErrorMessage = StringUtils.EMPTY;
     if (property.equalsIgnoreCase("messageCountBatchSize")) {
@@ -188,7 +163,7 @@ public class PubSubSink implements CdfHelper {
     } else if (property.equalsIgnoreCase("errorThreshold")) {
       expectedErrorMessage = PluginPropertyUtils.errorProp(E2ETestConstants.ERROR_MSG_PUBSUB_ERROR_THRESHOLD);
     } else {
-      Assert.fail("Invalid PubSub Advanced Property " + property);
+      Assert.fail("Invalid PubSub sink Advanced Property " + property);
     }
     String actualErrorMessage = PluginPropertyUtils.findPropertyErrorElement(property).getText();
     Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
@@ -197,7 +172,7 @@ public class PubSubSink implements CdfHelper {
     Assert.assertEquals(expectedColor, actualColor);
   }
 
-  @Then("Enter PubSub property encryption key name {string} if cmek is enabled")
+  @Then("Enter PubSub sink property encryption key name {string} if cmek is enabled")
   public void enterPubSubPropertyEncryptionKeyNameIfCmekIsEnabled(String cmek) {
     String cmekPubSub = PluginPropertyUtils.pluginProp(cmek);
     if (cmekPubSub != null) {
