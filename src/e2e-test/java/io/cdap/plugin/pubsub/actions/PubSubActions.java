@@ -19,6 +19,7 @@ import io.cdap.e2e.pages.locators.CdfStudioLocators;
 import io.cdap.e2e.utils.SeleniumDriver;
 import io.cdap.e2e.utils.SeleniumHelper;
 import io.cdap.plugin.pubsub.locators.PubSubLocators;
+import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
@@ -48,9 +49,11 @@ public class PubSubActions {
 
   public static void selectFormat(String formatType) {
     PubSubLocators.format.click();
-    SeleniumHelper.waitAndClick(PubSubLocators.formatType(formatType));
-    WebDriverWait wait = new WebDriverWait(SeleniumDriver.getDriver(), 5);
-    wait.until(ExpectedConditions.invisibilityOf(PubSubLocators.formatType(formatType)));
+    WebDriverWait wait = new WebDriverWait(SeleniumDriver.getDriver(), 10);
+    WebElement formatTypeListOption = PubSubLocators.formatType(formatType);
+    wait.until(ExpectedConditions.elementToBeClickable(formatTypeListOption));
+    formatTypeListOption.click();
+    wait.until(ExpectedConditions.invisibilityOf(formatTypeListOption));
   }
 
   public static void enterMaximumBatchCount(String maximumBatchcount) {
