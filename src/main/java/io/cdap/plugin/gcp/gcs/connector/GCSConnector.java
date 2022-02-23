@@ -136,7 +136,8 @@ public class GCSConnector extends AbstractFileConnector<GCPConnectorConfig> {
     if (isRoot(path)) {
       return GCSPath.SCHEME;
     }
-    return GCSPath.from(path).getUri().toString();
+    GCSPath gcsPath = GCSPath.from(path);
+    return GCSPath.SCHEME + gcsPath.getBucket() + gcsPath.getUri().getPath();
   }
 
   @Override
