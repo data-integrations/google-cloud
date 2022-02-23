@@ -104,7 +104,7 @@ public class GCSConnector extends AbstractFileConnector<GCPConnectorConfig> {
       credentials =
         config.getServiceAccount() == null ? null :
           GCPUtils.loadServiceAccountCredentials(config.getServiceAccount(), config.isServiceAccountFilePath());
-    } catch (IOException e) {
+    } catch (IllegalArgumentException | IOException e) {
       failureCollector.addFailure(String.format("Service account provided is not valid: %s.", e.getMessage()),
                                   "Please provide a valid service account key.").withStacktrace(e.getStackTrace());
     }
