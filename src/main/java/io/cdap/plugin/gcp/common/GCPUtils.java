@@ -34,9 +34,13 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import javax.annotation.Nullable;
 
 /**
@@ -56,6 +60,10 @@ public class GCPUtils {
   public static final String SERVICE_ACCOUNT_TYPE = "cdap.gcs.auth.service.account.type";
   public static final String SERVICE_ACCOUNT_TYPE_FILE_PATH = "filePath";
   public static final String SERVICE_ACCOUNT_TYPE_JSON = "JSON";
+  // according to https://cloud.google.com/bigquery/external-data-drive, to read from external table, drive scope
+  // needs to be added, by default, this scope is not included
+  public static final List<String> BIGQUERY_SCOPES = Arrays.asList("https://www.googleapis.com/auth/drive",
+                                                                   "https://www.googleapis.com/auth/bigquery");
 
   public static ServiceAccountCredentials loadServiceAccountCredentials(String path) throws IOException {
     File credentialsPath = new File(path);
@@ -163,6 +171,11 @@ public class GCPUtils {
   public static BigQuery getBigQuery(String project, @Nullable Credentials credentials) {
     BigQueryOptions.Builder bigqueryBuilder = BigQueryOptions.newBuilder().setProjectId(project);
     if (credentials != null) {
+      if (credentials instanceof ServiceAccountCredentials) {
+        Set<String> scopes = new HashSet<>(((ServiceAccountCredentials) credentials).getScopes());
+        scopes.addAll(BIGQUERY_SCOPES);
+        ((ServiceAccountCredentials) credentials).createScoped(scopes);
+      }
       bigqueryBuilder.setCredentials(credentials);
     }
     return bigqueryBuilder.build().getService();
