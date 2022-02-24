@@ -115,12 +115,12 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
       TableReference exportTableReference = createExportTableReference(type, datasetProjectId, datasetId,
                                                                        temporaryTableName, configuration);
       runQuery(configuration, bigQueryHelper, projectId, exportTableReference, query, location);
-      if (type == Type.VIEW || type == Type.MATERIALIZED_VIEW) {
-        configuration.set(BigQueryConfiguration.INPUT_PROJECT_ID_KEY,
-                          configuration.get(BigQueryConstants.CONFIG_VIEW_MATERIALIZATION_PROJECT));
-        configuration.set(BigQueryConfiguration.INPUT_DATASET_ID_KEY,
-                          configuration.get(BigQueryConstants.CONFIG_VIEW_MATERIALIZATION_DATASET));
-      }
+
+      // Default values come from BigquerySource config, and can be overridden by config.
+      configuration.set(BigQueryConfiguration.INPUT_PROJECT_ID_KEY,
+                        configuration.get(BigQueryConstants.CONFIG_VIEW_MATERIALIZATION_PROJECT));
+      configuration.set(BigQueryConfiguration.INPUT_DATASET_ID_KEY,
+                        configuration.get(BigQueryConstants.CONFIG_VIEW_MATERIALIZATION_DATASET));
       configuration.set(BigQueryConfiguration.INPUT_TABLE_ID_KEY, temporaryTableName);
     }
   }
@@ -193,13 +193,8 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
 
     TableReference tableReference = new TableReference().setTableId(tableId);
 
-    if (type == Type.VIEW || type == Type.MATERIALIZED_VIEW) {
-      tableReference.setProjectId(configuration.get(BigQueryConstants.CONFIG_VIEW_MATERIALIZATION_PROJECT));
-      tableReference.setDatasetId(configuration.get(BigQueryConstants.CONFIG_VIEW_MATERIALIZATION_DATASET));
-    } else {
-      tableReference.setProjectId(datasetProjectId);
-      tableReference.setDatasetId(datasetId);
-    }
+    tableReference.setProjectId(configuration.get(BigQueryConstants.CONFIG_VIEW_MATERIALIZATION_PROJECT));
+    tableReference.setDatasetId(configuration.get(BigQueryConstants.CONFIG_VIEW_MATERIALIZATION_DATASET));
 
     return tableReference;
   }
@@ -290,21 +285,19 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
       columnType = tableDefinition.getSchema().getFields().get(columnName).getType();
     }
 
+    String columnNameTS = columnName;
+    if (!LegacySQLTypeName.TIMESTAMP.equals(columnType)) {
+      columnNameTS = "TIMESTAMP(`" + columnNameTS + "`)";
+    }
     if (partitionFromDate != null) {
-      if (LegacySQLTypeName.DATE.equals(columnType)) {
-        columnName = "TIMESTAMP(\"" + columnName + "\")";
-      }
-      timePartitionCondition.append(columnName).append(" >= ").append("TIMESTAMP(\"")
+      timePartitionCondition.append(columnNameTS).append(" >= ").append("TIMESTAMP(\"")
         .append(partitionFromDate).append("\")");
     }
     if (partitionFromDate != null && partitionToDate != null) {
       timePartitionCondition.append(" and ");
     }
     if (partitionToDate != null) {
-      if (LegacySQLTypeName.DATE.equals(columnType)) {
-        columnName = "TIMESTAMP(\"" + columnName + "\")";
-      }
-      timePartitionCondition.append(columnName).append(" < ").append("TIMESTAMP(\"")
+      timePartitionCondition.append(columnNameTS).append(" < ").append("TIMESTAMP(\"")
         .append(partitionToDate).append("\")");
     }
     return timePartitionCondition.toString();
