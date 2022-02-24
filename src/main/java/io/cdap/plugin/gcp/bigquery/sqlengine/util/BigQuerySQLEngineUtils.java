@@ -246,6 +246,16 @@ public class BigQuerySQLEngineUtils {
   }
 
   /**
+   * Check if the supplied schema is supported by the SQL Engine
+   *
+   * @param schema supplied schema to validate
+   * @return whether this schema is supported by the SQL engine.
+   */
+  public static boolean isSupportedSchema(Schema schema) {
+    return BigQuerySchemaValidation.validateSchema(schema).isSupported();
+  }
+
+  /**
    * Ensure the Stage name is valid for execution in BQ pushdown.
    * <p>
    * Due to differences in character escaping rules in Spark and BigQuery, identifiers that are accepted in Spark

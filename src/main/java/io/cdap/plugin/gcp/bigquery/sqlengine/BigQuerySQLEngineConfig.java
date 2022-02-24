@@ -18,6 +18,8 @@ package io.cdap.plugin.gcp.bigquery.sqlengine;
 
 import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.kms.v1.CryptoKeyName;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
@@ -31,6 +33,9 @@ import io.cdap.plugin.gcp.common.CmekUtils;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
 /**
@@ -42,6 +47,8 @@ public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
     public static final String NAME_RETAIN_TABLES = "retainTables";
     public static final String NAME_TEMP_TABLE_TTL_HOURS = "tempTableTTLHours";
     public static final String NAME_JOB_PRIORITY = "jobPriority";
+    public static final String NAME_INCLUDED_STAGES = "includedStages";
+    public static final String NAME_EXCLUDED_STAGES = "excludedStages";
     public static final String NAME_USE_STORAGE_READ_API = "useStorageReadAPI";
     public static final String NAME_DIRECT_SINK_WRITE = "useDirectSinkWrite";
 
@@ -49,6 +56,7 @@ public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
     public static final String PRIORITY_BATCH = "batch";
     public static final String PRIORITY_INTERACTIVE = "interactive";
     private static final String SCHEME = "gs://";
+    private static final String STAGE_SPLIT = "\u0001";
 
     @Name(NAME_LOCATION)
     @Macro
@@ -98,6 +106,20 @@ public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
       "succeed, the standard sink workflow will continue to execute.")
     private Boolean useDirectSinkWrite;
 
+    @Name(NAME_INCLUDED_STAGES)
+    @Macro
+    @Nullable
+    @Description("Stages that should always be pushed down to the BigQuery ELT Transformation Pushdown engine, " +
+      "if supported by the engine. Each stage name should be in a separate line.")
+    protected String includedStages;
+
+    @Name(NAME_EXCLUDED_STAGES)
+    @Macro
+    @Nullable
+    @Description("Stages that should never be pushed down to the BigQuery ELT Transformation Pushdown engine, " +
+    "even when supported. Each stage name should be in a separate line.")
+    protected String excludedStages;
+
 
     private BigQuerySQLEngineConfig(@Nullable BigQueryConnectorConfig connection,
                                     @Nullable String dataset, @Nullable String location,
@@ -119,6 +141,24 @@ public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
 
     public Integer getTempTableTTLHours() {
         return tempTableTTLHours != null && tempTableTTLHours > 0 ? tempTableTTLHours : 72;
+    }
+
+    public Set<String> getIncludedStages() {
+        return splitStages(includedStages);
+    }
+
+    public Set<String> getExcludedStages() {
+        return splitStages(excludedStages);
+    }
+
+    @VisibleForTesting
+    protected static Set<String> splitStages(String stages) {
+        if (Strings.isNullOrEmpty(stages)) {
+            return Collections.emptySet();
+        }
+        return Stream.of(stages.split(STAGE_SPLIT))
+          .filter(s -> !Strings.isNullOrEmpty(s))
+          .collect(Collectors.toSet());
     }
 
     public Boolean shouldUseStorageReadAPI() {
