@@ -145,7 +145,7 @@ public class BigQueryDeduplicateSQLBuilder extends BigQueryBaseSQLBuilder {
     }
 
     // some_field ASC/DESC
-    return ((SQLExpression) filterExpression.getExpression()).extract() + SPACE + order;
+    return ((SQLExpression) filterExpression.getExpression()).extract() + SPACE + order + SPACE + NULLS_LAST;
   }
 
 }

@@ -81,7 +81,8 @@ public class BigQueryDeduplicateSQLBuilderTest {
                           + "d AS d , "
                           + "e AS e , "
                           + "f AS f , "
-                          + "ROW_NUMBER() OVER ( PARTITION BY c , d , e ORDER BY e DESC , f ASC ) AS `the_row_number` "
+                          + "ROW_NUMBER() OVER ( PARTITION BY c , d , e ORDER BY e DESC NULLS LAST , f ASC NULLS LAST "
+                          + ") AS `the_row_number` "
                           + "FROM ( select * from tbl ) AS ds"
                           + ") WHERE `the_row_number` = 1",
                         helper.getQuery());
@@ -96,7 +97,8 @@ public class BigQueryDeduplicateSQLBuilderTest {
                           + "d AS d , "
                           + "e AS e , "
                           + "f AS f , "
-                          + "ROW_NUMBER() OVER ( PARTITION BY c , d , e ORDER BY e DESC , f ASC ) AS `the_row_number` "
+                          + "ROW_NUMBER() OVER ( PARTITION BY c , d , e ORDER BY e DESC NULLS LAST , f ASC NULLS LAST "
+                          + ") AS `the_row_number` "
                           + "FROM ( select * from tbl ) AS ds",
                         helper.getInnerSelect());
   }
@@ -109,14 +111,14 @@ public class BigQueryDeduplicateSQLBuilderTest {
                           + "d AS d , "
                           + "e AS e , "
                           + "f AS f , "
-                          + "ROW_NUMBER() OVER ( PARTITION BY c , d , e ORDER BY e DESC , f ASC ) AS `the_row_number`",
-                        helper.getSelectedFields(def));
+                    + "ROW_NUMBER() OVER ( PARTITION BY c , d , e ORDER BY e DESC NULLS LAST , f ASC NULLS LAST ) AS" +
+                    " `the_row_number`", helper.getSelectedFields(def));
   }
 
   @Test
   public void testGetRowNumColumn() {
-    Assert.assertEquals("ROW_NUMBER() OVER ( PARTITION BY c , d , e ORDER BY e DESC , f ASC ) AS `the_row_number`",
-                        helper.getRowNumColumn(def));
+    Assert.assertEquals("ROW_NUMBER() OVER ( PARTITION BY c , d , e ORDER BY e DESC NULLS LAST , " +
+            "f ASC NULLS LAST ) AS `the_row_number`", helper.getRowNumColumn(def));
   }
 
   @Test
@@ -126,7 +128,7 @@ public class BigQueryDeduplicateSQLBuilderTest {
 
   @Test
   public void testGetOrderByFields() {
-    Assert.assertEquals("e DESC , f ASC", helper.getOrderByFields(filterFields));
+    Assert.assertEquals("e DESC NULLS LAST , f ASC NULLS LAST", helper.getOrderByFields(filterFields));
   }
 
   @Test
@@ -138,8 +140,8 @@ public class BigQueryDeduplicateSQLBuilderTest {
       new DeduplicateAggregationDefinition.FilterExpression(factory.compile("field2"),
                                                             DeduplicateAggregationDefinition.FilterFunction.MIN);
 
-    Assert.assertEquals("field1 DESC", helper.getOrderByField(maxField1));
-    Assert.assertEquals("field2 ASC", helper.getOrderByField(minField2));
+    Assert.assertEquals("field1 DESC NULLS LAST", helper.getOrderByField(maxField1));
+    Assert.assertEquals("field2 ASC NULLS LAST", helper.getOrderByField(minField2));
   }
 
 

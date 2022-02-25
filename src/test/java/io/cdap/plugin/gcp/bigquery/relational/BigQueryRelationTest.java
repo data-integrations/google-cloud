@@ -286,7 +286,8 @@ BigQueryRelationTest {
     String transformExpression = bqRelation.getSQLStatement();
     Assert.assertTrue(transformExpression.startsWith("SELECT * EXCEPT(`rn_"));
     Assert.assertTrue(transformExpression.contains("`) FROM (SELECT a AS `a` , b AS `b` , c AS `c` , d AS `d` , " +
-                                                     "ROW_NUMBER() OVER ( PARTITION BY a , d ORDER BY a DESC ) AS `"));
+                                                     "ROW_NUMBER() OVER ( PARTITION BY a , d ORDER BY a DESC " +
+                                                      "NULLS LAST ) AS `"));
     Assert.assertTrue(transformExpression.contains("` FROM ( select * from tbl ) AS ds) WHERE `rn_"));
     Assert.assertTrue(transformExpression.endsWith("` = 1"));
   }
