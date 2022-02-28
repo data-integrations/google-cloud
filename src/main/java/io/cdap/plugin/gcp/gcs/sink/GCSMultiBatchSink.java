@@ -32,6 +32,8 @@ import io.cdap.cdap.api.data.batch.OutputFormatProvider;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
+import io.cdap.cdap.api.plugin.InvalidPluginConfigException;
+import io.cdap.cdap.api.plugin.InvalidPluginProperty;
 import io.cdap.cdap.api.plugin.PluginProperties;
 import io.cdap.cdap.etl.api.Emitter;
 import io.cdap.cdap.etl.api.FailureCollector;
@@ -41,17 +43,20 @@ import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.connector.Connector;
 import io.cdap.cdap.etl.api.validation.ValidatingOutputFormat;
 import io.cdap.plugin.common.batch.sink.SinkOutputFormatProvider;
+import io.cdap.plugin.format.FileFormat;
 import io.cdap.plugin.gcp.common.CmekUtils;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.connector.GCSConnector;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 
@@ -64,6 +69,7 @@ import javax.annotation.Nullable;
   "on Google Cloud Storage.")
 @Metadata(properties = {@MetadataProperty(key = Connector.PLUGIN_TYPE, value = GCSConnector.NAME)})
 public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable, StructuredRecord> {
+  private static final Logger LOG = LoggerFactory.getLogger(GCSMultiBatchSink.class);
   public static final String NAME = "GCSMultiFiles";
   private static final String TABLE_PREFIX = "multisink.";
   private static final String FORMAT_PLUGIN_ID = "format";
@@ -81,7 +87,6 @@ public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable,
     config.validate(collector);
     collector.getOrThrowException();
 
-    String format = config.getFormatName();
     // add schema as a macro since we don't know it until runtime
     PluginProperties.Builder formatPropertiesBuilder = PluginProperties.builder()
       .addAll(config.getProperties().getProperties());
@@ -92,12 +97,29 @@ public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable,
 
     PluginProperties formatProperties = formatPropertiesBuilder.build();
 
-    OutputFormatProvider outputFormatProvider =
-      pipelineConfigurer.usePlugin(ValidatingOutputFormat.PLUGIN_TYPE, format, FORMAT_PLUGIN_ID, formatProperties);
-    if (outputFormatProvider == null) {
-      collector.addFailure(
-        String.format("Could not find the '%s' output format plugin.", format), null)
-        .withPluginNotFound(FORMAT_PLUGIN_ID, format, ValidatingOutputFormat.PLUGIN_TYPE);
+    if (!this.config.containsMacro("format")) {
+      String format = config.getFormatName();
+      OutputFormatProvider outputFormatProvider =
+              pipelineConfigurer.usePlugin(ValidatingOutputFormat.PLUGIN_TYPE, format, FORMAT_PLUGIN_ID,
+                      formatProperties);
+      if (outputFormatProvider == null) {
+        collector.addFailure(
+                String.format("Could not find the '%s' output format plugin.", format), null)
+                .withPluginNotFound(FORMAT_PLUGIN_ID, format, ValidatingOutputFormat.PLUGIN_TYPE);
+      }
+      return;
+    }
+    //deploying all format plugins if its macro, so that required format plugin is available when macro is resolved
+    for (FileFormat f: FileFormat.values()) {
+      try {
+        pipelineConfigurer.usePlugin(ValidatingOutputFormat.PLUGIN_TYPE, f.name().toLowerCase(),
+                f.name().toLowerCase(), this.config.getRawProperties());
+      } catch (InvalidPluginConfigException e) {
+        LOG.warn("Failed to register format '{}', which means it cannot be used when the pipeline is run." +
+                " Missing properties: {}, invalid properties: {}", new Object[]{f.name(),
+                e.getMissingProperties(), e.getInvalidProperties().stream()
+                .map(InvalidPluginProperty::getName).collect(Collectors.toList())});
+      }
     }
   }
 
