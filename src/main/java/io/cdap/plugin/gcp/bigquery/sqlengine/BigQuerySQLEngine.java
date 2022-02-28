@@ -416,7 +416,6 @@ public class BigQuerySQLEngine
   }
 
   /**
-   *
    * @return capabilities provided by {@link BigQuerySQLEngine}, which include {@link StringExpressionFactoryType}.SQL.
    */
   @Override
@@ -425,7 +424,6 @@ public class BigQuerySQLEngine
   }
 
   /**
-   *
    * @return the single expression factory provided by {@link BigQuerySQLEngine}, which is {@link SQLExpressionFactory}.
    */
   @Override
@@ -439,7 +437,7 @@ public class BigQuerySQLEngine
     Set<String> columnSet = new LinkedHashSet<>();
     List<Schema.Field> fields = relationDefinition.getSchema().getFields();
     if (fields != null) {
-      for (Schema.Field field: fields) {
+      for (Schema.Field field : fields) {
         columnSet.add(field.getName());
       }
     }
@@ -456,6 +454,26 @@ public class BigQuerySQLEngine
   @Override
   public boolean supportsRelationalTranform() {
     return true;
+  }
+
+  @Override
+  public boolean supportsInputSchema(Schema schema) {
+    return BigQuerySQLEngineUtils.isSupportedSchema(schema);
+  }
+
+  @Override
+  public boolean supportsOutputSchema(Schema schema) {
+    return BigQuerySQLEngineUtils.isSupportedSchema(schema);
+  }
+
+  @Override
+  public Set<String> getIncludedStageNames() {
+    return sqlEngineConfig.getIncludedStages();
+  }
+
+  @Override
+  public Set<String> getExcludedStageNames() {
+    return sqlEngineConfig.getExcludedStages();
   }
 
   @Override
