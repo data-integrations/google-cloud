@@ -26,6 +26,7 @@ import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.Job;
 import com.google.cloud.bigquery.JobId;
 import com.google.cloud.bigquery.JobInfo;
+import com.google.cloud.bigquery.JobStatistics;
 import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.RangePartitioning;
 import com.google.cloud.bigquery.StandardTableDefinition;
@@ -218,7 +219,7 @@ public class BigQueryWrite {
 
     // Wait for the query to complete.
     queryJob = queryJob.waitFor();
-    result = queryJob.getQueryResults();
+    JobStatistics.QueryStatistics statistics = queryJob.getStatistics();
 
     // Check for errors
     if (queryJob.getStatus().getError() != null) {
@@ -228,7 +229,7 @@ public class BigQueryWrite {
       return SQLWriteResult.faiure(datasetName);
     }
 
-    long numRows = result.getTotalRows();
+    long numRows = statistics.getNumDmlAffectedRows();
     LOG.info("Copied {} records from {}.{}.{} to {}.{}.{}", numRows,
              sourceTableId.getProject(), sourceTableId.getDataset(), sourceTableId.getTable(),
              destinationTableId.getProject(), destinationTableId.getDataset(), destinationTableId.getTable());
