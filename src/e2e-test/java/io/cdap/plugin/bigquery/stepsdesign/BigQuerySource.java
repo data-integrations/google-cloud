@@ -17,11 +17,12 @@ package io.cdap.plugin.bigquery.stepsdesign;
 
 import io.cdap.e2e.pages.actions.CdfBigQueryPropertiesActions;
 import io.cdap.e2e.pages.locators.CdfBigQueryPropertiesLocators;
-import io.cdap.e2e.utils.CdfHelper;
+import io.cdap.e2e.pages.locators.CdfStudioLocators;
 import io.cdap.e2e.utils.ConstantsUtil;
 import io.cdap.e2e.utils.PluginPropertyUtils;
 import io.cdap.e2e.utils.SeleniumHelper;
 import io.cdap.plugin.common.stepsdesign.TestSetupHooks;
+import io.cdap.plugin.utils.E2EHelper;
 import io.cdap.plugin.utils.E2ETestConstants;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
@@ -37,7 +38,7 @@ import java.util.UUID;
 /**
  * BigQuery Source related stepDesigns.
  */
-public class BigQuerySource implements CdfHelper {
+public class BigQuerySource implements E2EHelper {
 
   @When("Source is BigQuery")
   public void sourceIsBigQuery() {
@@ -125,5 +126,15 @@ public class BigQuerySource implements CdfHelper {
     String actualColor = PluginPropertyUtils.getErrorColor(PluginPropertyUtils.findPropertyErrorElement("table"));
     String expectedColor = ConstantsUtil.ERROR_MSG_COLOR;
     Assert.assertEquals(expectedColor, actualColor);
+  }
+
+  @Then("Enter BigQuery source property {string} as macro argument {string}")
+  public void enterBigQuerySourcePropertyAsMacroArgument(String pluginProperty, String macroArgument) {
+    enterPropertyAsMacroArgument(pluginProperty, macroArgument);
+  }
+
+  @Then("Enter runtime argument value for BigQuery source table name key {string}")
+  public void enterRuntimeArgumentValueForBigQuerySourceTableNameKey(String runtimeArgumentKey) {
+    CdfStudioLocators.runtimeArgsValue(runtimeArgumentKey).sendKeys(TestSetupHooks.bqSourceTable);
   }
 }

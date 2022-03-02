@@ -27,6 +27,7 @@ import io.cucumber.java.Before;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.Assert;
 import stepsdesign.BeforeActions;
+import stepsdesign.PipelineSteps;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -95,7 +96,7 @@ public class TestSetupHooks {
 
   @Before(order = 1, value = "@BQ_SINK_TEST")
   public static void setTempTargetBQTableName() {
-    bqTargetTable = "E2E_TEST_SINK_" + (int) (Math.random() * (10000) + 1);
+    bqTargetTable = "E2E_TARGET_" + UUID.randomUUID().toString().replaceAll("-", "_");
     BeforeActions.scenario.write("BQ Target table name - " + bqTargetTable);
   }
 

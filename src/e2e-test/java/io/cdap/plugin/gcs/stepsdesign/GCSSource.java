@@ -17,19 +17,25 @@ package io.cdap.plugin.gcs.stepsdesign;
 
 import io.cdap.e2e.pages.actions.CdfGcsActions;
 import io.cdap.e2e.pages.locators.CdfGCSLocators;
-import io.cdap.e2e.utils.CdfHelper;
+import io.cdap.e2e.pages.locators.CdfStudioLocators;
 import io.cdap.e2e.utils.PluginPropertyUtils;
+import io.cdap.e2e.utils.SeleniumDriver;
 import io.cdap.e2e.utils.SeleniumHelper;
 import io.cdap.plugin.common.stepsdesign.TestSetupHooks;
+import io.cdap.plugin.utils.CdfPluginPropertyLocator;
+import io.cdap.plugin.utils.E2EHelper;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
+import org.junit.Assert;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.io.IOException;
 
 /**
  * GCS Source Plugin related step design.
  */
-public class GCSSource implements CdfHelper {
+public class GCSSource implements E2EHelper {
 
   @When("Source is GCS")
   public void sourceIsGCS() {
@@ -84,5 +90,29 @@ public class GCSSource implements CdfHelper {
     CdfGcsActions.skipHeader();
     CdfGcsActions.getSchema();
     SeleniumHelper.waitElementIsVisible(CdfGCSLocators.getSchemaLoadComplete, 20L);
+  }
+
+  @Then("Enter GCS source property {string} as macro argument {string}")
+  public void enterGCSSourcePropertyAsMacroArgument(String pluginProperty, String macroArgument) {
+    enterPropertyAsMacroArgument(pluginProperty, macroArgument);
+  }
+
+  @Then("Enter GCS source property output schema {string} as macro argument {string}")
+  public void enterGCSSourcePropertyOutputSchemaAsMacroArgument(String pluginProperty, String macroArgument) {
+    SCHEMA_LOCATORS.schemaActions.click();
+    SCHEMA_LOCATORS.schemaActionType("macro").click();
+    WebDriverWait wait = new WebDriverWait(SeleniumDriver.getDriver(), 5);
+    wait.until(ExpectedConditions.invisibilityOf(SCHEMA_LOCATORS.schemaActionType("macro")));
+    try {
+      enterMacro(CdfPluginPropertyLocator.fromPropertyString(pluginProperty).pluginProperty, macroArgument);
+    } catch (NullPointerException e) {
+      Assert.fail("CDF_PLUGIN_PROPERTY_MAPPING for '" + pluginProperty + "' not present in CdfPluginPropertyLocator.");
+    }
+  }
+
+  @Then("Enter runtime argument value {string} for GCS source property path key {string}")
+  public void enterRuntimeArgumentValueForGCSSourcePropertyPathKey(String value, String runtimeArgumentKey) {
+    CdfStudioLocators.runtimeArgsValue(runtimeArgumentKey)
+      .sendKeys("gs://" + TestSetupHooks.gcsSourceBucketName + "/" + PluginPropertyUtils.pluginProp(value));
   }
 }
