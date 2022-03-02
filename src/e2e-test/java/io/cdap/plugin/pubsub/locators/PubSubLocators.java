@@ -66,6 +66,12 @@ public class PubSubLocators {
   public static WebElement numberOfReaders;
 
   public static WebElement formatType(String formatType) {
-    return SeleniumDriver.getDriver().findElement(By.xpath("//li[@data-value='" + formatType + "']"));
+    return SeleniumDriver.getDriver()
+      .findElement(By.xpath("//li[@data-value='" + formatType + "' and text()='" + formatType + "']"));
+  }
+
+  public static WebElement selectedFormat(String format) {
+    return SeleniumDriver.getDriver()
+      .findElement(By.xpath("//*[@data-cy='select-format']/div[text()='" + format + "']"));
   }
 }

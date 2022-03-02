@@ -4,9 +4,6 @@ Feature: BigQuery source - Verification of BigQuery to Multiple sinks successful
   @CMEK @BQ_SOURCE_TEST @GCS_SINK_TEST @BQ_SINK_TEST @PUBSUB_SINK_TEST
   Scenario:Validate successful records transfer from BigQuery to multiple sinks (GCS, BigQuery and PubSub)
     Given Open Datafusion Project to configure pipeline
-    # START - Workaround till https://cdap.atlassian.net/browse/CDAP-18862 gets fixed. Remove once issue is fixed.
-    And Wait for page to render properly
-    # END
     When Source is BigQuery
     When Sink is GCS
     Then Connect source as "BigQuery" having title "BigQuery" and sink1 as "GCS" having title "GCS" to establish connection
