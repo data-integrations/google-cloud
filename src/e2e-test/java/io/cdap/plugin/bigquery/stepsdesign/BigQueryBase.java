@@ -168,13 +168,4 @@ public class BigQueryBase implements CdfHelper {
       BeforeActions.scenario.write("CMEK not enabled");
     }
   }
-
-  /**
-   * Workaround till https://cdap.atlassian.net/browse/CDAP-18862 gets fixed.
-   * Remove once issue is fixed
-   */
-  @And("Wait for page to render properly")
-  public void waitForPageToRenderProperly() {
-    SeleniumDriver.waitForPageToLoad();
-  }
 }

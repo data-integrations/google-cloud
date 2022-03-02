@@ -16,12 +16,12 @@
 package io.cdap.plugin.pubsub.actions;
 
 import io.cdap.e2e.pages.locators.CdfStudioLocators;
-import io.cdap.e2e.utils.SeleniumDriver;
+import io.cdap.e2e.utils.ElementHelper;
 import io.cdap.e2e.utils.SeleniumHelper;
+import io.cdap.e2e.utils.WaitHelper;
 import io.cdap.plugin.pubsub.locators.PubSubLocators;
+import org.junit.Assert;
 import org.openqa.selenium.WebElement;
-import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.util.UUID;
 
@@ -49,11 +49,11 @@ public class PubSubActions {
 
   public static void selectFormat(String formatType) {
     PubSubLocators.format.click();
-    WebDriverWait wait = new WebDriverWait(SeleniumDriver.getDriver(), 10);
     WebElement formatTypeListOption = PubSubLocators.formatType(formatType);
-    wait.until(ExpectedConditions.elementToBeClickable(formatTypeListOption));
-    formatTypeListOption.click();
-    wait.until(ExpectedConditions.invisibilityOf(formatTypeListOption));
+    ElementHelper.clickOnElement(formatTypeListOption);
+    WaitHelper.waitForElementToBeHidden(formatTypeListOption);
+    Assert.assertTrue(formatType + " format should be selected",
+                      ElementHelper.isElementDisplayed(PubSubLocators.selectedFormat(formatType)));
   }
 
   public static void enterMaximumBatchCount(String maximumBatchcount) {
