@@ -136,7 +136,7 @@ public final class BigQuerySinkUtils {
    * @param errorMessage Supplier for the error message to output if the dataset could not be created.
    * @throws IOException if the dataset could not be created.
    */
-  public static void createDataset(BigQuery bigQuery, DatasetId dataset, @Nullable String location,
+  private static void createDataset(BigQuery bigQuery, DatasetId dataset, @Nullable String location,
                                    @Nullable CryptoKeyName cmekKeyName,
                                    Supplier<String> errorMessage) throws IOException {
     DatasetInfo.Builder builder = DatasetInfo.newBuilder(dataset);
@@ -156,6 +156,26 @@ public final class BigQuerySinkUtils {
         // Ignore this and move on, since all that matters is that the dataset exists.
         throw new IOException(errorMessage.get(), e);
       }
+    }
+  }
+
+  /**
+   * Creates a Dataset in the specified location using the supplied BigQuery client if it does not exist.
+   * @param bigQuery the bigQuery client.
+   * @param datasetId the Id of the dataset to create.
+   * @param location Location for this dataset.
+   * @param cmekKeyName CMEK key to use for this dataset.
+   * @param errorMessage Supplier for the error message to output if the dataset could not be created.
+   * @throws IOException if the dataset could not be created.
+   */
+  public static void createDatasetIfNotExists(BigQuery bigQuery, DatasetId datasetId, @Nullable String location,
+                                              @Nullable CryptoKeyName cmekKeyName,
+                                              Supplier<String> errorMessage) throws IOException {
+    // Check if dataset exists
+    Dataset ds = bigQuery.getDataset(datasetId);
+    // Create dataset if needed
+    if (ds == null) {
+      createDataset(bigQuery, datasetId, location, cmekKeyName, errorMessage);
     }
   }
 
