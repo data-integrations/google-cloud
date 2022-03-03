@@ -72,11 +72,12 @@ public class GCSConnector extends AbstractFileConnector<GCPConnectorConfig> {
   static final String SIZE_KEY = "Size";
   static final String FILE_TYPE_KEY = "File Type";
 
-  private GCSConnectorConfig config;
+  private final GCSConnectorConfig config;
 
   public GCSConnector(GCSConnectorConfig config) {
     super(config);
     this.config = config;
+    initSampleFields(FILE_TYPE, GCSSource.GCSSourceConfig.class);
   }
 
   @Override
@@ -148,14 +149,20 @@ public class GCSConnector extends AbstractFileConnector<GCPConnectorConfig> {
   @Override
   protected void setConnectorSpec(ConnectorSpecRequest request, ConnectorSpec.Builder builder) {
     super.setConnectorSpec(request, builder);
-    Map<String, String> sourceProperties = new HashMap<>();
+    Map<String, String> sourceProperties = new HashMap<>(getAdditionalSpecProperties(request));
     Map<String, String> sinkProperties = new HashMap<>();
     String path = request.getPath();
     String fullPath = getFullPath(path);
+
+    // Only detect format if it has not been set by sample properties
+    if (!sourceProperties.containsKey(GCSSource.GCSSourceConfig.NAME_FORMAT)) {
+      sourceProperties.put(GCSSource.GCSSourceConfig.NAME_FORMAT, FileTypeDetector.detectFileFormat(
+        FileTypeDetector.detectFileType(path)).name().toLowerCase());
+    }
+
     sourceProperties.put(GCSSource.GCSSourceConfig.NAME_PATH, fullPath);
     sinkProperties.put(GCSBatchSink.GCSBatchSinkConfig.NAME_PATH, fullPath);
-    sourceProperties.put(GCSSource.GCSSourceConfig.NAME_FORMAT, FileTypeDetector.detectFileFormat(
-      FileTypeDetector.detectFileType(path)).name().toLowerCase());
+
     sourceProperties.put(ConfigUtil.NAME_USE_CONNECTION, "true");
     sinkProperties.put(ConfigUtil.NAME_USE_CONNECTION, "true");
     sourceProperties.put(ConfigUtil.NAME_CONNECTION, request.getConnectionWithMacro());
@@ -221,6 +228,7 @@ public class GCSConnector extends AbstractFileConnector<GCPConnectorConfig> {
         String fileType = FileTypeDetector.detectFileType(blobName);
         entity.addProperty(FILE_TYPE_KEY, BrowseEntityPropertyValue.builder(
           fileType, BrowseEntityPropertyValue.PropertyType.STRING).build());
+        addBrowseSampleDefaultValues(entity, blobName);
         entity.canSample(FileTypeDetector.isSampleable(fileType));
       }
 
@@ -238,6 +246,7 @@ public class GCSConnector extends AbstractFileConnector<GCPConnectorConfig> {
     if (entityForPath != null && count == 0 && entityForPath.getType().equals(FILE_TYPE)) {
       return builder.setTotalCount(1).addEntity(entityForPath).build();
     }
+    builder.setSampleProperties(getSampleProperties());
     return builder.setTotalCount(count).build();
   }
 
