@@ -51,7 +51,6 @@ import org.slf4j.LoggerFactory;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -167,7 +166,10 @@ public class BigQueryWrite {
 
     // Ensore both datasets are in the same location.
     if (!Objects.equals(srcDataset.getLocation(), destDataset.getLocation())) {
-      LOG.warn("Direct table copy is only supported if both datasets are in the same location.");
+      LOG.warn("Direct table copy is only supported if both datasets are in the same location. "
+                 + "'{}' is '{}' , '{}' is '{}' .",
+               sourceDatasetId.getDataset(), srcDataset.getLocation(),
+               destinationDatasetId.getDataset(), destDataset.getLocation());
       return SQLWriteResult.unsupported(datasetName);
     }
 
@@ -176,6 +178,9 @@ public class BigQueryWrite {
       LOG.warn("Direct table copy is not supported for the INSERT operation when Truncate Table is enabled.");
       return SQLWriteResult.unsupported(datasetName);
     }
+
+    // Get source table instance
+    Table srcTable = bigQuery.getTable(sourceTableId);
 
     // Get destination table instance
     Table destTable = bigQuery.getTable(destinationTableId);
@@ -219,7 +224,7 @@ public class BigQueryWrite {
 
     // Wait for the query to complete.
     queryJob = queryJob.waitFor();
-    JobStatistics.QueryStatistics statistics = queryJob.getStatistics();
+    JobStatistics.QueryStatistics queryJobStats = queryJob.getStatistics();
 
     // Check for errors
     if (queryJob.getStatus().getError() != null) {
@@ -229,8 +234,11 @@ public class BigQueryWrite {
       return SQLWriteResult.faiure(datasetName);
     }
 
-    long numRows = statistics.getNumDmlAffectedRows();
-    LOG.info("Copied {} records from {}.{}.{} to {}.{}.{}", numRows,
+    // Number of rows is taken from the job statistics if available.
+    // If not, we use the number of source table records.
+    long numRows = queryJobStats != null && queryJobStats.getNumDmlAffectedRows() != null ?
+      queryJobStats.getNumDmlAffectedRows() : srcTable.getNumRows().longValue();
+    LOG.info("Executed copy operation for {} records from {}.{}.{} to {}.{}.{}", numRows,
              sourceTableId.getProject(), sourceTableId.getDataset(), sourceTableId.getTable(),
              destinationTableId.getProject(), destinationTableId.getDataset(), destinationTableId.getTable());
 
@@ -240,8 +248,9 @@ public class BigQueryWrite {
 
   /**
    * Relax table fields based on the supplied schema
+   *
    * @param schema schema to use when relaxing
-   * @param table the destionation table to relax
+   * @param table  the destionation table to relax
    */
   protected void relaxTableSchema(Schema schema, Table table) {
     com.google.cloud.bigquery.Schema bqSchema = BigQuerySinkUtils.convertCdapSchemaToBigQuerySchema(schema);
@@ -252,9 +261,10 @@ public class BigQueryWrite {
 
   /**
    * Create a new BigQuery table based on the supplied schema and table identifier
-   * @param schema schema to use for this table
-   * @param tableId itendifier for the new table
-   * @param sinkConfig Sink configuration used to define this table
+   *
+   * @param schema              schema to use for this table
+   * @param tableId             itendifier for the new table
+   * @param sinkConfig          Sink configuration used to define this table
    * @param newDestinationTable Atomic reference to this new table. Used to delete this table if the execution fails.
    */
   protected void createTable(Schema schema,
@@ -268,7 +278,7 @@ public class BigQueryWrite {
     tableDefinitionBuilder.setSchema(bqSchema);
 
     // Configure partitioning options
-    switch(sinkConfig.getPartitioningType()) {
+    switch (sinkConfig.getPartitioningType()) {
       case TIME:
         tableDefinitionBuilder.setTimePartitioning(getTimePartitioning(sinkConfig));
         break;
@@ -306,6 +316,7 @@ public class BigQueryWrite {
 
   /**
    * Try to delete this table while handling exception
+   *
    * @param table the table identified for the table we want to delete.
    */
   protected void tryDeleteTable(TableId table) {
@@ -381,6 +392,7 @@ public class BigQueryWrite {
 
   /**
    * Build time partitioning configuration based on the BigQuery Sink configuration.
+   *
    * @param config sink configuration to use
    * @return Time Partitioning configuration
    */
@@ -398,6 +410,7 @@ public class BigQueryWrite {
 
   /**
    * Build range partitioning configuration based on the BigQuery Sink configuration.
+   *
    * @param config sink configuration to use
    * @return Range Partitioning configuration
    */
@@ -416,6 +429,7 @@ public class BigQueryWrite {
 
   /**
    * Build range used for partitioning configuration
+   *
    * @param config sink configuration to use
    * @return Range configuration
    */
@@ -433,6 +447,7 @@ public class BigQueryWrite {
 
   /**
    * Get the list of fields to use for clustering based on the supplied sink configuration
+   *
    * @param config sink configuration to use
    * @return List containing all clustering order fields.
    */
@@ -446,6 +461,7 @@ public class BigQueryWrite {
 
   /**
    * Get the clustering information for a list of clustering fields
+   *
    * @param clusteringFields list of clustering fields to use
    * @return Clustering configuration
    */
@@ -457,6 +473,7 @@ public class BigQueryWrite {
 
   /**
    * Get encryption configuration for the supplied sink configuration
+   *
    * @param config sink configuration to use
    * @return Encryption configuration
    */
