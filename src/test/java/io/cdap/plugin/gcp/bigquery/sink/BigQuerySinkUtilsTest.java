@@ -16,6 +16,10 @@
 
 package io.cdap.plugin.gcp.bigquery.sink;
 
+import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.Dataset;
+import com.google.cloud.bigquery.DatasetId;
+import com.google.cloud.bigquery.DatasetInfo;
 import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
 import io.cdap.cdap.api.data.schema.Schema;
@@ -24,7 +28,10 @@ import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize;
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Assert;
 import org.junit.Test;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mockito;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -101,4 +108,27 @@ public class BigQuerySinkUtilsTest {
   }
 
 
+  @Test
+  public void testCreateDatasetIfNotExists() throws IOException {
+    String dsProjectId = "dummy_project";
+    String dsName = "dummy_dataset";
+    BigQuery bq = Mockito.mock(BigQuery.class);
+    DatasetId dsId = DatasetId.of(dsProjectId, dsName);
+    Dataset ds = Mockito.mock(Dataset.class);
+
+    // when dataset exists do not try to create dataset
+    Mockito.when(bq.getDataset(dsId)).thenReturn(ds);
+    BigQuerySinkUtils.createDatasetIfNotExists(bq, dsId, null, null,
+                                               () -> String.format("Unable to create BigQuery dataset '%s.%s'",
+                                                                   dsProjectId, dsName));
+    Mockito.verify(bq, Mockito.times(0)).create(ArgumentMatchers.any(DatasetInfo.class));
+
+    // when dataset does not exist create dataset
+    Mockito.when(bq.getDataset(dsId)).thenReturn(null);
+    Mockito.when(bq.create(ArgumentMatchers.any(DatasetInfo.class))).thenReturn(ds);
+    BigQuerySinkUtils.createDatasetIfNotExists(bq, dsId, null, null,
+                                               () -> String.format("Unable to create BigQuery dataset '%s.%s'",
+                                                                   dsProjectId, dsName));
+    Mockito.verify(bq, Mockito.times(1)).create(ArgumentMatchers.any(DatasetInfo.class));
+  }
 }
