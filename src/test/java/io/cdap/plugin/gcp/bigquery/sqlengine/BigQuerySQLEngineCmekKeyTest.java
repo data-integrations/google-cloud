@@ -192,9 +192,9 @@ public class BigQuerySQLEngineCmekKeyTest {
       .build();
     DatasetId datasetId = DatasetId.of(project, dataset);
     // creating dataset before validating cmek key
-    BigQuerySinkUtils.createDataset(bigQuery, datasetId, location, null,
-                                    () -> String.format("Unable to create BigQuery dataset '%s.%s'",
-                                                        datasetId.getProject(), datasetId.getDataset()));
+    BigQuerySinkUtils.createDatasetIfNotExists(bigQuery, datasetId, location, null,
+                                               () -> String.format("Unable to create BigQuery dataset '%s.%s'",
+                                                                   datasetId.getProject(), datasetId.getDataset()));
     config.validateCmekKey(collector, Collections.emptyMap());
     Assert.assertEquals(0, collector.getValidationFailures().size());
     // deleting dataset after successful validation

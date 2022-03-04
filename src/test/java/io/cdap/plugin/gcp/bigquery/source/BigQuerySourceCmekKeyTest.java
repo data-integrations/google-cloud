@@ -99,9 +99,9 @@ public class BigQuerySourceCmekKeyTest {
   @Before
   public void createTable() throws IOException {
     DatasetId datasetId = DatasetId.of(project, dataset);
-    BigQuerySinkUtils.createDataset(bigQuery, datasetId, location, null,
-                                    () -> String.format("Unable to create BigQuery dataset '%s.%s'",
-                                                        datasetId.getProject(), datasetId.getDataset()));
+    BigQuerySinkUtils.createDatasetIfNotExists(bigQuery, datasetId, location, null,
+                                               () -> String.format("Unable to create BigQuery dataset '%s.%s'",
+                                                                   datasetId.getProject(), datasetId.getDataset()));
     Schema schema = Schema.of();
     TableDefinition tableDefinition = StandardTableDefinition.of(schema);
     bigQuery.create(TableInfo.newBuilder(TableId.of(project, dataset, table), tableDefinition).build());
