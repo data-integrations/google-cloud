@@ -20,7 +20,7 @@ import java.util.Map;
  * OutputFormatProvider for GCSSink
  */
 public class GCSOutputFormatProvider implements ValidatingOutputFormat {
-  private static final String DELEGATE_OUTPUTFORMAT_CLASSNAME = "gcssink.delegate.outputformat.classname";
+  public static final String DELEGATE_OUTPUTFORMAT_CLASSNAME = "gcssink.delegate.outputformat.classname";
   private static final String OUTPUT_FOLDER = "gcssink.metric.output.folder";
   public static final String RECORD_COUNT_FORMAT = "recordcount.%s";
   private final ValidatingOutputFormat delegate;
