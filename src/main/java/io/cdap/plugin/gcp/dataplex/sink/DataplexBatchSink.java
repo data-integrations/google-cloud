@@ -62,7 +62,6 @@ import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
 import io.cdap.plugin.gcp.bigquery.sink.PartitionType;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
-import io.cdap.plugin.gcp.common.CmekUtils;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.dataplex.common.util.DataplexConstants;
 import io.cdap.plugin.gcp.dataplex.common.util.DataplexUtil;
@@ -228,7 +227,7 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     FailureCollector collector = context.getFailureCollector();
     Credentials credentials = config.getCredentials(collector);
     String project = config.getProject();
-    String cmekKey = context.getArguments().get(CmekUtils.CMEK_KEY);
+    String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
     CryptoKeyName cmekKeyName = null;
     if (!Strings.isNullOrEmpty(cmekKey)) {
       cmekKeyName = CryptoKeyName.parse(cmekKey);
@@ -449,7 +448,7 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     }
     context.addOutput(Output.of(config.getReferenceName(),
       new SinkOutputFormatProvider(validatingOutputFormat.getOutputFormatClassName(), outputProperties)));
-    String cmekKey = context.getArguments().get(CmekUtils.CMEK_KEY);
+    String cmekKey = context.getArguments().get(GCPUtils.CMEK_KEY);
     CryptoKeyName cmekKeyName = null;
     if (!Strings.isNullOrEmpty(cmekKey)) {
       cmekKeyName = CryptoKeyName.parse(cmekKey);

@@ -1,0 +1,202 @@
+{
+  "metadata": {
+    "spec-version": "1.5"
+  },
+  "display-name": "Dataplex",
+  "configuration-groups": [
+    {
+      "label": "Basic",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Reference Name",
+          "name": "referenceName",
+          "widget-attributes": {
+            "placeholder": "Name used to identify this source for lineage"
+          }
+        }
+      ]
+    },
+    {
+      "label": "Connection",
+      "properties": [
+        {
+          "widget-type": "hidden",
+          "label": "Connection",
+          "name": "connection",
+          "widget-attributes": {
+            "connectionType": "Dataplex"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Project ID",
+          "name": "project",
+          "widget-attributes": {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "name": "serviceAccountType",
+          "label": "Service Account Type",
+          "widget-type": "radio-group",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "filePath",
+            "options": [
+              {
+                "id": "filePath",
+                "label": "File Path"
+              },
+              {
+                "id": "JSON",
+                "label": "JSON"
+              }
+            ]
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Service Account File Path",
+          "name": "serviceFilePath",
+          "widget-attributes": {
+            "default": "auto-detect"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Service Account JSON",
+          "name": "serviceAccountJSON"
+        }
+      ]
+    },
+    {
+      "label": "Dataplex Configuration",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Location Id",
+          "name": "location",
+          "widget-attributes": {
+            "placeholder": "Ex: us-central1"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Lake Id",
+          "name": "lake",
+          "widget-attributes": {
+            "placeholder": "Ex: Lake"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Zone Id",
+          "name": "zone",
+          "widget-attributes": {
+            "placeholder": "Ex: zone"
+          }
+        },
+        {
+          "widget-type": "hidden",
+          "label": "Asset Id",
+          "name": "asset",
+          "widget-attributes": {
+            "placeholder": "Ex: Asset"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Entity Id",
+          "name": "entity",
+          "widget-attributes": {
+            "placeholder": "Ex: Entity"
+          },
+          "plugin-function": {
+            "label": "Get Schema",
+            "widget": "outputSchema",
+            "output-property": "schema",
+            "omit-properties": [
+              {
+                "name": "schema"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "label": "Entity Details",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Partition Start Date",
+          "name": "partitionFrom",
+          "widget-attributes": {
+            "placeholder": "Partition start date in format yyyy-MM-dd"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Partition End Date",
+          "name": "partitionTo",
+          "widget-attributes": {
+            "placeholder": "Partition end date in format yyyy-MM-dd"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Filter",
+          "name": "filter",
+          "widget-attributes" : {
+            "placeholder": "Filters out rows that do not match the given condition"
+          }
+        }
+      ]
+    }
+  ],
+  "outputs": [
+    {
+      "name": "schema",
+      "label": "schema",
+      "widget-type": "schema",
+      "widget-attributes": {
+        "schema-types": [
+          "boolean",
+          "long",
+          "double",
+          "bytes",
+          "string",
+          "array"
+        ],
+        "schema-default-type": "string"
+      }
+    }
+  ],
+  "filters": [
+    {
+      "name": "ServiceAuthenticationTypeFilePath",
+      "condition": {
+        "expression": "serviceAccountType == 'filePath'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "serviceFilePath"
+        }
+      ]
+    },
+    {
+      "name": "ServiceAuthenticationTypeJSON",
+      "condition": {
+        "expression": "serviceAccountType == 'JSON'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "serviceAccountJSON"
+        }
+      ]
+    }
+  ]
+}
