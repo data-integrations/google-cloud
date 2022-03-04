@@ -200,11 +200,13 @@ public class BigQuerySinkTest {
     BigQuerySink sink = getValidationTestSink(false);
     MockFailureCollector collector = new MockFailureCollector("bqsink");
     Table table = getTestSchema();
-    sink.validateSchema(
+    BigQuerySinkUtils.validateSchema(
       table.getTableId().getTable(),
       table.getDefinition().getSchema(),
       sink.getConfig().getSchema(collector),
       false,
+      false,
+      "ds",
       collector);
   }
 
@@ -213,11 +215,13 @@ public class BigQuerySinkTest {
     BigQuerySink sink = getValidationTestSink(true);
     MockFailureCollector collector = new MockFailureCollector("bqsink");
     Table table = getTestSchema();
-    sink.validateSchema(
+    BigQuerySinkUtils.validateSchema(
       table.getTableId().getTable(),
       table.getDefinition().getSchema(),
       sink.getConfig().getSchema(collector),
       false,
+      true,
+      "ds",
       collector);
     Assert.assertEquals(0, collector.getValidationFailures().size());
   }
@@ -227,11 +231,13 @@ public class BigQuerySinkTest {
     BigQuerySink sink = getValidationTestSink(true);
     MockFailureCollector collector = new MockFailureCollector("bqsink");
     Table table = getTestSchema();
-    sink.validateSchema(
+    BigQuerySinkUtils.validateSchema(
       table.getTableId().getTable(),
       table.getDefinition().getSchema(),
       sink.getConfig().getSchema(collector),
       true,
+      true,
+      "ds",
       collector);
     Assert.assertEquals(0, collector.getValidationFailures().size());
   }
@@ -241,11 +247,13 @@ public class BigQuerySinkTest {
     BigQuerySink sink = getValidationTestSink(false);
     MockFailureCollector collector = new MockFailureCollector("bqsink");
     Table table = getTestSchema();
-    sink.validateSchema(
+    BigQuerySinkUtils.validateSchema(
       table.getTableId().getTable(),
       table.getDefinition().getSchema(),
       sink.getConfig().getSchema(collector),
       true,
+      false,
+      "ds",
       collector);
     Assert.assertEquals(0, collector.getValidationFailures().size());
   }
@@ -255,15 +263,20 @@ public class BigQuerySinkTest {
     BigQuerySink sink = getValidationTestSink(false);
     MockFailureCollector collector = new MockFailureCollector("bqsink");
     Table table = getTestSchema();
-    sink.validateSchema(
+    BigQuerySinkUtils.validateSchema(
       table.getTableId().getTable(),
       table.getDefinition().getSchema(),
       null,
       true,
+      false,
+      "ds",
       collector);
-    sink.validateInsertSchema(
+    BigQuerySinkUtils.validateInsertSchema(
       table,
       null,
+      true,
+      false,
+      "ds",
       collector);
     Assert.assertEquals(0, collector.getValidationFailures().size());
   }

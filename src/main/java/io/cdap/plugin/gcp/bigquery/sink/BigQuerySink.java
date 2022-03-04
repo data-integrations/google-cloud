@@ -39,6 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -248,10 +249,13 @@ public final class BigQuerySink extends AbstractBigQuerySink {
     if (table != null && !config.containsMacro(AbstractBigQuerySinkConfig.NAME_UPDATE_SCHEMA)) {
       // if table already exists, validate schema against underlying bigquery table
       com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
+
       if (config.getOperation().equals(Operation.INSERT)) {
-        validateInsertSchema(table, schema, collector);
+        BigQuerySinkUtils.validateInsertSchema(table, schema, config.allowSchemaRelaxation,
+          config.isTruncateTableSet(), config.getDataset(), collector);
       } else if (config.getOperation().equals(Operation.UPSERT)) {
-        validateSchema(tableName, bqSchema, schema, config.allowSchemaRelaxation, collector);
+        BigQuerySinkUtils.validateSchema(tableName, bqSchema, schema, config.allowSchemaRelaxation,
+          config.isTruncateTableSet(), config.getDataset(), collector);
       }
     }
   }

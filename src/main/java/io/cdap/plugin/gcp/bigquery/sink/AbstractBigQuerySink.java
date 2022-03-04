@@ -136,8 +136,9 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
                                   FailureCollector collector) throws IOException {
     LOG.debug("Init output for table '{}' with schema: {}", tableName, tableSchema);
 
-    List<BigQueryTableFieldSchema> fields = getBigQueryTableFields(bigQuery, tableName, tableSchema,
-                                                                   getConfig().isAllowSchemaRelaxation(), collector);
+    List<BigQueryTableFieldSchema> fields = BigQuerySinkUtils.getBigQueryTableFields(bigQuery, tableName, tableSchema,
+      getConfig().isAllowSchemaRelaxation(), getConfig().getDatasetProject(),
+      getConfig().getDataset(), getConfig().isTruncateTableSet(), collector);
 
     Configuration configuration = new Configuration(baseConfiguration);
 
@@ -153,7 +154,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
     List<String> fieldNames = fields.stream()
       .map(BigQueryTableFieldSchema::getName)
       .collect(Collectors.toList());
-    recordLineage(context, outputName, tableSchema, fieldNames);
+    BigQuerySinkUtils.recordLineage(context, outputName, tableSchema, fieldNames);
     context.addOutput(Output.of(outputName, getOutputFormatProvider(configuration, tableName, tableSchema)));
   }
 
@@ -397,17 +398,6 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
   protected Configuration getOutputConfiguration() throws IOException {
     Configuration configuration = new Configuration(baseConfiguration);
     return configuration;
-  }
-
-  private void recordLineage(BatchSinkContext context,
-                             String outputName,
-                             Schema tableSchema,
-                             List<String> fieldNames) {
-    LineageRecorder lineageRecorder = new LineageRecorder(context, outputName);
-    lineageRecorder.createExternalDataset(tableSchema);
-    if (!fieldNames.isEmpty()) {
-      lineageRecorder.recordWrite("Write", "Wrote to BigQuery table.", fieldNames);
-    }
   }
 
 }
