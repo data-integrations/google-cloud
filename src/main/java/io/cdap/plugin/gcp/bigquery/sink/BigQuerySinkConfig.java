@@ -325,7 +325,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
       List<String> schemaFields = Objects.requireNonNull(schema.getFields()).stream().
         map(Schema.Field::getName).map(String::toLowerCase).collect(Collectors.toList());
 
-      final Set<String> duplicatedFields = getDuplicatedFields(schemaFields);
+      final Set<String> duplicatedFields = BigQuerySinkUtils.getDuplicatedFields(schemaFields);
 
       for (Schema.Field field : outputSchema.getFields()) {
         String name = field.getName();
@@ -353,19 +353,6 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
         }
       }
     }
-  }
-  /**
-   * Returns list of duplicated fields (case insensitive)
-   */
-  private Set<String> getDuplicatedFields(List<String> schemaFields) {
-    final Set<String> duplicatedFields = new HashSet<>();
-    final Set<String> set = new HashSet<>();
-    for (String field : schemaFields) {
-      if (!set.add(field)) {
-        duplicatedFields.add(field);
-      }
-    }
-    return duplicatedFields;
   }
 
   private void validatePartitionProperties(@Nullable Schema schema, FailureCollector collector) {
@@ -561,7 +548,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
       Schema.Type type = nonNullSchema.getType();
       Schema.LogicalType logicalType = nonNullSchema.getLogicalType();
 
-      if (!SUPPORTED_CLUSTERING_TYPES.contains(type) && !isSupportedLogicalType(logicalType)) {
+      if (!SUPPORTED_CLUSTERING_TYPES.contains(type) && !BigQuerySinkUtils.isSupportedLogicalType(logicalType)) {
         collector.addFailure(
           String.format("Field '%s' is of unsupported type '%s'.", column, nonNullSchema.getDisplayName()),
           "Supported types are : string, bytes, int, long, boolean, date, timestamp and decimal.")
@@ -610,7 +597,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
       }
     }
 
-    Map<String, Integer> keyMap = calculateDuplicates(keyFields);
+    Map<String, Integer> keyMap = BigQuerySinkUtils.calculateDuplicates(keyFields);
     keyMap.keySet().stream()
       .filter(key -> keyMap.get(key) != 1)
       .forEach(key -> collector.addFailure(
@@ -630,7 +617,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
           "Change the Dedupe by field to be one of the schema fields.")
           .withConfigElement(NAME_DEDUPE_BY, v));
 
-      Map<String, Integer> orderedByFieldMap = calculateDuplicates(dedupeByList);
+      Map<String, Integer> orderedByFieldMap = BigQuerySinkUtils.calculateDuplicates(dedupeByList);
       Map<String, String> orderedByFieldValueMap = dedupeByList.stream()
         .collect(Collectors.toMap(p -> p.split(" ")[0], p -> p, (x, y) -> y));
 
@@ -642,20 +629,6 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
           .withConfigElement(NAME_DEDUPE_BY, orderedByFieldValueMap.get(key))
         );
     }
-  }
-
-  private Map<String, Integer> calculateDuplicates(List<String> values) {
-    return values.stream()
-      .map(v -> v.split(" ")[0])
-      .collect(Collectors.toMap(p -> p, p -> 1, (x, y) -> x + y));
-  }
-
-  private boolean isSupportedLogicalType(Schema.LogicalType logicalType) {
-    if (logicalType != null) {
-      return logicalType == Schema.LogicalType.DATE || logicalType == Schema.LogicalType.TIMESTAMP_MICROS ||
-        logicalType == Schema.LogicalType.TIMESTAMP_MILLIS || logicalType == Schema.LogicalType.DECIMAL;
-    }
-    return false;
   }
 
   @Override

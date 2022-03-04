@@ -44,6 +44,7 @@ import io.cdap.plugin.gcp.bigquery.sqlengine.BigQuerySQLEngine;
 import io.cdap.plugin.gcp.bigquery.sqlengine.BigQueryWrite;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
+
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,6 +55,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
+
 import javax.annotation.Nullable;
 
 /**
@@ -159,8 +161,10 @@ public final class BigQuerySink extends AbstractBigQuerySink {
                            String tableName,
                            @Nullable Schema tableSchema,
                            FailureCollector collector) {
-    List<BigQueryTableFieldSchema> fields = getBigQueryTableFields(bigQuery, tableName, tableSchema,
-                                                                   getConfig().isAllowSchemaRelaxation(), collector);
+    List<BigQueryTableFieldSchema> fields = BigQuerySinkUtils.getBigQueryTableFields(bigQuery, tableName, tableSchema,
+      getConfig().isAllowSchemaRelaxation(),
+      config.getDatasetProject(), config.getDataset(), config.isTruncateTableSet(), collector);
+
     List<String> fieldNames = fields.stream()
       .map(BigQueryTableFieldSchema::getName)
       .collect(Collectors.toList());
@@ -307,9 +311,11 @@ public final class BigQuerySink extends AbstractBigQuerySink {
       com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
 
       if (config.getOperation().equals(Operation.INSERT)) {
-        validateInsertSchema(table, schema, collector);
+        BigQuerySinkUtils.validateInsertSchema(table, schema, config.allowSchemaRelaxation,
+          config.isTruncateTableSet(), config.getDataset(), collector);
       } else if (config.getOperation().equals(Operation.UPSERT)) {
-        validateSchema(tableName, bqSchema, schema, config.allowSchemaRelaxation, collector);
+        BigQuerySinkUtils.validateSchema(tableName, bqSchema, schema, config.allowSchemaRelaxation,
+          config.isTruncateTableSet(), config.getDataset(), collector);
       }
     }
   }
