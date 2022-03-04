@@ -93,8 +93,8 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
     String bucket = BigQuerySinkUtils.configureBucket(baseConfiguration, config.getBucket(), runUUID.toString());
     if (!context.isPreviewEnabled()) {
       BigQuerySinkUtils.createResources(bigQuery, GCPUtils.getStorage(project, credentials),
-                                        DatasetId.of(config.getDatasetProject(), config.getDataset()),
-                                        bucket, config.getLocation(), cmekKeyName);
+        DatasetId.of(config.getDatasetProject(), config.getDataset()),
+        bucket, config.getLocation(), cmekKeyName);
     }
 
     prepareRunInternal(context, bigQuery, bucket);
@@ -136,24 +136,25 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
                                   FailureCollector collector) throws IOException {
     LOG.debug("Init output for table '{}' with schema: {}", tableName, tableSchema);
 
-    List<BigQueryTableFieldSchema> fields = getBigQueryTableFields(bigQuery, tableName, tableSchema,
-                                                                   getConfig().isAllowSchemaRelaxation(), collector);
+    List<BigQueryTableFieldSchema> fields = BigQuerySinkUtils.getBigQueryTableFields(bigQuery, tableName, tableSchema,
+      getConfig().isAllowSchemaRelaxation(), getConfig().getDatasetProject(),
+      getConfig().getDataset(), getConfig().isTruncateTableSet(), collector);
 
     Configuration configuration = new Configuration(baseConfiguration);
 
     // Build GCS storage path for this bucket output.
     String temporaryGcsPath = BigQuerySinkUtils.getTemporaryGcsPath(bucket, runUUID.toString(), tableName);
     BigQuerySinkUtils.configureOutput(configuration,
-                                      DatasetId.of(getConfig().getDatasetProject(), getConfig().getDataset()),
-                                      tableName,
-                                      temporaryGcsPath,
-                                      fields);
+      DatasetId.of(getConfig().getDatasetProject(), getConfig().getDataset()),
+      tableName,
+      temporaryGcsPath,
+      fields);
     // Both emitLineage and setOutputFormat internally try to create an external dataset if it does not already exist.
     // We call emitLineage before since it creates the dataset with schema which is used.
     List<String> fieldNames = fields.stream()
       .map(BigQueryTableFieldSchema::getName)
       .collect(Collectors.toList());
-    recordLineage(context, outputName, tableSchema, fieldNames);
+    BigQuerySinkUtils.recordLineage(context, outputName, tableSchema, fieldNames);
     context.addOutput(Output.of(outputName, getOutputFormatProvider(configuration, tableName, tableSchema)));
   }
 
@@ -205,11 +206,11 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
   private Configuration getBaseConfiguration(@Nullable CryptoKeyName cmekKeyName) throws IOException {
     AbstractBigQuerySinkConfig config = getConfig();
     Configuration baseConfiguration = BigQueryUtil.getBigQueryConfig(config.getServiceAccount(), config.getProject(),
-                                                                     cmekKeyName, config.getServiceAccountType());
+      cmekKeyName, config.getServiceAccountType());
     baseConfiguration.setBoolean(BigQueryConstants.CONFIG_ALLOW_SCHEMA_RELAXATION,
-                                 config.isAllowSchemaRelaxation());
+      config.isAllowSchemaRelaxation());
     baseConfiguration.setStrings(BigQueryConfiguration.OUTPUT_TABLE_WRITE_DISPOSITION_KEY,
-                                 config.getWriteDisposition().name());
+      config.getWriteDisposition().name());
     // this setting is needed because gcs has default chunk size of 64MB. This is large default chunk size which can
     // cause OOM issue if there are many tables being written. See this - CDAP-16670
     String gcsChunkSize = "8388608";
@@ -240,7 +241,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
     for (String field : remainingBQFields) {
       if (bqFields.get(field).getMode() != Field.Mode.NULLABLE) {
         collector.addFailure(String.format("Required Column '%s' is not present in the schema.", field),
-                             String.format("Add '%s' to the schema.", field));
+          String.format("Add '%s' to the schema.", field));
       }
     }
 
@@ -258,8 +259,8 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
           failure.withInputSchemaField(fieldName).withOutputSchemaField(fieldName);
         }
         BigQueryUtil.validateFieldModeMatches(bqFields.get(fieldName), field,
-                                              getConfig().isAllowSchemaRelaxation(),
-                                              collector);
+          getConfig().isAllowSchemaRelaxation(),
+          collector);
       }
     }
     collector.getOrThrowException();
@@ -303,9 +304,9 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
 
       for (String nonNullableField : nonNullableFields) {
         collector.addFailure(
-          String.format("Required field '%s' does not exist in BigQuery table '%s.%s'.",
-                        nonNullableField, getConfig().getDataset(), tableName),
-          "Change the field to be nullable.")
+            String.format("Required field '%s' does not exist in BigQuery table '%s.%s'.",
+              nonNullableField, getConfig().getDataset(), tableName),
+            "Change the field to be nullable.")
           .withInputSchemaField(nonNullableField).withOutputSchemaField(nonNullableField);
       }
     }
@@ -314,9 +315,9 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
       // schema should not have fields that are not present in BigQuery table,
       for (String missingField : missingBQFields) {
         collector.addFailure(
-          String.format("Field '%s' does not exist in BigQuery table '%s.%s'.",
-                        missingField, getConfig().getDataset(), tableName),
-          String.format("Remove '%s' from the input, or add a column to the BigQuery table.", missingField))
+            String.format("Field '%s' does not exist in BigQuery table '%s.%s'.",
+              missingField, getConfig().getDataset(), tableName),
+            String.format("Remove '%s' from the input, or add a column to the BigQuery table.", missingField))
           .withInputSchemaField(missingField).withOutputSchemaField(missingField);
       }
 
@@ -327,7 +328,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
         // Mode is optional. If the mode is unspecified, the column defaults to NULLABLE.
         if (mode != null && mode != Field.Mode.NULLABLE) {
           collector.addFailure(String.format("Required Column '%s' is not present in the schema.", field),
-                               String.format("Add '%s' to the schema.", field));
+            String.format("Add '%s' to the schema.", field));
         }
       }
     }
@@ -346,8 +347,8 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
             failure.withInputSchemaField(fieldName).withOutputSchemaField(fieldName);
           }
           BigQueryUtil.validateFieldModeMatches(bqFields.get(fieldName), field,
-                                                allowSchemaRelaxation,
-                                                collector);
+            allowSchemaRelaxation,
+            collector);
         }
       }
     }
@@ -397,17 +398,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
   protected Configuration getOutputConfiguration() throws IOException {
     Configuration configuration = new Configuration(baseConfiguration);
     return configuration;
-  }
 
-  private void recordLineage(BatchSinkContext context,
-                             String outputName,
-                             Schema tableSchema,
-                             List<String> fieldNames) {
-    LineageRecorder lineageRecorder = new LineageRecorder(context, outputName);
-    lineageRecorder.createExternalDataset(tableSchema);
-    if (!fieldNames.isEmpty()) {
-      lineageRecorder.recordWrite("Write", "Wrote to BigQuery table.", fieldNames);
-    }
   }
 
 }
