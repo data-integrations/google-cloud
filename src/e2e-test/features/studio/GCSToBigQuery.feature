@@ -10,4 +10,6 @@ Feature: Studio-logs - BigQuery sink 2
     Then Enter the GCS source mandatory properties
     Then Validate plugin properties
     Then Wait for studio service error
+    Then Navigate to System admin page
     Then Capture Pipeline studio service logs
+    Then Capture App Fabric logs

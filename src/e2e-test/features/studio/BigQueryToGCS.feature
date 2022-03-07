@@ -15,4 +15,6 @@ Feature: Studio-logs - BigQuery source 1
     Then Enter BiqQuery property encryption key name "cmekBQ" if cmek is enabled
     Then Validate plugin properties
     Then Wait for studio service error
+    Then Navigate to System admin page
     Then Capture Pipeline studio service logs
+    Then Capture App Fabric logs

@@ -35,6 +35,7 @@ import org.openqa.selenium.By;
 import stepsdesign.BeforeActions;
 
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
@@ -187,18 +188,34 @@ public class BigQueryBase implements CdfHelper {
       SeleniumDriver.getDriver().findElement(By.xpath("//*[@data-cy='configuration-group']//h2[text()='Errors']")));
   }
 
-  @Then("Capture Pipeline studio service logs")
-  public void capturePipelineStudioServiceLogs() throws FileNotFoundException {
+  @Then("Navigate to System admin page")
+  public void navigateToSystemAdminPage() {
     ElementHelper.clickOnElement(SeleniumDriver.getDriver().findElement(By.xpath("//a[@data-cy='System Admin']")));
     PageHelper.acceptAlertIfPresent();
     WaitHelper.waitForPageToLoad();
-    ElementHelper.clickOnElement(SeleniumDriver.getDriver().findElement
-      (By.xpath("//table//td/span[text()='Pipeline Studio']/parent::td/following-sibling::td/a[text()='View Logs']")));
-    PrintWriter out = new PrintWriter(BeforeActions.file);
-    out.println(captureStudioLogs());
   }
 
-  private String captureStudioLogs() {
+  @Then("Capture Pipeline studio service logs")
+  public void capturePipelineStudioServiceLogs() throws FileNotFoundException {
+    ElementHelper.clickOnElement(SeleniumDriver.getDriver().findElement
+      (By.xpath("//table//td/span[text()='Pipeline Studio']/parent::td/following-sibling::td/a[text()='View Logs']")));
+    String message = "---------------------------------------------------------------------------------------" +
+      "PIPELINE STUDIO LOGS" +
+      "---------------------------------------------------------------------------------------";
+    writeLogsToFile(message, captureSystemAdminRawLogs());
+  }
+
+  @Then("Capture App Fabric logs")
+  public void captureAppFabricLogs() throws FileNotFoundException {
+    ElementHelper.clickOnElement(SeleniumDriver.getDriver().findElement
+      (By.xpath("//table//td/span[text()='App Fabric']/parent::td/following-sibling::td/a[text()='View Logs']")));
+    String message = "---------------------------------------------------------------------------------------" +
+      "APP FABRIC LOGS" +
+      "---------------------------------------------------------------------------------------";
+    writeLogsToFile(message, captureSystemAdminRawLogs());
+  }
+
+  private String captureSystemAdminRawLogs() {
     String parent = SeleniumDriver.getDriver().getWindowHandle();
     ArrayList<String> tabs2 = new ArrayList(SeleniumDriver.getDriver().getWindowHandles());
     SeleniumDriver.getDriver().switchTo().window((String) tabs2.get(1));
@@ -206,7 +223,20 @@ public class BigQueryBase implements CdfHelper {
     Assert.assertNotNull(logs);
     SeleniumDriver.getDriver().close();
     SeleniumDriver.getDriver().switchTo().window(parent);
-    BeforeActions.scenario.write(logs);
     return logs;
+  }
+
+  private void writeLogsToFile(String message, String rawLogs) throws FileNotFoundException {
+    BeforeActions.scenario.write(message);
+    BeforeActions.scenario.write(rawLogs);
+    PrintWriter out;
+    if (BeforeActions.file.exists()) {
+      out = new PrintWriter(new FileOutputStream(BeforeActions.file, true));
+    } else {
+      out = new PrintWriter(BeforeActions.file);
+    }
+    out.println(message);
+    out.println(rawLogs);
+    out.close();
   }
 }
