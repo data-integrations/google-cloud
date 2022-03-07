@@ -20,18 +20,25 @@ import io.cdap.e2e.pages.actions.CdfStudioActions;
 import io.cdap.e2e.pages.locators.CdfStudioLocators;
 import io.cdap.e2e.utils.BigQueryClient;
 import io.cdap.e2e.utils.CdfHelper;
+import io.cdap.e2e.utils.ElementHelper;
+import io.cdap.e2e.utils.PageHelper;
 import io.cdap.e2e.utils.PluginPropertyUtils;
 import io.cdap.e2e.utils.SeleniumDriver;
 import io.cdap.e2e.utils.SeleniumHelper;
+import io.cdap.e2e.utils.WaitHelper;
 import io.cdap.plugin.common.stepsdesign.TestSetupHooks;
 import io.cucumber.java.en.And;
 import io.cucumber.java.en.Then;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.Assert;
+import org.openqa.selenium.By;
 import stepsdesign.BeforeActions;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.Optional;
 import java.util.UUID;
@@ -167,5 +174,39 @@ public class BigQueryBase implements CdfHelper {
     } else {
       BeforeActions.scenario.write("CMEK not enabled");
     }
+  }
+
+  @Then("Validate plugin properties")
+  public void validatePluginProperties() {
+    CdfStudioActions.clickValidateButton();
+  }
+
+  @Then("Wait for studio service error")
+  public void waitForStudioServiceError() {
+    WaitHelper.waitForElementToBeDisplayed(
+      SeleniumDriver.getDriver().findElement(By.xpath("//*[@data-cy='configuration-group']//h2[text()='Errors']")));
+  }
+
+  @Then("Capture Pipeline studio service logs")
+  public void capturePipelineStudioServiceLogs() throws FileNotFoundException {
+    ElementHelper.clickOnElement(SeleniumDriver.getDriver().findElement(By.xpath("//a[@data-cy='System Admin']")));
+    PageHelper.acceptAlertIfPresent();
+    WaitHelper.waitForPageToLoad();
+    ElementHelper.clickOnElement(SeleniumDriver.getDriver().findElement
+      (By.xpath("//table//td/span[text()='Pipeline Studio']/parent::td/following-sibling::td/a[text()='View Logs']")));
+    PrintWriter out = new PrintWriter(BeforeActions.file);
+    out.println(captureStudioLogs());
+  }
+
+  private String captureStudioLogs() {
+    String parent = SeleniumDriver.getDriver().getWindowHandle();
+    ArrayList<String> tabs2 = new ArrayList(SeleniumDriver.getDriver().getWindowHandles());
+    SeleniumDriver.getDriver().switchTo().window((String) tabs2.get(1));
+    String logs = SeleniumDriver.getDriver().findElement(By.xpath("/html/body/pre")).getText();
+    Assert.assertNotNull(logs);
+    SeleniumDriver.getDriver().close();
+    SeleniumDriver.getDriver().switchTo().window(parent);
+    BeforeActions.scenario.write(logs);
+    return logs;
   }
 }

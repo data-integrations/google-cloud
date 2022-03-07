@@ -881,7 +881,7 @@
         <version>3.0.0-M5</version>
         <configuration>
           <includes>
-            <include>TestRunner.java</include>
+            <include>TestRunner1.java</include>
           </includes>
           <!--Start configuration to run TestRunners in parallel-->
           <parallel>classes</parallel> <!--Running TestRunner classes in parallel-->
