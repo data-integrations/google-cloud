@@ -18,17 +18,16 @@ package io.cdap.plugin.gcs.stepsdesign;
 import io.cdap.e2e.pages.actions.CdfGcsActions;
 import io.cdap.e2e.pages.locators.CdfGCSLocators;
 import io.cdap.e2e.pages.locators.CdfStudioLocators;
+import io.cdap.e2e.utils.ElementHelper;
 import io.cdap.e2e.utils.PluginPropertyUtils;
-import io.cdap.e2e.utils.SeleniumDriver;
 import io.cdap.e2e.utils.SeleniumHelper;
+import io.cdap.e2e.utils.WaitHelper;
 import io.cdap.plugin.common.stepsdesign.TestSetupHooks;
 import io.cdap.plugin.utils.CdfPluginPropertyLocator;
 import io.cdap.plugin.utils.E2EHelper;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.junit.Assert;
-import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.io.IOException;
 
@@ -101,8 +100,7 @@ public class GCSSource implements E2EHelper {
   public void enterGCSSourcePropertyOutputSchemaAsMacroArgument(String pluginProperty, String macroArgument) {
     SCHEMA_LOCATORS.schemaActions.click();
     SCHEMA_LOCATORS.schemaActionType("macro").click();
-    WebDriverWait wait = new WebDriverWait(SeleniumDriver.getDriver(), 5);
-    wait.until(ExpectedConditions.invisibilityOf(SCHEMA_LOCATORS.schemaActionType("macro")));
+    WaitHelper.waitForElementToBeHidden(SCHEMA_LOCATORS.schemaActionType("macro"), 5);
     try {
       enterMacro(CdfPluginPropertyLocator.fromPropertyString(pluginProperty).pluginProperty, macroArgument);
     } catch (NullPointerException e) {
@@ -112,7 +110,7 @@ public class GCSSource implements E2EHelper {
 
   @Then("Enter runtime argument value {string} for GCS source property path key {string}")
   public void enterRuntimeArgumentValueForGCSSourcePropertyPathKey(String value, String runtimeArgumentKey) {
-    CdfStudioLocators.runtimeArgsValue(runtimeArgumentKey)
-      .sendKeys("gs://" + TestSetupHooks.gcsSourceBucketName + "/" + PluginPropertyUtils.pluginProp(value));
+    ElementHelper.sendKeys(CdfStudioLocators.runtimeArgsValue(runtimeArgumentKey),
+                           "gs://" + TestSetupHooks.gcsSourceBucketName + "/" + PluginPropertyUtils.pluginProp(value));
   }
 }

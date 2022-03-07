@@ -18,6 +18,7 @@ package io.cdap.plugin.bigquery.stepsdesign;
 import io.cdap.e2e.pages.actions.CdfBigQueryPropertiesActions;
 import io.cdap.e2e.pages.actions.CdfStudioActions;
 import io.cdap.e2e.pages.locators.CdfStudioLocators;
+import io.cdap.e2e.utils.ElementHelper;
 import io.cdap.e2e.utils.PluginPropertyUtils;
 import io.cdap.plugin.common.stepsdesign.TestSetupHooks;
 import io.cdap.plugin.utils.E2EHelper;
@@ -81,6 +82,6 @@ public class BigQuerySink implements E2EHelper {
 
   @Then("Enter runtime argument value for BigQuery sink table name key {string}")
   public void enterRuntimeArgumentValueForBigQuerySinkTableNameKey(String runtimeArgumentKey) {
-    CdfStudioLocators.runtimeArgsValue(runtimeArgumentKey).sendKeys(TestSetupHooks.bqTargetTable);
+    ElementHelper.sendKeys(CdfStudioLocators.runtimeArgsValue(runtimeArgumentKey), TestSetupHooks.bqTargetTable);
   }
 }

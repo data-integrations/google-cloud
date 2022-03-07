@@ -18,6 +18,7 @@ package io.cdap.plugin.gcs.stepsdesign;
 import io.cdap.e2e.pages.actions.CdfGcsActions;
 import io.cdap.e2e.pages.actions.CdfStudioActions;
 import io.cdap.e2e.pages.locators.CdfStudioLocators;
+import io.cdap.e2e.utils.ElementHelper;
 import io.cdap.e2e.utils.PluginPropertyUtils;
 import io.cdap.e2e.utils.StorageClient;
 import io.cdap.plugin.common.stepsdesign.TestSetupHooks;
@@ -100,8 +101,8 @@ public class GCSSink implements E2EHelper {
 
   @Then("Enter runtime argument value for GCS sink property path key {string}")
   public void enterRuntimeArgumentValueForGCSSinkPropertyPathKey(String runtimeArgumentKey) {
-    CdfStudioLocators.runtimeArgsValue(runtimeArgumentKey)
-      .sendKeys("gs://" + TestSetupHooks.gcsTargetBucketName);
+    ElementHelper.sendKeys(CdfStudioLocators.runtimeArgsValue(runtimeArgumentKey),
+                           "gs://" + TestSetupHooks.gcsTargetBucketName);
   }
 
   @Then("Enter runtime argument value {string} for GCS cmek property key {string} if GCS cmek is enabled")
@@ -109,7 +110,7 @@ public class GCSSink implements E2EHelper {
                                                                                String runtimeArgumentKey) {
     String cmekGCS = PluginPropertyUtils.pluginProp(value);
     if (cmekGCS != null) {
-      CdfStudioLocators.runtimeArgsValue(runtimeArgumentKey).sendKeys(cmekGCS);
+      ElementHelper.sendKeys(CdfStudioLocators.runtimeArgsValue(runtimeArgumentKey), cmekGCS);
       BeforeActions.scenario.write("GCS encryption key name - " + cmekGCS);
       return;
     }

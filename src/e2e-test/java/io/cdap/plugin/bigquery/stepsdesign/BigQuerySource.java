@@ -19,6 +19,7 @@ import io.cdap.e2e.pages.actions.CdfBigQueryPropertiesActions;
 import io.cdap.e2e.pages.locators.CdfBigQueryPropertiesLocators;
 import io.cdap.e2e.pages.locators.CdfStudioLocators;
 import io.cdap.e2e.utils.ConstantsUtil;
+import io.cdap.e2e.utils.ElementHelper;
 import io.cdap.e2e.utils.PluginPropertyUtils;
 import io.cdap.e2e.utils.SeleniumHelper;
 import io.cdap.plugin.common.stepsdesign.TestSetupHooks;
@@ -135,6 +136,6 @@ public class BigQuerySource implements E2EHelper {
 
   @Then("Enter runtime argument value for BigQuery source table name key {string}")
   public void enterRuntimeArgumentValueForBigQuerySourceTableNameKey(String runtimeArgumentKey) {
-    CdfStudioLocators.runtimeArgsValue(runtimeArgumentKey).sendKeys(TestSetupHooks.bqSourceTable);
+    ElementHelper.sendKeys(CdfStudioLocators.runtimeArgsValue(runtimeArgumentKey), TestSetupHooks.bqSourceTable);
   }
 }

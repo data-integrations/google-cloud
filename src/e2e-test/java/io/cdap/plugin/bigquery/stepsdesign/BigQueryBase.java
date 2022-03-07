@@ -19,12 +19,11 @@ import io.cdap.e2e.pages.actions.CdfBigQueryPropertiesActions;
 import io.cdap.e2e.pages.actions.CdfStudioActions;
 import io.cdap.e2e.pages.locators.CdfStudioLocators;
 import io.cdap.e2e.utils.BigQueryClient;
+import io.cdap.e2e.utils.ElementHelper;
 import io.cdap.e2e.utils.PluginPropertyUtils;
-import io.cdap.e2e.utils.SeleniumDriver;
 import io.cdap.e2e.utils.SeleniumHelper;
 import io.cdap.plugin.common.stepsdesign.TestSetupHooks;
 import io.cdap.plugin.utils.E2EHelper;
-import io.cucumber.java.en.And;
 import io.cucumber.java.en.Then;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.Assert;
@@ -189,7 +188,7 @@ public class BigQueryBase implements E2EHelper {
                                                                                    String runtimeArgumentKey) {
     String cmekBQ = PluginPropertyUtils.pluginProp(value);
     if (cmekBQ != null) {
-      CdfStudioLocators.runtimeArgsValue(runtimeArgumentKey).sendKeys(cmekBQ);
+      ElementHelper.sendKeys(CdfStudioLocators.runtimeArgsValue(runtimeArgumentKey), cmekBQ);
       BeforeActions.scenario.write("BigQuery encryption key name - " + cmekBQ);
       return;
     }
