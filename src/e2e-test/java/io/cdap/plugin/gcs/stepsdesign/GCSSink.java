@@ -17,10 +17,12 @@ package io.cdap.plugin.gcs.stepsdesign;
 
 import io.cdap.e2e.pages.actions.CdfGcsActions;
 import io.cdap.e2e.pages.actions.CdfStudioActions;
-import io.cdap.e2e.utils.CdfHelper;
+import io.cdap.e2e.pages.locators.CdfStudioLocators;
+import io.cdap.e2e.utils.ElementHelper;
 import io.cdap.e2e.utils.PluginPropertyUtils;
 import io.cdap.e2e.utils.StorageClient;
 import io.cdap.plugin.common.stepsdesign.TestSetupHooks;
+import io.cdap.plugin.utils.E2EHelper;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.junit.Assert;
@@ -31,7 +33,7 @@ import java.io.IOException;
 /**
  * GCS Sink Plugin related step design.
  */
-public class GCSSink implements CdfHelper {
+public class GCSSink implements E2EHelper {
 
   @When("Sink is GCS")
   public void sinkIsGCS() {
@@ -77,8 +79,41 @@ public class GCSSink implements CdfHelper {
     if (cmekGCS != null) {
       Assert.assertEquals("Cmek key of target GCS bucket should be equal to cmek key provided in config file"
         , StorageClient.getBucketCmekKey(TestSetupHooks.gcsTargetBucketName), cmekGCS);
-    } else {
-      BeforeActions.scenario.write("CMEK not enabled");
+      return;
     }
+    BeforeActions.scenario.write("CMEK not enabled");
+  }
+
+  @Then("Enter GCS sink property {string} as macro argument {string}")
+  public void enterGCSSinkPropertyAsMacroArgument(String pluginProperty, String macroArgument) {
+    enterPropertyAsMacroArgument(pluginProperty, macroArgument);
+  }
+
+  @Then("Enter GCS sink cmek property {string} as macro argument {string} if cmek is enabled")
+  public void enterGCSSinkCmekPropertyAsMacroArgumentIfCmekIsEnabled(String pluginProperty, String macroArgument) {
+    String cmekGCS = PluginPropertyUtils.pluginProp("cmekGCS");
+    if (cmekGCS != null) {
+      enterPropertyAsMacroArgument(pluginProperty, macroArgument);
+      return;
+    }
+    BeforeActions.scenario.write("CMEK not enabled");
+  }
+
+  @Then("Enter runtime argument value for GCS sink property path key {string}")
+  public void enterRuntimeArgumentValueForGCSSinkPropertyPathKey(String runtimeArgumentKey) {
+    ElementHelper.sendKeys(CdfStudioLocators.runtimeArgsValue(runtimeArgumentKey),
+                           "gs://" + TestSetupHooks.gcsTargetBucketName);
+  }
+
+  @Then("Enter runtime argument value {string} for GCS cmek property key {string} if GCS cmek is enabled")
+  public void enterRuntimeArgumentValueForGCSCmekPropertyKeyIfGCSCmekIsEnabled(String value,
+                                                                               String runtimeArgumentKey) {
+    String cmekGCS = PluginPropertyUtils.pluginProp(value);
+    if (cmekGCS != null) {
+      ElementHelper.sendKeys(CdfStudioLocators.runtimeArgsValue(runtimeArgumentKey), cmekGCS);
+      BeforeActions.scenario.write("GCS encryption key name - " + cmekGCS);
+      return;
+    }
+    BeforeActions.scenario.write("CMEK not enabled");
   }
 }

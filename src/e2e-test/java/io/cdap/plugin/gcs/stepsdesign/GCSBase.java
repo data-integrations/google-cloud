@@ -22,12 +22,12 @@ import io.cdap.e2e.pages.actions.CdfStudioActions;
 import io.cdap.e2e.pages.locators.CdfGCSLocators;
 import io.cdap.e2e.pages.locators.CdfStudioLocators;
 import io.cdap.e2e.utils.BigQueryClient;
-import io.cdap.e2e.utils.CdfHelper;
 import io.cdap.e2e.utils.ConstantsUtil;
 import io.cdap.e2e.utils.PluginPropertyUtils;
 import io.cdap.e2e.utils.SeleniumHelper;
 import io.cdap.e2e.utils.StorageClient;
 import io.cdap.plugin.common.stepsdesign.TestSetupHooks;
+import io.cdap.plugin.utils.E2EHelper;
 import io.cdap.plugin.utils.E2ETestConstants;
 import io.cucumber.java.en.Then;
 import org.apache.commons.lang3.StringUtils;
@@ -40,10 +40,15 @@ import java.util.Optional;
 /**
  * GCS Plugin related common step design.
  */
-public class GCSBase implements CdfHelper {
+public class GCSBase implements E2EHelper {
 
   static {
     SeleniumHelper.getPropertiesLocators(CdfStudioLocators.class);
+  }
+
+  @Then("Enter GCS property reference name")
+  public void enterGCSPropertyReferenceName() {
+    CdfGcsActions.enterReferenceName();
   }
 
   @Then("Enter GCS property projectId and reference name")
@@ -183,5 +188,10 @@ public class GCSBase implements CdfHelper {
         Assert.fail(e.getMessage());
       }
     }
+  }
+
+  @Then("Enter GCS property {string} as macro argument {string}")
+  public void enterGCSPropertyAsMacroArgument(String pluginProperty, String macroArgument) {
+    enterPropertyAsMacroArgument(pluginProperty, macroArgument);
   }
 }

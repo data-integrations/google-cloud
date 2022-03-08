@@ -17,9 +17,11 @@ package io.cdap.plugin.bigquery.stepsdesign;
 
 import io.cdap.e2e.pages.actions.CdfBigQueryPropertiesActions;
 import io.cdap.e2e.pages.actions.CdfStudioActions;
-import io.cdap.e2e.utils.CdfHelper;
+import io.cdap.e2e.pages.locators.CdfStudioLocators;
+import io.cdap.e2e.utils.ElementHelper;
 import io.cdap.e2e.utils.PluginPropertyUtils;
 import io.cdap.plugin.common.stepsdesign.TestSetupHooks;
+import io.cdap.plugin.utils.E2EHelper;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 
@@ -29,7 +31,7 @@ import java.util.UUID;
 /**
  * BigQuery Sink related stepDesigns.
  */
-public class BigQuerySink implements CdfHelper {
+public class BigQuerySink implements E2EHelper {
 
   @When("Sink is BigQuery")
   public void sinkIsBigQuery() {
@@ -73,4 +75,13 @@ public class BigQuerySink implements CdfHelper {
     openSinkPluginPreviewData("BigQuery");
   }
 
+  @Then("Enter BigQuery sink property {string} as macro argument {string}")
+  public void enterBigQueryPropertyAsMacroArgument(String pluginProperty, String macroArgument) {
+    enterPropertyAsMacroArgument(pluginProperty, macroArgument);
+  }
+
+  @Then("Enter runtime argument value for BigQuery sink table name key {string}")
+  public void enterRuntimeArgumentValueForBigQuerySinkTableNameKey(String runtimeArgumentKey) {
+    ElementHelper.sendKeys(CdfStudioLocators.runtimeArgsValue(runtimeArgumentKey), TestSetupHooks.bqTargetTable);
+  }
 }
