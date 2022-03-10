@@ -121,7 +121,7 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
    * Config for the plugin.
    */
   @SuppressWarnings("ConstantConditions")
-  public static class GCSSourceConfig extends PluginConfig implements FileSourceProperties {
+  public static class GCSSourceConfig extends AbstractFileSourceConfig implements FileSourceProperties {
     public static final String NAME_PATH = "path";
     public static final String NAME_FORMAT = "format";
     private static final String NAME_FILE_SYSTEM_PROPERTIES = "fileSystemProperties";
@@ -132,10 +132,6 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
 
     private static final Gson GSON = new Gson();
     private static final Type MAP_STRING_STRING_TYPE = new TypeToken<Map<String, String>>() { }.getType();
-
-    @Name(Constants.Reference.REFERENCE_NAME)
-    @Description("This will be used to uniquely identify this source for lineage, annotating metadata, etc.")
-    public String referenceName;
 
     @Macro
     @Description("The path to read from. For example, gs://<bucket>/path/to/directory/")
@@ -148,73 +144,8 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
 
     @Macro
     @Nullable
-    @Description("Maximum size of each partition used to read data. "
-      + "Smaller partitions will increase the level of parallelism, but will require more resources and overhead.")
-    private Long maxSplitSize;
-
-    @Macro
-    @Nullable
     @Description("Minimum size of each partition used to read data. ")
     private Long minSplitSize;
-
-    @Macro
-    @Nullable
-    @Description("Output field to place the path of the file that the record was read from. "
-      + "If not specified, the file path will not be included in output records. "
-      + "If specified, the field must exist in the output schema as a string.")
-    private String pathField;
-
-    @Macro
-    @Description("Format of the data to read. Supported formats are 'avro', 'blob', 'csv', 'delimited', 'json', "
-      + "'parquet', 'text', and 'tsv'.")
-    private String format;
-
-    @Macro
-    @Nullable
-    @Description("Output schema. If a Path Field is set, it must be present in the schema as a string.")
-    private String schema;
-
-    @Macro
-    @Nullable
-    @Description("Whether to only use the filename instead of the URI of the file path when a path field is given. "
-      + "The default value is false.")
-    private Boolean filenameOnly;
-
-    @Macro
-    @Nullable
-    @Description("Regular expression that file paths must match in order to be included in the input. "
-      + "The full file path is compared, not just the file name."
-      + "If no value is given, no file filtering will be done. "
-      + "See https://docs.oracle.com/javase/8/docs/api/java/util/regex/Pattern.html for more information about "
-      + "the regular expression syntax.")
-    private String fileRegex;
-
-    @Macro
-    @Nullable
-    @Description("Whether to recursively read directories within the input directory. The default is false.")
-    private Boolean recursive;
-
-    @Macro
-    @Nullable
-    @Description("The delimiter to use if the format is 'delimited'. The delimiter will be ignored if the format "
-      + "is anything other than 'delimited'.")
-    private String delimiter;
-
-    @Macro
-    @Nullable
-    @Description("Whether to skip the first line of each file. Supported formats are 'text', 'csv', 'tsv', " +
-      "'delimited'. Default value is false.")
-    private Boolean skipHeader;
-
-    @Macro
-    @Nullable
-    @Description("File encoding for the source files. The default encoding is 'UTF-8'")
-    private String fileEncoding;
-
-    // this is a hidden property that only exists for wrangler's parse-as-csv that uses the header as the schema
-    // when this is true and the format is text, the header will be the first record returned by every record reader
-    @Nullable
-    private Boolean copyHeader;
 
     @Macro
     @Nullable
@@ -250,15 +181,8 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
     @Description("The existing connection to use.")
     private GCPConnectorConfig connection;
 
-    public GCSSourceConfig() {
-      this.maxSplitSize = 128L * 1024 * 1024;
-      this.recursive = false;
-      this.filenameOnly = false;
-      this.copyHeader = false;
-    }
-
     public void validate(FailureCollector collector) {
-      IdUtils.validateReferenceName(referenceName, collector);
+      super.validate(collector);
       ConfigUtil.validateConnection(this, useConnection, connection, collector);
       // validate that path is valid
       if (!containsMacro(NAME_PATH)) {
@@ -285,37 +209,11 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
             .withStacktrace(e.getStackTrace());
         }
       }
-
-      if (fileEncoding != null && !fileEncoding.equals(AbstractFileSourceConfig.DEFAULT_FILE_ENCODING)
-        && !FixedLengthCharset.isValidEncoding(fileEncoding)) {
-        collector.addFailure("Specified file encoding is not valid.",
-                             "Use one of the supported file encodings.");
-      }
-    }
-
-    @Override
-    public String getFormatName() {
-      return Formats.getFormatPluginName(format);
-    }
-
-    @Override
-    public String getReferenceName() {
-      return referenceName;
     }
 
     @Override
     public String getPath() {
       return path;
-    }
-
-    @Nullable
-    @Override
-    public Pattern getFilePattern() {
-      try {
-        return fileRegex == null ? null : Pattern.compile(fileRegex);
-      } catch (RuntimeException e) {
-        throw new IllegalArgumentException("Invalid file regular expression." + e.getMessage(), e);
-      }
     }
 
     @Nullable
@@ -325,11 +223,6 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
       }
 
       return Pattern.compile(".*" + Pattern.quote(getEncryptedMetadataSuffix()) + "$");
-    }
-
-    @Override
-    public long getMaxSplitSize() {
-      return maxSplitSize;
     }
 
     @Nullable
@@ -342,44 +235,8 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
       return false;
     }
 
-    @Override
-    public boolean shouldReadRecursively() {
-      return recursive;
-    }
-
-    @Nullable
-    @Override
-    public String getPathField() {
-      return pathField;
-    }
-
-    @Override
-    public boolean useFilenameAsPath() {
-      return filenameOnly;
-    }
-
-    @Nullable
-    @Override
-    public Schema getSchema() {
-      try {
-        return Strings.isNullOrEmpty(schema) ? null : Schema.parseJson(schema);
-      } catch (Exception e) {
-        throw new IllegalArgumentException("Unable to parse schema with error: " + e.getMessage(), e);
-      }
-    }
-
     public boolean isCopyHeader() {
-      return copyHeader != null && copyHeader;
-    }
-
-    @Override
-    public boolean skipHeader() {
-      return skipHeader == null ? false : skipHeader;
-    }
-
-    @Nullable
-    public String getFileEncoding() {
-      return fileEncoding;
+      return shouldCopyHeader();
     }
 
     public boolean isEncrypted() {

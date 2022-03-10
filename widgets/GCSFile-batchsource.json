@@ -158,8 +158,24 @@
         },
         {
           "widget-type": "toggle",
+          "name": "enableQuotedValues",
+          "label": "Enable Quoted Values",
+          "widget-attributes": {
+            "default": "false",
+            "on": {
+              "value": "true",
+              "label": "True"
+            },
+            "off": {
+              "value": "false",
+              "label": "False"
+            }
+          }
+        },
+        {
+          "widget-type": "toggle",
+          "label": "Use First Row as Header",
           "name": "skipHeader",
-          "label": "Skip Header",
           "widget-attributes": {
             "default": "false",
             "on": {
