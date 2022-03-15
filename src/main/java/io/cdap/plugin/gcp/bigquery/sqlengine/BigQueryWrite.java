@@ -228,6 +228,7 @@ public class BigQueryWrite {
 
     // Check for errors
     if (queryJob.getStatus().getError() != null) {
+      BigQuerySQLEngineUtils.logJobMetrics(queryJob);
       LOG.error("Error executing BigQuery Job: '{}' in Project '{}', Dataset '{}': {}",
                 jobId, sqlEngineConfig.getProject(), sqlEngineConfig.getDatasetProject(),
                 queryJob.getStatus().getError().toString());
@@ -241,6 +242,7 @@ public class BigQueryWrite {
     LOG.info("Executed copy operation for {} records from {}.{}.{} to {}.{}.{}", numRows,
              sourceTableId.getProject(), sourceTableId.getDataset(), sourceTableId.getTable(),
              destinationTableId.getProject(), destinationTableId.getDataset(), destinationTableId.getTable());
+    BigQuerySQLEngineUtils.logJobMetrics(queryJob);
 
     return SQLWriteResult.success(datasetName, numRows);
   }

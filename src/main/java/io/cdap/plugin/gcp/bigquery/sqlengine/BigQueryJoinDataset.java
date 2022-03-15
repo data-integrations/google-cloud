@@ -150,12 +150,14 @@ public class BigQueryJoinDataset implements SQLDataset, BigQuerySQLDataset {
     if (queryJob == null) {
       throw new SQLEngineException("BigQuery job not found: " + jobId);
     } else if (queryJob.getStatus().getError() != null) {
+      BigQuerySQLEngineUtils.logJobMetrics(queryJob);
       throw new SQLEngineException(String.format(
         "Error executing BigQuery Job: '%s' in Project '%s', Dataset '%s', Location'%s' : %s",
         jobId, project, bqDataset, location, queryJob.getStatus().getError().toString()));
     }
 
     LOG.info("Created BigQuery table `{}` using Job: {}", bqTable, jobId);
+    BigQuerySQLEngineUtils.logJobMetrics(queryJob);
   }
 
   @Override
