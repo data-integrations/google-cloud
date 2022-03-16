@@ -174,7 +174,7 @@ public class GCPUtils {
       if (credentials instanceof ServiceAccountCredentials) {
         Set<String> scopes = new HashSet<>(((ServiceAccountCredentials) credentials).getScopes());
         scopes.addAll(BIGQUERY_SCOPES);
-        ((ServiceAccountCredentials) credentials).createScoped(scopes);
+        credentials = ((ServiceAccountCredentials) credentials).createScoped(scopes);
       }
       bigqueryBuilder.setCredentials(credentials);
     }
