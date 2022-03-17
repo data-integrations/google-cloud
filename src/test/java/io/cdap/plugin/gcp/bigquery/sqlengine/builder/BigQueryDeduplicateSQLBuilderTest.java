@@ -105,20 +105,22 @@ public class BigQueryDeduplicateSQLBuilderTest {
 
   @Test
   public void testGetSelectedFields() {
-    Assert.assertEquals("a AS alias_a , "
-                          + "b AS alias_b , "
-                          + "c AS c , "
-                          + "d AS d , "
-                          + "e AS e , "
-                          + "f AS f , "
-                    + "ROW_NUMBER() OVER ( PARTITION BY c , d , e ORDER BY e DESC NULLS LAST , f ASC NULLS LAST ) AS" +
-                    " `the_row_number`", helper.getSelectedFields(def));
+    Assert.assertEquals(
+      "a AS alias_a , "
+        + "b AS alias_b , "
+        + "c AS c , "
+        + "d AS d , "
+        + "e AS e , "
+        + "f AS f , "
+        + "ROW_NUMBER() OVER ( PARTITION BY c , d , e ORDER BY e DESC NULLS LAST , f ASC NULLS LAST ) AS" +
+        " `the_row_number`",
+      helper.getSelectedFields(def));
   }
 
   @Test
   public void testGetRowNumColumn() {
     Assert.assertEquals("ROW_NUMBER() OVER ( PARTITION BY c , d , e ORDER BY e DESC NULLS LAST , " +
-            "f ASC NULLS LAST ) AS `the_row_number`", helper.getRowNumColumn(def));
+                          "f ASC NULLS LAST ) AS `the_row_number`", helper.getRowNumColumn(def));
   }
 
   @Test
@@ -139,9 +141,19 @@ public class BigQueryDeduplicateSQLBuilderTest {
     DeduplicateAggregationDefinition.FilterExpression minField2 =
       new DeduplicateAggregationDefinition.FilterExpression(factory.compile("field2"),
                                                             DeduplicateAggregationDefinition.FilterFunction.MIN);
+    DeduplicateAggregationDefinition.FilterExpression minField3 =
+      new DeduplicateAggregationDefinition
+        .FilterExpression(factory.compile("field3"),
+                          DeduplicateAggregationDefinition.FilterFunction.ANY_NULLS_FIRST);
+    DeduplicateAggregationDefinition.FilterExpression minField4 =
+      new DeduplicateAggregationDefinition
+        .FilterExpression(factory.compile("field4"),
+                          DeduplicateAggregationDefinition.FilterFunction.ANY_NULLS_LAST);
 
     Assert.assertEquals("field1 DESC NULLS LAST", helper.getOrderByField(maxField1));
     Assert.assertEquals("field2 ASC NULLS LAST", helper.getOrderByField(minField2));
+    Assert.assertEquals("IFNULL(field3 , 0 , 1) ASC", helper.getOrderByField(minField3));
+    Assert.assertEquals("IFNULL(field4 , 0 , 1) DESC", helper.getOrderByField(minField4));
   }
 
 
