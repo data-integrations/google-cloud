@@ -50,6 +50,9 @@ public abstract class BigQueryBaseSQLBuilder {
   public static final String ROW_NUMBER_PARTITION_COLUMN =
     "ROW_NUMBER() OVER ( PARTITION BY %s ORDER BY %s ) AS `%s`";
   public static final String NULLS_LAST = "NULLS LAST";
+  public static final String IFNULL_FUNCTION = "IFNULL";
+  public static final String ZERO = "0";
+  public static final String ONE = "1";
 
   /**
    * Builds SQL statement

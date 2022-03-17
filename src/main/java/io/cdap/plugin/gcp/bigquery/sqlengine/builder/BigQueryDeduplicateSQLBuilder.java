@@ -134,18 +134,27 @@ public class BigQueryDeduplicateSQLBuilder extends BigQueryBaseSQLBuilder {
    * @return Order by SQL expression
    */
   protected String getOrderByField(DeduplicateAggregationDefinition.FilterExpression filterExpression) {
-    String order;
+    String exp = ((SQLExpression) filterExpression.getExpression()).extract();
 
-    // MAX of a value means ORDER DESCENDING and selecting the first result.
-    // MIN of a value means ORDER ASCENDING and selecting the first result.
-    if (filterExpression.getFilterFunction() == DeduplicateAggregationDefinition.FilterFunction.MAX) {
-      order = ORDER_DESC;
-    } else {
-      order = ORDER_ASC;
+    switch (filterExpression.getFilterFunction()) {
+      case MIN:
+        // MIN of a value means ORDER ASCENDING and selecting the first result.
+        // ...[ORDER BY] exp ASC NULLS LAST
+        return exp + SPACE + ORDER_ASC + SPACE + NULLS_LAST;
+      case MAX:
+        // MAX of a value means ORDER DESCENDING and selecting the first result.
+        // ...[ORDER BY] exp DESC NULLS LAST
+        return exp + SPACE + ORDER_DESC + SPACE + NULLS_LAST;
+      case ANY_NULLS_FIRST:
+        // ANY_NULLS_FIRST means order with null values first and pick the first.
+        // ...[ORDER BY] IFNULL(exp , 0 , 1) ASC
+        return IFNULL_FUNCTION + OPEN_GROUP + exp + COMMA + ZERO + COMMA + ONE + CLOSE_GROUP + SPACE + ORDER_ASC;
+      case ANY_NULLS_LAST:
+      default:
+        // ANY_NULLS_LAST means order with null values first and pick the first.
+        // ...[ORDER BY] IFNULL(exp , 0 , 1) DESC
+        return IFNULL_FUNCTION + OPEN_GROUP + exp + COMMA + ZERO + COMMA + ONE + CLOSE_GROUP + SPACE + ORDER_DESC;
     }
-
-    // some_field ASC/DESC
-    return ((SQLExpression) filterExpression.getExpression()).extract() + SPACE + order + SPACE + NULLS_LAST;
   }
 
 }
