@@ -53,6 +53,7 @@ import io.cdap.plugin.gcp.gcs.source.GCSSource;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -77,7 +78,8 @@ public class GCSConnector extends AbstractFileConnector<GCPConnectorConfig> {
   public GCSConnector(GCSConnectorConfig config) {
     super(config);
     this.config = config;
-    initSampleFields(FILE_TYPE, GCSSource.GCSSourceConfig.class);
+    Map<String, String> additionalProperties = Collections.singletonMap(PLUGIN_NAME_PROPERTY_KEY, GCSSource.NAME);
+    initSampleFields(FILE_TYPE, GCSSource.GCSSourceConfig.class, additionalProperties);
   }
 
   @Override
