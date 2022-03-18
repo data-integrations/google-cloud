@@ -90,6 +90,34 @@ When running on other clusters, the file must be present on every node in the cl
 
 * **JSON**: Contents of the service account JSON file.
 
+Data Type Mappings from CDAP to BigQuery
+----------
+The following table lists out different CDAP data types, as well as the
+corresponding BigQuery data type for each CDAP type, for updates and upserts.
+
+| CDAP type      | BigQuery type                               |
+|----------------|---------------------------------------------|
+| array          | repeated                                    |
+| boolean        | bool                                        |
+| bytes          | bytes                                       |
+| date           | date                                        |
+| datetime       | datetime, string                            |
+| decimal        | numeric                                     |
+| bigdecimal     | bignumeric                                  |
+| double / float | float64                                     |
+| enum           | unsupported                                 |
+| int / long     | int64                                       |
+| map            | unsupported                                 |
+| record         | struct                                      |
+| string         | string, datetime(Should be ISO 8601 format) |
+| time           | time                                        |
+| timestamp      | timestamp                                   |
+| union          | unsupported                                 |
+
+For inserts, the type conversions are the same as those used in loading Avro
+data to BigQuery; the table is available
+[here](https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro#avro_conversions).
+
 Example
 -------
 
