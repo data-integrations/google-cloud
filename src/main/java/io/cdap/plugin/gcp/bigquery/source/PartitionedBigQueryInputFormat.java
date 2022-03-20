@@ -14,7 +14,6 @@ import com.google.cloud.hadoop.io.bigquery.AbstractBigQueryInputFormat;
 import com.google.cloud.hadoop.io.bigquery.AvroBigQueryInputFormat;
 import com.google.cloud.hadoop.io.bigquery.AvroRecordReader;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
-import com.google.cloud.hadoop.io.bigquery.BigQueryFactory;
 import com.google.cloud.hadoop.io.bigquery.BigQueryHelper;
 import com.google.cloud.hadoop.io.bigquery.BigQueryUtils;
 import com.google.cloud.hadoop.io.bigquery.ExportFileFormat;
@@ -24,7 +23,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
-import io.cdap.plugin.gcp.common.GCPUtils;
 import org.apache.avro.generic.GenericData;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
@@ -75,20 +73,6 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
     return new AvroRecordReader();
   }
 
-  /**
-   * Override to support additonal scopes, useful when exporting from external tables
-   *
-   * @param config Hadoop config
-   * @return BigQuery Helper instance
-   * @throws IOException on IO Error.
-   * @throws GeneralSecurityException on security exception.
-   */
-  @Override
-  protected BigQueryHelper getBigQueryHelper(Configuration config) throws GeneralSecurityException, IOException {
-    BigQueryFactory factory = new BigQueryFactoryWithScopes(GCPUtils.BIGQUERY_SCOPES);
-    return factory.getBigQueryHelper(config);
-  }
-
   private void processQuery(JobContext context) throws IOException, InterruptedException {
     final Configuration configuration = context.getConfiguration();
     BigQueryHelper bigQueryHelper;
@@ -116,7 +100,7 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
     Type type = Objects.requireNonNull(bigQueryTable).getDefinition().getType();
 
     String query;
-    if (type == Type.VIEW || type == Type.MATERIALIZED_VIEW || type == Type.EXTERNAL) {
+    if (type == Type.VIEW || type == Type.MATERIALIZED_VIEW) {
       query = generateQueryForMaterializingView(datasetProjectId, datasetId, tableName, filter);
     } else {
       query = generateQuery(partitionFromDate, partitionToDate, filter, projectId, datasetProjectId, datasetId,
