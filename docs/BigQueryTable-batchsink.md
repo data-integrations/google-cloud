@@ -150,24 +150,23 @@ Data Type Mappings from CDAP to BigQuery
 The following table lists out different CDAP data types, as well as the 
 corresponding BigQuery data type for each CDAP type, for updates and upserts.
 
-| CDAP type      | BigQuery type                               |
-|----------------|---------------------------------------------|
-| array          | repeated                                    |
-| boolean        | bool                                        |
-| bytes          | bytes                                       |
-| date           | date                                        |
-| datetime       | datetime, string                            |
-| decimal        | numeric                                     |
-| bigdecimal     | bignumeric                                  |
-| double / float | float64                                     |
-| enum           | unsupported                                 |
-| int / long     | int64                                       |
-| map            | unsupported                                 |
-| record         | struct                                      |
-| string         | string, datetime(Should be ISO 8601 format) |
-| time           | time                                        |
-| timestamp      | timestamp                                   |
-| union          | unsupported                                 |
+| CDAP type      | BigQuery type                      |
+|----------------|------------------------------------|
+| array          | repeated                           |
+| boolean        | bool                               |
+| bytes          | bytes                              |
+| date           | date                               |
+| datetime       | datetime, string                   |
+| decimal        | numeric, bignumeric                |
+| double / float | float64                            |
+| enum           | unsupported                        |
+| int / long     | int64                              |
+| map            | unsupported                        |
+| record         | struct                             |
+| string         | string, datetime (ISO 8601 format) |
+| time           | time                               |
+| timestamp      | timestamp                          |
+| union          | unsupported                        |
 
 For inserts, the type conversions are the same as those used in loading Avro
 data to BigQuery; the table is available
