@@ -335,18 +335,7 @@ public final class BigQuerySinkUtils {
                                       Table destinationTable,
                                       List<Field> sourceFields,
                                       List<Field> destinationFields) {
-    // Collect all fields form the source table
-    Map<String, Field> sourceFieldMap = sourceFields.stream()
-      .collect(Collectors.toMap(Field::getName, x -> x));
-
-    // Collects all fields in the destination table that are not present in the source table, in order to retain them
-    // as-is in the destination schema
-    List<Field> resultFieldsList = destinationFields.stream()
-      .filter(field -> !sourceFieldMap.containsKey(field.getName()))
-      .collect(Collectors.toList());
-
-    // Add fields from the source table into the destination table
-    resultFieldsList.addAll(sourceFields);
+    List<Field> resultFieldsList = getRelaxedTableFields(sourceFields, destinationFields);
 
     // Update table definition, relaxing field definitions.
     com.google.cloud.bigquery.Schema newSchema = com.google.cloud.bigquery.Schema.of(resultFieldsList);
@@ -355,6 +344,46 @@ public final class BigQuerySinkUtils {
         destinationTable.getDefinition().toBuilder().setSchema(newSchema).build()
       ).build()
     );
+  }
+
+  public static List<Field> getRelaxedTableFields(List<Field> sourceFields,
+                                                  List<Field> destinationFields) {
+    // Collect all fields form the destination table into a Map for quick lookups by name
+    Map<String, Field> destinationFieldMap = destinationFields.stream()
+      .collect(Collectors.toMap(Field::getName, x -> x));
+
+    // Collect all fields form the source table into a Map for quick lookups by name
+    Map<String, Field> sourceFieldMap = sourceFields.stream()
+      .collect(Collectors.toMap(Field::getName, x -> x));
+
+    // Collects all fields in the destination table that are not present in the source table, in order to retain them
+    // as-is in the destination schema
+    List<Field> resultingFields = destinationFields.stream()
+      .filter(field -> !sourceFieldMap.containsKey(field.getName()))
+      .collect(Collectors.toList());
+
+    // Add fields from the source table into the destination table
+    // We need to ensure that fields in the destination table that are Nullable remain as such, even when the source
+    // field defines this field as required, so we need  to relax any fields in the source table that are already
+    // defined in the destination table.
+    sourceFieldMap.values().stream()
+      .map(sourceField -> {
+        String fieldName = sourceField.getName();
+        if (destinationFieldMap.containsKey(fieldName)) {
+          Field destinationField = destinationFieldMap.get(fieldName);
+
+          // If the field in the destination table is nullable, but not in the source table, we need to set update
+          // field's mode to NULLABLE in order to ensure the underlying schema doesn't change.
+          if (destinationField.getMode() == Field.Mode.NULLABLE && sourceField.getMode() == Field.Mode.REQUIRED) {
+            sourceField = sourceField.toBuilder().setMode(Field.Mode.NULLABLE).build();
+          }
+        }
+
+        return sourceField;
+      })
+      .forEach(resultingFields::add);
+
+    return resultingFields;
   }
 
   private static BigQueryTableFieldSchema generateTableFieldSchema(Schema.Field field) {

@@ -47,7 +47,6 @@ import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.JobId;
 import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.bigquery.QueryJobConfiguration;
-import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFactory;
@@ -90,6 +89,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+
 /**
  * An Output Format which extends {@link ForwardingBigQueryFileOutputFormat}.
  * This is added to override BigQueryUtils.waitForJobCompletion error message with more useful error message.
@@ -195,7 +195,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
       operation = Operation.valueOf(conf.get(BigQueryConstants.CONFIG_OPERATION));
       String clusteringOrder = conf.get(BigQueryConstants.CONFIG_CLUSTERING_ORDER, null);
       List<String> clusteringOrderList = Arrays.stream(
-        clusteringOrder != null ? clusteringOrder.split(",") : new String[0]).map(String::trim)
+          clusteringOrder != null ? clusteringOrder.split(",") : new String[0]).map(String::trim)
         .collect(Collectors.toList());
       String tableKey = conf.get(BigQueryConstants.CONFIG_TABLE_KEY, null);
       tableKeyList = Arrays.stream(tableKey != null ? tableKey.split(",") : new String[0]).map(String::trim)
@@ -299,17 +299,17 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
       Map<String, String> fieldDescriptions = new HashMap<>();
       if (JobInfo.WriteDisposition.WRITE_TRUNCATE
         .equals(JobInfo.WriteDisposition.valueOf(writeDisposition)) && tableExists) {
-          List<TableFieldSchema> tableFieldSchemas = Optional.ofNullable(bigQueryHelper.getTable(tableRef))
-            .map(it -> it.getSchema())
-            .map(it -> it.getFields())
-            .orElse(Collections.emptyList());
+        List<TableFieldSchema> tableFieldSchemas = Optional.ofNullable(bigQueryHelper.getTable(tableRef))
+          .map(it -> it.getSchema())
+          .map(it -> it.getFields())
+          .orElse(Collections.emptyList());
 
-          tableFieldSchemas
-            .forEach(it -> {
-              if (!Strings.isNullOrEmpty(it.getDescription())) {
-                fieldDescriptions.put(it.getName(), it.getDescription());
-              }
-            });
+        tableFieldSchemas
+          .forEach(it -> {
+            if (!Strings.isNullOrEmpty(it.getDescription())) {
+              fieldDescriptions.put(it.getName(), it.getDescription());
+            }
+          });
       }
 
       if (!tableExists) {
@@ -371,7 +371,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
 
       //Depending on Operation type and no of gcs paths present , trigger suitable BQ job.
       temporaryTableReference = null;
-      if (operation.equals(Operation.INSERT) &&  gcsPaths.size() <= BQ_IMPORT_MAX_BATCH_SIZE) {
+      if (operation.equals(Operation.INSERT) && gcsPaths.size() <= BQ_IMPORT_MAX_BATCH_SIZE) {
         // Directly load data into destination table when total no of input paths is loadable into BQ
         loadConfig.setSourceUris(gcsPaths);
         loadConfig.setWriteDisposition(writeDisposition);
@@ -379,7 +379,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
 
         JobConfiguration config = new JobConfiguration();
         config.setLoad(loadConfig);
-        triggerBigqueryJob(projectId, jobId , dataset, config);
+        triggerBigqueryJob(projectId, jobId, dataset, config);
       } else {
         // First load the data in a temp table.
         loadInBatchesInTempTable(tableRef, loadConfig, gcsPaths, projectId, jobId, dataset);
@@ -436,7 +436,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
       List<List<String>> gcsPathsInBatches = Lists.partition(gcsPaths, BQ_IMPORT_MAX_BATCH_SIZE);
 
       int jobcount = 1;
-      for (List<String> gcsPathBatch :  gcsPathsInBatches) {
+      for (List<String> gcsPathBatch : gcsPathsInBatches) {
         LOG.debug(" Running for Batch {} with number of gcs paths : {}", jobcount, gcsPathBatch.size());
         loadConfig.setSourceUris(gcsPathBatch);
         JobConfiguration config = new JobConfiguration();
@@ -633,6 +633,14 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
 
       com.google.cloud.bigquery.Table sourceTable = bigquery.getTable(sourceTableId);
       com.google.cloud.bigquery.Table destinationTable = bigquery.getTable(destinationTableId);
+
+      if (destinationTable == null) {
+        LOG.error("Table {}.{}.{} does not exist, Update/Upsert operations are not supported on non existing tables.",
+                  destinationTableId.getProject(),
+                  destinationTableId.getDataset(),
+                  destinationTableId.getTable());
+        throw new IllegalStateException("Attempted Update/Upsert operation on non-existing table.");
+      }
 
       FieldList sourceFields = sourceTable.getDefinition().getSchema().getFields();
       tableFieldsList = sourceFields.stream().map(Field::getName).collect(Collectors.toList());

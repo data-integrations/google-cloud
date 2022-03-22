@@ -32,6 +32,7 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -425,5 +426,100 @@ public class BigQuerySinkUtilsTest {
                                                () -> String.format("Unable to create BigQuery dataset '%s.%s'",
                                                                    dsProjectId, dsName));
     Mockito.verify(bq, Mockito.times(1)).create(ArgumentMatchers.any(DatasetInfo.class));
+  }
+
+  @Test
+  public void testGetRelaxedTableFieldsNoOverlap() {
+    List<Field> sourceFields = new ArrayList<>(2);
+    sourceFields.add(Field.newBuilder("a", LegacySQLTypeName.INTEGER).setMode(Field.Mode.REQUIRED).build());
+    sourceFields.add(Field.newBuilder("b", LegacySQLTypeName.INTEGER).setMode(Field.Mode.NULLABLE).build());
+
+    List<Field> destinationFields = new ArrayList<>(2);
+    destinationFields.add(Field.newBuilder("x", LegacySQLTypeName.INTEGER).setMode(Field.Mode.REQUIRED).build());
+    destinationFields.add(Field.newBuilder("y", LegacySQLTypeName.INTEGER).setMode(Field.Mode.NULLABLE).build());
+
+    List<Field> result = BigQuerySinkUtils.getRelaxedTableFields(sourceFields, destinationFields);
+    Assert.assertEquals(4, result.size());
+    Assert.assertEquals("x", result.get(0).getName());
+    Assert.assertEquals(Field.Mode.REQUIRED, result.get(0).getMode());
+    Assert.assertEquals("y", result.get(1).getName());
+    Assert.assertEquals(Field.Mode.NULLABLE, result.get(1).getMode());
+    Assert.assertEquals("a", result.get(2).getName());
+    Assert.assertEquals(Field.Mode.REQUIRED, result.get(2).getMode());
+    Assert.assertEquals("b", result.get(3).getName());
+    Assert.assertEquals(Field.Mode.NULLABLE, result.get(3).getMode());
+  }
+
+  @Test
+  public void testGetRelaxedTableFieldsFullOverlap() {
+    List<Field> sourceFields = new ArrayList<>(2);
+    sourceFields.add(Field.newBuilder("a", LegacySQLTypeName.INTEGER).setMode(Field.Mode.REQUIRED).build());
+    sourceFields.add(Field.newBuilder("b", LegacySQLTypeName.INTEGER).setMode(Field.Mode.REQUIRED).build());
+
+    List<Field> destinationFields = new ArrayList<>(2);
+    destinationFields.add(Field.newBuilder("a", LegacySQLTypeName.INTEGER).setMode(Field.Mode.REQUIRED).build());
+    destinationFields.add(Field.newBuilder("b", LegacySQLTypeName.INTEGER).setMode(Field.Mode.NULLABLE).build());
+
+    List<Field> result = BigQuerySinkUtils.getRelaxedTableFields(sourceFields, destinationFields);
+    Assert.assertEquals(2, result.size());
+    Assert.assertEquals("a", result.get(0).getName());
+    Assert.assertEquals(Field.Mode.REQUIRED, result.get(0).getMode());
+    // Ensure the second field is nullable, as the destination table has this field as nullable.
+    Assert.assertEquals("b", result.get(1).getName());
+    Assert.assertEquals(Field.Mode.NULLABLE, result.get(1).getMode());
+  }
+
+  @Test
+  public void testGetRelaxedTableFieldsPartialOverlap() {
+    List<Field> sourceFields = new ArrayList<>(4);
+    sourceFields.add(Field.newBuilder("a", LegacySQLTypeName.INTEGER).setMode(Field.Mode.REQUIRED).build());
+    sourceFields.add(Field.newBuilder("b", LegacySQLTypeName.INTEGER).setMode(Field.Mode.REQUIRED).build());
+    sourceFields.add(Field.newBuilder("x", LegacySQLTypeName.INTEGER).setMode(Field.Mode.REQUIRED).build());
+    sourceFields.add(Field.newBuilder("y", LegacySQLTypeName.INTEGER).setMode(Field.Mode.NULLABLE).build());
+
+    List<Field> destinationFields = new ArrayList<>(4);
+    destinationFields.add(Field.newBuilder("a", LegacySQLTypeName.INTEGER).setMode(Field.Mode.REQUIRED).build());
+    destinationFields.add(Field.newBuilder("b", LegacySQLTypeName.INTEGER).setMode(Field.Mode.NULLABLE).build());
+    destinationFields.add(Field.newBuilder("c", LegacySQLTypeName.INTEGER).setMode(Field.Mode.REQUIRED).build());
+    destinationFields.add(Field.newBuilder("d", LegacySQLTypeName.INTEGER).setMode(Field.Mode.NULLABLE).build());
+
+    List<Field> result = BigQuerySinkUtils.getRelaxedTableFields(sourceFields, destinationFields);
+    Assert.assertEquals(6, result.size());
+    Assert.assertEquals("c", result.get(0).getName());
+    Assert.assertEquals(Field.Mode.REQUIRED, result.get(0).getMode());
+    Assert.assertEquals("d", result.get(1).getName());
+    Assert.assertEquals(Field.Mode.NULLABLE, result.get(1).getMode());
+    Assert.assertEquals("a", result.get(2).getName());
+    Assert.assertEquals(Field.Mode.REQUIRED, result.get(2).getMode());
+    Assert.assertEquals("b", result.get(3).getName());
+    Assert.assertEquals(Field.Mode.NULLABLE, result.get(3).getMode());
+    Assert.assertEquals("x", result.get(4).getName());
+    Assert.assertEquals(Field.Mode.REQUIRED, result.get(4).getMode());
+    Assert.assertEquals("y", result.get(5).getName());
+    Assert.assertEquals(Field.Mode.NULLABLE, result.get(5).getMode());
+  }
+
+  @Test
+  public void testGetRelaxedTableFieldsMarksFieldsNullable() {
+    List<Field> sourceFields = new ArrayList<>(3);
+    sourceFields.add(Field.newBuilder("a", LegacySQLTypeName.INTEGER).setMode(Field.Mode.REQUIRED).build());
+    sourceFields.add(Field.newBuilder("b", LegacySQLTypeName.INTEGER).setMode(Field.Mode.REQUIRED).build());
+    sourceFields.add(Field.newBuilder("c", LegacySQLTypeName.INTEGER).setMode(Field.Mode.REPEATED).build());
+
+    List<Field> destinationFields = new ArrayList<>(3);
+    destinationFields.add(Field.newBuilder("a", LegacySQLTypeName.INTEGER).setMode(Field.Mode.NULLABLE).build());
+    destinationFields.add(Field.newBuilder("b", LegacySQLTypeName.INTEGER).setMode(Field.Mode.NULLABLE).build());
+    destinationFields.add(Field.newBuilder("c", LegacySQLTypeName.INTEGER).setMode(Field.Mode.NULLABLE).build());
+
+    List<Field> result = BigQuerySinkUtils.getRelaxedTableFields(sourceFields, destinationFields);
+    // Fields a and b  should be nullable
+    Assert.assertEquals(3, result.size());
+    Assert.assertEquals("a", result.get(0).getName());
+    Assert.assertEquals(Field.Mode.NULLABLE, result.get(0).getMode());
+    Assert.assertEquals("b", result.get(1).getName());
+    Assert.assertEquals(Field.Mode.NULLABLE, result.get(1).getMode());
+    // Field c should be repeated as repeated fields do not get converted into null
+    Assert.assertEquals("c", result.get(2).getName());
+    Assert.assertEquals(Field.Mode.REPEATED, result.get(2).getMode());
   }
 }
