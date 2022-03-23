@@ -399,7 +399,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
           handleInsertOperation(tableRef, writeDisposition, loadConfig.getDestinationEncryptionConfiguration(),
                                 projectId, jobId, dataset, tableExists);
         } else {
-          handleUpdateUpsertOperation(tableRef, kmsKeyName, getJobIdForUpdateUpsert(conf), conf);
+          handleUpdateUpsertOperation(tableRef, tableExists, kmsKeyName, getJobIdForUpdateUpsert(conf), conf);
         }
       }
 
@@ -589,9 +589,12 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
       triggerBigqueryJob(projectId, jobId, dataset, config);
     }
 
-    private void handleUpdateUpsertOperation(TableReference tableRef, @Nullable String cmekKey, JobId jobId,
+    private void handleUpdateUpsertOperation(TableReference tableRef,
+                                             boolean tableExists,
+                                             @Nullable String cmekKey,
+                                             JobId jobId,
                                              Configuration config) throws IOException, InterruptedException {
-      if (allowSchemaRelaxation) {
+      if (allowSchemaRelaxation && tableExists) {
         updateTableSchema(tableRef);
       }
       String query = generateQuery(tableRef);
@@ -632,6 +635,14 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
 
       com.google.cloud.bigquery.Table sourceTable = bigquery.getTable(sourceTableId);
       com.google.cloud.bigquery.Table destinationTable = bigquery.getTable(destinationTableId);
+
+      if (destinationTable == null) {
+        LOG.warn("Unable to update schema for table {}.{}.{} , table does not exist.",
+                 destinationTableId.getProject(),
+                 destinationTableId.getDataset(),
+                 destinationTableId.getTable());
+        return;
+      }
 
       FieldList sourceFields = sourceTable.getDefinition().getSchema().getFields();
       tableFieldsList = sourceFields.stream().map(Field::getName).collect(Collectors.toList());

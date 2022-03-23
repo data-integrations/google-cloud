@@ -88,6 +88,7 @@ public class BigQueryOutputFormatTest {
                                   ArgumentMatchers.any(JobConfiguration.class));
 
     PowerMockito.doNothing().when(spy, "handleUpdateUpsertOperation", ArgumentMatchers.any(TableReference.class),
+                                  ArgumentMatchers.anyBoolean(),
                                   ArgumentMatchers.any(),
                                   ArgumentMatchers.any(JobId.class),
                                   ArgumentMatchers.any(Configuration.class));
@@ -146,6 +147,7 @@ public class BigQueryOutputFormatTest {
     //1 call to handleUpdateUpsertOperation
     PowerMockito.verifyPrivate(bqQueryOutputCommitterSpy, times(1))
       .invoke("handleUpdateUpsertOperation", ArgumentMatchers.any(TableReference.class),
+              ArgumentMatchers.anyBoolean(),
               ArgumentMatchers.any(),
               ArgumentMatchers.any(JobId.class),
               ArgumentMatchers.any(Configuration.class));
