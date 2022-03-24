@@ -16,16 +16,19 @@
 
 package io.cdap.plugin.pubsub.stepsdesign;
 
-import io.cdap.e2e.utils.CdfHelper;
+import io.cdap.e2e.pages.actions.CdfGcsActions;
+import io.cdap.e2e.pages.locators.CdfSchemaLocators;
 import io.cdap.e2e.utils.PluginPropertyUtils;
+import io.cdap.e2e.utils.WaitHelper;
 import io.cdap.plugin.pubsub.actions.PubSubActions;
+import io.cdap.plugin.utils.E2EHelper;
 import io.cucumber.java.en.Then;
 
 /**
  * PubSub Plugin related common step design.
  */
 
-public class PubSubBase implements CdfHelper {
+public class PubSubBase implements E2EHelper {
 
   @Then("Enter PubSub property projectId {string}")
   public void enterPubSubPropertyProjectId(String projectId) {
@@ -50,5 +53,15 @@ public class PubSubBase implements CdfHelper {
   @Then("Close the PubSub properties")
   public void closeThePubSubProperties() {
     PubSubActions.close();
+  }
+
+  @Then("Enter PubSub property {string} as macro argument {string}")
+  public void enterPubSubPropertyAsMacroArgument(String pluginProperty, String macroArgument) {
+    enterPropertyAsMacroArgument(pluginProperty, macroArgument);
+  }
+
+  @Then("Enter PubSub property delimiter {string}")
+  public void enterPubSubPropertyDelimiter(String delimiter) {
+    CdfGcsActions.enterDelimiterField(PluginPropertyUtils.pluginProp(delimiter));
   }
 }

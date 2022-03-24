@@ -26,7 +26,10 @@ Feature: PubSub-Sink - Verification of BigQuery to PubSub successful data transf
     Then Close the PubSub properties
     Then Save the pipeline
     Then Preview and run the pipeline
-    Then Verify the preview of pipeline is "success"
+    Then Wait till pipeline preview is in running state
+    Then Open and capture pipeline preview logs
+    Then Verify the preview run status of pipeline in the logs is "succeeded"
+    Then Close the pipeline logs
     Then Close the preview
     Then Deploy the pipeline
     Then Run the Pipeline in Runtime

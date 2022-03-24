@@ -11,7 +11,7 @@ Feature: PubSub-Sink - Verify PubSub sink plugin error Scenarios
       | property      |
       | referenceName |
       | topic         |
-    
+
   Scenario Outline: Verify errors for incorrect values in pubsub advanced properties
     Given Open Datafusion Project to configure pipeline
     When Sink is PubSub
