@@ -4,7 +4,10 @@ Description
 -----------
 The BigQuery pushdown engine offloads certains pipeline operations into BigQuery for execution.
 
-Currently, the only supported operation is dataset join operations using the **Joiner** plugin.
+Currently, the supported operations are the following:
+1. Dataset join operations using the **Joiner** plugin
+2. Group by aggregation operation using the **Group By** plugin
+3. Deduplicate aggregation operation using the **Deduplicate** plugin 
 
 Credentials
 -----------
@@ -69,6 +72,17 @@ can be used to speed up the process to read records from BigQuery into Spark onc
 completed. This API can be used if the execution environment for this environment has **Scala 2.12** installed.
 Note that this API has an on-demand price model. See the [Pricing](https://cloud.google.com/bigquery/pricing#storage-api) 
 page for details related to pricing.
+
+**Attempt direct copy to BigQuery sinks**: Performance can be greatly improved if the records from stages that are executed using 
+BigQuery ELT Transformation Pushdown are copied directly into a configured table in a compatible BigQuery Sink. This eliminates
+the need to read records into the pipeline as no further processing is needed within the pipeline.
+To ensure this BigQuery Sink can take advantage of the performance improvements provided by this feature,
+the following requirements must be met:
+1. The service account configured for BigQuery ELT Transformation Pushdown has permissions to create and update tables in the dataset used by the BigQuery Sink.
+2. The datasets used for BigQuery ELT Transformation Pushdown and BigQuery Sink must be stored in the same **location**.
+3. The **operation** is either `insert` (With **Truncate Table** disabled), `update`or `upsert`
+
+Note: If the direct copy operation does not succeed, the pipeline will proceed with the standard workflow in order to ensure completion.
 
 **Service Account**  - service account key used for authorization
 
