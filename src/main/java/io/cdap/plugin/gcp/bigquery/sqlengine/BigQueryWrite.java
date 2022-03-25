@@ -388,7 +388,6 @@ public class BigQueryWrite {
 
     return QueryJobConfiguration.newBuilder(query)
       .setPriority(sqlEngineConfig.getJobPriority())
-      .setCreateDisposition(JobInfo.CreateDisposition.CREATE_NEVER)
       .setLabels(BigQuerySQLEngineUtils.getJobTags("copy"));
   }
 
