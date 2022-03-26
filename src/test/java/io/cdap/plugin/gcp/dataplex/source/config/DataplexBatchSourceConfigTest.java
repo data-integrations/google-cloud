@@ -23,9 +23,9 @@ import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.junit.MockitoJUnitRunner;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for DataplexBatchSourceConfig
@@ -86,7 +86,14 @@ public class DataplexBatchSourceConfigTest {
       dataplexBatchSourceConfig.validateBigQueryDataset(mockFailureCollector, "project", "dataset", "table-wrong");
     } catch (Exception e) {
     }
-    assertEquals(1, mockFailureCollector.getValidationFailures().size());
+
+    assertTrue("Expected at least one error with incorrect table name",
+               mockFailureCollector.getValidationFailures().size() > 0);
+
+    mockFailureCollector.getValidationFailures().stream()
+      .filter(error -> error.getFullMessage().toLowerCase().contains("table name"))
+      .findFirst().orElseThrow(
+        () -> new AssertionError("Validation Errors didn't contain an error referring to table name"));
   }
 }
 
