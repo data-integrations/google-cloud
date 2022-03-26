@@ -31,7 +31,6 @@ import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.validation.ValidationException;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
-import io.cdap.cdap.etl.common.AbstractStageContext;
 import io.cdap.cdap.etl.mock.common.MockStageMetrics;
 import io.cdap.cdap.etl.mock.validation.MockFailureCollector;
 import io.cdap.cdap.etl.spark.batch.SparkBatchSinkContext;
@@ -43,8 +42,6 @@ import org.mockito.Mockito;
 import org.mockito.internal.util.reflection.FieldSetter;
 
 import java.util.List;
-
-import javax.annotation.Nullable;
 
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -172,7 +169,7 @@ public class BigQuerySinkTest {
 
   private BatchSinkContext getContextWithMetrics(MockStageMetrics mockStageMetrics) throws NoSuchFieldException {
     BatchSinkContext context = mock(SparkBatchSinkContext.class);
-    FieldSetter.setField(context, AbstractStageContext.class.getDeclaredField("stageMetrics"), mockStageMetrics);
+    Mockito.doReturn(mockStageMetrics).when(context).getMetrics();
     return context;
   }
 
@@ -366,7 +363,6 @@ public class BigQuerySinkTest {
                              "INTEGER", 0L, 100L, 10L, null);
     FieldSetter.setField(config, AbstractBigQuerySinkConfig.class.getDeclaredField("truncateTable"),
                          truncateTable);
-    BigQuery bigQueryMock = mock(BigQuery.class);
     return new BigQuerySink(config);
   }
 
