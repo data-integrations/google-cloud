@@ -393,8 +393,9 @@ public class BigQuerySQLEngine
     String tableName = bqDataset.getBigQueryTableName();
     TableId tableId = TableId.of(datasetProject, dataset, tableName);
 
-    if (!bigQuery.delete(tableId)) {
-      LOG.error("Unable to delete BigQuery table '{}' for stage '{}'", tableName, stageName);
+    // Delete this table if found
+    if (bigQuery.getTable(tableId) != null) {
+      bigQuery.delete(tableId);
     }
   }
 
