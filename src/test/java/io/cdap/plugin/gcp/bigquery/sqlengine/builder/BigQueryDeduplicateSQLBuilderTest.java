@@ -152,8 +152,8 @@ public class BigQueryDeduplicateSQLBuilderTest {
 
     Assert.assertEquals("field1 DESC NULLS LAST", helper.getOrderByField(maxField1));
     Assert.assertEquals("field2 ASC NULLS LAST", helper.getOrderByField(minField2));
-    Assert.assertEquals("IFNULL(field3 , 0 , 1) ASC", helper.getOrderByField(minField3));
-    Assert.assertEquals("IFNULL(field4 , 0 , 1) DESC", helper.getOrderByField(minField4));
+    Assert.assertEquals("IF(field3 IS NULL , 0 , 1) ASC", helper.getOrderByField(minField3));
+    Assert.assertEquals("IF(field4 IS NULL , 0 , 1) DESC", helper.getOrderByField(minField4));
   }
 
 
