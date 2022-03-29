@@ -147,13 +147,13 @@ public class BigQueryDeduplicateSQLBuilder extends BigQueryBaseSQLBuilder {
         return exp + SPACE + ORDER_DESC + SPACE + NULLS_LAST;
       case ANY_NULLS_FIRST:
         // ANY_NULLS_FIRST means order with null values first and pick the first.
-        // ...[ORDER BY] IFNULL(exp , 0 , 1) ASC
-        return IFNULL_FUNCTION + OPEN_GROUP + exp + COMMA + ZERO + COMMA + ONE + CLOSE_GROUP + SPACE + ORDER_ASC;
+        // ...[ORDER BY] IF(exp IS NULL , 0 , 1) ASC
+        return IF_FUNCTION + OPEN_GROUP + exp + IS_NULL + COMMA + ZERO + COMMA + ONE + CLOSE_GROUP + SPACE + ORDER_ASC;
       case ANY_NULLS_LAST:
       default:
         // ANY_NULLS_LAST means order with null values first and pick the first.
-        // ...[ORDER BY] IFNULL(exp , 0 , 1) DESC
-        return IFNULL_FUNCTION + OPEN_GROUP + exp + COMMA + ZERO + COMMA + ONE + CLOSE_GROUP + SPACE + ORDER_DESC;
+        // ...[ORDER BY] IF(exp IS NULL , 0 , 1) DESC
+        return IF_FUNCTION + OPEN_GROUP + exp + IS_NULL + COMMA + ZERO + COMMA + ONE + CLOSE_GROUP + SPACE + ORDER_DESC;
     }
   }
 
