@@ -75,8 +75,19 @@ public class TestSetupHooks {
     gcsSourceBucketName = createGCSBucketWithFile(PluginPropertyUtils.pluginProp("gcsOutputFieldTestFile"));
   }
 
+  @Before(order = 1, value = "@GCS_DATATYPE_1_TEST")
+  public static void createBucketWithDataTypeTest1File() throws IOException, URISyntaxException {
+    gcsSourceBucketName = createGCSBucketWithFile(PluginPropertyUtils.pluginProp("gcsDataTypeTest1File"));
+  }
+
+  @Before(order = 1, value = "@GCS_DATATYPE_2_TEST")
+  public static void createBucketWithDataTypeTest2File() throws IOException, URISyntaxException {
+    gcsSourceBucketName = createGCSBucketWithFile(PluginPropertyUtils.pluginProp("gcsDataTypeTest2File"));
+  }
+
   @After(order = 1, value = "@GCS_CSV_TEST or @GCS_TSV_TEST or @GCS_BLOB_TEST " +
-    "or @GCS_DELIMITED_TEST or @GCS_TEXT_TEST or @GCS_OUTPUT_FIELD_TEST")
+    "or @GCS_DELIMITED_TEST or @GCS_TEXT_TEST or @GCS_OUTPUT_FIELD_TEST or @GCS_DATATYPE_1_TEST or " +
+    "@GCS_DATATYPE_2_TEST")
   public static void deleteSourceBucketWithFile() {
     deleteGCSBucket(gcsSourceBucketName);
     gcsSourceBucketName = StringUtils.EMPTY;

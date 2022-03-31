@@ -14,6 +14,7 @@
  * the License.
  */
 package io.cdap.plugin.pubsub.runners.sinkrunner;
+
 import io.cucumber.junit.Cucumber;
 import io.cucumber.junit.CucumberOptions;
 import org.junit.runner.RunWith;
@@ -23,14 +24,14 @@ import org.junit.runner.RunWith;
  */
 @RunWith(Cucumber.class)
 @CucumberOptions(
-        features = {"src/e2e-test/features"},
-        glue = {"io.cdap.plugin.pubsub.stepsdesign", "io.cdap.plugin.gcs.stepsdesign",
-          "io.cdap.plugin.common.stepsdesign", "io.cdap.plugin.bigquery.stepsdesign" , "stepsdesign"},
-        tags = {"@PubSub_Sink"},
-        monochrome = true,
-        plugin = {"pretty", "html:target/cucumber-html-report/pubsub-sink",
-          "json:target/cucumber-reports/cucumber-pubsub-sink.json",
-          "junit:target/cucumber-reports/cucumber-pubsub-sink.xml"}
+  features = {"src/e2e-test/features"},
+  glue = {"io.cdap.plugin.pubsub.stepsdesign", "io.cdap.plugin.gcs.stepsdesign",
+    "io.cdap.plugin.common.stepsdesign", "io.cdap.plugin.bigquery.stepsdesign", "stepsdesign"},
+  tags = {"@PubSub_Sink"},
+  monochrome = true,
+  plugin = {"pretty", "html:target/cucumber-html-report/pubsub-sink",
+    "json:target/cucumber-reports/cucumber-pubsub-sink.json",
+    "junit:target/cucumber-reports/cucumber-pubsub-sink.xml"}
 )
 
 public class TestRunner {

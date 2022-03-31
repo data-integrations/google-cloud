@@ -15,13 +15,11 @@
  */
 package io.cdap.plugin.pubsub.actions;
 
+import io.cdap.e2e.pages.locators.CdfPluginPropertiesLocators;
 import io.cdap.e2e.pages.locators.CdfStudioLocators;
 import io.cdap.e2e.utils.ElementHelper;
 import io.cdap.e2e.utils.SeleniumHelper;
-import io.cdap.e2e.utils.WaitHelper;
 import io.cdap.plugin.pubsub.locators.PubSubLocators;
-import org.junit.Assert;
-import org.openqa.selenium.WebElement;
 
 import java.util.UUID;
 
@@ -36,60 +34,55 @@ public class PubSubActions {
   }
 
   public static void enterPubSubReferenceName() {
-    PubSubLocators.pubSubReferenceName.sendKeys(UUID.randomUUID().toString());
+    ElementHelper.sendKeys(PubSubLocators.pubSubReferenceName, UUID.randomUUID().toString());
   }
 
   public static void enterProjectID(String projectId) {
-    SeleniumHelper.replaceElementValue(PubSubLocators.projectID, projectId);
+    ElementHelper.replaceElementValue(PubSubLocators.projectID, projectId);
   }
 
   public static void enterPubSubTopic(String pubSubTopic) {
-    SeleniumHelper.sendKeys(PubSubLocators.pubSubTopic, pubSubTopic);
+    ElementHelper.sendKeys(PubSubLocators.pubSubTopic, pubSubTopic);
   }
 
   public static void selectFormat(String formatType) {
-    PubSubLocators.format.click();
-    WebElement formatTypeListOption = PubSubLocators.formatType(formatType);
-    ElementHelper.clickOnElement(formatTypeListOption);
-    WaitHelper.waitForElementToBeHidden(formatTypeListOption);
-    Assert.assertTrue(formatType + " format should be selected",
-                      ElementHelper.isElementDisplayed(PubSubLocators.selectedFormat(formatType)));
+    ElementHelper.selectDropdownOption(PubSubLocators.format,
+                                       CdfPluginPropertiesLocators.locateDropdownListItem(formatType));
   }
 
   public static void enterMaximumBatchCount(String maximumBatchcount) {
-    SeleniumHelper.replaceElementValue(PubSubLocators.maximumBatchCount, maximumBatchcount);
+    ElementHelper.replaceElementValue(PubSubLocators.maximumBatchCount, maximumBatchcount);
   }
 
   public static void enterMaximumBatchSize(String maximumBatchSize) {
-    SeleniumHelper.replaceElementValue(PubSubLocators.maximumBatchSize, maximumBatchSize);
+    ElementHelper.replaceElementValue(PubSubLocators.maximumBatchSize, maximumBatchSize);
   }
 
   public static void enterPublishDelayThreshold(String publishDelayThreshold) {
-    SeleniumHelper.replaceElementValue(PubSubLocators.publishDelayThreshold, publishDelayThreshold);
+    ElementHelper.replaceElementValue(PubSubLocators.publishDelayThreshold, publishDelayThreshold);
   }
 
   public static void enterRetryTimeOut(String retryTimeOut) {
-    SeleniumHelper.replaceElementValue(PubSubLocators.retryTimeout, retryTimeOut);
+    ElementHelper.replaceElementValue(PubSubLocators.retryTimeout, retryTimeOut);
   }
 
   public static void enterErrorThreshold(String errorThreshold) {
-    SeleniumHelper.replaceElementValue(PubSubLocators.errorThreshold, errorThreshold);
+    ElementHelper.replaceElementValue(PubSubLocators.errorThreshold, errorThreshold);
   }
 
   public static void close() {
-    PubSubLocators.closeButton.click();
+    ElementHelper.clickOnElement(PubSubLocators.closeButton);
   }
 
   public static void enterEncryptionKeyName(String cmek) {
-    PubSubLocators.cmekKey.sendKeys(cmek);
+    ElementHelper.sendKeys(PubSubLocators.cmekKey, cmek);
   }
 
   public static void enterSubscription(String subscription) {
-    PubSubLocators.subscription.sendKeys(subscription);
+    ElementHelper.sendKeys(PubSubLocators.subscription, subscription);
   }
 
   public static void enterNumberOfReaders(String numberOfReaders) {
-    SeleniumHelper.replaceElementValue(PubSubLocators.numberOfReaders, numberOfReaders);
+    ElementHelper.replaceElementValue(PubSubLocators.numberOfReaders, numberOfReaders);
   }
-
 }
