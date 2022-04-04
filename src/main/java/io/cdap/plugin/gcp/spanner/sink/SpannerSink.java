@@ -28,19 +28,16 @@ import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerException;
 import com.google.cloud.spanner.SpannerExceptionFactory;
-import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.encryption.EncryptionConfigs;
 import com.google.common.base.Strings;
 import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
-import com.google.spanner.admin.database.v1.CreateDatabaseRequest;
 import com.google.spanner.admin.database.v1.UpdateDatabaseDdlMetadata;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Metadata;
 import io.cdap.cdap.api.annotation.MetadataProperty;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
-import io.cdap.cdap.api.annotation.Requirements;
 import io.cdap.cdap.api.data.batch.Output;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
@@ -56,7 +53,6 @@ import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.common.ReferenceBatchSink;
 import io.cdap.plugin.common.batch.sink.SinkOutputFormatProvider;
 import io.cdap.plugin.gcp.common.CmekUtils;
-import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.spanner.common.SpannerUtil;
 import io.cdap.plugin.gcp.spanner.connector.SpannerConnector;
 import org.apache.hadoop.conf.Configuration;
@@ -124,13 +120,16 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
 
         DatabaseId db = DatabaseId.of(config.connection.getProject(), config.getInstance(), config.getDatabase());
         DatabaseClient dbClient = spanner.getDatabaseClient(db);
-        if (!isTablePresent(dbClient) && schema == null) {
+        boolean tableExists = isTablePresent(dbClient);
+        if (!tableExists && schema == null) {
           throw new IllegalArgumentException(String.format("Spanner table %s does not exist. To create it from the " +
                                                              "pipeline, schema must be provided",
                                                            config.getTable()));
         }
         // create table
-        createTableIfNotPresent(dbClient, database, schema);
+        if (!tableExists) {
+          createTable(database, schema);
+        }
       } catch (IOException e) {
         throw new RuntimeException("Exception while trying to get Spanner service. ", e);
       }
@@ -153,25 +152,22 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
     }
   }
 
-  private void createTableIfNotPresent(DatabaseClient dbClient, Database database,
-                                       Schema schema) throws ExecutionException, InterruptedException {
-    boolean tableExists = isTablePresent(dbClient);
-    if (!tableExists) {
-      if (Strings.isNullOrEmpty(config.getKeys())) {
-        throw new IllegalArgumentException(String.format("Spanner table %s does not exist. To create it from the " +
-                                                           "pipeline, primary keys must be provided",
-                                                         config.getTable()));
-      }
-      String createStmt = SpannerUtil.convertSchemaToCreateStatement(config.getTable(),
-                                                                     config.getKeys(), schema);
-      LOG.debug("Creating table with create statement: {} in database {} of instance {}", createStmt,
-                config.getDatabase(), config.getInstance());
-      // In Spanner table creation is an update ddl operation on the database.
-      OperationFuture<Void, UpdateDatabaseDdlMetadata> op =
-        database.updateDdl(Collections.singletonList(createStmt), null);
-      // Table creation is an async operation. So wait until table is created.
-      op.get();
+  private void createTable(Database database,
+                           Schema schema) throws ExecutionException, InterruptedException {
+    if (Strings.isNullOrEmpty(config.getKeys())) {
+      throw new IllegalArgumentException(String.format("Spanner table %s does not exist. To create it from the " +
+                                                         "pipeline, primary keys must be provided",
+                                                       config.getTable()));
     }
+    String createStmt = SpannerUtil.convertSchemaToCreateStatement(config.getTable(),
+                                                                   config.getKeys(), schema);
+    LOG.debug("Creating table with create statement: {} in database {} of instance {}", createStmt,
+              config.getDatabase(), config.getInstance());
+    // In Spanner table creation is an update ddl operation on the database.
+    OperationFuture<Void, UpdateDatabaseDdlMetadata> op =
+      database.updateDdl(Collections.singletonList(createStmt), null);
+    // Table creation is an async operation. So wait until table is created.
+    op.get();
   }
 
   private boolean isTablePresent(DatabaseClient dbClient) {
