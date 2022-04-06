@@ -72,7 +72,7 @@ jobs:
           name: Debug files
           path: ./**/target/e2e-debug
       - name: Deploy report
-        uses: peaceiris/actions-gh-pages@v3
+        uses: tivv/actions-gh-pages@f75e94a6b37e2a747cb64139c6a2171454142288
         if: always()
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
