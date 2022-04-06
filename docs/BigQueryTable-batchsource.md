@@ -89,20 +89,19 @@ Data Type Mappings from BigQuery to CDAP
 The following table lists out different BigQuery data types, as well as the 
 corresponding CDAP data type for each BigQuery type.
 
-| BigQuery type | CDAP type                                   |
-|---------------|---------------------------------------------|
-| bool          | boolean                                     |
-| bytes         | bytes                                       |
-| date          | date                                        |
-| datetime      | datetime, string                            |
-| float64       | double                                      |
-| geo           | unsupported                                 |
-| int64         | long                                        |
-| numeric       | decimal (38 digits, 9 decimal places)       |
-| bignumeric    | bigdecimal                                  |
-| record        | record                                      |
-| repeated      | array                                       |
-| string        | string, datetime(Should be ISO 8601 format) |
-| struct        | record                                      |
-| time          | time (microseconds)                         |
-| timestamp     | timestamp (microseconds)                    |
+| BigQuery type | CDAP type                          |
+|---------------|------------------------------------|
+| bool          | boolean                            |
+| bytes         | bytes                              |
+| date          | date                               |
+| datetime      | datetime, string                   |
+| float64       | double                             |
+| geo           | unsupported                        |
+| int64         | long                               |
+| numeric       | decimal                            |
+| bignumeric    | decimal                            |
+| repeated      | array                              |
+| string        | string, datetime (ISO 8601 format) |
+| struct        | record                             |
+| time          | time (microseconds)                |
+| timestamp     | timestamp (microseconds)           |
