@@ -13,4 +13,7 @@ public class E2ETestConstants {
   public static final String ERROR_MSG_PUBSUB_DELAY_THRESHOLD = "errorMessagePubSubDelayThresholdField";
   public static final String ERROR_MSG_PUBSUB_RETRY_TIMEOUT = "errorMessagePubSubRetryTimeout";
   public static final String ERROR_MSG_PUBSUB_ERROR_THRESHOLD = "errorMessagePubSubErrorThreshold";
+  public static final String ERROR_MSG_BQ_INCORRECT_CHUNKSIZE = "errorMessageIncorrectBQChunkSize";
+  public static final String ERROR_MSG_BQ_INCORRECT_TEMPORARY_BUCKET = "errorMessageIncorrectBQBucketName";
+  public static final String ERROR_MSG_BQ_INCORRECT_PROPERTY = "errorMessageIncorrectBQProperty";
 }

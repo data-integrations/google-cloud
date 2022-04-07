@@ -27,11 +27,11 @@ import io.cucumber.java.Before;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.Assert;
 import stepsdesign.BeforeActions;
-import stepsdesign.PipelineSteps;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -49,6 +49,7 @@ public class TestSetupHooks {
   public static String gcsTargetBucketName = StringUtils.EMPTY;
   public static String bqTargetTable = StringUtils.EMPTY;
   public static String bqSourceTable = StringUtils.EMPTY;
+  public static String bqSourceView = StringUtils.EMPTY;
   public static String pubSubTargetTopic = StringUtils.EMPTY;
 
   @Before(order = 1, value = "@GCS_CSV_TEST")
@@ -96,10 +97,14 @@ public class TestSetupHooks {
     gcsSourceBucketName = createGCSBucketWithMultipleFiles(PluginPropertyUtils.pluginProp("gcsReadRecursivePath"));
   }
 
+  @Before(order = 1, value = "@GCS_CSV_RANGE_TEST")
+  public static void createBucketWithRangeCSVFile() throws IOException, URISyntaxException {
+    gcsSourceBucketName = createGCSBucketWithFile(PluginPropertyUtils.pluginProp("gcsCsvRangeFile"));
+  }
+
   @After(order = 1, value = "@GCS_CSV_TEST or @GCS_TSV_TEST or @GCS_BLOB_TEST " +
     "or @GCS_DELIMITED_TEST or @GCS_TEXT_TEST or @GCS_OUTPUT_FIELD_TEST or @GCS_DATATYPE_1_TEST or " +
-    "@GCS_DATATYPE_2_TEST or @GCS_READ_RECURSIVE_TEST")
-
+    "@GCS_DATATYPE_2_TEST or @GCS_READ_RECURSIVE_TEST or @GCS_CSV_RANGE_TEST")
   public static void deleteSourceBucketWithFile() {
     deleteGCSBucket(gcsSourceBucketName);
     gcsSourceBucketName = StringUtils.EMPTY;
@@ -163,7 +168,7 @@ public class TestSetupHooks {
     BeforeActions.scenario.write("BQ source Table " + bqSourceTable + " created successfully");
   }
 
-  @After(order = 1, value = "@BQ_SOURCE_TEST or @BQ_PARTITIONED_SOURCE_TEST")
+  @After(order = 1, value = "@BQ_SOURCE_TEST or @BQ_PARTITIONED_SOURCE_TEST or @BQ_SOURCE_DATATYPE_TEST")
   public static void deleteTempSourceBQTable() throws IOException, InterruptedException {
     BigQueryClient.dropBqQuery(bqSourceTable);
     BeforeActions.scenario.write("BQ source Table " + bqSourceTable + " deleted successfully");
@@ -193,6 +198,95 @@ public class TestSetupHooks {
       // Iterator on TableResult values in getSoleQueryResult method throws NoSuchElementException
     }
     BeforeActions.scenario.write("BQ Source Table " + bqSourceTable + " created successfully");
+  }
+
+  /**
+   * Create BigQuery table with different list of dataypes (transaction_info BOOL, transaction_num BYTES,
+   * transaction_uid STRING, transaction_date DATE, transaction_dt DATETIME, transaction_time TIME, latitude FLOAT64,
+   * unique_key INT64, business_ratio NUMERIC, updated_on TIMESTAMP, parent ARRAY<STRING>,
+   * inputs STRUCT<input_script_bytes BYTES, input_script_string STRING, input_sequence_number INT64>,
+   * business_bigratio BIGNUMERIC, committer STRUCT<name STRING, email STRING, time_sec INT64, tz_offset INT64,
+   * date STRUCT<seconds INT64, nanos INT64>>, trailer ARRAY<STRUCT<key STRING, value STRING, email STRING>>,
+   * difference ARRAY<STRUCT<old_mode INT64, new_mode INT64, old_path STRING, new_path STRING, old_sha1 STRING,
+   * new_sha1 STRING, old_repo STRING, new_repo STRING>>, Userdata STRUCT<age INT64, company STRING>)
+   * containing random testdata.
+   */
+  @Before(order = 1, value = "@BQ_SOURCE_DATATYPE_TEST")
+  public static void createSourceBQTableWithDifferentDataTypes() throws IOException, InterruptedException {
+    createSourceBQTableWithQueries(PluginPropertyUtils.pluginProp("bqCreateTableQueryFile"),
+                                   PluginPropertyUtils.pluginProp("bqInsertDataQueryFile"));
+  }
+
+  private static void createSourceBQTableWithQueries(String bqCreateTableQueryFile, String bqInsertDataQueryFile) throws
+    IOException, InterruptedException {
+    bqSourceTable = "E2E_SOURCE_" + UUID.randomUUID().toString().replaceAll("-", "_");
+
+    String createTableQuery = StringUtils.EMPTY;
+    try {
+      createTableQuery = new String(Files.readAllBytes(Paths.get(TestSetupHooks.class.getResource
+        ("/" + bqCreateTableQueryFile).toURI()))
+        , StandardCharsets.UTF_8);
+      createTableQuery = createTableQuery.replace("DATASET", PluginPropertyUtils.pluginProp("dataset"))
+        .replace("TABLE_NAME", bqSourceTable);
+    } catch (Exception e) {
+      BeforeActions.scenario.write("Exception in reading " + bqCreateTableQueryFile + " - " + e.getMessage());
+      Assert.fail("Exception in BigQuery testdata prerequisite setup " +
+                    "- error in reading create table query file " + e.getMessage());
+    }
+
+    String insertDataQuery = StringUtils.EMPTY;
+    try {
+      insertDataQuery = new String(Files.readAllBytes(Paths.get(TestSetupHooks.class.getResource
+        ("/" + bqInsertDataQueryFile).toURI()))
+        , StandardCharsets.UTF_8);
+      insertDataQuery = insertDataQuery.replace("DATASET", PluginPropertyUtils.pluginProp("dataset"))
+        .replace("TABLE_NAME", bqSourceTable);
+    } catch (Exception e) {
+      BeforeActions.scenario.write("Exception in reading " + bqInsertDataQueryFile + " - " + e.getMessage());
+      Assert.fail("Exception in BigQuery testdata prerequisite setup " +
+                    "- error in reading insert data query file " + e.getMessage());
+    }
+    BigQueryClient.getSoleQueryResult(createTableQuery);
+    try {
+      BigQueryClient.getSoleQueryResult(insertDataQuery);
+    } catch (NoSuchElementException e) {
+      // Insert query does not return any record.
+      // Iterator on TableResult values in getSoleQueryResult method throws NoSuchElementException
+    }
+    BeforeActions.scenario.write("BQ Source Table " + bqSourceTable + " created successfully");
+  }
+
+  @Before(order = 2, value = "@BQ_SOURCE_VIEW_TEST")
+  public static void createSourceBQViewWithQueries() throws IOException, InterruptedException {
+    createSourceBQViewWithQueries(PluginPropertyUtils.pluginProp("bqCreateViewQueryFile"));
+  }
+
+  @After(order = 2, value = "@BQ_SOURCE_VIEW_TEST")
+  public static void deleteTempSourceBQView() throws IOException, InterruptedException {
+    BigQueryClient.getSoleQueryResult("DROP VIEW IF EXISTS " + PluginPropertyUtils.pluginProp("dataset") +
+                                        "." + bqSourceView);
+    BeforeActions.scenario.write("BQ source View " + bqSourceView + " deleted successfully");
+    bqSourceView = StringUtils.EMPTY;
+  }
+
+  private static void createSourceBQViewWithQueries(String bqCreateViewQueryFile) throws
+    IOException, InterruptedException {
+    bqSourceView = "E2E_SOURCE_VIEW" + UUID.randomUUID().toString().replaceAll("-", "_");
+
+    String createViewQuery = StringUtils.EMPTY;
+    try {
+      createViewQuery = new String(Files.readAllBytes(Paths.get(TestSetupHooks.class.getResource
+        ("/" + bqCreateViewQueryFile).toURI()))
+        , StandardCharsets.UTF_8);
+      createViewQuery = createViewQuery.replace("DATASET", PluginPropertyUtils.pluginProp("dataset"))
+        .replace("TABLE_NAME", bqSourceTable).replace("VIEW_NAME", bqSourceView);
+    } catch (Exception e) {
+      BeforeActions.scenario.write("Exception in reading " + bqCreateViewQueryFile + " - " + e.getMessage());
+      Assert.fail("Exception in BigQuery testdata prerequisite setup " +
+                    "- error in reading create view query file " + e.getMessage());
+    }
+    BigQueryClient.getSoleQueryResult(createViewQuery);
+    BeforeActions.scenario.write("BQ Source View " + bqSourceView + " created successfully");
   }
 
   private static String createGCSBucketWithFile(String filePath) throws IOException, URISyntaxException {
