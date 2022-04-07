@@ -138,4 +138,26 @@ public class BigQuerySource implements E2EHelper {
   public void enterRuntimeArgumentValueForBigQuerySourceTableNameKey(String runtimeArgumentKey) {
     ElementHelper.sendKeys(CdfStudioLocators.runtimeArgsValue(runtimeArgumentKey), TestSetupHooks.bqSourceTable);
   }
+
+  @Then("Toggle BigQuery source property enable querying views to true")
+  public void toggleBigQuerySourcePropertyEnableQueryingViewsToTrue() {
+    CdfBigQueryPropertiesActions.toggleEnableQueryingViews();
+  }
+
+  @Then("Enter the BigQuery source property for view materialization project {string}")
+  public void enterTheBigQuerySourcePropertyForViewMaterializationProject(String viewMaterializationProject) {
+    CdfBigQueryPropertiesActions.enterViewMaterializationProject(PluginPropertyUtils.
+      pluginProp(viewMaterializationProject));
+  }
+
+  @Then("Enter the BigQuery source property for view materialization dataset {string}")
+  public void enterTheBigQuerySourcePropertyForViewMaterializationDataset(String viewMaterializationDataset) {
+    CdfBigQueryPropertiesActions.enterViewMaterializationDataset(PluginPropertyUtils.
+      pluginProp(viewMaterializationDataset));
+  }
+
+  @Then("Enter BigQuery source property table name as view")
+  public void enterBigQuerySourcePropertyTableNameAsView() {
+    CdfBigQueryPropertiesActions.enterBigQueryTable(TestSetupHooks.bqSourceView);
+  }
 }
