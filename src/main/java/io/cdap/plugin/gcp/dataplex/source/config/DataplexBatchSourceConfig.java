@@ -75,20 +75,20 @@ public class DataplexBatchSourceConfig extends DataplexBaseConfig {
   public static final String INPUT_FORMAT = "avro";
   @Name(NAME_ENTITY)
   @Macro
-  @Description("Resource id for the Dataplex entity. You can find it in discovery tab.")
+  @Description("ID of the Dataplex entity, which can be found on the entity detail page.")
   protected String entity;
 
   @Name(NAME_PARTITION_FROM)
   @Macro
   @Nullable
-  @Description("It's inclusive partition start date. It should be a String with format \"yyyy-MM-dd\". " +
-    "This value is ignored if the table does not support partitioning.")
+  @Description("Inclusive partition start date. Must be a string with format ‘yyyy-MM-dd’." +
+    " The value is ignored if the table does not support partitioning.")
   private final String partitionFrom;
   @Name(NAME_PARTITION_TO)
   @Macro
   @Nullable
-  @Description("It's inclusive partition end date. It should be a String with format \"yyyy-MM-dd\". " +
-    "This value is ignored if the table does not support partitioning.")
+  @Description("Inclusive partition end date. Must be a string with format ‘yyyy-MM-dd’." +
+    " The value is ignored if the table does not support partitioning.")
   private final String partitionTo;
   @Name(NAME_FILTER)
   @Macro
