@@ -29,7 +29,8 @@ public enum CdfPluginPropertyLocator {
   PUBSUB_PUBLISH_DELAY_THRESHOLD("publishDelayThresholdMillis"),
   PUBSUB_RETRY_TIMEOUT("retryTimeoutSeconds"),
   PUBSUB_ERROR_THRESHOLD("errorThreshold"),
-  OUTPUT_SCHEMA_MACRO_INPUT("Output Schema-macro-input");
+  OUTPUT_SCHEMA_MACRO_INPUT("Output Schema-macro-input"),
+  GCS_DELETE_OBJECTS_TO_DELETE("paths");
 
   public String pluginProperty;
   CdfPluginPropertyLocator(String property) {
@@ -60,6 +61,7 @@ public enum CdfPluginPropertyLocator {
       .put("retryTimeout", CdfPluginPropertyLocator.PUBSUB_RETRY_TIMEOUT)
       .put("errorThreshold", CdfPluginPropertyLocator.PUBSUB_ERROR_THRESHOLD)
       .put("outputSchema", CdfPluginPropertyLocator.OUTPUT_SCHEMA_MACRO_INPUT)
+      .put("objectsToDelete", CdfPluginPropertyLocator.GCS_DELETE_OBJECTS_TO_DELETE)
       .build();
   }
 
