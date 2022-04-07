@@ -53,18 +53,18 @@ public class DataplexBaseConfig extends PluginConfig {
 
   @Name(NAME_LOCATION)
   @Macro
-  @Description("Resource id for the Dataplex location. On the lake page, click the name of the lake. " +
-    "The lake page has the location ID.")
+  @Description("ID of the location in which the Dataplex lake has been created, which can be found on the " +
+    "details page of the lake.")
   protected String location;
 
   @Name(NAME_LAKE)
   @Macro
-  @Description("Resource id for the Dataplex lake. You can find it on the lake detail page in Dataplex.")
+  @Description("ID of the Dataplex lake, which can be found on the details page of the lake.")
   protected String lake;
 
   @Name(NAME_ZONE)
   @Macro
-  @Description("Resource id for the Dataplex zone. You can find it on the zone detail page in Dataplex.")
+  @Description("ID of the Dataplex zone, which can be found on the details page of the zone.")
   protected String zone;
 
   @Name(NAME_CONNECTION)
