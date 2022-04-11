@@ -15,12 +15,13 @@ The Json File must contain arguments in a list:
 
     {
         "arguments" : [
-            { "name" : "argument name", type:"type", value" :"argument value"},
-            { "name" : "argument1 name",type:"type", "value" :"argument1 value"}
+            { "name" : "argument name", "type" : "type", "value" : "argument value"},
+            { "name" : "argument1 name", "type" : "type", "value" : "argument1 value"}
         ]
     }
 Where type can be Schema, Int, Float, Double, Short, String, Char, Array, Map 
  
+For more examples visit: https://github.com/data-integrations/argument-setter
     
 Credentials
 -----------
