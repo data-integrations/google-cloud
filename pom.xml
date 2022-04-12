@@ -224,10 +224,6 @@
           <groupId>com.google.code.findbugs</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>grpc-alts</artifactId>
-          <groupId>io.grpc</groupId>
-        </exclusion>
-        <exclusion>
           <artifactId>grpc-auth</artifactId>
           <groupId>io.grpc</groupId>
         </exclusion>
