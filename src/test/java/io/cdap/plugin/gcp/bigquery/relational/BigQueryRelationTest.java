@@ -57,11 +57,11 @@ BigQueryRelationTest {
     columns.add("a");
     columns.add("b");
 
-    baseRelation = new BigQueryRelation("ds",
+    baseRelation = new BigQueryRelation("d s",
                                         columns,
                                         null,
                                         () -> "select * from tbl");
-    baseRelation.setInputDatasets(Collections.singletonMap("ds", ds));
+    baseRelation.setInputDatasets(Collections.singletonMap("d s", ds));
   }
 
   @Test
@@ -78,7 +78,7 @@ BigQueryRelationTest {
     Assert.assertTrue(columns.contains("a"));
     Assert.assertTrue(columns.contains("b"));
     Assert.assertTrue(columns.contains("c"));
-    Assert.assertEquals("SELECT `a` AS `a` , `b` AS `b` , a+b AS `c` FROM (select * from tbl) AS `ds`",
+    Assert.assertEquals("SELECT `a` AS `a` , `b` AS `b` , a+b AS `c` FROM (select * from tbl) AS `d s`",
                         bqRelation.getSQLStatement());
   }
 
@@ -105,7 +105,7 @@ BigQueryRelationTest {
     Set<String> columns = bqRelation.getColumns();
     Assert.assertEquals(1, columns.size());
     Assert.assertTrue(columns.contains("a"));
-    Assert.assertEquals("SELECT `a` AS `a` FROM (select * from tbl) AS `ds`",
+    Assert.assertEquals("SELECT `a` AS `a` FROM (select * from tbl) AS `d s`",
                         bqRelation.getSQLStatement());
   }
 
@@ -132,7 +132,7 @@ BigQueryRelationTest {
     Assert.assertEquals(2, columns.size());
     Assert.assertTrue(columns.contains("new_a"));
     Assert.assertTrue(columns.contains("new_b"));
-    Assert.assertEquals("SELECT a AS `new_a` , b AS `new_b` FROM (select * from tbl) AS `ds`",
+    Assert.assertEquals("SELECT a AS `new_a` , b AS `new_b` FROM (select * from tbl) AS `d s`",
                         bqRelation.getSQLStatement());
   }
 
@@ -162,7 +162,7 @@ BigQueryRelationTest {
     Assert.assertEquals(2, columns.size());
     Assert.assertTrue(columns.contains("a"));
     Assert.assertTrue(columns.contains("b"));
-    Assert.assertEquals("SELECT `a` AS `a` , `b` AS `b` FROM (select * from tbl) AS `ds` WHERE a > 2",
+    Assert.assertEquals("SELECT `a` AS `a` , `b` AS `b` FROM (select * from tbl) AS `d s` WHERE a > 2",
                         bqRelation.getSQLStatement());
   }
 
@@ -214,7 +214,7 @@ BigQueryRelationTest {
     Assert.assertTrue(columns.contains("c"));
     Assert.assertTrue(columns.contains("d"));
     Assert.assertEquals("SELECT a AS `a` , MAX(a) AS `b` , MIN(b) AS `c` , d AS `d` "
-                          + "FROM ( select * from tbl ) AS ds "
+                          + "FROM ( select * from tbl ) AS `d s` "
                           + "GROUP BY a , d",
                         bqRelation.getSQLStatement());
   }
@@ -288,7 +288,7 @@ BigQueryRelationTest {
     Assert.assertTrue(transformExpression.contains("`) FROM (SELECT a AS `a` , b AS `b` , c AS `c` , d AS `d` , " +
                                                      "ROW_NUMBER() OVER ( PARTITION BY a , d ORDER BY a DESC " +
                                                       "NULLS LAST ) AS `"));
-    Assert.assertTrue(transformExpression.contains("` FROM ( select * from tbl ) AS ds) WHERE `rn_"));
+    Assert.assertTrue(transformExpression.contains("` FROM ( select * from tbl ) AS `d s`) WHERE `rn_"));
     Assert.assertTrue(transformExpression.endsWith("` = 1"));
   }
 
