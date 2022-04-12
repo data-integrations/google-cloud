@@ -290,7 +290,7 @@ public class BigQueryRelation implements Relation {
     // Instantiate query builder and generate select expression
     BigQueryGroupBySQLBuilder builder = new BigQueryGroupBySQLBuilder(qualify(definition),
                                                                       sourceExpression,
-                                                                      datasetName);
+                                                                      qualify(datasetName));
     return builder.getQuery();
   }
 
@@ -300,7 +300,7 @@ public class BigQueryRelation implements Relation {
     // Instantiate query builder and generate select expression
     BigQueryDeduplicateSQLBuilder builder = new BigQueryDeduplicateSQLBuilder(qualify(definition),
                                                                               sourceExpression,
-                                                                              datasetName);
+                                                                              qualify(datasetName));
     return builder.getQuery();
   }
 
