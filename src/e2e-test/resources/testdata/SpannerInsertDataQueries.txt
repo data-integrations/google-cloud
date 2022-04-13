@@ -1,0 +1,8 @@
+INSERT INTO EmployeeDetails ( EmployeeDepartment, EmployeeName, Activities, AgeInYears, DateOfBirth, InTime, IsActive, Punch, Salary, Workhours ) VALUES
+('Electrician', 'Justin', ['Act1','Act2','Act3'], 45.60, Date('1961-08-31'), '2019-03-10T04:50:01Z', TRUE, FROM_BASE64('MQA5ADIAMwA3ADgANwA6ADAA'), 900750000, 6),
+('Plumber', 'Olson', ['Plu1','Plu2','Plu3'], 64.60, Date('1999-02-21'), '2020-04-10T04:50:01Z', TRUE, FROM_BASE64('MQA5ADIAMwA3ADgANwA6ADAA'), 900750000, 2) ,
+('HR', 'Steve', ['H1','H2','H3'], 60.87, Date('1971-09-11'), '2018-01-10T04:50:01Z', FALSE, FROM_BASE64('MQA5ADIAMwA3ADgANwA6ADAA'), 900750000, 7) ,
+('Security', 'Arnold', ['Sec1','Sec2','Sec3'], 19.16, Date('1990-08-31'), '2017-09-10T04:50:01Z', TRUE, FROM_BASE64('MQA5ADIAMwA3ADgANwA6ADAA'), 900750000, 3) ,
+('Frontdesk', 'Kayla', ['FD1','FD2','FD3'], 35.10, Date('1965-08-31'), '2019-04-10T04:50:01Z', TRUE, FROM_BASE64('MQA5ADIAMwA3ADgANwA6ADAA'), 900750000, 5) ,
+('Plumber', 'Cisco', ['Plu1','Plu2','Plu3'], 32.32, Date('1986-08-31'), '2020-07-11T04:50:01Z', FALSE, FROM_BASE64('MQA5ADIAMwA3ADgANwA6ADAA'), 900750000, 5) ,
+('HR', 'Kacie', ['H5','H6','H7'], 99.20, Date('2000-07-01'), '2021-03-10T04:50:01Z', FALSE, FROM_BASE64('MQA5ADIAMwA3ADgANwA6ADAA'), 900750000, 7)
