@@ -86,7 +86,7 @@ public class DataplexBatchSourceConfigTest {
       dataplexBatchSourceConfig.validateBigQueryDataset(mockFailureCollector, "project", "dataset", "table-wrong");
     } catch (Exception e) {
     }
-    assertEquals(1, mockFailureCollector.getValidationFailures().size());
+    assertEquals(2, mockFailureCollector.getValidationFailures().size());
   }
 }
 

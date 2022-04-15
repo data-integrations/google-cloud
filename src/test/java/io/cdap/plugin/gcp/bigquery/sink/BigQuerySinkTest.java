@@ -169,7 +169,9 @@ public class BigQuerySinkTest {
 
   private BatchSinkContext getContextWithMetrics(MockStageMetrics mockStageMetrics) throws NoSuchFieldException {
     BatchSinkContext context = mock(SparkBatchSinkContext.class);
-    FieldSetter.setField(context, AbstractStageContext.class.getDeclaredField("stageMetrics"), mockStageMetrics);
+    // Changes done as after adding mock-maker-inline for dataplex plugins, stageMetrics was coming as null.
+    // Already changed in later versions
+    Mockito.doReturn(mockStageMetrics).when(context).getMetrics();
     return context;
   }
 
