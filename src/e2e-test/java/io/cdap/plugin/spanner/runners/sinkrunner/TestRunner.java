@@ -27,7 +27,8 @@ import org.junit.runner.RunWith;
   features = {"src/e2e-test/features"},
   glue = {"io.cdap.plugin.spanner.stepsdesign", "io.cdap.plugin.bigquery.stepsdesign",
     "io.cdap.plugin.gcs.stepsdesign", "io.cdap.plugin.common.stepsdesign", "stepsdesign"},
-  tags = {"@Spanner_Sink"},
+  tags = {"@Spanner_Sink and not @SPANNER_SINK_NEWDB_TEST"},
+  /* TODO: Enable @SPANNER_SINK_NEWDB_TEST once https://cdap.atlassian.net/browse/PLUGIN-1090 is fixed */
   monochrome = true,
   plugin = {"pretty", "html:target/cucumber-html-report/spanner-sink",
     "json:target/cucumber-reports/cucumber-spanner-sink.json",
