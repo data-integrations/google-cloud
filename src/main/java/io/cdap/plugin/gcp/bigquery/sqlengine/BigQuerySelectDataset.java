@@ -19,6 +19,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import javax.annotation.Nullable;
 
 /**
@@ -38,6 +40,7 @@ public class BigQuerySelectDataset implements SQLDataset, BigQuerySQLDataset {
   private final String jobId;
   private final BigQueryJobType operation;
   private final String selectQuery;
+  private final Map<String, Long> jobMetrics;
   private Long numRows;
 
   public static BigQuerySelectDataset getInstance(String datasetName,
@@ -83,6 +86,7 @@ public class BigQuerySelectDataset implements SQLDataset, BigQuerySQLDataset {
     this.jobId = jobId;
     this.operation = operation;
     this.selectQuery = selectQuery;
+    this.jobMetrics = new HashMap<>();
   }
 
   public BigQuerySelectDataset execute() {
@@ -124,14 +128,14 @@ public class BigQuerySelectDataset implements SQLDataset, BigQuerySQLDataset {
     if (queryJob == null) {
       throw new SQLEngineException("BigQuery job not found: " + jobId);
     } else if (queryJob.getStatus().getError() != null) {
-      BigQuerySQLEngineUtils.logJobMetrics(queryJob);
+      BigQuerySQLEngineUtils.logJobMetrics(queryJob, jobMetrics);
       throw new SQLEngineException(String.format(
         "Error executing BigQuery Job: '%s' in Project '%s', Dataset '%s', Location'%s' : %s",
         jobId, project, bqDataset, location, queryJob.getStatus().getError().toString()));
     }
 
     LOG.info("Created BigQuery table `{}` using Job: {}", bqTable, jobId);
-    BigQuerySQLEngineUtils.logJobMetrics(queryJob);
+    BigQuerySQLEngineUtils.logJobMetrics(queryJob, jobMetrics);
     return this;
   }
 
@@ -153,6 +157,11 @@ public class BigQuerySelectDataset implements SQLDataset, BigQuerySQLDataset {
     }
 
     return numRows;
+  }
+
+  @Override
+  public Map<String, Long> getMetrics() {
+    return jobMetrics;
   }
 
   @Override

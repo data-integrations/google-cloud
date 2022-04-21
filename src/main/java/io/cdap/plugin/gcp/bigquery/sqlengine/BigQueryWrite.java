@@ -51,6 +51,7 @@ import org.slf4j.LoggerFactory;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -76,6 +77,7 @@ public class BigQueryWrite {
   private final String datasetName;
   private final SQLWriteRequest writeRequest;
   private final TableId sourceTableId;
+  private final Map<String, Long> jobMetrics;
 
   private BigQueryWrite(String datasetName,
                         BigQuerySQLEngineConfig sqlEngineConfig,
@@ -87,6 +89,7 @@ public class BigQueryWrite {
     this.bigQuery = bigQuery;
     this.writeRequest = writeRequest;
     this.sourceTableId = sourceTableId;
+    this.jobMetrics = new HashMap<>();
   }
 
   public static BigQueryWrite getInstance(String datasetName,
@@ -228,11 +231,11 @@ public class BigQueryWrite {
 
     // Check for errors
     if (queryJob.getStatus().getError() != null) {
-      BigQuerySQLEngineUtils.logJobMetrics(queryJob);
+      BigQuerySQLEngineUtils.logJobMetrics(queryJob, jobMetrics);
       LOG.error("Error executing BigQuery Job: '{}' in Project '{}', Dataset '{}': {}",
                 jobId, sqlEngineConfig.getProject(), sqlEngineConfig.getDatasetProject(),
                 queryJob.getStatus().getError().toString());
-      return SQLWriteResult.faiure(datasetName);
+      return SQLWriteResult.faiure(datasetName, jobMetrics);
     }
 
     // Number of rows is taken from the job statistics if available.
@@ -242,9 +245,9 @@ public class BigQueryWrite {
     LOG.info("Executed copy operation for {} records from {}.{}.{} to {}.{}.{}", numRows,
              sourceTableId.getProject(), sourceTableId.getDataset(), sourceTableId.getTable(),
              destinationTableId.getProject(), destinationTableId.getDataset(), destinationTableId.getTable());
-    BigQuerySQLEngineUtils.logJobMetrics(queryJob);
+    BigQuerySQLEngineUtils.logJobMetrics(queryJob, jobMetrics);
 
-    return SQLWriteResult.success(datasetName, numRows);
+    return SQLWriteResult.success(datasetName, numRows, jobMetrics);
   }
 
 

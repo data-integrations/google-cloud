@@ -58,6 +58,9 @@ public class BigQuerySQLEngineUtils {
 
   public static final String GCS_PATH_FORMAT = BigQuerySinkUtils.GS_PATH_FORMAT + "/%s";
   public static final String BQ_TABLE_NAME_FORMAT = "%s_%s";
+  public static final String METRIC_BYTES_PROCESSED = "bytes.processed";
+  public static final String METRIC_BYTES_BILLED = "bytes.billed";
+  public static final String METRIC_SLOT_MS = "slot.ms";
 
   private BigQuerySQLEngineUtils() {
     // no-op
@@ -303,8 +306,9 @@ public class BigQuerySQLEngineUtils {
    * Logs information about a BigQUery Job execution using a specified Logger instance
    *
    * @param job BigQuery Job
+   * @param metrics map used to collect additional metrics for this job.
    */
-  public static void logJobMetrics(Job job) {
+  public static void logJobMetrics(Job job, Map<String, Long> metrics) {
     // Ensure job has statistics information
     if (job.getStatistics() == null) {
       LOG.warn("No statistics were found for BigQuery job {}", job.getJobId());
@@ -344,11 +348,21 @@ public class BigQuerySQLEngineUtils {
                  GSON.toJson(queryStatistics.getTimeline()));
       }
 
+      // Collect job metrics
+      if (queryStatistics.getTotalBytesProcessed() != null) {
+        metrics.put(METRIC_BYTES_PROCESSED, queryStatistics.getTotalBytesProcessed());
+      }
+      if (queryStatistics.getTotalBytesBilled() != null) {
+        metrics.put(METRIC_BYTES_BILLED, queryStatistics.getTotalBytesBilled());
+      }
+      if (queryStatistics.getTotalSlotMs() != null) {
+        metrics.put(METRIC_SLOT_MS, queryStatistics.getTotalSlotMs());
+      }
+
       return;
     }
 
     // Print basic metrics
-    JobStatistics statistics = job.getStatistics();
     LOG.info("Metrics for job: {}\n" +
                " Start: {} ,\n" +
                " End: {} ,\n" +
