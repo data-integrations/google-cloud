@@ -89,6 +89,10 @@ The default value is false.
 
 **Read Files Recursively:** Whether files are to be read recursively from the path. The default value is false.
 
+**Allow Empty Input:** Whether to allow an input that does not exist. When false, the source will fail the run if the 
+input does not exist. When true, the run will not fail and the source will not generate any output.
+The default value is false.
+
 **File System Properties:** Additional properties to use with the InputFormat when reading the data.
 
 **File Encoding:** The character encoding for the file(s) to be read. The default encoding is UTF-8.
