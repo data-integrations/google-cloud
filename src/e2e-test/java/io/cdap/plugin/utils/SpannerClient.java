@@ -71,11 +71,10 @@ public class SpannerClient {
     try (Spanner spannerService = SpannerOptions.newBuilder()
       .setProjectId(PluginPropertyUtils.pluginProp(ConstantsUtil.PROJECT_ID)).build().getService()) {
       InstanceAdminClient instanceAdminClient = spannerService.getInstanceAdminClient();
-      int nodeCount = 2;
       InstanceInfo instanceInfo =
         InstanceInfo.newBuilder(InstanceId.of(PluginPropertyUtils.pluginProp(ConstantsUtil.PROJECT_ID), instanceId))
           .setInstanceConfigId(InstanceConfigId.of(PluginPropertyUtils.pluginProp(ConstantsUtil.PROJECT_ID), configId))
-          .setNodeCount(nodeCount)
+          .setProcessingUnits(100)
           .setDisplayName(instanceId)
           .build();
       OperationFuture<Instance, CreateInstanceMetadata> operation =
