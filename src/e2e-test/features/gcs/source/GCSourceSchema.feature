@@ -22,6 +22,10 @@ Feature: GCS source - Validate GCS plugin output schema for different formats
     Examples:
       | GcsPath      | FileFormat  | ExpectedSchema     |
       | gcsBlobFile  | blob        | gcsBlobFileSchema  |
+    @GCS_TEXT_TEST
+    Examples:
+      | GcsPath      | FileFormat  | ExpectedSchema     |
+      | gcsTextFile  | text        | gcsTextFileSchema  |
 
   @GCS_Source
   Scenario Outline:GCS Source output schema validation for delimited files
@@ -38,7 +42,3 @@ Feature: GCS source - Validate GCS plugin output schema for different formats
     Examples:
       | GcsPath           | FileFormat  | Delimiter     | ExpectedSchema         |
       | gcsDelimitedFile  | delimited   | gcsDelimiter  | gcsDelimitedFileSchema |
-    @GCS_TEXT_TEST
-    Examples:
-      | GcsPath           | FileFormat  | Delimiter     | ExpectedSchema         |
-      | gcsTextFile       | text        | gcsDelimiter  | gcsTextFileSchema      |
