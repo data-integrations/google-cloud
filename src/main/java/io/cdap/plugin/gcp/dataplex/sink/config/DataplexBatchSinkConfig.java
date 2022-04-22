@@ -118,21 +118,20 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
 
   @Name(NAME_ASSET)
   @Macro
-  @Description("Resource id for the Dataplex asset. It represents a cloud resource that is being managed within a" +
-    " lake as a member of a zone.")
+  @Description("ID of the Dataplex asset. It represents a cloud resource that is being managed within a lake as a " +
+    "member of a zone.")
   protected String asset;
 
   @Name(NAME_ASSET_TYPE)
   @Nullable
-  @Description("Asset type resource.")
+  @Description("Type of asset selected to ingest the data in Dataplex.")
   protected String assetType;
 
   @Name(NAME_FORMAT)
   @Nullable
   @Macro
-  @Description("The format to write the records in. The format for raw zone must be one of 'json', 'avro', 'csv', " +
-    "'delimited', 'json', 'orc', or, 'parquet'. The format for curated zone must be one of 'avro', 'orc', or, " +
-    "'parquet'.")
+  @Description("The format to write the records in. The format for a raw zone must be one of ‘json’, ‘avro’," +
+    " ‘csv’,‘orc’, or ‘parquet’.  The format for a curated zone must be one of ‘avro’, ‘orc’, or ‘parquet’.")
   protected String format;
 
   @Name(NAME_TABLE)
@@ -160,23 +159,23 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   @Name(NAME_OPERATION)
   @Nullable
   @Macro
-  @Description("Insert/Update/Upsert")
+  @Description("Type of write operation to perform. This can be set to Insert, Update, or Upsert.")
   protected String operation;
 
   @Name(NAME_PARTITION_FILTER)
   @Nullable
   @Macro
-  @Description("Partition filter that can be used for partition elimination during Update or Upsert operations. " +
-    "Should only be used with Update or Upsert operations for tables where the required partition filter is " +
-    "enabled. For example, if the table is partitioned the Partition Filter ‘_PARTITIONTIME > “2020-01-01” " +
-    "and _PARTITIONTIME < “2020-03-01”‘, the update operation will be performed only in the partitions " +
-    "meeting the criteria.")
+  @Description("Partition filter that can be used for partition elimination during Update or Upsert operations." +
+    " Only Use with Update or Upsert operations for tables where Require Partition Filter is enabled. For example," +
+    " if the table is partitioned and the Partition Filter  is ‘_PARTITIONTIME > “2020-01-01” " +
+    "and _PARTITIONTIME < “2020-03-01”‘, the update operation will be performed only in the" +
+    " partitions meeting the criteria.")
   protected String partitionFilter;
 
   @Name(NAME_PARTITIONING_TYPE)
   @Nullable
   @Macro
-  @Description("Specifies the partitioning type. Can either be Integer or Time or None. Defaults to Time. " +
+  @Description("Specifies the partitioning type. Can either be Integer, Time, or None. Defaults to Time. " +
     "This value is ignored if the table already exists.")
   protected String partitioningType;
 
@@ -202,7 +201,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   @Name(NAME_TRUNCATE_TABLE)
   @Nullable
   @Macro
-  @Description("Whether or not to truncate the table before writing to it. Should only be used with the Insert " +
+  @Description("Whether or not to truncate the table before writing to it. Only use with the Insert " +
     "operation.")
   protected Boolean truncateTable;
 
@@ -216,7 +215,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   @Name(NAME_PARTITION_BY_FIELD)
   @Nullable
   @Macro
-  @Description("Partitioning column for the BigQuery table. This should be left empty if the BigQuery table " +
+  @Description("Partitioning column for the BigQuery table. Leave blank if the BigQuery table " +
     "is an ingestion-time partitioned table.")
   protected String partitionByField;
 
@@ -231,7 +230,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   @Nullable
   @Macro
   @Description("List of fields that determines the sort order of the data. Fields must be of type INT, LONG, " +
-    "STRING, DATE, TIMESTAMP, BOOLEAN or DECIMAL. Tables cannot be clustered on more than 4 fields. This " +
+    "STRING, DATE, TIMESTAMP, BOOLEAN, or DECIMAL. Tables cannot be clustered on more than 4 fields. This " +
     "value is only used when the BigQuery table is automatically created and ignored if the table already exists.")
   protected String clusteringOrder;
 
@@ -351,6 +350,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
 
   /**
    * Checks whether table name is as per standards and truncating can be performed only while insert operation.
+   *
    * @param collector
    */
   public void validateBigQueryDataset(FailureCollector collector) {
@@ -368,7 +368,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
       && !getOperation().equals(Operation.INSERT)) {
 
       collector.addFailure("Truncate must only be used with operation 'Insert'.",
-        "Set Truncate to false, or change the Operation to 'Insert'.")
+          "Set Truncate to false, or change the Operation to 'Insert'.")
         .withConfigProperty(NAME_TRUNCATE_TABLE).withConfigProperty(NAME_OPERATION);
     }
   }
@@ -390,7 +390,8 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   }
 
   /**
-   *  This method will validate the location, lake, zone and asset configurations
+   * This method will validate the location, lake, zone and asset configurations
+   *
    * @param collector
    * @param dataplexServiceClient
    */
@@ -434,14 +435,14 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
                 equals(Asset.ResourceSpec.Type.STORAGE_BUCKET) && zoneBean.getType()
                 .equals(Zone.Type.CURATED) && !containsMacro(NAME_FORMAT) &&
                 !Strings.isNullOrEmpty(format)) {
-                  FileFormat fileFormat = getFormat();
-                  // For curated zone only avro, orc and parquet are supported.
-                  if (!SUPPORTED_FORMATS_FOR_CURATED_ZONE.contains(fileFormat)) {
-                    collector.addFailure(String.format("Format '%s' is not supported for curated zone",
-                          fileFormat.toString().toLowerCase()),
-                        null).
-                      withConfigProperty(NAME_FORMAT);
-                  }
+                FileFormat fileFormat = getFormat();
+                // For curated zone only avro, orc and parquet are supported.
+                if (!SUPPORTED_FORMATS_FOR_CURATED_ZONE.contains(fileFormat)) {
+                  collector.addFailure(String.format("Format '%s' is not supported for curated zone",
+                        fileFormat.toString().toLowerCase()),
+                      null).
+                    withConfigProperty(NAME_FORMAT);
+                }
               }
             } catch (ApiException e) {
               configureDataplexException(asset, NAME_ASSET, e, collector);
@@ -456,9 +457,10 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
 
   /**
    * validates BigQuery Dataset, Table  and columns with selected properties .
-   * @param inputSchema InputSchema
-   * @param outputSchema OutputSchema
-   * @param collector   FailureCollector
+   *
+   * @param inputSchema           InputSchema
+   * @param outputSchema          OutputSchema
+   * @param collector             FailureCollector
    * @param dataplexServiceClient DataplexServiceClient
    */
   public void validateBigQueryDataset(@Nullable Schema inputSchema, @Nullable Schema outputSchema,
@@ -847,6 +849,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
 
   /**
    * Validates if format is a valid one that can be ingested in Dataplex.
+   *
    * @param pipelineConfigurer
    * @param collector
    */
@@ -892,7 +895,8 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
 
   /**
    * Validates the schema based on validating output format.
-   * @param context FormatContext
+   *
+   * @param context                FormatContext
    * @param format
    * @param validatingOutputFormat ValidatingOutputFormat
    */
@@ -909,6 +913,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
 
   /**
    * Validates the Cloud Storage asset properties before ingestion to dataplex.
+   *
    * @param collector FailureCollector
    */
   public void validateStorageBucket(FailureCollector collector) {

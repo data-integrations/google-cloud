@@ -75,7 +75,7 @@
       "properties": [
         {
           "widget-type": "textbox",
-          "label": "Location Id",
+          "label": "Location ID",
           "name": "location",
           "widget-attributes": {
             "placeholder": "Ex: us-central1"
@@ -83,7 +83,7 @@
         },
         {
           "widget-type": "textbox",
-          "label": "Lake Id",
+          "label": "Lake ID",
           "name": "lake",
           "widget-attributes": {
             "placeholder": "Ex: Lake"
@@ -91,23 +91,15 @@
         },
         {
           "widget-type": "textbox",
-          "label": "Zone Id",
+          "label": "Zone ID",
           "name": "zone",
           "widget-attributes": {
             "placeholder": "Ex: zone"
           }
         },
         {
-          "widget-type": "hidden",
-          "label": "Asset Id",
-          "name": "asset",
-          "widget-attributes": {
-            "placeholder": "Ex: Asset"
-          }
-        },
-        {
           "widget-type": "textbox",
-          "label": "Entity Id",
+          "label": "Entity ID",
           "name": "entity",
           "widget-attributes": {
             "placeholder": "Ex: Entity"
