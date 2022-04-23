@@ -60,11 +60,11 @@ https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax#where
 **Enable Querying Views**: Whether to allow querying views. Since BigQuery views are not materialized 
 by default, querying them may have a performance overhead.
 
-**View Materialization Project**: The project name where the View should be materialized. Defaults 
-to the same project in which the view is located.
+**View Materialization Project**: The project name where the temporary table should be materialized. Defaults 
+to the same project in which the table is located.
 
-**View Materialization Dataset**: The dataset in the specified project where the view should be
-materialized. Defaults to the same dataset in which the view is located.
+**View Materialization Dataset**: The dataset in the specified project where the temporary table should be
+materialized. Defaults to the same dataset in which the table is located.
 
 **Temporary Bucket Name**: Google Cloud Storage bucket to store temporary data in.
 Temporary data will be deleted after it has been read. If it is not provided, a unique bucket will be
