@@ -92,7 +92,7 @@ public class GCSOutputformatProviderTest {
     Mockito.when(fileOutputCommitter.getCommittedTaskPath(mockContext)).thenReturn(committedTaskPathMock);
     Mockito.when(committedTaskPathMock.toString()).thenReturn("gs://test");
     StorageClient mockStorage = Mockito.mock(StorageClient.class);
-    Mockito.when(committerToTest.getStorageClient(configuration)).thenReturn(mockStorage);
+    Mockito.doReturn(mockStorage).when(committerToTest).getStorageClient(configuration);
 
     committerToTest.commitTask(mockContext);
     Mockito.verify(fileOutputCommitter, Mockito.times(1)).commitTask(mockContext);

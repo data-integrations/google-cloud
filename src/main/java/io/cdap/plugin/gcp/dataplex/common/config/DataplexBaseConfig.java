@@ -28,12 +28,11 @@ import io.cdap.cdap.api.plugin.PluginConfig;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.gcp.common.GCPConnectorConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-
+import java.io.InputStream;
 import javax.annotation.Nullable;
 
 /**
@@ -217,9 +216,10 @@ public class DataplexBaseConfig extends PluginConfig {
    */
   public String getServiceAccountEmail() throws IOException {
     if (connection.isServiceAccountJson() || connection.getServiceAccountFilePath() != null) {
-      ServiceAccountCredentials credentials =
-        GCPUtils.loadServiceAccountCredentials(getServiceAccount(), isServiceAccountFilePath());
-      return credentials.getClientEmail();
+      try (InputStream inputStream = GCPUtils.openServiceAccount(getServiceAccount(), isServiceAccountFilePath())) {
+        ServiceAccountCredentials credentials = ServiceAccountCredentials.fromStream(inputStream);
+        return credentials.getClientEmail();
+      }
     }
     ComputeEngineCredentials credentials = (ComputeEngineCredentials) ServiceAccountCredentials.
       getApplicationDefault();

@@ -17,25 +17,34 @@
 package io.cdap.plugin.gcp.common;
 
 import com.google.auth.Credentials;
+import com.google.auth.oauth2.ExternalAccountCredentials;
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem;
+import com.google.cloud.hadoop.util.AccessTokenProviderClassFromConfigFactory;
+import com.google.cloud.hadoop.util.CredentialFactory;
+import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
 import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.BucketInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
 import io.cdap.plugin.gcp.gcs.GCSPath;
+import io.cdap.plugin.gcp.gcs.ServiceAccountAccessTokenProvider;
+import org.apache.hadoop.conf.Configuration;
 
 import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Base64;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -48,100 +57,133 @@ import javax.annotation.Nullable;
  */
 public class GCPUtils {
   public static final String FS_GS_PROJECT_ID = "fs.gs.project.id";
-  public static final String CLOUD_JSON_KEYFILE_SUFFIX = "auth.service.account.json.keyfile";
-  public static final String CLOUD_JSON_KEYFILE_PREFIX = "google.cloud";
-  public static final String CLOUD_JSON_KEYFILE = String.format("%s.%s", CLOUD_JSON_KEYFILE_PREFIX,
-                                                                CLOUD_JSON_KEYFILE_SUFFIX);
-  public static final String CLOUD_ACCOUNT_EMAIL_SUFFIX = "auth.service.account.email";
-  public static final String CLOUD_ACCOUNT_PRIVATE_KEY_ID_SUFFIX = "auth.service.account.private.key.id";
-  public static final String CLOUD_ACCOUNT_KEY_SUFFIX = "auth.service.account.private.key";
-  public static final String CLOUD_ACCOUNT_JSON_SUFFIX = "auth.service.account.json";
-  public static final String PRIVATE_KEY_WRAP = "-----BEGIN PRIVATE KEY-----\\n%s\\n-----END PRIVATE KEY-----\\n";
-  public static final String SERVICE_ACCOUNT_TYPE = "cdap.gcs.auth.service.account.type";
-  public static final String SERVICE_ACCOUNT_TYPE_FILE_PATH = "filePath";
-  public static final String SERVICE_ACCOUNT_TYPE_JSON = "JSON";
+  private static final String SERVICE_ACCOUNT_TYPE = "cdap.gcs.auth.service.account.type";
+  private static final String SERVICE_ACCOUNT = "cdap.gcs.auth.service.account";
+  private static final String SERVICE_ACCOUNT_TYPE_FILE_PATH = "filePath";
   // according to https://cloud.google.com/bigquery/external-data-drive, to read from external table, drive scope
   // needs to be added, by default, this scope is not included
   public static final List<String> BIGQUERY_SCOPES = Arrays.asList("https://www.googleapis.com/auth/drive",
                                                                    "https://www.googleapis.com/auth/bigquery");
 
-  public static ServiceAccountCredentials loadServiceAccountCredentials(String path) throws IOException {
-    File credentialsPath = new File(path);
-    try (FileInputStream serviceAccountStream = new FileInputStream(credentialsPath)) {
-      return ServiceAccountCredentials.fromStream(serviceAccountStream);
-    }
+  /**
+   * Load a service account from the local file system.
+   *
+   * @param path path to the service account file
+   * @return credentials generated from the service account file
+   * @throws IOException if there was an error reading the file
+   */
+  public static GoogleCredentials loadServiceAccountCredentials(String path) throws IOException {
+    return loadServiceAccountCredentials(path, true);
   }
 
-  public static ServiceAccountCredentials loadServiceAccountCredentials(String content,
-                                                                        boolean isServiceAccountFilePath)
+  /**
+   * Load a service account from either a file on the local file system, or from the raw json content of the
+   * service account
+   *
+   * @param serviceAccount either a path to the service account file or the raw contents of the service account
+   * @param isServiceAccountFilePath whether the service account if a file path or not
+   * @return credentials loaded from the file or account contents
+   * @throws IOException if there was an error reading from the service account file
+   */
+  public static GoogleCredentials loadServiceAccountCredentials(String serviceAccount,
+                                                                boolean isServiceAccountFilePath)
     throws IOException {
-    if (isServiceAccountFilePath) {
-      return loadServiceAccountCredentials(content);
+    try (InputStream inputStream = openServiceAccount(serviceAccount, isServiceAccountFilePath)) {
+      return GoogleCredentials.fromStream(inputStream);
     }
-    InputStream jsonInputStream = new ByteArrayInputStream(content.getBytes());
-    return ServiceAccountCredentials.fromStream(jsonInputStream);
   }
 
-  public static String extractPrivateKey(ServiceAccountCredentials credentials) {
-    return String.format(PRIVATE_KEY_WRAP,
-                         Base64.getEncoder().encodeToString(credentials.getPrivateKey().getEncoded()));
+  /**
+   * Open an InputStream to read the service account, whether it is the raw account contents or a path to a
+   * local file.
+   *
+   * @param serviceAccount either a path to the service account file or the raw contents of the service account
+   * @param isFile whether the service account if a file path or not
+   * @return InputStream from which to read the service account
+   * @throws IOException if there was an error reading from the service account file
+   */
+  public static InputStream openServiceAccount(String serviceAccount, boolean isFile) throws FileNotFoundException {
+    if (isFile) {
+      return new FileInputStream(serviceAccount);
+    }
+    return new ByteArrayInputStream(serviceAccount.getBytes(StandardCharsets.UTF_8));
   }
+
 
   /**
    * @param serviceAccount file path or Json content
    * @param serviceAccountType type of service account can be filePath or json
-   * @param keyPrefix list of prefixes for which additional properties will be set.
-   *                  <br>for account type filePath:
-   *                  <ul>
-   *                  <li>prefix + auth.service.account.json</li>
-   *                  </ul>
-   *                  for account type json:
-   *                  <ul>
-   *                  <li>prefix + auth.service.account.email</li>
-   *                  <li>prefix + auth.service.account.private.key.id</li>
-   *                  <li>prefix + auth.service.account.private.key</li>
-   *                  </ul>
    *
-   * @return {@link Map<String,String>} properties genereated based on input params
-   * @throws IOException
+   * @return {@link Map} properties genereated based on input params
    */
-  public static Map<String, String> generateAuthProperties(String serviceAccount,
-                                                           String serviceAccountType,
-                                                           String... keyPrefix) throws IOException {
+  public static Map<String, String> generateGCSAuthProperties(@Nullable String serviceAccount,
+                                                              String serviceAccountType) {
+    // fs.gs prefix is for GoogleHadoopFileSystemBase.getCredential(), used by the GCS connector.
+    return generateAuthProperties(serviceAccount, serviceAccountType, "fs.gs");
+  }
+
+  /**
+   * Generate auth related properties to set in the Hadoop configuration.
+   *
+   * @param serviceAccount file path or Json content
+   * @param serviceAccountType type of service account can be filePath or json
+   *
+   * @return {@link Map} properties genereated based on input params
+   */
+  public static Map<String, String> generateBigQueryAuthProperties(@Nullable String serviceAccount,
+                                                                   String serviceAccountType) {
+    // mapred.bq prefix is for BigQueryFactory.createBigQueryCredential(), used by the BigQueryOutputFormat
+    return generateAuthProperties(serviceAccount, serviceAccountType, "fs.gs", "mapred.bq");
+  }
+
+  /**
+   * Generate auth related properties to set in the Hadoop configuration.
+   *
+   * @param serviceAccount file path or Json content
+   * @param serviceAccountType type of service account can be filePath or json
+   * @param prefixes prefixes for the AccessTokenProvider class
+   *
+   * @return {@link Map} properties genereated based on input params
+   */
+  private static Map<String, String> generateAuthProperties(@Nullable String serviceAccount,
+                                                            String serviceAccountType, String... prefixes) {
     Map<String, String> properties = new HashMap<>();
-    if (serviceAccountType == null) {
-      return properties;
-    }
-    String privateKeyData = null;
     properties.put(SERVICE_ACCOUNT_TYPE, serviceAccountType);
+    if (serviceAccount != null) {
+      properties.put(SERVICE_ACCOUNT, serviceAccount);
+    }
 
-    boolean isServiceAccountFilePath = SERVICE_ACCOUNT_TYPE_FILE_PATH.equals(serviceAccountType);
-
-    for (String prefix : keyPrefix) {
-      if (isServiceAccountFilePath) {
-        if (serviceAccount != null) {
-          properties.put(String.format("%s.%s", prefix, CLOUD_JSON_KEYFILE_SUFFIX), serviceAccount);
-        }
-        continue;
-      }
-      ServiceAccountCredentials credentials = loadServiceAccountCredentials(serviceAccount, false);
-
-      properties.put(String.format("%s.%s", prefix, CLOUD_ACCOUNT_EMAIL_SUFFIX), credentials.getClientEmail());
-      properties.put(String.format("%s.%s", prefix, CLOUD_ACCOUNT_PRIVATE_KEY_ID_SUFFIX),
-                     credentials.getPrivateKeyId());
-      if (privateKeyData == null) {
-        privateKeyData = extractPrivateKey(credentials);
-      }
-      properties.put(String.format("%s.%s", prefix, CLOUD_ACCOUNT_KEY_SUFFIX), privateKeyData);
-      properties.put(String.format("%s.%s", prefix, CLOUD_ACCOUNT_JSON_SUFFIX), serviceAccount);
+    // use a custom AccessTokenProvider that uses the newer
+    // AccessTokenProviderClassFromConfigFactory will by default look for
+    //   google.cloud.auth.access.token.provider.impl
+    // but can be configured to also look for the conf with other prefixes like
+    //   gs.fs.auth.access.token.provider.impl
+    //   mapred.bq.auth.access.token.provider.impl
+    // for use by GCS and BQ.
+    for (String prefix : prefixes) {
+      properties.put(prefix + AccessTokenProviderClassFromConfigFactory.ACCESS_TOKEN_PROVIDER_IMPL_SUFFIX,
+                     ServiceAccountAccessTokenProvider.class.getName());
     }
     return properties;
   }
 
-  public static Map<String, String> getFileSystemProperties(GCPConfig config, String path,
-                                                            Map<String, String> properties) {
-    return getFileSystemProperties(config.getProject(), config.getServiceAccount(), config.getServiceAccountType(),
-                                   path, properties);
+  /**
+   * Loads credentials based on configuration properties set in the conf. This assumes that the properties from
+   * {@link #generateAuthProperties(String, String, String...)} were placed in the configuration.
+   */
+  public static GoogleCredentials loadCredentialsFromConf(Configuration conf) throws IOException {
+    String serviceAccountType = conf.get(GCPUtils.SERVICE_ACCOUNT_TYPE);
+    String serviceAccount = conf.get(GCPUtils.SERVICE_ACCOUNT);
+
+    GoogleCredentials credentials;
+    if (serviceAccount == null) {
+      credentials = GoogleCredentials.getApplicationDefault().createScoped();
+    } else {
+      boolean isFile = SERVICE_ACCOUNT_TYPE_FILE_PATH.equals(serviceAccountType);
+      credentials = loadServiceAccountCredentials(serviceAccount, isFile);
+    }
+
+    return credentials.createScoped(CredentialFactory.GCS_SCOPES);
   }
 
   public static Map<String, String> getFileSystemProperties(GCPConnectorConfig config, String path,
@@ -154,7 +196,7 @@ public class GCPUtils {
                                                              String serviceAccountType, String path,
                                                              Map<String, String> properties) {
     try {
-      properties.putAll(generateAuthProperties(serviceAccount, serviceAccountType, CLOUD_JSON_KEYFILE_PREFIX));
+      properties.putAll(generateGCSAuthProperties(serviceAccount, serviceAccountType));
     } catch (Exception ignored) {
 
     }
@@ -171,10 +213,19 @@ public class GCPUtils {
   public static BigQuery getBigQuery(String project, @Nullable Credentials credentials) {
     BigQueryOptions.Builder bigqueryBuilder = BigQueryOptions.newBuilder().setProjectId(project);
     if (credentials != null) {
+      Set<String> scopes = new HashSet<>(BIGQUERY_SCOPES);
+
       if (credentials instanceof ServiceAccountCredentials) {
-        Set<String> scopes = new HashSet<>(((ServiceAccountCredentials) credentials).getScopes());
-        scopes.addAll(BIGQUERY_SCOPES);
-        credentials = ((ServiceAccountCredentials) credentials).createScoped(scopes);
+        scopes.addAll(((ServiceAccountCredentials) credentials).getScopes());
+      } else if (credentials instanceof ExternalAccountCredentials) {
+        Collection<String> currentScopes = ((ExternalAccountCredentials) credentials).getScopes();
+        if (currentScopes != null) {
+          scopes.addAll(currentScopes);
+        }
+      }
+
+      if (credentials instanceof GoogleCredentials) {
+        credentials = ((GoogleCredentials) credentials).createScoped(scopes);
       }
       bigqueryBuilder.setCredentials(credentials);
     }

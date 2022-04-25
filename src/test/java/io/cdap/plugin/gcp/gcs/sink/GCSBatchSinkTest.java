@@ -29,14 +29,14 @@ import javax.annotation.Nullable;
 public class GCSBatchSinkTest {
 
   @Test
-  public void testValidFSProperties() throws NoSuchFieldException {
+  public void testValidFSProperties() {
     GCSBatchSinkConfig config = getBuilder(null).build();
     MockFailureCollector collector = new MockFailureCollector("gcssink");
     config.validate(collector);
     Assert.assertEquals(0, collector.getValidationFailures().size());
   }
 
-  private GCSBatchSinkConfig.Builder getBuilder(@Nullable String fileSystemProperties) throws NoSuchFieldException {
+  private GCSBatchSinkConfig.Builder getBuilder(@Nullable String fileSystemProperties) {
     return GCSBatchSinkConfig.builder()
       .setReferenceName("testref")
       .setGcsPath("gs://test")
@@ -45,7 +45,7 @@ public class GCSBatchSinkTest {
   }
 
   @Test
-  public void testValidFSProperties1() throws NoSuchFieldException {
+  public void testValidFSProperties1() {
     GCSBatchSink.GCSBatchSinkConfig config = getBuilder("{\"key\":\"val\"}").build();
     MockFailureCollector collector = new MockFailureCollector("gcssink");
     config.validate(collector);
@@ -53,7 +53,7 @@ public class GCSBatchSinkTest {
   }
 
   @Test
-  public void testInvalidFSProperties() throws NoSuchFieldException {
+  public void testInvalidFSProperties() {
     GCSBatchSink.GCSBatchSinkConfig config = getBuilder("{\"key\":}").build();
     MockFailureCollector collector = new MockFailureCollector("gcssink");
     config.validate(collector);
@@ -61,7 +61,7 @@ public class GCSBatchSinkTest {
   }
 
   @Test
-  public void testValidContentType() throws Exception {
+  public void testValidContentType() {
     GCSBatchSinkConfig.Builder builder = getBuilder(null);
     GCSBatchSinkConfig config = builder.build();
     MockFailureCollector collector = new MockFailureCollector("gcssink");
@@ -82,7 +82,7 @@ public class GCSBatchSinkTest {
   }
 
   @Test
-  public void testInvalidContentType() throws Exception {
+  public void testInvalidContentType() {
     GCSBatchSinkConfig.Builder builder = getBuilder(null);
     MockFailureCollector collector = new MockFailureCollector("gcssink");
 
