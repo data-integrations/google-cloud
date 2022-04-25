@@ -43,6 +43,8 @@ import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 
 import java.io.IOException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -52,6 +54,7 @@ import javax.annotation.Nullable;
  * Holds configuration required for configuring {@link BigQuerySource}.
  */
 public final class BigQuerySourceConfig extends BigQueryBaseConfig {
+  private static final String VALID_DATE_FORMAT = "yyyy-MM-dd";
   private static final String SCHEME = "gs://";
   private static final String WHERE = "WHERE";
   public static final Set<Schema.Type> SUPPORTED_TYPES =
@@ -155,6 +158,14 @@ public final class BigQuerySourceConfig extends BigQueryBaseConfig {
       BigQueryUtil.validateDataset(dataset, NAME_DATASET, collector);
     }
 
+    if (null != partitionFrom) {
+      validatePartitionDate(collector, partitionFrom, NAME_PARTITION_FROM);
+    }
+
+    if (null != partitionTo) {
+      validatePartitionDate(collector, partitionTo, NAME_PARTITION_TO);
+    }
+
     if (!containsMacro(NAME_TABLE)) {
       validateTable(collector);
     }
@@ -200,6 +211,18 @@ public final class BigQuerySourceConfig extends BigQueryBaseConfig {
           String.format("'%s' is a 'View' :", table),
           "In order to enable query views, please enable 'Enable Querying Views'");
       }
+    }
+  }
+
+  private void validatePartitionDate(FailureCollector collector, String partitionDate, String fieldName) {
+    SimpleDateFormat date = new SimpleDateFormat(VALID_DATE_FORMAT);
+    date.setLenient(false);
+    try {
+      date.parse(partitionDate);
+    } catch (ParseException e) {
+      collector.addFailure(String.format("%s is not in a valid format.", partitionDate),
+                           String.format("Enter valid date in format: %s", VALID_DATE_FORMAT))
+      .withConfigProperty(fieldName);
     }
   }
 
