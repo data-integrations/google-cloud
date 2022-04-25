@@ -72,7 +72,6 @@ public final class BigQueryUtil {
   public static final String BUCKET_PATTERN = "[a-z0-9._-]+";
   public static final String DATASET_PATTERN = "[A-Za-z0-9_]+";
   public static final String TABLE_PATTERN = "[A-Za-z0-9_]+";
-  public static final String MAP_REDUCE_JSON_KEY_PREFIX = "mapred.bq";
 
   // array of arrays and map of arrays are not supported by big query
   public static final Set<Schema.Type> UNSUPPORTED_ARRAY_TYPES = ImmutableSet.of(Schema.Type.ARRAY, Schema.Type.MAP);
@@ -150,13 +149,9 @@ public final class BigQueryUtil {
 
     Configuration configuration = job.getConfiguration();
     configuration.clear();
-    if (serviceAccountInfo != null) {
-      final Map<String, String> authProperties = GCPUtils.generateAuthProperties(serviceAccountInfo,
-                                                                                 serviceAccountType,
-                                                                                 MAP_REDUCE_JSON_KEY_PREFIX,
-                                                                                 GCPUtils.CLOUD_JSON_KEYFILE_PREFIX);
-      authProperties.forEach(configuration::set);
-    }
+    Map<String, String> authProperties =
+      GCPUtils.generateBigQueryAuthProperties(serviceAccountInfo, serviceAccountType);
+    authProperties.forEach(configuration::set);
     configuration.set("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
     configuration.set("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
     configuration.set("fs.gs.project.id", projectId);

@@ -57,7 +57,6 @@ import java.util.Map;
 /**
  * GCS connector test
  * project.id -- the name of the project
- * gcs.bucket -- bucket name, the bucket will get created and deleted after test
  * service.account.file -- path to service account
  */
 public class GCSConnectorTest {
@@ -83,8 +82,7 @@ public class GCSConnectorTest {
     Assume.assumeFalse(String.format(messageTemplate, "project id"), project == null);
     System.setProperty("GCLOUD_PROJECT", project);
 
-    bucket = System.getProperty("gcs.bucket");
-    Assume.assumeFalse(String.format(messageTemplate, "bucket"), bucket == null);
+    bucket = "gcs-connector-test-" + System.currentTimeMillis();
 
     serviceAccountFilePath = System.getProperty("service.account.file");
     Assume.assumeFalse(String.format(messageTemplate, "service account key file"), serviceAccountFilePath == null);
@@ -92,7 +90,7 @@ public class GCSConnectorTest {
     serviceAccountKey = new String(Files.readAllBytes(Paths.get(new File(serviceAccountFilePath).getAbsolutePath())),
                                    StandardCharsets.UTF_8);
     storage = GCPUtils.getStorage(project, GCPUtils.loadServiceAccountCredentials(serviceAccountFilePath));
-    Assume.assumeFalse("The bucket already exists.", storage.get(bucket) != null);
+    Assume.assumeFalse("The test bucket already exists.", storage.get(bucket) != null);
   }
 
   @Before

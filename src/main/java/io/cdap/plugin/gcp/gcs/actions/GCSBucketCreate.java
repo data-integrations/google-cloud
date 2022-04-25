@@ -86,12 +86,11 @@ public final class GCSBucketCreate extends Action {
       return;
     }
     String serviceAccount = config.getServiceAccount();
-    ServiceAccountCredentials credentials = serviceAccount == null ?
-                                null : GCPUtils.loadServiceAccountCredentials(serviceAccount, isServiceAccountFilePath);
+    Credentials credentials = serviceAccount == null ?
+      null : GCPUtils.loadServiceAccountCredentials(serviceAccount, isServiceAccountFilePath);
 
     if (serviceAccount != null) {
-      Map<String, String> map = GCPUtils.generateAuthProperties(serviceAccount, config.getServiceAccountType(),
-                                                                GCPUtils.CLOUD_JSON_KEYFILE_PREFIX);
+      Map<String, String> map = GCPUtils.generateGCSAuthProperties(serviceAccount, config.getServiceAccountType());
       map.forEach(configuration::set);
     }
 
