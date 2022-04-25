@@ -17,7 +17,7 @@
 package io.cdap.plugin.gcp.gcs.actions;
 
 import com.google.api.gax.paging.Page;
-import com.google.auth.oauth2.ServiceAccountCredentials;
+import com.google.auth.Credentials;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
@@ -34,9 +34,7 @@ import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.RemoteIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,11 +76,10 @@ public final class GCSBucketDelete extends Action {
       return;
     }
     String serviceAccount = config.getServiceAccount();
-    ServiceAccountCredentials credentials = serviceAccount == null ?
+    Credentials credentials = serviceAccount == null ?
       null : GCPUtils.loadServiceAccountCredentials(serviceAccount, isServiceAccountFilePath);
     if (serviceAccount != null) {
-      Map<String, String> map = GCPUtils.generateAuthProperties(serviceAccount, config.getServiceAccountType(),
-                                                                GCPUtils.CLOUD_JSON_KEYFILE_PREFIX);
+      Map<String, String> map = GCPUtils.generateGCSAuthProperties(serviceAccount, config.getServiceAccountType());
       map.forEach(configuration::set);
     }
     configuration.set("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");

@@ -47,7 +47,6 @@ import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.JobId;
 import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.bigquery.QueryJobConfiguration;
-import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFactory;
@@ -745,17 +744,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
 
   private static BigQuery getBigQuery(Configuration config) throws IOException {
     String projectId = ConfigurationUtil.getMandatoryConfig(config, BigQueryConfiguration.PROJECT_ID_KEY);
-    String serviceAccount;
-    boolean isServiceAccountFile = GCPUtils.SERVICE_ACCOUNT_TYPE_FILE_PATH
-      .equals(config.get(GCPUtils.SERVICE_ACCOUNT_TYPE));
-    if (isServiceAccountFile) {
-      serviceAccount = config.get(GCPUtils.CLOUD_JSON_KEYFILE, null);
-    } else {
-      serviceAccount = config.get(String.format("%s.%s", GCPUtils.CLOUD_JSON_KEYFILE_PREFIX,
-                                                GCPUtils.CLOUD_ACCOUNT_JSON_SUFFIX));
-    }
-    Credentials credentials = serviceAccount == null ? null :
-      GCPUtils.loadServiceAccountCredentials(serviceAccount, isServiceAccountFile);
+    Credentials credentials = GCPUtils.loadCredentialsFromConf(config);
     return GCPUtils.getBigQuery(projectId, credentials);
   }
 }
