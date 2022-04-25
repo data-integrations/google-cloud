@@ -25,12 +25,12 @@ Properties
 ----------
 **Reference Name:** Name used to uniquely identify this source for lineage, annotating metadata, etc.
 
-**Use Connection** Whether to use a connection. If a connection is used, you do not need to provide the credentials.
+**Use Connection:** Whether to use a connection. If a connection is used, you do not need to provide the credentials.
 
-**Connection** Name of the connection to use. Project and service account information will be provided by the connection.
+**Connection:** Name of the connection to use. Project and service account information will be provided by the connection.
 You also can use the macro function ${conn(connection-name)}.
 
-**Project ID**: Google Cloud Project ID, which uniquely identifies a project.
+**Project ID:** Google Cloud Project ID, which uniquely identifies a project.
 It can be found on the Dashboard in the Google Cloud Platform Console.
 
 **Path:** Path to file(s) to be read. If a directory is specified, terminate the path name with a '/'.
@@ -48,9 +48,9 @@ If the format is 'text', the schema must contain a field named 'body' of type 's
 
 **Delimiter:** Delimiter to use when the format is 'delimited'. This will be ignored for other formats.
 
-**Skip Header** Whether to skip the first line of each file. Supported formats are 'text', 'csv', 'tsv', 'delimited'.
+**Use First Row as Header:** Whether to use first row as header. Supported formats are 'text', 'csv', 'tsv', 'delimited'.
 
-**Enable Quoted Values** Whether to treat content between quotes as a value. This value will only be used if the format
+**Enable Quoted Values:** Whether to treat content between quotes as a value. This value will only be used if the format
 is 'csv', 'tsv' or 'delimited'. For example, if this is set to true, a line that looks like `1, "a, b, c"` will output two fields.
 The first field will have `1` as its value and the second will have `a, b, c` as its value. The quote characters will be trimmed.
 The newline delimiter cannot be within quotes.
@@ -58,13 +58,13 @@ The newline delimiter cannot be within quotes.
 It also assumes the quotes are well enclosed. The left quote will match the first following quote right before the delimiter. If there is an
 unenclosed quote, an error will occur.
 
-**Service Account**  - service account key used for authorization
+**Service Account:**  - service account key used for authorization
 
-* **File Path**: Path on the local file system of the service account key used for
+* **File Path:** Path on the local file system of the service account key used for
 authorization. Can be set to 'auto-detect' when running on a Dataproc cluster.
 When running on other clusters, the file must be present on every node in the cluster.
 
-* **JSON**: Contents of the service account JSON file.
+* **JSON:** Contents of the service account JSON file.
 
 **Maximum Split Size:** Maximum size in bytes for each input partition.
 Smaller partitions will increase the level of parallelism, but will require more resources and overhead.
