@@ -38,6 +38,7 @@ import com.google.cloud.bigquery.TimePartitioning;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.api.metrics.Metrics;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLWriteRequest;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLWriteResult;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkConfig;
@@ -51,6 +52,7 @@ import org.slf4j.LoggerFactory;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -76,30 +78,34 @@ public class BigQueryWrite {
   private final String datasetName;
   private final SQLWriteRequest writeRequest;
   private final TableId sourceTableId;
+  private final Metrics metrics;
 
   private BigQueryWrite(String datasetName,
                         BigQuerySQLEngineConfig sqlEngineConfig,
                         BigQuery bigQuery,
                         SQLWriteRequest writeRequest,
-                        TableId sourceTableId) {
+                        TableId sourceTableId,
+                        Metrics metrics) {
     this.datasetName = datasetName;
     this.sqlEngineConfig = sqlEngineConfig;
     this.bigQuery = bigQuery;
     this.writeRequest = writeRequest;
     this.sourceTableId = sourceTableId;
+    this.metrics = metrics;
   }
 
   public static BigQueryWrite getInstance(String datasetName,
                                           BigQuerySQLEngineConfig sqlEngineConfig,
                                           BigQuery bigQuery,
                                           SQLWriteRequest writeRequest,
-                                          TableId sourceTableId) {
+                                          TableId sourceTableId,
+                                          Metrics metrics) {
     return new BigQueryWrite(datasetName,
                              sqlEngineConfig,
                              bigQuery,
                              writeRequest,
-                             sourceTableId
-    );
+                             sourceTableId,
+                             metrics);
   }
 
   public SQLWriteResult write() {
@@ -228,7 +234,7 @@ public class BigQueryWrite {
 
     // Check for errors
     if (queryJob.getStatus().getError() != null) {
-      BigQuerySQLEngineUtils.logJobMetrics(queryJob);
+      BigQuerySQLEngineUtils.logJobMetrics(queryJob, metrics);
       LOG.error("Error executing BigQuery Job: '{}' in Project '{}', Dataset '{}': {}",
                 jobId, sqlEngineConfig.getProject(), sqlEngineConfig.getDatasetProject(),
                 queryJob.getStatus().getError().toString());
@@ -242,7 +248,7 @@ public class BigQueryWrite {
     LOG.info("Executed copy operation for {} records from {}.{}.{} to {}.{}.{}", numRows,
              sourceTableId.getProject(), sourceTableId.getDataset(), sourceTableId.getTable(),
              destinationTableId.getProject(), destinationTableId.getDataset(), destinationTableId.getTable());
-    BigQuerySQLEngineUtils.logJobMetrics(queryJob);
+    BigQuerySQLEngineUtils.logJobMetrics(queryJob, metrics);
 
     return SQLWriteResult.success(datasetName, numRows);
   }
