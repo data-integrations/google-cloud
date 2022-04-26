@@ -11,6 +11,7 @@ import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TableId;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.api.metrics.Metrics;
 import io.cdap.cdap.etl.api.engine.sql.SQLEngineException;
 import io.cdap.cdap.etl.api.engine.sql.dataset.SQLDataset;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
@@ -19,6 +20,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import javax.annotation.Nullable;
 
 /**
@@ -38,6 +41,7 @@ public class BigQuerySelectDataset implements SQLDataset, BigQuerySQLDataset {
   private final String jobId;
   private final BigQueryJobType operation;
   private final String selectQuery;
+  private final Metrics metrics;
   private Long numRows;
 
   public static BigQuerySelectDataset getInstance(String datasetName,
@@ -49,7 +53,8 @@ public class BigQuerySelectDataset implements SQLDataset, BigQuerySQLDataset {
                                                   String bqTable,
                                                   String jobId,
                                                   BigQueryJobType jobType,
-                                                  String selectQuery) {
+                                                  String selectQuery,
+                                                  Metrics metrics) {
 
     return new BigQuerySelectDataset(datasetName,
                                      outputSchema,
@@ -60,7 +65,8 @@ public class BigQuerySelectDataset implements SQLDataset, BigQuerySQLDataset {
                                      bqTable,
                                      jobId,
                                      jobType,
-                                     selectQuery);
+                                     selectQuery,
+                                     metrics);
   }
 
   private BigQuerySelectDataset(String datasetName,
@@ -72,7 +78,8 @@ public class BigQuerySelectDataset implements SQLDataset, BigQuerySQLDataset {
                                 String bqTable,
                                 String jobId,
                                 BigQueryJobType operation,
-                                String selectQuery) {
+                                String selectQuery,
+                                Metrics metrics) {
     this.datasetName = datasetName;
     this.outputSchema = outputSchema;
     this.sqlEngineConfig = sqlEngineConfig;
@@ -83,6 +90,7 @@ public class BigQuerySelectDataset implements SQLDataset, BigQuerySQLDataset {
     this.jobId = jobId;
     this.operation = operation;
     this.selectQuery = selectQuery;
+    this.metrics = metrics;
   }
 
   public BigQuerySelectDataset execute() {
@@ -124,14 +132,14 @@ public class BigQuerySelectDataset implements SQLDataset, BigQuerySQLDataset {
     if (queryJob == null) {
       throw new SQLEngineException("BigQuery job not found: " + jobId);
     } else if (queryJob.getStatus().getError() != null) {
-      BigQuerySQLEngineUtils.logJobMetrics(queryJob);
+      BigQuerySQLEngineUtils.logJobMetrics(queryJob, metrics);
       throw new SQLEngineException(String.format(
         "Error executing BigQuery Job: '%s' in Project '%s', Dataset '%s', Location'%s' : %s",
         jobId, project, bqDataset, location, queryJob.getStatus().getError().toString()));
     }
 
     LOG.info("Created BigQuery table `{}` using Job: {}", bqTable, jobId);
-    BigQuerySQLEngineUtils.logJobMetrics(queryJob);
+    BigQuerySQLEngineUtils.logJobMetrics(queryJob, metrics);
     return this;
   }
 
