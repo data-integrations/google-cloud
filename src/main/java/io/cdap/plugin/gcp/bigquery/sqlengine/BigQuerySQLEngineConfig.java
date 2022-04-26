@@ -51,6 +51,7 @@ public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
     public static final String NAME_EXCLUDED_STAGES = "excludedStages";
     public static final String NAME_USE_STORAGE_READ_API = "useStorageReadAPI";
     public static final String NAME_DIRECT_SINK_WRITE = "useDirectSinkWrite";
+    public static final String NAME_ENABLE_PREVIEW_FEATURES = "enablePreviewFeatures";
 
     // Job priority options
     public static final String PRIORITY_BATCH = "batch";
@@ -120,6 +121,13 @@ public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
     "even when supported. Each stage name should be in a separate line.")
     protected String excludedStages;
 
+    @Name(NAME_ENABLE_PREVIEW_FEATURES)
+    @Macro
+    @Nullable
+    @Description("The aggregations that are still in preview are pushed down to the BigQuery ELT Transformation " +
+            "Pushdown engine when this feature is enabled. The default specification is enabling the feature.")
+    private Boolean enablePreviewFeatures;
+
 
     private BigQuerySQLEngineConfig(@Nullable BigQueryConnectorConfig connection,
                                     @Nullable String dataset, @Nullable String location,
@@ -167,6 +175,10 @@ public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
 
     public Boolean shouldUseDirectSinkWrite() {
         return useDirectSinkWrite != null ? useDirectSinkWrite : false;
+    }
+
+    public Boolean shouldEnablePreviewFeatures() {
+        return enablePreviewFeatures != null ? enablePreviewFeatures : false;
     }
 
     public QueryJobConfiguration.Priority getJobPriority() {

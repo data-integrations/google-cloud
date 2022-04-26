@@ -223,6 +223,22 @@
             },
             "default": "false"
           }
+        },
+        {
+          "widget-type": "toggle",
+          "label": "Enable Pushdown for Preview Features",
+          "name": "enablePreviewFeatures",
+          "widget-attributes": {
+            "on": {
+              "value": "true",
+              "label": "YES"
+            },
+            "off": {
+              "value": "false",
+              "label": "NO"
+            },
+            "default": "true"
+          }
         }
       ]
     }
