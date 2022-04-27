@@ -19,11 +19,13 @@ import io.cdap.e2e.pages.actions.CdfBigQueryPropertiesActions;
 import io.cdap.e2e.pages.actions.CdfStudioActions;
 import io.cdap.e2e.pages.locators.CdfStudioLocators;
 import io.cdap.e2e.utils.BigQueryClient;
+import io.cdap.e2e.utils.ConstantsUtil;
 import io.cdap.e2e.utils.ElementHelper;
 import io.cdap.e2e.utils.PluginPropertyUtils;
 import io.cdap.e2e.utils.SeleniumHelper;
 import io.cdap.plugin.common.stepsdesign.TestSetupHooks;
 import io.cdap.plugin.utils.E2EHelper;
+import io.cdap.plugin.utils.E2ETestConstants;
 import io.cucumber.java.en.Then;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.Assert;
@@ -64,9 +66,14 @@ public class BigQueryBase implements E2EHelper {
     CdfBigQueryPropertiesActions.enterBigQueryDataset(PluginPropertyUtils.pluginProp(dataset));
   }
 
+  @Then("Enter BigQuery property table {string}")
+  public void enterBigQueryPropertyTable(String table) {
+    CdfBigQueryPropertiesActions.enterBigQueryTable(PluginPropertyUtils.pluginProp(table));
+  }
+
   @Then("Enter BiqQuery property encryption key name {string} if cmek is enabled")
   public void enterBiqQueryPropertyEncryptionKeyNameIfCmekIsEnabled(String cmek) throws IOException {
-    String cmekBQ =  PluginPropertyUtils.pluginProp(cmek);
+    String cmekBQ = PluginPropertyUtils.pluginProp(cmek);
     if (cmekBQ != null) {
       CdfBigQueryPropertiesActions.enterCmekProperty(cmekBQ);
       BeforeActions.scenario.write("Entered encryption key name - " + cmekBQ);
@@ -158,11 +165,11 @@ public class BigQueryBase implements E2EHelper {
 
   @Then("Validate the cmek key {string} of target BigQuery table if cmek is enabled")
   public void validateTheCmekKeyOfTargetBigQueryTableIfCmekIsEnabled(String cmek) throws IOException {
-    String cmekBQ =  PluginPropertyUtils.pluginProp(cmek);
+    String cmekBQ = PluginPropertyUtils.pluginProp(cmek);
     if (cmekBQ != null) {
       Assert.assertTrue("Cmek key of target BigQuery table should be equal to " +
-                            "cmek key provided in config file",
-                          BigQueryClient.verifyCmekKey(TestSetupHooks.bqTargetTable, cmekBQ));
+                          "cmek key provided in config file",
+                        BigQueryClient.verifyCmekKey(TestSetupHooks.bqTargetTable, cmekBQ));
       return;
     }
     BeforeActions.scenario.write("CMEK not enabled");
@@ -175,7 +182,7 @@ public class BigQueryBase implements E2EHelper {
 
   @Then("Enter BigQuery cmek property {string} as macro argument {string} if cmek is enabled")
   public void enterBigQueryCmekPropertyAsMacroArgumentIfCmekIsEnabled(String pluginProperty, String macroArgument) {
-    String cmekBQ =  PluginPropertyUtils.pluginProp("cmekBQ");
+    String cmekBQ = PluginPropertyUtils.pluginProp("cmekBQ");
     if (cmekBQ != null) {
       enterPropertyAsMacroArgument(pluginProperty, macroArgument);
       return;
@@ -193,5 +200,61 @@ public class BigQueryBase implements E2EHelper {
       return;
     }
     BeforeActions.scenario.write("CMEK not enabled");
+  }
+
+  @Then("Verify the partition table is created with partitioned on field {string}")
+  public void verifyThePartitionTableIsCreatedWithPartitionedOnField(String partitioningField) throws IOException,
+    InterruptedException {
+    Optional<String> result = BigQueryClient
+      .getSoleQueryResult("SELECT IS_PARTITIONING_COLUMN FROM `" +
+                            (PluginPropertyUtils.pluginProp("projectId")) + "."
+                            + (PluginPropertyUtils.pluginProp("dataset")) + ".INFORMATION_SCHEMA.COLUMNS` " +
+                            "WHERE table_name = '" + TestSetupHooks.bqTargetTable
+                            + "' and column_name = '" + PluginPropertyUtils.pluginProp(partitioningField) + "' ");
+    String isPartitioningDoneOnField = StringUtils.EMPTY;
+    if (result.isPresent()) {
+      isPartitioningDoneOnField = result.get();
+    }
+    BeforeActions.scenario.write("Is Partitioning done on column :" + isPartitioningDoneOnField);
+    Assert.assertEquals("yes", isPartitioningDoneOnField.toLowerCase());
+  }
+
+  @Then("Enter BigQuery property temporary bucket name {string}")
+  public void enterBigQuerySinkPropertyTemporaryBucketName(String temporaryBucket) throws IOException {
+    CdfBigQueryPropertiesActions.enterTemporaryBucketName(PluginPropertyUtils.pluginProp(temporaryBucket));
+  }
+
+  @Then("Verify the BigQuery validation error message for invalid property {string}")
+  public void verifyTheBigQueryValidationErrorMessageForInvalidProperty(String property) {
+    CdfStudioActions.clickValidateButton();
+    String expectedErrorMessage;
+    if (property.equalsIgnoreCase("gcsChunkSize")) {
+      expectedErrorMessage = PluginPropertyUtils
+        .errorProp(E2ETestConstants.ERROR_MSG_BQ_INCORRECT_CHUNKSIZE);
+    } else if (property.equalsIgnoreCase("bucket")) {
+      expectedErrorMessage = PluginPropertyUtils
+        .errorProp(E2ETestConstants.ERROR_MSG_BQ_INCORRECT_TEMPORARY_BUCKET);
+    } else {
+      expectedErrorMessage = PluginPropertyUtils.errorProp(E2ETestConstants.ERROR_MSG_BQ_INCORRECT_PROPERTY).
+        replaceAll("PROPERTY", property.substring(0, 1).toUpperCase() + property.substring(1));
+    }
+    String actualErrorMessage = PluginPropertyUtils.findPropertyErrorElement(property).getText();
+    Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
+    String actualColor = PluginPropertyUtils.getErrorColor(PluginPropertyUtils.findPropertyErrorElement(property));
+    String expectedColor = ConstantsUtil.ERROR_MSG_COLOR;
+    Assert.assertEquals(expectedColor, actualColor);
+  }
+
+  @Then("Validate records transferred to target table is equal to number of records from source table")
+  public void validateRecordsTransferredToTargetTableIsEqualToNumberOfRecordsFromSourceTable()
+    throws IOException, InterruptedException {
+    int countRecordsTarget = BigQueryClient.countBqQuery(TestSetupHooks.bqTargetTable);
+    Optional<String> result = BigQueryClient.getSoleQueryResult("SELECT count(*)  FROM `" +
+                                                                  (PluginPropertyUtils.pluginProp("projectId"))
+                                                                  + "." + (PluginPropertyUtils.pluginProp
+      ("dataset")) + "." + TestSetupHooks.bqTargetTable + "` ");
+    int count = result.map(Integer::parseInt).orElse(0);
+    BeforeActions.scenario.write("Number of records transferred from source table to target table:" + count);
+    Assert.assertEquals(count, countRecordsTarget);
   }
 }

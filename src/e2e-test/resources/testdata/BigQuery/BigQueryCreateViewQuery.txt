@@ -1,0 +1,1 @@
+create view `DATASET.VIEW_NAME` as select * from `DATASET.TABLE_NAME`

@@ -84,4 +84,39 @@ public class BigQuerySink implements E2EHelper {
   public void enterRuntimeArgumentValueForBigQuerySinkTableNameKey(String runtimeArgumentKey) {
     ElementHelper.sendKeys(CdfStudioLocators.runtimeArgsValue(runtimeArgumentKey), TestSetupHooks.bqTargetTable);
   }
+
+  @Then("Select BigQuery sink property partitioning type as {string}")
+  public void selectBigQuerySinkPropertyPartitioningTypeAs(String partitioningType) {
+    CdfBigQueryPropertiesActions.selectPartitioningType(partitioningType);
+  }
+
+  @Then("Enter BigQuery sink property partition field {string}")
+  public void enterBigQuerySinkPropertyPartitionField(String partitionField) {
+    CdfBigQueryPropertiesActions.enterPartitionField(PluginPropertyUtils.pluginProp(partitionField));
+  }
+
+  @Then("Enter BigQuery sink property range start {string}")
+  public void enterBigQuerySinkPropertyRangeStart(String rangeStart) {
+    CdfBigQueryPropertiesActions.enterRangeStart(PluginPropertyUtils.pluginProp(rangeStart));
+  }
+
+  @Then("Enter BigQuery sink property range end {string}")
+  public void enterBigQuerySinkPropertyRangeEnd(String rangeEnd) {
+    CdfBigQueryPropertiesActions.enterRangeEnd(PluginPropertyUtils.pluginProp(rangeEnd));
+  }
+
+  @Then("Enter BigQuery sink property range interval {string}")
+  public void enterBigQuerySinkPropertyRangeInterval(String rangeInterval) {
+    CdfBigQueryPropertiesActions.enterRangeInterval(PluginPropertyUtils.pluginProp(rangeInterval));
+  }
+
+  @Then("Toggle BigQuery sink property require partition filter to true")
+  public void toggleBigQuerySinkPropertyRequirePartitionFilterToTrue() {
+    CdfBigQueryPropertiesActions.toggleRequirePartitionFilter();
+  }
+
+  @Then("Enter BigQuery sink property GCS upload request chunk size {string}")
+  public void enterBigQuerySinkPropertyGCSUploadRequestChunkSize(String chunkSize) {
+    CdfBigQueryPropertiesActions.enterChunkSize(PluginPropertyUtils.pluginProp(chunkSize));
+  }
 }

@@ -120,3 +120,76 @@ Feature: BigQuery source - Verification of BigQuery to BigQuery successful data 
     Then Verify the pipeline status is "Succeeded"
     Then Validate the records are not created in output table
     Then Validate partitioning is not done on the output table
+
+  @BQ_SOURCE_DATATYPE_TEST @BQ_SINK_TEST
+  Scenario:Validate successful records transfer from BigQuery to BigQuery with default time partitioning type
+    Given Open Datafusion Project to configure pipeline
+    When Source is BigQuery
+    When Sink is BigQuery
+    Then Open BigQuery source properties
+    Then Enter BigQuery property reference name
+    Then Enter BigQuery property projectId "projectId"
+    Then Enter BigQuery property datasetProjectId "projectId"
+    Then Enter BigQuery property dataset "dataset"
+    Then Enter BigQuery source property table name
+    Then Validate output schema with expectedSchema "bqSourceSchemaDatatype"
+    Then Validate "BigQuery" plugin properties
+    Then Close the BigQuery properties
+    Then Open BigQuery sink properties
+    Then Enter BigQuery property reference name
+    Then Enter BigQuery property projectId "projectId"
+    Then Enter BigQuery property datasetProjectId "projectId"
+    Then Enter BigQuery property dataset "dataset"
+    Then Enter BigQuery sink property table name
+    Then Toggle BigQuery sink property truncateTable to true
+    Then Toggle BigQuery sink property updateTableSchema to true
+    Then Enter BigQuery sink property partition field "bqPartitionFieldTime"
+    Then Validate "BigQuery" plugin properties
+    Then Close the BigQuery properties
+    Then Connect source as "BigQuery" and sink as "BigQuery" to establish connection
+    Then Save the pipeline
+    Then Preview and run the pipeline
+    Then Verify the preview of pipeline is "success"
+    Then Close the preview
+    Then Deploy the pipeline
+    Then Run the Pipeline in Runtime
+    Then Wait till pipeline is in running state
+    Then Open and capture logs
+    Then Verify the pipeline status is "Succeeded"
+    Then Verify the partition table is created with partitioned on field "bqPartitionFieldTime"
+
+  @BQ_SOURCE_DATATYPE_TEST @BQ_SINK_TEST
+  Scenario:Validate successful records transfer from BigQuery to BigQuery with all the datatypes
+    Given Open Datafusion Project to configure pipeline
+    When Source is BigQuery
+    When Sink is BigQuery
+    Then Open BigQuery source properties
+    Then Enter BigQuery property reference name
+    Then Enter BigQuery property projectId "projectId"
+    Then Enter BigQuery property datasetProjectId "projectId"
+    Then Enter BigQuery property dataset "dataset"
+    Then Enter BigQuery source property table name
+    Then Validate output schema with expectedSchema "bqSourceSchemaDatatype"
+    Then Validate "BigQuery" plugin properties
+    Then Close the BigQuery properties
+    Then Open BigQuery sink properties
+    Then Enter BigQuery property reference name
+    Then Enter BigQuery property projectId "projectId"
+    Then Enter BigQuery property datasetProjectId "projectId"
+    Then Enter BigQuery property dataset "dataset"
+    Then Enter BigQuery sink property table name
+    Then Toggle BigQuery sink property truncateTable to true
+    Then Toggle BigQuery sink property updateTableSchema to true
+    Then Validate "BigQuery" plugin properties
+    Then Close the BigQuery properties
+    Then Connect source as "BigQuery" and sink as "BigQuery" to establish connection
+    Then Save the pipeline
+    Then Preview and run the pipeline
+    Then Verify the preview of pipeline is "success"
+    Then Close the preview
+    Then Deploy the pipeline
+    Then Run the Pipeline in Runtime
+    Then Wait till pipeline is in running state
+    Then Open and capture logs
+    Then Verify the pipeline status is "Succeeded"
+    Then Validate records transferred to target table is equal to number of records from source table
