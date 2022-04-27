@@ -33,7 +33,6 @@ import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.plugin.PluginConfig;
-import io.cdap.cdap.etl.api.Arguments;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.StageMetrics;
@@ -50,7 +49,6 @@ import io.cdap.plugin.format.plugin.AbstractFileSink;
 import io.cdap.plugin.format.plugin.FileSinkProperties;
 import io.cdap.plugin.gcp.common.CmekUtils;
 import io.cdap.plugin.gcp.common.GCPConnectorConfig;
-import io.cdap.plugin.gcp.common.GCPReferenceSinkConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.Formats;
 import io.cdap.plugin.gcp.gcs.GCSPath;
@@ -86,7 +84,6 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
 
   private final GCSBatchSinkConfig config;
   private String outputPath;
-
 
   public GCSBatchSink(GCSBatchSinkConfig config) {
     super(config);
@@ -138,6 +135,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     if (bucket == null) {
       GCPUtils.createBucket(storage, config.getBucket(), config.getLocation(), cmekKeyName);
     }
+    this.outputPath = getOutputDir(context);
   }
 
   @Override
@@ -154,12 +152,6 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     properties.put(AVRO_NAMED_OUTPUT, outputFileBaseName);
     properties.put(COMMON_NAMED_OUTPUT, outputFileBaseName);
     return properties;
-  }
-
-  @Override
-  protected String getOutputDir(long logicalStartTime) {
-    this.outputPath = super.getOutputDir(logicalStartTime);
-    return this.outputPath;
   }
 
   @Override
