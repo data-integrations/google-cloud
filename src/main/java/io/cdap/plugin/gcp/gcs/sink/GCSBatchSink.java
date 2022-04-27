@@ -36,6 +36,7 @@ import io.cdap.cdap.api.plugin.PluginConfig;
 import io.cdap.cdap.etl.api.Arguments;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
+import io.cdap.cdap.etl.api.StageContext;
 import io.cdap.cdap.etl.api.StageMetrics;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
@@ -159,6 +160,12 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
   @Override
   protected String getOutputDir(long logicalStartTime) {
     this.outputPath = super.getOutputDir(logicalStartTime);
+    return this.outputPath;
+  }
+
+  @Override
+  protected String getOutputDir(BatchSinkContext batchSinkContext) {
+    this.outputPath = super.getOutputDir(batchSinkContext);
     return this.outputPath;
   }
 
