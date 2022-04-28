@@ -33,6 +33,25 @@
         },
         {
           "widget-type": "radio-group",
+          "name" : "wildcard",
+          "label" : "Use Wildcard",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "false",
+            "options": [
+              {
+                "id": "true",
+                "label": "True"
+              },
+              {
+                "id": "false",
+                "label": "False"
+              }
+            ]
+          }
+        },
+        {
+          "widget-type": "radio-group",
           "name" : "recursive",
           "label" : "Move All Subdirectories",
           "widget-attributes": {

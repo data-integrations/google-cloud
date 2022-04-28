@@ -72,6 +72,7 @@
     <avro.version>1.8.2</avro.version>
     <bigquery.connector.hadoop2.version>hadoop2-1.0.0</bigquery.connector.hadoop2.version>
     <commons.codec.version>1.4</commons.codec.version>
+    <commons.io.version>2.11.0</commons.io.version>
     <cdap.version>6.8.0-SNAPSHOT</cdap.version>
     <cdap.plugin.version>2.10.0-SNAPSHOT</cdap.plugin.version>
     <dropwizard.metrics-core.version>3.2.6</dropwizard.metrics-core.version>
@@ -418,6 +419,11 @@
       <groupId>com.google.cloud</groupId>
       <artifactId>google-cloud-datastore</artifactId>
       <version>${google.cloud.datastore.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>commons-io</groupId>
+      <artifactId>commons-io</artifactId>
+      <version>${commons.io.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.hadoop</groupId>

@@ -29,6 +29,7 @@ import com.google.cloud.storage.StorageOptions;
 import com.google.common.annotations.VisibleForTesting;
 import io.cdap.plugin.gcp.common.GCPConnectorConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
+import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -156,6 +157,38 @@ public class StorageClient {
    */
   public void move(GCSPath sourcePath, GCSPath destPath, boolean recursive, boolean overwrite) {
     pairTraverse(sourcePath, destPath, recursive, overwrite, BlobPair::move);
+  }
+
+  /**
+   * Get all the matching wildcard paths given the regex input.
+   *
+   * @param sourcePath the path that contains wildcard symbols
+   * @return list of all regex matching GCSPath
+   * @throws IllegalArgumentException if sourcePath does not contain wildcard symbols
+   */
+  public ArrayList<GCSPath> getAllMatchingWildcardPaths(GCSPath sourcePath) {
+    ArrayList<GCSPath> matchedPaths = new ArrayList<GCSPath>();
+    String pattern = sourcePath.getName();
+    String bucket = sourcePath.getBucket();
+    String prefix;
+    try {
+      prefix = pattern.substring(0, pattern.indexOf("*"));
+    } catch (Exception e) {
+      throw new IllegalArgumentException("No wildcard symbol '*' present, please check source path or "
+        + "disable use wildcard", e);
+    }
+    Page<Blob> blobPage = storage.list(sourcePath.getBucket(), Storage.BlobListOption.prefix(prefix));
+    Iterator<Blob> iterator = blobPage.getValues().iterator();
+    while (iterator.hasNext()) {
+      Blob blob = iterator.next();
+      String path = blob.getName();
+      if (FilenameUtils.wildcardMatch(path, pattern)) {
+        // need to remove the /, gcs treats dir/ and dir differently
+        String modifiedPath = path.endsWith("/") ? path.substring(0, path.length() - 1) : path;
+        matchedPaths.add(GCSPath.from(bucket + "/" + modifiedPath));
+      }
+    }
+    return matchedPaths;
   }
 
   /**
