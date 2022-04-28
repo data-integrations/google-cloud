@@ -119,14 +119,14 @@ public final class BigQuerySourceConfig extends BigQueryBaseConfig {
   @Name(NAME_VIEW_MATERIALIZATION_PROJECT)
   @Macro
   @Nullable
-  @Description("The project name where the temporary table should be materialized. "
+  @Description("The project name where the temporary table should be created. "
     + "Defaults to the same project in which the table is located.")
   private String viewMaterializationProject;
 
   @Name(NAME_VIEW_MATERIALIZATION_DATASET)
   @Macro
   @Nullable
-  @Description("The dataset in the specified project where the temporary table should be materialized. "
+  @Description("The dataset in the specified project where the temporary table should be created. "
     + "Defaults to the same dataset in which the table is located.")
   private String viewMaterializationDataset;
 
