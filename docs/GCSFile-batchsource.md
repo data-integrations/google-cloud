@@ -84,6 +84,14 @@ the regular expression syntax
 If not specified, the file path will not be included in output records.
 If specified, the field must exist in the output schema as a string.
 
+**Length Field:** Output field to place the length of the file that the record was read from.
+If not specified, the file length will not be included in output records.
+If specified, the field must exist in the output schema as a long.
+
+**Modification Time Field:** Output field to place the modification time of the file that the record was read from.
+If not specified, the file modification time will not be included in output records.
+If specified, the field must exist in the output schema as a long.
+
 **Path Filename Only:** Whether to only use the filename instead of the URI of the file path when a path field is given.
 The default value is false.
 
