@@ -16,23 +16,8 @@
 
 package io.cdap.plugin.gcp.spanner.sink;
 
-import com.google.api.gax.longrunning.OperationFuture;
 import com.google.cloud.kms.v1.CryptoKeyName;
-import com.google.cloud.spanner.Database;
-import com.google.cloud.spanner.DatabaseAdminClient;
-import com.google.cloud.spanner.DatabaseClient;
-import com.google.cloud.spanner.DatabaseId;
-import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.Mutation;
-import com.google.cloud.spanner.ResultSet;
-import com.google.cloud.spanner.Spanner;
-import com.google.cloud.spanner.SpannerException;
-import com.google.cloud.spanner.SpannerExceptionFactory;
-import com.google.cloud.spanner.Statement;
-import com.google.cloud.spanner.encryption.EncryptionConfigs;
-import com.google.common.base.Strings;
-import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
-import com.google.spanner.admin.database.v1.UpdateDatabaseDdlMetadata;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Metadata;
 import io.cdap.cdap.api.annotation.MetadataProperty;
@@ -53,21 +38,15 @@ import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.common.ReferenceBatchSink;
 import io.cdap.plugin.common.batch.sink.SinkOutputFormatProvider;
 import io.cdap.plugin.gcp.common.CmekUtils;
-import io.cdap.plugin.gcp.spanner.common.SpannerUtil;
+import io.cdap.plugin.gcp.spanner.SpannerConstants;
 import io.cdap.plugin.gcp.spanner.connector.SpannerConnector;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 
 
 /**
@@ -112,31 +91,13 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
 
     Schema configuredSchema = config.getSchema(collector);
     Schema schema = configuredSchema == null ? context.getInputSchema() : configuredSchema;
-    if (!context.isPreviewEnabled()) {
-      try (Spanner spanner = SpannerUtil.getSpannerService(config.connection)) {
-        // create database
-        DatabaseAdminClient dbAdminClient = spanner.getDatabaseAdminClient();
-        Database database = getOrCreateDatabase(context, dbAdminClient);
-
-        DatabaseId db = DatabaseId.of(config.connection.getProject(), config.getInstance(), config.getDatabase());
-        DatabaseClient dbClient = spanner.getDatabaseClient(db);
-        boolean tableExists = isTablePresent(dbClient);
-        if (!tableExists && schema == null) {
-          throw new IllegalArgumentException(String.format("Spanner table %s does not exist. To create it from the " +
-                                                             "pipeline, schema must be provided",
-                                                           config.getTable()));
-        }
-        // create table
-        if (!tableExists) {
-          createTable(database, schema);
-        }
-      } catch (IOException e) {
-        throw new RuntimeException("Exception while trying to get Spanner service. ", e);
-      }
-    }
-
+    CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(config.cmekKey, context.getArguments().asMap(),
+                                                     context.getFailureCollector());
     Configuration configuration = new Configuration();
-
+    configuration.setBoolean(SpannerConstants.IS_PREVIEW_ENABLED, context.isPreviewEnabled());
+    if (cmekKeyName != null) {
+      configuration.set(SpannerConstants.CMEK_KEY, cmekKeyName.toString());
+    }
     LineageRecorder lineageRecorder = new LineageRecorder(context, config.getReferenceName());
     lineageRecorder.createExternalDataset(schema);
 
@@ -150,96 +111,6 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
       lineageRecorder.recordWrite("Write", "Wrote to Spanner table.",
                                   fields.stream().map(Schema.Field::getName).collect(Collectors.toList()));
     }
-  }
-
-  private void createTable(Database database,
-                           Schema schema) throws ExecutionException, InterruptedException {
-    if (Strings.isNullOrEmpty(config.getKeys())) {
-      throw new IllegalArgumentException(String.format("Spanner table %s does not exist. To create it from the " +
-                                                         "pipeline, primary keys must be provided",
-                                                       config.getTable()));
-    }
-    String createStmt = SpannerUtil.convertSchemaToCreateStatement(config.getTable(),
-                                                                   config.getKeys(), schema);
-    LOG.debug("Creating table with create statement: {} in database {} of instance {}", createStmt,
-              config.getDatabase(), config.getInstance());
-    // In Spanner table creation is an update ddl operation on the database.
-    OperationFuture<Void, UpdateDatabaseDdlMetadata> op =
-      database.updateDdl(Collections.singletonList(createStmt), null);
-    // Table creation is an async operation. So wait until table is created.
-    op.get();
-  }
-
-  private boolean isTablePresent(DatabaseClient dbClient) {
-    // Spanner does not have apis to get table or check if a given table exists. So select the table name from
-    // information schema (metadata) of spanner database.
-    Statement statement = Statement.newBuilder(String.format("SELECT\n" +
-                                                               "    t.table_name\n" +
-                                                               "FROM\n" +
-                                                               "    information_schema.tables AS t\n" +
-                                                               "WHERE\n" +
-                                                               "    t.table_catalog = '' AND t.table_schema = '' AND\n"
-                                                               + "    t.table_name = @%s", TABLE_NAME))
-      .bind(TABLE_NAME).to(config.getTable()).build();
-
-    ResultSet resultSet = dbClient.singleUse().executeQuery(statement);
-
-    boolean tableExists = resultSet.next();
-    // close result set to free up resources.
-    resultSet.close();
-
-    return tableExists;
-  }
-
-  private Database getOrCreateDatabase(
-    BatchSinkContext context,
-    DatabaseAdminClient dbAdminClient) throws ExecutionException, InterruptedException {
-    Database database = getDatabaseIfPresent(dbAdminClient);
-
-    if (database == null) {
-      LOG.debug("Database not found. Creating database {} in instance {}.", config.getDatabase(), config.getInstance());
-      // Create database
-      Database.Builder dbBuilder = dbAdminClient
-        .newDatabaseBuilder(DatabaseId.of(config.connection.getProject(), config.getInstance(), config.getDatabase()));
-      CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(config.cmekKey, context.getArguments().asMap(),
-                                                       context.getFailureCollector());
-      context.getFailureCollector().getOrThrowException();
-      if (cmekKeyName != null) {
-        dbBuilder.setEncryptionConfig(EncryptionConfigs.customerManagedEncryption(cmekKeyName.toString()));
-      }
-      OperationFuture<Database, CreateDatabaseMetadata> op =
-        dbAdminClient.createDatabase(dbBuilder.build(), Collections.emptyList());
-      // database creation is an async operation. Wait until database creation operation is complete.
-      try {
-        database = op.get(120, TimeUnit.SECONDS);
-      } catch (ExecutionException e) {
-        // If the operation failed during execution, expose the cause.
-        throw SpannerExceptionFactory.asSpannerException(e.getCause());
-      } catch (InterruptedException e) {
-        // Throw when a thread is waiting, sleeping, or otherwise occupied,
-        // and the thread is interrupted, either before or during the activity.
-        throw SpannerExceptionFactory.propagateInterrupt(e);
-      } catch (TimeoutException e) {
-        // If the operation timed out propagates the timeout
-        throw SpannerExceptionFactory.propagateTimeout(e);
-      }
-    }
-
-    return database;
-  }
-
-  @Nullable
-  private Database getDatabaseIfPresent(DatabaseAdminClient dbAdminClient) {
-    Database database = null;
-    try {
-      database = dbAdminClient.getDatabase(config.getInstance(), config.getDatabase());
-    } catch (SpannerException e) {
-      if (e.getErrorCode() != ErrorCode.NOT_FOUND) {
-        throw e;
-      }
-    }
-
-    return database;
   }
 
   @Override
