@@ -28,7 +28,7 @@ It can be found on the Dashboard in the Google Cloud Platform Console.
 
 **Topic**: Name of the Google Cloud Pub/Sub topic to publish to.
 
-**Format**: Format of the data to read. Supported formats are avro, blob, tsv, csv, delimited, json,
+**Format**: Format of the data to write. Supported formats are avro, blob, tsv, csv, delimited, json,
 parquet, and text. Default is text.
 
 **Service Account**  - service account key used for authorization
