@@ -19,16 +19,20 @@ package io.cdap.plugin.gcp.bigquery.util;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.StandardSQLTypeName;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize.BigNumeric;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize.Numeric;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mockito;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.anyString;
 
 @RunWith(PowerMockRunner.class)
 public class BigQueryUtilTest {
@@ -59,7 +63,7 @@ public class BigQueryUtilTest {
     fieldList.add(timestampField);
 
     Field subStringField = Field.newBuilder("subStringField", StandardSQLTypeName.STRING).build();
-    Field subRecord = Field.newBuilder("subStructure", StandardSQLTypeName.STRUCT, subStringField).build();;
+    Field subRecord = Field.newBuilder("subStructure", StandardSQLTypeName.STRUCT, subStringField).build();
     Field recordField = Field.newBuilder("structure", StandardSQLTypeName.STRUCT, subRecord).build();
     fieldList.add(recordField);
     Schema tableSchema = BigQueryUtil.getTableSchema(com.google.cloud.bigquery.Schema.of(fieldList), null);
@@ -105,4 +109,24 @@ public class BigQueryUtilTest {
     Schema expectedSchema = Schema.recordOf("output", cdapFieldList);
     assertEquals(expectedSchema, tableSchema);
   }
+
+  @Test
+  public void testValidateArraySchema() {
+      String arrayField = "nullArray";
+      Schema schema = Schema.recordOf("record",
+              Schema.Field.of("id", Schema.of(Schema.Type.STRING)),
+              Schema.Field.of(arrayField, Schema.nullableOf(Schema.arrayOf(Schema.of(Schema.Type.STRING)))));
+
+      FailureCollector collector = Mockito.mock(FailureCollector.class);
+      Mockito.when(collector.addFailure(anyString(), anyString())).thenReturn(new ValidationFailure("errorMessage"));
+
+      Field bigQueryField = Field.newBuilder(arrayField, StandardSQLTypeName.STRING)
+        .setMode(Field.Mode.REPEATED).build();
+      Schema.Field recordField = schema.getField(arrayField);
+
+      BigQueryUtil.validateFieldModeMatches(bigQueryField, recordField, false, collector);
+
+      Mockito.verify(collector, Mockito.times(0)).addFailure(anyString(), anyString());
+    }
+
 }
