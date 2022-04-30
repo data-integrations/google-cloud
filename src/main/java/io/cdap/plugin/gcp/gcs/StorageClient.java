@@ -163,13 +163,18 @@ public class StorageClient {
    * Get all the matching wildcard paths given the regex input.
    *
    * @param sourcePath the path that contains wildcard symbols
+   * @param recursive whether to move objects in all subdirectories
    * @return list of all regex matching GCSPath
    * @throws IllegalArgumentException if sourcePath does not contain wildcard symbols
    */
-  public ArrayList<GCSPath> getAllMatchingWildcardPaths(GCSPath sourcePath) {
+  public ArrayList<GCSPath> getAllMatchingWildcardPaths(GCSPath sourcePath, boolean recursive) {
     ArrayList<GCSPath> matchedPaths = new ArrayList<GCSPath>();
     String pattern = sourcePath.getName();
     String bucket = sourcePath.getBucket();
+    // Count how many slashes we see to avoid duplicated copies
+    // matters when recursive true
+    // example: test_*/* will match test_1/ and test_1/sub_1/ and test_1/sub_1/sub_2/
+    long patternNumSlashes = countSlashes(pattern);
     String prefix;
     try {
       prefix = pattern.substring(0, pattern.indexOf("*"));
@@ -182,10 +187,19 @@ public class StorageClient {
     while (iterator.hasNext()) {
       Blob blob = iterator.next();
       String path = blob.getName();
+      long pathNumSlashes = countSlashes(path);
+      if (pathNumSlashes - patternNumSlashes > 1) {
+        continue;
+      }
       if (FilenameUtils.wildcardMatch(path, pattern)) {
-        // need to remove the /, gcs treats dir/ and dir differently
-        String modifiedPath = path.endsWith("/") ? path.substring(0, path.length() - 1) : path;
-        matchedPaths.add(GCSPath.from(bucket + "/" + modifiedPath));
+        if (pathNumSlashes - patternNumSlashes == 1 && path.endsWith("/") && recursive) {
+          // test_*/* ---- test_1/sub_1/
+          String modifiedPath = path.substring(0, path.length() - 1);
+          matchedPaths.add(GCSPath.from(bucket + "/" + modifiedPath));
+        } else if (pathNumSlashes == patternNumSlashes && pattern.endsWith("/") == path.endsWith("/")) {
+          // test_*/* ---- test_1/file.json || test_*/ ---- test_1/
+          matchedPaths.add(GCSPath.from(bucket + "/" + path));
+        }
       }
     }
     return matchedPaths;
@@ -360,6 +374,10 @@ public class StorageClient {
 
   public static StorageClient create(GCPConnectorConfig config) throws IOException {
     return create(config.getProject(), config.getServiceAccount(), config.isServiceAccountFilePath());
+  }
+
+  public long countSlashes(String string) {
+    return string.chars().filter(ch -> ch == '/').count();
   }
 
   /**

@@ -35,6 +35,7 @@ import io.cdap.plugin.gcp.gcs.GCSPath;
 import io.cdap.plugin.gcp.gcs.StorageClient;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import javax.annotation.Nullable;
 
@@ -77,8 +78,20 @@ public class GCSCopy extends Action {
     storageClient.createBucketIfNotExists(destPath, config.location, cmekKeyName);
 
     //noinspection ConstantConditions
-    storageClient.copy(config.getSourcePath(), config.getDestPath(), config.recursive, config.shouldOverwrite());
-
+    if (config.wildcard) {
+      ArrayList<GCSPath> matchedPaths = storageClient.getAllMatchingWildcardPaths(config.getSourcePath()
+        , config.recursive);
+      if (matchedPaths.size() == 0) {
+        collector.addFailure("Found no matching paths given the source path regex.",
+                             "Please check the source path input.");
+        collector.getOrThrowException();
+      }
+      for (GCSPath sourcePath : matchedPaths) {
+        storageClient.copy(sourcePath, config.getDestPath(), config.recursive, config.shouldOverwrite());
+      }
+    } else {
+      storageClient.copy(config.getSourcePath(), config.getDestPath(), config.recursive, config.shouldOverwrite());
+    }
   }
 
   /**
@@ -91,9 +104,16 @@ public class GCSCopy extends Action {
     @Description("Whether to copy objects in all subdirectories.")
     private Boolean recursive;
 
+    @Macro
+    @Nullable
+    @Description("Whether to use Wildcard regular expression " +
+      "to filter the files in the source directory that will be copied.")
+    private Boolean wildcard;
+
     public Config() {
       super();
       recursive = false;
+      wildcard = false;
     }
   }
 }

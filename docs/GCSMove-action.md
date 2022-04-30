@@ -29,6 +29,8 @@ It can be found on the Dashboard in the Google Cloud Platform Console.
 
 **Destination Path**: Path to the destination. The bucket will be created if it does not exist.
 
+**Use Wildcard**: Whether to use Wildcard regular expression to filter the files in the source directory that will be moved.
+
 **Copy All Subdirectories**: If the source is a directory, move all subdirectories.
 
 **Overwrite Existing Files**: Whether to overwrite existing files during the move. If this is set to

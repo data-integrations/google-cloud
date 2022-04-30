@@ -78,7 +78,8 @@ public class GCSMove extends Action {
 
     //noinspection ConstantConditions
     if (config.wildcard) {
-      ArrayList<GCSPath> matchedPaths = storageClient.getAllMatchingWildcardPaths(config.getSourcePath());
+      ArrayList<GCSPath> matchedPaths = storageClient.getAllMatchingWildcardPaths(config.getSourcePath()
+        , config.recursive);
       if (matchedPaths.size() == 0) {
         collector.addFailure("Found no matching paths given the source path regex.",
                              "Please check the source path input.");
@@ -104,7 +105,7 @@ public class GCSMove extends Action {
 
     @Macro
     @Nullable
-    @Description("Whether to Wildcard regular expression " +
+    @Description("Whether to use Wildcard regular expression " +
       "to filter the files in the source directory that will be moved.")
     private Boolean wildcard;
 
