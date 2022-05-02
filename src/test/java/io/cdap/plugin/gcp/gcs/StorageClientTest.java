@@ -17,8 +17,11 @@
 package io.cdap.plugin.gcp.gcs;
 
 import com.google.cloud.storage.BlobId;
+import com.google.cloud.storage.Storage;
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.ArrayList;
 
 /**
  * Tests for storage client
@@ -66,5 +69,23 @@ public class StorageClientTest {
                         StorageClient.resolve("dir1/dir2", "dir1/dir2/a/b/c", GCSPath.from("b0/subdir"), false));
     Assert.assertEquals(BlobId.of("b0", "subdir/dir2/a/b/c"),
                         StorageClient.resolve("dir1/dir2", "dir1/dir2/a/b/c", GCSPath.from("b0/subdir/"), false));
+  }
+
+  @Test
+  public void testGetMatchingWildcardPath() {
+    Assert.assertEquals(GCSPath.from("b0/test_1/sub_1")
+      , StorageClient.getMatchingWildcardPath("test_1/sub_1/", "test_*/*", 1, true, "b0"));
+    Assert.assertEquals(GCSPath.from("b0/test_1/sub_1")
+      , StorageClient.getMatchingWildcardPath("test_1/sub_1/", "test_*/", 1, true, "b0"));
+    Assert.assertEquals(null
+      , StorageClient.getMatchingWildcardPath("test_1/sub_1/sub_2/", "test_*/*", 1, true, "b0"));
+    Assert.assertEquals(GCSPath.from("b0/test_1/file.json")
+      , StorageClient.getMatchingWildcardPath("test_1/file.json", "test_*/*.json", 1, true, "b0"));
+    Assert.assertEquals(GCSPath.from("b0/test_1/file.json")
+      , StorageClient.getMatchingWildcardPath("test_1/file.json", "test_*/*.json", 1, false, "b0"));
+    Assert.assertEquals(GCSPath.from("b0/test_1/")
+      , StorageClient.getMatchingWildcardPath("test_1/", "test_*/", 1, true, "b0"));
+    Assert.assertEquals(GCSPath.from("b0/test_1/")
+      , StorageClient.getMatchingWildcardPath("test_1/", "test_*/", 1, false, "b0"));
   }
 }

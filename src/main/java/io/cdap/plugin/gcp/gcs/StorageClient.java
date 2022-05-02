@@ -187,22 +187,38 @@ public class StorageClient {
     while (iterator.hasNext()) {
       Blob blob = iterator.next();
       String path = blob.getName();
-      long pathNumSlashes = countSlashes(path);
-      if (pathNumSlashes - patternNumSlashes > 1) {
-        continue;
-      }
-      if (FilenameUtils.wildcardMatch(path, pattern)) {
-        if (pathNumSlashes - patternNumSlashes == 1 && path.endsWith("/") && recursive) {
-          // test_*/* ---- test_1/sub_1/
-          String modifiedPath = path.substring(0, path.length() - 1);
-          matchedPaths.add(GCSPath.from(bucket + "/" + modifiedPath));
-        } else if (pathNumSlashes == patternNumSlashes && pattern.endsWith("/") == path.endsWith("/")) {
-          // test_*/* ---- test_1/file.json || test_*/ ---- test_1/
-          matchedPaths.add(GCSPath.from(bucket + "/" + path));
-        }
+      GCSPath matchedPath = getMatchingWildcardPath(path, pattern, patternNumSlashes, recursive, bucket);
+      if (matchedPath != null) {
+        matchedPaths.add(matchedPath);
       }
     }
     return matchedPaths;
+  }
+
+  /**
+   *
+   * @param path
+   * @param pattern
+   * @param patternNumSlashes
+   * @return GCSPath object
+   */
+  static GCSPath getMatchingWildcardPath(String path, String pattern, long patternNumSlashes
+                                          , boolean recursive, String bucket) {
+    long pathNumSlashes = countSlashes(path);
+    if (pathNumSlashes - patternNumSlashes > 1) {
+      return null;
+    }
+    if (FilenameUtils.wildcardMatch(path, pattern)) {
+      if (pathNumSlashes - patternNumSlashes == 1 && path.endsWith("/") && recursive) {
+        // test_*/* ---- test_1/sub_1/
+        String modifiedPath = path.substring(0, path.length() - 1);
+        return GCSPath.from(bucket + "/" + modifiedPath);
+      } else if (pathNumSlashes == patternNumSlashes && pattern.endsWith("/") == path.endsWith("/")) {
+        // test_*/* ---- test_1/file.json || test_*/ ---- test_1/
+        return GCSPath.from(bucket + "/" + path);
+      }
+    }
+    return null;
   }
 
   /**
@@ -376,7 +392,7 @@ public class StorageClient {
     return create(config.getProject(), config.getServiceAccount(), config.isServiceAccountFilePath());
   }
 
-  public long countSlashes(String string) {
+  public static long countSlashes(String string) {
     return string.chars().filter(ch -> ch == '/').count();
   }
 
