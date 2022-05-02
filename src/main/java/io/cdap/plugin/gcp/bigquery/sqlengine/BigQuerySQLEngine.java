@@ -27,6 +27,7 @@ import com.google.cloud.storage.Storage;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import io.cdap.cdap.api.RuntimeContext;
+import io.cdap.cdap.api.SQLEngineContext;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Metadata;
 import io.cdap.cdap.api.annotation.MetadataProperty;
@@ -34,6 +35,7 @@ import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.api.metrics.Metrics;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.connector.Connector;
 import io.cdap.cdap.etl.api.engine.sql.BatchSQLEngine;
@@ -115,8 +117,8 @@ public class BigQuerySQLEngine
   private String dataset;
   private String bucket;
   private String runId;
-  private Map<String, String> tableNames;
   private Map<String, BigQuerySQLDataset> datasets;
+  private Metrics metrics;
 
   @SuppressWarnings("unused")
   public BigQuerySQLEngine(BigQuerySQLEngineConfig sqlEngineConfig) {
@@ -132,14 +134,13 @@ public class BigQuerySQLEngine
   }
 
   @Override
-  public void prepareRun(RuntimeContext context) throws Exception {
+  public void prepareRun(SQLEngineContext context) throws Exception {
     super.prepareRun(context);
 
     // Validate configuration and throw exception if the supplied configuration is invalid.
     sqlEngineConfig.validate();
 
     runId = BigQuerySQLEngineUtils.newIdentifier();
-    tableNames = new HashMap<>();
     datasets = new HashMap<>();
 
     String serviceAccount = sqlEngineConfig.getServiceAccount();
@@ -171,10 +172,13 @@ public class BigQuerySQLEngine
 
     // Configure credentials for the source
     BigQuerySourceUtils.configureServiceAccount(configuration, sqlEngineConfig.connection);
+
+    // Get metrics instance
+    metrics = context.getMetrics();
   }
 
   @Override
-  public void onRunFinish(boolean succeeded, RuntimeContext context) {
+  public void onRunFinish(boolean succeeded, SQLEngineContext context) {
     super.onRunFinish(succeeded, context);
 
     String gcsPath;
@@ -358,7 +362,8 @@ public class BigQuerySQLEngine
                                                             sqlEngineConfig,
                                                             bigQuery,
                                                             writeRequest,
-                                                            sourceTableId);
+                                                            sourceTableId,
+                                                            metrics);
     return bigQueryWrite.write();
   }
 
@@ -529,7 +534,8 @@ public class BigQuerySQLEngine
       table,
       jobId,
       jobType,
-      query
+      query,
+      metrics
     ).execute();
 
     datasets.put(datasetName, selectDataset);
