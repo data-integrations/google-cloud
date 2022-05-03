@@ -59,5 +59,6 @@ Feature: Spanner Sink - Verification of GCS to Spanner data transfer
     Then Wait till pipeline is in running state
     Then Open and capture logs
     Then Verify the pipeline status is "Succeeded"
-    Then Validate records transferred to target spanner table with record counts of BigQuery table
+    Then Close the pipeline logs
+    Then Validate OUT record count is equal to IN record count
     Then Validate the cmek key "cmekSpanner" of target Spanner database if cmek is enabled
