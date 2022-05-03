@@ -16,15 +16,25 @@
 
 package io.cdap.plugin.gcp.spanner.common;
 
+import com.google.api.gax.longrunning.OperationFuture;
+import com.google.cloud.spanner.Database;
+import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
+import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.Spanner;
+import com.google.cloud.spanner.SpannerException;
+import com.google.cloud.spanner.SpannerExceptionFactory;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Type;
+import com.google.cloud.spanner.encryption.EncryptionConfigs;
 import com.google.cloud.spanner.spi.v1.SpannerInterceptorProvider;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 import com.google.protobuf.GeneratedMessageV3;
+import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
+import com.google.spanner.admin.database.v1.UpdateDatabaseDdlMetadata;
 import com.google.spanner.v1.CommitRequest;
 import com.google.spanner.v1.Mutation;
 import com.google.spanner.v1.PartialResultSet;
@@ -34,6 +44,7 @@ import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.gcp.common.GCPConnectorConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.spanner.SpannerArrayConstants;
+import io.cdap.plugin.gcp.spanner.SpannerConstants;
 import io.grpc.CallOptions;
 import io.grpc.Channel;
 import io.grpc.ClientCall;
@@ -42,13 +53,20 @@ import io.grpc.ForwardingClientCall;
 import io.grpc.ForwardingClientCallListener;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
+import org.apache.hadoop.conf.Configuration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
@@ -56,6 +74,7 @@ import javax.annotation.Nullable;
  * Spanner utility class to get spanner service
  */
 public class SpannerUtil {
+  private static final Logger LOG = LoggerFactory.getLogger(SpannerUtil.class);
   private static final Set<Schema.LogicalType> SUPPORTED_LOGICAL_TYPES =
     ImmutableSet.of(Schema.LogicalType.DATE, Schema.LogicalType.TIMESTAMP_MICROS, Schema.LogicalType.DATETIME);
   private static final String TABLE_NAME = "TableName";
@@ -432,5 +451,133 @@ public class SpannerUtil {
       }
     }
     return null;
+  }
+
+  public static void verifyPresenceOrCreateDatabaseAndTable(Configuration configuration) {
+    String projectId = configuration.get(SpannerConstants.PROJECT_ID);
+    String instanceId = configuration.get(SpannerConstants.INSTANCE_ID);
+    String databaseName = configuration.get(SpannerConstants.DATABASE);
+    String serviceAccountType = configuration.get(SpannerConstants.SERVICE_ACCOUNT_TYPE);
+    String serviceAccount = configuration.get(SpannerConstants.SERVICE_ACCOUNT);
+    String tableName = configuration.get(SpannerConstants.TABLE_NAME);
+    String keys = configuration.get(SpannerConstants.KEYS);
+    if (!configuration.getBoolean(SpannerConstants.IS_PREVIEW_ENABLED, Boolean.FALSE)) {
+      try (Spanner spanner = SpannerUtil.getSpannerService(serviceAccount, SpannerConstants.
+        SERVICE_ACCOUNT_TYPE_FILE_PATH.equals(serviceAccountType), projectId)) {
+        Schema schema = Schema.parseJson(configuration.get(SpannerConstants.SCHEMA));
+        // create database
+        DatabaseAdminClient dbAdminClient = spanner.getDatabaseAdminClient();
+        Database database = getOrCreateDatabase(configuration, dbAdminClient, projectId, instanceId, databaseName);
+
+        DatabaseId db = DatabaseId.of(projectId, instanceId, databaseName);
+        DatabaseClient dbClient = spanner.getDatabaseClient(db);
+        boolean tableExists = isTablePresent(dbClient, tableName);
+        if (!tableExists && schema == null) {
+          throw new IllegalArgumentException(String.format("Spanner table %s does not exist. To create it from the " +
+                                                             "pipeline, schema must be provided",
+                                                           tableName));
+        }
+        // create table
+        if (!tableExists) {
+          createTable(database, schema, databaseName, instanceId, tableName, keys);
+        }
+      } catch (IOException e) {
+        throw new RuntimeException("Exception while trying to get Spanner service. ", e);
+      } catch (InterruptedException e) {
+        throw SpannerExceptionFactory.propagateInterrupt(e);
+      } catch (ExecutionException e) {
+        throw SpannerExceptionFactory.asSpannerException(e.getCause());
+      }
+    }
+  }
+
+  private static void createTable(Database database, Schema schema, String databaseName, String instance,
+                                  String tableName, String keys) throws
+    ExecutionException, InterruptedException {
+    if (Strings.isNullOrEmpty(keys)) {
+      throw new IllegalArgumentException(String.format("Spanner table %s does not exist. To create it from the " +
+                                                         "pipeline, primary keys must be provided",
+                                                       tableName));
+    }
+    String createStmt = SpannerUtil.convertSchemaToCreateStatement(tableName,
+                                                                   keys, schema);
+    LOG.debug("Creating table with create statement: {} in database {} of instance {}", createStmt,
+              databaseName, instance);
+    // In Spanner table creation is an update ddl operation on the database.
+    OperationFuture<Void, UpdateDatabaseDdlMetadata> op =
+      database.updateDdl(Collections.singletonList(createStmt), null);
+    // Table creation is an async operation. So wait until table is created.
+    op.get();
+  }
+
+  private static boolean isTablePresent(DatabaseClient dbClient, String table) {
+    // Spanner does not have apis to get table or check if a given table exists. So select the table name from
+    // information schema (metadata) of spanner database.
+
+    Statement statement = Statement.newBuilder(String.format("SELECT\n" +
+                                                               "    t.table_name\n" +
+                                                               "FROM\n" +
+                                                               "    information_schema.tables AS t\n" +
+                                                               "WHERE\n" +
+                                                               "    t.table_catalog = '' AND t.table_schema = '' AND\n"
+                                                               + "    t.table_name = @%s", TABLE_NAME))
+      .bind(TABLE_NAME).to(table).build();
+
+    com.google.cloud.spanner.ResultSet resultSet = dbClient.singleUse().executeQuery(statement);
+
+    boolean tableExists = resultSet.next();
+    // close result set to free up resources.
+    resultSet.close();
+
+    return tableExists;
+  }
+
+  @Nullable
+  private static Database getDatabaseIfPresent(DatabaseAdminClient dbAdminClient, String instance,
+                                               String databaseName) {
+    Database database = null;
+    try {
+      database = dbAdminClient.getDatabase(instance, databaseName);
+    } catch (SpannerException e) {
+      if (e.getErrorCode() != ErrorCode.NOT_FOUND) {
+        throw e;
+      }
+    }
+    return database;
+  }
+
+  private static Database getOrCreateDatabase(Configuration configuration, DatabaseAdminClient dbAdminClient,
+                                              String project, String instance, String databaseName)
+    throws ExecutionException, InterruptedException {
+    Database database = getDatabaseIfPresent(dbAdminClient, instance, databaseName);
+
+    if (database == null) {
+      LOG.debug("Database not found. Creating database {} in instance {}.", databaseName, instance);
+      // Create database
+      Database.Builder dbBuilder = dbAdminClient
+        .newDatabaseBuilder(DatabaseId.of(project, instance, databaseName));
+      String cmekKeyName = configuration.get(SpannerConstants.CMEK_KEY);
+      if (cmekKeyName != null) {
+        dbBuilder.setEncryptionConfig(EncryptionConfigs.customerManagedEncryption(cmekKeyName));
+      }
+      OperationFuture<Database, CreateDatabaseMetadata> op =
+        dbAdminClient.createDatabase(dbBuilder.build(), Collections.emptyList());
+      // database creation is an async operation. Wait until database creation operation is complete.
+      try {
+        database = op.get(120, TimeUnit.SECONDS);
+      } catch (ExecutionException e) {
+        // If the operation failed during execution, expose the cause.
+        throw SpannerExceptionFactory.asSpannerException(e.getCause());
+      } catch (InterruptedException e) {
+        // Throw when a thread is waiting, sleeping, or otherwise occupied,
+        // and the thread is interrupted, either before or during the activity.
+        throw SpannerExceptionFactory.propagateInterrupt(e);
+      } catch (TimeoutException e) {
+        // If the operation timed out propagates the timeout
+        throw SpannerExceptionFactory.propagateTimeout(e);
+      }
+    }
+
+    return database;
   }
 }

@@ -62,6 +62,7 @@ public class SpannerOutputFormat extends OutputFormat<NullWritable, Mutation> {
     configuration.set(SpannerConstants.INSTANCE_ID, config.getInstance());
     configuration.set(SpannerConstants.DATABASE, config.getDatabase());
     configuration.set(SpannerConstants.TABLE_NAME, config.getTable());
+    configuration.set(SpannerConstants.KEYS, config.getKeys());
     configuration.set(SpannerConstants.SPANNER_WRITE_BATCH_SIZE, String.valueOf(config.getBatchSize()));
     configuration.set(SpannerConstants.SCHEMA, schema.toString());
   }
@@ -70,6 +71,7 @@ public class SpannerOutputFormat extends OutputFormat<NullWritable, Mutation> {
   public RecordWriter<NullWritable, Mutation> getRecordWriter(TaskAttemptContext context)
     throws IOException {
     Configuration configuration = context.getConfiguration();
+    SpannerUtil.verifyPresenceOrCreateDatabaseAndTable(configuration);
     String projectId = configuration.get(SpannerConstants.PROJECT_ID);
     String instanceId = configuration.get(SpannerConstants.INSTANCE_ID);
     String database = configuration.get(SpannerConstants.DATABASE);

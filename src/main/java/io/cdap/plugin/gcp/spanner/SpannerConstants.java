@@ -33,4 +33,7 @@ public final class SpannerConstants {
   public static final String TABLE_NAME = "table";
   public static final String SPANNER_WRITE_BATCH_SIZE = "spanner.write.batch.size";
   public static final String SCHEMA = "schema";
+  public static final String IS_PREVIEW_ENABLED = "is.preview.enabled";
+  public static final String CMEK_KEY = "cmek.key";
+  public static final String KEYS = "keys";
 }
