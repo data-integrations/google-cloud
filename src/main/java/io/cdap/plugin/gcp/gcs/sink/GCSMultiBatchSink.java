@@ -97,17 +97,21 @@ public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable,
 
     PluginProperties formatProperties = formatPropertiesBuilder.build();
 
-    if (!this.config.containsMacro("format")) {
-      String format = config.getFormatName();
-      OutputFormatProvider outputFormatProvider =
-              pipelineConfigurer.usePlugin(ValidatingOutputFormat.PLUGIN_TYPE, format, FORMAT_PLUGIN_ID,
-                      formatProperties);
-      if (outputFormatProvider == null) {
-        collector.addFailure(
-                String.format("Could not find the '%s' output format plugin.", format), null)
-                .withPluginNotFound(FORMAT_PLUGIN_ID, format, ValidatingOutputFormat.PLUGIN_TYPE);
+    try {
+      if (!this.config.containsMacro("format")) {
+        String format = config.getFormatName();
+        OutputFormatProvider outputFormatProvider =
+                pipelineConfigurer.usePlugin(ValidatingOutputFormat.PLUGIN_TYPE, format, FORMAT_PLUGIN_ID,
+                        formatProperties);
+        if (outputFormatProvider == null) {
+          collector.addFailure(
+                          String.format("Could not find the '%s' output format plugin.", format), null)
+                  .withPluginNotFound(FORMAT_PLUGIN_ID, format, ValidatingOutputFormat.PLUGIN_TYPE);
+        }
+        return;
       }
-      return;
+    } catch (Throwable t) {
+      collector.addFailure(t.getMessage(), null);
     }
     //deploying all format plugins if its macro, so that required format plugin is available when macro is resolved
     for (FileFormat f: FileFormat.values()) {
