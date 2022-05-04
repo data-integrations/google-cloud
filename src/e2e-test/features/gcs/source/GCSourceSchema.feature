@@ -40,5 +40,17 @@ Feature: GCS source - Validate GCS plugin output schema for different formats
     Then Validate output schema with expectedSchema "<ExpectedSchema>"
     @GCS_DELIMITED_TEST
     Examples:
-      | GcsPath           | FileFormat  | Delimiter     | ExpectedSchema         |
-      | gcsDelimitedFile  | delimited   | gcsDelimiter  | gcsDelimitedFileSchema |
+      | GcsPath          | FileFormat | Delimiter             | ExpectedSchema                |
+      | gcsDelimitedFile | delimited  | gcsDelimiter          | gcsDelimitedFileSchema        |
+      | gcsDelimitedFile | delimited  | gcsIncorrectDelimiter | gcsOutputSchemaWithUnderscore |
+
+  @GCS_Source @GCS_DELIMITED_TEST
+  Scenario:GCS Source output schema validation for delimited files without delimiter field
+    Given Open Datafusion Project to configure pipeline
+    When Source is GCS
+    Then Open GCS source properties
+    Then Enter GCS property projectId and reference name
+    Then Enter GCS source property path "gcsDelimitedFile"
+    Then Select GCS property format "delimited"
+    Then Toggle GCS source property skip header to true
+    Then Validate output schema with expectedSchema "gcsOutputSchemaWithUnderscore"

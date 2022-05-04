@@ -33,18 +33,6 @@ Feature: GCS source - Verify GCS Source plugin error scenarios
     Then Enter GCS source property path field "gcsInvalidPathField"
     Then Verify Output Path field Error Message for incorrect path field "gcsInvalidPathField"
 
-  @GCS_DELIMITED_TEST
-  Scenario: To verify Error for incorrect delimiter
-    Given Open Datafusion Project to configure pipeline
-    When Source is GCS
-    Then Open GCS source properties
-    Then Enter GCS property projectId and reference name
-    Then Enter GCS source property path "gcsDelimitedFile"
-    Then Select GCS property format "delimited"
-    Then Enter GCS property delimiter "gcsIncorrectDelimiter"
-    Then Toggle GCS source property skip header to true
-    Then Verify get schema fails with error
-
   @GCS_OUTPUT_FIELD_TEST
   Scenario: To verify Error for incorrect override field
     Given Open Datafusion Project to configure pipeline
