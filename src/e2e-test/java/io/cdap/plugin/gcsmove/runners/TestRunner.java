@@ -1,5 +1,5 @@
 /*
- * Copyright © 2021 Cask Data, Inc.
+ * Copyright © 2022 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -13,25 +13,26 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package io.cdap.plugin.common.runners.cmekrunner;
+package io.cdap.plugin.gcsmove.runners;
 
 import io.cucumber.junit.Cucumber;
 import io.cucumber.junit.CucumberOptions;
 import org.junit.runner.RunWith;
 
 /**
- * Test Runner to execute test cases wth cmek enabled.
+ * Test Runner to execute GCSMove test cases.
  */
 @RunWith(Cucumber.class)
 @CucumberOptions(
   features = {"src/e2e-test/features"},
-  glue = {"io.cdap.plugin.gcs.stepsdesign", "io.cdap.plugin.bigquery.stepsdesign",
-    "stepsdesign", "io.cdap.plugin.common.stepsdesign", "io.cdap.plugin.pubsub.stepsdesign",
-          "io.cdap.plugin.gcsmove.stepsdesign"},
-  tags = {"@CMEK"},
-  plugin = {"pretty", "html:target/cucumber-html-report/cmek", "json:target/cucumber-reports/cucumber-cmek.json",
-    "junit:target/cucumber-reports/cucumber-cmek.xml", "io.cdap.e2e.utils.PropModifier:cmek-config.properties"},
-  monochrome = true
+  glue = {"io.cdap.plugin.gcsmove.stepsdesign", "io.cdap.plugin.gcs.stepsdesign",
+    "stepsdesign", "io.cdap.plugin.common.stepsdesign"},
+  tags = {"@GCSMove and not @PLUGIN-1134"},
+  //TODO: Enable test once issue is fixed https://cdap.atlassian.net/browse/PLUGIN-1134
+  monochrome = true,
+  plugin = {"pretty", "html:target/cucumber-html-report/gcsmove-action",
+    "json:target/cucumber-reports/cucumber-gcsmove-action.json",
+    "junit:target/cucumber-reports/cucumber-gcsmove-action.xml"}
 )
 public class TestRunner {
 }

@@ -127,7 +127,13 @@ public class TestSetupHooks {
     BeforeActions.scenario.write("GCS target bucket name - " + gcsTargetBucketName);
   }
 
-  @After(order = 1, value = "@GCS_SINK_TEST")
+  @Before(order = 1, value = "@GCS_SINK_EXISTING_BUCKET_TEST")
+  public static void createTargetGCSBucketWithCSVFile() throws IOException, URISyntaxException {
+    gcsTargetBucketName = createGCSBucketWithFile(PluginPropertyUtils.pluginProp("gcsCsvFile"));
+    BeforeActions.scenario.write("GCS target bucket name - " + gcsTargetBucketName);
+  }
+
+  @After(order = 1, value = "@GCS_SINK_TEST or @GCS_SINK_EXISTING_BUCKET_TEST")
   public static void deleteTargetBucketWithFile() {
     deleteGCSBucket(gcsTargetBucketName);
     gcsTargetBucketName = StringUtils.EMPTY;
