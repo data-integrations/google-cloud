@@ -123,13 +123,13 @@ public class BigQuerySparkDatasetProducer
       }
 
       // Handle Int types
-      if (fieldSchema.getType() == Schema.Type.INT && fieldSchema.getLogicalType() == null) {
+      if (fieldSchema.getType() == Schema.Type.INT) {
         LOG.trace("Converting field {} to Integer", fieldName);
         ds = ds.withColumn(fieldName, ds.col(fieldName).cast(DataTypes.IntegerType));
       }
 
       // Handle float types
-      if (fieldSchema.getType() == Schema.Type.FLOAT && fieldSchema.getLogicalType() == null) {
+      if (fieldSchema.getType() == Schema.Type.FLOAT) {
         LOG.trace("Converting field {} to Float", fieldName);
         ds = ds.withColumn(fieldName, ds.col(fieldName).cast(DataTypes.FloatType));
       }
