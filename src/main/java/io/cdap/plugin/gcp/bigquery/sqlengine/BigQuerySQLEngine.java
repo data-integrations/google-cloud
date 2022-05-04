@@ -483,6 +483,9 @@ public class BigQuerySQLEngine
 
   @Override
   public boolean canTransform(SQLTransformDefinition transformDefinition) {
+    if (!sqlEngineConfig.shouldEnablePreviewFeatures()) {
+      return false;
+    }
     Relation relation = transformDefinition.getOutputRelation();
     return relation instanceof BigQueryRelation && relation.isValid();
   }
