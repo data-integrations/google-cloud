@@ -66,6 +66,23 @@ The delimiter will be ignored if the format is anything other than 'delimited'.
 If the bucket already exists, this is ignored. More information can be found 
 [here](https://cloud.google.com/data-fusion/docs/how-to/customer-managed-encryption-keys)
 
+**Content Type:** The Content Type entity is used to indicate the media type of the resource.
+Defaults to 'application/octet-stream'. The following table shows valid content types for each format.
+
+| Format type   | Content type                                                                               |
+|---------------|--------------------------------------------------------------------------------------------|
+| avro          | application/avro, application/octet-stream                                                 |
+| csv           | text/csv, application/csv, text/plain, application/octet-stream                            |
+| delimited     | text/csv, application/csv, text/tab-separated-values, text/plain, application/octet-stream |
+| json          | application/json, text/plain, application/octet-stream                                     |
+| orc           | application/octet-stream                                                                   |
+| parquet       | application/octet-stream                                                                   |
+| tsv           | text/tab-separated-values, text/plain, application/octet-stream                            |
+
+**Custom Content Type:** The Custom Content Type is used when the value of Content-Type is set to other.
+User can provide specific Content-Type, different from the options in the dropdown.
+More information about the Content-Type can be found [here](https://cloud.google.com/storage/docs/metadata).
+
 **Service Account**  - service account key used for authorization
 
 * **File Path**: Path on the local file system of the service account key used for
