@@ -5,7 +5,29 @@
   "display-name": "BigQuery Pushdown",
   "configuration-groups": [
     {
-      "label": "Connection",
+      "label": "Basic",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "BigQuery Dataset",
+          "name": "dataset",
+          "widget-attributes": {
+            "placeholder": "Dataset to use to store temporary tables when pipeline is run."
+          }
+        },
+        {
+          "label": "browse",
+          "widget-type": "connection-browser",
+          "widget-category": "plugin",
+          "widget-attributes": {
+            "connectionType": "BIGQUERY",
+            "label": "Browse"
+          }
+        }
+      ]
+    },
+    {
+      "label": "Advanced",
       "properties": [
         {
           "widget-type": "toggle",
@@ -78,34 +100,7 @@
           "widget-type": "textbox",
           "label": "Service Account JSON",
           "name": "serviceAccountJSON"
-        }
-      ]
-    },
-    {
-      "label": "Basic",
-      "properties": [
-        {
-          "widget-type": "textbox",
-          "label": "BigQuery Dataset",
-          "name": "dataset",
-          "widget-attributes": {
-            "placeholder": "Dataset to use to store temporary tables when pipeline is run."
-          }
         },
-        {
-          "label": "browse",
-          "widget-type": "connection-browser",
-          "widget-category": "plugin",
-          "widget-attributes": {
-            "connectionType": "BIGQUERY",
-            "label": "Browse"
-          }
-        }
-      ]
-    },
-    {
-      "label": "Advanced",
-      "properties": [
         {
           "widget-type": "textbox",
           "label": "Temporary Bucket Name",
