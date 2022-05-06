@@ -243,12 +243,14 @@ public class GCSConnector extends AbstractFileConnector<GCPConnectorConfig> {
       builder.addEntity(entity.build());
     }
 
+    builder.setSampleProperties(getSampleProperties());
+
     // if the request blob is not null but count is 0, that means the blob itself is the only one returned,
     // return itself if the type is file
     if (entityForPath != null && count == 0 && entityForPath.getType().equals(FILE_TYPE)) {
       return builder.setTotalCount(1).addEntity(entityForPath).build();
     }
-    builder.setSampleProperties(getSampleProperties());
+    
     return builder.setTotalCount(count).build();
   }
 
