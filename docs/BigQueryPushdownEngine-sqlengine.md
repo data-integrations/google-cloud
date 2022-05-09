@@ -84,6 +84,10 @@ the following requirements must be met:
 
 Note: If the direct copy operation does not succeed, the pipeline will proceed with the standard workflow in order to ensure completion.
 
+**Enable Pushdown for Preview Features:**
+The aggregations that are still in preview are pushed down to the BigQuery ELT Transformation Pushdown engine when this 
+feature is enabled. The default specification is enabling the feature.
+
 **Service Account**  - service account key used for authorization
 
 * **File Path**: Path on the local file system of the service account key used for
