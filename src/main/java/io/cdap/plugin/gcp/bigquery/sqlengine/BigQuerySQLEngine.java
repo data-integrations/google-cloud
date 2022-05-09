@@ -109,6 +109,7 @@ public class BigQuerySQLEngine
   public static final String NAME = "BigQueryPushdownEngine";
 
   private final BigQuerySQLEngineConfig sqlEngineConfig;
+  private SQLEngineContext ctx;
   private BigQuery bigQuery;
   private Storage storage;
   private Configuration configuration;
@@ -137,6 +138,9 @@ public class BigQuerySQLEngine
   public void prepareRun(SQLEngineContext context) throws Exception {
     super.prepareRun(context);
 
+    // Initialize context
+    ctx = context;
+
     // Validate configuration and throw exception if the supplied configuration is invalid.
     sqlEngineConfig.validate();
 
@@ -156,7 +160,7 @@ public class BigQuerySQLEngine
     storage = GCPUtils.getStorage(project, credentials);
 
     String cmekKey = !Strings.isNullOrEmpty(sqlEngineConfig.cmekKey) ? sqlEngineConfig.cmekKey :
-      context.getRuntimeArguments().get(CmekUtils.CMEK_KEY);
+      ctx.getRuntimeArguments().get(CmekUtils.CMEK_KEY);
     CryptoKeyName cmekKeyName = null;
     if (!Strings.isNullOrEmpty(cmekKey)) {
       cmekKeyName = CryptoKeyName.parse(cmekKey);
@@ -174,7 +178,7 @@ public class BigQuerySQLEngine
     BigQuerySourceUtils.configureServiceAccount(configuration, sqlEngineConfig.connection);
 
     // Get metrics instance
-    metrics = context.getMetrics();
+    metrics = ctx.getMetrics();
   }
 
   @Override
@@ -448,7 +452,7 @@ public class BigQuerySQLEngine
     }
     String datasetName = relationDefinition.getDatasetName();
 
-    return BigQueryRelation.getInstance(datasetName, columnSet);
+    return BigQueryRelation.getInstance(datasetName, columnSet, ctx);
   }
 
   @Override

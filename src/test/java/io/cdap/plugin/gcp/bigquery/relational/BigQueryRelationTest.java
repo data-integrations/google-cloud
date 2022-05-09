@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.bigquery.relational;
 
+import io.cdap.cdap.api.feature.FeatureFlagsProvider;
 import io.cdap.cdap.etl.api.aggregation.DeduplicateAggregationDefinition;
 import io.cdap.cdap.etl.api.aggregation.GroupByAggregationDefinition;
 import io.cdap.cdap.etl.api.relational.Expression;
@@ -26,6 +27,8 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import java.util.ArrayList;
@@ -38,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
@@ -48,9 +52,14 @@ BigQueryRelationTest {
   private BigQueryRelation baseRelation;
   private SQLExpressionFactory factory;
 
+  @Mock
+  private FeatureFlagsProvider featureFlagsProvider;
+
   @Before
   public void setUp() {
     factory = new SQLExpressionFactory();
+    featureFlagsProvider = Mockito.mock(FeatureFlagsProvider.class);
+    doReturn(true).when(featureFlagsProvider).isFeatureEnabled(Mockito.anyString());
 
     BigQuerySQLDataset ds = mock(BigQuerySQLDataset.class);
     Set<String> columns = new LinkedHashSet<>();
@@ -59,6 +68,7 @@ BigQueryRelationTest {
 
     baseRelation = new BigQueryRelation("d s",
                                         columns,
+                                        featureFlagsProvider,
                                         null,
                                         () -> "select * from tbl");
     baseRelation.setInputDatasets(Collections.singletonMap("d s", ds));
@@ -287,7 +297,7 @@ BigQueryRelationTest {
     Assert.assertTrue(transformExpression.startsWith("SELECT * EXCEPT(`rn_"));
     Assert.assertTrue(transformExpression.contains("`) FROM (SELECT a AS `a` , b AS `b` , c AS `c` , d AS `d` , " +
                                                      "ROW_NUMBER() OVER ( PARTITION BY a , d ORDER BY a DESC " +
-                                                      "NULLS LAST ) AS `"));
+                                                     "NULLS LAST ) AS `"));
     Assert.assertTrue(transformExpression.contains("` FROM ( select * from tbl ) AS `d s`) WHERE `rn_"));
     Assert.assertTrue(transformExpression.endsWith("` = 1"));
   }

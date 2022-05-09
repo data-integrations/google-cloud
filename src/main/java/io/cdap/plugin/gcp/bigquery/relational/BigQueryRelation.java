@@ -1,12 +1,14 @@
 package io.cdap.plugin.gcp.bigquery.relational;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.cdap.cdap.api.feature.FeatureFlagsProvider;
 import io.cdap.cdap.etl.api.aggregation.DeduplicateAggregationDefinition;
 import io.cdap.cdap.etl.api.aggregation.GroupByAggregationDefinition;
 import io.cdap.cdap.etl.api.engine.sql.SQLEngineException;
 import io.cdap.cdap.etl.api.relational.Expression;
 import io.cdap.cdap.etl.api.relational.InvalidRelation;
 import io.cdap.cdap.etl.api.relational.Relation;
+import io.cdap.cdap.features.Feature;
 import io.cdap.plugin.gcp.bigquery.sqlengine.BigQuerySQLDataset;
 import io.cdap.plugin.gcp.bigquery.sqlengine.builder.BigQueryDeduplicateSQLBuilder;
 import io.cdap.plugin.gcp.bigquery.sqlengine.builder.BigQueryGroupBySQLBuilder;
@@ -30,6 +32,7 @@ import javax.annotation.Nullable;
 public class BigQueryRelation implements Relation {
   private static final SQLExpressionFactory factory = new SQLExpressionFactory();
 
+  private final FeatureFlagsProvider featureFlagsProvider;
   private final String datasetName;
   private final Set<String> columns;
   private final BigQueryRelation parent;
@@ -45,15 +48,18 @@ public class BigQueryRelation implements Relation {
    * @return new BigQueryRelation instance for this table.
    */
   public static BigQueryRelation getInstance(String datasetName,
-                                             Set<String> columnNames) {
-    return new BigQueryRelation(datasetName, columnNames);
+                                             Set<String> columnNames,
+                                             FeatureFlagsProvider featureFlagsProvider) {
+    return new BigQueryRelation(datasetName, columnNames, featureFlagsProvider);
   }
 
   @VisibleForTesting
   protected BigQueryRelation(String datasetName,
-                             Set<String> columns) {
+                             Set<String> columns,
+                             FeatureFlagsProvider featureFlagsProvider) {
     this.datasetName = datasetName;
     this.columns = columns;
+    this.featureFlagsProvider = featureFlagsProvider;
     this.parent = null;
     this.sqlStatementSupplier = () -> {
 
@@ -78,10 +84,12 @@ public class BigQueryRelation implements Relation {
   @VisibleForTesting
   protected BigQueryRelation(String datasetName,
                              Set<String> columns,
-                             BigQueryRelation parent,
+                             FeatureFlagsProvider featureFlagsProvider,
+                             @Nullable BigQueryRelation parent,
                              Supplier<String> sqlStatementSupplier) {
     this.datasetName = datasetName;
     this.columns = columns;
+    this.featureFlagsProvider = featureFlagsProvider;
     this.parent = parent;
     this.sqlStatementSupplier = sqlStatementSupplier;
   }
@@ -160,7 +168,7 @@ public class BigQueryRelation implements Relation {
     // Build new transform expression and return new instance.
     Supplier<String> supplier =
       () -> buildNestedSelect(selectedColumns, getSQLStatement(), newDatasetName, null);
-    return new BigQueryRelation(newDatasetName, columns, this, supplier);
+    return new BigQueryRelation(newDatasetName, columns, featureFlagsProvider, this, supplier);
   }
 
   @Override
@@ -177,7 +185,7 @@ public class BigQueryRelation implements Relation {
     // Build new transform expression and return new instance.
     Supplier<String> supplier =
       () -> buildNestedSelect(selectedColumns, getSQLStatement(), datasetName, null);
-    return new BigQueryRelation(datasetName, selectedColumns.keySet(), this, supplier);
+    return new BigQueryRelation(datasetName, selectedColumns.keySet(), featureFlagsProvider, this, supplier);
   }
 
   @Override
@@ -194,7 +202,7 @@ public class BigQueryRelation implements Relation {
     // Build new transform expression and return new instance.
     Supplier<String> supplier =
       () -> buildNestedSelect(selectedColumns, getSQLStatement(), datasetName, null);
-    return new BigQueryRelation(datasetName, selectedColumns.keySet(), this, supplier);
+    return new BigQueryRelation(datasetName, selectedColumns.keySet(), featureFlagsProvider, this, supplier);
   }
 
   @Override
@@ -208,7 +216,7 @@ public class BigQueryRelation implements Relation {
     // Build new transform expression and return new instance.
     Supplier<String> supplier =
       () -> buildNestedSelect(columns, getSQLStatement(), datasetName, null);
-    return new BigQueryRelation(datasetName, columns.keySet(), this, supplier);
+    return new BigQueryRelation(datasetName, columns.keySet(), featureFlagsProvider, this, supplier);
   }
 
   @Override
@@ -223,11 +231,17 @@ public class BigQueryRelation implements Relation {
     // Build new transform expression and return new instance.
     Supplier<String> supplier =
       () -> buildNestedSelect(selectedColumns, getSQLStatement(), datasetName, filter);
-    return new BigQueryRelation(datasetName, columns, this, supplier);
+    return new BigQueryRelation(datasetName, columns, featureFlagsProvider, this, supplier);
   }
 
   @Override
   public Relation groupBy(GroupByAggregationDefinition definition) {
+    // Check if group by feature is enabled
+    if (!Feature.PUSHDOWN_TRANSFORMATION_GROUPBY.isEnabled(featureFlagsProvider)) {
+      return getInvalidRelation(String.format("Feature %s is not enabled.",
+                                              Feature.PUSHDOWN_TRANSFORMATION_GROUPBY.getFeatureFlagString()));
+    }
+
     // Ensure all expressions supplied in this definition are supported and valid
     if (!supportsGroupByAggregationDefinition(definition)) {
       return getInvalidRelation("DeduplicateAggregationDefinition contains "
@@ -240,11 +254,17 @@ public class BigQueryRelation implements Relation {
     // Build new transform expression and return new instance.
     Supplier<String> supplier =
       () -> buildGroupBy(definition, getSQLStatement(), datasetName);
-    return new BigQueryRelation(datasetName, columns, this, supplier);
+    return new BigQueryRelation(datasetName, columns, featureFlagsProvider, this, supplier);
   }
 
   @Override
   public Relation deduplicate(DeduplicateAggregationDefinition definition) {
+    // Check if deduplicate feature is enabled
+    if (!Feature.PUSHDOWN_TRANSFORMATION_DEDUPLICATE.isEnabled(featureFlagsProvider)) {
+      return getInvalidRelation(String.format("Feature %s is not enabled.",
+                                              Feature.PUSHDOWN_TRANSFORMATION_DEDUPLICATE.getFeatureFlagString()));
+    }
+
     // Ensure all expressions supplied in this definition are supported and valid
     if (!supportsDeduplicateAggregationDefinition(definition)) {
       return getInvalidRelation("DeduplicateAggregationDefinition contains "
@@ -255,7 +275,7 @@ public class BigQueryRelation implements Relation {
     Set<String> columns = definition.getSelectExpressions().keySet();
     Supplier<String> supplier =
       () -> buildDeduplicate(definition, getSQLStatement(), datasetName);
-    return new BigQueryRelation(datasetName, columns, this, supplier);
+    return new BigQueryRelation(datasetName, columns, featureFlagsProvider, this, supplier);
   }
 
   private static String buildBaseSelect(Map<String, Expression> columns,
