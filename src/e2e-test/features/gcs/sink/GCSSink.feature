@@ -8,11 +8,13 @@ Feature: GCS sink - Verification of GCS Sink plugin
     When Sink is GCS
     Then Connect source as "BigQuery" and sink as "GCS" to establish connection
     Then Open BigQuery source properties
+    Then Override Service account details if set in environment variables
     Then Enter the BigQuery source mandatory properties
     Then Validate "BigQuery" plugin properties
     Then Close the BigQuery properties
     Then Open GCS sink properties
     Then Enter GCS property projectId and reference name
+    Then Override Service account details if set in environment variables
     Then Enter GCS sink property path
     Then Select GCS property format "csv"
     Then Enter GCS property encryption key name "cmekGCS" if cmek is enabled

@@ -20,6 +20,7 @@ Feature: Spanner Source - Verify Spanner source plugin error scenarios
     Then Open Spanner source properties
     Then Enter Spanner property reference name
     Then Enter Spanner property projectId "projectId"
+    Then Override Service account details if set in environment variables
     Then Enter the Spanner properties with incorrect property "<property>"
     Then Verify plugin properties validation fails with 1 error
     Examples:

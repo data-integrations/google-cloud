@@ -18,6 +18,7 @@ Feature: PubSub-Sink - Verify PubSub sink plugin error Scenarios
     Then Open the PubSub sink properties
     Then Enter PubSub property reference name
     Then Enter PubSub property projectId "projectId"
+    Then Override Service account details if set in environment variables
     Then Enter PubSub topic name "dummytopic"
     Then Select PubSub property format "csv"
     Then Enter the PubSub sink advanced properties with incorrect property "<Property>"
@@ -36,6 +37,7 @@ Feature: PubSub-Sink - Verify PubSub sink plugin error Scenarios
     Then Open the PubSub sink properties
     Then Enter PubSub property reference name
     Then Enter PubSub property projectId "projectId"
+    Then Override Service account details if set in environment variables
     Then Enter PubSub topic name "dummytopic"
     Then Select PubSub property format "csv"
     Then Enter the PubSub sink advanced properties with invalid number for property "<Property>"

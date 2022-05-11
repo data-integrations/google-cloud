@@ -12,20 +12,24 @@ Feature: BigQuery source - Verification of BigQuery to Multiple sinks successful
     When Sink is PubSub
     Then Connect source as "BigQuery" having title "BigQuery" and sink3 as "GooglePublisher" having title "Pub/Sub" to establish connection
     Then Open BigQuery source properties
+    Then Override Service account details if set in environment variables
     Then Enter the BigQuery source mandatory properties
     Then Validate "BigQuery" plugin properties
     Then Close the BigQuery properties
     Then Open GCS sink properties
+    Then Override Service account details if set in environment variables
     Then Enter the GCS sink mandatory properties
     Then Enter GCS property encryption key name "cmekGCS" if cmek is enabled
     Then Validate "GCS" plugin properties
     Then Close the GCS properties
     Then Open BigQuery sink properties
+    Then Override Service account details if set in environment variables
     Then Enter the BigQuery sink mandatory properties
     Then Enter BiqQuery property encryption key name "cmekBQ" if cmek is enabled
     Then Validate "BigQuery" plugin properties
     Then Close the BigQuery properties
     Then Open the PubSub sink properties
+    Then Override Service account details if set in environment variables
     Then Enter the PubSub sink mandatory properties
     Then Enter PubSub sink property encryption key name "cmekPubSub" if cmek is enabled
     Then Validate "PubSub" plugin properties

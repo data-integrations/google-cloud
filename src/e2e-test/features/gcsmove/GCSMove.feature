@@ -10,6 +10,7 @@ Feature:GCSMove - Verification of successful objects move from one bucket to ano
     Then Enter GCSMove property projectId "projectId"
     Then Enter GCSMove property source path "gcsCsvFile"
     Then Enter GCSMove property destination path
+    Then Override Service account details if set in environment variables
     Then Enter GCSMove property encryption key name "cmekGCS" if cmek is enabled
     Then Validate "GCSMove" plugin properties
     Then Close GCSMove properties
@@ -31,6 +32,7 @@ Feature:GCSMove - Verification of successful objects move from one bucket to ano
     Then Enter GCSMove property source path "gcsMoveReadRecursivePath"
     Then Enter GCSMove property destination path
     Then Select GCSMove property move all subdirectories as "true"
+    Then Override Service account details if set in environment variables
     Then Validate "GCSMove" plugin properties
     Then Close GCSMove properties
     Then Save and Deploy Pipeline
@@ -50,6 +52,7 @@ Feature:GCSMove - Verification of successful objects move from one bucket to ano
     Then Enter GCSMove property source path "gcsMoveReadRecursivePath"
     Then Enter GCSMove property destination path
     Then Select GCSMove property move all subdirectories as "false"
+    Then Override Service account details if set in environment variables
     Then Validate "GCSMove" plugin properties
     Then Close GCSMove properties
     Then Save and Deploy Pipeline
@@ -69,6 +72,7 @@ Feature:GCSMove - Verification of successful objects move from one bucket to ano
     Then Enter GCSMove property source path "gcsCsvFile"
     Then Enter GCSMove property destination path "gcsMoveReadRecursivePath"
     Then Select GCSMove property overwrite existing files as "true"
+    Then Override Service account details if set in environment variables
     Then Validate "GCSMove" plugin properties
     Then Close GCSMove properties
     Then Save and Deploy Pipeline
@@ -88,6 +92,7 @@ Feature:GCSMove - Verification of successful objects move from one bucket to ano
     Then Enter GCSMove property source path "gcsCsvFile"
     Then Enter GCSMove property destination path "gcsMoveReadRecursivePath"
     Then Select GCSMove property overwrite existing files as "false"
+    Then Override Service account details if set in environment variables
     Then Validate "GCSMove" plugin properties
     Then Close GCSMove properties
     Then Save and Deploy Pipeline
@@ -106,6 +111,7 @@ Feature:GCSMove - Verification of successful objects move from one bucket to ano
     Then Enter GCSMove property projectId "projectId"
     Then Enter GCSMove property source path "gcsCsvFile"
     Then Enter GCSMove property destination path
+    Then Override Service account details if set in environment variables
     Then Enter GCSMove property location "locationEU"
     Then Validate "GCSMove" plugin properties
     Then Close GCSMove properties

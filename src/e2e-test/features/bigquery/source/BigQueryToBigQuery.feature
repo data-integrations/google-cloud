@@ -10,6 +10,7 @@ Feature: BigQuery source - Verification of BigQuery to BigQuery successful data 
     Then Enter BigQuery property reference name
     Then Enter BigQuery property projectId "projectId"
     Then Enter BigQuery property datasetProjectId "projectId"
+    Then Override Service account details if set in environment variables
     Then Enter BigQuery property dataset "dataset"
     Then Enter BigQuery source property table name
     Then Enter BigQuery source property filter "bqFilter"
@@ -17,6 +18,7 @@ Feature: BigQuery source - Verification of BigQuery to BigQuery successful data 
     Then Validate "BigQuery" plugin properties
     Then Close the BigQuery properties
     Then Open BigQuery sink properties
+    Then Override Service account details if set in environment variables
     Then Enter the BigQuery sink mandatory properties
     Then Validate "BigQuery" plugin properties
     Then Close the BigQuery properties
@@ -44,6 +46,7 @@ Feature: BigQuery source - Verification of BigQuery to BigQuery successful data 
     Then Enter BigQuery property reference name
     Then Enter BigQuery property projectId "projectId"
     Then Enter BigQuery property datasetProjectId "projectId"
+    Then Override Service account details if set in environment variables
     Then Enter BigQuery property dataset "dataset"
     Then Enter BigQuery source property table name
     Then Enter BigQuery source property filter "bqInvalidFilter"
@@ -51,6 +54,7 @@ Feature: BigQuery source - Verification of BigQuery to BigQuery successful data 
     Then Validate "BigQuery" plugin properties
     Then Close the BigQuery properties
     Then Open BigQuery sink properties
+    Then Override Service account details if set in environment variables
     Then Enter the BigQuery sink mandatory properties
     Then Validate "BigQuery" plugin properties
     Then Close the BigQuery properties
@@ -68,6 +72,7 @@ Feature: BigQuery source - Verification of BigQuery to BigQuery successful data 
     Then Enter BigQuery property reference name
     Then Enter BigQuery property projectId "projectId"
     Then Enter BigQuery property datasetProjectId "projectId"
+    Then Override Service account details if set in environment variables
     Then Enter BigQuery property dataset "dataset"
     Then Enter BigQuery source property table name
     Then Enter BigQuery source properties partitionStartDate and partitionEndDate
@@ -75,6 +80,7 @@ Feature: BigQuery source - Verification of BigQuery to BigQuery successful data 
     Then Validate "BigQuery" plugin properties
     Then Close the BigQuery properties
     Then Open BigQuery sink properties
+    Then Override Service account details if set in environment variables
     Then Enter the BigQuery sink mandatory properties
     Then Validate "BigQuery" plugin properties
     Then Close the BigQuery properties
@@ -102,6 +108,7 @@ Feature: BigQuery source - Verification of BigQuery to BigQuery successful data 
     Then Enter BigQuery property reference name
     Then Enter BigQuery property projectId "projectId"
     Then Enter BigQuery property datasetProjectId "projectId"
+    Then Override Service account details if set in environment variables
     Then Enter BigQuery property dataset "dataset"
     Then Enter BigQuery source property table name
     Then Enter BigQuery source properties partitionStartDate "bqFuturePartitionStartDate" and partitionEndDate "bqFuturePartitionEndDate"
@@ -109,6 +116,7 @@ Feature: BigQuery source - Verification of BigQuery to BigQuery successful data 
     Then Validate "BigQuery" plugin properties
     Then Close the BigQuery properties
     Then Open BigQuery sink properties
+    Then Override Service account details if set in environment variables
     Then Enter the BigQuery sink mandatory properties
     Then Validate "BigQuery" plugin properties
     Then Close the BigQuery properties
@@ -130,6 +138,7 @@ Feature: BigQuery source - Verification of BigQuery to BigQuery successful data 
     Then Enter BigQuery property reference name
     Then Enter BigQuery property projectId "projectId"
     Then Enter BigQuery property datasetProjectId "projectId"
+    Then Override Service account details if set in environment variables
     Then Enter BigQuery property dataset "dataset"
     Then Enter BigQuery source property table name
     Then Validate output schema with expectedSchema "bqSourceSchemaDatatype"
@@ -139,6 +148,7 @@ Feature: BigQuery source - Verification of BigQuery to BigQuery successful data 
     Then Enter BigQuery property reference name
     Then Enter BigQuery property projectId "projectId"
     Then Enter BigQuery property datasetProjectId "projectId"
+    Then Override Service account details if set in environment variables
     Then Enter BigQuery property dataset "dataset"
     Then Enter BigQuery sink property table name
     Then Toggle BigQuery sink property truncateTable to true
@@ -167,6 +177,7 @@ Feature: BigQuery source - Verification of BigQuery to BigQuery successful data 
     Then Enter BigQuery property reference name
     Then Enter BigQuery property projectId "projectId"
     Then Enter BigQuery property datasetProjectId "projectId"
+    Then Override Service account details if set in environment variables
     Then Enter BigQuery property dataset "dataset"
     Then Enter BigQuery source property table name
     Then Validate output schema with expectedSchema "bqSourceSchemaDatatype"
@@ -176,6 +187,7 @@ Feature: BigQuery source - Verification of BigQuery to BigQuery successful data 
     Then Enter BigQuery property reference name
     Then Enter BigQuery property projectId "projectId"
     Then Enter BigQuery property datasetProjectId "projectId"
+    Then Override Service account details if set in environment variables
     Then Enter BigQuery property dataset "dataset"
     Then Enter BigQuery sink property table name
     Then Toggle BigQuery sink property truncateTable to true

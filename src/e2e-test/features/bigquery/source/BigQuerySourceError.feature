@@ -19,6 +19,7 @@ Feature: BigQuery source - Validate BigQuery source plugin error scenarios
     When Source is BigQuery
     Then Open BigQuery source properties
     Then Enter BigQuery property reference name
+    Then Override Service account details if set in environment variables
     Then Enter the BigQuery source properties with incorrect property "<property>" value "<value>"
     Then Validate BigQuery source incorrect property error for table "<property>" value "<value>"
     Examples:
@@ -50,6 +51,7 @@ Feature: BigQuery source - Validate BigQuery source plugin error scenarios
     Then Enter BigQuery property reference name
     Then Enter BigQuery property projectId "projectId"
     Then Enter BigQuery property datasetProjectId "projectId"
+    Then Override Service account details if set in environment variables
     Then Enter BigQuery property dataset "dataset"
     Then Enter BigQuery source property table name
     Then Enter BigQuery property temporary bucket name "bqInvalidTemporaryBucket"

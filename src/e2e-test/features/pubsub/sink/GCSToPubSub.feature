@@ -7,11 +7,13 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer
     When Source is GCS
     When Sink is PubSub
     Then Open GCS source properties
+    Then Override Service account details if set in environment variables
     Then Enter the GCS source mandatory properties
     Then Validate "GCS" plugin properties
     Then Close the GCS properties
     Then Open the PubSub sink properties
     Then Enter PubSub property projectId "projectId"
+    Then Override Service account details if set in environment variables
     Then Enter PubSub property reference name
     Then Enter PubSub sink property topic name
     Then Select PubSub property format "csv"
@@ -45,11 +47,13 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer
     When Source is GCS
     When Sink is PubSub
     Then Open GCS source properties
+    Then Override Service account details if set in environment variables
     Then Enter the GCS source mandatory properties
     Then Validate "GCS" plugin properties
     Then Close the GCS properties
     Then Open the PubSub sink properties
     Then Enter PubSub property projectId "projectId"
+    Then Override Service account details if set in environment variables
     Then Enter PubSub property reference name
     Then Enter PubSub sink property topic name
     Then Select PubSub property format "<FileFormat>"
@@ -91,6 +95,7 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer
     Then Connect source as "GCS" and sink as "GooglePublisher" to establish connection
     Then Open GCS source properties
     Then Enter GCS property projectId and reference name
+    Then Override Service account details if set in environment variables
     Then Enter GCS source property path "gcsDataTypeTest1File"
     Then Toggle GCS source property skip header to true
     Then Select GCS property format "csv"
@@ -99,6 +104,7 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer
     Then Close the GCS properties
     Then Open the PubSub sink properties
     Then Enter PubSub property projectId "projectId"
+    Then Override Service account details if set in environment variables
     Then Enter PubSub property reference name
     Then Enter PubSub sink property topic name
     Then Select PubSub property format "csv"
@@ -126,6 +132,7 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer
     Then Connect source as "GCS" and sink as "GooglePublisher" to establish connection
     Then Open GCS source properties
     Then Enter GCS property projectId and reference name
+    Then Override Service account details if set in environment variables
     Then Enter GCS source property path "gcsDataTypeTest2File"
     Then Toggle GCS source property skip header to true
     Then Select GCS property format "csv"
@@ -134,6 +141,7 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer
     Then Close the GCS properties
     Then Open the PubSub sink properties
     Then Enter PubSub property projectId "projectId"
+    Then Override Service account details if set in environment variables
     Then Enter PubSub property reference name
     Then Enter PubSub sink property topic name
     Then Select PubSub property format "csv"
@@ -160,6 +168,7 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer
     Then Connect source as "GCS" and sink as "GooglePublisher" to establish connection
     Then Open GCS source properties
     Then Enter GCS property projectId and reference name
+    Then Override Service account details if set in environment variables
     Then Enter GCS source property path "<GcsPath>"
     Then Toggle GCS source property skip header to true
     Then Select GCS property format "<SourceFormat>"
@@ -168,6 +177,7 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer
     Then Close the GCS properties
     Then Open the PubSub sink properties
     Then Enter PubSub property projectId "projectId"
+    Then Override Service account details if set in environment variables
     Then Enter PubSub property reference name
     Then Enter PubSub sink property topic name
     Then Select PubSub property format "<SinkFormat>"
@@ -218,6 +228,7 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer
     Then Connect source as "GCS" and sink as "GooglePublisher" to establish connection
     Then Open GCS source properties
     Then Enter GCS property projectId and reference name
+    Then Override Service account details if set in environment variables
     Then Enter GCS source property path "<GcsPath>"
     Then Toggle GCS source property skip header to true
     Then Select GCS property format "<SourceFormat>"
@@ -226,6 +237,7 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer
     Then Close the GCS properties
     Then Open the PubSub sink properties
     Then Enter PubSub property projectId "projectId"
+    Then Override Service account details if set in environment variables
     Then Enter PubSub property reference name
     Then Enter PubSub sink property topic name
     Then Select PubSub property format "<SinkFormat>"

@@ -9,7 +9,9 @@ Feature: BigQuery sink - Verification of GCS to BigQuery successful data transfe
     Then Open GCS source properties
     Then Enter GCS property reference name
     Then Enter GCS property "projectId" as macro argument "gcsProjectId"
-    Then Enter GCS property "serviceAccountFilePath" as macro argument "gcsServiceAccount"
+    Then Enter GCS property "serviceAccountType" as macro argument "serviceAccountType"
+    Then Enter GCS property "serviceAccountFilePath" as macro argument "serviceAccount"
+    Then Enter GCS property "serviceAccountJSON" as macro argument "serviceAccount"
     Then Enter GCS property "path" as macro argument "gcsSourcePath"
     Then Enter GCS source property "skipHeader" as macro argument "gcsSkipHeader"
     Then Enter GCS property "format" as macro argument "gcsFormat"
@@ -20,7 +22,9 @@ Feature: BigQuery sink - Verification of GCS to BigQuery successful data transfe
     Then Enter BigQuery property reference name
     Then Enter BigQuery property "projectId" as macro argument "bqProjectId"
     Then Enter BigQuery property "datasetProjectId" as macro argument "bqDatasetProjectId"
-    Then Enter BigQuery property "serviceAccountFilePath" as macro argument "bqServiceAccount"
+    Then Enter GCS property "serviceAccountType" as macro argument "serviceAccountType"
+    Then Enter GCS property "serviceAccountFilePath" as macro argument "serviceAccount"
+    Then Enter GCS property "serviceAccountJSON" as macro argument "serviceAccount"
     Then Enter BigQuery property "dataset" as macro argument "bqDataset"
     Then Enter BigQuery property "table" as macro argument "bqTargetTable"
     Then Enter BigQuery cmek property "encryptionKeyName" as macro argument "cmekBQ" if cmek is enabled
@@ -32,14 +36,14 @@ Feature: BigQuery sink - Verification of GCS to BigQuery successful data transfe
     Then Save the pipeline
     Then Preview and run the pipeline
     Then Enter runtime argument value "projectId" for key "gcsProjectId"
-    Then Enter runtime argument value "serviceAccountAutoDetect" for key "gcsServiceAccount"
+    Then Enter runtime argument value "serviceAccountType" for key "serviceAccountType"
+    Then Enter runtime argument value "serviceAccount" for key "serviceAccount"
     Then Enter runtime argument value "gcsCsvFile" for GCS source property path key "gcsSourcePath"
     Then Enter runtime argument value "gcsSkipHeaderTrue" for key "gcsSkipHeader"
     Then Enter runtime argument value "csvFormat" for key "gcsFormat"
     Then Enter runtime argument value "gcsCSVFileOutputSchema" for key "gcsOutputSchema"
     Then Enter runtime argument value "projectId" for key "bqProjectId"
     Then Enter runtime argument value "projectId" for key "bqDatasetProjectId"
-    Then Enter runtime argument value "serviceAccountAutoDetect" for key "bqServiceAccount"
     Then Enter runtime argument value "dataset" for key "bqDataset"
     Then Enter runtime argument value for BigQuery sink table name key "bqTargetTable"
     Then Enter runtime argument value "cmekBQ" for BigQuery cmek property key "cmekBQ" if BQ cmek is enabled
@@ -51,14 +55,14 @@ Feature: BigQuery sink - Verification of GCS to BigQuery successful data transfe
     Then Deploy the pipeline
     Then Run the Pipeline in Runtime
     Then Enter runtime argument value "projectId" for key "gcsProjectId"
-    Then Enter runtime argument value "serviceAccountAutoDetect" for key "gcsServiceAccount"
+    Then Enter runtime argument value "serviceAccountType" for key "serviceAccountType"
+    Then Enter runtime argument value "serviceAccount" for key "serviceAccount"
     Then Enter runtime argument value "gcsCsvFile" for GCS source property path key "gcsSourcePath"
     Then Enter runtime argument value "gcsSkipHeaderTrue" for key "gcsSkipHeader"
     Then Enter runtime argument value "csvFormat" for key "gcsFormat"
     Then Enter runtime argument value "gcsCSVFileOutputSchema" for key "gcsOutputSchema"
     Then Enter runtime argument value "projectId" for key "bqProjectId"
     Then Enter runtime argument value "projectId" for key "bqDatasetProjectId"
-    Then Enter runtime argument value "serviceAccountAutoDetect" for key "bqServiceAccount"
     Then Enter runtime argument value "dataset" for key "bqDataset"
     Then Enter runtime argument value for BigQuery sink table name key "bqTargetTable"
     Then Enter runtime argument value "cmekBQ" for BigQuery cmek property key "cmekBQ" if BQ cmek is enabled
