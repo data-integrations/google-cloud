@@ -9,6 +9,7 @@ Feature: GCS source - Verification of GCS to BQ successful data transfer
     Then Connect source as "GCS" and sink as "BigQuery" to establish connection
     Then Open GCS source properties
     Then Enter GCS property projectId and reference name
+    Then Override Service account details if set in environment variables
     Then Enter GCS source property path "gcsCsvFile"
     Then Toggle GCS source property skip header to true
     Then Select GCS property format "csv"
@@ -16,6 +17,7 @@ Feature: GCS source - Verification of GCS to BQ successful data transfer
     Then Validate "GCS" plugin properties
     Then Close the GCS properties
     Then Open BigQuery sink properties
+    Then Override Service account details if set in environment variables
     Then Enter the BigQuery sink mandatory properties
     Then Validate "BigQuery" plugin properties
     Then Close the BigQuery properties
@@ -40,6 +42,7 @@ Feature: GCS source - Verification of GCS to BQ successful data transfer
     Then Connect source as "GCS" and sink as "BigQuery" to establish connection
     Then Open GCS source properties
     Then Enter GCS property projectId and reference name
+    Then Override Service account details if set in environment variables
     Then Enter GCS source property path "gcsOutputFieldTestFile"
     Then Select GCS property format "csv"
     Then Enter GCS source property path field "gcsPathField"
@@ -48,6 +51,7 @@ Feature: GCS source - Verification of GCS to BQ successful data transfer
     Then Validate "GCS" plugin properties
     Then Close the GCS properties
     Then Open BigQuery sink properties
+    Then Override Service account details if set in environment variables
     Then Enter the BigQuery sink mandatory properties
     Then Validate "BigQuery" plugin properties
     Then Close the BigQuery properties
@@ -67,6 +71,7 @@ Feature: GCS source - Verification of GCS to BQ successful data transfer
     Then Connect source as "GCS" and sink as "BigQuery" to establish connection
     Then Open GCS source properties
     Then Enter GCS property projectId and reference name
+    Then Override Service account details if set in environment variables
     Then Enter GCS source property path "gcsOutputFieldTestFile"
     Then Select GCS property format "csv"
     Then Enter GCS source property override field "gcsOverrideField" and data type "gcsOverrideDataType"
@@ -75,6 +80,7 @@ Feature: GCS source - Verification of GCS to BQ successful data transfer
     Then Validate "GCS" plugin properties
     Then Close the GCS properties
     Then Open BigQuery sink properties
+    Then Override Service account details if set in environment variables
     Then Enter the BigQuery sink mandatory properties
     Then Validate "BigQuery" plugin properties
     Then Close the BigQuery properties
@@ -94,6 +100,7 @@ Feature: GCS source - Verification of GCS to BQ successful data transfer
     Then Connect source as "GCS" and sink as "BigQuery" to establish connection
     Then Open GCS source properties
     Then Enter GCS property projectId and reference name
+    Then Override Service account details if set in environment variables
     Then Enter GCS source property path "gcsDelimitedFile"
     Then Select GCS property format "delimited"
     Then Enter GCS property delimiter "gcsDelimiter"
@@ -102,6 +109,7 @@ Feature: GCS source - Verification of GCS to BQ successful data transfer
     Then Validate "GCS" plugin properties
     Then Close the GCS properties
     Then Open BigQuery sink properties
+    Then Override Service account details if set in environment variables
     Then Enter the BigQuery sink mandatory properties
     Then Validate "BigQuery" plugin properties
     Then Close the BigQuery properties
@@ -120,6 +128,7 @@ Feature: GCS source - Verification of GCS to BQ successful data transfer
     Then Connect source as "GCS" and sink as "BigQuery" to establish connection
     Then Open GCS source properties
     Then Enter GCS property projectId and reference name
+    Then Override Service account details if set in environment variables
     Then Enter GCS source property path "gcsBlobFile"
     Then Select GCS property format "blob"
     Then Enter GCS source property minimum split size "gcsMinSplitSize" and maximum split size "gcsMaxSplitSize"
@@ -128,6 +137,7 @@ Feature: GCS source - Verification of GCS to BQ successful data transfer
     Then Validate "GCS" plugin properties
     Then Close the GCS properties
     Then Open BigQuery sink properties
+    Then Override Service account details if set in environment variables
     Then Enter the BigQuery sink mandatory properties
     Then Validate "BigQuery" plugin properties
     Then Close the BigQuery properties
@@ -146,6 +156,7 @@ Feature: GCS source - Verification of GCS to BQ successful data transfer
     Then Connect source as "GCS" and sink as "BigQuery" to establish connection
     Then Open GCS source properties
     Then Enter GCS property projectId and reference name
+    Then Override Service account details if set in environment variables
     Then Enter GCS source property path "gcsCsvFile"
     Then Select GCS property format "csv"
     Then Enter GCS source property regex path filter "gcsRegexPathFilter"
@@ -154,6 +165,7 @@ Feature: GCS source - Verification of GCS to BQ successful data transfer
     Then Validate "GCS" plugin properties
     Then Close the GCS properties
     Then Open BigQuery sink properties
+    Then Override Service account details if set in environment variables
     Then Enter the BigQuery sink mandatory properties
     Then Validate "BigQuery" plugin properties
     Then Close the BigQuery properties

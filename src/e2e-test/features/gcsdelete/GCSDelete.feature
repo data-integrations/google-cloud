@@ -9,6 +9,7 @@ Feature: GCS Delete - Verification of GCS Delete plugin
     When Navigate to the properties page of plugin: "GCS Delete"
     Then Enter the GCS Delete property projectId "projectId"
     Then Enter the GCS Delete property objects to delete as bucketName
+    Then Override Service account details if set in environment variables
     Then Validate "GCS Delete" plugin properties
     Then Close the GCS Delete properties
     Then Save and Deploy Pipeline
@@ -26,6 +27,7 @@ Feature: GCS Delete - Verification of GCS Delete plugin
     When Navigate to the properties page of plugin: "GCS Delete"
     Then Enter the GCS Delete property projectId "projectId"
     Then Enter the GCS Delete property objects to delete as path "gcsCsvFile"
+    Then Override Service account details if set in environment variables
     Then Validate "GCS Delete" plugin properties
     Then Close the GCS Delete properties
     Then Save and Deploy Pipeline
@@ -43,6 +45,7 @@ Feature: GCS Delete - Verification of GCS Delete plugin
     When Navigate to the properties page of plugin: "GCS Delete"
     Then Enter the GCS Delete property projectId "projectId"
     Then Enter the GCS Delete property objects to delete as list of objects "gcsDeleteObjectsList"
+    Then Override Service account details if set in environment variables
     Then Validate "GCS Delete" plugin properties
     Then Close the GCS Delete properties
     Then Save and Deploy Pipeline
@@ -65,4 +68,5 @@ Feature: GCS Delete - Verification of GCS Delete plugin
     When Select plugin: "GCS Delete" from the plugins list as: "Conditions and Actions"
     When Navigate to the properties page of plugin: "GCS Delete"
     Then Enter the GCS Delete property objects to delete as path "gcsInvalidBucketName"
+    Then Override Service account details if set in environment variables
     Then Verify invalid bucket name error message is displayed for GCS Delete objects to delete path "gcsInvalidBucketName"

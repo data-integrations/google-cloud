@@ -10,6 +10,7 @@ Feature: Spanner Source - Verification of Spanner to GCS successful data transfe
     Then Open Spanner source properties
     Then Enter Spanner property reference name
     Then Enter Spanner property projectId "projectId"
+    Then Override Service account details if set in environment variables
     Then Enter Spanner property InstanceId
     Then Enter Spanner source property DatabaseName
     Then Enter Spanner source property TableName
@@ -17,6 +18,7 @@ Feature: Spanner Source - Verification of Spanner to GCS successful data transfe
     Then Validate "Spanner" plugin properties
     Then Close the Spanner properties
     Then Open GCS sink properties
+    Then Override Service account details if set in environment variables
     Then Enter the GCS sink mandatory properties
     Then Validate "GCS" plugin properties
     Then Close the GCS properties
@@ -42,6 +44,7 @@ Feature: Spanner Source - Verification of Spanner to GCS successful data transfe
     Then Open Spanner source properties
     Then Enter Spanner property reference name
     Then Enter Spanner property projectId "projectId"
+    Then Override Service account details if set in environment variables
     Then Enter Spanner property InstanceId
     Then Enter Spanner source property DatabaseName
     Then Enter Spanner source property TableName
@@ -50,6 +53,7 @@ Feature: Spanner Source - Verification of Spanner to GCS successful data transfe
     Then Validate "Spanner" plugin properties
     Then Close the Spanner properties
     Then Open GCS sink properties
+    Then Override Service account details if set in environment variables
     Then Enter the GCS sink mandatory properties
     Then Validate "GCS" plugin properties
     Then Close the GCS properties

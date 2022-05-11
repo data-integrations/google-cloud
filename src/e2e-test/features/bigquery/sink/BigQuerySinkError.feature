@@ -21,6 +21,7 @@ Feature: BigQuery sink - Validate BigQuery sink plugin error scenarios
     Then Enter BigQuery property reference name
     Then Enter BigQuery property projectId "projectId"
     Then Enter BigQuery property datasetProjectId "projectId"
+    Then Override Service account details if set in environment variables
     Then Enter BigQuery property dataset "dataset"
     Then Enter BigQuery sink property table name
     Then Enter BigQuery sink property GCS upload request chunk size "bqInvalidChunkSize"
@@ -32,6 +33,7 @@ Feature: BigQuery sink - Validate BigQuery sink plugin error scenarios
     When Sink is BigQuery
     Then Open BigQuery sink properties
     Then Enter BigQuery property reference name
+    Then Override Service account details if set in environment variables
     Then Enter BigQuery property dataset "bqInvalidSinkDataset"
     Then Enter BigQuery sink property table name
     Then Verify the BigQuery validation error message for invalid property "dataset"
@@ -42,6 +44,7 @@ Feature: BigQuery sink - Validate BigQuery sink plugin error scenarios
     When Sink is BigQuery
     Then Open BigQuery sink properties
     Then Enter BigQuery property reference name
+    Then Override Service account details if set in environment variables
     Then Enter BigQuery property dataset "dataset"
     Then Enter BigQuery property table "bqInvalidSinkTable"
     Then Verify the BigQuery validation error message for invalid property "table"
@@ -54,6 +57,7 @@ Feature: BigQuery sink - Validate BigQuery sink plugin error scenarios
     Then Enter BigQuery property reference name
     Then Enter BigQuery property projectId "projectId"
     Then Enter BigQuery property datasetProjectId "projectId"
+    Then Override Service account details if set in environment variables
     Then Enter BigQuery property dataset "dataset"
     Then Enter BigQuery sink property table name
     Then Enter BigQuery property temporary bucket name "bqInvalidTemporaryBucket"

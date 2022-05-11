@@ -9,14 +9,17 @@ Feature: GCS Delete - Verification of GCS Delete plugin with macro arguments
     When Navigate to the properties page of plugin: "GCS Delete"
     Then Enter the GCS Delete property "projectId" as macro argument "gcsDeleteProjectId"
     Then Enter the GCS Delete property "objectsToDelete" as macro argument "gcsDeleteObjectsToDelete"
-    Then Enter the GCS Delete property "serviceAccountFilePath" as macro argument "gcsServiceAccount"
+    Then Enter the GCS Delete property "serviceAccountType" as macro argument "serviceAccountType"
+    Then Enter the GCS Delete property "serviceAccountFilePath" as macro argument "serviceAccount"
+    Then Enter the GCS Delete property "serviceAccountJSON" as macro argument "serviceAccount"
     Then Validate "GCS Delete" plugin properties
     Then Close the GCS Delete properties
     Then Save and Deploy Pipeline
     Then Run the Pipeline in Runtime
     Then Enter runtime argument value "projectId" for key "gcsDeleteProjectId"
     Then Enter runtime argument value source bucket name for key "gcsDeleteObjectsToDelete"
-    Then Enter runtime argument value "serviceAccountAutoDetect" for key "gcsServiceAccount"
+    Then Enter runtime argument value "serviceAccountType" for key "serviceAccountType"
+    Then Enter runtime argument value "serviceAccount" for key "serviceAccount"
     Then Run the Pipeline in Runtime with runtime arguments
     Then Wait till pipeline is in running state
     Then Open and capture logs
@@ -31,14 +34,17 @@ Feature: GCS Delete - Verification of GCS Delete plugin with macro arguments
     When Navigate to the properties page of plugin: "GCS Delete"
     Then Enter the GCS Delete property "projectId" as macro argument "gcsDeleteProjectId"
     Then Enter the GCS Delete property "objectsToDelete" as macro argument "gcsDeleteObjectsToDelete"
-    Then Enter the GCS Delete property "serviceAccountFilePath" as macro argument "gcsServiceAccount"
+    Then Enter the GCS Delete property "serviceAccountType" as macro argument "serviceAccountType"
+    Then Enter the GCS Delete property "serviceAccountFilePath" as macro argument "serviceAccount"
+    Then Enter the GCS Delete property "serviceAccountJSON" as macro argument "serviceAccount"
     Then Validate "GCS Delete" plugin properties
     Then Close the GCS Delete properties
     Then Save and Deploy Pipeline
     Then Run the Pipeline in Runtime
     Then Enter runtime argument value "projectId" for key "gcsDeleteProjectId"
     Then Enter runtime argument value "gcsDeleteObjectsList" as comma separated objects for key "gcsDeleteObjectsToDelete"
-    Then Enter runtime argument value "serviceAccountAutoDetect" for key "gcsServiceAccount"
+    Then Enter runtime argument value "serviceAccountType" for key "serviceAccountType"
+    Then Enter runtime argument value "serviceAccount" for key "serviceAccount"
     Then Run the Pipeline in Runtime with runtime arguments
     Then Wait till pipeline is in running state
     Then Open and capture logs

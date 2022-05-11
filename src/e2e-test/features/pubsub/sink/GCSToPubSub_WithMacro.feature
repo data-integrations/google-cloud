@@ -9,7 +9,9 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer wi
     Then Open GCS source properties
     Then Enter GCS property reference name
     Then Enter GCS property "projectId" as macro argument "gcsProjectId"
-    Then Enter GCS property "serviceAccountFilePath" as macro argument "gcsServiceAccount"
+    Then Enter GCS property "serviceAccountType" as macro argument "serviceAccountType"
+    Then Enter GCS property "serviceAccountFilePath" as macro argument "serviceAccount"
+    Then Enter GCS property "serviceAccountJSON" as macro argument "serviceAccount"
     Then Enter GCS property "path" as macro argument "gcsSourcePath"
     Then Enter GCS source property "skipHeader" as macro argument "gcsSkipHeader"
     Then Enter GCS property "format" as macro argument "gcsFormat"
@@ -19,7 +21,9 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer wi
     Then Open the PubSub sink properties
     Then Enter PubSub property reference name
     Then Enter PubSub property "projectId" as macro argument "PubSubProjectId"
-    Then Enter PubSub property "serviceAccountFilePath" as macro argument "PubSubServiceAccount"
+    Then Enter PubSub property "serviceAccountType" as macro argument "serviceAccountType"
+    Then Enter PubSub property "serviceAccountFilePath" as macro argument "serviceAccount"
+    Then Enter PubSub property "serviceAccountJSON" as macro argument "serviceAccount"
     Then Enter PubSub property "topic" as macro argument "PubSubSinkTopic"
     Then Enter PubSub property "format" as macro argument "PubSubFormat"
     Then Enter PubSub sink cmek property "encryptionKeyName" as macro argument "cmekPubSub" if cmek is enabled
@@ -29,12 +33,12 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer wi
     Then Save the pipeline
     Then Preview and run the pipeline
     Then Enter runtime argument value "projectId" for key "PubSubProjectId"
-    Then Enter runtime argument value "serviceAccountAutoDetect" for key "PubSubServiceAccount"
+    Then Enter runtime argument value "serviceAccountType" for key "serviceAccountType"
+    Then Enter runtime argument value "serviceAccount" for key "serviceAccount"
     Then Enter runtime argument value for PubSub sink property topic key "PubSubSinkTopic"
     Then Enter runtime argument value "csvFormat" for key "PubSubFormat"
     Then Enter runtime argument value "cmekPubSub" for PubSub Sink cmek property key "cmekPubSub" if PubSub Sink cmek is enabled
     Then Enter runtime argument value "projectId" for key "gcsProjectId"
-    Then Enter runtime argument value "serviceAccountAutoDetect" for key "gcsServiceAccount"
     Then Enter runtime argument value "gcsCsvFile" for GCS source property path key "gcsSourcePath"
     Then Enter runtime argument value "gcsSkipHeaderTrue" for key "gcsSkipHeader"
     Then Enter runtime argument value "csvFormat" for key "gcsFormat"
@@ -48,12 +52,12 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer wi
     Then Deploy the pipeline
     Then Run the Pipeline in Runtime
     Then Enter runtime argument value "projectId" for key "PubSubProjectId"
-    Then Enter runtime argument value "serviceAccountAutoDetect" for key "PubSubServiceAccount"
+    Then Enter runtime argument value "serviceAccountType" for key "serviceAccountType"
+    Then Enter runtime argument value "serviceAccount" for key "serviceAccount"
     Then Enter runtime argument value for PubSub sink property topic key "PubSubSinkTopic"
     Then Enter runtime argument value "csvFormat" for key "PubSubFormat"
     Then Enter runtime argument value "cmekPubSub" for PubSub Sink cmek property key "cmekPubSub" if PubSub Sink cmek is enabled
     Then Enter runtime argument value "projectId" for key "gcsProjectId"
-    Then Enter runtime argument value "serviceAccountAutoDetect" for key "gcsServiceAccount"
     Then Enter runtime argument value "gcsCsvFile" for GCS source property path key "gcsSourcePath"
     Then Enter runtime argument value "gcsSkipHeaderTrue" for key "gcsSkipHeader"
     Then Enter runtime argument value "csvFormat" for key "gcsFormat"
@@ -71,7 +75,9 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer wi
     Then Open GCS source properties
     Then Enter GCS property reference name
     Then Enter GCS property "projectId" as macro argument "gcsProjectId"
-    Then Enter GCS property "serviceAccountFilePath" as macro argument "gcsServiceAccount"
+    Then Enter GCS property "serviceAccountType" as macro argument "serviceAccountType"
+    Then Enter GCS property "serviceAccountFilePath" as macro argument "serviceAccount"
+    Then Enter GCS property "serviceAccountJSON" as macro argument "serviceAccount"
     Then Enter GCS property "path" as macro argument "gcsSourcePath"
     Then Enter GCS source property "skipHeader" as macro argument "gcsSkipHeader"
     Then Enter GCS property "format" as macro argument "gcsFormat"
@@ -81,7 +87,9 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer wi
     Then Open the PubSub sink properties
     Then Enter PubSub property reference name
     Then Enter PubSub property "projectId" as macro argument "PubSubProjectId"
-    Then Enter PubSub property "serviceAccountFilePath" as macro argument "PubSubServiceAccount"
+    Then Enter PubSub property "serviceAccountType" as macro argument "serviceAccountType"
+    Then Enter PubSub property "serviceAccountFilePath" as macro argument "serviceAccount"
+    Then Enter PubSub property "serviceAccountJSON" as macro argument "serviceAccount"
     Then Enter PubSub property "topic" as macro argument "PubSubSinkTopic"
     Then Enter PubSub property "format" as macro argument "PubSubFormat"
     Then Enter PubSub property "maximumBatchCount" as macro argument "maximumBatchCount"
@@ -95,7 +103,8 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer wi
     Then Save the pipeline
     Then Preview and run the pipeline
     Then Enter runtime argument value "projectId" for key "PubSubProjectId"
-    Then Enter runtime argument value "serviceAccountAutoDetect" for key "PubSubServiceAccount"
+    Then Enter runtime argument value "serviceAccountType" for key "serviceAccountType"
+    Then Enter runtime argument value "serviceAccount" for key "serviceAccount"
     Then Enter runtime argument value for PubSub sink property topic key "PubSubSinkTopic"
     Then Enter runtime argument value "csvFormat" for key "PubSubFormat"
     Then Enter runtime argument value "pubSubMaximumBatchCount" for key "maximumBatchCount"
@@ -103,7 +112,6 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer wi
     Then Enter runtime argument value "pubSubPublishDelayThreshold" for key "publishDelayThreshold"
     Then Enter runtime argument value "pubSubRetryTimeOut" for key "retryTimeout"
     Then Enter runtime argument value "pubSubErrorThreshold" for key "errorThreshold"
-    Then Enter runtime argument value "serviceAccountAutoDetect" for key "gcsServiceAccount"
     Then Enter runtime argument value "projectId" for key "gcsProjectId"
     Then Enter runtime argument value "gcsCsvFile" for GCS source property path key "gcsSourcePath"
     Then Enter runtime argument value "gcsSkipHeaderTrue" for key "gcsSkipHeader"
@@ -118,7 +126,8 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer wi
     Then Deploy the pipeline
     Then Run the Pipeline in Runtime
     Then Enter runtime argument value "projectId" for key "PubSubProjectId"
-    Then Enter runtime argument value "serviceAccountAutoDetect" for key "PubSubServiceAccount"
+    Then Enter runtime argument value "serviceAccountType" for key "serviceAccountType"
+    Then Enter runtime argument value "serviceAccount" for key "serviceAccount"
     Then Enter runtime argument value for PubSub sink property topic key "PubSubSinkTopic"
     Then Enter runtime argument value "csvFormat" for key "PubSubFormat"
     Then Enter runtime argument value "pubSubMaximumBatchCount" for key "maximumBatchCount"
@@ -126,7 +135,6 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer wi
     Then Enter runtime argument value "pubSubPublishDelayThreshold" for key "publishDelayThreshold"
     Then Enter runtime argument value "pubSubRetryTimeOut" for key "retryTimeout"
     Then Enter runtime argument value "pubSubErrorThreshold" for key "errorThreshold"
-    Then Enter runtime argument value "serviceAccountAutoDetect" for key "gcsServiceAccount"
     Then Enter runtime argument value "projectId" for key "gcsProjectId"
     Then Enter runtime argument value "gcsCsvFile" for GCS source property path key "gcsSourcePath"
     Then Enter runtime argument value "gcsSkipHeaderTrue" for key "gcsSkipHeader"

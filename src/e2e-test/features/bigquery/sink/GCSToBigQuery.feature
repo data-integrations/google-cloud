@@ -7,6 +7,7 @@ Feature: BigQuery sink - Verification of GCS to BigQuery successful data transfe
     When Source is GCS
     When Sink is BigQuery
     Then Open GCS source properties
+    Then Override Service account details if set in environment variables
     Then Enter the GCS source mandatory properties
     Then Validate "GCS" plugin properties
     Then Close the GCS properties
@@ -14,6 +15,7 @@ Feature: BigQuery sink - Verification of GCS to BigQuery successful data transfe
     Then Enter BigQuery property reference name
     Then Enter BigQuery property projectId "projectId"
     Then Enter BigQuery property datasetProjectId "projectId"
+    Then Override Service account details if set in environment variables
     Then Enter BigQuery property dataset "dataset"
     Then Enter BigQuery sink property table name
     Then Enter BiqQuery property encryption key name "cmekBQ" if cmek is enabled
@@ -41,6 +43,7 @@ Feature: BigQuery sink - Verification of GCS to BigQuery successful data transfe
     When Sink is BigQuery
     Then Open GCS source properties
     Then Enter GCS property projectId and reference name
+    Then Override Service account details if set in environment variables
     Then Enter GCS source property path "gcsCsvRangeFile"
     Then Toggle GCS source property skip header to true
     Then Select GCS property format "csv"
@@ -51,6 +54,7 @@ Feature: BigQuery sink - Verification of GCS to BigQuery successful data transfe
     Then Enter BigQuery property reference name
     Then Enter BigQuery property projectId "projectId"
     Then Enter BigQuery property datasetProjectId "projectId"
+    Then Override Service account details if set in environment variables
     Then Enter BigQuery property dataset "dataset"
     Then Enter BigQuery sink property table name
     Then Toggle BigQuery sink property truncateTable to true
@@ -82,6 +86,7 @@ Feature: BigQuery sink - Verification of GCS to BigQuery successful data transfe
     When Sink is BigQuery
     Then Open GCS source properties
     Then Enter GCS property projectId and reference name
+    Then Override Service account details if set in environment variables
     Then Enter GCS source property path "gcsCsvRangeFile"
     Then Toggle GCS source property skip header to true
     Then Select GCS property format "csv"
@@ -92,6 +97,7 @@ Feature: BigQuery sink - Verification of GCS to BigQuery successful data transfe
     Then Enter BigQuery property reference name
     Then Enter BigQuery property projectId "projectId"
     Then Enter BigQuery property datasetProjectId "projectId"
+    Then Override Service account details if set in environment variables
     Then Enter BigQuery property dataset "dataset"
     Then Enter BigQuery sink property table name
     Then Toggle BigQuery sink property truncateTable to true
@@ -118,6 +124,7 @@ Feature: BigQuery sink - Verification of GCS to BigQuery successful data transfe
     When Sink is BigQuery
     Then Open GCS source properties
     Then Enter GCS property projectId and reference name
+    Then Override Service account details if set in environment variables
     Then Enter GCS source property path "gcsCsvRangeFile"
     Then Toggle GCS source property skip header to true
     Then Select GCS property format "csv"
@@ -128,6 +135,7 @@ Feature: BigQuery sink - Verification of GCS to BigQuery successful data transfe
     Then Enter BigQuery property reference name
     Then Enter BigQuery property projectId "projectId"
     Then Enter BigQuery property datasetProjectId "projectId"
+    Then Override Service account details if set in environment variables
     Then Enter BigQuery property dataset "dataset"
     Then Enter BigQuery sink property table name
     Then Enter BigQuery sink property GCS upload request chunk size "bqChunkSize"

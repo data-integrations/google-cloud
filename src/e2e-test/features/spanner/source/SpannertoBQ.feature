@@ -10,6 +10,7 @@ Feature: Spanner Source - Verification of Spanner to BigQuery successful data tr
     Then Open Spanner source properties
     Then Enter Spanner property reference name
     Then Enter Spanner property projectId "projectId"
+    Then Override Service account details if set in environment variables
     Then Enter Spanner property InstanceId
     Then Enter Spanner source property DatabaseName
     Then Enter Spanner source property TableName
@@ -17,6 +18,7 @@ Feature: Spanner Source - Verification of Spanner to BigQuery successful data tr
     Then Validate "Spanner" plugin properties
     Then Close the Spanner properties
     Then Open BigQuery sink properties
+    Then Override Service account details if set in environment variables
     Then Enter the BigQuery sink mandatory properties
     Then Validate "BigQuery" plugin properties
     Then Close the BigQuery properties
@@ -42,6 +44,7 @@ Feature: Spanner Source - Verification of Spanner to BigQuery successful data tr
     Then Open Spanner source properties
     Then Enter Spanner property reference name
     Then Enter Spanner property projectId "projectId"
+    Then Override Service account details if set in environment variables
     Then Enter Spanner property InstanceId
     Then Enter Spanner source property DatabaseName
     Then Enter Spanner source property TableName
@@ -50,6 +53,7 @@ Feature: Spanner Source - Verification of Spanner to BigQuery successful data tr
     Then Validate "Spanner" plugin properties
     Then Close the Spanner properties
     Then Open BigQuery sink properties
+    Then Override Service account details if set in environment variables
     Then Enter the BigQuery sink mandatory properties
     Then Validate "BigQuery" plugin properties
     Then Close the BigQuery properties
