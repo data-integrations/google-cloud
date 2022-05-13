@@ -346,11 +346,6 @@ public class BigQuerySQLEngine
   public SQLWriteResult write(SQLWriteRequest writeRequest) {
     String datasetName = writeRequest.getDatasetName();
 
-    // Check if direct sink write is enabled. If not, skip.
-    if (!sqlEngineConfig.shouldUseDirectSinkWrite()) {
-      return SQLWriteResult.unsupported(datasetName);
-    }
-
     // Check if this output matches the expected engine. If it doesn't, skip execution for this write operation.;
     if (!BigQuerySQLEngine.class.getName().equals(writeRequest.getOutput().getSqlEngineClassName())) {
       LOG.debug("Got output for another SQL engine {}, skipping", writeRequest.getOutput().getSqlEngineClassName());
