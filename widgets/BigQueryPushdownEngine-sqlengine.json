@@ -28,6 +28,7 @@
     },
     {
       "label": "Advanced",
+      "hideByDefault": true,
       "properties": [
         {
           "widget-type": "toggle",
@@ -171,20 +172,20 @@
         },
         {
           "widget-type": "csv",
-          "label": "Stages to force execution in the SQL Engine",
+          "label": "Stages to force pushdown",
           "name": "includedStages",
           "widget-attributes": {
             "delimiter": "\u0001",
-            "placeholder": "Names of all stages to force push to execute in the BigQuery ELT engine. Each stage name must be on a separate line"
+            "placeholder": "Names of all stages to force push to execute in BigQuery."
           }
         },
         {
           "widget-type": "csv",
-          "label": "Stages to skip from executing in the SQL engine",
+          "label": "Stages to skip pushdown",
           "name": "excludedStages",
           "widget-attributes": {
             "delimiter": "\u0001",
-            "placeholder": "Names of all stages to skip from executing in the BigQuery ELT engine. Each stage name must be on a separate line"
+            "placeholder": "Names of all stages to skip from executing in BigQuery."
           }
         },
         {
