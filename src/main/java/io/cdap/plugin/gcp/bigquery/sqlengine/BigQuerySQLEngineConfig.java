@@ -50,7 +50,6 @@ public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
     public static final String NAME_INCLUDED_STAGES = "includedStages";
     public static final String NAME_EXCLUDED_STAGES = "excludedStages";
     public static final String NAME_USE_STORAGE_READ_API = "useStorageReadAPI";
-    public static final String NAME_DIRECT_SINK_WRITE = "useDirectSinkWrite";
 
     // Job priority options
     public static final String PRIORITY_BATCH = "batch";
@@ -96,15 +95,6 @@ public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
       "Pushdown execution. The usage of this API incurrs additional costs. " +
       "This requires Scala version 2.12 to be installed in the execution environment.")
     private Boolean useStorageReadAPI;
-
-    @Name(NAME_DIRECT_SINK_WRITE)
-    @Macro
-    @Nullable
-    @Description("If enabled, the SQL engine will try to write output directly to BigQuery sinks using a BigQuery " +
-      "job. This requires the service account used by the BigQuery ELT Transformation Pushdown to have permissions " +
-      "in both datasets, and both datasets must be located in the same location. If this operation does not " +
-      "succeed, the standard sink workflow will continue to execute.")
-    private Boolean useDirectSinkWrite;
 
     @Name(NAME_INCLUDED_STAGES)
     @Macro
@@ -163,10 +153,6 @@ public class BigQuerySQLEngineConfig extends BigQueryBaseConfig {
 
     public Boolean shouldUseStorageReadAPI() {
         return useStorageReadAPI != null ? useStorageReadAPI : false;
-    }
-
-    public Boolean shouldUseDirectSinkWrite() {
-        return useDirectSinkWrite != null ? useDirectSinkWrite : false;
     }
 
     public QueryJobConfiguration.Priority getJobPriority() {

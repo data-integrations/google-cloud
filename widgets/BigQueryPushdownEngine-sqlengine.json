@@ -202,22 +202,6 @@
             },
             "default": "false"
           }
-        },
-        {
-          "widget-type": "toggle",
-          "label": "Attempt direct copy to BigQuery sinks",
-          "name": "useDirectSinkWrite",
-          "widget-attributes": {
-            "on": {
-              "value": "true",
-              "label": "YES"
-            },
-            "off": {
-              "value": "false",
-              "label": "NO"
-            },
-            "default": "false"
-          }
         }
       ]
     }
