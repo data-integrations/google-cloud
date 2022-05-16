@@ -10,7 +10,9 @@ Feature: BigQuery source - Verification of BigQuery to GCS successful data trans
     Then Enter BigQuery property reference name
     Then Enter BigQuery property "projectId" as macro argument "bqProjectId"
     Then Enter BigQuery property "datasetProjectId" as macro argument "bqDatasetProjectId"
-    Then Enter BigQuery property "serviceAccountFilePath" as macro argument "bqServiceAccount"
+    Then Enter BigQuery property "serviceAccountType" as macro argument "serviceAccountType"
+    Then Enter BigQuery property "serviceAccountFilePath" as macro argument "serviceAccount"
+    Then Enter BigQuery property "serviceAccountJSON" as macro argument "serviceAccount"
     Then Enter BigQuery property "dataset" as macro argument "bqDataset"
     Then Enter BigQuery property "table" as macro argument "bqSourceTable"
     Then Validate "BigQuery" plugin properties
@@ -18,7 +20,9 @@ Feature: BigQuery source - Verification of BigQuery to GCS successful data trans
     Then Open GCS sink properties
     Then Enter GCS property reference name
     Then Enter GCS property "projectId" as macro argument "gcsProjectId"
-    Then Enter GCS property "serviceAccountFilePath" as macro argument "gcsServiceAccount"
+    Then Enter GCS property "serviceAccountType" as macro argument "serviceAccountType"
+    Then Enter GCS property "serviceAccountFilePath" as macro argument "serviceAccount"
+    Then Enter GCS property "serviceAccountJSON" as macro argument "serviceAccount"
     Then Enter GCS property "path" as macro argument "gcsSinkPath"
     Then Enter GCS sink property "pathSuffix" as macro argument "gcsPathSuffix"
     Then Enter GCS property "format" as macro argument "gcsFormat"
@@ -30,11 +34,11 @@ Feature: BigQuery source - Verification of BigQuery to GCS successful data trans
     Then Preview and run the pipeline
     Then Enter runtime argument value "projectId" for key "bqProjectId"
     Then Enter runtime argument value "projectId" for key "bqDatasetProjectId"
-    Then Enter runtime argument value "serviceAccountAutoDetect" for key "bqServiceAccount"
+    Then Enter runtime argument value "serviceAccountType" for key "serviceAccountType"
+    Then Enter runtime argument value "serviceAccount" for key "serviceAccount"
     Then Enter runtime argument value "dataset" for key "bqDataset"
     Then Enter runtime argument value for BigQuery source table name key "bqSourceTable"
     Then Enter runtime argument value "projectId" for key "gcsProjectId"
-    Then Enter runtime argument value "serviceAccountAutoDetect" for key "gcsServiceAccount"
     Then Enter runtime argument value for GCS sink property path key "gcsSinkPath"
     Then Enter runtime argument value "gcsPathDateSuffix" for key "gcsPathSuffix"
     Then Enter runtime argument value "csvFormat" for key "gcsFormat"
@@ -47,11 +51,11 @@ Feature: BigQuery source - Verification of BigQuery to GCS successful data trans
     Then Run the Pipeline in Runtime
     Then Enter runtime argument value "projectId" for key "bqProjectId"
     Then Enter runtime argument value "projectId" for key "bqDatasetProjectId"
-    Then Enter runtime argument value "serviceAccountAutoDetect" for key "bqServiceAccount"
+    Then Enter runtime argument value "serviceAccountType" for key "serviceAccountType"
+    Then Enter runtime argument value "serviceAccount" for key "serviceAccount"
     Then Enter runtime argument value "dataset" for key "bqDataset"
     Then Enter runtime argument value for BigQuery source table name key "bqSourceTable"
     Then Enter runtime argument value "projectId" for key "gcsProjectId"
-    Then Enter runtime argument value "serviceAccountAutoDetect" for key "gcsServiceAccount"
     Then Enter runtime argument value for GCS sink property path key "gcsSinkPath"
     Then Enter runtime argument value "gcsPathDateSuffix" for key "gcsPathSuffix"
     Then Enter runtime argument value "csvFormat" for key "gcsFormat"

@@ -8,11 +8,13 @@ Feature: PubSub-Sink - Verification of BigQuery to PubSub successful data transf
     When Sink is PubSub
     Then Connect source as "BigQuery" and sink as "GooglePublisher" to establish connection
     Then Open BigQuery source properties
+    Then Override Service account details if set in environment variables
     Then Enter the BigQuery source mandatory properties
     Then Validate "BigQuery" plugin properties
     Then Close the BigQuery properties
     Then Open the PubSub sink properties
     Then Enter PubSub property projectId "projectId"
+    Then Override Service account details if set in environment variables
     Then Enter PubSub property reference name
     Then Enter PubSub sink property topic name
     Then Select PubSub property format "csv"

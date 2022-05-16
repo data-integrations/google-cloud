@@ -6,6 +6,7 @@ Feature: GCS source - Validate GCS plugin output schema for different formats
     When Source is GCS
     Then Open GCS source properties
     Then Enter GCS property projectId and reference name
+    Then Override Service account details if set in environment variables
     Then Enter GCS source property path "<GcsPath>"
     Then Select GCS property format "<FileFormat>"
     Then Toggle GCS source property skip header to true
@@ -29,6 +30,7 @@ Feature: GCS source - Validate GCS plugin output schema for different formats
     When Source is GCS
     Then Open GCS source properties
     Then Enter GCS property projectId and reference name
+    Then Override Service account details if set in environment variables
     Then Enter GCS source property path "<GcsPath>"
     Then Select GCS property format "<FileFormat>"
     Then Enter GCS property delimiter "<Delimiter>"

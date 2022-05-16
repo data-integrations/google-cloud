@@ -18,6 +18,7 @@ Feature: GCS source - Verify GCS Source plugin error scenarios
     When Source is GCS
     Then Open GCS source properties
     Then Enter GCS property projectId and reference name
+    Then Override Service account details if set in environment variables
     Then Enter GCS property path "gcsInvalidBucketName"
     Then Select GCS property format "csv"
     Then Verify invalid bucket name error message is displayed for bucket "gcsInvalidBucketName"
@@ -28,6 +29,7 @@ Feature: GCS source - Verify GCS Source plugin error scenarios
     When Source is GCS
     Then Open GCS source properties
     Then Enter GCS property projectId and reference name
+    Then Override Service account details if set in environment variables
     Then Enter GCS source property path "gcsOutputFieldTestFile"
     Then Select GCS property format "csv"
     Then Enter GCS source property path field "gcsInvalidPathField"
@@ -39,6 +41,7 @@ Feature: GCS source - Verify GCS Source plugin error scenarios
     When Source is GCS
     Then Open GCS source properties
     Then Enter GCS property projectId and reference name
+    Then Override Service account details if set in environment variables
     Then Enter GCS source property path "gcsDelimitedFile"
     Then Select GCS property format "delimited"
     Then Enter GCS property delimiter "gcsIncorrectDelimiter"
@@ -51,6 +54,7 @@ Feature: GCS source - Verify GCS Source plugin error scenarios
     When Source is GCS
     Then Open GCS source properties
     Then Enter GCS property projectId and reference name
+    Then Override Service account details if set in environment variables
     Then Enter GCS source property path "gcsOutputFieldTestFile"
     Then Select GCS property format "csv"
     Then Enter GCS source property override field "gcsInvalidOverrideField" and data type "gcsOverrideDataType"
@@ -65,6 +69,7 @@ Feature: GCS source - Verify GCS Source plugin error scenarios
     Then Connect source as "GCS" and sink as "BigQuery" to establish connection
     Then Open GCS source properties
     Then Enter GCS property projectId and reference name
+    Then Override Service account details if set in environment variables
     Then Enter GCS source property path "gcsCsvFile"
     Then Select GCS property format "csv"
     Then Enter GCS source property regex path filter "gcsIncorrectRegexPath"
@@ -73,6 +78,7 @@ Feature: GCS source - Verify GCS Source plugin error scenarios
     Then Validate "GCS" plugin properties
     Then Close the GCS properties
     Then Open BigQuery sink properties
+    Then Override Service account details if set in environment variables
     Then Enter the BigQuery sink mandatory properties
     Then Validate "BigQuery" plugin properties
     Then Close the BigQuery properties

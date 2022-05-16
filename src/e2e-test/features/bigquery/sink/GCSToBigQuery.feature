@@ -8,12 +8,14 @@ Feature: BigQuery sink - Verification of GCS to BigQuery successful data transfe
     When Sink is BigQuery
     Then Open GCS source properties
     Then Enter the GCS source mandatory properties
+    Then Override Service account details if set in environment variables
     Then Validate "GCS" plugin properties
     Then Close the GCS properties
     Then Open BigQuery sink properties
     Then Enter BigQuery property reference name
     Then Enter BigQuery property projectId "projectId"
     Then Enter BigQuery property datasetProjectId "projectId"
+    Then Override Service account details if set in environment variables
     Then Enter BigQuery property dataset "dataset"
     Then Enter BigQuery sink property table name
     Then Enter BiqQuery property encryption key name "cmekBQ" if cmek is enabled
