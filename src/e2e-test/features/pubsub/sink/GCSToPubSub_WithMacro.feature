@@ -13,8 +13,8 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer wi
     Then Enter GCS property "serviceAccountFilePath" as macro argument "serviceAccount"
     Then Enter GCS property "serviceAccountJSON" as macro argument "serviceAccount"
     Then Enter GCS property "path" as macro argument "gcsSourcePath"
-    Then Enter GCS source property "skipHeader" as macro argument "gcsSkipHeader"
     Then Enter GCS property "format" as macro argument "gcsFormat"
+    Then Enter GCS source property "skipHeader" as macro argument "gcsSkipHeader"
     Then Enter GCS source property output schema "outputSchema" as macro argument "gcsOutputSchema"
     Then Validate "GCS" plugin properties
     Then Close the GCS properties
@@ -79,8 +79,8 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer wi
     Then Enter GCS property "serviceAccountFilePath" as macro argument "serviceAccount"
     Then Enter GCS property "serviceAccountJSON" as macro argument "serviceAccount"
     Then Enter GCS property "path" as macro argument "gcsSourcePath"
-    Then Enter GCS source property "skipHeader" as macro argument "gcsSkipHeader"
     Then Enter GCS property "format" as macro argument "gcsFormat"
+    Then Enter GCS source property "skipHeader" as macro argument "gcsSkipHeader"
     Then Enter GCS source property output schema "outputSchema" as macro argument "gcsOutputSchema"
     Then Validate "GCS" plugin properties
     Then Close the GCS properties

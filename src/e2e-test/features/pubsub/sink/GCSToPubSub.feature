@@ -97,8 +97,8 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer
     Then Enter GCS property projectId and reference name
     Then Override Service account details if set in environment variables
     Then Enter GCS source property path "gcsDataTypeTest1File"
-    Then Toggle GCS source property skip header to true
     Then Select GCS property format "csv"
+    Then Toggle GCS source property skip header to true
     Then Click on the Get Schema button
     Then Validate "GCS" plugin properties
     Then Close the GCS properties
@@ -134,8 +134,8 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer
     Then Enter GCS property projectId and reference name
     Then Override Service account details if set in environment variables
     Then Enter GCS source property path "gcsDataTypeTest2File"
-    Then Toggle GCS source property skip header to true
     Then Select GCS property format "csv"
+    Then Toggle GCS source property skip header to true
     Then Click on the Get Schema button
     Then Validate "GCS" plugin properties
     Then Close the GCS properties
@@ -170,8 +170,8 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer
     Then Enter GCS property projectId and reference name
     Then Override Service account details if set in environment variables
     Then Enter GCS source property path "<GcsPath>"
-    Then Toggle GCS source property skip header to true
     Then Select GCS property format "<SourceFormat>"
+    Then Toggle GCS source property skip header to true
     Then Click on the Get Schema button
     Then Validate "GCS" plugin properties
     Then Close the GCS properties
@@ -196,10 +196,6 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer
     Then Verify the pipeline status is "Succeeded"
     Then Validate OUT record count is equal to IN record count
     Then Open and capture logs
-    @GCS_TEXT_TEST
-    Examples:
-      | GcsPath     | SourceFormat | SinkFormat |
-      | gcsTextFile | text         | csv        |
     @GCS_CSV_TEST
     Examples:
       | GcsPath    | SourceFormat | SinkFormat |
@@ -230,7 +226,6 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer
     Then Enter GCS property projectId and reference name
     Then Override Service account details if set in environment variables
     Then Enter GCS source property path "<GcsPath>"
-    Then Toggle GCS source property skip header to true
     Then Select GCS property format "<SourceFormat>"
     Then Click on the Get Schema button
     Then Validate "GCS" plugin properties
