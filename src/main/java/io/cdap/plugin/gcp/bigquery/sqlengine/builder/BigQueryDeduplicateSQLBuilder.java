@@ -96,11 +96,15 @@ public class BigQueryDeduplicateSQLBuilder extends BigQueryBaseSQLBuilder {
    */
   @VisibleForTesting
   protected String getRowNumColumn(DeduplicateAggregationDefinition def) {
-    String partitionByFields = getPartitionByFields(def.getGroupByExpressions());
-    String orderByFields = getOrderByFields(def.getFilterExpressions());
+    StringBuilder window = new StringBuilder();
+    // Add partition by clause for windowing
+    window.append(PARTITION_BY).append(getPartitionByFields(def.getGroupByExpressions()));
+    // Add ordering clause if specified
+    if (def.getFilterExpressions() != null && def.getFilterExpressions().size() > 0) {
+      window.append(SPACE).append(ORDER_BY).append(getOrderByFields(def.getFilterExpressions()));
+    }
     return String.format(ROW_NUMBER_PARTITION_COLUMN,
-                         partitionByFields,
-                         orderByFields,
+                         window.toString(),
                          rowNumColumnAlias);
   }
 
