@@ -42,6 +42,7 @@ import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.action.Action;
 import io.cdap.cdap.etl.api.action.ActionContext;
+import io.cdap.plugin.common.ConfigUtil;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.CmekUtils;
@@ -86,14 +87,13 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
 
     CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(config.cmekKey, context.getArguments().asMap(), collector);
     collector.getOrThrowException();
-    if (cmekKeyName != null) {
-      builder.setDestinationEncryptionConfiguration(
-        EncryptionConfiguration.newBuilder().setKmsKeyName(cmekKeyName.toString()).build());
-    }
 
     // Save the results of the query to a permanent table.
-    if (config.getDataset() != null && config.getTable() != null) {
-      builder.setDestinationTable(TableId.of(config.getDataset(), config.getTable()));
+    String datasetName = config.getDataset();
+    String tableName = config.getTable();
+    String datasetProjectId = config.getDatasetProject();
+    if (config.getStoreResults() && datasetProjectId != null && datasetName != null && tableName != null) {
+      builder.setDestinationTable(TableId.of(datasetProjectId, datasetName, tableName));
     }
 
     // Enable or Disable the query cache to force live query evaluation.
@@ -115,14 +115,16 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
                                                     config.isServiceAccountFilePath());
     BigQuery bigQuery = GCPUtils.getBigQuery(config.getProject(), credentials);
     //create dataset to store the results if not exists
-    String datasetName = config.getDataset();
-    String tableName = config.getTable();
-    String datasetProjectId = config.getDatasetProject();
-    if (!Strings.isNullOrEmpty(datasetName) && !Strings.isNullOrEmpty(tableName)) {
+    if (config.getStoreResults() && !Strings.isNullOrEmpty(datasetName) &&
+      !Strings.isNullOrEmpty(tableName)) {
       BigQuerySinkUtils.createDatasetIfNotExists(bigQuery, DatasetId.of(datasetProjectId, datasetName),
                                                  config.getLocation(), cmekKeyName,
                                                  () -> String.format("Unable to create BigQuery dataset '%s.%s'",
                                                                      datasetProjectId, datasetName));
+      if (cmekKeyName != null) {
+        builder.setDestinationEncryptionConfiguration(
+          EncryptionConfiguration.newBuilder().setKmsKeyName(cmekKeyName.toString()).build());
+      }
     }
 
     Job queryJob = bigQuery.create(JobInfo.newBuilder(queryConfig).setJobId(jobId).build());
@@ -183,6 +185,7 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     private static final String TABLE = "table";
     private static final String NAME_LOCATION = "location";
     private static final int ERROR_CODE_NOT_FOUND = 404;
+    private static final String STORE_RESULTS = "storeResults";
 
     @Description("Dialect of the SQL command. The value must be 'legacy' or 'standard'. " +
       "If set to 'standard', the query will use BigQuery's standard SQL: " +
@@ -229,9 +232,10 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     @Name(NAME_CMEK_KEY)
     @Macro
     @Nullable
-    @Description("The GCP customer managed encryption key (CMEK) name used to encrypt data written to " +
-      "any dataset or table created by the plugin. If the dataset or table already exists, this is ignored. More " +
-      "information can be found at https://cloud.google.com/data-fusion/docs/how-to/customer-managed-encryption-keys")
+    @Description("The GCP customer managed encryption key (CMEK) name used to encrypt data written to the " +
+      "dataset or table created by the plugin to store the query results. It is only applicable when users choose to " +
+      "store the query results in a BigQuery table. More information can be found at " +
+      "https://cloud.google.com/data-fusion/docs/how-to/customer-managed-encryption-keys")
     private String cmekKey;
 
     @Description("Row as arguments. For example, if the query is " +
@@ -242,10 +246,15 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     @Macro
     private String rowAsArguments;
 
+    @Name(STORE_RESULTS)
+    @Nullable
+    @Description("Whether to store results in a BigQuery Table.")
+    private Boolean storeResults;
+
     private Config(@Nullable String project, @Nullable String serviceAccountType, @Nullable String serviceFilePath,
                    @Nullable String serviceAccountJson, @Nullable String dataset, @Nullable String table,
                    @Nullable String location, @Nullable String cmekKey, @Nullable String dialect, @Nullable String sql,
-                   @Nullable String mode) {
+                   @Nullable String mode, @Nullable Boolean storeResults) {
       this.project = project;
       this.serviceAccountType = serviceAccountType;
       this.serviceFilePath = serviceFilePath;
@@ -257,6 +266,7 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
       this.dialect = dialect;
       this.sql = sql;
       this.mode = mode;
+      this.storeResults = storeResults;
     }
 
     public boolean isLegacySQL() {
@@ -277,6 +287,10 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
 
     public String getSql() {
       return sql;
+    }
+
+    public Boolean getStoreResults() {
+      return storeResults == null || storeResults;
     }
 
     public QueryJobConfiguration.Priority getMode() {
@@ -413,6 +427,7 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
       private String dialect;
       private String sql;
       private String mode;
+      private Boolean storeResults;
 
       public Builder setProject(@Nullable String project) {
         this.project = project;
@@ -481,7 +496,8 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
           cmekKey,
           dialect,
           sql,
-          mode
+          mode,
+          storeResults
         );
       }
 
