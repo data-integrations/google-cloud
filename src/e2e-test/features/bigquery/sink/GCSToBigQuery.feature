@@ -45,8 +45,8 @@ Feature: BigQuery sink - Verification of GCS to BigQuery successful data transfe
     Then Enter GCS property projectId and reference name
     Then Override Service account details if set in environment variables
     Then Enter GCS source property path "gcsCsvRangeFile"
-    Then Toggle GCS source property skip header to true
     Then Select GCS property format "csv"
+    Then Toggle GCS source property skip header to true
     Then Validate output schema with expectedSchema "gcsCsvRangeFileSchema"
     Then Validate "GCS" plugin properties
     Then Close the GCS properties
@@ -88,8 +88,8 @@ Feature: BigQuery sink - Verification of GCS to BigQuery successful data transfe
     Then Enter GCS property projectId and reference name
     Then Override Service account details if set in environment variables
     Then Enter GCS source property path "gcsCsvRangeFile"
-    Then Toggle GCS source property skip header to true
     Then Select GCS property format "csv"
+    Then Toggle GCS source property skip header to true
     Then Validate output schema with expectedSchema "gcsCsvRangeFileSchema"
     Then Validate "GCS" plugin properties
     Then Close the GCS properties
@@ -126,8 +126,8 @@ Feature: BigQuery sink - Verification of GCS to BigQuery successful data transfe
     Then Enter GCS property projectId and reference name
     Then Override Service account details if set in environment variables
     Then Enter GCS source property path "gcsCsvRangeFile"
-    Then Toggle GCS source property skip header to true
     Then Select GCS property format "csv"
+    Then Toggle GCS source property skip header to true
     Then Validate output schema with expectedSchema "gcsCsvRangeFileSchema"
     Then Validate "GCS" plugin properties
     Then Close the GCS properties

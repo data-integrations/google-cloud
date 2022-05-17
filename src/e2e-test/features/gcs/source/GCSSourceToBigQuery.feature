@@ -11,8 +11,8 @@ Feature: GCS source - Verification of GCS to BQ successful data transfer
     Then Enter GCS property projectId and reference name
     Then Override Service account details if set in environment variables
     Then Enter GCS source property path "gcsCsvFile"
-    Then Toggle GCS source property skip header to true
     Then Select GCS property format "csv"
+    Then Toggle GCS source property skip header to true
     Then Validate output schema with expectedSchema "gcsCsvFileSchema"
     Then Validate "GCS" plugin properties
     Then Close the GCS properties
@@ -132,7 +132,6 @@ Feature: GCS source - Verification of GCS to BQ successful data transfer
     Then Enter GCS source property path "gcsBlobFile"
     Then Select GCS property format "blob"
     Then Enter GCS source property minimum split size "gcsMinSplitSize" and maximum split size "gcsMaxSplitSize"
-    Then Toggle GCS source property skip header to true
     Then Validate output schema with expectedSchema "gcsBlobFileSchema"
     Then Validate "GCS" plugin properties
     Then Close the GCS properties
