@@ -39,11 +39,41 @@ import java.util.UUID;
  */
 public class TestSetupHooks {
 
+  public static boolean beforeAllFlag = true;
   public static String gcsSourceBucketName = StringUtils.EMPTY;
   public static String gcsTargetBucketName = StringUtils.EMPTY;
   public static String bqTargetTable = StringUtils.EMPTY;
   public static String bqSourceTable = StringUtils.EMPTY;
   public static String pubSubTargetTopic = StringUtils.EMPTY;
+
+  @Before(order = 1)
+  public static void overrideServiceAccountFilePathIfProvided() {
+    if (beforeAllFlag) {
+      String serviceAccountType = System.getenv("SERVICE_ACCOUNT_TYPE");
+      if (serviceAccountType != null && !serviceAccountType.isEmpty()) {
+        if (serviceAccountType.equalsIgnoreCase("FilePath")) {
+          PluginPropertyUtils.addPluginProp("serviceAccountType", "filePath");
+          String serviceAccountFilePath = System.getenv("SERVICE_ACCOUNT_FILE_PATH");
+          if (!(serviceAccountFilePath == null) && !serviceAccountFilePath.equalsIgnoreCase("auto-detect")) {
+            PluginPropertyUtils.addPluginProp("serviceAccount", serviceAccountFilePath);
+          }
+          return;
+        }
+        if (serviceAccountType.equalsIgnoreCase("JSON")) {
+          PluginPropertyUtils.addPluginProp("serviceAccountType", "JSON");
+          String serviceAccountJSON = System.getenv("SERVICE_ACCOUNT_JSON");
+          if (!(serviceAccountJSON == null) && !serviceAccountJSON.equalsIgnoreCase("auto-detect")) {
+            PluginPropertyUtils.addPluginProp("serviceAccount", serviceAccountJSON);
+          }
+          return;
+        }
+        Assert.fail("ServiceAccount override failed - ServiceAccount type set in environment variable " +
+                      "'SERVICE_ACCOUNT_TYPE' with invalid value: '" + serviceAccountType + "'. " +
+                      "Value should be either 'FilePath' or 'JSON'");
+      }
+      beforeAllFlag = false;
+    }
+  }
 
   @Before(order = 1, value = "@GCS_CSV_TEST")
   public static void createBucketWithCSVFile() throws IOException, URISyntaxException {

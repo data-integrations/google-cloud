@@ -7,11 +7,13 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer
     When Source is GCS
     When Sink is PubSub
     Then Open GCS source properties
+    Then Override Service account details if set in environment variables
     Then Enter the GCS source mandatory properties
     Then Validate "GCS" plugin properties
     Then Close the GCS properties
     Then Open the PubSub sink properties
     Then Enter PubSub property projectId "projectId"
+    Then Override Service account details if set in environment variables
     Then Enter PubSub property reference name
     Then Enter PubSub sink property topic name
     Then Select PubSub property format "csv"
@@ -42,11 +44,13 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer
     When Source is GCS
     When Sink is PubSub
     Then Open GCS source properties
+    Then Override Service account details if set in environment variables
     Then Enter the GCS source mandatory properties
     Then Validate "GCS" plugin properties
     Then Close the GCS properties
     Then Open the PubSub sink properties
     Then Enter PubSub property projectId "projectId"
+    Then Override Service account details if set in environment variables
     Then Enter PubSub property reference name
     Then Enter PubSub sink property topic name
     Then Select PubSub property format "<FileFormat>"

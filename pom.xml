@@ -1010,6 +1010,20 @@
           <forkCount>2</forkCount> <!--Number of JVM processes -->
           <reuseForks>true</reuseForks>
           <!--End configuration to run TestRunners in parallel-->
+          <environmentVariables>
+            <GOOGLE_APPLICATION_CREDENTIALS>
+              ${GOOGLE_APPLICATION_CREDENTIALS}
+            </GOOGLE_APPLICATION_CREDENTIALS>
+            <SERVICE_ACCOUNT_TYPE>
+              ${SERVICE_ACCOUNT_TYPE}
+            </SERVICE_ACCOUNT_TYPE>
+            <SERVICE_ACCOUNT_FILE_PATH>
+              ${SERVICE_ACCOUNT_FILE_PATH}
+            </SERVICE_ACCOUNT_FILE_PATH>
+            <SERVICE_ACCOUNT_JSON>
+              ${SERVICE_ACCOUNT_JSON}
+            </SERVICE_ACCOUNT_JSON>
+          </environmentVariables>
         </configuration>
         <executions>
           <execution>

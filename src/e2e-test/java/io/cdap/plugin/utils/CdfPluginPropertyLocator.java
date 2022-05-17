@@ -20,7 +20,9 @@ public enum CdfPluginPropertyLocator {
   SKIP_HEADER("skipHeader"),
   SUFFIX("suffix"),
   CMEK_KEY("cmekKey"),
+  SERVICE_ACCOUNT_TYPE("serviceAccountType"),
   SERVICE_ACCOUNT_PATH("serviceFilePath"),
+  SERVICE_ACCOUNT_JSON("serviceAccountJSON"),
   TRUNCATE_TABLE("truncateTable"),
   UPDATE_TABLE_SCHEMA("allowSchemaRelaxation"),
   PUBSUB_TOPIC("topic"),
@@ -50,7 +52,9 @@ public enum CdfPluginPropertyLocator {
       .put("skipHeader", CdfPluginPropertyLocator.SKIP_HEADER)
       .put("pathSuffix", CdfPluginPropertyLocator.SUFFIX)
       .put("encryptionKeyName", CdfPluginPropertyLocator.CMEK_KEY)
+      .put("serviceAccountType", CdfPluginPropertyLocator.SERVICE_ACCOUNT_TYPE)
       .put("serviceAccountFilePath", CdfPluginPropertyLocator.SERVICE_ACCOUNT_PATH)
+      .put("serviceAccountJSON", CdfPluginPropertyLocator.SERVICE_ACCOUNT_JSON)
       .put("truncateTable", CdfPluginPropertyLocator.TRUNCATE_TABLE)
       .put("updateTableSchema", CdfPluginPropertyLocator.UPDATE_TABLE_SCHEMA)
       .put("topic", CdfPluginPropertyLocator.PUBSUB_TOPIC)
