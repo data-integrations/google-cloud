@@ -71,14 +71,6 @@ jobs:
         with:
           name: Debug files
           path: ./**/target/e2e-debug
-      - name: Deploy report
-        uses: tivv/actions-gh-pages@f75e94a6b37e2a747cb64139c6a2171454142288
-        if: always()
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./plugin/target/cucumber-reports
-          destination_dir: cucumber-reports/${{ github.ref }}
-          
       - name: github-status-action
         uses: Sibz/github-status-action@67af1f4042a5a790681aad83c44008ca6cfab83d
         if: always()
@@ -86,7 +78,5 @@ jobs:
           authToken: ${{ secrets.GITHUB_TOKEN }}
           state: success
           context: Cucumber report
-          target_url: https://data-integrations.github.io/google-cloud/cucumber-reports/${{ github.ref }}/advanced-reports/cucumber-html-reports/overview-features.html
           sha: ${{github.event.pull_request.head.sha || github.sha}}
-
           
