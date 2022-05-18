@@ -1,7 +1,6 @@
-@GCSDelete
 Feature: GCS Delete - Verification of GCS Delete plugin
 
-  @GCS_CSV_TEST
+  @GCS_CSV_TEST @GCSDelete
   Scenario: Verify the GCS Delete successfully deletes all objects in the GCS bucket
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"

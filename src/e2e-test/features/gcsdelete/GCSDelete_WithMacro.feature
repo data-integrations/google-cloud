@@ -1,4 +1,3 @@
-@GCSDelete
 Feature: GCS Delete - Verification of GCS Delete plugin with macro arguments
 
   @GCS_CSV_TEST
