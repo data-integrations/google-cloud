@@ -36,6 +36,7 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormatCounter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import javax.annotation.Nullable;
 
 /**
  * Spanner output format
@@ -49,7 +50,7 @@ public class SpannerOutputFormat extends OutputFormat<NullWritable, Mutation> {
    * @param config        the spanner configuration
    * @param schema        schema for spanner table
    */
-  public static void configure(Configuration configuration, SpannerSinkConfig config, Schema schema) {
+  public static void configure(Configuration configuration, SpannerSinkConfig config, @Nullable Schema schema) {
     String projectId = config.connection.getProject();
     configuration.set(SpannerConstants.PROJECT_ID, projectId);
     String serviceAccount = config.connection.getServiceAccount();
@@ -62,9 +63,14 @@ public class SpannerOutputFormat extends OutputFormat<NullWritable, Mutation> {
     configuration.set(SpannerConstants.INSTANCE_ID, config.getInstance());
     configuration.set(SpannerConstants.DATABASE, config.getDatabase());
     configuration.set(SpannerConstants.TABLE_NAME, config.getTable());
-    configuration.set(SpannerConstants.KEYS, config.getKeys());
+    String keys = config.getKeys();
+    if (keys != null) {
+      configuration.set(SpannerConstants.KEYS, config.getKeys());
+    }
     configuration.set(SpannerConstants.SPANNER_WRITE_BATCH_SIZE, String.valueOf(config.getBatchSize()));
-    configuration.set(SpannerConstants.SCHEMA, schema.toString());
+    if (schema != null) {
+      configuration.set(SpannerConstants.SCHEMA, schema.toString());
+    }
   }
 
   @Override
