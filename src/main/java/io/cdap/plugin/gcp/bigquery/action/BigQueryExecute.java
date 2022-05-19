@@ -104,8 +104,6 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     // Enable legacy SQL
     builder.setUseLegacySql(config.isLegacySQL());
 
-    QueryJobConfiguration queryConfig = builder.build();
-
     // Location must match that of the dataset(s) referenced in the query.
     JobId jobId = JobId.newBuilder().setRandomJob().setLocation(config.getLocation()).build();
 
@@ -126,6 +124,8 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
           EncryptionConfiguration.newBuilder().setKmsKeyName(cmekKeyName.toString()).build());
       }
     }
+
+    QueryJobConfiguration queryConfig = builder.build();
 
     Job queryJob = bigQuery.create(JobInfo.newBuilder(queryConfig).setJobId(jobId).build());
 
