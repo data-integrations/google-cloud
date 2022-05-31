@@ -38,12 +38,12 @@ public class BigQueryDeduplicateSQLBuilderTest {
   private Map<String, Expression> selectFields;
   private List<Expression> dedupFields;
   private List<DeduplicateAggregationDefinition.FilterExpression> filterFields;
-  private DeduplicateAggregationDefinition def;
+  private DeduplicateAggregationDefinition fullDefinition;
+  private DeduplicateAggregationDefinition onlyDedupFieldsDefinition;
 
   @Before
   public void setUp() {
     factory = new SQLExpressionFactory();
-    DeduplicateAggregationDefinition.Builder builder = DeduplicateAggregationDefinition.builder();
 
     // Build aggregation definition
     selectFields = new LinkedHashMap<>();
@@ -65,10 +65,17 @@ public class BigQueryDeduplicateSQLBuilderTest {
     filterFields.add(new DeduplicateAggregationDefinition.FilterExpression(
       factory.compile("f"), DeduplicateAggregationDefinition.FilterFunction.MIN));
 
-    builder.select(selectFields).dedupOn(dedupFields).filterDuplicatesBy(filterFields);
-    def = builder.build();
+    fullDefinition = DeduplicateAggregationDefinition.builder()
+      .select(selectFields)
+      .dedupOn(dedupFields)
+      .filterDuplicatesBy(filterFields)
+      .build();
+    onlyDedupFieldsDefinition = DeduplicateAggregationDefinition.builder()
+      .select(selectFields)
+      .dedupOn(dedupFields)
+      .build();
 
-    helper = new BigQueryDeduplicateSQLBuilder(def, "select * from tbl", "ds", "the_row_number");
+    helper = new BigQueryDeduplicateSQLBuilder(fullDefinition, "select * from tbl", "ds", "the_row_number");
   }
 
   @Test
@@ -114,13 +121,21 @@ public class BigQueryDeduplicateSQLBuilderTest {
         + "f AS f , "
         + "ROW_NUMBER() OVER ( PARTITION BY c , d , e ORDER BY e DESC NULLS LAST , f ASC NULLS LAST ) AS" +
         " `the_row_number`",
-      helper.getSelectedFields(def));
+      helper.getSelectedFields(fullDefinition));
   }
 
   @Test
   public void testGetRowNumColumn() {
     Assert.assertEquals("ROW_NUMBER() OVER ( PARTITION BY c , d , e ORDER BY e DESC NULLS LAST , " +
-                          "f ASC NULLS LAST ) AS `the_row_number`", helper.getRowNumColumn(def));
+                          "f ASC NULLS LAST ) AS `the_row_number`",
+                        helper.getRowNumColumn(fullDefinition));
+  }
+
+
+  @Test
+  public void testGetRowNumColumnWithoutOrderFields() {
+    Assert.assertEquals("ROW_NUMBER() OVER ( PARTITION BY c , d , e ) AS `the_row_number`",
+                        helper.getRowNumColumn(onlyDedupFieldsDefinition));
   }
 
   @Test
