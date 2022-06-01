@@ -16,7 +16,9 @@
 
 package io.cdap.plugin.gcp.gcs.actions;
 
+import com.google.api.gax.paging.Page;
 import com.google.auth.oauth2.ServiceAccountCredentials;
+import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
 import io.cdap.cdap.api.annotation.Description;
@@ -31,12 +33,10 @@ import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -92,6 +92,7 @@ public final class GCSBucketDelete extends Action {
 
     List<Path> gcsPaths = new ArrayList<>();
     Storage storage = GCPUtils.getStorage(config.getProject(), credentials);
+    int deleteCount = 0;
     for (String path : config.getPaths()) {
       GCSPath gcsPath = GCSPath.from(path);
       // Check if the bucket is accessible
@@ -103,29 +104,21 @@ public final class GCSBucketDelete extends Action {
           String.format("Unable to access or create bucket %s. ", gcsPath.getBucket())
             + "Ensure you entered the correct bucket path and have permissions for it.", e);
       }
-      gcsPaths.add(new Path(gcsPath.getUri()));
-    }
-
-    FileSystem fs;
-    context.getMetrics().gauge("gc.file.delete.count", gcsPaths.size());
-    for (Path gcsPath : gcsPaths) {
-      try {
-        fs = gcsPaths.get(0).getFileSystem(configuration);
-      } catch (IOException e) {
-        LOG.info("Failed deleting file " + gcsPath.toUri().getPath() + ", " + e.getMessage());
-        // no-op.
-        continue;
-      }
-      if (fs.exists(gcsPath)) {
-        try {
-          fs.delete(gcsPath, true);
-        } catch (IOException e) {
-          LOG.warn(
-            String.format("Failed to delete path '%s'", gcsPath)
-          );
+      String regx = (gcsPath.getName()).replace("*", "[^/]*");
+      Page<Blob> blobs = storage.list(gcsPath.getBucket());
+      for (Blob blob : blobs.iterateAll()) {
+        String currentName = blob.getName();
+        if (currentName.matches(regx)) {
+          try {
+            storage.delete(gcsPath.getBucket(), currentName);
+            deleteCount = deleteCount + 1;
+          } catch (Exception e) {
+            LOG.warn(String.format("Failed to delete path '%s'", gcsPath));
+          }
         }
       }
     }
+    context.getMetrics().gauge("gc.file.delete.count", deleteCount);
   }
 
   /**
