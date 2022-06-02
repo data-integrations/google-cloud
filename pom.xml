@@ -20,7 +20,7 @@
 
   <groupId>io.cdap.plugin</groupId>
   <artifactId>google-cloud</artifactId>
-  <version>0.20.0-SNAPSHOT</version>
+  <version>0.20.0</version>
   <name>Google Cloud Plugins</name>
   <packaging>jar</packaging>
   <description>Plugins for Google Big Query</description>
@@ -72,7 +72,7 @@
     <avro.version>1.8.2</avro.version>
     <bigquery.connector.hadoop2.version>hadoop2-1.0.0</bigquery.connector.hadoop2.version>
     <commons.codec.version>1.4</commons.codec.version>
-    <cdap.version>6.7.0-SNAPSHOT</cdap.version>
+    <version>6.7.0</version>
     <cdap.plugin.version>2.9.0-SNAPSHOT</cdap.plugin.version>
     <dropwizard.metrics-core.version>3.2.6</dropwizard.metrics-core.version>
     <flogger.system.backend.version>0.3.1</flogger.system.backend.version>
