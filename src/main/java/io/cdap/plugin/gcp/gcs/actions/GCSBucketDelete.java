@@ -104,7 +104,7 @@ public final class GCSBucketDelete extends Action {
           String.format("Unable to access or create bucket %s. ", gcsPath.getBucket())
             + "Ensure you entered the correct bucket path and have permissions for it.", e);
       }
-      String regx = (gcsPath.getName()).replace("*", "[^/]*");
+      String regx = ("\\Q" + gcsPath.getName() + "\\E").replace("*", "\\E[^/]*\\Q");
       Page<Blob> blobs = storage.list(gcsPath.getBucket());
       for (Blob blob : blobs.iterateAll()) {
         String currentName = blob.getName();
