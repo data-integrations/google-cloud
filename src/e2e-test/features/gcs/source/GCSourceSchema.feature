@@ -1,7 +1,7 @@
 @GCS_Source
 Feature: GCS source - Validate GCS plugin output schema for different formats
 
-  Scenario Outline:GCS Source output schema validation
+  Scenario Outline:GCS Source output schema validation for csv and tsv format
     Given Open Datafusion Project to configure pipeline
     When Source is GCS
     Then Open GCS source properties
@@ -19,10 +19,24 @@ Feature: GCS source - Validate GCS plugin output schema for different formats
     Examples:
       | GcsPath      | FileFormat  | ExpectedSchema     |
       | gcsTsvFile   | tsv         | gcsTsvFileSchema   |
+
+  Scenario Outline:GCS Source output schema validation for blob and text format
+    Given Open Datafusion Project to configure pipeline
+    When Source is GCS
+    Then Open GCS source properties
+    Then Enter GCS property projectId and reference name
+    Then Override Service account details if set in environment variables
+    Then Enter GCS source property path "<GcsPath>"
+    Then Select GCS property format "<FileFormat>"
+    Then Validate output schema with expectedSchema "<ExpectedSchema>"
     @GCS_BLOB_TEST
     Examples:
       | GcsPath      | FileFormat  | ExpectedSchema     |
       | gcsBlobFile  | blob        | gcsBlobFileSchema  |
+    @GCS_TEXT_TEST
+    Examples:
+      | GcsPath      | FileFormat  | ExpectedSchema     |
+      | gcsTextFile  | text        | gcsTextFileSchema  |
 
   @GCS_Source
   Scenario Outline:GCS Source output schema validation for delimited files
@@ -40,7 +54,3 @@ Feature: GCS source - Validate GCS plugin output schema for different formats
     Examples:
       | GcsPath           | FileFormat  | Delimiter     | ExpectedSchema         |
       | gcsDelimitedFile  | delimited   | gcsDelimiter  | gcsDelimitedFileSchema |
-    @GCS_TEXT_TEST
-    Examples:
-      | GcsPath           | FileFormat  | Delimiter     | ExpectedSchema         |
-      | gcsTextFile       | text        | gcsDelimiter  | gcsTextFileSchema      |
