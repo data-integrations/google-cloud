@@ -30,7 +30,14 @@ Properties
 **Project ID**: The Google Cloud Project ID, which uniquely identifies a project.
 It can be found on the Dashboard in the Google Cloud Platform Console.
 
-**Objects to Delete**: Comma separated list of objects to delete.
+**Objects to Delete**: Comma separated list of objects to delete. Valid format:
+
+* **Exact object** : can delete the object use the exact path.
+  For Example: gs://MY_BUCKET/file1.csv, gs://MY_BUCKET/file2.csv
+
+* **Wildcards character** : `*` can be used to match any number of characters within the current directory level.
+  For Example: `gs://MY_BUCKET/*.csv` delete all `.csv` files or directory ending with `.csv `under MY_BUCKET directory
+  (gs://MY_BUCKET/file1.csv, gs://MY_BUCKET/file2.csv) but not gs://MY_BUCKET/folder1/file3.csv
 
 **Service Account**  - service account key used for authorization
 
