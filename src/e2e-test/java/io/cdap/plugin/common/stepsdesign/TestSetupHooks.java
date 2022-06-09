@@ -40,6 +40,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -140,6 +141,11 @@ public class TestSetupHooks {
     gcsSourceBucketName = createGCSBucketWithMultipleFiles(PluginPropertyUtils.pluginProp("gcsReadRecursivePath"));
   }
 
+  @Before(order = 1, value = "@GCS_DELETE_WILDCARD_TEST")
+  public static void createBucketWithRecursiveTestFiles2() throws IOException, URISyntaxException {
+    gcsSourceBucketName = createGCSBucketWithFilesAndFolder(PluginPropertyUtils.pluginProp("gcsReadWildcardPath"));
+  }
+
   @Before(order = 1, value = "@GCS_CSV_RANGE_TEST")
   public static void createBucketWithRangeCSVFile() throws IOException, URISyntaxException {
     gcsSourceBucketName = createGCSBucketWithFile(PluginPropertyUtils.pluginProp("gcsCsvRangeFile"));
@@ -147,7 +153,7 @@ public class TestSetupHooks {
 
   @After(order = 1, value = "@GCS_CSV_TEST or @GCS_TSV_TEST or @GCS_BLOB_TEST " +
     "or @GCS_DELIMITED_TEST or @GCS_TEXT_TEST or @GCS_OUTPUT_FIELD_TEST or @GCS_DATATYPE_1_TEST or " +
-    "@GCS_DATATYPE_2_TEST or @GCS_READ_RECURSIVE_TEST or @GCS_CSV_RANGE_TEST")
+    "@GCS_DATATYPE_2_TEST or @GCS_READ_RECURSIVE_TEST or @GCS_DELETE_WILDCARD_TEST or @GCS_CSV_RANGE_TEST")
   public static void deleteSourceBucketWithFile() {
     deleteGCSBucket(gcsSourceBucketName);
     PluginPropertyUtils.removePluginProp("gcsSourceBucketName");
@@ -387,6 +393,26 @@ public class TestSetupHooks {
     }
     BeforeActions.scenario.write("Created GCS Bucket " + bucketName + " containing "
                                    + files.size() + " files in " + folderPath);
+    return bucketName;
+  }
+
+  private static String createGCSBucketWithFilesAndFolder(String folderPath) throws IOException, URISyntaxException {
+    List<String> folderPaths = Arrays.asList(folderPath.split(","));
+    String bucketName = StorageClient.createBucket("cdf-e2e-test-" + UUID.randomUUID()).getName();
+    int fileCount = 0;
+    for (String fp : folderPaths) {
+      List<File> files = Files.list(Paths.get(StorageClient.class.getResource("/" + fp).toURI()))
+        .filter(Files::isRegularFile)
+        .map(Path::toFile)
+        .collect(Collectors.toList());
+      for (File file : files) {
+        String filePath = fp + "/" + file.getName();
+        StorageClient.uploadObject(bucketName, filePath, filePath);
+      }
+      fileCount += files.size();
+    }
+    BeforeActions.scenario.write("Created GCS Bucket " + bucketName + " containing "
+                                   + fileCount + " files in " + folderPaths.get(0));
     return bucketName;
   }
 

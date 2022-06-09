@@ -16,7 +16,9 @@
 
 package io.cdap.plugin.gcp.gcs.actions;
 
+import com.google.api.gax.paging.Page;
 import com.google.auth.oauth2.ServiceAccountCredentials;
+import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
 import io.cdap.cdap.api.annotation.Description;
@@ -32,7 +34,9 @@ import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.RemoteIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,6 +95,7 @@ public final class GCSBucketDelete extends Action {
     configuration.setBoolean("fs.gs.impl.disable.cache", true);
 
     List<Path> gcsPaths = new ArrayList<>();
+    List<GCSPath> gcsPathsWild = new ArrayList<>();
     Storage storage = GCPUtils.getStorage(config.getProject(), credentials);
     for (String path : config.getPaths()) {
       GCSPath gcsPath = GCSPath.from(path);
@@ -103,11 +108,15 @@ public final class GCSBucketDelete extends Action {
           String.format("Unable to access or create bucket %s. ", gcsPath.getBucket())
             + "Ensure you entered the correct bucket path and have permissions for it.", e);
       }
-      gcsPaths.add(new Path(gcsPath.getUri()));
+      if (gcsPath.getUri().toString().contains("*")) {
+        gcsPathsWild.add(gcsPath);
+      } else {
+        gcsPaths.add(new Path(gcsPath.getUri()));
+      }
     }
 
     FileSystem fs;
-    context.getMetrics().gauge("gc.file.delete.count", gcsPaths.size());
+    int deleteCount = 0;
     for (Path gcsPath : gcsPaths) {
       try {
         fs = gcsPaths.get(0).getFileSystem(configuration);
@@ -119,6 +128,7 @@ public final class GCSBucketDelete extends Action {
       if (fs.exists(gcsPath)) {
         try {
           fs.delete(gcsPath, true);
+          deleteCount++;
         } catch (IOException e) {
           LOG.warn(
             String.format("Failed to delete path '%s'", gcsPath)
@@ -126,6 +136,46 @@ public final class GCSBucketDelete extends Action {
         }
       }
     }
+
+    for (GCSPath gcsPath : gcsPathsWild) {
+      String regex = ("\\Q" + gcsPath.getUri().toString() + "\\E").replace("*", "\\E[^/]*\\Q") + "(/.*)?";
+      try {
+        fs = new Path(gcsPathsWild.get(0).getUri()).getFileSystem(configuration);
+      } catch (IOException e) {
+        LOG.info("Failed deleting file " + gcsPath.getUri().getPath() + ", " + e.getMessage());
+        // no-op.
+        continue;
+      }
+      Page<Blob> blobs = storage.list(gcsPath.getBucket());
+      for (Blob blob : blobs.iterateAll()) {
+        Path filePath = new Path("gs://" + blob.getBucket() + "/" + blob.getName());
+        if ((filePath.toString() + "/").matches(regex)) {
+          if (fs.exists(filePath)) {
+            // get root paths which also match regex to reduce delete times.
+            Path rootPath = getRootMatch(filePath, regex);
+            try {
+              fs.delete(rootPath, true);
+              deleteCount++;
+            } catch (IOException e) {
+              LOG.warn(
+                String.format("Failed to delete path '%s'", gcsPath)
+              );
+            }
+          } else {
+            deleteCount++;
+          }
+        }
+      }
+    }
+    context.getMetrics().gauge("gc.file.delete.count", deleteCount);
+  }
+
+  public Path getRootMatch(Path filePath, String regx) {
+    Path current = filePath;
+    while (current.getParent() != null && (current.getParent().toString() + "/").matches(regx)) {
+      current = current.getParent();
+    }
+    return current;
   }
 
   /**
