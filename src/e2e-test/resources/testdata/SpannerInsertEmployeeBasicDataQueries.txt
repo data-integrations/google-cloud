@@ -1,0 +1,8 @@
+INSERT INTO EmployeeDetails_Basic ( EmployeeDepartment, EmployeeName, DateOfBirth, Salary) VALUES
+('Electrician', 'Justin', Date('1961-08-31'), 900750000),
+('Plumber', 'Olson', Date('1999-02-21'), 900750000) ,
+('HR', 'Steve', Date('1971-09-11'), 900750000) ,
+('Security', 'Arnold', Date('1990-08-31'), 900750000) ,
+('Frontdesk', 'Kayla', Date('1965-08-31'), 900750000) ,
+('Plumber', 'Cisco', Date('1986-08-31'), 900750000) ,
+('HR', 'Kacie', Date('2000-07-01'), 900750000)
