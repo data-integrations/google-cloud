@@ -135,4 +135,21 @@ public class SpannerBase implements CdfHelper {
       Assert.fail("Invalid Spanner Advanced Property : " + property);
     }
   }
+
+  @Then("Validate records transferred to target spanner table with record counts of source spanner table")
+  public void validateRecordsTransferredToTargetSpannerTableWithRecordCountsOfSourceSpannerTable() {
+    int spannerSourceTableRecordCount = SpannerClient
+      .getCountOfRecordsInTable(PluginPropertyUtils.pluginProp("spannerInstance"),
+                                PluginPropertyUtils.pluginProp("spannerDatabase"),
+                                PluginPropertyUtils.pluginProp("spannerSourceTable"));
+    BeforeActions.scenario.write("No of records from Spanner Source table :" + spannerSourceTableRecordCount);
+    int spannerTargetTableRecordCount = SpannerClient
+      .getCountOfRecordsInTable(PluginPropertyUtils.pluginProp("spannerInstance"),
+                                PluginPropertyUtils.pluginProp("spannerTargetDatabase"),
+                                PluginPropertyUtils.pluginProp("spannerTargetTable"));
+    BeforeActions.scenario.write("No of records transferred to Spanner target table:"
+                                   + spannerTargetTableRecordCount);
+
+    Assert.assertEquals(spannerSourceTableRecordCount, spannerTargetTableRecordCount);
+  }
 }

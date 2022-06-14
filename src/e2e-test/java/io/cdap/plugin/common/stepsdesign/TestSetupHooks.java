@@ -18,6 +18,8 @@ package io.cdap.plugin.common.stepsdesign;
 import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.StorageException;
+import io.cdap.e2e.pages.actions.CdfConnectionActions;
+import io.cdap.e2e.pages.actions.CdfPluginPropertiesActions;
 import io.cdap.e2e.utils.BigQueryClient;
 import io.cdap.e2e.utils.PluginPropertyUtils;
 import io.cdap.e2e.utils.StorageClient;
@@ -148,12 +150,16 @@ public class TestSetupHooks {
     "@GCS_DATATYPE_2_TEST or @GCS_READ_RECURSIVE_TEST or @GCS_CSV_RANGE_TEST")
   public static void deleteSourceBucketWithFile() {
     deleteGCSBucket(gcsSourceBucketName);
+    PluginPropertyUtils.removePluginProp("gcsSourceBucketName");
+    PluginPropertyUtils.removePluginProp("gcsSourcePath");
     gcsSourceBucketName = StringUtils.EMPTY;
   }
 
   @Before(order = 1, value = "@GCS_SINK_TEST")
   public static void setTempTargetGCSBucketName() {
     gcsTargetBucketName = "cdf-e2e-test-" + UUID.randomUUID();
+    PluginPropertyUtils.addPluginProp("gcsTargetBucketName", gcsTargetBucketName);
+    PluginPropertyUtils.addPluginProp("gcsTargetPath", "gs://" + gcsTargetBucketName);
     BeforeActions.scenario.write("GCS target bucket name - " + gcsTargetBucketName);
   }
 
@@ -166,12 +172,15 @@ public class TestSetupHooks {
   @After(order = 1, value = "@GCS_SINK_TEST or @GCS_SINK_EXISTING_BUCKET_TEST")
   public static void deleteTargetBucketWithFile() {
     deleteGCSBucket(gcsTargetBucketName);
+    PluginPropertyUtils.removePluginProp("gcsTargetBucketName");
+    PluginPropertyUtils.removePluginProp("gcsTargetPath");
     gcsTargetBucketName = StringUtils.EMPTY;
   }
 
   @Before(order = 1, value = "@BQ_SINK_TEST")
   public static void setTempTargetBQTableName() {
     bqTargetTable = "E2E_TARGET_" + UUID.randomUUID().toString().replaceAll("-", "_");
+    PluginPropertyUtils.addPluginProp("bqTargetTable", bqTargetTable);
     BeforeActions.scenario.write("BQ Target table name - " + bqTargetTable);
   }
 
@@ -179,6 +188,7 @@ public class TestSetupHooks {
   public static void deleteTempTargetBQTable() throws IOException, InterruptedException {
     try {
       BigQueryClient.dropBqQuery(bqTargetTable);
+      PluginPropertyUtils.removePluginProp("bqTargetTable");
       BeforeActions.scenario.write("BQ Target table - " + bqTargetTable + " deleted successfully");
       bqTargetTable = StringUtils.EMPTY;
     } catch (BigQueryException e) {
@@ -212,12 +222,14 @@ public class TestSetupHooks {
                                         "  (26, " + ((int) (Math.random() * 1000 + 1)) + ", " +
                                         "'" + UUID.randomUUID() + "') " +
                                         "])");
+    PluginPropertyUtils.addPluginProp("bqSourceTable", bqSourceTable);
     BeforeActions.scenario.write("BQ source Table " + bqSourceTable + " created successfully");
   }
 
   @After(order = 1, value = "@BQ_SOURCE_TEST or @BQ_PARTITIONED_SOURCE_TEST or @BQ_SOURCE_DATATYPE_TEST")
   public static void deleteTempSourceBQTable() throws IOException, InterruptedException {
     BigQueryClient.dropBqQuery(bqSourceTable);
+    PluginPropertyUtils.removePluginProp("bqSourceTable");
     BeforeActions.scenario.write("BQ source Table " + bqSourceTable + " deleted successfully");
     bqSourceTable = StringUtils.EMPTY;
   }
@@ -300,6 +312,7 @@ public class TestSetupHooks {
       // Insert query does not return any record.
       // Iterator on TableResult values in getSoleQueryResult method throws NoSuchElementException
     }
+    PluginPropertyUtils.addPluginProp("bqSourceTable", bqSourceTable);
     BeforeActions.scenario.write("BQ Source Table " + bqSourceTable + " created successfully");
   }
 
@@ -337,8 +350,10 @@ public class TestSetupHooks {
   }
 
   private static String createGCSBucketWithFile(String filePath) throws IOException, URISyntaxException {
-    String bucketName = StorageClient.createBucket("cdf-e2e-test-" + UUID.randomUUID()).getName();
+    String bucketName = StorageClient.createBucket("00000000-e2e-" + UUID.randomUUID()).getName();
     StorageClient.uploadObject(bucketName, filePath, filePath);
+    PluginPropertyUtils.addPluginProp("gcsSourceBucketName", bucketName);
+    PluginPropertyUtils.addPluginProp("gcsSourcePath", "gs://" + bucketName + "/" + filePath);
     BeforeActions.scenario.write("Created GCS Bucket " + bucketName + " containing " + filePath + " file");
     return bucketName;
   }
@@ -464,23 +479,55 @@ public class TestSetupHooks {
                       "- error in reading insert queries file " + e.getMessage());
       }
       SpannerClient.executeDMLQuery(spannerInstance, spannerDatabase, insertQuery);
-
+      PluginPropertyUtils.addPluginProp("spannerInstance", spannerInstance);
+      PluginPropertyUtils.addPluginProp("spannerDatabase", spannerDatabase);
+      PluginPropertyUtils.addPluginProp("spannerSourceTable", spannerSourceTable);
       BeforeActions.scenario.write("Spanner source table " + spannerSourceTable + " created successfully");
     } else {
       BeforeActions.scenario.write("Spanner instance - " + spannerInstance);
     }
   }
 
+  @Before(order = 2, value = "@SPANNER_SOURCE_BASIC_TEST")
+  public static void createSpannerSourceBasicTable() {
+    String insertQuery = StringUtils.EMPTY;
+    try {
+      insertQuery = new String(Files.readAllBytes(Paths.get(TestSetupHooks.class.getResource
+        ("/" + PluginPropertyUtils.pluginProp("spannerTestDataInsertBasicDataQueriesFile")).toURI()))
+        , StandardCharsets.UTF_8);
+    } catch (Exception e) {
+      BeforeActions.scenario.write("Exception in reading "
+                                     + PluginPropertyUtils.pluginProp("spannerTestDataInsertBasicDataQueriesFile")
+                                     + " - " + e.getMessage());
+      Assert.fail("Exception in Spanner testdata prerequisite setup " +
+                    "- error in reading insert queries file " + e.getMessage());
+    }
+    SpannerClient.executeDMLQuery(spannerInstance, spannerDatabase, insertQuery);
+    PluginPropertyUtils.addPluginProp("spannerSourceTable",
+                                      PluginPropertyUtils.pluginProp("spannerSourceBasicTable"));
+    BeforeActions.scenario.write("Spanner source table " + PluginPropertyUtils.pluginProp("spannerSourceBasicTable")
+                                   + " created successfully");
+  }
+
+  @After(order = 2, value = "@SPANNER_SOURCE_BASIC_TEST")
+  public static void resetSpannerSourceTable() {
+    PluginPropertyUtils.addPluginProp("spannerSourceTable", spannerSourceTable);
+  }
+
   @Before(order = 2, value = "@SPANNER_SINK_TEST")
   public static void setTempTargetSpannerDBAndTableName() {
     spannerTargetDatabase = spannerDatabase;
     spannerTargetTable = "e2e_target_table_" + UUID.randomUUID().toString().substring(0, 10).replaceAll("-", "_");
+    PluginPropertyUtils.addPluginProp("spannerTargetDatabase", spannerTargetDatabase);
+    PluginPropertyUtils.addPluginProp("spannerTargetTable", spannerTargetTable);
     BeforeActions.scenario.write("Spanner Target db name - " + spannerTargetDatabase);
     BeforeActions.scenario.write("Spanner Target table name - " + spannerTargetTable);
   }
 
   @After(order = 2, value = "@SPANNER_SINK_TEST")
   public static void emptyTempTargetSpannerDBAndTable() {
+    PluginPropertyUtils.removePluginProp("spannerTargetDatabase");
+    PluginPropertyUtils.removePluginProp("spannerTargetTable");
     spannerTargetDatabase = StringUtils.EMPTY;
     spannerTargetTable = StringUtils.EMPTY;
   }
@@ -489,13 +536,115 @@ public class TestSetupHooks {
   public static void setTempTargetSpannerNewDBAndTableName() {
     spannerTargetDatabase = "e2e-target-db-" + UUID.randomUUID().toString().substring(0, 10);
     spannerTargetTable = "e2e_target_table_" + UUID.randomUUID().toString().substring(0, 10).replaceAll("-", "_");
+    PluginPropertyUtils.addPluginProp("spannerTargetDatabase", spannerTargetDatabase);
+    PluginPropertyUtils.addPluginProp("spannerTargetTable", spannerTargetTable);
     BeforeActions.scenario.write("Spanner Target db name - " + spannerTargetDatabase);
     BeforeActions.scenario.write("Spanner Target table name - " + spannerTargetTable);
   }
 
   @After(order = 2, value = "@SPANNER_SINK_NEWDB_TEST")
   public static void emptyTempTargetSpannerNewDBAndTable() {
+    PluginPropertyUtils.removePluginProp("spannerTargetDatabase");
+    PluginPropertyUtils.removePluginProp("spannerTargetTable");
     spannerTargetDatabase = StringUtils.EMPTY;
     spannerTargetTable = StringUtils.EMPTY;
+  }
+
+  @Before(order = 1, value = "@GCS_CONNECTION")
+  public static void setGCSConnectionName() {
+    PluginPropertyUtils.addPluginProp("gcsConnectionName", "GCS-" + UUID.randomUUID());
+  }
+
+  @After(order = 1, value = "@GCS_CONNECTION")
+  public static void removeGCSConnectionName() {
+    PluginPropertyUtils.removePluginProp("gcsConnectionName");
+  }
+
+  @Before(order = 1, value = "@EXISTING_GCS_CONNECTION")
+  public static void addGCSConnection() throws IOException {
+    String connectionName = "GCS-" + UUID.randomUUID();
+    navigateToConnectionPageAndAddCommonProperties(connectionName, "gcsConnectionRow");
+    testAndCreateConnection(connectionName);
+    PluginPropertyUtils.addPluginProp("gcsConnectionName", connectionName);
+  }
+
+  @After(order = 1, value = "@EXISTING_GCS_CONNECTION")
+  public static void deleteGCSConnection() throws IOException {
+    deleteConnection("GCS", "gcsConnectionName");
+    PluginPropertyUtils.removePluginProp("gcsConnectionName");
+  }
+
+  @Before(order = 1, value = "@BQ_CONNECTION")
+  public static void setBQConnectionName() {
+    PluginPropertyUtils.addPluginProp("bqConnectionName", "BQ-" + UUID.randomUUID());
+  }
+
+  @After(order = 1, value = "@BQ_CONNECTION")
+  public static void removeBQConnectionName() {
+    PluginPropertyUtils.removePluginProp("bqConnectionName");
+  }
+
+  @Before(order = 1, value = "@EXISTING_BQ_CONNECTION")
+  public static void addBQConnection() throws IOException {
+    String connectionName = "BQ-" + UUID.randomUUID();
+    navigateToConnectionPageAndAddCommonProperties(connectionName, "bqConnectionRow");
+    CdfPluginPropertiesActions.enterValueInInputProperty("datasetProjectId", "projectId");
+    testAndCreateConnection(connectionName);
+    PluginPropertyUtils.addPluginProp("bqConnectionName", connectionName);
+  }
+
+  @After(order = 1, value = "@EXISTING_BQ_CONNECTION")
+  public static void deleteBQConnection() throws IOException {
+    deleteConnection("BigQuery", "bqConnectionName");
+    PluginPropertyUtils.removePluginProp("bqConnectionName");
+  }
+
+  @Before(order = 1, value = "@SPANNER_CONNECTION")
+  public static void setSpannerConnectionName() {
+    PluginPropertyUtils.addPluginProp("spannerConnectionName", "Spanner-" + UUID.randomUUID());
+  }
+
+  @After(order = 1, value = "@SPANNER_CONNECTION")
+  public static void removeSpannerConnectionName() throws IOException {
+    PluginPropertyUtils.removePluginProp("spannerConnectionName");
+  }
+
+  @Before(order = 1, value = "@EXISTING_SPANNER_CONNECTION")
+  public static void addSpannerConnection() throws IOException {
+    String connectionName = "Spanner-" + UUID.randomUUID();
+    navigateToConnectionPageAndAddCommonProperties(connectionName, "spannerConnectionRow");
+    testAndCreateConnection(connectionName);
+    PluginPropertyUtils.addPluginProp("spannerConnectionName", connectionName);
+  }
+
+  @After(order = 1, value = "@EXISTING_SPANNER_CONNECTION")
+  public static void deleteSpannerConnection() throws IOException {
+    deleteConnection("Spanner", "spannerConnectionName");
+    PluginPropertyUtils.removePluginProp("spannerConnectionName");
+  }
+
+  private static void navigateToConnectionPageAndAddCommonProperties(String connectionName, String connectionType)
+    throws IOException {
+    CdfConnectionActions.openWranglerConnectionsPage();
+    CdfPluginPropertiesActions.clickPluginPropertyButton("addConnection");
+    CdfPluginPropertiesActions.clickPluginPropertyElement(connectionType);
+    CdfPluginPropertiesActions.enterValueInInputProperty("name", connectionName);
+    CdfPluginPropertiesActions.replaceValueInInputProperty("projectId", "projectId");
+    CdfPluginPropertiesActions.overrideServiceAccountDetailsIfProvided();
+  }
+
+  private static void testAndCreateConnection(String connectionName) {
+    CdfPluginPropertiesActions.clickPluginPropertyButton("testConnection");
+    CdfConnectionActions.verifyTheTestConnectionIsSuccessful();
+    CdfPluginPropertiesActions.clickPluginPropertyButton("connectionCreate");
+    CdfConnectionActions.verifyConnectionIsCreatedSuccessfully(connectionName);
+  }
+
+  private static void deleteConnection(String connectionType, String connectionName) throws IOException {
+    CdfConnectionActions.openWranglerConnectionsPage();
+    CdfConnectionActions.expandConnections(connectionType);
+    CdfConnectionActions.openConnectionActionMenu(connectionType, connectionName);
+    CdfConnectionActions.selectConnectionAction(connectionType, connectionName, "Delete");
+    CdfPluginPropertiesActions.clickPluginPropertyButton("Delete");
   }
 }
