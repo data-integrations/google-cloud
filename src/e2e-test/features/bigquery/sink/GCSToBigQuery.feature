@@ -7,8 +7,8 @@ Feature: BigQuery sink - Verification of GCS to BigQuery successful data transfe
     When Source is GCS
     When Sink is BigQuery
     Then Open GCS source properties
-    Then Enter the GCS source mandatory properties
     Then Override Service account details if set in environment variables
+    Then Enter the GCS source mandatory properties
     Then Validate "GCS" plugin properties
     Then Close the GCS properties
     Then Open BigQuery sink properties
