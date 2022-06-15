@@ -79,7 +79,7 @@ public class TestSetupHooks {
           }
         if (serviceAccountType.equalsIgnoreCase("JSON")) {
           PluginPropertyUtils.addPluginProp("serviceAccountType", "JSON");
-          String serviceAccountJSON = System.getenv("SERVICE_ACCOUNT_JSON");
+          String serviceAccountJSON = System.getenv("SERVICE_ACCOUNT_JSON").replaceAll("[\r\n]+", " ");
           if (!(serviceAccountJSON == null) && !serviceAccountJSON.equalsIgnoreCase("auto-detect")) {
             PluginPropertyUtils.addPluginProp("serviceAccount", serviceAccountJSON);
           }
