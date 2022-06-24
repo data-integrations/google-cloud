@@ -46,9 +46,13 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 
 /**
  * GCS connector test
@@ -97,7 +101,7 @@ public class GCSConnectorTest {
   }
 
   @After
-  public void tearDown() throws Exception {
+  public void tearDown() {
     // delete all blob in bucket, otherwise it is not allowed to get deleted
     StorageBatch batch = storage.batch();
     Page<Blob> blobs = storage.list(bucket);
@@ -140,7 +144,6 @@ public class GCSConnectorTest {
                                             serviceAccountFilePath, null), entities);
     testGCSConnector(new GCPConnectorConfig(project, GCPConnectorConfig.SERVICE_ACCOUNT_JSON, null, serviceAccountKey),
                      entities);
-
   }
 
   private void testGCSConnector(GCPConnectorConfig config, List<BrowseEntity> entities) throws IOException {
@@ -166,22 +169,22 @@ public class GCSConnectorTest {
     // browse blob
     detail = connector.browse(context, BrowseRequest.builder("/" + bucket).build());
     BrowseDetail expected = BrowseDetail.builder().setTotalCount(11).setEntities(entities).build();
-    Assert.assertEquals(expected, detail);
+    assertBrowseDetailEquals(expected, detail);
 
     // browse limited
     detail = connector.browse(context, BrowseRequest.builder("/" + bucket).setLimit(5).build());
     expected = BrowseDetail.builder().setTotalCount(5).setEntities(entities.subList(0, 5)).build();
-    Assert.assertEquals(expected, detail);
+    assertBrowseDetailEquals(expected, detail);
 
     // browse one single file
     detail = connector.browse(context, BrowseRequest.builder("/" + bucket + "/" + "file0.txt").build());
     expected = BrowseDetail.builder().setTotalCount(1).setEntities(entities.subList(0, 1)).build();
-    Assert.assertEquals(expected, detail);
+    assertBrowseDetailEquals(expected, detail);
 
     // browse empty blob, should give empty list
     detail = connector.browse(context, BrowseRequest.builder("/" + bucket + "/" + "verifyempty/").build());
     expected = BrowseDetail.builder().setTotalCount(0).build();
-    Assert.assertEquals(expected, detail);
+    assertBrowseDetailEquals(expected, detail);
   }
 
   private Map<String, BrowseEntityPropertyValue> getFileProperties(Blob blob) {
@@ -192,5 +195,43 @@ public class GCSConnectorTest {
         String.valueOf(blob.getUpdateTime()), BrowseEntityPropertyValue.PropertyType.TIMESTAMP_MILLIS).build(),
       GCSConnector.SIZE_KEY, BrowseEntityPropertyValue.builder(
         String.valueOf(blob.getSize()), BrowseEntityPropertyValue.PropertyType.SIZE_BYTES).build());
+  }
+
+  /**
+   * Check browse details are equal while ignoring fields set by the AbstractFileConnector
+   */
+  private void assertBrowseDetailEquals(BrowseDetail expected, BrowseDetail actual) {
+    // propertyHeaders from actual will include addition properties from AbstractFileConnector. Only compare the
+    // ones added by the GCS connector
+    Assert.assertTrue(actual.getPropertyHeaders().containsAll(expected.getPropertyHeaders()));
+
+    // each entity from actual will contain additional properties, only compare the GCS ones
+    Assert.assertEquals(expected.getTotalCount(), actual.getTotalCount());
+    List<BrowseEntity> modifiedActualEntities = new ArrayList<>();
+    List<String> gcsProperties = Arrays.asList(GCSConnector.LAST_MODIFIED_KEY,
+                                               GCSConnector.SIZE_KEY,
+                                               GCSConnector.FILE_TYPE_KEY);
+    for (BrowseEntity actualEntity : actual.getEntities()) {
+      Map<String, BrowseEntityPropertyValue> properties = new HashMap<>();
+      for (String gcsProperty : gcsProperties) {
+        if (actualEntity.getProperties().containsKey(gcsProperty)) {
+          properties.put(gcsProperty, actualEntity.getProperties().get(gcsProperty));
+        }
+      }
+      modifiedActualEntities.add(
+        BrowseEntity.builder(actualEntity.getName(), actualEntity.getPath(), actualEntity.getType())
+          .setProperties(properties)
+          .canSample(actualEntity.canSample())
+          .canBrowse(actualEntity.canBrowse())
+          .build());
+    }
+    BrowseDetail modifiedActual = BrowseDetail.builder()
+      .setTotalCount(actual.getTotalCount())
+      // actual BrowseDetail contains sampleProperties that the AbstractFileConnector populates by looking at
+      // @Description annotations in its config class. Too brittle to check this in unit test as descriptions may change
+      .setSampleProperties(Collections.emptyList())
+      .setEntities(modifiedActualEntities)
+      .build();
+    Assert.assertEquals(expected, modifiedActual);
   }
 }
