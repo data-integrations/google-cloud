@@ -22,7 +22,6 @@ import com.google.cloud.dataplex.v1.Entity;
 import io.cdap.cdap.etl.mock.validation.MockFailureCollector;
 import io.cdap.plugin.gcp.common.GCPConnectorConfig;
 import io.cdap.plugin.gcp.dataplex.source.config.DataplexBatchSourceConfig;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -92,37 +91,8 @@ public class DataplexBatchSourceTest {
     assertEquals(1, mockFailureCollector.getValidationFailures().size());
   }
 
-  // for auto-detect case
   @Test
-  public void validateServiceAccountWhenIsServiceAccountJsonFalse() {
-    MockFailureCollector mockFailureCollector = new MockFailureCollector();
-    DataplexBatchSourceConfig.Builder builder = getBuilder();
-    DataplexBatchSourceConfig config = spy(builder.setConnection(connection).build());
-    when(connection.isServiceAccountJson()).thenReturn(Boolean.FALSE);
-    when(connection.getServiceAccountFilePath()).thenReturn(null);
-    try {
-      config.validateAndGetServiceAccountCredentials(mockFailureCollector);
-    } catch (Exception e) {
-    }
-    assertEquals(0, mockFailureCollector.getValidationFailures().size());
-  }
-
-  // for auto-detect case
-  @Test
-  public void validateServiceAccountWhenServiceAccountFilePathIsNull() {
-    MockFailureCollector mockFailureCollector = new MockFailureCollector();
-    DataplexBatchSourceConfig.Builder builder = getBuilder();
-    when(connection.getServiceAccountFilePath()).thenReturn(null);
-    DataplexBatchSourceConfig config = spy(builder.setConnection(connection).build());
-    try {
-      config.validateAndGetServiceAccountCredentials(mockFailureCollector);
-    } catch (Exception e) {
-    }
-    assertEquals(0, mockFailureCollector.getValidationFailures().size());
-  }
-
-  @Test
-  public void validateServiceAccountIsServiceAccountJsonTrue() throws Exception {
+  public void validateServiceAccountIsServiceAccountJsonTrue() {
     MockFailureCollector mockFailureCollector = new MockFailureCollector();
     DataplexBatchSourceConfig.Builder builder = getBuilder();
     DataplexBatchSourceConfig config = spy(builder.setConnection(connection).build());
@@ -133,7 +103,7 @@ public class DataplexBatchSourceTest {
   }
 
   @Test
-  public void validateServiceAccountWhenIsServiceAccountJsonTrueAndFilePathIsNotNull() throws Exception {
+  public void validateServiceAccountWhenIsServiceAccountJsonTrueAndFilePathIsNotNull() {
     MockFailureCollector mockFailureCollector = new MockFailureCollector();
     DataplexBatchSourceConfig.Builder builder = getBuilder();
     DataplexBatchSourceConfig config = spy(builder.setConnection(connection).build());
