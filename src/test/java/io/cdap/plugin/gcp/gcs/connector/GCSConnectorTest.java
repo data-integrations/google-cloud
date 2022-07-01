@@ -89,7 +89,7 @@ public class GCSConnectorTest {
 
     serviceAccountKey = new String(Files.readAllBytes(Paths.get(new File(serviceAccountFilePath).getAbsolutePath())),
                                    StandardCharsets.UTF_8);
-    storage = GCPUtils.getStorage(project, GCPUtils.loadServiceAccountCredentials(serviceAccountFilePath));
+    storage = GCPUtils.getStorage(project, GCPUtils.loadServiceAccountFileCredentials(serviceAccountFilePath));
     Assume.assumeFalse("The test bucket already exists.", storage.get(bucket) != null);
   }
 

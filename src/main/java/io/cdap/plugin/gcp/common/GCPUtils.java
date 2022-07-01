@@ -20,18 +20,19 @@ import com.google.auth.Credentials;
 import com.google.auth.oauth2.ExternalAccountCredentials;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
+import com.google.bigtable.repackaged.com.google.gson.Gson;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem;
 import com.google.cloud.hadoop.util.AccessTokenProviderClassFromConfigFactory;
 import com.google.cloud.hadoop.util.CredentialFactory;
-import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
 import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.BucketInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
+import com.google.gson.reflect.TypeToken;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 import io.cdap.plugin.gcp.gcs.ServiceAccountAccessTokenProvider;
 import org.apache.hadoop.conf.Configuration;
@@ -41,6 +42,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -57,9 +59,16 @@ import javax.annotation.Nullable;
  */
 public class GCPUtils {
   public static final String FS_GS_PROJECT_ID = "fs.gs.project.id";
-  private static final String SERVICE_ACCOUNT_TYPE = "cdap.gcs.auth.service.account.type";
-  private static final String SERVICE_ACCOUNT = "cdap.gcs.auth.service.account";
+  private static final Gson GSON = new Gson();
+  private static final Type SCOPES_TYPE = new TypeToken<List<String>>() { }.getType();
+  private static final String SERVICE_ACCOUNT_TYPE = "cdap.auth.service.account.type";
+  private static final String SERVICE_ACCOUNT = "cdap.auth.service.account";
+  private static final String SERVICE_ACCOUNT_SCOPES = "cdap.auth.service.account.scopes";
   private static final String SERVICE_ACCOUNT_TYPE_FILE_PATH = "filePath";
+  // fs.gs prefix is for GoogleHadoopFileSystemBase.getCredential(), used by the GCS connector.
+  private static final String GCS_PREFIX = "fs.gs";
+  // mapred.bq prefix is for BigQueryFactory.createBigQueryCredential(), used by the BigQueryOutputFormat
+  private static final String BQ_PREFIX = "mapred.bq";
   // according to https://cloud.google.com/bigquery/external-data-drive, to read from external table, drive scope
   // needs to be added, by default, this scope is not included
   public static final List<String> BIGQUERY_SCOPES = Arrays.asList("https://www.googleapis.com/auth/drive",
@@ -72,7 +81,7 @@ public class GCPUtils {
    * @return credentials generated from the service account file
    * @throws IOException if there was an error reading the file
    */
-  public static GoogleCredentials loadServiceAccountCredentials(String path) throws IOException {
+  public static GoogleCredentials loadServiceAccountFileCredentials(String path) throws IOException {
     return loadServiceAccountCredentials(path, true);
   }
 
@@ -118,8 +127,7 @@ public class GCPUtils {
    */
   public static Map<String, String> generateGCSAuthProperties(@Nullable String serviceAccount,
                                                               String serviceAccountType) {
-    // fs.gs prefix is for GoogleHadoopFileSystemBase.getCredential(), used by the GCS connector.
-    return generateAuthProperties(serviceAccount, serviceAccountType, "fs.gs");
+    return generateAuthProperties(serviceAccount, serviceAccountType, CredentialFactory.GCS_SCOPES, GCS_PREFIX);
   }
 
   /**
@@ -132,8 +140,9 @@ public class GCPUtils {
    */
   public static Map<String, String> generateBigQueryAuthProperties(@Nullable String serviceAccount,
                                                                    String serviceAccountType) {
-    // mapred.bq prefix is for BigQueryFactory.createBigQueryCredential(), used by the BigQueryOutputFormat
-    return generateAuthProperties(serviceAccount, serviceAccountType, "fs.gs", "mapred.bq");
+    List<String> scopes = new ArrayList<>(CredentialFactory.GCS_SCOPES);
+    scopes.addAll(BIGQUERY_SCOPES);
+    return generateAuthProperties(serviceAccount, serviceAccountType, scopes, GCS_PREFIX, BQ_PREFIX);
   }
 
   /**
@@ -143,14 +152,18 @@ public class GCPUtils {
    * @param serviceAccountType type of service account can be filePath or json
    * @param prefixes prefixes for the AccessTokenProvider class
    *
-   * @return {@link Map} properties genereated based on input params
+   * @return {@link Map} properties generated based on input params
    */
   private static Map<String, String> generateAuthProperties(@Nullable String serviceAccount,
-                                                            String serviceAccountType, String... prefixes) {
+                                                            String serviceAccountType, Collection<String> scopes,
+                                                            String... prefixes) {
     Map<String, String> properties = new HashMap<>();
     properties.put(SERVICE_ACCOUNT_TYPE, serviceAccountType);
     if (serviceAccount != null) {
       properties.put(SERVICE_ACCOUNT, serviceAccount);
+    }
+    if (!scopes.isEmpty()) {
+      properties.put(SERVICE_ACCOUNT_SCOPES, GSON.toJson(scopes));
     }
 
     // use a custom AccessTokenProvider that uses the newer
@@ -169,11 +182,13 @@ public class GCPUtils {
 
   /**
    * Loads credentials based on configuration properties set in the conf. This assumes that the properties from
-   * {@link #generateAuthProperties(String, String, String...)} were placed in the configuration.
+   * {@link #generateAuthProperties(String, String, Collection, String...)} were placed in the configuration.
    */
   public static GoogleCredentials loadCredentialsFromConf(Configuration conf) throws IOException {
-    String serviceAccountType = conf.get(GCPUtils.SERVICE_ACCOUNT_TYPE);
-    String serviceAccount = conf.get(GCPUtils.SERVICE_ACCOUNT);
+    String serviceAccountType = conf.get(SERVICE_ACCOUNT_TYPE);
+    String serviceAccount = conf.get(SERVICE_ACCOUNT);
+    String scopesStr = conf.get(SERVICE_ACCOUNT_SCOPES);
+    List<String> scopes = scopesStr == null ? null : GSON.fromJson(scopesStr, SCOPES_TYPE);
 
     GoogleCredentials credentials;
     if (serviceAccount == null) {
@@ -183,7 +198,10 @@ public class GCPUtils {
       credentials = loadServiceAccountCredentials(serviceAccount, isFile);
     }
 
-    return credentials.createScoped(CredentialFactory.GCS_SCOPES);
+    if (scopes != null && scopes.size() > 0) {
+      return credentials.createScoped(scopes);
+    }
+    return credentials;
   }
 
   public static Map<String, String> getFileSystemProperties(GCPConnectorConfig config, String path,
