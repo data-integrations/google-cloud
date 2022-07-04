@@ -58,18 +58,18 @@ public class BigQuerySinkUtilsTest {
   public void testGenerateTableFieldSchema() {
     String fieldName = "arrayOfRecords";
     Schema schema = Schema.recordOf("record",
-            Schema.Field.of("id", Schema.of(Schema.Type.STRING)),
-            Schema.Field.of(fieldName,
-                    Schema.arrayOf(
-                            Schema.recordOf("innerRecord",
-                                    Schema.Field.of("field1", Schema.of(Schema.Type.STRING))
-                            )
-                    )
+        Schema.Field.of("id", Schema.of(Schema.Type.STRING)),
+        Schema.Field.of(fieldName,
+            Schema.arrayOf(
+                Schema.recordOf("innerRecord",
+                    Schema.Field.of("field1", Schema.of(Schema.Type.STRING))
+                )
             )
+        )
     );
 
     BigQueryTableFieldSchema bqTableFieldSchema =
-            BigQuerySinkUtils.generateTableFieldSchema(schema.getField(fieldName));
+        BigQuerySinkUtils.generateTableFieldSchema(schema.getField(fieldName));
 
     List<BigQueryTableFieldSchema> fields = bqTableFieldSchema.getFields();
     Assert.assertEquals(fields.size(), 1);
@@ -86,18 +86,18 @@ public class BigQuerySinkUtilsTest {
   public void testGenerateTableFieldSchemaNullable() {
     String fieldName = "arrayOfRecords";
     Schema schema = Schema.recordOf("record",
-            Schema.Field.of("id", Schema.of(Schema.Type.STRING)),
-            Schema.Field.of(fieldName,
-                    Schema.nullableOf(Schema.arrayOf(
-                            Schema.recordOf("innerRecord",
-                                    Schema.Field.of("field1", Schema.of(Schema.Type.STRING))
-                            )
-                    ))
-            )
+        Schema.Field.of("id", Schema.of(Schema.Type.STRING)),
+        Schema.Field.of(fieldName,
+            Schema.nullableOf(Schema.arrayOf(
+                Schema.recordOf("innerRecord",
+                    Schema.Field.of("field1", Schema.of(Schema.Type.STRING))
+                )
+            ))
+        )
     );
 
     BigQueryTableFieldSchema bqTableFieldSchema =
-            BigQuerySinkUtils.generateTableFieldSchema(schema.getField(fieldName));
+        BigQuerySinkUtils.generateTableFieldSchema(schema.getField(fieldName));
 
     List<BigQueryTableFieldSchema> fields = bqTableFieldSchema.getFields();
     Assert.assertEquals(fields.size(), 1);
@@ -114,18 +114,18 @@ public class BigQuerySinkUtilsTest {
   public void testGenerateTableFieldSchemaNullable2() {
     String fieldName = "arrayOfRecords";
     Schema schema = Schema.recordOf("record",
-            Schema.Field.of("id", Schema.of(Schema.Type.STRING)),
-            Schema.Field.of(fieldName,
-                    Schema.nullableOf(Schema.arrayOf(
-                            Schema.recordOf("innerRecord",
-                                    Schema.Field.of("field1", Schema.nullableOf(Schema.of(Schema.Type.STRING)))
-                            )
-                    ))
-            )
+        Schema.Field.of("id", Schema.of(Schema.Type.STRING)),
+        Schema.Field.of(fieldName,
+            Schema.nullableOf(Schema.arrayOf(
+                Schema.recordOf("innerRecord",
+                    Schema.Field.of("field1", Schema.nullableOf(Schema.of(Schema.Type.STRING)))
+                )
+            ))
+        )
     );
 
     BigQueryTableFieldSchema bqTableFieldSchema =
-            BigQuerySinkUtils.generateTableFieldSchema(schema.getField(fieldName));
+        BigQuerySinkUtils.generateTableFieldSchema(schema.getField(fieldName));
 
     List<BigQueryTableFieldSchema> fields = bqTableFieldSchema.getFields();
     Assert.assertEquals(fields.size(), 1);
@@ -142,18 +142,18 @@ public class BigQuerySinkUtilsTest {
   public void testGenerateTableFieldSchemaNullable3() {
     String fieldName = "arrayOfRecords";
     Schema schema = Schema.recordOf("record",
-            Schema.Field.of("id", Schema.of(Schema.Type.STRING)),
-            Schema.Field.of(fieldName,
-                    Schema.nullableOf(Schema.arrayOf(
-                            Schema.nullableOf(Schema.recordOf("innerRecord",
-                                    Schema.Field.of("field1", Schema.nullableOf(Schema.of(Schema.Type.STRING)))
-                            ))
-                    ))
-            )
+        Schema.Field.of("id", Schema.of(Schema.Type.STRING)),
+        Schema.Field.of(fieldName,
+            Schema.nullableOf(Schema.arrayOf(
+                Schema.nullableOf(Schema.recordOf("innerRecord",
+                    Schema.Field.of("field1", Schema.nullableOf(Schema.of(Schema.Type.STRING)))
+                ))
+            ))
+        )
     );
 
     BigQueryTableFieldSchema bqTableFieldSchema =
-            BigQuerySinkUtils.generateTableFieldSchema(schema.getField(fieldName));
+        BigQuerySinkUtils.generateTableFieldSchema(schema.getField(fieldName));
 
     List<BigQueryTableFieldSchema> fields = bqTableFieldSchema.getFields();
     Assert.assertEquals(fields.size(), 1);
