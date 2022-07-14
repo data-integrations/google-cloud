@@ -74,6 +74,7 @@
     <commons.codec.version>1.4</commons.codec.version>
     <cdap.version>6.7.1-SNAPSHOT</cdap.version>
     <cdap.plugin.version>2.9.1-SNAPSHOT</cdap.plugin.version>
+    <cdap.version>6.7.0</cdap.version>
     <dropwizard.metrics-core.version>3.2.6</dropwizard.metrics-core.version>
     <flogger.system.backend.version>0.3.1</flogger.system.backend.version>
     <gcs.connector.version>hadoop2-2.0.0</gcs.connector.version>
@@ -532,6 +533,11 @@
     </dependency>
     <dependency>
       <groupId>com.google.cloud.bigdataoss</groupId>
+      <artifactId>util-hadoop</artifactId>
+      <version>${gcs.connector.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.cloud.bigdataoss</groupId>
       <artifactId>gcs-connector</artifactId>
       <version>${gcs.connector.version}</version>
     </dependency>
@@ -844,8 +850,8 @@
         <version>1.1.0</version>
         <configuration>
           <cdapArtifacts>
-            <parent>system:cdap-data-pipeline[6.7.0-SNAPSHOT,7.0.0-SNAPSHOT)</parent>
-            <parent>system:cdap-data-streams[6.7.0-SNAPSHOT,7.0.0-SNAPSHOT)</parent>
+            <parent>system:cdap-data-pipeline[6.7.1-SNAPSHOT,7.0.0-SNAPSHOT)</parent>
+            <parent>system:cdap-data-streams[6.7.1-SNAPSHOT,7.0.0-SNAPSHOT)</parent>
           </cdapArtifacts>
         </configuration>
         <executions>

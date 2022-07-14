@@ -16,7 +16,7 @@
 
 package io.cdap.plugin.gcp.gcs.actions;
 
-import com.google.auth.oauth2.ServiceAccountCredentials;
+import com.google.auth.Credentials;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
 import io.cdap.cdap.api.annotation.Description;
@@ -74,13 +74,10 @@ public final class GCSBucketDelete extends Action {
       return;
     }
     String serviceAccount = config.getServiceAccount();
-    ServiceAccountCredentials credentials = serviceAccount == null ?
+    Credentials credentials = serviceAccount == null ?
       null : GCPUtils.loadServiceAccountCredentials(serviceAccount, isServiceAccountFilePath);
-    if (serviceAccount != null) {
-      Map<String, String> map = GCPUtils.generateAuthProperties(serviceAccount, config.getServiceAccountType(),
-                                                                GCPUtils.CLOUD_JSON_KEYFILE_PREFIX);
-      map.forEach(configuration::set);
-    }
+    Map<String, String> map = GCPUtils.generateGCSAuthProperties(serviceAccount, config.getServiceAccountType());
+    map.forEach(configuration::set);
     configuration.set("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
     configuration.set("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
     // validate project id availability
