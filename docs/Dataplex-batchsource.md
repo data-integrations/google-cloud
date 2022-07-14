@@ -17,6 +17,18 @@ key can be found on the Dashboard in the Cloud Platform Console. Make sure the a
 BigQuery, Google Cloud Storage and Dataplex. The service account key file needs to be available on every node in your
 cluster and must be readable by all users running the job.
 
+Permissions
+-----------
+
+Assign the following roles to the
+[Dataproc service account](https://cloud.google.com/data-fusion/docs/concepts/service-accounts) to grant access to
+Dataplex:
+- Dataplex Developer
+- Dataplex Data Reader
+- Metastore Metadata User
+- Cloud Dataplex Service Agent
+- Dataplex Metadata Reader
+
 Properties
 ----------
 **Reference Name:** Name used to uniquely identify this source for lineage, annotating metadata, etc.
