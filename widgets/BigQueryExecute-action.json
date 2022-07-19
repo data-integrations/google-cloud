@@ -67,30 +67,6 @@
           }
         },
         {
-          "widget-type": "textbox",
-          "label": "Dataset Project ID",
-          "name": "datasetProject",
-          "widget-attributes": {
-            "placeholder": "The project in which the dataset specified in the `Dataset Name` is located or should be created. Defaults to the project specified in the Project Id property."
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Dataset Name",
-          "name": "dataset",
-          "widget-attributes": {
-            "placeholder": "Name of dataset to store the results."
-          }
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Table Name",
-          "name": "table",
-          "widget-attributes": {
-            "placeholder": "Name of table to store the results."
-          }
-        },
-        {
           "name": "useCache",
           "label": "Use Cache",
           "widget-type": "toggle",
@@ -113,6 +89,46 @@
           "widget-attributes": {
             "placeholder": "Location of the job.",
             "default": "US"
+          }
+        },
+        {
+          "widget-type": "toggle",
+          "label": "Store results in a BigQuery Table",
+          "name": "storeResults",
+          "widget-attributes": {
+            "on": {
+              "value": "true",
+              "label": "YES"
+            },
+            "off": {
+              "value": "false",
+              "label": "NO"
+            },
+            "default": "false"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Dataset Project ID",
+          "name": "datasetProject",
+          "widget-attributes": {
+            "placeholder": "The project in which the dataset specified in the `Dataset Name` is located or should be created. Defaults to the project specified in the Project Id property."
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Dataset Name",
+          "name": "dataset",
+          "widget-attributes": {
+            "placeholder": "Name of dataset to store the results."
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Table Name",
+          "name": "table",
+          "widget-attributes": {
+            "placeholder": "Name of table to store the results."
           }
         },
         {
@@ -201,6 +217,30 @@
         {
           "type": "property",
           "name": "serviceAccountJSON"
+        }
+      ]
+    },
+    {
+      "name": "showDestinationTableProperties",
+      "condition": {
+        "expression": "storeResults == true"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "datasetProject"
+        },
+        {
+          "type": "property",
+          "name": "dataset"
+        },
+        {
+          "type": "property",
+          "name": "table"
+        },
+        {
+          "type": "property",
+          "name": "cmekKey"
         }
       ]
     }
