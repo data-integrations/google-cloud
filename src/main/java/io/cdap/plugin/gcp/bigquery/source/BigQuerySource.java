@@ -29,6 +29,8 @@ import com.google.cloud.bigquery.TimePartitioning;
 import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.Storage;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
+import com.google.gson.Gson;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Metadata;
 import io.cdap.cdap.api.annotation.MetadataProperty;
@@ -46,9 +48,13 @@ import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
 import io.cdap.cdap.etl.api.connector.Connector;
+import io.cdap.cdap.etl.api.engine.sql.SQLEngineInput;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnector;
+import io.cdap.plugin.gcp.bigquery.sqlengine.BigQueryReadDataset;
+import io.cdap.plugin.gcp.bigquery.sqlengine.BigQuerySQLEngine;
+import io.cdap.plugin.gcp.bigquery.sqlengine.BigQueryWrite;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.CmekUtils;
@@ -61,6 +67,7 @@ import org.slf4j.LoggerFactory;
 
 import java.time.DateTimeException;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -76,6 +83,7 @@ import javax.annotation.Nullable;
 @Metadata(properties = {@MetadataProperty(key = Connector.PLUGIN_TYPE, value = BigQueryConnector.NAME)})
 public final class BigQuerySource extends BatchSource<LongWritable, GenericData.Record, StructuredRecord> {
   private static final Logger LOG = LoggerFactory.getLogger(BigQuerySource.class);
+  private static final Gson GSON = new Gson();
   public static final String NAME = "BigQueryTable";
   private BigQuerySourceConfig config;
   private Schema outputSchema;
@@ -165,7 +173,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     // We call emitLineage before since it creates the dataset with schema.
     Type sourceTableType = config.getSourceTableType();
     emitLineage(context, configuredSchema, sourceTableType, config.getTable());
-    setInputFormat(context);
+    setInputFormat(context, configuredSchema);
   }
 
   @Override
@@ -335,8 +343,26 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     }
   }
 
-  private void setInputFormat(BatchSourceContext context) {
-    context.setInput(Input.of(config.referenceName, new BigQueryInputFormatProvider(configuration)));
+  private void setInputFormat(BatchSourceContext context,
+                              Schema configuredSchema) {
+    Input inputFormatInput = Input.of(config.referenceName, new BigQueryInputFormatProvider(configuration));
+
+    // Add output for SQL Engine Direct read
+    ImmutableMap.Builder<String, String> arguments = new ImmutableMap.Builder<>();
+
+    List<String> fieldNames = configuredSchema.getFields().stream().map(f -> f.getName()).collect(Collectors.toList());
+
+    arguments
+      .put(BigQueryReadDataset.SQL_INPUT_CONFIG, GSON.toJson(config))
+      .put(BigQueryReadDataset.SQL_INPUT_SCHEMA, GSON.toJson(configuredSchema))
+      .put(BigQueryReadDataset.SQL_INPUT_FIELDS, GSON.toJson(fieldNames));
+
+    Input sqlEngineInput = new SQLEngineInput(config.referenceName,
+                                              context.getStageName(),
+                                              BigQuerySQLEngine.class.getName(),
+                                              arguments.build(),
+                                              inputFormatInput);
+    context.setInput(sqlEngineInput);
   }
 
   private void emitLineage(BatchSourceContext context, Schema schema, Type sourceTableType,

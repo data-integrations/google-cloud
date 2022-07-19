@@ -50,6 +50,8 @@ import io.cdap.cdap.etl.api.engine.sql.request.SQLJoinDefinition;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLJoinRequest;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLPullRequest;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLPushRequest;
+import io.cdap.cdap.etl.api.engine.sql.request.SQLReadRequest;
+import io.cdap.cdap.etl.api.engine.sql.request.SQLReadResult;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLRelationDefinition;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLTransformDefinition;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLTransformRequest;
@@ -340,6 +342,44 @@ public class BigQuerySQLEngine
     }
 
     return Collections.singleton(DefaultPullCapability.SPARK_RDD_PULL);
+  }
+
+  @Override
+  public SQLReadResult read(SQLReadRequest readRequest) throws SQLEngineException {
+    String datasetName = readRequest.getDatasetName();
+
+    // TODO: implement direct source read toggle
+    // Check if direct sink write is enabled. If not, skip.
+    if (!sqlEngineConfig.shouldUseDirectSinkWrite()) {
+      return SQLReadResult.unsupported(datasetName);
+    }
+
+    // Check if this output matches the expected engine. If it doesn't, skip execution for this write operation.;
+    if (!BigQuerySQLEngine.class.getName().equals(readRequest.getInput().getSqlEngineClassName())) {
+      LOG.debug("Got output for another SQL engine {}, skipping", readRequest.getInput().getSqlEngineClassName());
+      return SQLReadResult.unsupported(datasetName);
+    }
+
+    // Get source table information (from the stage we are attempting to write into the sink)
+    String destinationTable = BigQuerySQLEngineUtils.getNewTableName(runId);
+
+    // Create empty table to store query results.
+    BigQuerySQLEngineUtils.createEmptyTable(sqlEngineConfig, bigQuery, project, dataset, destinationTable);
+    TableId destinationTableId = TableId.of(datasetProject, dataset, destinationTable);
+
+    // Build Big Query Write instance and execute write operation.
+    BigQueryReadDataset readDataset = BigQueryReadDataset.getInstance(datasetName,
+                                                                      sqlEngineConfig,
+                                                                      bigQuery,
+                                                                      readRequest,
+                                                                      destinationTableId);
+    SQLReadResult result = readDataset.read();
+
+    if (result.isSuccessful()) {
+      datasets.put(datasetName, readDataset);
+    }
+
+    return result;
   }
 
   @Override
