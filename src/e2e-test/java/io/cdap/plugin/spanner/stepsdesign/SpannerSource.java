@@ -15,7 +15,9 @@
  */
 package io.cdap.plugin.spanner.stepsdesign;
 
+import io.cdap.e2e.pages.locators.CdfStudioLocators;
 import io.cdap.e2e.utils.CdfHelper;
+import io.cdap.e2e.utils.ElementHelper;
 import io.cdap.e2e.utils.PluginPropertyUtils;
 import io.cdap.plugin.common.stepsdesign.TestSetupHooks;
 import io.cdap.plugin.spanner.actions.SpannerActions;
@@ -45,6 +47,11 @@ public class SpannerSource implements CdfHelper {
   @Then("Enter Spanner source property TableName")
   public void enterSpannerSourcePropertyTableName() {
     SpannerActions.enterTableName(TestSetupHooks.spannerSourceTable);
+  }
+
+  @Then("Enter runtime argument value for Spanner Source Table Name key {string}")
+  public void enterRuntimeArgumentValueForSpannerSourceTableNameKey(String runtimeArgumentKey) {
+    ElementHelper.sendKeys(CdfStudioLocators.runtimeArgsValue(runtimeArgumentKey), TestSetupHooks.spannerSourceTable);
   }
 
   @Then("Enter the Spanner source property Import Query {string}")
