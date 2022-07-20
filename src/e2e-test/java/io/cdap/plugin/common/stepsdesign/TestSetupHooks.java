@@ -1,5 +1,5 @@
 /*
- * Copyright © 2021 Cask Data, Inc.
+ * Copyright © 2022 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -151,9 +151,30 @@ public class TestSetupHooks {
     gcsSourceBucketName = createGCSBucketWithFile(PluginPropertyUtils.pluginProp("gcsCsvRangeFile"));
   }
 
+  @Before(order = 1, value = "@GCS_CSV_BQMT_TEST")
+  public static void createBucketWithBQMTCSVFile() throws IOException, URISyntaxException {
+    gcsSourceBucketName = createGCSBucketWithFile(PluginPropertyUtils.pluginProp("bqmtGcsCsvFile"));
+  }
+
+  @Before(order = 1, value = "@GCS_TSV_BQMT_TEST")
+  public static void createBucketWithBQMTTSVFile() throws IOException, URISyntaxException {
+    gcsSourceBucketName = createGCSBucketWithFile(PluginPropertyUtils.pluginProp("bqmtGcsTsvFile"));
+  }
+
+  @Before(order = 1, value = "@GCS_TXT_BQMT_TEST")
+  public static void createBucketWithBQMTTXTFile() throws IOException, URISyntaxException {
+    gcsSourceBucketName = createGCSBucketWithFile(PluginPropertyUtils.pluginProp("bqmtGcsTextFile"));
+  }
+
+  @Before(order = 1, value = "@GCS_BLOB_BQMT_TEST")
+  public static void createBucketWithBQMTBLOBFile() throws IOException, URISyntaxException {
+    gcsSourceBucketName = createGCSBucketWithFile(PluginPropertyUtils.pluginProp("bqmtGcsBlobFile"));
+  }
+
   @After(order = 1, value = "@GCS_CSV_TEST or @GCS_TSV_TEST or @GCS_BLOB_TEST " +
     "or @GCS_DELIMITED_TEST or @GCS_TEXT_TEST or @GCS_OUTPUT_FIELD_TEST or @GCS_DATATYPE_1_TEST or " +
-    "@GCS_DATATYPE_2_TEST or @GCS_READ_RECURSIVE_TEST or @GCS_DELETE_WILDCARD_TEST or @GCS_CSV_RANGE_TEST")
+    "@GCS_DATATYPE_2_TEST or @GCS_READ_RECURSIVE_TEST or @GCS_DELETE_WILDCARD_TEST or @GCS_CSV_RANGE_TEST or " +
+    "@GCS_CSV_BQMT_TEST or @GCS_TSV_BQMT_TEST or @GCS_TXT_BQMT_TEST or @GCS_BLOB_BQMT_TEST")
   public static void deleteSourceBucketWithFile() {
     deleteGCSBucket(gcsSourceBucketName);
     PluginPropertyUtils.removePluginProp("gcsSourceBucketName");
@@ -206,6 +227,55 @@ public class TestSetupHooks {
     }
   }
 
+  @After(order = 1, value = "@BQ_SINK_TEST_CSV_BQMT")
+  public static void deleteTempTargetBQMTCSVTables() throws IOException, URISyntaxException, InterruptedException {
+    deleteTempTargetBQTables(PluginPropertyUtils.pluginProp("bqmtCsvTargetTables"));
+  }
+
+  @After(order = 1, value = "@BQ_SINK_TEST_DELIMITED_BQMT")
+  public static void deleteTempTargetBQMTDelimitedTables() throws IOException, URISyntaxException,
+    InterruptedException {
+    deleteTempTargetBQTables(PluginPropertyUtils.pluginProp("bqmtDelimitedTargetTables"));
+  }
+
+  @After(order = 1, value = "@BQ_SINK_TEST_TSV_BQMT")
+  public static void deleteTempTargetBQMTTSVTables() throws IOException, URISyntaxException, InterruptedException {
+    deleteTempTargetBQTables(PluginPropertyUtils.pluginProp("bqmtTsvTargetTables"));
+  }
+
+  @After(order = 1, value = "@BQ_SINK_TEST_TXT_BQMT")
+  public static void deleteTempTargetBQMTTXTTables() throws IOException, URISyntaxException, InterruptedException {
+    deleteTempTargetBQTables(PluginPropertyUtils.pluginProp("bqmtTextTargetTables"));
+  }
+
+  @After(order = 1, value = "@BQ_SINK_TEST_BLOB_BQMT")
+  public static void deleteTempTargetBQMTBlobTables() throws IOException, URISyntaxException, InterruptedException {
+    deleteTempTargetBQTables(PluginPropertyUtils.pluginProp("bqmtBlobTargetTables"));
+  }
+
+  @After(order = 1, value = "@BQ_SINK_TEST_SPLIT_BQMT")
+  public static void deleteTempTargetBQMTSplitFieldTables() throws IOException, URISyntaxException,
+    InterruptedException {
+    deleteTempTargetBQTables(PluginPropertyUtils.pluginProp("bqmtSplitFieldTargetTables"));
+  }
+
+  private static void deleteTempTargetBQTables(String tableList) throws IOException, InterruptedException {
+    String[] targetTableToDelete = tableList.split(",");
+    for (String table : targetTableToDelete) {
+      try {
+        BigQueryClient.dropBqQuery(table);
+        BeforeActions.scenario.write("BQ Target table - " + table + " deleted successfully");
+        bqTargetTable = StringUtils.EMPTY;
+      } catch (BigQueryException e) {
+        if (e.getMessage().contains("Not found: Table")) {
+          BeforeActions.scenario.write("BQ Target Table " + bqTargetTable + " does not exist");
+        } else {
+          Assert.fail(e.getMessage());
+        }
+      }
+    }
+  }
+
   /**
    * Create BigQuery table with 3 columns (Id - Int, Value - Int, UID - string) containing random testdata.
    * Sample row:
@@ -232,7 +302,9 @@ public class TestSetupHooks {
     BeforeActions.scenario.write("BQ source Table " + bqSourceTable + " created successfully");
   }
 
-  @After(order = 1, value = "@BQ_SOURCE_TEST or @BQ_PARTITIONED_SOURCE_TEST or @BQ_SOURCE_DATATYPE_TEST")
+  @After(order = 1, value = "@BQ_SOURCE_TEST or @BQ_PARTITIONED_SOURCE_TEST or @BQ_SOURCE_DATATYPE_TEST " +
+          "or @BQ_SOURCE_BQMT_TEST")
+
   public static void deleteTempSourceBQTable() throws IOException, InterruptedException {
     BigQueryClient.dropBqQuery(bqSourceTable);
     PluginPropertyUtils.removePluginProp("bqSourceTable");
@@ -276,10 +348,17 @@ public class TestSetupHooks {
    * new_sha1 STRING, old_repo STRING, new_repo STRING>>, Userdata STRUCT<age INT64, company STRING>)
    * containing random testdata.
    */
+
   @Before(order = 1, value = "@BQ_SOURCE_DATATYPE_TEST")
   public static void createSourceBQTableWithDifferentDataTypes() throws IOException, InterruptedException {
     createSourceBQTableWithQueries(PluginPropertyUtils.pluginProp("bqCreateTableQueryFile"),
-                                   PluginPropertyUtils.pluginProp("bqInsertDataQueryFile"));
+            PluginPropertyUtils.pluginProp("bqInsertDataQueryFile"));
+  }
+
+  @Before(order = 1, value = "@BQ_SOURCE_BQMT_TEST")
+  public static void createSourceBQTableForBQMTTest() throws IOException, InterruptedException {
+    createSourceBQTableWithQueries(PluginPropertyUtils.pluginProp("bqmtCreateBQTableQueryFile"),
+                                   PluginPropertyUtils.pluginProp("bqmtInsertBQDataQueryFile"));
   }
 
   private static void createSourceBQTableWithQueries(String bqCreateTableQueryFile, String bqInsertDataQueryFile) throws

@@ -34,7 +34,9 @@ public enum CdfPluginPropertyLocator {
   OUTPUT_SCHEMA_MACRO_INPUT("Output Schema-macro-input"),
   GCS_DELETE_OBJECTS_TO_DELETE("paths"),
   GCS_MOVE_SOURCE_PATH("sourcePath"),
-  GCS_MOVE_DESTINATION_PATH("destPath");
+  GCS_MOVE_DESTINATION_PATH("destPath"),
+  BQMT_ALLOW_FLEXIBLE_SCHEMAS_IN_OUTPUT("allowFlexibleSchema"),
+  BQMT_UPDATE_TABLE_SCHEMA("allowSchemaRelaxation");
 
   public String pluginProperty;
   CdfPluginPropertyLocator(String property) {
@@ -70,6 +72,8 @@ public enum CdfPluginPropertyLocator {
       .put("objectsToDelete", CdfPluginPropertyLocator.GCS_DELETE_OBJECTS_TO_DELETE)
       .put("gcsMoveSourcePath", CdfPluginPropertyLocator.GCS_MOVE_SOURCE_PATH)
       .put("gcsMoveDestinationPath", CdfPluginPropertyLocator.GCS_MOVE_DESTINATION_PATH)
+      .put("allowFlexibleSchema", CdfPluginPropertyLocator.BQMT_ALLOW_FLEXIBLE_SCHEMAS_IN_OUTPUT)
+      .put("allowSchemaRelaxation", CdfPluginPropertyLocator.BQMT_UPDATE_TABLE_SCHEMA)
       .build();
   }
 

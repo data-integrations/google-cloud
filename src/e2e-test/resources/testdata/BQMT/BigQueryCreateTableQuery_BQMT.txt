@@ -1,0 +1,10 @@
+create table `DATASET.TABLE_NAME` (transaction_info BOOL, transaction_num BYTES, transaction_uid STRING,
+transaction_date DATE, transaction_dt DATETIME, transaction_time TIME, latitude FLOAT64, unique_key INT64,
+business_ratio NUMERIC, updated_on TIMESTAMP, parent ARRAY<STRING>, inputs STRUCT<input_script_bytes BYTES,
+input_script_string STRING, input_sequence_number INT64>, business_bigratio BIGNUMERIC,
+committer STRUCT<name STRING, email STRING, time_sec INT64, tz_offset INT64, date STRUCT<seconds INT64, nanos INT64>>,
+trailer ARRAY<STRUCT<key STRING, value STRING, email STRING>>,
+difference ARRAY<STRUCT<old_mode INT64, new_mode INT64, old_path STRING, new_path STRING, old_sha1 STRING,
+new_sha1 STRING, old_repo STRING, new_repo STRING>>,
+Userdata STRUCT<age INT64, company STRING>, tablename STRING
+)
