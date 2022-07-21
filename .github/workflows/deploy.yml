@@ -60,7 +60,7 @@ jobs:
 
 
   run-snapshot-release:
-    if: ${{ github.event.workflow_run.event == 'push' && endsWith(needs.commit-status-update-and-wait.outputs.version, 'SNAPSHOT') }}
+    if: ${{ github.event.workflow_run.event != 'pull_request' && endsWith(needs.commit-status-update-and-wait.outputs.version, 'SNAPSHOT') }}
     needs: [commit-status-update-and-wait, run-build]
     uses: ./.github/workflows/snapshot-release.yml
     with:
