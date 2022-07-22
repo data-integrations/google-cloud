@@ -180,7 +180,8 @@ public final class GCSBucketDelete extends Action {
     public static final String NAME_PATHS = "paths";
 
     @Name(NAME_PATHS)
-    @Description("Comma separated list of objects to be deleted.")
+    @Description("Comma separated list of objects to be deleted. " +
+      "Valid formats: exact object and wildcard character (*).")
     @Macro
     private String paths;
 
