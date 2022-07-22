@@ -20,19 +20,25 @@ on:
       - Trigger build
     types:
       - completed
+  workflow_call:
+    inputs:
+      ref:
+        required: true
+        type: string
 
 jobs:
   build:
     runs-on: k8s-runner-build
 
-    if: ${{ github.event.workflow_run.conclusion != 'skipped' }}
+
 
     steps:
       # Pinned 1.0.0 version
-      - uses: haya14busa/action-workflow_run-status@967ed83efa565c257675ed70cfe5231f062ddd94
+      - if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion != 'skipped' }}
+        uses: haya14busa/action-workflow_run-status@967ed83efa565c257675ed70cfe5231f062ddd94
       - uses: actions/checkout@v2.3.4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event.workflow_run.head_sha || inputs.ref }}
       - name: Cache
         uses: actions/cache@v2.1.3
         with:
@@ -57,4 +63,4 @@ jobs:
         with:
           # GITHUB_TOKEN
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          commit: ${{ github.event.workflow_run.head_sha }}
+          commit: ${{ github.event.workflow_run.head_sha || inputs.ref }}

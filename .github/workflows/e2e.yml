@@ -59,13 +59,13 @@ jobs:
             ${{ runner.os }}-maven-${{ github.workflow }}
       - name: Run tests
         run: python3 e2e/src/main/scripts/run_e2e_test.py
-      - name: Upload report 
+      - name: Upload report
         uses: actions/upload-artifact@v2.2.4
         if: always()
         with:
           name: Cucumber report
           path: ./plugin/target/cucumber-reports
-      - name: Upload debug files 
+      - name: Upload debug files
         uses: actions/upload-artifact@v2.2.4
         if: always()
         with:
@@ -85,4 +85,3 @@ jobs:
           state: success
           context: Cucumber report
           sha: ${{github.event.pull_request.head.sha || github.sha}}
-          
