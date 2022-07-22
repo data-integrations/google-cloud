@@ -17,9 +17,9 @@ name: Build with unit tests
 on:
   workflow_run:
     workflows:
-    - Trigger build
+      - Trigger build
     types:
-    - completed
+      - completed
   workflow_call:
     inputs:
       ref:
