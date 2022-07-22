@@ -16,7 +16,10 @@
 
 package io.cdap.plugin.gcp.gcs.sink;
 
+import com.google.auth.Credentials;
 import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageOptions;
 import com.google.common.annotations.VisibleForTesting;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.StorageClient;
@@ -126,16 +129,12 @@ public class GCSOutputCommitter extends OutputCommitter {
   @VisibleForTesting
   StorageClient getStorageClient(Configuration configuration) throws IOException {
     String project = configuration.get(GCPUtils.FS_GS_PROJECT_ID);
-    String serviceAccount = null;
-    boolean isServiceAccountFile = GCPUtils.SERVICE_ACCOUNT_TYPE_FILE_PATH
-      .equals(configuration.get(GCPUtils.SERVICE_ACCOUNT_TYPE));
-    if (isServiceAccountFile) {
-      serviceAccount = configuration.get(GCPUtils.CLOUD_JSON_KEYFILE, null);
-    } else {
-      serviceAccount = configuration.get(String.format("%s.%s", GCPUtils.CLOUD_JSON_KEYFILE_PREFIX,
-                                                       GCPUtils.CLOUD_ACCOUNT_JSON_SUFFIX));
-    }
-    return StorageClient.create(project, serviceAccount, isServiceAccountFile);
+    Credentials credentials = GCPUtils.loadCredentialsFromConf(configuration);
+    Storage storage = StorageOptions.newBuilder()
+      .setProjectId(project)
+      .setCredentials(credentials)
+      .build().getService();
+    return new StorageClient(storage);
   }
 
   @Override

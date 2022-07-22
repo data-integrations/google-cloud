@@ -47,7 +47,7 @@ public class StorageClient {
   private static final Logger LOG = LoggerFactory.getLogger(StorageClient.class);
   private final Storage storage;
 
-  private StorageClient(Storage storage) {
+  public StorageClient(Storage storage) {
     this.storage = storage;
   }
 

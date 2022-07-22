@@ -344,7 +344,7 @@ public final class DataplexUtil {
     if (isServiceAccountJson || (filePath != null && !filePath.equalsIgnoreCase(DataplexConstants.NONE))) {
       return GCPUtils.loadServiceAccountCredentials(serviceAccount, !isServiceAccountJson);
     } else {
-      return ServiceAccountCredentials.getApplicationDefault();
+      return GoogleCredentials.getApplicationDefault();
     }
   }
 

@@ -159,7 +159,8 @@ public final class BigQueryConnector implements DirectConnector {
   private BrowseDetail getTableDetail(BigQuery bigQuery, String datasetProject, String datasetName, String tableName) {
     Table table = getTable(bigQuery, datasetProject, datasetName, tableName);
     return BrowseDetail.builder().addEntity(
-      BrowseEntity.builder(tableName, "/" + datasetName + "/" + tableName, table.getDefinition().getType().name())
+      BrowseEntity.builder(tableName, "/" + datasetName + "/" + tableName,
+                           table.getDefinition().getType().name().toLowerCase())
         .canSample(true).build()).setTotalCount(1).build();
   }
 

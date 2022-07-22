@@ -18,7 +18,7 @@ package io.cdap.plugin.gcp.bigquery.connector;
 
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
-import io.cdap.cdap.etl.api.batch.BatchSource;
+import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.connector.BrowseDetail;
 import io.cdap.cdap.etl.api.connector.BrowseEntity;
 import io.cdap.cdap.etl.api.connector.BrowseRequest;
@@ -27,11 +27,14 @@ import io.cdap.cdap.etl.api.connector.ConnectorSpec;
 import io.cdap.cdap.etl.api.connector.ConnectorSpecRequest;
 import io.cdap.cdap.etl.api.connector.PluginSpec;
 import io.cdap.cdap.etl.api.connector.SampleRequest;
+import io.cdap.cdap.etl.api.engine.sql.BatchSQLEngine;
 import io.cdap.cdap.etl.api.validation.ValidationException;
 import io.cdap.cdap.etl.mock.common.MockConnectorConfigurer;
 import io.cdap.cdap.etl.mock.common.MockConnectorContext;
-import io.cdap.plugin.common.ConfigUtil;
+import io.cdap.plugin.gcp.bigquery.sink.BigQueryMultiSink;
+import io.cdap.plugin.gcp.bigquery.sink.BigQuerySink;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySource;
+import io.cdap.plugin.gcp.bigquery.sqlengine.BigQuerySQLEngine;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.BeforeClass;
@@ -43,6 +46,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -58,7 +62,7 @@ import java.util.Set;
  * service.account.file -- the path to the service account key file
  */
 public class BigQueryConnectorTest {
-  private static final Set<String> SUPPORTED_TYPES = new HashSet<>(Arrays.asList("TABLE", "VIEW"));
+  private static final Set<String> SUPPORTED_TYPES = new HashSet<>(Arrays.asList("table", "view"));
   private static String serviceAccountKey;
   private static String project;
   private static String datasetProject;
@@ -133,16 +137,19 @@ public class BigQueryConnectorTest {
       Assert.assertNotNull(field.getSchema());
     }
     Set<PluginSpec> relatedPlugins = connectorSpec.getRelatedPlugins();
-    Assert.assertEquals(1, relatedPlugins.size());
-    PluginSpec pluginSpec = relatedPlugins.iterator().next();
-    Assert.assertEquals(BigQuerySource.NAME, pluginSpec.getName());
-    Assert.assertEquals(BatchSource.PLUGIN_TYPE, pluginSpec.getType());
+    Set<PluginSpec> expectedRelatedPlugins = new HashSet<>();
 
-    Map<String, String> properties = pluginSpec.getProperties();
-    Assert.assertEquals(dataset, properties.get("dataset"));
-    Assert.assertEquals(table, properties.get("table"));
-    Assert.assertEquals("true", properties.get(ConfigUtil.NAME_USE_CONNECTION));
-    Assert.assertEquals("${conn(connection-id)}", properties.get(ConfigUtil.NAME_CONNECTION));
+    Map<String, String> pluginProperties = new HashMap<>();
+    pluginProperties.put("useConnection", "true");
+    pluginProperties.put("connection", "${conn(connection-id)}");
+    pluginProperties.put("dataset", dataset);
+    pluginProperties.put("table", table);
+    pluginProperties.put("referenceName", dataset + "." + table);
+    expectedRelatedPlugins.add(new PluginSpec(BigQueryMultiSink.NAME, BatchSink.PLUGIN_TYPE, pluginProperties));
+    expectedRelatedPlugins.add(new PluginSpec(BigQuerySink.NAME, BatchSink.PLUGIN_TYPE, pluginProperties));
+    expectedRelatedPlugins.add(new PluginSpec(BigQuerySource.NAME, BigQuerySource.PLUGIN_TYPE, pluginProperties));
+    expectedRelatedPlugins.add(new PluginSpec(BigQuerySQLEngine.NAME, BatchSQLEngine.PLUGIN_TYPE, pluginProperties));
+    Assert.assertEquals(expectedRelatedPlugins, relatedPlugins);
   }
 
   private void testSample(BigQueryConnector connector) throws IOException {
@@ -176,7 +183,6 @@ public class BigQueryConnectorTest {
     Assert.assertTrue(detail.getTotalCount() > 0);
     Assert.assertTrue(detail.getEntities().size() > 0);
     for (BrowseEntity entity : detail.getEntities()) {
-      System.out.println(entity.getType() + " : " + entity.getName());
       Assert.assertEquals(BigQueryConnector.ENTITY_TYPE_DATASET, entity.getType());
       Assert.assertTrue(entity.canBrowse());
       Assert.assertFalse(entity.canSample());
@@ -188,7 +194,6 @@ public class BigQueryConnectorTest {
     Assert.assertTrue(detail.getTotalCount() > 0);
     Assert.assertTrue(detail.getEntities().size() > 0);
     for (BrowseEntity entity : detail.getEntities()) {
-      System.out.println(entity.getType() + " : " + entity.getName());
       Assert.assertTrue(SUPPORTED_TYPES.contains(entity.getType()));
       Assert.assertFalse(entity.canBrowse());
       Assert.assertTrue(entity.canSample());
@@ -200,7 +205,6 @@ public class BigQueryConnectorTest {
     Assert.assertEquals(1, detail.getTotalCount());
     Assert.assertEquals(1, detail.getEntities().size());
     for (BrowseEntity entity : detail.getEntities()) {
-      System.out.println(entity.getType() + " : " + entity.getName());
       Assert.assertTrue(SUPPORTED_TYPES.contains(entity.getType()));
       Assert.assertFalse(entity.canBrowse());
       Assert.assertTrue(entity.canSample());
