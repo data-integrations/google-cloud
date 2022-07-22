@@ -1,0 +1,67 @@
+# Copyright © 2022 Cask Data, Inc.
+#  Licensed under the Apache License, Version 2.0 (the "License"); you may not
+#  use this file except in compliance with the License. You may obtain a copy of
+#  the License at
+#  http://www.apache.org/licenses/LICENSE-2.0
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#  License for the specific language governing permissions and limitations under
+#  the License.
+
+# This workflow will build a Java project with Maven
+# For more information see: https://help.github.com/actions/language-and-framework-guides/building-and-testing-java-with-maven
+# Note: Any changes to this workflow would be used only after merging into develop
+
+name: Deploy
+
+on:
+  workflow_run:
+    workflows:
+    - Trigger build
+    types:
+    - completed
+
+jobs:
+  commit-status-update-and-wait:
+    if: ${{ github.event.workflow_run.conclusion != 'skipped' }}
+    runs-on: ubuntu-latest
+
+    steps:
+
+    - uses: haya14busa/action-workflow_run-status@967ed83efa565c257675ed70cfe5231f062ddd94
+
+    - name: Wait for e2e.yml to complete successfully
+      if: ${{ github.event.workflow_run.head_branch == 'develop' }}
+      uses: lewagon/wait-on-check-action@e2558238c09778af25867eb5de5a3ce4bbae3dcd
+      with:
+        ref: ${{ github.event.workflow_run.head_sha }}
+        check-name: 'e2e'
+        repo-token: ${{ github.token }}
+        wait-interval: 10
+        allowed-conclusions: success
+
+    - name: Checkout Repository
+      uses: actions/checkout@v2.3.4
+      with:
+        ref: ${{ github.event.workflow_run.head_sha }}
+
+    - name: Get Maven Project Version
+      id: version
+      run: echo "::set-output name=version::`mvn help:evaluate -Dexpression=project.version -q -DforceStdout`"
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+  run-build:
+    needs: commit-status-update-and-wait
+    uses: ./.github/workflows/build.yml
+    with:
+      ref: ${{ github.event.workflow_run.head_sha }}
+
+
+  run-snapshot-release:
+    if: ${{ github.event.workflow_run.event != 'pull_request' && endsWith(needs.commit-status-update-and-wait.outputs.version, 'SNAPSHOT') }}
+    needs: [commit-status-update-and-wait, run-build]
+    uses: ./.github/workflows/snapshot-release.yml
+    with:
+      ref: ${{ github.event.workflow_run.head_sha }}
