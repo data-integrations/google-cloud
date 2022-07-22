@@ -23,6 +23,8 @@ jobs:
       ref: ${{ github.sha }}
 
   release-job:
+    needs: build-job
+    if: success()
     runs-on: cdapio-hub-k8-runner
 
     steps:
@@ -46,10 +48,6 @@ jobs:
       env:
         MAVEN_OPTS: '-Xmx3200m'
 
-    - name: Get Maven Project Version
-      id: version
-      run: echo "::set-output name=version::`mvn help:evaluate -Dexpression=project.version -q -DforceStdout`"
-
     - name: Set up Maven Deploy Server in settings.xml
       uses: actions/setup-java@v1
       with: # running setup-java again overwrites the settings.xml
@@ -59,9 +57,8 @@ jobs:
         server-password: CDAP_OSSRH_PASSWORD
         gpg-passphrase: CDAP_GPG_PASSPHRASE
 
-    - name: Publish to Maven Snapshot Repository (OSSRH)
-      if: ${{ endsWith(steps.version.outputs.version, 'SNAPSHOT') }}
-      run: mvn -DskipTests clean deploy -P release
+    - name: Publish to Maven Central
+      run: mvn -DskipTests clean deploy -P release -Dgpg.passphrase=$MAVEN_GPG_PASSPHRASE
       env:
         CDAP_OSSRH_USERNAME: ${{ steps.secrets.outputs.CDAP_OSSRH_USERNAME }}
         CDAP_OSSRH_PASSWORD: ${{ steps.secrets.outputs.CDAP_OSSRH_PASSWORD }}
