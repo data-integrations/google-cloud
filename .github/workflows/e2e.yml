@@ -41,48 +41,47 @@ jobs:
          )
 
     steps:
-      # Pinned 1.0.0 version
-      - uses: actions/checkout@v2.3.4
-        with:
-          path: plugin
-      - name: Checkout e2e test repo
-        uses: actions/checkout@v2.3.4
-        with:
-          repository: cdapio/cdap-e2e-tests
-          path: e2e
-      - name: Cache
-        uses: actions/cache@v2.1.3
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ github.workflow }}-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-${{ github.workflow }}
-      - name: Run tests
-        run: python3 e2e/src/main/scripts/run_e2e_test.py
-      - name: Upload report 
-        uses: actions/upload-artifact@v2.2.4
-        if: always()
-        with:
-          name: Cucumber report
-          path: ./plugin/target/cucumber-reports
-      - name: Upload debug files 
-        uses: actions/upload-artifact@v2.2.4
-        if: always()
-        with:
-          name: Debug files
-          path: ./**/target/e2e-debug
-      - name: Upload files to GCS
-        uses: google-github-actions/upload-cloud-storage@v0
-        if: always()
-        with:
-          path: ./plugin/target/cucumber-reports
-          destination: e2e-tests-cucumber-reports/${{ github.event.repository.name }}/${{ github.ref }}
-      - name: github-status-action
-        uses: Sibz/github-status-action@67af1f4042a5a790681aad83c44008ca6cfab83d
-        if: always()
-        with:
-          authToken: ${{ secrets.GITHUB_TOKEN }}
-          state: success
-          context: Cucumber report
-          sha: ${{github.event.pull_request.head.sha || github.sha}}
-          
+    # Pinned 1.0.0 version
+    - uses: actions/checkout@v2.3.4
+      with:
+        path: plugin
+    - name: Checkout e2e test repo
+      uses: actions/checkout@v2.3.4
+      with:
+        repository: cdapio/cdap-e2e-tests
+        path: e2e
+    - name: Cache
+      uses: actions/cache@v2.1.3
+      with:
+        path: ~/.m2/repository
+        key: ${{ runner.os }}-maven-${{ github.workflow }}-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-maven-${{ github.workflow }}
+    - name: Run tests
+      run: python3 e2e/src/main/scripts/run_e2e_test.py
+    - name: Upload report
+      uses: actions/upload-artifact@v2.2.4
+      if: always()
+      with:
+        name: Cucumber report
+        path: ./plugin/target/cucumber-reports
+    - name: Upload debug files
+      uses: actions/upload-artifact@v2.2.4
+      if: always()
+      with:
+        name: Debug files
+        path: ./**/target/e2e-debug
+    - name: Upload files to GCS
+      uses: google-github-actions/upload-cloud-storage@v0
+      if: always()
+      with:
+        path: ./plugin/target/cucumber-reports
+        destination: e2e-tests-cucumber-reports/${{ github.event.repository.name }}/${{ github.ref }}
+    - name: github-status-action
+      uses: Sibz/github-status-action@67af1f4042a5a790681aad83c44008ca6cfab83d
+      if: always()
+      with:
+        authToken: ${{ secrets.GITHUB_TOKEN }}
+        state: success
+        context: Cucumber report
+        sha: ${{github.event.pull_request.head.sha || github.sha}}

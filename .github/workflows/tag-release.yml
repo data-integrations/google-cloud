@@ -1,0 +1,69 @@
+# Copyright © 2022 Cask Data, Inc.
+#  Licensed under the Apache License, Version 2.0 (the "License"); you may not
+#  use this file except in compliance with the License. You may obtain a copy of
+#  the License at
+#  http://www.apache.org/licenses/LICENSE-2.0
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#  License for the specific language governing permissions and limitations under
+#  the License.
+
+name: Tag Maven Release Workflow
+
+on:
+  workflow_dispatch:
+
+jobs:
+
+  build-job:
+    if: ${{ github.ref_type == 'tag' }}
+    uses: ./.github/workflows/build.yml
+    with:
+      ref: ${{ github.sha }}
+
+  release-job:
+    runs-on: cdapio-hub-k8-runner
+
+    steps:
+
+    - name: Get Secrets from GCP Secret Manager
+      id: 'secrets'
+      uses: 'google-github-actions/get-secretmanager-secrets@v0'
+      with:
+        secrets: |-
+          CDAP_OSSRH_USERNAME:cdapio-github-builds/CDAP_OSSRH_USERNAME
+          CDAP_OSSRH_PASSWORD:cdapio-github-builds/CDAP_OSSRH_PASSWORD
+          CDAP_GPG_PASSPHRASE:cdapio-github-builds/CDAP_GPG_PASSPHRASE
+
+    - name: Checkout Repository
+      uses: actions/checkout@v2
+      with:
+        ref: ${{ inputs.ref }}
+
+    - name: Build with Maven
+      run: mvn -B package --file pom.xml
+      env:
+        MAVEN_OPTS: '-Xmx3200m'
+
+    - name: Get Maven Project Version
+      id: version
+      run: echo "::set-output name=version::`mvn help:evaluate -Dexpression=project.version -q -DforceStdout`"
+
+    - name: Set up Maven Deploy Server in settings.xml
+      uses: actions/setup-java@v1
+      with: # running setup-java again overwrites the settings.xml
+        java-version: 1.8
+        server-id: ossrh
+        server-username: CDAP_OSSRH_USERNAME
+        server-password: CDAP_OSSRH_PASSWORD
+        gpg-passphrase: CDAP_GPG_PASSPHRASE
+
+    - name: Publish to Maven Snapshot Repository (OSSRH)
+      if: ${{ endsWith(steps.version.outputs.version, 'SNAPSHOT') }}
+      run: mvn -DskipTests clean deploy -P release
+      env:
+        CDAP_OSSRH_USERNAME: ${{ steps.secrets.outputs.CDAP_OSSRH_USERNAME }}
+        CDAP_OSSRH_PASSWORD: ${{ steps.secrets.outputs.CDAP_OSSRH_PASSWORD }}
+        CDAP_GPG_PASSPHRASE: ${{ steps.secrets.outputs.CDAP_GPG_PASSPHRASE }}
+        MAVEN_OPTS: '-Xmx3200m'
