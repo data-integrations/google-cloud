@@ -29,6 +29,7 @@ import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
+import com.google.api.services.bigquery.model.JobConfigurationQuery;
 import com.google.api.services.bigquery.model.JobConfigurationTableCopy;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.RangePartitioning;
@@ -40,13 +41,11 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.auth.Credentials;
 import com.google.cloud.bigquery.BigQuery;
-import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.JobId;
 import com.google.cloud.bigquery.JobInfo;
-import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFactory;
@@ -378,7 +377,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
 
         JobConfiguration config = new JobConfiguration();
         config.setLoad(loadConfig);
-        triggerBigqueryJob(projectId, jobId , dataset, config);
+        triggerBigqueryJob(projectId, jobId , dataset, config, tableRef);
       } else {
         // First load the data in a temp table.
         loadInBatchesInTempTable(tableRef, loadConfig, gcsPaths, projectId, jobId, dataset);
@@ -387,7 +386,8 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
           handleInsertOperation(tableRef, writeDisposition, loadConfig.getDestinationEncryptionConfiguration(),
                                 projectId, jobId, dataset, tableExists);
         } else {
-          handleUpdateUpsertOperation(tableRef, tableExists, kmsKeyName, getJobIdForUpdateUpsert(conf), conf);
+          handleUpdateUpsertOperation(tableRef, tableExists, kmsKeyName, getJobIdForUpdateUpsert(conf),
+                                      projectId, dataset);
         }
       }
 
@@ -398,8 +398,8 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
                BigQueryStrings.toString(tableRef), gcsPaths.size(), gcsPaths.isEmpty() ? "(empty)" : gcsPaths.get(0));
     }
 
-    private void triggerBigqueryJob(String projectId, String jobId, Dataset dataset, JobConfiguration jobConfiguration)
-      throws IOException, InterruptedException {
+    private void triggerBigqueryJob(String projectId, String jobId, Dataset dataset, JobConfiguration jobConfiguration,
+                                    TableReference tableRef) throws IOException, InterruptedException {
 
       JobReference jobReference =
         new JobReference().setProjectId(projectId)
@@ -412,7 +412,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
       // Insert and run job.
       bigQueryHelper.insertJobOrFetchDuplicate(projectId, job);
       // Poll until job is complete.
-      waitForJobCompletion(bigQueryHelper.getRawBigquery(), projectId, jobReference);
+      waitForJobCompletion(bigQueryHelper, projectId, jobReference, tableRef, operation);
     }
 
     private void loadInBatchesInTempTable(TableReference tableRef, JobConfigurationLoad loadConfig,
@@ -441,7 +441,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
         JobConfiguration config = new JobConfiguration();
         config.setLoad(loadConfig);
 
-        triggerBigqueryJob(projectId, jobId + "_" + jobcount, dataset, config);
+        triggerBigqueryJob(projectId, jobId + "_" + jobcount, dataset, config, tableRef);
         jobcount++;
       }
     }
@@ -459,9 +459,11 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
     /**
      * This method is copied from BigQueryUtils#waitForJobCompletion for getting useful error message.
      */
-    private static void waitForJobCompletion(Bigquery bigquery, String projectId,
-                                             JobReference jobReference) throws IOException, InterruptedException {
+    private static void waitForJobCompletion(BigQueryHelper bigQueryHelper, String projectId,
+                                             JobReference jobReference, TableReference tableRef,
+                                             @Nullable Operation operation) throws IOException, InterruptedException {
 
+      Bigquery bigquery = bigQueryHelper.getRawBigquery();
       Sleeper sleeper = Sleeper.DEFAULT;
       BackOff pollBackOff =
         new ExponentialBackOff.Builder()
@@ -494,6 +496,13 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
         if (pollJob.getStatus().getState().equals("DONE")) {
           notDone = false;
           if (pollJob.getStatus().getErrorResult() != null) {
+            if (Operation.UPDATE.equals(operation) && !bigQueryHelper.tableExists(tableRef)) {
+              // ignore the failure. This is because we do not want to fail the pipeline as per below discussion
+              // https://github.com/data-integrations/google-cloud/pull/290#discussion_r472405882
+              LOG.warn("BigQuery Table {} does not exist. The operation update will not write any records to the table."
+                , String.format("%s.%s.%s", tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId()));
+              return;
+            }
             List<ErrorProto> errors = pollJob.getStatus().getErrors();
             int numOfErrors;
             String errorMessage;
@@ -574,14 +583,15 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
 
       JobConfiguration config = new JobConfiguration();
       config.setCopy(tableCopyConfig);
-      triggerBigqueryJob(projectId, jobId, dataset, config);
+      triggerBigqueryJob(projectId, jobId, dataset, config, tableRef);
     }
 
     private void handleUpdateUpsertOperation(TableReference tableRef,
                                              boolean tableExists,
                                              @Nullable String cmekKey,
                                              JobId jobId,
-                                             Configuration config) throws IOException, InterruptedException {
+                                             String projectId,
+                                             Dataset dataset) throws IOException, InterruptedException {
       if (allowSchemaRelaxation && tableExists) {
         updateTableSchema(tableRef);
       }
@@ -600,30 +610,15 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
                                                                  partitionFilter);
       LOG.info("Update/Upsert query: " + query);
 
-      BigQuery bigquery = getBigQuery(config);
-
-      QueryJobConfiguration queryConfig =
-        QueryJobConfiguration.newBuilder(query)
-          .setUseLegacySql(false)
-          .setDestinationEncryptionConfiguration(
-            com.google.cloud.bigquery.EncryptionConfiguration.newBuilder().setKmsKeyName(cmekKey).build())
-          .build();
-
-      try {
-        com.google.cloud.bigquery.Job queryJob = bigquery.create(JobInfo.newBuilder(queryConfig)
-                                                                   .setJobId(jobId).build());
-        // Wait for the query to complete.
-        queryJob.waitFor();
-      } catch (BigQueryException e) {
-        if (Operation.UPDATE.equals(operation) && !bigQueryHelper.tableExists(tableRef)) {
-          // ignore the exception. This is because we do not want to fail the pipeline as per below discussion
-          // https://github.com/data-integrations/google-cloud/pull/290#discussion_r472405882
-          LOG.warn("BigQuery Table {} does not exist. The operation update will not write any records to the table."
-            , String.format("%s.%s.%s", tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId()));
-          return;
-        }
-        throw e;
-      }
+      JobConfiguration jobConfiguration = new JobConfiguration();
+      JobConfigurationQuery jobConfigurationQuery = new JobConfigurationQuery();
+      jobConfigurationQuery.setQuery(query);
+      jobConfigurationQuery.setUseLegacySql(false);
+      EncryptionConfiguration encryptionConfiguration = new EncryptionConfiguration();
+      encryptionConfiguration.setKmsKeyName(cmekKey);
+      jobConfigurationQuery.setDestinationEncryptionConfiguration(encryptionConfiguration);
+      jobConfiguration.setQuery(jobConfigurationQuery);
+      triggerBigqueryJob(projectId, jobId.getJob(), dataset, jobConfiguration, tableRef);
     }
 
     private void updateTableSchema(TableReference tableRef) {
