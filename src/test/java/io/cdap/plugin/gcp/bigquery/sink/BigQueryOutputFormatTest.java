@@ -85,13 +85,15 @@ public class BigQueryOutputFormatTest {
     PowerMockito.doNothing().when(spy, "triggerBigqueryJob", ArgumentMatchers.eq("test_project"),
                                   ArgumentMatchers.anyString(),
                                   ArgumentMatchers.any(Dataset.class),
-                                  ArgumentMatchers.any(JobConfiguration.class));
+                                  ArgumentMatchers.any(JobConfiguration.class),
+                                  ArgumentMatchers.any(TableReference.class));
 
     PowerMockito.doNothing().when(spy, "handleUpdateUpsertOperation", ArgumentMatchers.any(TableReference.class),
                                   ArgumentMatchers.anyBoolean(),
                                   ArgumentMatchers.any(),
                                   ArgumentMatchers.any(JobId.class),
-                                  ArgumentMatchers.any(Configuration.class));
+                                  ArgumentMatchers.any(),
+                                  ArgumentMatchers.any(Dataset.class));
 
     FieldSetter.setField(spy, bigQueryOutputCommitter.getClass().getDeclaredField("bigQueryHelper"),
                          bigQueryHelperMock);
@@ -112,7 +114,8 @@ public class BigQueryOutputFormatTest {
       .invoke("triggerBigqueryJob", ArgumentMatchers.eq("test_project"),
               ArgumentMatchers.anyString(),
               ArgumentMatchers.any(Dataset.class),
-              ArgumentMatchers.any(JobConfiguration.class));
+              ArgumentMatchers.any(JobConfiguration.class),
+              ArgumentMatchers.any(TableReference.class));
   }
 
   @Test
@@ -127,7 +130,8 @@ public class BigQueryOutputFormatTest {
       .invoke("triggerBigqueryJob", ArgumentMatchers.eq("test_project"),
               ArgumentMatchers.anyString(),
               ArgumentMatchers.any(Dataset.class),
-              ArgumentMatchers.any(JobConfiguration.class));
+              ArgumentMatchers.any(JobConfiguration.class),
+              ArgumentMatchers.any(TableReference.class));
   }
 
   @Test
@@ -142,7 +146,8 @@ public class BigQueryOutputFormatTest {
       .invoke("triggerBigqueryJob", ArgumentMatchers.eq("test_project"),
               ArgumentMatchers.anyString(),
               ArgumentMatchers.any(Dataset.class),
-              ArgumentMatchers.any(JobConfiguration.class));
+              ArgumentMatchers.any(JobConfiguration.class),
+              ArgumentMatchers.any(TableReference.class));
 
     //1 call to handleUpdateUpsertOperation
     PowerMockito.verifyPrivate(bqQueryOutputCommitterSpy, times(1))
@@ -151,7 +156,8 @@ public class BigQueryOutputFormatTest {
               ArgumentMatchers.anyBoolean(),
               ArgumentMatchers.any(),
               ArgumentMatchers.any(JobId.class),
-              ArgumentMatchers.any(Configuration.class));
+              ArgumentMatchers.any(),
+              ArgumentMatchers.any(Dataset.class));
   }
 
 }
