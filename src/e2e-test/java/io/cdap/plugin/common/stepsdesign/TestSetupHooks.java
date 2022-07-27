@@ -151,11 +151,29 @@ public class TestSetupHooks {
     gcsSourceBucketName = createGCSBucketWithFile(PluginPropertyUtils.pluginProp("gcsCsvRangeFile"));
   }
 
+  @Before(order = 1, value = "@GCS_DELETE_MULTIPLE_BUCKETS_TEST")
+  public static void createMultipleBucketsWithRecursiveTestFiles() throws IOException, URISyntaxException {
+    gcsSourceBucketName =
+      createMultipleGCSBucketsWithMultipleFiles(PluginPropertyUtils.pluginProp("gcsReadRecursivePath"),
+                                                PluginPropertyUtils.pluginProp("bucketNumber"));
+  }
+
   @After(order = 1, value = "@GCS_CSV_TEST or @GCS_TSV_TEST or @GCS_BLOB_TEST " +
     "or @GCS_DELIMITED_TEST or @GCS_TEXT_TEST or @GCS_OUTPUT_FIELD_TEST or @GCS_DATATYPE_1_TEST or " +
     "@GCS_DATATYPE_2_TEST or @GCS_READ_RECURSIVE_TEST or @GCS_DELETE_WILDCARD_TEST or @GCS_CSV_RANGE_TEST")
   public static void deleteSourceBucketWithFile() {
     deleteGCSBucket(gcsSourceBucketName);
+    PluginPropertyUtils.removePluginProp("gcsSourceBucketName");
+    PluginPropertyUtils.removePluginProp("gcsSourcePath");
+    gcsSourceBucketName = StringUtils.EMPTY;
+  }
+
+  @After(order = 1, value = "@GCS_DELETE_MULTIPLE_BUCKETS_TEST")
+  public static void deleteMultipleSourceBucketsWithFile() {
+    String[] bucketNames = gcsSourceBucketName.split(",");
+    for (int index = 0; index < bucketNames.length; index++) {
+      deleteGCSBucket(bucketNames[index]);
+    }
     PluginPropertyUtils.removePluginProp("gcsSourceBucketName");
     PluginPropertyUtils.removePluginProp("gcsSourcePath");
     gcsSourceBucketName = StringUtils.EMPTY;
@@ -395,6 +413,31 @@ public class TestSetupHooks {
                                    + files.size() + " files in " + folderPath);
     return bucketName;
   }
+
+  private static String createMultipleGCSBucketsWithMultipleFiles(String folderPath, String bucketNumber)
+    throws IOException, URISyntaxException {
+    int bucketN = Integer.valueOf(bucketNumber);
+    List<File> files = Files.list(Paths.get(StorageClient.class.getResource("/" + folderPath).toURI()))
+      .filter(Files::isRegularFile)
+      .map(Path::toFile)
+      .collect(Collectors.toList());
+    List<String> bucketNames = new ArrayList<>();
+    for (int i = 0; i < bucketN; i++) {
+      bucketNames.add(StorageClient.createBucket("cdf-e2e-test-" + UUID.randomUUID()).getName());
+    }
+    for (File file : files) {
+      String filePath = folderPath + "/" + file.getName();
+      for (String bucketName : bucketNames) {
+        StorageClient.uploadObject(bucketName, filePath, filePath);
+      }
+    }
+    for (String bucketName : bucketNames) {
+      BeforeActions.scenario.write("Created GCS Bucket " + bucketName + " containing "
+                                     + files.size() + " files in " + folderPath);
+    }
+    return String.join(",", bucketNames);
+  }
+
 
   private static String createGCSBucketWithFilesAndFolder(String folderPath) throws IOException, URISyntaxException {
     List<String> folderPaths = Arrays.asList(folderPath.split(","));

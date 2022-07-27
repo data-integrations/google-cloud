@@ -114,7 +114,7 @@ public final class GCSBucketDelete extends Action {
     int deleteCount = 0;
     for (Path gcsPath : gcsPaths) {
       try {
-        fs = gcsPaths.get(0).getFileSystem(configuration);
+        fs = gcsPath.getFileSystem(configuration);
       } catch (IOException e) {
         LOG.info("Failed deleting file " + gcsPath.toUri().getPath() + ", " + e.getMessage());
         // no-op.
@@ -135,7 +135,7 @@ public final class GCSBucketDelete extends Action {
     for (GCSPath gcsPath : gcsPathsWild) {
       String regex = ("\\Q" + gcsPath.getUri().toString() + "\\E").replace("*", "\\E[^/]*\\Q") + "(/.*)?";
       try {
-        fs = new Path(gcsPathsWild.get(0).getUri()).getFileSystem(configuration);
+        fs = new Path(gcsPath.getUri()).getFileSystem(configuration);
       } catch (IOException e) {
         LOG.info("Failed deleting file " + gcsPath.getUri().getPath() + ", " + e.getMessage());
         // no-op.
