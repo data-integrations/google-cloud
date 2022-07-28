@@ -20,8 +20,8 @@ Feature: BQMT-Sink - Verify GCS to BQMT sink plugin data transfer scenarios
     Then Override Service account details if set in environment variables
     Then Enter BiqQueryMultiTable sink property reference name
     Then Enter BiqQueryMultiTable sink property dataset "dataset"
-    Then Toggle BiqQueryMultiTable sink property truncateTable to true
-    Then Select BiqQueryMultiTable sink property allow flexible schema to true
+    Then Toggle BiqQueryMultiTable sink property truncateTable to "true"
+    Then Toggle BiqQueryMultiTable sink property allow flexible schema to "true"
     Then Select BiqQueryMultiTable sink property update table schema as "true"
     Then Enter BiqQueryMultiTable sink property encryption key name "cmekBQ" if cmek is enabled
     Then Validate "BigQueryMultiTable" plugin properties
@@ -63,8 +63,8 @@ Feature: BQMT-Sink - Verify GCS to BQMT sink plugin data transfer scenarios
     Then Override Service account details if set in environment variables
     Then Enter BiqQueryMultiTable sink property reference name
     Then Enter BiqQueryMultiTable sink property dataset "dataset"
-    Then Toggle BiqQueryMultiTable sink property truncateTable to true
-    Then Select BiqQueryMultiTable sink property allow flexible schema to true
+    Then Toggle BiqQueryMultiTable sink property truncateTable to "true"
+    Then Toggle BiqQueryMultiTable sink property allow flexible schema to "true"
     Then Select BiqQueryMultiTable sink property update table schema as "true"
     Then Enter BiqQueryMultiTable sink property encryption key name "cmekBQ" if cmek is enabled
     Then Validate "BigQueryMultiTable" plugin properties
@@ -106,8 +106,8 @@ Feature: BQMT-Sink - Verify GCS to BQMT sink plugin data transfer scenarios
     Then Override Service account details if set in environment variables
     Then Enter BiqQueryMultiTable sink property reference name
     Then Enter BiqQueryMultiTable sink property dataset "dataset"
-    Then Toggle BiqQueryMultiTable sink property truncateTable to true
-    Then Select BiqQueryMultiTable sink property allow flexible schema to true
+    Then Toggle BiqQueryMultiTable sink property truncateTable to "true"
+    Then Toggle BiqQueryMultiTable sink property allow flexible schema to "true"
     Then Select BiqQueryMultiTable sink property update table schema as "true"
     Then Enter BiqQueryMultiTable sink property encryption key name "cmekBQ" if cmek is enabled
     Then Validate "BigQueryMultiTable" plugin properties
@@ -148,8 +148,8 @@ Feature: BQMT-Sink - Verify GCS to BQMT sink plugin data transfer scenarios
     Then Override Service account details if set in environment variables
     Then Enter BiqQueryMultiTable sink property reference name
     Then Enter BiqQueryMultiTable sink property dataset "dataset"
-    Then Toggle BiqQueryMultiTable sink property truncateTable to true
-    Then Select BiqQueryMultiTable sink property allow flexible schema to true
+    Then Toggle BiqQueryMultiTable sink property truncateTable to "true"
+    Then Toggle BiqQueryMultiTable sink property allow flexible schema to "true"
     Then Select BiqQueryMultiTable sink property update table schema as "true"
     Then Enter BiqQueryMultiTable sink property encryption key name "cmekBQ" if cmek is enabled
     Then Validate "BigQueryMultiTable" plugin properties
@@ -190,8 +190,8 @@ Feature: BQMT-Sink - Verify GCS to BQMT sink plugin data transfer scenarios
     Then Override Service account details if set in environment variables
     Then Enter BiqQueryMultiTable sink property reference name
     Then Enter BiqQueryMultiTable sink property dataset "dataset"
-    Then Toggle BiqQueryMultiTable sink property truncateTable to true
-    Then Select BiqQueryMultiTable sink property allow flexible schema to true
+    Then Toggle BiqQueryMultiTable sink property truncateTable to "true"
+    Then Toggle BiqQueryMultiTable sink property allow flexible schema to "true"
     Then Enter BiqQueryMultiTable sink property split field "bqmtSplitField"
     Then Select BiqQueryMultiTable sink property update table schema as "true"
     Then Enter BiqQueryMultiTable sink property encryption key name "cmekBQ" if cmek is enabled
@@ -233,7 +233,7 @@ Feature: BQMT-Sink - Verify GCS to BQMT sink plugin data transfer scenarios
     Then Override Service account details if set in environment variables
     Then Enter BiqQueryMultiTable sink property reference name
     Then Enter BiqQueryMultiTable sink property dataset "dataset"
-    Then Select BiqQueryMultiTable sink property allow flexible schema to true
+    Then Toggle BiqQueryMultiTable sink property allow flexible schema to "true"
     Then Select BiqQueryMultiTable sink property update table schema as "false"
     Then Enter BiqQueryMultiTable sink property encryption key name "cmekBQ" if cmek is enabled
     Then Validate "BigQueryMultiTable" plugin properties
@@ -274,8 +274,8 @@ Feature: BQMT-Sink - Verify GCS to BQMT sink plugin data transfer scenarios
     Then Override Service account details if set in environment variables
     Then Enter BiqQueryMultiTable sink property reference name
     Then Enter BiqQueryMultiTable sink property dataset "dataset"
-    Then Toggle BiqQueryMultiTable sink property truncateTable to true
-    Then Select BiqQueryMultiTable sink property allow flexible schema to true
+    Then Toggle BiqQueryMultiTable sink property truncateTable to "true"
+    Then Toggle BiqQueryMultiTable sink property allow flexible schema to "true"
     Then Select BiqQueryMultiTable sink property update table schema as "true"
     Then Enter BiqQueryMultiTable sink property encryption key name "cmekBQ" if cmek is enabled
     Then Validate "BigQueryMultiTable" plugin properties

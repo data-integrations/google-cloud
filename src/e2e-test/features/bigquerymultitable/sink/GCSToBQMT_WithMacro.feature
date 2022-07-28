@@ -28,7 +28,7 @@ Feature: BQMT-Sink - Verify GCS to BQMT sink plugin data transfer scenarios with
     Then Enter BigQueryMultiTable sink property "dataset" as macro argument "bqDataset"
     Then Enter BigQueryMultiTable sink cmek property "encryptionKeyName" as macro argument "cmekBQ" if cmek is enabled
     Then Enter BigQueryMultiTable sink property "truncateTable" as macro argument "bqTruncateTable"
-    Then Select BiqQueryMultiTable sink property allow flexible schema to true
+    Then Toggle BiqQueryMultiTable sink property allow flexible schema to "true"
     Then Enter BigQueryMultiTable sink property "allowSchemaRelaxation" as macro argument "bqmtUpdateTableSchema"
     Then Validate "BigQueryMultiTable" plugin properties
     Then Close the BiqQueryMultiTable properties

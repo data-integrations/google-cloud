@@ -78,14 +78,18 @@ public class BQMTSink implements E2EHelper {
     BQMTActions.close();
   }
 
-  @Then("Toggle BiqQueryMultiTable sink property truncateTable to true")
-  public void toggleBigQueryMultiTableSinkPropertyTruncateTableToTrue() {
-    BQMTActions.clickTruncateTableSwitch();
+  @Then("Toggle BiqQueryMultiTable sink property truncateTable to {string}")
+  public void toggleBigQueryMultiTableSinkPropertyTruncateTableTo(String toggle) {
+    if(toggle.equalsIgnoreCase("True")){
+      BQMTActions.clickTruncateTableSwitch();
+    }
   }
 
-  @Then("Select BiqQueryMultiTable sink property allow flexible schema to true")
-  public void selectBigQueryMultiTableSinkPropertyAllowFlexibleSchemaToTrue() {
-    BQMTActions.clickAllowFlexibleSchemaSwitch();
+  @Then("Toggle BiqQueryMultiTable sink property allow flexible schema to {string}")
+  public void toggleBigQueryMultiTableSinkPropertyAllowFlexibleSchemaTo(String toggle) {
+    if(toggle.equalsIgnoreCase("True")){
+      BQMTActions.clickAllowFlexibleSchemaSwitch();
+    }
   }
 
   @Then("Enter BiqQueryMultiTable sink property GCS upload request chunk size {string}")
