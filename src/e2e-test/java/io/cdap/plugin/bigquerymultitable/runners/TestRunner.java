@@ -27,7 +27,7 @@ import org.junit.runner.RunWith;
   features = {"src/e2e-test/features"},
   glue = {"io.cdap.plugin.bigquerymultitable.stepsdesign", "io.cdap.plugin.gcs.stepsdesign",
     "io.cdap.plugin.common.stepsdesign", "io.cdap.plugin.bigquery.stepsdesign", "stepsdesign"},
-  tags = {"@BQMT_Sink1 and not @PLUGIN-1179"},
+  tags = {"@BQMT_Sink and not @PLUGIN-1179"},
   // TODO :Enable tests once issues fixed https://cdap.atlassian.net/browse/PLUGIN-1179
   monochrome = true,
   plugin = {"pretty", "html:target/cucumber-html-report/bigquerymultitable-sink",
