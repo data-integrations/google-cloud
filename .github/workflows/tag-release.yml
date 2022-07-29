@@ -17,7 +17,7 @@ on:
 jobs:
 
   release-job:
-    runs-on: cdapio-hub-k8-runner
+    runs-on: k8s-runner-build
     if: ${{ github.ref_type == 'tag' }}
     steps:
 
@@ -36,23 +36,28 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
 
-      - name: Run tests
-        run: mvn clean test -fae -T 2 -B -V -DcloudBuild -Dmaven.wagon.http.retryHandler.count=5 -Dmaven.wagon.httpconnectionManager.ttlSeconds=30
+      - name: Cache
+        uses: actions/cache@v2.1.3
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ github.workflow }}-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-${{ github.workflow }}
 
       - name: Set up GPG conf
         run: |
           echo "pinentry-mode loopback" >> ~/.gnupg/gpg.conf
           echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
 
-      - name: Set up Maven Deploy Server
-        uses: actions/setup-java@v1
-        with: # running setup-java again overwrites the settings.xml
-          java-version: 1.8
-          server-id: sonatype.release
-          server-username: CDAP_OSSRH_USERNAME
-          server-password: CDAP_OSSRH_PASSWORD
-          gpg-passphrase: CDAP_GPG_PASSPHRASE
-          gpg-private-key: ${{ steps.secrets.outputs.CDAP_GPG_PRIVATE_KEY }}
+      - name: Import GPG key
+        run: |
+          echo "$GPG_PRIVATE_KEY" > private.key
+          gpg --import --batch private.key
+        env:
+          GPG_PRIVATE_KEY: ${{ steps.secrets.outputs.CDAP_GPG_PRIVATE_KEY }}
+
+      - name: Run tests
+        run: mvn clean test -fae -T 2 -B -V -DcloudBuild -Dmaven.wagon.http.retryHandler.count=5 -Dmaven.wagon.httpconnectionManager.ttlSeconds=30
 
       - name: Publish to Maven Central
         run: mvn clean -B -V -DskipTests deploy -P release -Dgpg.passphrase=$CDAP_GPG_PASSPHRASE -Dmaven.wagon.http.retryHandler.count=5 -Dmaven.wagon.httpconnectionManager.ttlSeconds=30
