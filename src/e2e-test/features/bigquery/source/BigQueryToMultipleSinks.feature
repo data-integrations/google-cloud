@@ -1,7 +1,7 @@
 @BigQuery_Source
 Feature: BigQuery source - Verification of BigQuery to Multiple sinks successful data transfer
 
-  @CMEK @BQ_SOURCE_TEST @GCS_SINK_TEST @BQ_SINK_TEST @PUBSUB_SINK_TEST
+  @CMEK @BQ_SOURCE_TEST @GCS_SINK_TEST @BQ_SINK_TEST @PUBSUB_SINK_TEST @BigQuery_Source_Required @CMEK_Required
   Scenario:Validate successful records transfer from BigQuery to multiple sinks (GCS, BigQuery and PubSub)
     Given Open Datafusion Project to configure pipeline
     When Source is BigQuery
@@ -36,7 +36,10 @@ Feature: BigQuery source - Verification of BigQuery to Multiple sinks successful
     Then Close the PubSub properties
     Then Save the pipeline
     Then Preview and run the pipeline
-    Then Verify the preview of pipeline is "success"
+    Then Wait till pipeline preview is in running state
+    Then Open and capture pipeline preview logs
+    Then Verify the preview run status of pipeline in the logs is "succeeded"
+    Then Close the pipeline logs
     Then Close the preview
     Then Deploy the pipeline
     Then Run the Pipeline in Runtime

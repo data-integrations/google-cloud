@@ -1,4 +1,4 @@
-@Spanner_Source @SPANNER_TEST
+@Spanner_Source @SPANNER_TEST @Spanner_Source_Required
 Feature: Spanner source - Verification of Spanner to Spanner successful data transfer using connections
 
   @SPANNER_SOURCE_BASIC_TEST @SPANNER_SINK_TEST @SPANNER_CONNECTION

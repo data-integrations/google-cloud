@@ -25,7 +25,10 @@ Feature: BigQuery source - Verification of BigQuery to GCS successful data trans
     Then Connect source as "BigQuery" and sink as "GCS" to establish connection
     Then Save the pipeline
     Then Preview and run the pipeline
-    Then Verify the preview of pipeline is "success"
+    Then Wait till pipeline preview is in running state
+    Then Open and capture pipeline preview logs
+    Then Verify the preview run status of pipeline in the logs is "succeeded"
+    Then Close the pipeline logs
     Then Click on preview data for GCS sink
     Then Verify preview output schema matches the outputSchema captured in properties
     Then Close the preview data
@@ -59,7 +62,10 @@ Feature: BigQuery source - Verification of BigQuery to GCS successful data trans
     Then Connect source as "BigQuery" and sink as "GCS" to establish connection
     Then Save the pipeline
     Then Preview and run the pipeline
-    Then Verify the preview of pipeline is "success"
+    Then Wait till pipeline preview is in running state
+    Then Open and capture pipeline preview logs
+    Then Verify the preview run status of pipeline in the logs is "succeeded"
+    Then Close the pipeline logs
     Then Click on preview data for GCS sink
     Then Verify preview output schema matches the outputSchema captured in properties
     Then Close the preview data
@@ -96,7 +102,10 @@ Feature: BigQuery source - Verification of BigQuery to GCS successful data trans
     Then Connect source as "BigQuery" and sink as "GCS" to establish connection
     Then Save the pipeline
     Then Preview and run the pipeline
-    Then Verify the preview of pipeline is "success"
+    Then Wait till pipeline preview is in running state
+    Then Open and capture pipeline preview logs
+    Then Verify the preview run status of pipeline in the logs is "succeeded"
+    Then Close the pipeline logs
     Then Click on preview data for GCS sink
     Then Verify preview output schema matches the outputSchema captured in properties
     Then Close the preview data
