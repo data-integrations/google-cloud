@@ -350,9 +350,9 @@ public class BigQuerySQLEngine
 
     // TODO: implement direct source read toggle
     // Check if direct sink write is enabled. If not, skip.
-    if (!sqlEngineConfig.shouldUseDirectSinkWrite()) {
-      return SQLReadResult.unsupported(datasetName);
-    }
+//    if (!sqlEngineConfig.shouldUseDirectSinkWrite()) {
+//      return SQLReadResult.unsupported(datasetName);
+//    }
 
     // Check if this output matches the expected engine. If it doesn't, skip execution for this write operation.;
     if (!BigQuerySQLEngine.class.getName().equals(readRequest.getInput().getSqlEngineClassName())) {
@@ -372,7 +372,8 @@ public class BigQuerySQLEngine
                                                                       sqlEngineConfig,
                                                                       bigQuery,
                                                                       readRequest,
-                                                                      destinationTableId);
+                                                                      destinationTableId,
+                                                                      metrics);
     SQLReadResult result = readDataset.read();
 
     if (result.isSuccessful()) {

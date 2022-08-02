@@ -47,6 +47,7 @@ import com.google.cloud.bigquery.TableResult;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.api.metrics.Metrics;
 import io.cdap.cdap.etl.api.engine.sql.dataset.SQLDataset;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLReadRequest;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLReadResult;
@@ -85,26 +86,30 @@ public class BigQueryReadDataset implements SQLDataset, BigQuerySQLDataset {
   private final String jobId;
   private Schema schema;
   private Long numRows;
+  private Metrics metrics;
 
   private BigQueryReadDataset(String datasetName,
                               BigQuerySQLEngineConfig sqlEngineConfig,
                               BigQuery bigQuery,
                               SQLReadRequest readRequest,
                               TableId destinationTableId,
-                              String jobId) {
+                              String jobId,
+                              Metrics metrics) {
     this.datasetName = datasetName;
     this.sqlEngineConfig = sqlEngineConfig;
     this.bigQuery = bigQuery;
     this.readRequest = readRequest;
     this.destinationTableId = destinationTableId;
     this.jobId = jobId;
+    this.metrics = metrics;
   }
 
   public static BigQueryReadDataset getInstance(String datasetName,
                                                 BigQuerySQLEngineConfig sqlEngineConfig,
                                                 BigQuery bigQuery,
                                                 SQLReadRequest readRequest,
-                                                TableId destinationTableId) {
+                                                TableId destinationTableId,
+                                                Metrics metrics) {
     // Get new Job ID for this push operation
     String jobId = BigQuerySQLEngineUtils.newIdentifier();
 
@@ -113,7 +118,8 @@ public class BigQueryReadDataset implements SQLDataset, BigQuerySQLDataset {
                                    bigQuery,
                                    readRequest,
                                    destinationTableId,
-                                   jobId);
+                                   jobId,
+                                   metrics);
   }
 
   public SQLReadResult read() {
@@ -216,7 +222,7 @@ public class BigQueryReadDataset implements SQLDataset, BigQuerySQLDataset {
 
     // Check for errors
     if (queryJob.getStatus().getError() != null) {
-      BigQuerySQLEngineUtils.logJobMetrics(queryJob);
+      BigQuerySQLEngineUtils.logJobMetrics(queryJob, metrics);
       LOG.error("Error executing BigQuery Job: '{}' in Project '{}', Dataset '{}': {}",
                 jobId, sqlEngineConfig.getProject(), sqlEngineConfig.getDatasetProject(),
                 queryJob.getStatus().getError().toString());
@@ -230,7 +236,7 @@ public class BigQueryReadDataset implements SQLDataset, BigQuerySQLDataset {
     LOG.info("Executed read operation for {} records from {}.{}.{} into {}.{}.{}", numRows,
              sourceTableId.getProject(), sourceTableId.getDataset(), sourceTableId.getTable(),
              sourceTableId.getProject(), sourceTableId.getDataset(), sourceTableId.getTable());
-    BigQuerySQLEngineUtils.logJobMetrics(queryJob);
+    BigQuerySQLEngineUtils.logJobMetrics(queryJob, metrics);
 
     return SQLReadResult.success(datasetName, this);
   }
