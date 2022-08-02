@@ -44,7 +44,10 @@ Feature: BigQuery source - Verification of BigQuery to GCS successful data trans
     Then Enter runtime argument value "csvFormat" for key "gcsFormat"
     Then Enter runtime argument value "cmekGCS" for GCS cmek property key "cmekGCS" if GCS cmek is enabled
     Then Run the preview of pipeline with runtime arguments
-    Then Verify the preview of pipeline is "success"
+    Then Wait till pipeline preview is in running state
+    Then Open and capture pipeline preview logs
+    Then Verify the preview run status of pipeline in the logs is "succeeded"
+    Then Close the pipeline logs
     Then Click on preview data for GCS sink
     Then Close the preview data
     Then Deploy the pipeline

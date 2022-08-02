@@ -23,7 +23,10 @@ Feature: GCS source - Verification of GCS to BQ successful data transfer
     Then Close the BigQuery properties
     Then Save the pipeline
     Then Preview and run the pipeline
-    Then Verify the preview of pipeline is "success"
+    Then Wait till pipeline preview is in running state
+    Then Open and capture pipeline preview logs
+    Then Verify the preview run status of pipeline in the logs is "succeeded"
+    Then Close the pipeline logs
     Then Click on preview data for BigQuery sink
     Then Verify preview output schema matches the outputSchema captured in properties
     Then Close the preview data

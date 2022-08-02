@@ -979,6 +979,7 @@
       <id>e2e-tests</id>
       <properties>
         <testSourceLocation>src/e2e-test/java</testSourceLocation>
+        <TEST_RUNNER>TestRunner.java</TEST_RUNNER>
       </properties>
       <build>
         <testResources>
@@ -1002,7 +1003,7 @@
         <version>3.0.0-M5</version>
         <configuration>
           <includes>
-            <include>TestRunner.java</include>
+            <include>${TEST_RUNNER}</include>
           </includes>
           <!--Start configuration to run TestRunners in parallel-->
           <parallel>classes</parallel> <!--Running TestRunner classes in parallel-->
