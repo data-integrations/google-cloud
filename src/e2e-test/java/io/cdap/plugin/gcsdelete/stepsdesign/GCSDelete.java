@@ -65,6 +65,22 @@ public class GCSDelete implements E2EHelper {
     }
   }
 
+  @Then("Enter the GCS Delete property objects from multiple Buckets to delete as list of objects {string}")
+  public void enterTheGCSDeletePropertyObjectsFromMultipleToDeleteAsListOfObjects(String commaSeparatedObjectsList) {
+    String[] objectsToDeletes = PluginPropertyUtils.pluginProp(commaSeparatedObjectsList).split(";");
+    String[] bucketNames = TestSetupHooks.gcsSourceBucketName.split(",");
+    int rowCount = 0;
+    for (int index = 0; index < bucketNames.length; index++) {
+      String[] objectsToDelete = objectsToDeletes[index].split(",");
+      for (int index2 = 0; index2 < objectsToDelete.length; index2++) {
+        GCSDeleteActions.enterObjectsToDelete(rowCount, "gs://" + bucketNames[index] + "/"
+          + objectsToDelete[index2]);
+        GCSDeleteActions.clickObjectsToDeleteAddRowButton(rowCount);
+        rowCount++;
+      }
+    }
+  }
+
   @Then("Close the GCS Delete properties")
   public void closeTheGCSDeleteProperties() {
     CdfStudioActions.clickCloseButton();
@@ -119,6 +135,28 @@ public class GCSDelete implements E2EHelper {
     BeforeActions.scenario.write("Multiple objects deleted successfully by GCS Delete plugin.");
   }
 
+  @Then("Verify multiple objects {string} from multiple Buckets deleted successfully by GCS Delete action plugin")
+  public void verifyMultiObjectsAndBucketsDeletedSuccessfullyByGCSDeleteActionPlugin(String commaSeparatedObjectsList)
+    throws IOException {
+    String[] objectsToDeletes = PluginPropertyUtils.pluginProp(commaSeparatedObjectsList).split(";");
+    String[] bucketNames = TestSetupHooks.gcsSourceBucketName.split(",");
+    if (objectsToDeletes.length != bucketNames.length) {
+      Assert.fail("Number of objects to delete groups doesn't match bucket number; Expected to have "
+                    + bucketNames.length + ", but received " + objectsToDeletes.length + " object groups");
+    }
+    for (int index = 0; index < bucketNames.length; index++) {
+      String[] objectsToDelete = objectsToDeletes[index].split(",");
+      for (int index2 = 0; index2 < objectsToDelete.length; index2++) {
+        Blob gcsObject = StorageClient.getObjectMetadata(bucketNames[index], objectsToDelete[index2]);
+        if (gcsObject != null) {
+          Assert.fail("GCS object " + bucketNames[index] + "/" + objectsToDelete[index2]
+                        + " is not deleted by GCS Delete plugin.");
+        }
+      }
+    }
+    BeforeActions.scenario.write("Multiple objects from multiple Buckets deleted successfully by GCS Delete plugin.");
+  }
+
   @Then("Verify objects {string} still exist after GCS Delete action plugin")
   public void verifyObjectsExistByGCSDeleteActionPlugin(String commaSeparatedObjectsList)
     throws IOException {
@@ -130,7 +168,30 @@ public class GCSDelete implements E2EHelper {
                       + " is deleted by GCS Delete plugin.");
       }
     }
-    BeforeActions.scenario.write("Multiple objects deleted successfully by GCS Delete plugin.");
+    BeforeActions.scenario.write("Multiple objects which want to keep still exist in Bucket after GCS Delete plugin.");
+  }
+
+  @Then("Verify objects {string} from multiple Buckets still exist after GCS Delete action plugin")
+  public void verifyObjectsFromMultipleBucketsExistByGCSDeleteActionPlugin(String commaSeparatedObjectsList)
+    throws IOException {
+    String[] objectsToKeeps = PluginPropertyUtils.pluginProp(commaSeparatedObjectsList).split(";");
+    String[] bucketNames = TestSetupHooks.gcsSourceBucketName.split(",");
+    if (objectsToKeeps.length != bucketNames.length) {
+      Assert.fail("Number of objects to keep groups doesn't match bucket number; Expected to have "
+                    + bucketNames.length + ", but received " + objectsToKeeps.length + " object groups");
+    }
+    for (int index = 0; index < bucketNames.length; index++) {
+      String[] objectsToKeep = objectsToKeeps[index].split(",");
+      for (int index2 = 0; index2 < objectsToKeep.length; index2++) {
+        Blob gcsObject = StorageClient.getObjectMetadata(bucketNames[index], objectsToKeep[index2]);
+        if (gcsObject == null) {
+          Assert.fail("GCS object " + bucketNames[index] + "/" + objectsToKeep[index2]
+                        + " is deleted by GCS Delete plugin.");
+        }
+      }
+    }
+    BeforeActions.scenario.write(
+      "Multiple objects from multiple buckets which want to keep still exist in Buckets after GCS Delete plugin.");
   }
 
   @Then("Enter the GCS Delete property {string} as macro argument {string}")
