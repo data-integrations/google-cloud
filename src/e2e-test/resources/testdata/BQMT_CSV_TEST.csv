@@ -1,0 +1,11 @@
+zip_code,residential_ratio,business_ratio,other_ratio,total_ratio,tablename
+52241,0.00544,0,0,0.00515,ZipcodeOne
+52241,0.00544,0,0,0.00515,ZipcodeThree
+52241,0.00544,0,0,0.00515,ZipcodeTwo
+97338,0.00544,0,0,0.00502,ZipcodeOne
+97338,0.00544,0,0,0.00502,ZipcodeTwo
+97338,0.00544,0,0,0.00502,ZipcodeThree
+83014,0.00544,0,0,0.00499,ZipcodeOne
+83014,0.00544,0,0,0.00499,ZipcodeThree
+83014,0.00544,0,0,0.00499,ZipcodeTwo
+47302,0.004,0,0,0.00364,ZipcodeTwo

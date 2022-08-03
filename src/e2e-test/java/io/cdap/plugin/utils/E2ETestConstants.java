@@ -16,4 +16,8 @@ public class E2ETestConstants {
   public static final String ERROR_MSG_BQ_INCORRECT_CHUNKSIZE = "errorMessageIncorrectBQChunkSize";
   public static final String ERROR_MSG_BQ_INCORRECT_TEMPORARY_BUCKET = "errorMessageIncorrectBQBucketName";
   public static final String ERROR_MSG_BQ_INCORRECT_PROPERTY = "errorMessageIncorrectBQProperty";
+  public static final String ERROR_MSG_BQMT_INCORRECT_CHUNKSIZE = "errorMessageIncorrectBQMTChunkSize";
+  public static final String ERROR_MSG_BQMT_INCORRECT_TEMPORARY_BUCKET = "errorMessageIncorrectBQMTBucketName";
+  public static final String ERROR_MSG_BQMT_INCORRECT_REFERENCENAME = "errorMessageIncorrectBQMTReferenceName";
+  public static final String ERROR_MSG_BQMT_INCORRECT_DATASET = "errorMessageIncorrectBQMTDataset";
 }
