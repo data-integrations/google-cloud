@@ -101,6 +101,16 @@ public class TestSetupHooks {
     gcsSourceBucketName = createGCSBucketWithFile(PluginPropertyUtils.pluginProp("gcsCsvFile"));
   }
 
+  @Before(order = 1, value = "@GCS_CSV_MULTIPLE_SOURCE")
+  public static void createBucketWithCSVMultipleSourceFile() throws IOException, URISyntaxException {
+    gcsSourceBucketName = createGCSBucketWithFile(PluginPropertyUtils.pluginProp("multiFileGCSBucket"));
+  }
+
+  @Before(order = 1, value = "@GCS_CSV_SPLIT_FIELD")
+  public static void createBucketWithCSVSplitField() throws IOException, URISyntaxException {
+    gcsSourceBucketName = createGCSBucketWithFile(PluginPropertyUtils.pluginProp("multiFileSplitFieldBucket"));
+  }
+
   @Before(order = 1, value = "@GCS_TSV_TEST")
   public static void createBucketWithTSVFile() throws IOException, URISyntaxException {
     gcsSourceBucketName = createGCSBucketWithFile(PluginPropertyUtils.pluginProp("gcsTsvFile"));
@@ -160,7 +170,8 @@ public class TestSetupHooks {
 
   @After(order = 1, value = "@GCS_CSV_TEST or @GCS_TSV_TEST or @GCS_BLOB_TEST " +
     "or @GCS_DELIMITED_TEST or @GCS_TEXT_TEST or @GCS_OUTPUT_FIELD_TEST or @GCS_DATATYPE_1_TEST or " +
-    "@GCS_DATATYPE_2_TEST or @GCS_READ_RECURSIVE_TEST or @GCS_DELETE_WILDCARD_TEST or @GCS_CSV_RANGE_TEST")
+    "@GCS_DATATYPE_2_TEST or @GCS_READ_RECURSIVE_TEST or @GCS_DELETE_WILDCARD_TEST or @GCS_CSV_RANGE_TEST or " +
+    "@GCS_CSV_MULTIPLE_SOURCE or @GCS_CSV_SPLIT_FIELD")
   public static void deleteSourceBucketWithFile() {
     deleteGCSBucket(gcsSourceBucketName);
     PluginPropertyUtils.removePluginProp("gcsSourceBucketName");
@@ -250,7 +261,8 @@ public class TestSetupHooks {
     BeforeActions.scenario.write("BQ source Table " + bqSourceTable + " created successfully");
   }
 
-  @After(order = 1, value = "@BQ_SOURCE_TEST or @BQ_PARTITIONED_SOURCE_TEST or @BQ_SOURCE_DATATYPE_TEST")
+  @After(order = 1, value = "@BQ_SOURCE_TEST or @BQ_PARTITIONED_SOURCE_TEST or @BQ_SOURCE_DATATYPE_TEST " +
+    "or @BQ_MULTIPLE_SOURCE")
   public static void deleteTempSourceBQTable() throws IOException, InterruptedException {
     BigQueryClient.dropBqQuery(bqSourceTable);
     PluginPropertyUtils.removePluginProp("bqSourceTable");
@@ -716,4 +728,11 @@ public class TestSetupHooks {
     CdfConnectionActions.selectConnectionAction(connectionType, connectionName, "Delete");
     CdfPluginPropertiesActions.clickPluginPropertyButton("Delete");
   }
+
+  @Before(order = 1, value = "@BQ_MULTIPLE_SOURCE")
+  public static void createSourceBQTableForMultipleSource() throws IOException, InterruptedException {
+    createSourceBQTableWithQueries(PluginPropertyUtils.pluginProp("bqCreateTableMultipleSource"),
+                                   PluginPropertyUtils.pluginProp("bqInsertDataMultipleSource"));
+  }
+
 }

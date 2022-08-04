@@ -1,0 +1,6 @@
+insert into `DATASET.TABLE_NAME` (name, email, tablename) values
+('developer','sam@gmail.com','accounts'),
+('sam','sam@gmail.com','accounts'),
+('deneil','sam@gmail.com','accounts'),
+('joy','sam@gmail.com','accounts'),
+('luis','sam@gmail.com','accounts');
