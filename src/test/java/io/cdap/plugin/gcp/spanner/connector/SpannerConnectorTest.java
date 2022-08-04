@@ -16,10 +16,18 @@
 
 package io.cdap.plugin.gcp.spanner.connector;
 
+import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.DatabaseNotFoundException;
+import com.google.cloud.spanner.InstanceConfigId;
+import com.google.cloud.spanner.InstanceId;
+import com.google.cloud.spanner.InstanceInfo;
 import com.google.cloud.spanner.InstanceNotFoundException;
+import com.google.cloud.spanner.Mutation;
+import com.google.cloud.spanner.Spanner;
+import com.google.cloud.spanner.SpannerOptions;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.connector.BrowseDetail;
 import io.cdap.cdap.etl.api.connector.BrowseEntity;
@@ -33,29 +41,29 @@ import io.cdap.cdap.etl.api.validation.ValidationException;
 import io.cdap.cdap.etl.mock.common.MockConnectorConfigurer;
 import io.cdap.cdap.etl.mock.common.MockConnectorContext;
 import io.cdap.plugin.gcp.common.GCPConnectorConfig;
+import io.cdap.plugin.gcp.common.TestEnvironment;
+import io.cdap.plugin.gcp.spanner.sink.SpannerSink;
 import io.cdap.plugin.gcp.spanner.source.SpannerSource;
+import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Spanner Connector integration test.
- * This test will only be run when following properties are provided:
- * project.id -- the name of the project
- * instance.id -- the id of the spanner instance
- * database.name -- the name of the spanner database
- * table.name -- the name of the spanner table
- * service.account.file-- the path to the service account key file
+ *
+ * The service account used to run this test needs Spanner admin permissions in the project.
  */
 public class SpannerConnectorTest {
   private static String project;
@@ -64,35 +72,64 @@ public class SpannerConnectorTest {
   private static String table;
   private static String serviceAccountFilePath;
   private static String serviceAccountKey;
+  private static Spanner spanner;
+  private static TestEnvironment testEnvironment;
+  private static Schema expectedSchema;
+  private static Set<StructuredRecord> tableData;
 
   @BeforeClass
   public static void setupTestClass() throws Exception {
-    // Certain properties need to be configured otherwise the whole tests will be skipped.
+    testEnvironment = TestEnvironment.load();
 
-    String messageTemplate = "%s is not configured.";
+    project = testEnvironment.getProject();
+    serviceAccountFilePath = testEnvironment.getServiceAccountFilePath();
+    serviceAccountKey = testEnvironment.getServiceAccountContent();
 
-    project = System.getProperty("project.id");
-    if (project == null) {
-      project = System.getProperty("GOOGLE_CLOUD_PROJECT");
-    }
-    Assume.assumeFalse(String.format(messageTemplate, "project id"), project == null);
+    long now = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis());
+    instance = String.format("gcp-plugins-test-%d-%s", now, UUID.randomUUID());
+    database = "connectors";
+    table = "users";
 
-    instance = System.getProperty("instance.id");
-    Assume.assumeFalse(String.format(messageTemplate, "instance id"), instance == null);
+    spanner = SpannerOptions.newBuilder()
+      .setCredentials(testEnvironment.getCredentials())
+      .setProjectId(project)
+      .build()
+      .getService();
 
-
-    database = System.getProperty("database.name");
-    Assume.assumeFalse(String.format(messageTemplate, "database name"), database == null);
-
-    table = System.getProperty("table.name");
-    Assume.assumeFalse(String.format(messageTemplate, "table name"), table == null);
-
-    serviceAccountFilePath = System.getProperty("service.account.file");
-    Assume.assumeFalse(String.format(messageTemplate, "service account key file"), serviceAccountFilePath == null);
-
-    serviceAccountKey = new String(Files.readAllBytes(Paths.get(new File(serviceAccountFilePath).getAbsolutePath())),
-                                   StandardCharsets.UTF_8);
+    InstanceInfo instanceInfo = InstanceInfo.newBuilder(InstanceId.of(project, instance))
+      .setProcessingUnits(100)
+      .setInstanceConfigId(InstanceConfigId.of(project, "regional-us-west1"))
+      .setDisplayName("gcp-plugins-test-" + now)
+      .build();
+    spanner.getInstanceAdminClient().createInstance(instanceInfo).get();
+    expectedSchema = Schema.recordOf("outputSchema",
+                                     Schema.Field.of("id", Schema.of(Schema.Type.LONG)),
+                                     Schema.Field.of("name", Schema.nullableOf(Schema.of(Schema.Type.STRING))));
+    String createStatement = String.format("CREATE TABLE %s (id INT64 NOT NULL, name STRING(256)) PRIMARY KEY (id)",
+                                           table);
+    spanner.getDatabaseAdminClient().createDatabase(instance, database, Collections.singleton(createStatement)).get();
+    Mutation alice = Mutation.newInsertOrUpdateBuilder(table)
+      .set("id").to(0L)
+      .set("name").to("alice")
+      .build();
+    Mutation bob = Mutation.newInsertOrUpdateBuilder(table)
+      .set("id").to(1L)
+      .set("name").to("bob")
+      .build();
+    spanner.getDatabaseClient(DatabaseId.of(project, instance, database)).write(Arrays.asList(alice, bob));
+    tableData = new HashSet<>();
+    tableData.add(StructuredRecord.builder(expectedSchema).set("id", 0L).set("name", "alice").build());
+    tableData.add(StructuredRecord.builder(expectedSchema).set("id", 1L).set("name", "bob").build());
   }
+
+  @AfterClass
+  public static void cleanupTestClass() {
+    if (spanner == null) {
+      return;
+    }
+    spanner.getInstanceAdminClient().deleteInstance(instance);
+  }
+
   @Test
   public void testServiceAccountPath() throws IOException {
     GCPConnectorConfig config =
@@ -102,6 +139,7 @@ public class SpannerConnectorTest {
 
   @Test
   public void testServiceAccountJson() throws IOException {
+    testEnvironment.skipIfNoServiceAccountGiven();
     GCPConnectorConfig config =
       new GCPConnectorConfig(project, GCPConnectorConfig.SERVICE_ACCOUNT_JSON, null, serviceAccountKey);
     test(config);
@@ -116,37 +154,31 @@ public class SpannerConnectorTest {
   }
 
   private void testGenerateSpec(SpannerConnector connector) throws IOException {
+    Map<String, String> properties = new HashMap<>();
+    properties.put("instance", instance);
+    properties.put("database", database);
+    properties.put("table", table);
+    properties.put("connection", null);
+    properties.put("useConnection", "true");
+    properties.put("referenceName", String.format("%s.%s.%s", instance, database, table));
+    ConnectorSpec expected = ConnectorSpec.builder()
+      .setSchema(expectedSchema)
+      .addRelatedPlugin(new PluginSpec(SpannerSource.NAME, BatchSource.PLUGIN_TYPE, properties))
+      .addRelatedPlugin(new PluginSpec(SpannerSink.NAME, BatchSink.PLUGIN_TYPE, properties))
+      .build();
+
     ConnectorSpec connectorSpec =
       connector.generateSpec(new MockConnectorContext(new MockConnectorConfigurer()),
                              ConnectorSpecRequest.builder().setPath(instance + "/" + database + "/" + table).build());
-    Schema schema = connectorSpec.getSchema();
-    for (Schema.Field field : schema.getFields()) {
-      Assert.assertNotNull(field.getSchema());
-    }
-    Set<PluginSpec> relatedPlugins = connectorSpec.getRelatedPlugins();
-    Assert.assertEquals(1, relatedPlugins.size());
-    PluginSpec pluginSpec = relatedPlugins.iterator().next();
-    Assert.assertEquals(SpannerSource.NAME, pluginSpec.getName());
-    Assert.assertEquals(BatchSource.PLUGIN_TYPE, pluginSpec.getType());
-
-    Map<String, String> properties = pluginSpec.getProperties();
-    Assert.assertEquals(instance, properties.get("instance"));
-    Assert.assertEquals(database, properties.get("database"));
-    Assert.assertEquals(table, properties.get("table"));
+    Assert.assertEquals(expected, connectorSpec);
   }
 
   private void testSample(SpannerConnector connector) throws IOException {
     List<StructuredRecord> sample = connector.sample(new MockConnectorContext(new MockConnectorConfigurer()),
-                                                     SampleRequest.builder(1)
+                                                     SampleRequest.builder(10)
                                                        .setPath(instance + "/" + database + "/" + table).build());
-    Assert.assertEquals(1, sample.size());
-    StructuredRecord record = sample.get(0);
-    Schema schema = record.getSchema();
-    Assert.assertNotNull(schema);
-    for (Schema.Field field : schema.getFields()) {
-      Assert.assertNotNull(field.getSchema());
-      Assert.assertTrue(record.get(field.getName()) != null || field.getSchema().isNullable());
-    }
+
+    Assert.assertEquals(tableData, new HashSet<>(sample));
 
     //invalid path
     Assert.assertThrows(IllegalArgumentException.class,
@@ -163,47 +195,43 @@ public class SpannerConnectorTest {
     // browse project
     BrowseDetail detail = connector.browse(new MockConnectorContext(new MockConnectorConfigurer()),
                                            BrowseRequest.builder("/").build());
-    Assert.assertTrue(detail.getTotalCount() > 0);
-    Assert.assertTrue(detail.getEntities().size() > 0);
-    for (BrowseEntity entity : detail.getEntities()) {
-      Assert.assertEquals(SpannerConnector.ENTITY_TYPE_INSTANCE, entity.getType());
-      Assert.assertTrue(entity.canBrowse());
-      Assert.assertFalse(entity.canSample());
-    }
+    BrowseDetail expected = BrowseDetail.builder()
+      .setTotalCount(1)
+      .addEntity(BrowseEntity.builder(instance, "/" + instance, "instance")
+                   .canBrowse(true)
+                   .canSample(false)
+                   .build())
+      .build();
+    Assert.assertEquals(expected, detail);
 
     // browse instance
     detail = connector.browse(new MockConnectorContext(new MockConnectorConfigurer()),
                               BrowseRequest.builder(instance).build());
-    Assert.assertTrue(detail.getTotalCount() > 0);
-    Assert.assertTrue(detail.getEntities().size() > 0);
-    for (BrowseEntity entity : detail.getEntities()) {
-      Assert.assertEquals(SpannerConnector.ENTITY_TYPE_DATABASE, entity.getType());
-      Assert.assertTrue(entity.canBrowse());
-      Assert.assertFalse(entity.canSample());
-    }
+    expected = BrowseDetail.builder()
+      .setTotalCount(1)
+      .addEntity(BrowseEntity.builder(database, String.format("/%s/%s", instance, database), "database")
+                   .canBrowse(true)
+                   .canSample(false)
+                   .build())
+      .build();
+    Assert.assertEquals(expected, detail);
 
     // browse database
     detail = connector.browse(new MockConnectorContext(new MockConnectorConfigurer()),
                               BrowseRequest.builder(instance + "/" + database).build());
-    Assert.assertTrue(detail.getTotalCount() > 0);
-    Assert.assertTrue(detail.getEntities().size() > 0);
-    for (BrowseEntity entity : detail.getEntities()) {
-      Assert.assertEquals(SpannerConnector.ENTITY_TYPE_TABLE, entity.getType());
-      Assert.assertFalse(entity.canBrowse());
-      Assert.assertTrue(entity.canSample());
-    }
-
+    expected = BrowseDetail.builder()
+      .setTotalCount(1)
+      .addEntity(BrowseEntity.builder(table, String.format("/%s/%s/%s", instance, database, table), "table")
+                   .canBrowse(false)
+                   .canSample(true)
+                   .build())
+      .build();
+    Assert.assertEquals(expected, detail);
 
     // browse table
     detail = connector.browse(new MockConnectorContext(new MockConnectorConfigurer()),
                               BrowseRequest.builder(instance + "/" + database + "/" + table).build());
-    Assert.assertEquals(1, detail.getTotalCount());
-    Assert.assertEquals(1, detail.getEntities().size());
-    for (BrowseEntity entity : detail.getEntities()) {
-      Assert.assertEquals(SpannerConnector.ENTITY_TYPE_TABLE, entity.getType());
-      Assert.assertFalse(entity.canBrowse());
-      Assert.assertTrue(entity.canSample());
-    }
+    Assert.assertEquals(expected, detail);
 
     // invalid path
     Assert.assertThrows(IllegalArgumentException.class, () ->

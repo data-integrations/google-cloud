@@ -32,6 +32,7 @@ import io.cdap.cdap.etl.mock.common.MockConnectorConfigurer;
 import io.cdap.cdap.etl.mock.common.MockConnectorContext;
 import io.cdap.plugin.gcp.common.GCPConnectorConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
+import io.cdap.plugin.gcp.common.TestEnvironment;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Assume;
@@ -40,11 +41,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -52,54 +50,40 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 
 /**
- * GCS connector test
- * project.id -- the name of the project
- * service.account.file -- path to service account
+ * GCS connector test.
+ *
+ * In order to run this test, the service account must have permission to create buckets and objects.
  */
 public class GCSConnectorTest {
-  private static String project;
-  private static String serviceAccountFilePath;
-  private static String serviceAccountKey;
+  private static TestEnvironment testEnvironment;
   private static String bucket;
   private static Storage storage;
 
   @BeforeClass
   public static void setupTestClass() throws Exception {
-    // Certain properties need to be configured otherwise the whole tests will be skipped.
+    testEnvironment = TestEnvironment.load();
 
-    String messageTemplate = "%s is not configured, please refer to javadoc of this class for details.";
-
-    project = System.getProperty("project.id");
-    if (project == null) {
-      project = System.getProperty("GOOGLE_CLOUD_PROJECT");
-    }
-    if (project == null) {
-      project = System.getProperty("GCLOUD_PROJECT");
-    }
-    Assume.assumeFalse(String.format(messageTemplate, "project id"), project == null);
-    System.setProperty("GCLOUD_PROJECT", project);
-
-    bucket = "gcs-connector-test-" + System.currentTimeMillis();
-
-    serviceAccountFilePath = System.getProperty("service.account.file");
-    Assume.assumeFalse(String.format(messageTemplate, "service account key file"), serviceAccountFilePath == null);
-
-    serviceAccountKey = new String(Files.readAllBytes(Paths.get(new File(serviceAccountFilePath).getAbsolutePath())),
-                                   StandardCharsets.UTF_8);
-    storage = GCPUtils.getStorage(project, GCPUtils.loadServiceAccountFileCredentials(serviceAccountFilePath));
+    long now = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis());
+    bucket = String.format("gcs-conn-test-%d-%s", now, UUID.randomUUID());
+    storage = GCPUtils.getStorage(testEnvironment.getProject(), testEnvironment.getCredentials());
     Assume.assumeFalse("The test bucket already exists.", storage.get(bucket) != null);
   }
 
   @Before
-  public void setUp() throws Exception {
+  public void setUp() {
     storage.create(BucketInfo.newBuilder(bucket).build());
   }
 
   @After
   public void tearDown() {
+    if (storage == null) {
+      return;
+    }
     // delete all blob in bucket, otherwise it is not allowed to get deleted
     StorageBatch batch = storage.batch();
     Page<Blob> blobs = storage.list(bucket);
@@ -129,7 +113,7 @@ public class GCSConnectorTest {
       blobName = folderName + "/text" + i + ".txt";
       // add folder
       entities.add(BrowseEntity.builder(folderName, bucket + "/" + folderName + "/", GCSConnector.DIRECTORY_TYPE)
-                       .canSample(true).canBrowse(true).build());
+                     .canSample(true).canBrowse(true).build());
       bkt.create(blobName, "Hello, World!".getBytes(StandardCharsets.UTF_8));
     }
 
@@ -138,10 +122,13 @@ public class GCSConnectorTest {
                    .canSample(true).canBrowse(true).build());
 
     entities.sort(Comparator.comparing(BrowseEntity::getName));
-    testGCSConnector(new GCPConnectorConfig(project, GCPConnectorConfig.SERVICE_ACCOUNT_FILE_PATH,
-                                            serviceAccountFilePath, null), entities);
-    testGCSConnector(new GCPConnectorConfig(project, GCPConnectorConfig.SERVICE_ACCOUNT_JSON, null, serviceAccountKey),
-                     entities);
+    testGCSConnector(new GCPConnectorConfig(testEnvironment.getProject(), GCPConnectorConfig.SERVICE_ACCOUNT_FILE_PATH,
+                                            testEnvironment.getServiceAccountFilePath(), null), entities);
+    if (testEnvironment.getServiceAccountContent() != null) {
+      testGCSConnector(new GCPConnectorConfig(testEnvironment.getProject(), GCPConnectorConfig.SERVICE_ACCOUNT_JSON,
+                                              null, testEnvironment.getServiceAccountContent()),
+                       entities);
+    }
   }
 
   private void testGCSConnector(GCPConnectorConfig config, List<BrowseEntity> entities) throws IOException {

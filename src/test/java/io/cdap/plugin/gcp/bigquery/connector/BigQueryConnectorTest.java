@@ -16,6 +16,16 @@
 
 package io.cdap.plugin.gcp.bigquery.connector;
 
+import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.DatasetId;
+import com.google.cloud.bigquery.DatasetInfo;
+import com.google.cloud.bigquery.Field;
+import com.google.cloud.bigquery.InsertAllRequest;
+import com.google.cloud.bigquery.StandardSQLTypeName;
+import com.google.cloud.bigquery.StandardTableDefinition;
+import com.google.cloud.bigquery.TableDefinition;
+import com.google.cloud.bigquery.TableId;
+import com.google.cloud.bigquery.TableInfo;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.batch.BatchSink;
@@ -35,85 +45,104 @@ import io.cdap.plugin.gcp.bigquery.sink.BigQueryMultiSink;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySink;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySource;
 import io.cdap.plugin.gcp.bigquery.sqlengine.BigQuerySQLEngine;
+import io.cdap.plugin.gcp.common.GCPUtils;
+import io.cdap.plugin.gcp.common.TestEnvironment;
+import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
- * BigQuery Connector integration test. This test will only be run when below property is provided:
- * project.id -- the name of the project where temporary table or staging bucket may be created or BigQuery job may
- * be run. It will default to active google project if you have google cloud client installed.
- * dataset.project -- optional, the name of the project where the dataset is
- * dataset.name -- the name of the dataset
- * table.name -- the name of the table
- * service.account.file -- the path to the service account key file
+ * BigQuery Connector integration test.
+ *
+ * The service account used to run this test needs BigQuery admin permissions in the project.
  */
 public class BigQueryConnectorTest {
   private static final Set<String> SUPPORTED_TYPES = new HashSet<>(Arrays.asList("table", "view"));
-  private static String serviceAccountKey;
+  private static TestEnvironment testEnvironment;
   private static String project;
   private static String datasetProject;
   private static String dataset;
   private static String table;
-  private static String serviceAccountFilePath;
+  private static BigQuery bigQuery;
+  private static final Schema SCHEMA =
+    Schema.recordOf("output",
+                    Schema.Field.of("id", Schema.nullableOf(Schema.of(Schema.Type.LONG))),
+                    Schema.Field.of("name", Schema.nullableOf(Schema.of(Schema.Type.STRING))));
+  private static final Set<StructuredRecord> TABLE_DATA = new HashSet<>(Arrays.asList(
+    StructuredRecord.builder(SCHEMA).set("id", 0L).set("name", "alice").build(),
+    StructuredRecord.builder(SCHEMA).set("id", 1L).set("name", "bob").build()));
 
   @BeforeClass
   public static void setupTestClass() throws Exception {
-    // Certain properties need to be configured otherwise the whole tests will be skipped.
+    testEnvironment = TestEnvironment.load();
 
-    String messageTemplate = "%s is not configured, please refer to javadoc of this class for details.";
+    project = testEnvironment.getProject();
+    datasetProject = testEnvironment.getProject();
+    long now = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis());
+    dataset = String.format("bq_connector_test_%d_%s", now, UUID.randomUUID().toString().replaceAll("-", ""));
+    table = "users";
 
-    project = System.getProperty("project.id");
-    if (project == null) {
-      project = System.getProperty("GOOGLE_CLOUD_PROJECT");
+    // create dataset, table, and populate table
+    bigQuery = GCPUtils.getBigQuery(project, testEnvironment.getCredentials());
+    bigQuery.create(DatasetInfo.of(DatasetId.of(project, dataset)));
+
+    // TODO: (CDAP-19477) test one of the fields being required instead of nullable
+    com.google.cloud.bigquery.Schema schema = com.google.cloud.bigquery.Schema.of(
+      Field.newBuilder("id", StandardSQLTypeName.INT64).setMode(Field.Mode.NULLABLE).build(),
+      Field.newBuilder("name", StandardSQLTypeName.STRING).setMode(Field.Mode.NULLABLE).build());
+    TableDefinition tableDefinition = StandardTableDefinition.of(schema);
+    TableId tableId = TableId.of(project, dataset, table);
+    bigQuery.create(TableInfo.of(tableId, tableDefinition));
+    List<InsertAllRequest.RowToInsert> rows = TABLE_DATA.stream()
+      .map(BigQueryConnectorTest::convert)
+      .collect(Collectors.toList());
+
+    bigQuery.insertAll(InsertAllRequest.of(tableId, rows));
+  }
+
+  private static InsertAllRequest.RowToInsert convert(StructuredRecord record) {
+    Map<String, Object> row = new HashMap<>();
+    for (Schema.Field field : record.getSchema().getFields()) {
+      row.put(field.getName(), record.get(field.getName()));
     }
-    if (project == null) {
-      project = System.getProperty("GCLOUD_PROJECT");
+    return InsertAllRequest.RowToInsert.of(row);
+  }
+
+  @AfterClass
+  public static void afterClass() {
+    if (bigQuery == null) {
+      return;
     }
-    Assume.assumeFalse(String.format(messageTemplate, "project id"), project == null);
-    System.setProperty("GCLOUD_PROJECT", project);
-
-    datasetProject = System.getProperty("dataset.project");
-
-    dataset = System.getProperty("dataset.name");
-    Assume.assumeFalse(String.format(messageTemplate, "dataset name"), dataset == null);
-
-    table = System.getProperty("table.name");
-    Assume.assumeFalse(String.format(messageTemplate, "table name"), table == null);
-
-    serviceAccountFilePath = System.getProperty("service.account.file");
-    Assume.assumeFalse(String.format(messageTemplate, "service account key file"), serviceAccountFilePath == null);
-
-    serviceAccountKey = new String(Files.readAllBytes(Paths.get(new File(serviceAccountFilePath).getAbsolutePath())),
-                                   StandardCharsets.UTF_8);
-
+    bigQuery.delete(TableId.of(project, dataset, table));
+    bigQuery.delete(DatasetId.of(project, dataset));
   }
 
   @Test
   public void testServiceAccountPath() throws IOException {
     BigQueryConnectorConfig config =
-      new BigQueryConnectorConfig(project, datasetProject, null, serviceAccountFilePath, null);
+      new BigQueryConnectorConfig(project, datasetProject, null, testEnvironment.getServiceAccountFilePath(), null);
     test(config);
   }
 
   @Test
   public void testServiceAccountJson() throws IOException {
+    testEnvironment.skipIfNoServiceAccountGiven();
+
     BigQueryConnectorConfig config =
       new BigQueryConnectorConfig(project, datasetProject, BigQueryConnectorConfig.SERVICE_ACCOUNT_JSON, null,
-                                  serviceAccountKey);
+                                  testEnvironment.getServiceAccountContent());
     test(config);
   }
 
@@ -133,9 +162,7 @@ public class BigQueryConnectorTest {
                                                            .setConnection("${conn(connection-id)}").build());
 
     Schema schema = connectorSpec.getSchema();
-    for (Schema.Field field : schema.getFields()) {
-      Assert.assertNotNull(field.getSchema());
-    }
+    Assert.assertEquals(SCHEMA, schema);
     Set<PluginSpec> relatedPlugins = connectorSpec.getRelatedPlugins();
     Set<PluginSpec> expectedRelatedPlugins = new HashSet<>();
 
@@ -153,17 +180,12 @@ public class BigQueryConnectorTest {
   }
 
   private void testSample(BigQueryConnector connector) throws IOException {
-    List<StructuredRecord> sample =
-      connector.sample(new MockConnectorContext(new MockConnectorConfigurer()),
-                       SampleRequest.builder(1).setPath(dataset + "/" + table).build());
-    Assert.assertEquals(1, sample.size());
-    StructuredRecord record = sample.get(0);
-    Schema schema = record.getSchema();
-    Assert.assertNotNull(schema);
-    for (Schema.Field field : schema.getFields()) {
-      Assert.assertNotNull(field.getSchema());
-      Assert.assertTrue(record.get(field.getName()) != null || field.getSchema().isNullable());
-    }
+    SampleRequest sampleRequest = SampleRequest.builder(10).setPath(dataset + "/" + table).build();
+    Set<StructuredRecord> sample = new HashSet<>(
+      connector.sample(new MockConnectorContext(new MockConnectorConfigurer()), sampleRequest));
+
+    Assert.assertEquals(TABLE_DATA, sample);
+
 
     //invalid path
     Assert.assertThrows(IllegalArgumentException.class,
