@@ -22,7 +22,7 @@ Feature:GCSMove - Verification of successful objects move from one bucket to ano
     Then Validate GCSMove successfully moved object "gcsCsvFile" to destination bucket
     Then Validate the cmek key "cmekGCS" of target GCS bucket if cmek is enabled
 
-  @GCS_READ_RECURSIVE_TEST @GCS_SINK_TEST
+  @GCS_READ_RECURSIVE_TEST @GCS_SINK_TEST @GCSMove_Required
   Scenario:Validate successful move objects from one bucket to another with Move All Subdirectories set to true
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
@@ -42,7 +42,7 @@ Feature:GCSMove - Verification of successful objects move from one bucket to ano
     Then Verify the pipeline status is "Succeeded"
     Then Validate GCSMove successfully moved object "gcsMoveReadRecursivePath" to destination bucket
 
-  @GCS_READ_RECURSIVE_TEST @GCS_SINK_TEST
+  @GCS_READ_RECURSIVE_TEST @GCS_SINK_TEST @GCSMove_Required
   Scenario:Validate successful move objects from one bucket to another with Move All Subdirectories set to false
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
@@ -62,7 +62,7 @@ Feature:GCSMove - Verification of successful objects move from one bucket to ano
     Then Verify the pipeline status is "Succeeded"
     Then Validate GCSMove did not move subdirectory "gcsMoveReadRecursiveSubDirectory" to destination bucket
 
-  @GCS_CSV_TEST @GCS_SINK_EXISTING_BUCKET_TEST
+  @GCS_CSV_TEST @GCS_SINK_EXISTING_BUCKET_TEST @GCSMove_Required
   Scenario:Validate successful move objects from one bucket to another existing bucket with Overwrite Existing Files set to true
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"

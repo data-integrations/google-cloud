@@ -1,7 +1,7 @@
-@Spanner_Source @SPANNER_TEST @Spanner_Source_Required
+@Spanner_Source @SPANNER_TEST
 Feature: Spanner source - Verification of Spanner to Spanner successful data transfer using connections
 
-  @SPANNER_SOURCE_BASIC_TEST @SPANNER_SINK_TEST @SPANNER_CONNECTION
+  @SPANNER_SOURCE_BASIC_TEST @SPANNER_SINK_TEST @SPANNER_CONNECTION @Spanner_Source_Required
   Scenario: To verify data transfer from Spanner to Spanner with pipeline connection created from wrangler
     Given Open Wrangler connections page
     Then Click plugin property: "addConnection" button
@@ -66,7 +66,7 @@ Feature: Spanner source - Verification of Spanner to Spanner successful data tra
     Then Click plugin property: "Delete" button
     Then Verify connection: "spannerConnectionName" of type: "Spanner" is deleted successfully
 
-  @SPANNER_SINK_TEST @EXISTING_SPANNER_CONNECTION
+  @SPANNER_SINK_TEST @EXISTING_SPANNER_CONNECTION @Spanner_Source_Required
   Scenario: To verify data is getting transferred from Spanner to Spanner with use connection functionality
     Given Open Datafusion Project to configure pipeline
     When Select plugin: "Spanner" from the plugins list as: "Source"

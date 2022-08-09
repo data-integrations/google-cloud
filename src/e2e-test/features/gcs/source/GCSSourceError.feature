@@ -49,7 +49,7 @@ Feature: GCS source - Verify GCS Source plugin error scenarios
     Then Verify get schema fails with error
 
   @GCS_CSV_TEST @BQ_SINK_TEST
-  Scenario: To verify Pipeline preview gets failed for incorrect Regex-Path
+  Scenario: To verify schema detection fails for incorrect Regex-Path as input path is not found
     Given Open Datafusion Project to configure pipeline
     When Source is GCS
     When Sink is BigQuery
@@ -61,14 +61,5 @@ Feature: GCS source - Verify GCS Source plugin error scenarios
     Then Select GCS property format "csv"
     Then Enter GCS source property regex path filter "gcsIncorrectRegexPath"
     Then Toggle GCS source property skip header to true
-    Then Validate output schema with expectedSchema "gcsCsvFileSchema"
-    Then Validate "GCS" plugin properties
-    Then Close the GCS properties
-    Then Open BigQuery sink properties
-    Then Override Service account details if set in environment variables
-    Then Enter the BigQuery sink mandatory properties
-    Then Validate "BigQuery" plugin properties
-    Then Close the BigQuery properties
-    Then Save the pipeline
-    Then Preview and run the pipeline
-    Then Verify the preview of pipeline is "failed"
+    Then Click on the Get Schema button
+    Then Verify that the Plugin is displaying an error message: "errorMessageInvalidPath" on the header

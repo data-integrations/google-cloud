@@ -37,7 +37,7 @@ Feature: GCS Delete - Verification of GCS Delete plugin
     Then Verify the pipeline status is "Succeeded"
     Then Verify objects in the GCS path "gcsCsvFile" deleted successfully by GCS Delete action plugin
 
-  @GCS_READ_RECURSIVE_TEST
+  @GCS_READ_RECURSIVE_TEST @GCSDelete_Required
   Scenario: Verify the GCS Delete successfully deletes multiple objects
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
@@ -55,7 +55,7 @@ Feature: GCS Delete - Verification of GCS Delete plugin
     Then Verify the pipeline status is "Succeeded"
     Then Verify multiple objects "gcsDeleteObjectsList" deleted successfully by GCS Delete action plugin
 
-  @GCS_DELETE_WILDCARD_TEST
+  @GCS_DELETE_WILDCARD_TEST @GCSDelete_Required
   Scenario: Verify the GCS Delete successfully deletes multiple csv file under current directory
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
@@ -74,7 +74,7 @@ Feature: GCS Delete - Verification of GCS Delete plugin
     Then Verify multiple objects "gcsDeleteObjectsList2" deleted successfully by GCS Delete action plugin
     Then Verify objects "gcsKeepObjectsList" still exist after GCS Delete action plugin
 
-  @GCS_DELETE_WILDCARD_TEST
+  @GCS_DELETE_WILDCARD_TEST @GCSDelete_Required
   Scenario: Verify the GCS Delete successfully deletes multiple objects with prefix wildcard under current directory
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"

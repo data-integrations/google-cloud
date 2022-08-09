@@ -25,7 +25,6 @@ on:
 jobs:
   build:
     runs-on: k8s-runner-e2e
-
     # We allow builds:
     # 1) When triggered manually
     # 2) When it's a merge into a branch
@@ -37,14 +36,25 @@ jobs:
       github.event_name == 'workflow_dispatch'
       || github.event_name == 'push'
       || (contains(github.event.pull_request.labels.*.name, 'build')
-         && (github.event.action != 'labeled' || github.event.label.name == 'build')
-         )
-
+          && (github.event.action != 'labeled' || github.event.label.name == 'build')
+          )
+    strategy:
+      matrix:
+        tests: [bigquery, common, gcs, pubsub, spanner, gcsdelete, gcsmove]
+      fail-fast: false
     steps:
       # Pinned 1.0.0 version
       - uses: actions/checkout@v2.3.4
         with:
           path: plugin
+      - uses: dorny/paths-filter@b2feaf19c27470162a626bd6fa8438ae5b263721
+        if: github.event_name != 'workflow_dispatch' && github.event_name != 'push'
+        id: filter
+        with:
+          working-directory: plugin
+          filters: |
+            e2e-test:
+              - '**/e2e-test/**'
       - name: Checkout e2e test repo
         uses: actions/checkout@v2.3.4
         with:
@@ -58,22 +68,22 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-${{ github.workflow }}
       - name: Run required e2e tests
-        if: github.event_name != 'workflow_dispatch' && github.event_name != 'push'
-        run: python3 e2e/src/main/scripts/run_e2e_test.py --testRunner TestRunnerRequired.java
+        if: github.event_name != 'workflow_dispatch' && github.event_name != 'push' && steps.filter.outputs.e2e-test == 'false'
+        run: python3 e2e/src/main/scripts/run_e2e_test.py --testRunner **/${{ matrix.tests }}/**/TestRunnerRequired.java
       - name: Run all e2e tests
-        if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
-        run: python3 e2e/src/main/scripts/run_e2e_test.py
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || steps.filter.outputs.e2e-test == 'true'
+        run: python3 e2e/src/main/scripts/run_e2e_test.py --testRunner **/${{ matrix.tests }}/**/TestRunner.java
       - name: Upload report 
         uses: actions/upload-artifact@v2.2.4
         if: always()
         with:
-          name: Cucumber report
+          name: Cucumber report - ${{ matrix.tests }}
           path: ./plugin/target/cucumber-reports
       - name: Upload debug files 
         uses: actions/upload-artifact@v2.2.4
         if: always()
         with:
-          name: Debug files
+          name: Debug files - ${{ matrix.tests }}
           path: ./**/target/e2e-debug
       - name: Upload files to GCS
         uses: google-github-actions/upload-cloud-storage@v0
@@ -81,12 +91,3 @@ jobs:
         with:
           path: ./plugin/target/cucumber-reports
           destination: e2e-tests-cucumber-reports/${{ github.event.repository.name }}/${{ github.ref }}
-      - name: github-status-action
-        uses: Sibz/github-status-action@67af1f4042a5a790681aad83c44008ca6cfab83d
-        if: always()
-        with:
-          authToken: ${{ secrets.GITHUB_TOKEN }}
-          state: success
-          context: Cucumber report
-          sha: ${{github.event.pull_request.head.sha || github.sha}}
-          
