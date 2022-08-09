@@ -103,6 +103,8 @@ public class AvroRecordWriter extends RecordWriter<AvroKey<GenericRecord>, NullW
   public void close(TaskAttemptContext context) throws IOException {
     if (mAvroFileWriter != null) {
       mAvroFileWriter.close();
+    } else {
+      outputStream.close();
     }
   }
 
