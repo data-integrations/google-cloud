@@ -66,7 +66,7 @@ Feature: GCS source - Verification of GCS to BQ successful data transfer
     Then Get count of no of records transferred to target BigQuery Table
     Then Verify output field "gcsPathField" in target BigQuery table contains path of the source GcsBucket "gcsOutputFieldTestFile"
 
-  @GCS_OUTPUT_FIELD_TEST @BQ_SINK_TEST
+  @GCS_OUTPUT_FIELD_TEST @BQ_SINK_TEST @GCS_Source_Required
   Scenario: To verify Successful GCS to BigQuery data transfer with Datatype override
     Given Open Datafusion Project to configure pipeline
     When Source is GCS

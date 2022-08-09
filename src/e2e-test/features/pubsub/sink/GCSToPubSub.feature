@@ -161,7 +161,6 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer
     Then Validate OUT record count is equal to IN record count
     Then Open and capture logs
 
-  @PubSub_Sink_Required
   Scenario Outline: To verify data is getting transferred from GCS to PubSub with different file format combination in source and sink
     Given Open Datafusion Project to configure pipeline
     When Source is GCS
@@ -205,7 +204,7 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer
     Examples:
       | GcsPath    | SourceFormat | SinkFormat |
       | gcsTsvFile | tsv          | parquet    |
-    @GCS_CSV_TEST
+    @GCS_CSV_TEST @PubSub_Sink_Required
     Examples:
       | GcsPath    | SourceFormat | SinkFormat |
       | gcsCsvFile | csv          | json       |
