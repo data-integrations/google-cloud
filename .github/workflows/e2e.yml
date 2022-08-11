@@ -40,7 +40,7 @@ jobs:
           )
     strategy:
       matrix:
-        tests: [bigquery, common, gcs, pubsub, spanner, gcsdelete, gcsmove]
+        tests: [bigquery, common, gcs, pubsub, spanner, gcsdelete, gcsmove, dataplex]
       fail-fast: false
     steps:
       # Pinned 1.0.0 version
