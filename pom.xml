@@ -74,7 +74,6 @@
     <commons.codec.version>1.4</commons.codec.version>
     <cdap.version>6.7.1</cdap.version>
     <cdap.plugin.version>2.9.1</cdap.plugin.version>
-    <cdap.version>6.7.0</cdap.version>
     <dropwizard.metrics-core.version>3.2.6</dropwizard.metrics-core.version>
     <flogger.system.backend.version>0.3.1</flogger.system.backend.version>
     <gcs.connector.version>hadoop2-2.0.0</gcs.connector.version>
