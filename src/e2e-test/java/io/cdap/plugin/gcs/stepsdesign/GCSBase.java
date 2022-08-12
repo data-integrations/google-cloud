@@ -194,4 +194,118 @@ public class GCSBase implements E2EHelper {
   public void enterGCSPropertyAsMacroArgument(String pluginProperty, String macroArgument) {
     enterPropertyAsMacroArgument(pluginProperty, macroArgument);
   }
+
+  @Then("Verify output field {string} in target BigQuery table contains filename of the source GcsBucket {string}")
+  public void verifyOutputFieldInTargetBigQueryTableContainsFilenameOfTheSourceGcsBucket(String field, String path)
+    throws IOException, InterruptedException {
+    Optional<String> result = BigQueryClient
+      .getSoleQueryResult("SELECT distinct " + PluginPropertyUtils.pluginProp(field) + " as bucket FROM `"
+                            + (PluginPropertyUtils.pluginProp("projectId")) + "."
+                            + (PluginPropertyUtils.pluginProp("dataset")) + "."
+                            + TestSetupHooks.bqTargetTable + "` ");
+    String pathFromBQTable = StringUtils.EMPTY;
+    if (result.isPresent()) {
+      pathFromBQTable = result.get();
+    }
+    BeforeActions.scenario.write("GCS bucket filename in BQ Table :" + pathFromBQTable);
+    String filename[] = PluginPropertyUtils.pluginProp(path).split("/");
+    Assert.assertEquals("BQ table output field should contain GCS bucket filename ",
+                        filename[filename.length - 1], pathFromBQTable);
+  }
+
+  @Then("Enter GCS File system properties field {string}")
+  public void enterGCSFileSystemPropertiesField(String property) {
+    CdfGcsActions.enterFileSystemProperties(PluginPropertyUtils.pluginProp(property));
+  }
+
+  @Then("Click on Tidy in GCS File system properties")
+  public void clickOnTidyInGCSFileSystemProperties() {
+    CdfGcsActions.clickFileSystemPropertiesTidyButton();
+  }
+
+  @Then("Verify data is transferred to target GCS bucket with file format {string}")
+  public void verifyDataIsTransferredToTargetGCSBucketWithFileFormat(String fileFormat) {
+    String gcsBucket = TestSetupHooks.gcsTargetBucketName;
+    if (verifyFilePresentInGcsBucket(gcsBucket, "." + fileFormat, FilePart.SUFFIX)) {
+      BeforeActions.scenario.write("Data transferred to gcs bucket " + gcsBucket + " with format "
+                                     + fileFormat + " successfully");
+    } else {
+      Assert.fail("Data not transferred to target gcs bucket " + gcsBucket + " with format " + fileFormat);
+    }
+  }
+
+  @Then("Verify data is transferred to target GCS bucket with fileName prefix {string}")
+  public void verifyDataIsTransferredToTargetGCSBucketWithFileNamePrefix(String fileNamePrefix) {
+    String gcsBucket = TestSetupHooks.gcsTargetBucketName;
+    fileNamePrefix = PluginPropertyUtils.pluginProp(fileNamePrefix);
+    if (verifyFilePresentInGcsBucket(gcsBucket, fileNamePrefix, FilePart.PREFIX)) {
+      BeforeActions.scenario.write("Data transferred to gcs bucket " + gcsBucket + " with fileNamePrefix "
+                                     + fileNamePrefix + " successfully");
+    } else {
+      Assert.fail("Data not transferred to target gcs bucket " + gcsBucket +
+                    " with fileNamePrefix " + fileNamePrefix);
+    }
+  }
+
+  @Then("Verify data is transferred to target GCS bucket with path suffix {string}")
+  public void verifyDataIsTransferredToTargetGCSBucketWithPathSuffix(String pathSuffix) {
+    String gcsBucket = TestSetupHooks.gcsTargetBucketName;
+    pathSuffix = PluginPropertyUtils.pluginProp(pathSuffix);
+    if (verifyFilePresentInGcsBucket(gcsBucket, pathSuffix, FilePart.SUFFIX)) {
+      BeforeActions.scenario.write("Data transferred to gcs bucket " + gcsBucket + " with pathSuffix "
+                                     + pathSuffix + " successfully");
+    } else {
+      Assert.fail("Data not transferred to target gcs bucket " + gcsBucket +
+                    " with pathSuffix " + pathSuffix);
+    }
+  }
+
+  private boolean verifyFilePresentInGcsBucket(String gcsBucket, String filename, FilePart filePart) {
+    try {
+      for (Blob blob : StorageClient.listObjects(gcsBucket).iterateAll()) {
+        String blobFilePath[] = blob.getName().split("/");
+        String blobFileName = blobFilePath[blobFilePath.length - 1];
+        if (filePart.equals(FilePart.PREFIX)) {
+          if (blobFileName.startsWith(filename)) {
+            return true;
+          }
+        }
+        if (filePart.equals(FilePart.SUFFIX)) {
+          if (blobFileName.endsWith(filename)) {
+            return true;
+          }
+        }
+        if (filePart.equals(FilePart.CONTAINS)) {
+          if (blobFileName.contains(filename)) {
+            return true;
+          }
+        }
+        if (filePart.equals(FilePart.EQUALS)) {
+          if (blobFileName.equals(filename)) {
+            return true;
+          }
+        }
+      }
+    } catch (StorageException | IOException e) {
+      if (e.getMessage().contains("The specified bucket does not exist")) {
+        Assert.fail("Target gcs bucket " + gcsBucket + " not created - " + e.getMessage());
+      } else {
+        Assert.fail(e.getMessage());
+      }
+    }
+    return false;
+  }
+
+  private enum FilePart {
+    PREFIX("prefix"),
+    SUFFIX("suffix"),
+    CONTAINS("contains"),
+    EQUALS("equals");
+
+    FilePart(String filePart) {
+      this.filePart = filePart;
+    }
+
+    String filePart;
+  }
 }

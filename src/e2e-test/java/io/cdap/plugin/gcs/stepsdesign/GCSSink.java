@@ -116,4 +116,19 @@ public class GCSSink implements E2EHelper {
     }
     BeforeActions.scenario.write("CMEK not enabled");
   }
+
+  @Then("Select GCS sink property contentType {string}")
+  public void selectGCSSinkPropertyContentType(String contentType) {
+    CdfGcsActions.selectContentType(contentType);
+  }
+
+  @Then("Enter GCS sink property output file prefix {string}")
+  public void enterGCSSinkPropertyOutputFilePrefix(String prefix) {
+    CdfGcsActions.enterOutputFilePrefix(PluginPropertyUtils.pluginProp(prefix));
+  }
+
+  @Then("Enter GCS sink property path suffix {string}")
+  public void enterGCSSinkPropertyPathSuffix(String pathSuffix) {
+    CdfGcsActions.enterPathSuffix(PluginPropertyUtils.pluginProp(pathSuffix));
+  }
 }
