@@ -113,4 +113,19 @@ public class GCSSource implements E2EHelper {
     ElementHelper.sendKeys(CdfStudioLocators.runtimeArgsValue(runtimeArgumentKey),
                            "gs://" + TestSetupHooks.gcsSourceBucketName + "/" + PluginPropertyUtils.pluginProp(value));
   }
+
+  @Then("Select GCS source property file encoding type {string}")
+  public void selectGCSSourcePropertyFileEncodingType(String encoding) {
+    CdfGcsActions.selectFileEncoding(encoding);
+  }
+
+  @Then("Select GCS source property read file recursive as {string}")
+  public void selectGCSSourcePropertyReadFileRecursiveAs(String value) {
+    CdfGcsActions.selectRecursive(value);
+  }
+
+  @Then("Select GCS source property path filename only as {string}")
+  public void selectGCSSourcePropertyPathFilenameOnlyAs(String value) {
+    CdfGcsActions.selectPathFilenameOnly(value);
+  }
 }

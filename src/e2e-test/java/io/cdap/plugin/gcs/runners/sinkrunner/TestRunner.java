@@ -27,7 +27,8 @@ import org.junit.runner.RunWith;
   features = {"src/e2e-test/features"},
   glue = {"io.cdap.plugin.gcs.stepsdesign", "io.cdap.plugin.bigquery.stepsdesign",
     "stepsdesign", "io.cdap.plugin.common.stepsdesign"},
-  tags = {"@GCS_Sink"},
+  tags = {"@GCS_Sink and not @PLUGIN-808"},
+  /* TODO :Enable tests once issue fixed https://cdap.atlassian.net/browse/PLUGIN-808 */
   monochrome = true,
   plugin = {"pretty", "html:target/cucumber-html-report/gcs-sink",
     "json:target/cucumber-reports/cucumber-gcs-sink.json",
