@@ -24,6 +24,7 @@ import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem;
+import com.google.cloud.hadoop.util.AccessTokenProvider;
 import com.google.cloud.hadoop.util.AccessTokenProviderClassFromConfigFactory;
 import com.google.cloud.hadoop.util.CredentialFactory;
 import com.google.cloud.kms.v1.CryptoKeyName;
@@ -33,8 +34,9 @@ import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import io.cdap.plugin.gcp.bigquery.BigQueryServiceAccountAccessTokenProvider;
 import io.cdap.plugin.gcp.gcs.GCSPath;
-import io.cdap.plugin.gcp.gcs.ServiceAccountAccessTokenProvider;
+import io.cdap.plugin.gcp.gcs.GCSServiceAccountAccessTokenProvider;
 import org.apache.hadoop.conf.Configuration;
 
 import java.io.ByteArrayInputStream;
@@ -52,6 +54,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Supplier;
 import javax.annotation.Nullable;
 
 /**
@@ -127,35 +130,61 @@ public class GCPUtils {
    */
   public static Map<String, String> generateGCSAuthProperties(@Nullable String serviceAccount,
                                                               String serviceAccountType) {
-    return generateAuthProperties(serviceAccount, serviceAccountType, CredentialFactory.GCS_SCOPES, GCS_PREFIX);
+    return generateGCSAuthProperties(serviceAccount,
+                                     serviceAccountType,
+                                     () -> GCSServiceAccountAccessTokenProvider.class);
+  }
+
+
+  /**
+   * @param serviceAccount     file path or Json content
+   * @param serviceAccountType type of service account can be filePath or json
+   * @param atpSupplier        supplier for the {@link AccessTokenProvider} class used for authentication
+   * @return {@link Map} properties genereated based on input params
+   */
+  public static Map<String, String> generateGCSAuthProperties(
+    @Nullable String serviceAccount,
+    String serviceAccountType,
+    Supplier<Class<? extends AccessTokenProvider>> atpSupplier) {
+    return generateAuthProperties(serviceAccount,
+                                  serviceAccountType,
+                                  CredentialFactory.GCS_SCOPES,
+                                  atpSupplier,
+                                  GCS_PREFIX);
   }
 
   /**
    * Generate auth related properties to set in the Hadoop configuration.
    *
-   * @param serviceAccount file path or Json content
+   * @param serviceAccount     file path or Json content
    * @param serviceAccountType type of service account can be filePath or json
-   *
    * @return {@link Map} properties genereated based on input params
    */
   public static Map<String, String> generateBigQueryAuthProperties(@Nullable String serviceAccount,
                                                                    String serviceAccountType) {
     List<String> scopes = new ArrayList<>(CredentialFactory.GCS_SCOPES);
     scopes.addAll(BIGQUERY_SCOPES);
-    return generateAuthProperties(serviceAccount, serviceAccountType, scopes, GCS_PREFIX, BQ_PREFIX);
+    return generateAuthProperties(serviceAccount,
+                                  serviceAccountType,
+                                  scopes,
+                                  () -> BigQueryServiceAccountAccessTokenProvider.class,
+                                  GCS_PREFIX,
+                                  BQ_PREFIX);
   }
 
   /**
    * Generate auth related properties to set in the Hadoop configuration.
    *
-   * @param serviceAccount file path or Json content
+   * @param serviceAccount     file path or Json content
    * @param serviceAccountType type of service account can be filePath or json
-   * @param prefixes prefixes for the AccessTokenProvider class
-   *
+   * @param atpSupplier        supplier for the {@link AccessTokenProvider} class used for authentication
+   * @param prefixes           prefixes for the AccessTokenProvider class
    * @return {@link Map} properties generated based on input params
    */
   private static Map<String, String> generateAuthProperties(@Nullable String serviceAccount,
-                                                            String serviceAccountType, Collection<String> scopes,
+                                                            String serviceAccountType,
+                                                            Collection<String> scopes,
+                                                            Supplier<Class<? extends AccessTokenProvider>> atpSupplier,
                                                             String... prefixes) {
     Map<String, String> properties = new HashMap<>();
     properties.put(SERVICE_ACCOUNT_TYPE, serviceAccountType);
@@ -175,7 +204,7 @@ public class GCPUtils {
     // for use by GCS and BQ.
     for (String prefix : prefixes) {
       properties.put(prefix + AccessTokenProviderClassFromConfigFactory.ACCESS_TOKEN_PROVIDER_IMPL_SUFFIX,
-                     ServiceAccountAccessTokenProvider.class.getName());
+                     atpSupplier.get().getName());
     }
     return properties;
   }
@@ -204,17 +233,29 @@ public class GCPUtils {
     return credentials;
   }
 
-  public static Map<String, String> getFileSystemProperties(GCPConnectorConfig config, String path,
-                                                            Map<String, String> properties) {
-    return getFileSystemProperties(config.getProject(), config.getServiceAccount(), config.getServiceAccountType(),
-                                   path, properties);
+  public static Map<String, String> getFileSystemProperties(
+    GCPConnectorConfig config, String path,
+    Map<String, String> properties,
+    Supplier<Class<? extends AccessTokenProvider>> atpSupplier
+  ) {
+    return getFileSystemProperties(config.getProject(),
+                                   config.getServiceAccount(),
+                                   config.getServiceAccountType(),
+                                   path,
+                                   properties,
+                                   atpSupplier);
   }
 
-  private static Map<String, String> getFileSystemProperties(String project, String serviceAccount,
-                                                             String serviceAccountType, String path,
-                                                             Map<String, String> properties) {
+  private static Map<String, String> getFileSystemProperties(
+    String project,
+    String serviceAccount,
+    String serviceAccountType,
+    String path,
+    Map<String, String> properties,
+    Supplier<Class<? extends AccessTokenProvider>> atpSupplier
+  ) {
     try {
-      properties.putAll(generateGCSAuthProperties(serviceAccount, serviceAccountType));
+      properties.putAll(generateGCSAuthProperties(serviceAccount, serviceAccountType, atpSupplier));
     } catch (Exception ignored) {
 
     }

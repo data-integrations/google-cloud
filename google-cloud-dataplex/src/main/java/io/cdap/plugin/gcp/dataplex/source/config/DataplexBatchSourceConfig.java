@@ -48,6 +48,7 @@ import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceConfig;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.GCPConnectorConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
+import io.cdap.plugin.gcp.dataplex.common.DataplexServiceAccountAccessTokenProvider;
 import io.cdap.plugin.gcp.dataplex.common.config.DataplexBaseConfig;
 import io.cdap.plugin.gcp.dataplex.common.util.DataplexUtil;
 
@@ -303,8 +304,11 @@ public class DataplexBatchSourceConfig extends DataplexBaseConfig {
    * @return
    */
   public Map<String, String> getFileSystemProperties(String path) {
-    Map<String, String> properties = GCPUtils.getFileSystemProperties(this.getConnection(),
-      path, new HashMap<>());
+    Map<String, String> properties =
+      GCPUtils.getFileSystemProperties(this.getConnection(),
+                                       path,
+                                       new HashMap<>(),
+                                       () -> DataplexServiceAccountAccessTokenProvider.class);
     return properties;
   }
 

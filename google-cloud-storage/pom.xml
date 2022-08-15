@@ -176,7 +176,7 @@
             <Embed-Directory>lib</Embed-Directory>
             <!--Only @Plugin classes in the export packages will be included as plugin-->
             <_exportcontents>
-              io.cdap.plugin.gcp.*;
+              io.cdap.plugin.gcp.gcs.*;
               com.google.cloud.hadoop.*;
             </_exportcontents>
           </instructions>

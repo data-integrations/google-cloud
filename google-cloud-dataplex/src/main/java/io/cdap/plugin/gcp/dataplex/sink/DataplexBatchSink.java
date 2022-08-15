@@ -64,6 +64,7 @@ import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.CmekUtils;
 import io.cdap.plugin.gcp.common.GCPUtils;
+import io.cdap.plugin.gcp.dataplex.common.DataplexServiceAccountAccessTokenProvider;
 import io.cdap.plugin.gcp.dataplex.common.util.DataplexConstants;
 import io.cdap.plugin.gcp.dataplex.common.util.DataplexUtil;
 import io.cdap.plugin.gcp.dataplex.sink.config.DataplexBatchSinkConfig;
@@ -488,8 +489,11 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
   }
 
   protected Map<String, String> getFileSystemProperties() {
-    Map<String, String> properties = GCPUtils.getFileSystemProperties(config.getConnection(),
-      outputPath, new HashMap<>());
+    Map<String, String> properties =
+      GCPUtils.getFileSystemProperties(config.getConnection(),
+                                       outputPath,
+                                       new HashMap<>(),
+                                       () -> DataplexServiceAccountAccessTokenProvider.class);
     properties.put(GCSBatchSink.CONTENT_TYPE, config.getContentType(config.getFormat().toString()));
     return properties;
   }

@@ -14,7 +14,7 @@
  * the License.
  */
 
-package io.cdap.plugin.gcp.gcs;
+package io.cdap.plugin.gcp.bigquery;
 
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.hadoop.util.AccessTokenProvider;
@@ -30,7 +30,7 @@ import java.util.Date;
  * of the default GCS implementation that uses the older GoogleCredential library, which does not work with external
  * service accounts.
  */
-public class ServiceAccountAccessTokenProvider implements AccessTokenProvider {
+public class BigQueryServiceAccountAccessTokenProvider implements AccessTokenProvider {
   private Configuration conf;
   private GoogleCredentials credentials;
 

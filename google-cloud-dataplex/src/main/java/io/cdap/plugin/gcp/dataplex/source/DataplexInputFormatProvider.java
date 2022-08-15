@@ -23,8 +23,9 @@ import io.cdap.plugin.format.avro.input.CombineAvroInputFormat;
 import io.cdap.plugin.gcp.bigquery.source.PartitionedBigQueryInputFormat;
 import io.cdap.plugin.gcp.dataplex.common.util.DataplexConstants;
 import io.cdap.plugin.gcp.dataplex.common.util.DataplexUtil;
-
+import org.apache.avro.generic.GenericData;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.JobContext;
@@ -72,7 +73,7 @@ public class DataplexInputFormatProvider implements InputFormatProvider {
     if (configuration != null) {
       String entityType = configuration.get(DataplexConstants.DATAPLEX_ENTITY_TYPE);
       if (entityType.equalsIgnoreCase(StorageSystem.BIGQUERY.toString())) {
-        return PartitionedBigQueryInputFormat.class.getName();
+        return DataplexBigQueryInputFormat.class.getName();
       } else if (entityType.equalsIgnoreCase(StorageSystem.CLOUD_STORAGE.toString())) {
         return DataplexInputFormat.class.getName();
       }
@@ -83,6 +84,25 @@ public class DataplexInputFormatProvider implements InputFormatProvider {
   @Override
   public Map<String, String> getInputFormatConfiguration() {
     return inputFormatConfiguration;
+  }
+
+  /**
+   * Class used to shade the {@link PartitionedBigQueryInputFormat} dependency for Dataplex.
+   */
+  public static class DataplexBigQueryInputFormat extends InputFormat<LongWritable, GenericData.Record> {
+    private final PartitionedBigQueryInputFormat delegate = new PartitionedBigQueryInputFormat();
+
+    @Override
+    public List<InputSplit> getSplits(JobContext jobContext) throws IOException, InterruptedException {
+      return delegate.getSplits(jobContext);
+    }
+
+    @Override
+    public RecordReader<LongWritable, GenericData.Record> createRecordReader(InputSplit inputSplit,
+                                                                             TaskAttemptContext taskAttemptContext)
+      throws IOException, InterruptedException {
+      return delegate.createRecordReader(inputSplit, taskAttemptContext);
+    }
   }
 
   /**

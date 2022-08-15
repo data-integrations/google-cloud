@@ -40,6 +40,7 @@ import io.cdap.plugin.gcp.common.GCPConnectorConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.crypto.EncryptedFileSystem;
 import io.cdap.plugin.gcp.gcs.GCSPath;
+import io.cdap.plugin.gcp.gcs.GCSServiceAccountAccessTokenProvider;
 import io.cdap.plugin.gcp.gcs.connector.GCSConnector;
 
 import java.lang.reflect.Type;
@@ -73,8 +74,10 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
 
   @Override
   protected Map<String, String> getFileSystemProperties(BatchSourceContext context) {
-    Map<String, String> properties = GCPUtils.getFileSystemProperties(config.connection, config.getPath(),
-                                                                      new HashMap<>(config.getFileSystemProperties()));
+    Map<String, String> properties = GCPUtils.getFileSystemProperties(config.connection,
+                                                                      config.getPath(),
+                                                                      new HashMap<>(config.getFileSystemProperties()),
+                                                                      () -> GCSServiceAccountAccessTokenProvider.class);
     if (config.isCopyHeader()) {
       properties.put(PathTrackingInputFormat.COPY_HEADER, Boolean.TRUE.toString());
     }
