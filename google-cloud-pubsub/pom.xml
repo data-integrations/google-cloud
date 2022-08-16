@@ -228,7 +228,7 @@
             <!--Only @Plugin classes in the export packages will be included as plugin-->
             <_exportcontents>
               io.cdap.plugin.gcp.publisher.*;
-              com.google.cloud.hadoop.*;
+<!--              com.google.cloud.hadoop.*;-->
             </_exportcontents>
           </instructions>
         </configuration>

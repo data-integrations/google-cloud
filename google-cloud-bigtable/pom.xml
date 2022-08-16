@@ -231,7 +231,7 @@
             <!--Only @Plugin classes in the export packages will be included as plugin-->
             <_exportcontents>
               io.cdap.plugin.gcp.bigtable.*;
-              com.google.cloud.hadoop.*;
+<!--              com.google.cloud.hadoop.*;-->
               org.apache.hadoop.hbase.mapreduce.*;
               org.apache.hadoop.hbase.security.token.*;
             </_exportcontents>

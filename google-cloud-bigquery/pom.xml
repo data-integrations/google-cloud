@@ -304,7 +304,7 @@
             <!--Only @Plugin classes in the export packages will be included as plugin-->
             <_exportcontents>
               io.cdap.plugin.gcp.bigquery.*;
-              com.google.cloud.hadoop.*;
+<!--              com.google.cloud.hadoop.*;-->
               com.google.cloud.spark.bigquery.*;
             </_exportcontents>
           </instructions>
