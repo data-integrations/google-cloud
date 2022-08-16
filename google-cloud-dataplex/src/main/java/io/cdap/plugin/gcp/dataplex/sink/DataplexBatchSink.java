@@ -360,10 +360,11 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     // Build GCS storage path for this bucket output.
     String temporaryGcsPath = BigQuerySinkUtils.getTemporaryGcsPath(bucket, runUUID.toString(), tableName);
     BigQuerySinkUtils.configureOutput(configuration,
-      DatasetId.of(datasetProject, dataset),
-      tableName,
-      temporaryGcsPath,
-      fields);
+                                      DatasetId.of(datasetProject, dataset),
+                                      tableName,
+                                      temporaryGcsPath,
+                                      fields,
+                                      getClass().getClassLoader());
     // Both emitLineage and setOutputFormat internally try to create an external dataset if it does not already exist.
     // We call emitLineage before since it creates the dataset with schema which is used.
     List<String> fieldNames = fields.stream()

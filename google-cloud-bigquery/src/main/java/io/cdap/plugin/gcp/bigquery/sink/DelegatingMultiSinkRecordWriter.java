@@ -102,7 +102,8 @@ public class DelegatingMultiSinkRecordWriter extends RecordWriter<StructuredReco
                                                datasetId,
                                                tableName,
                                                gcsPath,
-                                               fields);
+                                               fields,
+                                               getClass().getClassLoader());
 
     BigQueryOutputFormat bqOutputFormat = new BigQueryOutputFormat();
 

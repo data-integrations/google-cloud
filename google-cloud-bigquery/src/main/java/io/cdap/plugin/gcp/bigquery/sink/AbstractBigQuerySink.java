@@ -144,7 +144,8 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
                                       DatasetId.of(getConfig().getDatasetProject(), getConfig().getDataset()),
                                       tableName,
                                       temporaryGcsPath,
-                                      fields);
+                                      fields,
+                                      getClass().getClassLoader());
     // Both emitLineage and setOutputFormat internally try to create an external dataset if it does not already exist.
     // We call emitLineage before since it creates the dataset with schema which is used.
     List<String> fieldNames = fields.stream()
