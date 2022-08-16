@@ -74,7 +74,8 @@ public class BigQueryPushDataset extends BigQueryOutputFormatProvider
                                                    BigQuery bigQuery,
                                                    DatasetId dataset,
                                                    String bucket,
-                                                   String runId) throws IOException {
+                                                   String runId,
+                                                   ClassLoader classLoader) throws IOException {
     // Get new Job ID for this push operation
     String jobId = BigQuerySQLEngineUtils.newIdentifier();
 
@@ -95,7 +96,7 @@ public class BigQueryPushDataset extends BigQueryOutputFormatProvider
     String gcsPath = BigQuerySQLEngineUtils.getGCSPath(bucket, runId, table);
     List<BigQueryTableFieldSchema> fields =
       BigQuerySinkUtils.getBigQueryTableFieldsFromSchema(pushRequest.getDatasetSchema());
-    BigQuerySinkUtils.configureOutput(configuration, dataset, table, gcsPath, fields);
+    BigQuerySinkUtils.configureOutput(configuration, dataset, table, gcsPath, fields, classLoader);
 
     // Create empty table to store uploaded records.
     BigQuerySQLEngineUtils.createEmptyTable(sqlEngineConfig, bigQuery, dataset.getProject(), dataset.getDataset(),

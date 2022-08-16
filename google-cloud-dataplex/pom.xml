@@ -220,8 +220,8 @@
             <Embed-Directory>lib</Embed-Directory>
             <!--Only @Plugin classes in the export packages will be included as plugin-->
             <_exportcontents>
-              io.cdap.plugin.gcp.*;
-              com.google.cloud.hadoop.*;
+              io.cdap.plugin.gcp.dataplex.*;
+<!--              com.google.cloud.hadoop.*;-->
             </_exportcontents>
           </instructions>
         </configuration>

@@ -52,6 +52,7 @@ import io.cdap.plugin.gcp.common.GCPConnectorConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.Formats;
 import io.cdap.plugin.gcp.gcs.GCSPath;
+import io.cdap.plugin.gcp.gcs.GCSServiceAccountAccessTokenProvider;
 import io.cdap.plugin.gcp.gcs.StorageClient;
 import io.cdap.plugin.gcp.gcs.connector.GCSConnector;
 import org.slf4j.Logger;
@@ -140,8 +141,11 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
 
   @Override
   protected Map<String, String> getFileSystemProperties(BatchSinkContext context) {
-    Map<String, String> properties = GCPUtils.getFileSystemProperties(config.connection, config.getPath(),
-                                                                      new HashMap<>());
+    Map<String, String> properties =
+      GCPUtils.getFileSystemProperties(config.connection,
+                                       config.getPath(),
+                                       new HashMap<>(),
+                                       () -> GCSServiceAccountAccessTokenProvider.class);
     properties.put(GCSBatchSink.CONTENT_TYPE, config.getContentType());
     properties.putAll(config.getFileSystemProperties());
     String outputFileBaseName = config.getOutputFileNameBase();

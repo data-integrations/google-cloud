@@ -30,13 +30,6 @@
   <description>Common classes for GCP plugins</description>
   <packaging>jar</packaging>
 
-  <properties>
-    <!-- Skip Jar generation -->
-    <maven.deploy.skip>true</maven.deploy.skip>
-    <maven.install.skip>true</maven.install.skip>
-    <jar.skipIfEmpty>true</jar.skipIfEmpty>
-  </properties>
-
   <dependencies>
     <dependency>
       <groupId>com.google.guava</groupId>

@@ -183,22 +183,6 @@
         </exclusion>
       </exclusions>
     </dependency>
-<!--    &lt;!&ndash; Dependencies are required after updating bigquery.connector version from 0.13.1-hadoop2 to hadoop2-0.13.17 &ndash;&gt;-->
-<!--    <dependency>-->
-<!--      <groupId>commons-codec</groupId>-->
-<!--      <artifactId>commons-codec</artifactId>-->
-<!--      <version>${commons.codec.version}</version>-->
-<!--    </dependency>-->
-<!--    <dependency>-->
-<!--      <groupId>com.google.flogger</groupId>-->
-<!--      <artifactId>flogger-system-backend</artifactId>-->
-<!--      <version>${flogger.system.backend.version}</version>-->
-<!--    </dependency>-->
-<!--    <dependency>-->
-<!--      <groupId>org.apache.httpcomponents</groupId>-->
-<!--      <artifactId>httpclient</artifactId>-->
-<!--      <version>${httpclient.version}</version>-->
-<!--    </dependency>-->
 
     <!-- Start: dependencies used by the Spark-BigQuery connector -->
     <dependency>
@@ -319,8 +303,8 @@
             <Embed-Directory>lib</Embed-Directory>
             <!--Only @Plugin classes in the export packages will be included as plugin-->
             <_exportcontents>
-              io.cdap.plugin.gcp.*;
-              com.google.cloud.hadoop.*;
+              io.cdap.plugin.gcp.bigquery.*;
+<!--              com.google.cloud.hadoop.*;-->
               com.google.cloud.spark.bigquery.*;
             </_exportcontents>
           </instructions>

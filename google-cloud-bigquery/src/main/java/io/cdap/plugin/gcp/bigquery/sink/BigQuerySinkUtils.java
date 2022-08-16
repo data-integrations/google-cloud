@@ -41,6 +41,7 @@ import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
+import io.cdap.plugin.common.CombineClassLoader;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize.Numeric;
@@ -263,7 +264,8 @@ public final class BigQuerySinkUtils {
                                      DatasetId datasetId,
                                      String tableName,
                                      String gcsPath,
-                                     List<BigQueryTableFieldSchema> fields) throws IOException {
+                                     List<BigQueryTableFieldSchema> fields,
+                                     ClassLoader classLoader) throws IOException {
 
     // Set up table schema
     BigQueryTableSchema outputTableSchema = new BigQueryTableSchema();
@@ -271,14 +273,22 @@ public final class BigQuerySinkUtils {
       outputTableSchema.setFields(fields);
     }
 
-    BigQueryFileFormat fileFormat = getFileFormat(fields);
-    BigQueryOutputConfiguration.configure(
-      configuration,
-      String.format("%s:%s.%s", datasetId.getProject(), datasetId.getDataset(), tableName),
-      outputTableSchema,
-      gcsPath,
-      fileFormat,
-      getOutputFormat(fileFormat));
+    // Set classloader for sink
+    ClassLoader originalClassLoader = configuration.getClassLoader();
+    configuration.setClassLoader(new CombineClassLoader(classLoader, originalClassLoader));
+    try {
+      BigQueryFileFormat fileFormat = getFileFormat(fields);
+      BigQueryOutputConfiguration.configure(
+        configuration,
+        String.format("%s:%s.%s", datasetId.getProject(), datasetId.getDataset(), tableName),
+        outputTableSchema,
+        gcsPath,
+        fileFormat,
+        getOutputFormat(fileFormat));
+    }
+    finally {
+      configuration.setClassLoader(originalClassLoader);
+    }
   }
 
   /**
@@ -295,12 +305,14 @@ public final class BigQuerySinkUtils {
                                               DatasetId datasetId,
                                               String tableName,
                                               String gcsPath,
-                                              List<BigQueryTableFieldSchema> fields) throws IOException {
+                                              List<BigQueryTableFieldSchema> fields,
+                                              ClassLoader classLoader) throws IOException {
     configureOutput(configuration,
                     datasetId,
                     tableName,
                     gcsPath,
-                    fields);
+                    fields,
+                    classLoader);
 
     // Set operation as Insertion. Currently the BQ MultiSink can only support the insertion operation.
     configuration.set(BigQueryConstants.CONFIG_OPERATION, Operation.INSERT.name());

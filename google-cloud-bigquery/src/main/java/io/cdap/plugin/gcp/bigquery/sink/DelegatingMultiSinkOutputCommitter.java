@@ -166,6 +166,7 @@ public class DelegatingMultiSinkOutputCommitter extends OutputCommitter {
                                                DatasetId.of(projectName, datasetName),
                                                tableName,
                                                gcsPath,
-                                               fields);
+                                               fields,
+                                               getClass().getClassLoader());
   }
 }

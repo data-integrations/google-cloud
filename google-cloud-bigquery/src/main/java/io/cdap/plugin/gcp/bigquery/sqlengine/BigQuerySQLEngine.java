@@ -210,7 +210,8 @@ public class BigQuerySQLEngine
                                         bigQuery,
                                         DatasetId.of(datasetProject, dataset),
                                         bucket,
-                                        runId);
+                                        runId,
+                                        getClass().getClassLoader());
 
       LOG.info("Executing Push operation for dataset {} stored in table {}",
                sqlPushRequest.getDatasetName(),

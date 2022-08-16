@@ -47,6 +47,7 @@ import io.cdap.plugin.format.connector.FileTypeDetector;
 import io.cdap.plugin.gcp.common.GCPConnectorConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.GCSPath;
+import io.cdap.plugin.gcp.gcs.GCSServiceAccountAccessTokenProvider;
 import io.cdap.plugin.gcp.gcs.sink.GCSBatchSink;
 import io.cdap.plugin.gcp.gcs.sink.GCSMultiBatchSink;
 import io.cdap.plugin.gcp.gcs.source.GCSSource;
@@ -145,7 +146,10 @@ public class GCSConnector extends AbstractFileConnector<GCPConnectorConfig> {
 
   @Override
   protected Map<String, String> getFileSystemProperties(String path) {
-    return GCPUtils.getFileSystemProperties(config, path, new HashMap<>());
+    return GCPUtils.getFileSystemProperties(config,
+                                            path,
+                                            new HashMap<>(),
+                                            () -> GCSServiceAccountAccessTokenProvider.class);
   }
 
   @Override
