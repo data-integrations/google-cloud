@@ -345,8 +345,6 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
 
   private void setInputFormat(BatchSourceContext context,
                               Schema configuredSchema) {
-    Input inputFormatInput = Input.of(config.referenceName, new BigQueryInputFormatProvider(configuration));
-
     // Add output for SQL Engine Direct read
     ImmutableMap.Builder<String, String> arguments = new ImmutableMap.Builder<>();
 
@@ -360,8 +358,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     Input sqlEngineInput = new SQLEngineInput(config.referenceName,
                                               context.getStageName(),
                                               BigQuerySQLEngine.class.getName(),
-                                              arguments.build(),
-                                              inputFormatInput);
+                                              arguments.build());
     context.setInput(sqlEngineInput);
   }
 
