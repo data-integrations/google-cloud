@@ -59,6 +59,7 @@ jobs:
         uses: actions/checkout@v2.3.4
         with:
           repository: cdapio/cdap-e2e-tests
+          ref: support-for-multi-module-projects
           path: e2e
       - name: Cache
         uses: actions/cache@v2.1.3
@@ -67,19 +68,21 @@ jobs:
           key: ${{ runner.os }}-maven-${{ github.workflow }}-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-maven-${{ github.workflow }}
+      - name: Build with Maven and install dependencies
+        run: mvn clean package -f ./plugin/pom.xml -fae -T 3 -B -V -DcloudBuild -Dmaven.wagon.http.retryHandler.count=3 -Dmaven.wagon.httpconnectionManager.ttlSeconds=25 -DskipTests
       - name: Run required e2e tests
         if: github.event_name != 'workflow_dispatch' && github.event_name != 'push' && steps.filter.outputs.e2e-test == 'false'
-        run: python3 e2e/src/main/scripts/run_e2e_test.py --testRunner **/${{ matrix.tests }}/**/TestRunnerRequired.java
+        run: python3 e2e/src/main/scripts/run_e2e_test_multi_module.py --dependency google-cloud-storage --dependency google-cloud-bigquery --dependency google-cloud-spanner --dependency google-cloud-pubsub --module google-cloud-e2e-tests --testRunner **/${{ matrix.tests }}/**/TestRunnerRequired.java
       - name: Run all e2e tests
         if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || steps.filter.outputs.e2e-test == 'true'
-        run: python3 e2e/src/main/scripts/run_e2e_test.py --testRunner **/${{ matrix.tests }}/**/TestRunner.java
-      - name: Upload report 
+        run: python3 e2e/src/main/scripts/run_e2e_test_multi_module.py --dependency google-cloud-storage --dependency google-cloud-bigquery --dependency google-cloud-spanner --dependency google-cloud-pubsub --module google-cloud-e2e-tests --testRunner **/bigquery/**/TestRunner.java
+      - name: Upload report
         uses: actions/upload-artifact@v2.2.4
         if: always()
         with:
           name: Cucumber report - ${{ matrix.tests }}
-          path: ./plugin/target/cucumber-reports
-      - name: Upload debug files 
+          path: ./plugin/google-cloud-e2e-tests/target/cucumber-reports
+      - name: Upload debug files
         uses: actions/upload-artifact@v2.2.4
         if: always()
         with:
@@ -89,5 +92,5 @@ jobs:
         uses: google-github-actions/upload-cloud-storage@v0
         if: always()
         with:
-          path: ./plugin/target/cucumber-reports
+          path: ./plugin/google-cloud-e2e-tests/target/cucumber-reports
           destination: e2e-tests-cucumber-reports/${{ github.event.repository.name }}/${{ github.ref }}
