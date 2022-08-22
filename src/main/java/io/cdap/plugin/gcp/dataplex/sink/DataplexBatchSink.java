@@ -357,18 +357,17 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     Configuration configuration = new Configuration(baseConfiguration);
 
     // Build GCS storage path for this bucket output.
+    DatasetId datasetId = DatasetId.of(datasetProject, dataset);
     String temporaryGcsPath = BigQuerySinkUtils.getTemporaryGcsPath(bucket, runUUID.toString(), tableName);
-    BigQuerySinkUtils.configureOutput(configuration,
-      DatasetId.of(datasetProject, dataset),
-      tableName,
-      temporaryGcsPath,
-      fields);
+    BigQuerySinkUtils.configureOutput(configuration, datasetId, tableName, temporaryGcsPath, fields);
     // Both emitLineage and setOutputFormat internally try to create an external dataset if it does not already exist.
     // We call emitLineage before since it creates the dataset with schema which is used.
     List<String> fieldNames = fields.stream()
       .map(BigQueryTableFieldSchema::getName)
       .collect(Collectors.toList());
-    BigQuerySinkUtils.recordLineage(context, outputName, tableSchema, fieldNames);
+    String fqn = BigQueryUtil.getFqnForLineage(datasetProject, dataset, config.getTable());
+    String location = bigQuery.getDataset(datasetId).getLocation();
+    BigQuerySinkUtils.recordLineage(context, new io.cdap.plugin.common.Asset(fqn, location), tableSchema, fieldNames);
     configuration.set(DataplexOutputFormatProvider.DATAPLEX_ASSET_TYPE, DataplexConstants.BIGQUERY_DATASET_ASSET_TYPE);
     context.addOutput(Output.of(outputName, new DataplexOutputFormatProvider(configuration, tableSchema, null)));
   }

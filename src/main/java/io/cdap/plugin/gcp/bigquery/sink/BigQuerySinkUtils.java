@@ -41,6 +41,7 @@ import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
+import io.cdap.plugin.common.Asset;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize.Numeric;
@@ -849,15 +850,15 @@ public final class BigQuerySinkUtils {
   /**
    * Record the lineage for the plugin
    * @param context       Batch sink context
-   * @param outputName    output name
+   * @param asset         asset object of table
    * @param tableSchema   schema of table
    * @param fieldNames    field list
    */
   public static void recordLineage(BatchSinkContext context,
-                                   String outputName,
+                                   Asset asset,
                                    Schema tableSchema,
                                    List<String> fieldNames) {
-    LineageRecorder lineageRecorder = new LineageRecorder(context, outputName);
+    LineageRecorder lineageRecorder = new LineageRecorder(context, asset);
     lineageRecorder.createExternalDataset(tableSchema);
     if (!fieldNames.isEmpty()) {
       lineageRecorder.recordWrite("Write", "Wrote to BigQuery table.", fieldNames);

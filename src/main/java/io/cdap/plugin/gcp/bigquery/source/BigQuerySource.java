@@ -47,6 +47,7 @@ import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
 import io.cdap.cdap.etl.api.connector.Connector;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
+import io.cdap.plugin.common.Asset;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnector;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
@@ -164,8 +165,9 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     // Both emitLineage and setOutputFormat internally try to create an external dataset if it does not already exists.
     // We call emitLineage before since it creates the dataset with schema.
     Type sourceTableType = config.getSourceTableType();
-    emitLineage(context, configuredSchema, sourceTableType, config.getTable());
-    setInputFormat(context);
+    String fqn = BigQueryUtil.getFqnForLineage(config.getDatasetProject(), config.getDataset(), config.getTable());
+    emitLineage(context, configuredSchema, sourceTableType, config.getTable(), new Asset(fqn, dataset.getLocation()));
+    setInputFormat(context, fqn);
   }
 
   @Override
@@ -244,8 +246,9 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
       } catch (IllegalArgumentException e) {
         // this means that the field is not present in BigQuery table.
         collector.addFailure(
-          String.format("Field '%s' is not present in table '%s:%s.%s'.", field.getName(), project, dataset, tableName),
-          String.format("Remove field '%s' from the output schema.", field.getName()))
+            String.format("Field '%s' is not present in table '%s:%s.%s'.",
+                          field.getName(), project, dataset, tableName),
+            String.format("Remove field '%s' from the output schema.", field.getName()))
           .withOutputSchemaField(field.getName());
       }
     }
@@ -335,13 +338,13 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     }
   }
 
-  private void setInputFormat(BatchSourceContext context) {
-    context.setInput(Input.of(config.referenceName, new BigQueryInputFormatProvider(configuration)));
+  private void setInputFormat(BatchSourceContext context, String fqn) {
+    context.setInput(Input.of(fqn, new BigQueryInputFormatProvider(configuration)));
   }
 
   private void emitLineage(BatchSourceContext context, Schema schema, Type sourceTableType,
-                           String table) {
-    LineageRecorder lineageRecorder = new LineageRecorder(context, config.referenceName);
+                           String table, Asset asset) {
+    LineageRecorder lineageRecorder = new LineageRecorder(context, asset);
     lineageRecorder.createExternalDataset(schema);
 
     String type = "table";

@@ -31,6 +31,7 @@ import io.cdap.cdap.etl.api.Emitter;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
+import io.cdap.plugin.common.Asset;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
@@ -150,7 +151,9 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
     List<String> fieldNames = fields.stream()
       .map(BigQueryTableFieldSchema::getName)
       .collect(Collectors.toList());
-    BigQuerySinkUtils.recordLineage(context, outputName, tableSchema, fieldNames);
+    String fqn = BigQueryUtil.getFqnForLineage(getConfig().getDatasetProject(),
+                                               getConfig().getDataset(), tableName);
+    BigQuerySinkUtils.recordLineage(context, new Asset(fqn, getConfig().getLocation()), tableSchema, fieldNames);
     context.addOutput(Output.of(outputName, getOutputFormatProvider(configuration, tableName, tableSchema)));
   }
 
