@@ -15,6 +15,7 @@
  */
 package io.cdap.plugin.gcp.bigquery.sink;
 
+import com.google.api.client.util.Strings;
 import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.common.collect.ImmutableSet;
@@ -26,6 +27,7 @@ import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.common.ConfigUtil;
 import io.cdap.plugin.common.Constants;
 import io.cdap.plugin.common.IdUtils;
+import io.cdap.plugin.common.ReferenceNames;
 import io.cdap.plugin.gcp.bigquery.common.BigQueryBaseConfig;
 import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnectorConfig;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
@@ -51,6 +53,7 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
   private static final String SCHEME = "gs://";
 
   @Name(Constants.Reference.REFERENCE_NAME)
+  @Nullable
   @Description(Constants.Reference.REFERENCE_NAME_DESCRIPTION)
   protected String referenceName;
 
@@ -85,8 +88,11 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
     super(connection, dataset, cmekKey, bucket);
   }
 
+  @Nullable
   public String getReferenceName() {
-    return referenceName;
+    return Strings.isNullOrEmpty(referenceName)
+      ? ReferenceNames.normalizeFqn(BigQueryUtil.getFQN(getDatasetProject(), dataset, getTable()))
+      : referenceName;
   }
 
   @Nullable
