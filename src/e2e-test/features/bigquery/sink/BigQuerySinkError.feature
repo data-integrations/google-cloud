@@ -3,7 +3,6 @@ Feature: BigQuery sink - Validate BigQuery sink plugin error scenarios
 
   Scenario Outline:Verify BigQuery Sink properties validation errors for mandatory fields
     Given Open Datafusion Project to configure pipeline
-    Then Collapse Source plugins
     When Sink is BigQuery
     Then Open BigQuery sink properties
     Then Enter the BigQuery properties with blank property "<property>"
@@ -17,7 +16,6 @@ Feature: BigQuery sink - Validate BigQuery sink plugin error scenarios
   @BQ_SINK_TEST
   Scenario:Verify BigQuery Sink properties validation errors for incorrect value of chunk size
     Given Open Datafusion Project to configure pipeline
-    Then Collapse Source plugins
     When Sink is BigQuery
     Then Open BigQuery sink properties
     Then Enter BigQuery property reference name
@@ -32,7 +30,6 @@ Feature: BigQuery sink - Validate BigQuery sink plugin error scenarios
   @BQ_SINK_TEST
   Scenario:Verify BigQuery Sink properties validation errors for incorrect dataset
     Given Open Datafusion Project to configure pipeline
-    Then Collapse Source plugins
     When Sink is BigQuery
     Then Open BigQuery sink properties
     Then Enter BigQuery property reference name
@@ -44,7 +41,6 @@ Feature: BigQuery sink - Validate BigQuery sink plugin error scenarios
   @BQ_SINK_TEST
   Scenario:Verify BigQuery Sink properties validation errors for incorrect table
     Given Open Datafusion Project to configure pipeline
-    Then Collapse Source plugins
     When Sink is BigQuery
     Then Open BigQuery sink properties
     Then Enter BigQuery property reference name
@@ -56,7 +52,6 @@ Feature: BigQuery sink - Validate BigQuery sink plugin error scenarios
   @BQ_SINK_TEST
   Scenario:Verify BigQuery Sink properties validation errors for incorrect value of temporary bucket name
     Given Open Datafusion Project to configure pipeline
-    Then Collapse Source plugins
     When Sink is BigQuery
     Then Open BigQuery sink properties
     Then Enter BigQuery property reference name

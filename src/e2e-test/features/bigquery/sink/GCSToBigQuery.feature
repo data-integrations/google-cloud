@@ -5,7 +5,6 @@ Feature: BigQuery sink - Verification of GCS to BigQuery successful data transfe
   Scenario:Validate successful records transfer from GCS to BigQuery
     Given Open Datafusion Project to configure pipeline
     When Source is GCS
-    Then Collapse Source plugins
     When Sink is BigQuery
     Then Open GCS source properties
     Then Enter the GCS source mandatory properties
@@ -44,7 +43,6 @@ Feature: BigQuery sink - Verification of GCS to BigQuery successful data transfe
   Scenario:Validate successful records transfer from GCS to BigQuery with partition type INTEGER
     Given Open Datafusion Project to configure pipeline
     When Source is GCS
-    Then Collapse Source plugins
     When Sink is BigQuery
     Then Open GCS source properties
     Then Enter GCS property projectId and reference name
@@ -91,7 +89,6 @@ Feature: BigQuery sink - Verification of GCS to BigQuery successful data transfe
   Scenario:Validate successful records transfer from GCS to BigQuery with partition type NONE
     Given Open Datafusion Project to configure pipeline
     When Source is GCS
-    Then Collapse Source plugins
     When Sink is BigQuery
     Then Open GCS source properties
     Then Enter GCS property projectId and reference name
@@ -133,7 +130,6 @@ Feature: BigQuery sink - Verification of GCS to BigQuery successful data transfe
   Scenario:Validate successful records transfer from GCS to BigQuery with GCS upload request chunk size
     Given Open Datafusion Project to configure pipeline
     When Source is GCS
-    Then Collapse Source plugins
     When Sink is BigQuery
     Then Open GCS source properties
     Then Enter GCS property projectId and reference name
