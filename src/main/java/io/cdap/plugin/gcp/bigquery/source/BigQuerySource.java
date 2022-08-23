@@ -345,6 +345,9 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
 
   private void setInputFormat(BatchSourceContext context,
                               Schema configuredSchema) {
+    // Set input for Spark
+    context.setInput(Input.of(config.referenceName, new BigQueryInputFormatProvider(configuration)));
+
     // Add output for SQL Engine Direct read
     ImmutableMap.Builder<String, String> arguments = new ImmutableMap.Builder<>();
 
