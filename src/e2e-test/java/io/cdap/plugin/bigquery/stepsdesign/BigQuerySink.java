@@ -39,6 +39,11 @@ public class BigQuerySink implements E2EHelper {
     selectSinkPlugin("BigQueryTable");
   }
 
+  @Then("Collapse Source plugins")
+  public void collapseSource() {
+    CdfStudioActions.clickSource();
+  }
+
   @Then("Open BigQuery sink properties")
   public void openBigQuerySinkProperties() {
     openSinkPluginProperties("BigQuery");
