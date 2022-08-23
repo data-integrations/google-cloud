@@ -91,9 +91,7 @@ public class BigQuerySinkCmekKeyTest {
   }
 
   private BigQuerySinkConfig.Builder getBuilder() {
-    String referenceName = "test-ref";
     return BigQuerySinkConfig.builder()
-      .setReferenceName(referenceName)
       .setProject(project)
       .setDataset(dataset)
       .setTable(table);

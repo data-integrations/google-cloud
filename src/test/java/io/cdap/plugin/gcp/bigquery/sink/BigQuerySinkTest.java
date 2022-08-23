@@ -65,7 +65,7 @@ public class BigQuerySinkTest {
                                     Schema.Field.of("timestamp",
                                                     Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))));
 
-    BigQuerySinkConfig config = new BigQuerySinkConfig("44", "ds", "tb", "bucket", schema.toString(),
+    BigQuerySinkConfig config = new BigQuerySinkConfig("ds", "tb", "bucket", schema.toString(),
                                                        "INTEGER", 0L, 100L, 10L, null);
     MockFailureCollector collector = new MockFailureCollector("bqsink");
     config.validate(collector);
@@ -77,12 +77,12 @@ public class BigQuerySinkTest {
     Schema invalidSchema = Schema.recordOf("record",
                                            Schema.Field.of("id", Schema.of(Schema.Type.LONG)));
 
-    BigQuerySinkConfig config = new BigQuerySinkConfig("reference!!", "ds", "tb", "buck3t$$", invalidSchema.toString(),
+    BigQuerySinkConfig config = new BigQuerySinkConfig("ds", "tb", "buck3t$$", invalidSchema.toString(),
                                                        "INTEGER", 0L, 100L, 10L, "200000");
     MockFailureCollector collector = new MockFailureCollector("bqsink");
     config.validate(collector);
     List<ValidationFailure> failures = collector.getValidationFailures();
-    Assert.assertEquals(3, failures.size());
+    Assert.assertEquals(2, failures.size());
   }
 
   @Test
@@ -96,7 +96,7 @@ public class BigQuerySinkTest {
             Schema.Field.of("timestamp",
                     Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))));
 
-    BigQuerySinkConfig config = new BigQuerySinkConfig("44", "ds", "tb", "bucket", schema.toString(),
+    BigQuerySinkConfig config = new BigQuerySinkConfig("ds", "tb", "bucket", schema.toString(),
             "TIME", 0L, 100L, 10L, null);
     config.partitionByField = "dt";
     
@@ -152,7 +152,7 @@ public class BigQuerySinkTest {
                                     Schema.Field.of("id", Schema.of(Schema.Type.LONG)),
                                     Schema.Field.of("name", Schema.of(Schema.Type.STRING)));
     BigQuerySinkConfig config =
-      new BigQuerySinkConfig("testmetric", "ds", "tb", "bkt", schema.toString(),
+      new BigQuerySinkConfig("ds", "tb", "bkt", schema.toString(),
                              null, null, null, null, null);
     BigQuery bigQueryMock = mock(BigQuery.class);
     BigQuerySink sink = new BigQuerySink(config);
@@ -292,7 +292,7 @@ public class BigQuerySinkTest {
                                     Schema.Field.of("timestamp",
                                                     Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))));
 
-    BigQuerySinkConfig config = new BigQuerySinkConfig("44", "ds", "tb", "bucket", schema.toString(),
+    BigQuerySinkConfig config = new BigQuerySinkConfig("ds", "tb", "bucket", schema.toString(),
                                                        "INTEGER", 0L, 100L, 10L, "2097152");
     MockFailureCollector collector = new MockFailureCollector("bqsink");
     config.validate(collector);
@@ -310,7 +310,7 @@ public class BigQuerySinkTest {
                                     Schema.Field.of("timestamp",
                                                     Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))));
 
-    BigQuerySinkConfig config = new BigQuerySinkConfig("44", "ds", "tb", "bucket", schema.toString(),
+    BigQuerySinkConfig config = new BigQuerySinkConfig("ds", "tb", "bucket", schema.toString(),
                                                        "INTEGER", 0L, 100L, 10L, "120000");
     MockFailureCollector collector = new MockFailureCollector("bqsink");
     config.validate(collector);
@@ -359,7 +359,7 @@ public class BigQuerySinkTest {
                                     Schema.Field.of("id", Schema.of(Schema.Type.LONG)),
                                     Schema.Field.of("name", Schema.of(Schema.Type.STRING)));
     BigQuerySinkConfig config =
-      new BigQuerySinkConfig("testmetric", "ds", "tb", "bkt", schema.toString(),
+      new BigQuerySinkConfig("ds", "tb", "bkt", schema.toString(),
                              "INTEGER", 0L, 100L, 10L, null);
     FieldSetter.setField(config, AbstractBigQuerySinkConfig.class.getDeclaredField("truncateTable"),
                          truncateTable);

@@ -132,7 +132,9 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
 
         }
 
-        String outputName = String.format("%s-%s", config.getReferenceName(), tableName);
+        String outputName = String.format("%s-%s", BigQueryUtil.getFqn(config.getDatasetProject(),
+                                                                                 config.getDataset(), config.getTable())
+          , tableName);
         outputName = sanitizeOutputName(outputName);
         initOutput(context, bigQuery, outputName, tableName, tableSchema, bucket, context.getFailureCollector());
       } catch (IOException e) {
@@ -147,7 +149,8 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
     String splitField = config.getSplitField();
     String projectName = config.getDatasetProject();
     String datasetName = config.getDataset();
-    context.addOutput(Output.of(config.getReferenceName(),
+    context.addOutput(Output.of(BigQueryUtil.getFqn(config.getDatasetProject(),
+                                                              config.getDataset(), config.getTable()),
                                 new DelegatingMultiSinkOutputFormatProvider(conf, splitField, bucket,
                                                                             projectName, datasetName)));
   }

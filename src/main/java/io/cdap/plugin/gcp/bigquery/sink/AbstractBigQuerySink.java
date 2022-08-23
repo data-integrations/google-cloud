@@ -151,7 +151,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
     List<String> fieldNames = fields.stream()
       .map(BigQueryTableFieldSchema::getName)
       .collect(Collectors.toList());
-    String fqn = BigQueryUtil.getFqnForLineage(getConfig().getDatasetProject(),
+    String fqn = BigQueryUtil.getFqn(getConfig().getDatasetProject(),
                                                getConfig().getDataset(), tableName);
     BigQuerySinkUtils.recordLineage(context, new Asset(fqn, getConfig().getLocation()), tableSchema, fieldNames);
     context.addOutput(Output.of(outputName, getOutputFormatProvider(configuration, tableName, tableSchema)));

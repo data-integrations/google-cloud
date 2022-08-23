@@ -165,7 +165,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     // Both emitLineage and setOutputFormat internally try to create an external dataset if it does not already exists.
     // We call emitLineage before since it creates the dataset with schema.
     Type sourceTableType = config.getSourceTableType();
-    String fqn = BigQueryUtil.getFqnForLineage(config.getDatasetProject(), config.getDataset(), config.getTable());
+    String fqn = BigQueryUtil.getFqn(config.getDatasetProject(), config.getDataset(), config.getTable());
     emitLineage(context, configuredSchema, sourceTableType, config.getTable(), new Asset(fqn, dataset.getLocation()));
     setInputFormat(context, fqn);
   }

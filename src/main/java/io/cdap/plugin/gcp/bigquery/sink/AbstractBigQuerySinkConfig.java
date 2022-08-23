@@ -50,10 +50,6 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
   protected static final String NAME_UPDATE_SCHEMA = "allowSchemaRelaxation";
   private static final String SCHEME = "gs://";
 
-  @Name(Constants.Reference.REFERENCE_NAME)
-  @Description(Constants.Reference.REFERENCE_NAME_DESCRIPTION)
-  protected String referenceName;
-
   @Name(NAME_GCS_CHUNK_SIZE)
   @Macro
   @Nullable
@@ -83,10 +79,6 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
 
   public AbstractBigQuerySinkConfig(BigQueryConnectorConfig connection, String dataset, String cmekKey, String bucket) {
     super(connection, dataset, cmekKey, bucket);
-  }
-
-  public String getReferenceName() {
-    return referenceName;
   }
 
   @Nullable
@@ -122,7 +114,6 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
   }
 
   public void validate(FailureCollector collector, Map<String, String> arguments) {
-    IdUtils.validateReferenceName(referenceName, collector);
     ConfigUtil.validateConnection(this, useConnection, connection, collector);
     String bucket = getBucket();
     if (!containsMacro(NAME_BUCKET)) {

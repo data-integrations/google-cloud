@@ -726,7 +726,7 @@ public final class BigQueryUtil {
    * @param tableName      Name of the BQ table
    * @return String fqn
    */
-  public static String getFqnForLineage(String datasetProject, String datasetName, String tableName) {
+  public static String getFqn(String datasetProject, String datasetName, String tableName) {
     return String.join(":", BigQueryConstants.BQ_FQN_PREFIX,
                        datasetProject, datasetName, tableName);
   }

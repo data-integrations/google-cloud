@@ -171,12 +171,10 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   protected String partitionFilter;
 
   @VisibleForTesting
-  public BigQuerySinkConfig(String referenceName, String dataset, String table,
-                            @Nullable String bucket, @Nullable String schema, @Nullable String partitioningType,
-                            @Nullable Long rangeStart, @Nullable Long rangeEnd, @Nullable Long rangeInterval,
-                            @Nullable String gcsChunkSize) {
+  public BigQuerySinkConfig(String dataset, String table, @Nullable String bucket, @Nullable String schema,
+                            @Nullable String partitioningType, @Nullable Long rangeStart, @Nullable Long rangeEnd,
+                            @Nullable Long rangeInterval, @Nullable String gcsChunkSize) {
     super(null, dataset, null, bucket);
-    this.referenceName = referenceName;
     this.table = table;
     this.schema = schema;
     this.partitioningType = partitioningType;
@@ -186,13 +184,12 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     this.gcsChunkSize = gcsChunkSize;
   }
 
-  private BigQuerySinkConfig(@Nullable String referenceName, @Nullable String project,
-                            @Nullable String serviceAccountType, @Nullable String serviceFilePath,
-                            @Nullable String serviceAccountJson, @Nullable String dataset, @Nullable String table,
-                            @Nullable String location, @Nullable String cmekKey, @Nullable String bucket) {
+  private BigQuerySinkConfig(@Nullable String project, @Nullable String serviceAccountType,
+                             @Nullable String serviceFilePath, @Nullable String serviceAccountJson,
+                             @Nullable String dataset, @Nullable String table, @Nullable String location,
+                             @Nullable String cmekKey, @Nullable String bucket) {
     super(new BigQueryConnectorConfig(project, project, serviceAccountType,
             serviceFilePath, serviceAccountJson), dataset, cmekKey, bucket);
-    this.referenceName = referenceName;
     this.table = table;
     this.location = location;
   }
@@ -658,7 +655,6 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
    * BigQuery Sink configuration builder.
    */
   public static class Builder {
-    private String referenceName;
     private String serviceAccountType;
     private String serviceFilePath;
     private String serviceAccountJson;
@@ -668,11 +664,6 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     private String cmekKey;
     private String location;
     private String bucket;
-
-    public BigQuerySinkConfig.Builder setReferenceName(@Nullable String referenceName) {
-      this.referenceName = referenceName;
-      return this;
-    }
 
     public BigQuerySinkConfig.Builder setProject(@Nullable String project) {
       this.project = project;
@@ -721,7 +712,6 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
 
     public BigQuerySinkConfig build() {
       return new BigQuerySinkConfig(
-        referenceName,
         project,
         serviceAccountType,
         serviceFilePath,

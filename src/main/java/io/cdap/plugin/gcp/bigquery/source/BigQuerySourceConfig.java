@@ -70,11 +70,6 @@ public final class BigQuerySourceConfig extends BigQueryBaseConfig {
   public static final String NAME_VIEW_MATERIALIZATION_PROJECT = "viewMaterializationProject";
   public static final String NAME_VIEW_MATERIALIZATION_DATASET = "viewMaterializationDataset";
 
-  @Name(Constants.Reference.REFERENCE_NAME)
-  @Description("This will be used to uniquely identify this source for lineage, annotating metadata, etc.")
-  public String referenceName;
-
-
   @Name(NAME_TABLE)
   @Macro
   @Description("The table to read from. A table contains individual records organized in rows. "
@@ -146,7 +141,6 @@ public final class BigQuerySourceConfig extends BigQueryBaseConfig {
   }
 
   public void validate(FailureCollector collector, Map<String, String> arguments) {
-    IdUtils.validateReferenceName(referenceName, collector);
     ConfigUtil.validateConnection(this, useConnection, connection, collector);
     String bucket = getBucket();
 
