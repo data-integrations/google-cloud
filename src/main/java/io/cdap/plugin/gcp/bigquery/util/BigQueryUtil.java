@@ -719,14 +719,14 @@ public final class BigQueryUtil {
   }
 
   /**
-   * Get fqn for a BQ table.
+   * Get fully-qualified name (FQN) for a BQ table (FQN format: bigquery:{projectId}.{datasetId}.{tableId}).
    *
    * @param datasetProject Name of the BQ project
    * @param datasetName    Name of the BQ dataset
    * @param tableName      Name of the BQ table
    * @return String fqn
    */
-  public static String getFqn(String datasetProject, String datasetName, String tableName) {
+  public static String getFQN(String datasetProject, String datasetName, String tableName) {
     return String.join(":", BigQueryConstants.BQ_FQN_PREFIX,
                        datasetProject, datasetName, tableName);
   }

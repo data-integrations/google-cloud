@@ -365,7 +365,7 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     List<String> fieldNames = fields.stream()
       .map(BigQueryTableFieldSchema::getName)
       .collect(Collectors.toList());
-    String fqn = BigQueryUtil.getFqn(datasetProject, dataset, config.getTable());
+    String fqn = BigQueryUtil.getFQN(datasetProject, dataset, config.getTable());
     String location = bigQuery.getDataset(datasetId).getLocation();
     BigQuerySinkUtils.recordLineage(context, new io.cdap.plugin.common.Asset(fqn, location), tableSchema, fieldNames);
     configuration.set(DataplexOutputFormatProvider.DATAPLEX_ASSET_TYPE, DataplexConstants.BIGQUERY_DATASET_ASSET_TYPE);

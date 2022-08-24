@@ -127,7 +127,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
 
     configureTable(outputSchema);
     configureBigQuerySink();
-    String fqn = BigQueryUtil.getFqn(config.getDatasetProject(), config.getDataset(), config.getTable());
+    String fqn = BigQueryUtil.getFQN(config.getDatasetProject(), config.getDataset(), config.getTable());
     initOutput(context, bigQuery, fqn, config.getTable(), outputSchema, bucket, collector);
     initSQLEngineOutput(context, bigQuery, fqn, context.getStageName(), config.getTable(),
                         outputSchema, collector);
