@@ -143,7 +143,7 @@ public class BigQueryReadDataset implements SQLDataset, BigQuerySQLDataset {
     }
 
     // Return as a failure if the operation threw an exception.
-    return SQLReadResult.faiure(readRequest.getDatasetName());
+    return SQLReadResult.failure(readRequest.getDatasetName());
   }
 
   private SQLReadResult readInternal(SQLReadRequest readRequest,
@@ -180,9 +180,9 @@ public class BigQueryReadDataset implements SQLDataset, BigQuerySQLDataset {
       return SQLReadResult.unsupported(datasetName);
     }
 
-    // Ensore both datasets are in the same location.
+    // Ensure both datasets are in the same location.
     if (!Objects.equals(srcDataset.getLocation(), destDataset.getLocation())) {
-      LOG.warn("Direct table read is only supported if both datasets are in the same location. "
+      LOG.error("Direct table read is only supported if both datasets are in the same location. "
                  + "'{}' is '{}' , '{}' is '{}' .",
                sourceDatasetId.getDataset(), srcDataset.getLocation(),
                sourceDatasetId.getDataset(), destDataset.getLocation());
@@ -226,7 +226,7 @@ public class BigQueryReadDataset implements SQLDataset, BigQuerySQLDataset {
       LOG.error("Error executing BigQuery Job: '{}' in Project '{}', Dataset '{}': {}",
                 jobId, sqlEngineConfig.getProject(), sqlEngineConfig.getDatasetProject(),
                 queryJob.getStatus().getError().toString());
-      return SQLReadResult.faiure(datasetName);
+      return SQLReadResult.failure(datasetName);
     }
 
     // Number of rows is taken from the job statistics if available.
@@ -324,10 +324,5 @@ public class BigQueryReadDataset implements SQLDataset, BigQuerySQLDataset {
   @Override
   public Schema getSchema() {
     return schema;
-  }
-
-  @Override
-  public boolean isValid() {
-    return true;
   }
 }
