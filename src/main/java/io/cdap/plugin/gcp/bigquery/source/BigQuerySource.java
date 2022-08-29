@@ -83,6 +83,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
   private final BigQueryAvroToStructuredTransformer transformer = new BigQueryAvroToStructuredTransformer();
   // UUID for the run. Will be used as bucket name if bucket is not provided.
   private String bucketPath;
+  private String bqFqn;
 
   @Override
   public void configurePipeline(PipelineConfigurer configurer) {
@@ -164,6 +165,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     // Both emitLineage and setOutputFormat internally try to create an external dataset if it does not already exists.
     // We call emitLineage before since it creates the dataset with schema.
     Type sourceTableType = config.getSourceTableType();
+    bqFqn = "bigquery." + config.getProject() + "." + config.getDataset() + "." + config.getTable();
     emitLineage(context, configuredSchema, sourceTableType, config.getTable());
     setInputFormat(context);
   }
@@ -336,12 +338,12 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
   }
 
   private void setInputFormat(BatchSourceContext context) {
-    context.setInput(Input.of(config.referenceName, new BigQueryInputFormatProvider(configuration)));
+    context.setInput(Input.of(bqFqn, new BigQueryInputFormatProvider(configuration)));
   }
 
   private void emitLineage(BatchSourceContext context, Schema schema, Type sourceTableType,
                            String table) {
-    LineageRecorder lineageRecorder = new LineageRecorder(context, config.referenceName);
+    LineageRecorder lineageRecorder = new LineageRecorder(context, bqFqn);
     lineageRecorder.createExternalDataset(schema);
 
     String type = "table";
