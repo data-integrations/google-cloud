@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.spanner.connector;
 
+import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
 /**
@@ -26,7 +27,7 @@ public class SpannerPath {
   private String database;
   private String table;
   private static final int NAME_MAX_LENGTH = 1024;
-  private static final String VALID_NAME_REGEX = "[\\w-]+";
+  private static final Pattern VALID_NAME_REGEX = Pattern.compile("[\\w-]+");
 
   public SpannerPath(String path) {
     parsePath(path);
@@ -88,7 +89,7 @@ public class SpannerPath {
       throw new IllegalArgumentException(
         String.format("%s is invalid, it should contain at most %d characters.", property, NAME_MAX_LENGTH));
     }
-    if (!name.matches(VALID_NAME_REGEX)) {
+    if (!VALID_NAME_REGEX.matcher(name).matches()) {
       throw new IllegalArgumentException(
         String.format("%s is invalid, it should contain only letters, numbers, and underscores.", property));
     }

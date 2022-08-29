@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.bigquery.connector;
 
+import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
 /**
@@ -33,7 +34,11 @@ public class BigQueryPath {
   private String dataset;
   private String table;
   private static final int NAME_MAX_LENGTH = 1024;
-  private static final String VALID_NAME_REGEX = "[\\w]+";
+  // Valid BigQuery dataset names can contain only letters, numbers, and underscores.
+  // See here: https://cloud.google.com/bigquery/docs/datasets#dataset-naming
+  private static final Pattern VALID_DATASET_NAME_REGEX = Pattern.compile("[\\w]+");
+  // Valid BigQuery table names are defined here: https://cloud.google.com/bigquery/docs/tables#table_naming
+  private static final Pattern VALID_TABLE_NAME_REGEX = Pattern.compile("[\\p{L}\\p{M}\\p{N}\\p{Pc}\\p{Pd}\\p{Zs}]+");
 
   public BigQueryPath(String path) {
     parsePath(path);
@@ -66,31 +71,50 @@ public class BigQueryPath {
     }
 
     dataset = parts[0];
-    validateName("Dataset" , dataset);
+    validateDatasetName(dataset);
 
     if (parts.length == 2) {
       table = parts[1];
-      validateName("Table", table);
+      validateTableName(table);
     }
   }
 
 
   /**
-   * The dataset and table name must contain only letters, numbers, and underscores.
-   * And it must be 1024 characters or fewer.
+   * The dataset name can contain only letters, numbers, and underscores, and must be 1024 characters or fewer.
+   * See here: https://cloud.google.com/bigquery/docs/datasets#dataset-naming
    */
-  private void validateName(String property, String name) {
+  private void validateDatasetName(String name) {
     if (name.isEmpty()) {
-      throw new IllegalArgumentException(
-        String.format("%s should not be empty.", property));
+      throw new IllegalArgumentException("Dataset should not be empty.");
     }
     if (name.length() > NAME_MAX_LENGTH) {
       throw new IllegalArgumentException(
-        String.format("%s is invalid, it should contain at most %d characters.", property, NAME_MAX_LENGTH));
+        String.format("Dataset is invalid, it should contain at most %d characters.", NAME_MAX_LENGTH));
     }
-    if (!name.matches(VALID_NAME_REGEX)) {
+    if (!VALID_DATASET_NAME_REGEX.matcher(name).matches()) {
+      throw new IllegalArgumentException("Dataset is invalid, it should contain only letters, numbers, " +
+        "and underscores.");
+    }
+  }
+
+  /**
+   * Table name can contain only Unicode characters in category L (letter), M (mark), N (number),
+   * Pc (connector, including underscore), Pd (dash), Zs (space).
+   * It also must be 1024 characters or fewer.
+   * See here: https://cloud.google.com/bigquery/docs/tables#table_naming
+   */
+  private void validateTableName(String name) {
+    if (name.isEmpty()) {
+      throw new IllegalArgumentException("Table should not be empty.");
+    }
+    if (name.length() > NAME_MAX_LENGTH) {
       throw new IllegalArgumentException(
-        String.format("%s is invalid, it should contain only letters, numbers, and underscores.", property));
+        String.format("Table is invalid, it should contain at most %d characters.", NAME_MAX_LENGTH));
+    }
+    if (!VALID_TABLE_NAME_REGEX.matcher(name).matches()) {
+      throw new IllegalArgumentException("Table is invalid, it should only contain Unicode characters in category L " +
+        "(letter), M (mark), N (number), Pc (connector, including underscore), Pd (dash), Zs (space).");
     }
   }
 

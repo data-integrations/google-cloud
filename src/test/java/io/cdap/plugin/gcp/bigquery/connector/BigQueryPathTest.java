@@ -53,6 +53,26 @@ public class BigQueryPathTest {
     path = new BigQueryPath("/dataset/table/");
     Assert.assertEquals("dataset", path.getDataset());
     Assert.assertEquals("table", path.getTable());
+
+    //table path with space
+    path = new BigQueryPath("/dataset/table 01");
+    Assert.assertEquals("dataset", path.getDataset());
+    Assert.assertEquals("table 01", path.getTable());
+
+    //table path with foreign characters
+    path = new BigQueryPath("/dataset/ग्राहक");
+    Assert.assertEquals("dataset", path.getDataset());
+    Assert.assertEquals("ग्राहक", path.getTable());
+
+    //table path with foreign characters
+    path = new BigQueryPath("/dataset/00_お客様");
+    Assert.assertEquals("dataset", path.getDataset());
+    Assert.assertEquals("00_お客様", path.getTable());
+
+    //table path with an accent and a dash
+    path = new BigQueryPath("/dataset/étudiant-01");
+    Assert.assertEquals("dataset", path.getDataset());
+    Assert.assertEquals("étudiant-01", path.getTable());
   }
 
 
@@ -87,7 +107,8 @@ public class BigQueryPathTest {
       () -> new BigQueryPath("/b/" + Strings.repeat('a', 1025)));
 
     //table contains invalid character
-    Assert.assertThrows("Dataset is invalid, it should contain only letters, numbers, and underscores.",
+    Assert.assertThrows("Dataset is invalid, it should only contain Unicode characters in category " +
+                    "L (letter), M (mark), N (number), Pc (connector, including underscore), Pd (dash), Zs (space).",
       IllegalArgumentException.class, () -> new BigQueryPath("/a/%"));
   }
 }
