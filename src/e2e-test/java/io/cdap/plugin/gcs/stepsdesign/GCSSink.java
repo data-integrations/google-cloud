@@ -37,7 +37,7 @@ public class GCSSink implements E2EHelper {
 
   @When("Sink is GCS")
   public void sinkIsGCS() {
-    CdfStudioActions.clickSink();
+    CdfStudioActions.expandPluginGroupIfNotAlreadyExpanded("Sink");
     selectSinkPlugin("GCS");
   }
 

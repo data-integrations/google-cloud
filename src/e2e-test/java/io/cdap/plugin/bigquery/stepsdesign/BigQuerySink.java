@@ -35,7 +35,7 @@ public class BigQuerySink implements E2EHelper {
 
   @When("Sink is BigQuery")
   public void sinkIsBigQuery() {
-    CdfStudioActions.clickSink();
+    CdfStudioActions.expandPluginGroupIfNotAlreadyExpanded("Sink");
     selectSinkPlugin("BigQueryTable");
   }
 

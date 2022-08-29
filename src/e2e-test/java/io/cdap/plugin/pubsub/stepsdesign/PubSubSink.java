@@ -43,7 +43,7 @@ public class PubSubSink implements E2EHelper {
 
   @When("Sink is PubSub")
   public void sinkIsPubSub() {
-    CdfStudioActions.clickSink();
+    CdfStudioActions.expandPluginGroupIfNotAlreadyExpanded("Sink");
     selectSinkPlugin("GooglePublisher");
   }
 
