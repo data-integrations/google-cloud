@@ -48,6 +48,7 @@ import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
 import io.cdap.cdap.etl.api.validation.ValidatingInputFormat;
+import io.cdap.plugin.common.Asset;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.common.batch.JobUtils;
 import io.cdap.plugin.gcp.bigquery.source.BigQueryAvroToStructuredTransformer;
@@ -259,7 +260,13 @@ public class DataplexBatchSource extends BatchSource<Object, Object, StructuredR
 
   private void emitLineage(BatchSourceContext context, Schema schema, TableDefinition.Type sourceTableType,
                            String table) {
-    LineageRecorder lineageRecorder = new LineageRecorder(context, config.getReferenceName());
+    // entity.getDataPath() will be of format:
+    // 'projects/datasetProjectName/datasets/datasetName/tables/tableName'
+    String[] dataPathValues = entity.getDataPath().split("/");
+    String dataset = dataPathValues[3];
+    String datasetProject = dataPathValues[1];
+    String fqn = BigQueryUtil.getFQN(datasetProject, dataset, table);
+    LineageRecorder lineageRecorder = new LineageRecorder(context, new Asset(fqn, config.getLocation()));
     lineageRecorder.createExternalDataset(schema);
 
     String type = "table";
