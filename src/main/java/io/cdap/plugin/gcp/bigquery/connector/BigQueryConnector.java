@@ -18,6 +18,7 @@ package io.cdap.plugin.gcp.bigquery.connector;
 
 import com.google.api.gax.paging.Page;
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.cloud.RetryOption;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.Dataset;
@@ -49,6 +50,7 @@ import io.cdap.cdap.etl.api.connector.ConnectorSpecRequest;
 import io.cdap.cdap.etl.api.connector.DirectConnector;
 import io.cdap.cdap.etl.api.connector.PluginSpec;
 import io.cdap.cdap.etl.api.connector.SampleRequest;
+import io.cdap.cdap.etl.api.connector.SampleType;
 import io.cdap.cdap.etl.api.engine.sql.BatchSQLEngine;
 import io.cdap.cdap.etl.api.validation.ValidationException;
 import io.cdap.plugin.common.ConfigUtil;
@@ -62,6 +64,7 @@ import io.cdap.plugin.gcp.bigquery.sqlengine.BigQuerySQLEngine;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryDataParser;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
+import org.threeten.bp.Duration;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -95,8 +98,13 @@ public final class BigQueryConnector implements DirectConnector {
       throw new IllegalArgumentException("Path should contain both dataset and table name.");
     }
     String dataset = path.getDataset();
-    return getTableData(getBigQuery(config.getProject()), config.getDatasetProject(), dataset, table,
-      sampleRequest.getLimit());
+    String query = getTableQuery(String.format("`%s.%s.%s`", config.getDatasetProject(), dataset, table),
+                                 sampleRequest.getLimit(),
+                                 SampleType.fromString(sampleRequest.getProperties().get("sampleType")),
+                                 sampleRequest.getProperties().get("strata"),
+                                 UUID.randomUUID().toString().replace("-", "_"));
+    String id = UUID.randomUUID().toString();
+    return getQueryResult(waitForJob(getBigQuery(config.getProject()), query, sampleRequest.getTimeoutMs(), id), id);
   }
 
   @Override
@@ -117,7 +125,7 @@ public final class BigQueryConnector implements DirectConnector {
           GCPUtils.loadServiceAccountCredentials(config.getServiceAccount(), config.isServiceAccountFilePath());
       } catch (Exception e) {
         failureCollector.addFailure(String.format("Service account key provided is not valid: %s", e.getMessage()),
-          "Please provide a valid service account key.");
+                                    "Please provide a valid service account key.");
       }
     }
     // if either project or credentials cannot be loaded , no need to continue
@@ -130,7 +138,7 @@ public final class BigQueryConnector implements DirectConnector {
       bigQuery.listDatasets(BigQuery.DatasetListOption.pageSize(1));
     } catch (Exception e) {
       failureCollector.addFailure(String.format("Could not connect to BigQuery: %s", e.getMessage()),
-        "Please specify correct connection properties.");
+                                  "Please specify correct connection properties.");
     }
   }
 
@@ -143,15 +151,15 @@ public final class BigQueryConnector implements DirectConnector {
     if (dataset == null) {
       // browse project to list all datasets
       return config.rootDataset == null ?
-               listDatasets(getBigQuery(config.getDatasetProject()), browseRequest.getLimit()) :
-               BrowseDetail.builder().setTotalCount(1).addEntity(
-                 BrowseEntity.builder(config.rootDataset, "/" + config.rootDataset, ENTITY_TYPE_DATASET)
-                   .canBrowse(true).build()).build();
+        listDatasets(getBigQuery(config.getDatasetProject()), browseRequest.getLimit()) :
+        BrowseDetail.builder().setTotalCount(1).addEntity(
+          BrowseEntity.builder(config.rootDataset, "/" + config.rootDataset, ENTITY_TYPE_DATASET)
+            .canBrowse(true).build()).build();
     }
     String table = path.getTable();
     if (table == null) {
       return listTables(getBigQuery(config.getProject()), config.getDatasetProject(), dataset,
-        browseRequest.getLimit());
+                        browseRequest.getLimit());
     }
     return getTableDetail(getBigQuery(config.getProject()), config.getDatasetProject(), dataset, table);
   }
@@ -202,7 +210,7 @@ public final class BigQueryConnector implements DirectConnector {
 
   private BrowseDetail listDatasets(BigQuery bigQuery, Integer limit) {
     Page<Dataset> datasetPage = config.showHiddenDatasets() ?
-                                  bigQuery.listDatasets(BigQuery.DatasetListOption.all()) : bigQuery.listDatasets();
+      bigQuery.listDatasets(BigQuery.DatasetListOption.all()) : bigQuery.listDatasets();
     int countLimit = limit == null || limit <= 0 ? Integer.MAX_VALUE : limit;
     int count = 0;
     BrowseDetail.Builder browseDetailBuilder = BrowseDetail.builder();
@@ -233,31 +241,99 @@ public final class BigQueryConnector implements DirectConnector {
     return GCPUtils.getBigQuery(project, credentials);
   }
 
-  private List<StructuredRecord> getTableData(BigQuery bigQuery, String datasetProject, String dataset, String table,
-    int limit)
-    throws IOException {
-    String query =
-      String.format("SELECT * FROM `%s.%s.%s` LIMIT %d", datasetProject, dataset, table, limit);
+  /**
+   * Get the SQL query used to sample the table
+   * @param tableName name of the table
+   * @param limit limit on rows returned
+   * @param sampleType sampling method
+   * @param strata strata column (if given)
+   * @param sessionID UUID
+   * @return String
+   * @throws IllegalArgumentException if no strata column is given for a stratified query
+   */
+  protected String getTableQuery(String tableName, int limit, SampleType sampleType, @Nullable String strata,
+                               String sessionID) {
+    switch (sampleType) {
+      case RANDOM:
+        return String.format("WITH table AS (\n" +
+                                "  SELECT *, RAND() AS r_%s\n" +
+                                "  FROM %s\n" +
+                                "  WHERE RAND() < 2*%d/(SELECT COUNT(*) FROM %s)\n" +
+                                ")\n" +
+                                "SELECT * EXCEPT (r_%s)\n" +
+                                "FROM table\n" +
+                                "ORDER BY r_%s\n" +
+                                "LIMIT %d",
+                              sessionID, tableName, limit, tableName, sessionID, sessionID, limit);
+      case STRATIFIED:
+        if (strata == null) {
+          throw new IllegalArgumentException("No strata column given.");
+        }
+        return String.format("SELECT * EXCEPT (`sqn_%s`, `c_%s`)\n" +
+                                "FROM (\n" +
+                                "SELECT *, row_number() OVER (ORDER BY %s, RAND()) AS sqn_%s,\n" +
+                                "COUNT(*) OVER () as c_%s,\n" +
+                                "FROM %s\n" +
+                                ") %s\n" +
+                                "WHERE MOD(sqn_%s, CAST(c_%s / %d AS INT64)) = 1\n" +
+                                "ORDER BY %s\n" +
+                                "LIMIT %d",
+                              sessionID, sessionID, strata, sessionID, sessionID, tableName, tableName, sessionID,
+                              sessionID, limit, strata, limit);
+      default:
+        return String.format("SELECT * FROM %s LIMIT %d", tableName, limit);
+    }
+  }
+
+  /**
+   * Wait for job to complete or time out (if timeout is given)
+   * @param bigQuery BigQuery client
+   * @param query SQL query
+   * @param timeoutMs timeout (if given)
+   * @param id job ID
+   * @return Job
+   * @throws IOException if the job is interrupted
+   */
+  private Job waitForJob(BigQuery bigQuery, String query, @Nullable Long timeoutMs, String id) throws IOException {
+
+    // set up job
     QueryJobConfiguration queryConfig = QueryJobConfiguration.newBuilder(query).build();
-    String id = UUID.randomUUID().toString();
     JobId jobId = JobId.of(id);
     Job queryJob = bigQuery.create(JobInfo.newBuilder(queryConfig).setJobId(jobId).build());
-    // Wait for the job to finish
+
+    // wait for job
     try {
-      queryJob = queryJob.waitFor();
+      if (timeoutMs == null) {
+        return queryJob.waitFor();
+      } else {
+        return queryJob.waitFor(RetryOption.totalTimeout(Duration.ofMillis(timeoutMs)));
+      }
     } catch (InterruptedException e) {
       throw new IOException(String.format("Query job %s interrupted.", id), e);
     }
+  }
 
-    // check for errors
+  /**
+   * Retrieve the results of a SQL query
+   * @param queryJob query job after completion or timeout
+   * @param id job ID
+   * @return List of structured records
+   * @throws IOException if query encounters an error or times out
+   */
+  protected List<StructuredRecord> getQueryResult(@Nullable Job queryJob, String id) throws IOException {
+
+    // Check for errors
     if (queryJob == null) {
       throw new IOException(String.format("Job %s no longer exists.", id));
+    } else if (!queryJob.isDone()) {
+      queryJob.cancel();
+      throw new IOException(String.format("Job %s timed out.", id));
     } else if (queryJob.getStatus().getError() != null) {
       throw new IOException(String.format("Failed to query table : %s", queryJob.getStatus().getError().toString()));
     }
 
     // Get the results
-    TableResult result = null;
+    TableResult result;
     try {
       result = queryJob.getQueryResults();
     } catch (InterruptedException e) {
@@ -265,7 +341,6 @@ public final class BigQueryConnector implements DirectConnector {
     }
     return BigQueryDataParser.parse(result);
   }
-
 
   @Override
   public ConnectorSpec generateSpec(ConnectorContext context,
@@ -297,6 +372,9 @@ public final class BigQueryConnector implements DirectConnector {
       .addRelatedPlugin(new PluginSpec(BigQuerySink.NAME, BatchSink.PLUGIN_TYPE, properties))
       .addRelatedPlugin(new PluginSpec(BigQueryMultiSink.NAME, BatchSink.PLUGIN_TYPE, properties))
       .addRelatedPlugin(new PluginSpec(BigQuerySQLEngine.NAME, BatchSQLEngine.PLUGIN_TYPE, properties))
+      .addSupportedSampleType(SampleType.RANDOM)
+      .addSupportedSampleType(SampleType.STRATIFIED)
       .build();
   }
 }
+
