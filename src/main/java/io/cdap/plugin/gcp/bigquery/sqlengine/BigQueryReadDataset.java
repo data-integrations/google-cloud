@@ -41,9 +41,13 @@ import com.google.cloud.bigquery.JobId;
 import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.bigquery.JobStatistics;
 import com.google.cloud.bigquery.QueryJobConfiguration;
+import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.Table;
+import com.google.cloud.bigquery.TableDefinition.Type;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableResult;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import io.cdap.cdap.api.data.schema.Schema;
@@ -53,10 +57,10 @@ import io.cdap.cdap.etl.api.engine.sql.request.SQLReadRequest;
 import io.cdap.cdap.etl.api.engine.sql.request.SQLReadResult;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceConfig;
 import io.cdap.plugin.gcp.bigquery.sqlengine.util.BigQuerySQLEngineUtils;
+import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -75,7 +79,7 @@ public class BigQueryReadDataset implements SQLDataset, BigQuerySQLDataset {
   public static final String SQL_INPUT_CONFIG = "config";
   public static final String SQL_INPUT_FIELDS = "fields";
   public static final String SQL_INPUT_SCHEMA = "schema";
-  private static final Type LIST_OF_STRINGS_TYPE = new TypeToken<ArrayList<String>>() {
+  private static final java.lang.reflect.Type LIST_OF_STRINGS_TYPE = new TypeToken<ArrayList<String>>() {
   }.getType();
 
   private final BigQuerySQLEngineConfig sqlEngineConfig;
@@ -189,22 +193,27 @@ public class BigQueryReadDataset implements SQLDataset, BigQuerySQLDataset {
       return SQLReadResult.unsupported(datasetName);
     }
 
-    // Inserts with Truncate are not supported by the Direct read operation
-    if (sourceConfig.getFilter() != null ||
-      sourceConfig.getPartitionFrom() != null ||
-      sourceConfig.getPartitionTo() != null) {
-      LOG.warn("Direct table read is not supported for filtered or partitioned tables.");
-      return SQLReadResult.unsupported(datasetName);
-    }
-
     // Get source table instance
     Table srcTable = bigQuery.getTable(sourceTableId);
 
     // Get source table instance
     Table destTable = bigQuery.getTable(sourceTableId);
 
+    //Get Source Table Object : will be used for metadata like TABLE.TYPE and Time Partitioning
+    Table sourceTable;
+    try {
+      sourceTable = bigQuery.getTable(sourceTableId);
+    } catch (BigQueryException e) {
+      throw new IllegalArgumentException("Unable to get details about the BigQuery table: " + e.getMessage(), e);
+    }
+
     // Get query job configuration based on wether the job is an insert or update/upsert
-    QueryJobConfiguration.Builder queryConfigBuilder = getQueryBuilder(sourceTableId, destinationTableId, fields);
+    QueryJobConfiguration.Builder queryConfigBuilder = getQueryBuilder(sourceTable, sourceTableId,
+                                                                       destinationTableId,
+                                                                       fields,
+                                                                       sourceConfig.getFilter(),
+                                                                       sourceConfig.getPartitionFrom(),
+                                                                       sourceConfig.getPartitionTo());
 
     QueryJobConfiguration queryConfig = queryConfigBuilder.build();
     // Create a job ID so that we can safely retry.
@@ -241,17 +250,45 @@ public class BigQueryReadDataset implements SQLDataset, BigQuerySQLDataset {
     return SQLReadResult.success(datasetName, this);
   }
 
-  protected QueryJobConfiguration.Builder getQueryBuilder(TableId sourceTableId,
+  @VisibleForTesting
+  QueryJobConfiguration.Builder getQueryBuilder(Table sourceTable, TableId sourceTableId,
                                                           TableId destinationTableId,
-                                                          List<String> fields) {
+                                                          List<String> fields,
+                                                          String filter,
+                                                          String partitionFromDate,
+                                                          String partitionToDate) {
     String query = String.format("SELECT %s FROM `%s.%s.%s`",
                                  String.join(",", fields),
                                  sourceTableId.getProject(),
                                  sourceTableId.getDataset(),
                                  sourceTableId.getTable());
+
+    StringBuilder condition = new StringBuilder();
+
+    //Depending on the Type of Table --> add partitioning
+    StandardTableDefinition tableDefinition = Objects.requireNonNull(sourceTable).getDefinition();
+    Type type = tableDefinition.getType();
+    if (!(type == Type.VIEW || type == Type.MATERIALIZED_VIEW || type == Type.EXTERNAL)) {
+      condition.append(
+        BigQueryUtil.generateTimePartitionCondition(tableDefinition, partitionFromDate, partitionToDate));
+    }
+
+    //If filter is present add it.
+    if (!Strings.isNullOrEmpty(filter)) {
+      if (condition.length() == 0) {
+        condition.append(filter);
+      } else {
+        condition.append(" and (").append(filter).append(")");
+      }
+    }
+
+    if (condition.length() > 0) {
+      query = String.format("%s WHERE %s", query, condition);
+    }
+
     LOG.info("Reading data from `{}.{}.{}` to `{}.{}.{}` using SQL statement: {} ",
              sourceTableId.getProject(), sourceTableId.getDataset(), sourceTableId.getTable(),
-             sourceTableId.getProject(), sourceTableId.getDataset(), sourceTableId.getTable(),
+             destinationTableId.getProject(), destinationTableId.getDataset(), destinationTableId.getTable(),
              query);
 
     return QueryJobConfiguration.newBuilder(query)
