@@ -92,9 +92,6 @@ import javax.annotation.Nullable;
  * Hadoop's {@code TextInputFormat}. All the plugins included with Hydrator operate on
  * StructuredRecord.
  */
-@Plugin(type = BatchSource.PLUGIN_TYPE)
-@Name(DataplexBatchSource.NAME)
-@Description("Dataplex Source")
 public class DataplexBatchSource extends BatchSource<Object, Object, StructuredRecord> {
   public static final String NAME = "Dataplex";
   private static final String BQ_TEMP_BUCKET_NAME_PREFIX = "dataplex-bq-source-bucket-";

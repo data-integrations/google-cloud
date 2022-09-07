@@ -104,9 +104,6 @@ import javax.annotation.Nullable;
  * Hadoop's {@code TextOutputFormat}. All the plugins included with Hydrator operate on
  * StructuredRecord.
  */
-@Plugin(type = BatchSink.PLUGIN_TYPE)
-@Name(DataplexBatchSink.NAME)
-@Description("Ingests and processes data within Dataplex.")
 public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object, Object> {
   public static final String NAME = "Dataplex";
   private static final Logger LOG = LoggerFactory.getLogger(DataplexBatchSink.class);
