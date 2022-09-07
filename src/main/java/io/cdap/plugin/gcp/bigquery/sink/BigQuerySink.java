@@ -16,6 +16,8 @@
 package io.cdap.plugin.gcp.bigquery.sink;
 
 import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.Dataset;
+import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.Job;
 import com.google.cloud.bigquery.JobConfiguration;
@@ -194,7 +196,8 @@ public final class BigQuerySink extends AbstractBigQuerySink {
     if (!succeeded) {
       return;
     }
-    Job queryJob = bigQuery.getJob(getJobId());
+    JobId bqJobId = getJobId();
+    Job queryJob =  bqJobId != null ? bigQuery.getJob(bqJobId) : null;
     if (queryJob == null) {
       LOG.warn("Unable to find BigQuery job. No metric will be emitted for the number of affected rows.");
       return;
@@ -215,9 +218,30 @@ public final class BigQuerySink extends AbstractBigQuerySink {
     }
   }
 
+  @Nullable
   private JobId getJobId() {
-    String location = bigQuery.getDataset(getConfig().getDataset()).getLocation();
-    return JobId.newBuilder().setLocation(location).setJob(jobId).build();
+    // Check if the dataset exists
+    BigQuerySinkConfig config = getConfig();
+    DatasetId datasetId = DatasetId.of(config.getDatasetProject(), config.getDataset());
+    Dataset dataset = bigQuery.getDataset(datasetId);
+    if (dataset == null) {
+      LOG.warn("Dataset {} was not found in project {}", config.getDataset(), config.getDatasetProject());
+      return null;
+    }
+
+    // Get dataset location
+    String location = dataset.getLocation();
+
+    // Check if the job exists in the desired location
+    JobId id = JobId.newBuilder().setLocation(location).setJob(jobId).build();
+    Job job = bigQuery.getJob(id);
+    if (job == null) {
+      LOG.warn("Job {} was not found in location {}", jobId, location);
+      return null;
+    }
+
+    // Return job ID
+    return id;
   }
 
   private long getTotalRows(Job queryJob) {
