@@ -18,6 +18,7 @@ package io.cdap.plugin.gcp.bigquery.sink;
 
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.Dataset;
+import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.Job;
 import com.google.cloud.bigquery.JobConfiguration;
@@ -163,6 +164,8 @@ public class BigQuerySinkTest {
     BigQuerySink sink = new BigQuerySink(config);
     setBigQuery(sink, bigQueryMock);
     Dataset mockDataSet = mock(Dataset.class);
+    Mockito.when(mockDataSet.getLocation()).thenReturn("mock-location");
+    Mockito.when(bigQueryMock.getDataset(any(DatasetId.class))).thenReturn(mockDataSet);
     Mockito.when(bigQueryMock.getDataset(anyString())).thenReturn(mockDataSet);
     Mockito.when(bigQueryMock.getJob(Mockito.any(JobId.class))).thenReturn(mockJob);
     return sink;
