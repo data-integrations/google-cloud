@@ -161,6 +161,12 @@ public final class BigQuerySink extends AbstractBigQuerySink {
                            String tableName,
                            @Nullable Schema tableSchema,
                            FailureCollector collector) {
+    // Sink Pushdown is not supported if the sink schema is not defined.
+    if (tableSchema == null) {
+      LOG.debug("BigQuery SQL Engine Output was not initialized. Schema was empty.");
+      return;
+    }
+
     List<BigQueryTableFieldSchema> fields = BigQuerySinkUtils.getBigQueryTableFields(bigQuery, tableName, tableSchema,
       getConfig().isAllowSchemaRelaxation(),
       config.getDatasetProject(), config.getDataset(), config.isTruncateTableSet(), collector);
@@ -175,7 +181,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
     arguments
       .put(BigQueryWrite.SQL_OUTPUT_JOB_ID, jobId + "_write")
       .put(BigQueryWrite.SQL_OUTPUT_CONFIG, GSON.toJson(config))
-      .put(BigQueryWrite.SQL_OUTPUT_SCHEMA, tableSchema != null ? GSON.toJson(tableSchema) : null)
+      .put(BigQueryWrite.SQL_OUTPUT_SCHEMA, GSON.toJson(tableSchema))
       .put(BigQueryWrite.SQL_OUTPUT_FIELDS, GSON.toJson(fieldNames));
 
     context.addOutput(new SQLEngineOutput(outputName,

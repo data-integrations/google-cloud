@@ -43,10 +43,13 @@ import org.mockito.internal.util.reflection.FieldSetter;
 
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -87,19 +90,21 @@ public class BigQuerySinkTest {
 
   @Test
   public void testBigQueryTimePartitionConfig() {
-    Schema schema = Schema.recordOf("record",
-            Schema.Field.of("id", Schema.of(Schema.Type.LONG)),
-            Schema.Field.of("name", Schema.of(Schema.Type.STRING)),
-            Schema.Field.of("price", Schema.of(Schema.Type.DOUBLE)),
-            Schema.Field.of("dt", Schema.nullableOf(Schema.of(Schema.LogicalType.DATE))),
-            Schema.Field.of("bytedata", Schema.of(Schema.Type.BYTES)),
-            Schema.Field.of("timestamp",
-                    Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))));
+    Schema schema =
+      Schema.recordOf("record",
+                      Schema.Field.of("id", Schema.of(Schema.Type.LONG)),
+                      Schema.Field.of("name", Schema.of(Schema.Type.STRING)),
+                      Schema.Field.of("price", Schema.of(Schema.Type.DOUBLE)),
+                      Schema.Field.of("dt", Schema.nullableOf(Schema.of(Schema.LogicalType.DATE))),
+                      Schema.Field.of("bytedata", Schema.of(Schema.Type.BYTES)),
+                      Schema.Field.of("timestamp",
+                                      Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS))));
 
-    BigQuerySinkConfig config = new BigQuerySinkConfig("44", "ds", "tb", "bucket", schema.toString(),
-            "TIME", 0L, 100L, 10L, null);
+    BigQuerySinkConfig config =
+      new BigQuerySinkConfig("44", "ds", "tb", "bucket", schema.toString(),
+                             "TIME", 0L, 100L, 10L, null);
     config.partitionByField = "dt";
-    
+
     MockFailureCollector collector = new MockFailureCollector("bqsink");
     config.validate(collector);
     Assert.assertEquals(0, collector.getValidationFailures().size());
@@ -381,5 +386,20 @@ public class BigQuerySinkTest {
     Assert.assertEquals("new-table_2020", multiSink.sanitizeOutputName("new-table,2020"));
     Assert.assertEquals("new_table_2020", multiSink.sanitizeOutputName("new!table?2020"));
     Assert.assertEquals("new_table_2020", multiSink.sanitizeOutputName("new^table|2020"));
+  }
+
+  @Test
+  public void testInitSQLEngineOutputDoesNotInitOutputWithNullSchema() throws Exception {
+    BatchSinkContext sinkContext = mock(BatchSinkContext.class);
+    MockFailureCollector collector = new MockFailureCollector("bqsink");
+
+    BigQuerySinkConfig config =
+      new BigQuerySinkConfig("testmetric", "ds", "tb", "bkt", null,
+                             null, null, null, null, null);
+    BigQuery bigQueryMock = mock(BigQuery.class);
+
+    BigQuerySink sink = new BigQuerySink(config);
+    sink.initSQLEngineOutput(sinkContext, bigQueryMock, "sink", "sink", "table", null, collector);
+    verify(sinkContext, never()).addOutput(any());
   }
 }
