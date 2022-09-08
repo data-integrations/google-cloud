@@ -2,7 +2,7 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name": "Dataplex (Preview)",
+  "display-name": "Dataplex",
   "configuration-groups": [
     {
       "label": "Basic",

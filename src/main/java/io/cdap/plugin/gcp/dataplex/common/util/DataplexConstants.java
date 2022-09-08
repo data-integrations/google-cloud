@@ -30,4 +30,6 @@ public final class DataplexConstants {
   public static final String NONE = "none";
   public static final String BIGQUERY_DATASET_ASSET_TYPE = "BIGQUERY_DATASET";
   public static final String STORAGE_BUCKET_ASSET_TYPE = "STORAGE_BUCKET";
+  public static final String STORAGE_BUCKET_PARTITION_KEY = "ts";
+  public static final String STORAGE_BUCKET_PATH_PREFIX = "gs://";
 }
