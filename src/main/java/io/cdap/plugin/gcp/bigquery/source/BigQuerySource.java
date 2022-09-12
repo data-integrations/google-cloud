@@ -351,6 +351,11 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     // Add output for SQL Engine Direct read
     ImmutableMap.Builder<String, String> arguments = new ImmutableMap.Builder<>();
 
+    if (configuredSchema == null) {
+      LOG.debug("BigQuery SQL Engine Input was not initialized. Schema was empty.");
+      return;
+    }
+
     List<String> fieldNames = configuredSchema.getFields().stream().map(f -> f.getName()).collect(Collectors.toList());
 
     arguments
