@@ -22,6 +22,7 @@ import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.DatasetInfo;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.LegacySQLTypeName;
+import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize;
@@ -34,6 +35,7 @@ import org.mockito.Mockito;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import javax.management.OperationsException;
 
 /**
  * Test for {@link BigQuerySinkUtils}
@@ -521,5 +523,75 @@ public class BigQuerySinkUtilsTest {
     // Field c should be repeated as repeated fields do not get converted into null
     Assert.assertEquals("c", result.get(2).getName());
     Assert.assertEquals(Field.Mode.REPEATED, result.get(2).getMode());
+  }
+
+
+  @Test
+  public void testGenerateUpdateUpsertQueryUpdate() {
+    Operation operation = Operation.UPDATE;
+
+    TableId sourceTableId = TableId.of("akritigiri-gcp-project0", "test",
+                                       "test_table_csv_8a0febdc_967b_451d_b01d_7558bd2d7a5a");
+    TableId destinationTableId = TableId.of("akritigiri-gcp-project0", "test", "test_table_csv");
+
+    List<String> tableFieldsList = new ArrayList<>(3);
+    tableFieldsList.add("DESC");
+    tableFieldsList.add("END");
+    tableFieldsList.add("JOIN");
+
+    List<String> tableKeyList = new ArrayList<>(1);
+    tableKeyList.add("DESC");
+
+    List<String> orderedByList = new ArrayList<>(1);
+    orderedByList.add("END ASC");
+    orderedByList.add("DESC DESC");
+
+    String partitionFilter = null;
+
+    String query = BigQuerySinkUtils.generateUpdateUpsertQuery(operation, sourceTableId, destinationTableId,
+                                                               tableFieldsList, tableKeyList, orderedByList,
+                                                               partitionFilter);
+
+    Assert.assertEquals("UPDATE `akritigiri-gcp-project0.test.test_table_csv` T SET T.`END` = S.`END`, " +
+                          "T.`JOIN` = S.`JOIN` FROM (SELECT * FROM (SELECT row_number() OVER " +
+                          "(PARTITION BY `DESC` ORDER BY `END` ASC, `DESC` DESC) as rowid, * " +
+                          "FROM `akritigiri-gcp-project0.test.test_table_csv_8a0febdc_967b_451d_b01d_7558bd2d7a5a`) " +
+                          "where rowid = 1) S WHERE T.`DESC` = S.`DESC`", query);
+  }
+
+  @Test
+  public void testGenerateUpdateUpsertQueryUpsert() {
+    Operation operation = Operation.UPSERT;
+
+    TableId sourceTableId = TableId.of("akritigiri-gcp-project0", "test",
+                                       "test_table_csv_8a0febdc_967b_451d_b01d_7558bd2d7a5a");
+    TableId destinationTableId = TableId.of("akritigiri-gcp-project0", "test", "test_table_csv");
+
+    List<String> tableFieldsList = new ArrayList<>(3);
+    tableFieldsList.add("DESC");
+    tableFieldsList.add("END");
+    tableFieldsList.add("JOIN");
+
+    List<String> tableKeyList = new ArrayList<>(1);
+    tableKeyList.add("END");
+    tableKeyList.add("DESC");
+
+    List<String> orderedByList = new ArrayList<>(1);
+    orderedByList.add("JOIN ASC");
+    orderedByList.add("DESC DESC");
+
+    String partitionFilter = null;
+
+    String query = BigQuerySinkUtils.generateUpdateUpsertQuery(operation, sourceTableId, destinationTableId,
+                                                               tableFieldsList, tableKeyList, orderedByList,
+                                                               partitionFilter);
+
+    Assert.assertEquals("MERGE `akritigiri-gcp-project0.test.test_table_csv` T USING (SELECT * " +
+                          "FROM (SELECT row_number() OVER (PARTITION BY `END`, `DESC` " +
+                          "ORDER BY `JOIN` ASC, `DESC` DESC) as rowid, * FROM " +
+                          "`akritigiri-gcp-project0.test.test_table_csv_8a0febdc_967b_451d_b01d_7558bd2d7a5a`) " +
+                          "where rowid = 1) S ON T.`END` = S.`END` AND T.`DESC` = S.`DESC` " +
+                          "WHEN MATCHED THEN UPDATE SET T.`JOIN` = S.`JOIN` " +
+                          "WHEN NOT MATCHED THEN INSERT (`DESC`, `END`, `JOIN`) VALUES(`DESC`, `END`, `JOIN`)", query);
   }
 }
