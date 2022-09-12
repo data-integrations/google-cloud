@@ -82,7 +82,7 @@ public final class BigQuerySinkUtils {
   private static final Type LIST_OF_FIELD_TYPE = new TypeToken<ArrayList<Field>>() { }.getType();
 
   // Fields used to build update/upsert queries
-  private static final String CRITERIA_TEMPLATE = "T.%s = S.%s";
+  private static final String CRITERIA_TEMPLATE = "T.`%s` = S.`%s`";
   private static final String SOURCE_DATA_QUERY = "(SELECT * FROM (SELECT row_number() OVER (PARTITION BY %s%s) " +
     "as rowid, * FROM %s) where rowid = 1)";
   private static final String UPDATE_QUERY = "UPDATE %s T SET %s FROM %s S WHERE %s";
@@ -585,13 +585,14 @@ public final class BigQuerySinkUtils {
                                                        formatPartitionFilter(partitionFilter), criteria) : criteria;
     String fieldsForUpdate = tableFieldsList.stream().filter(s -> !tableKeyList.contains(s))
       .map(s -> String.format(CRITERIA_TEMPLATE, s, s)).collect(Collectors.joining(", "));
-    String orderedBy = orderedByList.isEmpty() ? "" : " ORDER BY " + String.join(", ", orderedByList);
-    String sourceTable = String.format(SOURCE_DATA_QUERY, String.join(", ", tableKeyList), orderedBy, source);
+    String orderedBy = orderedByList.isEmpty() ? "" : " ORDER BY " + "`" + String.join("`, `", orderedByList) + "`";
+    String sourceTable = String.format(SOURCE_DATA_QUERY, "`" + String.join("`, `", tableKeyList) + "`",
+                                       orderedBy, source);
     switch (operation) {
       case UPDATE:
         return String.format(UPDATE_QUERY, destination, fieldsForUpdate, sourceTable, criteria);
       case UPSERT:
-        String insertFields = String.join(", ", tableFieldsList);
+        String insertFields = "`" + String.join("`, `", tableFieldsList) + "`";
         return String.format(UPSERT_QUERY, destination, sourceTable, criteria, fieldsForUpdate,
                              insertFields, insertFields);
       default:
