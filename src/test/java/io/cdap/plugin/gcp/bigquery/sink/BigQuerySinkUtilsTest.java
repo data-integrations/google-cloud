@@ -35,7 +35,6 @@ import org.mockito.Mockito;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import javax.management.OperationsException;
 
 /**
  * Test for {@link BigQuerySinkUtils}
@@ -530,21 +529,22 @@ public class BigQuerySinkUtilsTest {
   public void testGenerateUpdateUpsertQueryUpdate() {
     Operation operation = Operation.UPDATE;
 
-    TableId sourceTableId = TableId.of("akritigiri-gcp-project0", "test",
-                                       "test_table_csv_8a0febdc_967b_451d_b01d_7558bd2d7a5a");
-    TableId destinationTableId = TableId.of("akritigiri-gcp-project0", "test", "test_table_csv");
+    TableId sourceTableId = TableId.of("dummy_src_project", "dummy_src_dataset",
+                                       "dummy_src_table");
+    TableId destinationTableId = TableId.of("dummy_dest_project", "dummy_dest_dataset",
+                                            "dummy_dest_table");
 
     List<String> tableFieldsList = new ArrayList<>(3);
-    tableFieldsList.add("DESC");
-    tableFieldsList.add("END");
-    tableFieldsList.add("JOIN");
+    tableFieldsList.add("a");
+    tableFieldsList.add("b");
+    tableFieldsList.add("c");
 
     List<String> tableKeyList = new ArrayList<>(1);
-    tableKeyList.add("DESC");
+    tableKeyList.add("a");
 
     List<String> orderedByList = new ArrayList<>(1);
-    orderedByList.add("END ASC");
-    orderedByList.add("DESC DESC");
+    orderedByList.add("b ASC");
+    orderedByList.add("a DESC");
 
     String partitionFilter = null;
 
@@ -552,33 +552,34 @@ public class BigQuerySinkUtilsTest {
                                                                tableFieldsList, tableKeyList, orderedByList,
                                                                partitionFilter);
 
-    Assert.assertEquals("UPDATE `akritigiri-gcp-project0.test.test_table_csv` T SET T.`END` = S.`END`, " +
-                          "T.`JOIN` = S.`JOIN` FROM (SELECT * FROM (SELECT row_number() OVER " +
-                          "(PARTITION BY `DESC` ORDER BY `END` ASC, `DESC` DESC) as rowid, * " +
-                          "FROM `akritigiri-gcp-project0.test.test_table_csv_8a0febdc_967b_451d_b01d_7558bd2d7a5a`) " +
-                          "where rowid = 1) S WHERE T.`DESC` = S.`DESC`", query);
+    Assert.assertEquals("UPDATE `dummy_dest_project.dummy_dest_dataset.dummy_dest_table` T SET " +
+                          "T.`b` = S.`b`, T.`c` = S.`c` FROM (SELECT * FROM (SELECT row_number() OVER " +
+                          "(PARTITION BY `a` ORDER BY `b` ASC, `a` DESC) as rowid, * " +
+                          "FROM `dummy_src_project.dummy_src_dataset.dummy_src_table`) " +
+                          "where rowid = 1) S WHERE T.`a` = S.`a`", query);
   }
 
   @Test
   public void testGenerateUpdateUpsertQueryUpsert() {
     Operation operation = Operation.UPSERT;
 
-    TableId sourceTableId = TableId.of("akritigiri-gcp-project0", "test",
-                                       "test_table_csv_8a0febdc_967b_451d_b01d_7558bd2d7a5a");
-    TableId destinationTableId = TableId.of("akritigiri-gcp-project0", "test", "test_table_csv");
+    TableId sourceTableId = TableId.of("dummy_src_project", "dummy_src_dataset",
+                                       "dummy_src_table");
+    TableId destinationTableId = TableId.of("dummy_dest_project", "dummy_dest_dataset",
+                                            "dummy_dest_table");
 
     List<String> tableFieldsList = new ArrayList<>(3);
-    tableFieldsList.add("DESC");
-    tableFieldsList.add("END");
-    tableFieldsList.add("JOIN");
+    tableFieldsList.add("a");
+    tableFieldsList.add("b");
+    tableFieldsList.add("c");
 
     List<String> tableKeyList = new ArrayList<>(1);
-    tableKeyList.add("END");
-    tableKeyList.add("DESC");
+    tableKeyList.add("a");
+    tableKeyList.add("b");
 
     List<String> orderedByList = new ArrayList<>(1);
-    orderedByList.add("JOIN ASC");
-    orderedByList.add("DESC DESC");
+    orderedByList.add("b ASC");
+    orderedByList.add("c DESC");
 
     String partitionFilter = null;
 
@@ -586,12 +587,12 @@ public class BigQuerySinkUtilsTest {
                                                                tableFieldsList, tableKeyList, orderedByList,
                                                                partitionFilter);
 
-    Assert.assertEquals("MERGE `akritigiri-gcp-project0.test.test_table_csv` T USING (SELECT * " +
-                          "FROM (SELECT row_number() OVER (PARTITION BY `END`, `DESC` " +
-                          "ORDER BY `JOIN` ASC, `DESC` DESC) as rowid, * FROM " +
-                          "`akritigiri-gcp-project0.test.test_table_csv_8a0febdc_967b_451d_b01d_7558bd2d7a5a`) " +
-                          "where rowid = 1) S ON T.`END` = S.`END` AND T.`DESC` = S.`DESC` " +
-                          "WHEN MATCHED THEN UPDATE SET T.`JOIN` = S.`JOIN` " +
-                          "WHEN NOT MATCHED THEN INSERT (`DESC`, `END`, `JOIN`) VALUES(`DESC`, `END`, `JOIN`)", query);
+    Assert.assertEquals("MERGE `dummy_dest_project.dummy_dest_dataset.dummy_dest_table` T USING (SELECT * " +
+                          "FROM (SELECT row_number() OVER (PARTITION BY `a`, `b` " +
+                          "ORDER BY `b` ASC, `c` DESC) as rowid, * FROM " +
+                          "`dummy_src_project.dummy_src_dataset.dummy_src_table`) " +
+                          "where rowid = 1) S ON T.`a` = S.`a` AND T.`b` = S.`b` " +
+                          "WHEN MATCHED THEN UPDATE SET T.`c` = S.`c` " +
+                          "WHEN NOT MATCHED THEN INSERT (`a`, `b`, `c`) VALUES(`a`, `b`, `c`)", query);
   }
 }
