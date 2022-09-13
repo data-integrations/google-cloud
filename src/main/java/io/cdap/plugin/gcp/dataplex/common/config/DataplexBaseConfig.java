@@ -225,11 +225,13 @@ public class DataplexBaseConfig extends PluginConfig {
     if (connection.isServiceAccountJson() || connection.getServiceAccountFilePath() != null) {
       try (InputStream inputStream = GCPUtils.openServiceAccount(getServiceAccount(), isServiceAccountFilePath())) {
         ServiceAccountCredentials credentials = ServiceAccountCredentials.fromStream(inputStream);
+        LOG.info("Using Service Account: " + credentials.getClientEmail());
         return credentials.getClientEmail();
       }
     }
     ComputeEngineCredentials credentials = (ComputeEngineCredentials) ServiceAccountCredentials.
       getApplicationDefault();
+    LOG.info("Using Service Account: " + credentials.getAccount());
     // Adding this code for preview as dataplex doesn't allow user to act as Cloud Data Fusion API Service Agent and
     // create tasks in dataplex. So we are passing default Compute Engine service account in task creation.
     // This code will fetch the project number from service Agent and form compute service account email.
