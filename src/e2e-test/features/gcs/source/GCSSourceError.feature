@@ -32,6 +32,7 @@ Feature: GCS source - Verify GCS Source plugin error scenarios
     Then Override Service account details if set in environment variables
     Then Enter GCS source property path "gcsOutputFieldTestFile"
     Then Select GCS property format "csv"
+    Then Toggle GCS source property skip header to true
     Then Enter GCS source property path field "gcsInvalidPathField"
     Then Verify Output Path field Error Message for incorrect path field "gcsInvalidPathField"
 
