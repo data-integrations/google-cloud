@@ -586,9 +586,9 @@ public final class BigQuerySinkUtils {
     String fieldsForUpdate = tableFieldsList.stream().filter(s -> !tableKeyList.contains(s))
       .map(s -> String.format(CRITERIA_TEMPLATE, s, s)).collect(Collectors.joining(", "));
 
-    orderedByList.replaceAll(s -> "`" + Arrays.stream(s.split(" ")).map(String::trim)
-      .collect(Collectors.toList()).get(0) + "` " + Arrays.stream(s.split(" ")).map(String::trim)
-      .collect(Collectors.toList()).get(1));
+    orderedByList = orderedByList.stream().map(s -> s.trim()).map(s -> {
+        return "`" + s.split(" ")[0] + "` " + s.split(" ", 2)[1];
+      }).collect(Collectors.toList());
 
     String orderedBy = orderedByList.isEmpty() ? "" : " ORDER BY " + String.join(", ", orderedByList);
     String sourceTable = String.format(SOURCE_DATA_QUERY, "`" + String.join("`, `", tableKeyList) + "`",
