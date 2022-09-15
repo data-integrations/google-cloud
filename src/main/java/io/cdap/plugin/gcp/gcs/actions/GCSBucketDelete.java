@@ -89,8 +89,8 @@ public final class GCSBucketDelete extends Action {
 
     configuration.setBoolean("fs.gs.impl.disable.cache", true);
 
-    List<Path> gcsPaths = new ArrayList<>();
-    List<GCSPath> gcsPathsWild = new ArrayList<>();
+    List<String> gcsPaths = new ArrayList<>();
+    List<String> gcsPathsWild = new ArrayList<>();
     Storage storage = GCPUtils.getStorage(config.getProject(), credentials);
     for (String path : config.getPaths()) {
       GCSPath gcsPath = GCSPath.from(path);
@@ -103,20 +103,22 @@ public final class GCSBucketDelete extends Action {
           String.format("Unable to access or create bucket %s. ", gcsPath.getBucket())
             + "Ensure you entered the correct bucket path and have permissions for it.", e);
       }
-      if (gcsPath.getUri().toString().contains("*")) {
-        gcsPathsWild.add(gcsPath);
+      String exactGCSPath = "gs://" + gcsPath.getBucket() + "/" + gcsPath.getName();
+      if (exactGCSPath.contains("*")) {
+        gcsPathsWild.add(exactGCSPath);
       } else {
-        gcsPaths.add(new Path(gcsPath.getUri()));
+        gcsPaths.add(exactGCSPath);
       }
     }
 
     FileSystem fs;
     int deleteCount = 0;
-    for (Path gcsPath : gcsPaths) {
+    for (String gcsPathStr : gcsPaths) {
+      Path gcsPath = new Path(gcsPathStr);
       try {
         fs = gcsPath.getFileSystem(configuration);
       } catch (IOException e) {
-        LOG.info("Failed deleting file " + gcsPath.toUri().getPath() + ", " + e.getMessage());
+        LOG.info("Failed deleting file " + gcsPathStr + ", " + e.getMessage());
         // no-op.
         continue;
       }
@@ -126,22 +128,25 @@ public final class GCSBucketDelete extends Action {
           deleteCount++;
         } catch (IOException e) {
           LOG.warn(
-            String.format("Failed to delete path '%s'", gcsPath)
+            String.format("Failed to delete path '%s'", gcsPathStr)
           );
         }
       }
     }
 
-    for (GCSPath gcsPath : gcsPathsWild) {
-      String regex = ("\\Q" + gcsPath.getUri().toString() + "\\E").replace("*", "\\E[^/]*\\Q") + "(/.*)?";
+    for (String gcsPathStr : gcsPathsWild) {
+      // Match text literally for any characters except one wildcard character "*".
+      // "*" will be used to represent any characters.
+      String regex = ("\\Q" + gcsPathStr + "\\E").replace("*", "\\E[^/]*\\Q") + "(/.*)?";
+      Path gcsPath = new Path(gcsPathStr);
       try {
-        fs = new Path(gcsPath.getUri()).getFileSystem(configuration);
+        fs = gcsPath.getFileSystem(configuration);
       } catch (IOException e) {
-        LOG.info("Failed deleting file " + gcsPath.getUri().getPath() + ", " + e.getMessage());
+        LOG.info("Failed deleting file " + gcsPathStr + ", " + e.getMessage());
         // no-op.
         continue;
       }
-      Page<Blob> blobs = storage.list(gcsPath.getBucket());
+      Page<Blob> blobs = storage.list(GCSPath.from(gcsPathStr).getBucket());
       for (Blob blob : blobs.iterateAll()) {
         Path filePath = new Path("gs://" + blob.getBucket() + "/" + blob.getName());
         if ((filePath.toString() + "/").matches(regex)) {
@@ -153,7 +158,7 @@ public final class GCSBucketDelete extends Action {
               deleteCount++;
             } catch (IOException e) {
               LOG.warn(
-                String.format("Failed to delete path '%s'", gcsPath)
+                String.format("Failed to delete path '%s'", gcsPathStr)
               );
             }
           } else {
