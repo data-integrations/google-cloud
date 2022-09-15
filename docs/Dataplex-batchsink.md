@@ -173,4 +173,8 @@ with default format 'yyyy-MM-dd-HH-mm'.
 or ‘orc’. The format for a curated zone must be one of ‘avro’, ‘orc’, or ‘parquet’. If the format is a macro, only the
 pre-packaged formats can be used.
 
+**Update Dataplex Metadata:** Whether to update Dataplex metadata for the newly created entities. 
+If enabled, the pipeline will automatically copy the output schema to the destination Dataplex entities, 
+and the automated Dataplex Discovery won't run for them.
+
 **Schema:** Schema of the data to write. The 'avro' and 'parquet' formats require a schema but other formats do not.
