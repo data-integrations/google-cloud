@@ -48,7 +48,6 @@ import javax.annotation.Nullable;
  * in order to create input splits.
  */
 public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<LongWritable, GenericData.Record> {
-  private static final String DEFAULT_COLUMN_NAME = "_PARTITIONTIME";
 
   private InputFormat<LongWritable, GenericData.Record> delegateInputFormat =
     new AvroBigQueryInputFormat();
@@ -160,8 +159,8 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
     StringBuilder condition = new StringBuilder();
 
     if (timePartitioning != null) {
-      String timePartitionCondition = generateTimePartitionCondition(tableDefinition, timePartitioning,
-                                                                     partitionFromDate, partitionToDate);
+      String timePartitionCondition = BigQueryUtil.generateTimePartitionCondition(tableDefinition, partitionFromDate,
+                                                                                  partitionToDate);
       condition.append(timePartitionCondition);
     }
 
@@ -288,34 +287,5 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
       return bigQueryHelper.createJobReference(projectId, "querybasedexport", location);
     }
     return new JobReference().setProjectId(projectId).setJobId(savedJobId).setLocation(location);
-  }
-
-  private String generateTimePartitionCondition(StandardTableDefinition tableDefinition,
-                                                TimePartitioning timePartitioning, String partitionFromDate,
-                                                String partitionToDate) {
-    StringBuilder timePartitionCondition = new StringBuilder();
-    String columnName = timePartitioning.getField() != null ? timePartitioning.getField() : DEFAULT_COLUMN_NAME;
-
-    LegacySQLTypeName columnType = null;
-    if (!DEFAULT_COLUMN_NAME.equals(columnName)) {
-      columnType = tableDefinition.getSchema().getFields().get(columnName).getType();
-    }
-
-    String columnNameTS = columnName;
-    if (!LegacySQLTypeName.TIMESTAMP.equals(columnType)) {
-      columnNameTS = "TIMESTAMP(`" + columnNameTS + "`)";
-    }
-    if (partitionFromDate != null) {
-      timePartitionCondition.append(columnNameTS).append(" >= ").append("TIMESTAMP(\"")
-        .append(partitionFromDate).append("\")");
-    }
-    if (partitionFromDate != null && partitionToDate != null) {
-      timePartitionCondition.append(" and ");
-    }
-    if (partitionToDate != null) {
-      timePartitionCondition.append(columnNameTS).append(" < ").append("TIMESTAMP(\"")
-        .append(partitionToDate).append("\")");
-    }
-    return timePartitionCondition.toString();
   }
 }

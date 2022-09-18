@@ -23,8 +23,10 @@ import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.StandardSQLTypeName;
+import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
+import com.google.cloud.bigquery.TimePartitioning;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.common.base.Strings;
@@ -43,6 +45,7 @@ import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize.Numeric;
 import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.GCSPath;
+import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -68,6 +71,8 @@ import javax.annotation.Nullable;
 public final class BigQueryUtil {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryUtil.class);
+
+  private static final String DEFAULT_PARTITION_COLUMN_NAME = "_PARTITIONTIME";
 
   public static final String BUCKET_PATTERN = "[a-z0-9._-]+";
   public static final String DATASET_PATTERN = "[A-Za-z0-9_]+";
@@ -716,5 +721,42 @@ public final class BigQueryUtil {
       fs.delete(path, true);
       LOG.debug("Deleted temporary directory '{}'", path);
     }
+  }
+
+  public static String generateTimePartitionCondition(StandardTableDefinition tableDefinition,
+                                                      String partitionFromDate,
+                                                      String partitionToDate) {
+
+    TimePartitioning timePartitioning = tableDefinition.getTimePartitioning();
+
+    if (timePartitioning == null) {
+      return StringUtils.EMPTY;
+    }
+
+    StringBuilder timePartitionCondition = new StringBuilder();
+    String columnName = timePartitioning.getField() != null ?
+      timePartitioning.getField() : DEFAULT_PARTITION_COLUMN_NAME;
+
+    LegacySQLTypeName columnType = null;
+    if (!DEFAULT_PARTITION_COLUMN_NAME.equals(columnName)) {
+      columnType = tableDefinition.getSchema().getFields().get(columnName).getType();
+    }
+
+    String columnNameTS = columnName;
+    if (!LegacySQLTypeName.TIMESTAMP.equals(columnType)) {
+      columnNameTS = "TIMESTAMP(`" + columnNameTS + "`)";
+    }
+    if (partitionFromDate != null) {
+      timePartitionCondition.append(columnNameTS).append(" >= ").append("TIMESTAMP(\"")
+        .append(partitionFromDate).append("\")");
+    }
+    if (partitionFromDate != null && partitionToDate != null) {
+      timePartitionCondition.append(" and ");
+    }
+    if (partitionToDate != null) {
+      timePartitionCondition.append(columnNameTS).append(" < ").append("TIMESTAMP(\"")
+        .append(partitionToDate).append("\")");
+    }
+    return timePartitionCondition.toString();
   }
 }
