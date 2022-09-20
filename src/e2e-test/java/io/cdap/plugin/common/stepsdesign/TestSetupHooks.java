@@ -21,6 +21,7 @@ import com.google.cloud.storage.StorageException;
 import io.cdap.e2e.pages.actions.CdfConnectionActions;
 import io.cdap.e2e.pages.actions.CdfPluginPropertiesActions;
 import io.cdap.e2e.utils.BigQueryClient;
+import io.cdap.e2e.utils.GCPServiceAccountClient;
 import io.cdap.e2e.utils.PluginPropertyUtils;
 import io.cdap.e2e.utils.StorageClient;
 import io.cdap.plugin.utils.PubSubClient;
@@ -38,11 +39,13 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.GeneralSecurityException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
@@ -66,6 +69,7 @@ public class TestSetupHooks {
   public static String spannerTargetDatabase = StringUtils.EMPTY;
   public static String spannerTargetTable = StringUtils.EMPTY;
   public static boolean firstSpannerTestFlag = true;
+  public static String serviceAccountKeyName = StringUtils.EMPTY;
 
   @Before(order = 1)
   public static void overrideServiceAccountFilePathIfProvided() {
@@ -731,5 +735,36 @@ public class TestSetupHooks {
     CdfConnectionActions.openConnectionActionMenu(connectionType, connectionName);
     CdfConnectionActions.selectConnectionAction(connectionType, connectionName, "Delete");
     CdfPluginPropertiesActions.clickPluginPropertyButton("Delete");
+  }
+
+  @Before(order = 1, value = "@SERVICE_ACCOUNT_JSON_TEST")
+  public static void createServiceAccountKey() {
+    try {
+      Map<String, String> serviceAccountKeyDetails = GCPServiceAccountClient
+        .createServiceAccountKey(PluginPropertyUtils.pluginProp("projectId"),
+                                 PluginPropertyUtils.pluginProp("serviceAccountName"));
+      serviceAccountKeyName = serviceAccountKeyDetails.get("KeyName");
+      PluginPropertyUtils
+        .addPluginProp("serviceAccountJSON",
+                       serviceAccountKeyDetails.get("JsonKeyFile").replaceAll("[\\n\\t]", ""));
+    } catch (GeneralSecurityException | IOException e) {
+      Assert.fail("Unable to create service account key: \n" + e.toString());
+    }
+  }
+
+  @After(order = 1, value = "@SERVICE_ACCOUNT_JSON_TEST")
+  public static void deleteServiceAccountKey() {
+    try {
+      GCPServiceAccountClient.deleteServiceAccountKey(serviceAccountKeyName);
+      serviceAccountKeyName = StringUtils.EMPTY;
+      PluginPropertyUtils.removePluginProp("serviceAccountJSON");
+      BeforeActions.scenario.write("Deleted service account key " + serviceAccountKeyName);
+    } catch (GeneralSecurityException | IOException e) {
+      if (e.toString().contains("does not exist")) {
+        BeforeActions.scenario.write("Service account key " + serviceAccountKeyName + " does not exist.");
+      } else {
+        Assert.fail(e.toString());
+      }
+    }
   }
 }
