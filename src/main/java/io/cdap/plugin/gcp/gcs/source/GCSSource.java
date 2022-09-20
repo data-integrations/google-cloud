@@ -16,6 +16,9 @@
 
 package io.cdap.plugin.gcp.gcs.source;
 
+import com.google.auth.Credentials;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageException;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -25,19 +28,15 @@ import io.cdap.cdap.api.annotation.Metadata;
 import io.cdap.cdap.api.annotation.MetadataProperty;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
-import io.cdap.cdap.api.data.schema.Schema;
-import io.cdap.cdap.api.plugin.PluginConfig;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
 import io.cdap.cdap.etl.api.connector.Connector;
+import io.cdap.plugin.common.Asset;
 import io.cdap.plugin.common.ConfigUtil;
-import io.cdap.plugin.common.Constants;
-import io.cdap.plugin.common.IdUtils;
 import io.cdap.plugin.common.LineageRecorder;
-import io.cdap.plugin.format.FileFormat;
-import io.cdap.plugin.format.charset.fixedlength.FixedLengthCharset;
+import io.cdap.plugin.common.ReferenceNames;
 import io.cdap.plugin.format.input.PathTrackingInputFormat;
 import io.cdap.plugin.format.plugin.AbstractFileSource;
 import io.cdap.plugin.format.plugin.AbstractFileSourceConfig;
@@ -45,7 +44,6 @@ import io.cdap.plugin.format.plugin.FileSourceProperties;
 import io.cdap.plugin.gcp.common.GCPConnectorConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.crypto.EncryptedFileSystem;
-import io.cdap.plugin.gcp.gcs.Formats;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 import io.cdap.plugin.gcp.gcs.connector.GCSConnector;
 
@@ -67,6 +65,7 @@ import javax.annotation.Nullable;
 public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
   public static final String NAME = "GCSFile";
   private final GCSSourceConfig config;
+  private Asset asset;
 
   public GCSSource(GCSSourceConfig config) {
     super(config);
@@ -76,6 +75,34 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     super.configurePipeline(pipelineConfigurer);
+  }
+
+  @Override
+  public void prepareRun(BatchSourceContext context) throws Exception {
+    // Get location of the source for lineage
+    String location;
+    String bucketName = GCSPath.from(config.getPath()).getBucket();
+    Credentials credentials = config.connection.getServiceAccount() == null ?
+      null : GCPUtils.loadServiceAccountCredentials(config.connection.getServiceAccount(),
+                                                    config.connection.isServiceAccountFilePath());
+    Storage storage = GCPUtils.getStorage(config.connection.getProject(), credentials);
+    try {
+      location = storage.get(bucketName).getLocation();
+    } catch (StorageException e) {
+      throw new RuntimeException(
+        String.format("Unable to access bucket %s. ", bucketName)
+          + "Ensure you entered the correct bucket path and have permissions for it.", e);
+    }
+
+    // create asset for lineage
+    String referenceName = Strings.isNullOrEmpty(config.getReferenceName())
+      ? ReferenceNames.normalizeFqn(config.getPath())
+      : config.getReferenceName();
+    asset = Asset.builder(referenceName)
+      .setFqn(config.getPath()).setLocation(location).build();
+
+    // super is called down here to avoid instantiating the lineage recorder with a null asset
+    super.prepareRun(context);
   }
 
   @Override
@@ -99,6 +126,11 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
     }
 
     return properties;
+  }
+
+  @Override
+  protected LineageRecorder getLineageRecorder(BatchSourceContext context) {
+    return new LineageRecorder(context, asset);
   }
 
   @Override

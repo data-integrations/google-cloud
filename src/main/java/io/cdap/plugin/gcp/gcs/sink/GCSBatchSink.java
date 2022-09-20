@@ -40,10 +40,12 @@ import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.connector.Connector;
 import io.cdap.cdap.etl.api.validation.ValidatingOutputFormat;
+import io.cdap.plugin.common.Asset;
 import io.cdap.plugin.common.ConfigUtil;
 import io.cdap.plugin.common.Constants;
 import io.cdap.plugin.common.IdUtils;
 import io.cdap.plugin.common.LineageRecorder;
+import io.cdap.plugin.common.ReferenceNames;
 import io.cdap.plugin.format.FileFormat;
 import io.cdap.plugin.format.plugin.AbstractFileSink;
 import io.cdap.plugin.format.plugin.FileSinkProperties;
@@ -84,6 +86,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
 
   private final GCSBatchSinkConfig config;
   private String outputPath;
+  private Asset asset;
 
   public GCSBatchSink(GCSBatchSinkConfig config) {
     super(config);
@@ -109,7 +112,6 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
 
   @Override
   public void prepareRun(BatchSinkContext context) throws Exception {
-    super.prepareRun(context);
     FailureCollector collector = context.getFailureCollector();
     CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(config.cmekKey, context.getArguments().asMap(), collector);
     collector.getOrThrowException();
@@ -125,6 +127,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
       null : GCPUtils.loadServiceAccountCredentials(config.connection.getServiceAccount(), isServiceAccountFilePath);
     Storage storage = GCPUtils.getStorage(config.connection.getProject(), credentials);
     Bucket bucket;
+    String location;
     try {
       bucket = storage.get(config.getBucket());
     } catch (StorageException e) {
@@ -132,10 +135,22 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
         String.format("Unable to access or create bucket %s. ", config.getBucket())
           + "Ensure you entered the correct bucket path and have permissions for it.", e);
     }
-    if (bucket == null) {
+    if (bucket != null) {
+      location = bucket.getLocation();
+    } else {
       GCPUtils.createBucket(storage, config.getBucket(), config.getLocation(), cmekKeyName);
+      location = config.getLocation();
     }
     this.outputPath = getOutputDir(context);
+    // create asset for lineage
+    String referenceName = Strings.isNullOrEmpty(config.getReferenceName())
+      ? ReferenceNames.normalizeFqn(config.getPath())
+      : config.getReferenceName();
+    asset = Asset.builder(referenceName)
+      .setFqn(config.getPath()).setLocation(location).build();
+    
+    // super is called down here to avoid instantiating the lineage recorder with a null asset
+    super.prepareRun(context);
   }
 
   @Override
@@ -152,6 +167,11 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     properties.put(AVRO_NAMED_OUTPUT, outputFileBaseName);
     properties.put(COMMON_NAMED_OUTPUT, outputFileBaseName);
     return properties;
+  }
+
+  @Override
+  protected LineageRecorder getLineageRecorder(BatchSinkContext context) {
+    return new LineageRecorder(context, asset);
   }
 
   @Override
