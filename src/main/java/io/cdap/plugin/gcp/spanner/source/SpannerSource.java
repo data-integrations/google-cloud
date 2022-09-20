@@ -22,6 +22,8 @@ import com.google.cloud.spanner.BatchReadOnlyTransaction;
 import com.google.cloud.spanner.BatchTransactionId;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
+import com.google.cloud.spanner.Instance;
+import com.google.cloud.spanner.InstanceConfig;
 import com.google.cloud.spanner.Partition;
 import com.google.cloud.spanner.PartitionOptions;
 import com.google.cloud.spanner.ResultSet;
@@ -48,6 +50,7 @@ import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
 import io.cdap.cdap.etl.api.connector.Connector;
+import io.cdap.plugin.common.Asset;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.common.SourceInputFormatProvider;
 import io.cdap.plugin.gcp.common.GCPConfig;
@@ -146,6 +149,7 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
     String projectId = config.getProject();
     Configuration configuration = new Configuration();
     initializeConfig(configuration, projectId);
+    String location;
 
     // initialize spanner
     try (Spanner spanner = SpannerUtil.getSpannerService(config.getServiceAccount(), config.isServiceAccountFilePath(),
@@ -154,7 +158,6 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
         spanner.getBatchClient(DatabaseId.of(projectId, config.instance, config.database));
       Timestamp logicalStartTimeMicros =
         Timestamp.ofTimeMicroseconds(TimeUnit.MILLISECONDS.toMicros(batchSourceContext.getLogicalStartTime()));
-
       // create batch transaction id
       BatchReadOnlyTransaction batchReadOnlyTransaction =
         batchClient.batchReadOnlyTransaction(TimestampBound.ofReadTimestamp(logicalStartTimeMicros));
@@ -172,13 +175,20 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
       // serialize batch transaction-id and partitions
       configuration.set(SpannerConstants.SPANNER_BATCH_TRANSACTION_ID, getSerializedObjectString(batchTransactionId));
       configuration.set(SpannerConstants.PARTITIONS_LIST, getSerializedObjectString(partitions));
+      // get location for lineage data (location info resides in instance config for spanner)
+      Instance spannerInstance = spanner.getInstanceAdminClient().getInstance(config.instance);
+      InstanceConfig instanceConfig = spanner.getInstanceAdminClient().
+        getInstanceConfig(spannerInstance.getInstanceConfigId().getInstanceConfig());
+      location = instanceConfig.getReplicas().get(0).getLocation();
     }
 
-    LineageRecorder lineageRecorder = new LineageRecorder(batchSourceContext, config.referenceName);
+    Asset asset = Asset.builder(config.getReferenceNameOrNormalizedFQN())
+      .setFqn(config.getFQN()).setLocation(location).build();
+    LineageRecorder lineageRecorder = new LineageRecorder(batchSourceContext, asset);
     lineageRecorder.createExternalDataset(configuredSchema);
 
     // set input format and pass configuration
-    batchSourceContext.setInput(Input.of(config.referenceName,
+    batchSourceContext.setInput(Input.of(config.getReferenceNameOrNormalizedFQN(),
                                          new SourceInputFormatProvider(SpannerInputFormat.class, configuration)));
     schema = batchSourceContext.getOutputSchema();
     if (schema != null) {
