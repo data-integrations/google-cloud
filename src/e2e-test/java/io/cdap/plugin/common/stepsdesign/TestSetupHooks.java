@@ -732,4 +732,120 @@ public class TestSetupHooks {
     CdfConnectionActions.selectConnectionAction(connectionType, connectionName, "Delete");
     CdfPluginPropertiesActions.clickPluginPropertyButton("Delete");
   }
+
+  @Before(order = 2, value = "@BQ_EXECUTE_SQL")
+  public static void replaceTableDetailsInQuery() {
+    replaceTableDetailsInQuery("bqExecuteQuery", "bqSourceTable");
+  }
+
+  @After(order = 2, value = "@BQ_EXECUTE_SQL")
+  public static void setQueryBackWithTableDetailsPlaceholder() {
+    setQueryBackWithTableDetailsPlaceholder("bqExecuteQuery");
+  }
+
+  @Before(order = 2, value = "@BQ_EXECUTE_INSERT_SQL")
+  public static void replaceTableDetailsInInsertQuery() {
+    replaceTableDetailsInQuery("bqExecuteDMLInsert", "bqSourceTable");
+  }
+
+  @After(order = 2, value = "@BQ_EXECUTE_INSERT_SQL")
+  public static void setInsertQueryBackWithTableDetailsPlaceholder() {
+    setQueryBackWithTableDetailsPlaceholder("bqExecuteDMLInsert");
+  }
+
+  /**
+   * Create BigQuery table with 3 columns (Id - Int, ProjectId - String, Dataset - string).
+   * Sample row:
+   * Id | ProjectId   | Dataset
+   * 1  | cdf-athena  | test-automation
+   */
+  @Before(order = 1, value = "@BQ_SOURCE_BQ_EXECUTE_TEST")
+  public static void createBQTableForBQExecuteTest() throws IOException, InterruptedException {
+    String bqSourceBQExecuteTable = "E2E_SOURCE_" + UUID.randomUUID().toString().replaceAll("-", "_");
+    BigQueryClient.getSoleQueryResult("create table `" + PluginPropertyUtils.pluginProp("dataset") + "."
+                                        + bqSourceBQExecuteTable + "` as " +
+                                        "SELECT * FROM UNNEST([ " +
+                                        " STRUCT(1 AS Id, '" + PluginPropertyUtils.pluginProp("projectId")
+                                        + "' as ProjectId, " +
+                                        "'" + PluginPropertyUtils.pluginProp("dataset") + "' as Dataset)" + "])");
+    PluginPropertyUtils.addPluginProp("bqSourceTable", bqSourceBQExecuteTable);
+    BeforeActions.scenario.write("BQ source Table " + bqSourceBQExecuteTable + " " +
+                                   "for @BQ_SOURCE_BQ_EXECUTE_TEST created successfully");
+  }
+
+  @After(order = 1, value = "@BQ_SOURCE_BQ_EXECUTE_TEST")
+  public static void deleteBQTableForBQExecuteTest() throws IOException, InterruptedException {
+    try {
+      String bqSourceTable = PluginPropertyUtils.pluginProp("bqSourceTable");
+      BigQueryClient.dropBqQuery(bqSourceTable);
+      PluginPropertyUtils.removePluginProp("bqSourceTable");
+      BeforeActions.scenario.write("BQ source Table " + bqSourceTable + " deleted successfully");
+    } catch (BigQueryException e) {
+      if (e.getMessage().contains("Not found: Table")) {
+        BeforeActions.scenario.write("BQ source Table " + bqTargetTable + " does not exist");
+      } else {
+        Assert.fail(e.getMessage());
+      }
+  }
+  }
+
+  @Before(order = 2, value = "@BQ_EXECUTE_ROW_AS_ARG_SQL")
+  public static void replaceTableDetailsInRowAsArgQuery() {
+    replaceTableDetailsInQuery("bqExecuteRowAsArgQuery", "bqSourceTable");
+  }
+
+  @After(order = 2, value = "@BQ_EXECUTE_ROW_AS_ARG_SQL")
+  public static void setRowAsArgQueryBackWithTableDetailsPlaceholder() {
+    setQueryBackWithTableDetailsPlaceholder("bqExecuteRowAsArgQuery");
+
+  }
+
+  @Before(order = 1, value = "@BQ_EXECUTE_DDL_CREATE_TEST")
+  public static void setTempCreateBQTableName() {
+    PluginPropertyUtils.addPluginProp("bqExecuteCreateTable"
+      , "E2E_TARGET_" + UUID.randomUUID().toString().replaceAll("-", "_"));
+    replaceTableDetailsInQuery("bqExecuteDDLCreate", "bqExecuteCreateTable");
+  }
+
+  @After(order = 1, value = "@BQ_EXECUTE_DDL_CREATE_TEST")
+  public static void deleteTempCreateBQTable() throws IOException, InterruptedException {
+    setQueryBackWithTableDetailsPlaceholder("bqExecuteDDLCreate");
+    String bqExecuteTable = PluginPropertyUtils.pluginProp("bqExecuteCreateTable");
+    try {
+      BigQueryClient.dropBqQuery(bqExecuteTable);
+      PluginPropertyUtils.removePluginProp("bqExecuteCreateTable");
+      BeforeActions.scenario.write("BQ Execute created Target table - " + bqExecuteTable + " deleted successfully");
+    } catch (BigQueryException e) {
+      if (e.getMessage().contains("Not found: Table")) {
+        BeforeActions.scenario.write("BQ Execute created Target table " + bqExecuteTable + " does not exist");
+      } else {
+        Assert.fail(e.getMessage());
+      }
+    }
+  }
+
+  @Before(order = 2, value = "@BQ_EXECUTE_DDL_DROP_TEST")
+  public static void replaceTableDetailsInDDLDropQuery() {
+    replaceTableDetailsInQuery("bqExecuteDDLDrop", "bqSourceTable");
+  }
+
+  @After(order = 2, value = "@BQ_EXECUTE_DDL_DROP_TEST")
+  public static void setDDLDropQueryBackWithTableDetailsPlaceholder() {
+    setQueryBackWithTableDetailsPlaceholder("bqExecuteDDLDrop");
+  }
+
+  private static void replaceTableDetailsInQuery(String queryProperty, String tableProperty) {
+    String bqExecuteQuery = PluginPropertyUtils.pluginProp(queryProperty);
+    PluginPropertyUtils.addPluginProp("tempStore" + queryProperty, bqExecuteQuery);
+    bqExecuteQuery = bqExecuteQuery
+      .replace("DATASET", PluginPropertyUtils.pluginProp("dataset"))
+      .replace("PROJECT_NAME", PluginPropertyUtils.pluginProp("projectId"))
+      .replace("TABLENAME", PluginPropertyUtils.pluginProp(tableProperty));
+    PluginPropertyUtils.addPluginProp(queryProperty, bqExecuteQuery);
+  }
+
+  private static void setQueryBackWithTableDetailsPlaceholder(String queryProperty) {
+    PluginPropertyUtils.addPluginProp(queryProperty, PluginPropertyUtils.pluginProp("tempStore" + queryProperty));
+    PluginPropertyUtils.removePluginProp("tempStore" + queryProperty);
+  }
 }
