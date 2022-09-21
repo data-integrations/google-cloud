@@ -759,4 +759,17 @@ public final class BigQueryUtil {
     }
     return timePartitionCondition.toString();
   }
+
+  /**
+   * Get fully-qualified name (FQN) for a BQ table (FQN format: bigquery:{projectId}.{datasetId}.{tableId}).
+   *
+   * @param datasetProject Name of the BQ project
+   * @param datasetName    Name of the BQ dataset
+   * @param tableName      Name of the BQ table
+   * @return String fqn
+   */
+  public static String getFQN(String datasetProject, String datasetName, String tableName) {
+    return String.join(":", BigQueryConstants.BQ_FQN_PREFIX,
+                       datasetProject, datasetName, tableName);
+  }
 }

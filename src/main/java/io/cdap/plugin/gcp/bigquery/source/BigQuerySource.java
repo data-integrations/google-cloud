@@ -50,7 +50,9 @@ import io.cdap.cdap.etl.api.batch.BatchSourceContext;
 import io.cdap.cdap.etl.api.connector.Connector;
 import io.cdap.cdap.etl.api.engine.sql.SQLEngineInput;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
+import io.cdap.plugin.common.Asset;
 import io.cdap.plugin.common.LineageRecorder;
+import io.cdap.plugin.common.ReferenceNames;
 import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnector;
 import io.cdap.plugin.gcp.bigquery.sqlengine.BigQueryReadDataset;
 import io.cdap.plugin.gcp.bigquery.sqlengine.BigQuerySQLEngine;
@@ -172,7 +174,11 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     // Both emitLineage and setOutputFormat internally try to create an external dataset if it does not already exists.
     // We call emitLineage before since it creates the dataset with schema.
     Type sourceTableType = config.getSourceTableType();
-    emitLineage(context, configuredSchema, sourceTableType, config.getTable());
+    Asset asset = Asset.builder(config.getReferenceName())
+      .setFqn(BigQueryUtil.getFQN(config.getDatasetProject(), config.getDataset(), config.getTable()))
+      .setLocation(dataset.getLocation())
+      .build();
+    emitLineage(context, configuredSchema, sourceTableType, config.getTable(), asset);
     setInputFormat(context, configuredSchema);
   }
 
@@ -346,7 +352,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
   private void setInputFormat(BatchSourceContext context,
                               Schema configuredSchema) {
     // Set input for Spark
-    context.setInput(Input.of(config.referenceName, new BigQueryInputFormatProvider(configuration)));
+    context.setInput(Input.of(config.getReferenceName(), new BigQueryInputFormatProvider(configuration)));
 
     // Add output for SQL Engine Direct read
     ImmutableMap.Builder<String, String> arguments = new ImmutableMap.Builder<>();
@@ -371,8 +377,8 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
   }
 
   private void emitLineage(BatchSourceContext context, Schema schema, Type sourceTableType,
-                           String table) {
-    LineageRecorder lineageRecorder = new LineageRecorder(context, config.referenceName);
+                           String table, Asset asset) {
+    LineageRecorder lineageRecorder = new LineageRecorder(context, asset);
     lineageRecorder.createExternalDataset(schema);
 
     String type = "table";

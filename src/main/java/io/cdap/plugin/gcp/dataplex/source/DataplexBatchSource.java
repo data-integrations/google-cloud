@@ -48,7 +48,9 @@ import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
 import io.cdap.cdap.etl.api.validation.ValidatingInputFormat;
+import io.cdap.plugin.common.Asset;
 import io.cdap.plugin.common.LineageRecorder;
+import io.cdap.plugin.common.ReferenceNames;
 import io.cdap.plugin.common.batch.JobUtils;
 import io.cdap.plugin.gcp.bigquery.source.BigQueryAvroToStructuredTransformer;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceUtils;
@@ -236,7 +238,7 @@ public class DataplexBatchSource extends BatchSource<Object, Object, StructuredR
       temporaryGcsPath);
     configuration.set(DataplexConstants.DATAPLEX_ENTITY_TYPE, entity.getSystem().toString());
     TableDefinition.Type sourceTableType = config.getSourceTableType(datasetProject, dataset, tableId);
-    emitLineage(context, outputSchema, sourceTableType, tableId);
+    emitLineage(context, outputSchema, sourceTableType);
     context.setInput(
       Input.of(config.getReferenceName(), new DataplexInputFormatProvider(configuration)));
   }
@@ -257,9 +259,14 @@ public class DataplexBatchSource extends BatchSource<Object, Object, StructuredR
   }
 
 
-  private void emitLineage(BatchSourceContext context, Schema schema, TableDefinition.Type sourceTableType,
-                           String table) {
-    LineageRecorder lineageRecorder = new LineageRecorder(context, config.getReferenceName());
+  private void emitLineage(BatchSourceContext context, Schema schema, TableDefinition.Type sourceTableType) {
+    getEntityValuesFromDataPathForBQEntities(entity.getDataPath());
+    String fqn = BigQueryUtil.getFQN(datasetProject, dataset, tableId);
+    String referenceName = Strings.isNullOrEmpty(config.getReferenceName())
+      ? ReferenceNames.normalizeFqn(fqn)
+      : config.getReferenceName();
+    Asset asset = Asset.builder(referenceName).setFqn(fqn).setLocation(config.getLocation()).build();
+    LineageRecorder lineageRecorder = new LineageRecorder(context, asset);
     lineageRecorder.createExternalDataset(schema);
 
     String type = "table";
@@ -273,7 +280,7 @@ public class DataplexBatchSource extends BatchSource<Object, Object, StructuredR
       this.recordLineage(lineageRecorder,
         schema.getFields().stream().map(Schema.Field::getName).collect(Collectors.toList()),
         String.format("Read from BigQuery Entity %s '%s' from Dataplex.",
-          type, table));
+          type, tableId));
     }
   }
 

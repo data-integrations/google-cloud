@@ -35,6 +35,7 @@ import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.common.ConfigUtil;
 import io.cdap.plugin.common.Constants;
 import io.cdap.plugin.common.IdUtils;
+import io.cdap.plugin.common.ReferenceNames;
 import io.cdap.plugin.gcp.bigquery.common.BigQueryBaseConfig;
 import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnectorConfig;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
@@ -71,9 +72,9 @@ public final class BigQuerySourceConfig extends BigQueryBaseConfig {
   public static final String NAME_VIEW_MATERIALIZATION_DATASET = "viewMaterializationDataset";
 
   @Name(Constants.Reference.REFERENCE_NAME)
+  @Nullable
   @Description("This will be used to uniquely identify this source for lineage, annotating metadata, etc.")
   public String referenceName;
-
 
   @Name(NAME_TABLE)
   @Macro
@@ -146,7 +147,10 @@ public final class BigQuerySourceConfig extends BigQueryBaseConfig {
   }
 
   public void validate(FailureCollector collector, Map<String, String> arguments) {
-    IdUtils.validateReferenceName(referenceName, collector);
+    if (!Strings.isNullOrEmpty(referenceName)) {
+      IdUtils.validateReferenceName(referenceName, collector);
+    }
+
     ConfigUtil.validateConnection(this, useConnection, connection, collector);
     String bucket = getBucket();
 
@@ -298,6 +302,12 @@ public final class BigQuerySourceConfig extends BigQueryBaseConfig {
       return getDataset();
     }
     return viewMaterializationDataset;
+  }
+
+  public String getReferenceName() {
+    return Strings.isNullOrEmpty(referenceName)
+      ? ReferenceNames.normalizeFqn(BigQueryUtil.getFQN(getDatasetProject(), dataset, table))
+      : referenceName;
   }
 
   /**

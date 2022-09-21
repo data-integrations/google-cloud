@@ -171,10 +171,9 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   protected String partitionFilter;
 
   @VisibleForTesting
-  public BigQuerySinkConfig(String referenceName, String dataset, String table,
-                            @Nullable String bucket, @Nullable String schema, @Nullable String partitioningType,
-                            @Nullable Long rangeStart, @Nullable Long rangeEnd, @Nullable Long rangeInterval,
-                            @Nullable String gcsChunkSize) {
+  public BigQuerySinkConfig(@Nullable String referenceName, String dataset, String table, @Nullable String bucket,
+                            @Nullable String schema, @Nullable String partitioningType, @Nullable Long rangeStart,
+                            @Nullable Long rangeEnd, @Nullable Long rangeInterval, @Nullable String gcsChunkSize) {
     super(null, dataset, null, bucket);
     this.referenceName = referenceName;
     this.table = table;
@@ -187,9 +186,10 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   }
 
   private BigQuerySinkConfig(@Nullable String referenceName, @Nullable String project,
-                            @Nullable String serviceAccountType, @Nullable String serviceFilePath,
-                            @Nullable String serviceAccountJson, @Nullable String dataset, @Nullable String table,
-                            @Nullable String location, @Nullable String cmekKey, @Nullable String bucket) {
+                             @Nullable String serviceAccountType, @Nullable String serviceFilePath,
+                             @Nullable String serviceAccountJson,
+                             @Nullable String dataset, @Nullable String table, @Nullable String location,
+                             @Nullable String cmekKey, @Nullable String bucket) {
     super(new BigQueryConnectorConfig(project, project, serviceAccountType,
             serviceFilePath, serviceAccountJson), dataset, cmekKey, bucket);
     this.referenceName = referenceName;

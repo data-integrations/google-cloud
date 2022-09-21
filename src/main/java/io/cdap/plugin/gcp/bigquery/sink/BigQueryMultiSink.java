@@ -18,6 +18,7 @@ package io.cdap.plugin.gcp.bigquery.sink;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.Table;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Metadata;
 import io.cdap.cdap.api.annotation.MetadataProperty;
@@ -32,6 +33,7 @@ import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.connector.Connector;
+import io.cdap.plugin.common.ReferenceNames;
 import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnector;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
@@ -131,10 +133,11 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
             config.isTruncateTableSet(), config.getDataset(), collector);
 
         }
-
         String outputName = String.format("%s-%s", config.getReferenceName(), tableName);
         outputName = sanitizeOutputName(outputName);
-        initOutput(context, bigQuery, outputName, tableName, tableSchema, bucket, context.getFailureCollector());
+        initOutput(context, bigQuery, outputName,
+                   BigQueryUtil.getFQN(config.getDatasetProject(), config.getDataset(), tableName),
+                   tableName, tableSchema, bucket, context.getFailureCollector());
       } catch (IOException e) {
         collector.addFailure("Invalid schema: " + e.getMessage(), null);
       }
@@ -147,9 +150,10 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
     String splitField = config.getSplitField();
     String projectName = config.getDatasetProject();
     String datasetName = config.getDataset();
-    context.addOutput(Output.of(config.getReferenceName(),
-                                new DelegatingMultiSinkOutputFormatProvider(conf, splitField, bucket,
-                                                                            projectName, datasetName)));
+    context.addOutput(Output.of(
+      config.getReferenceName(),
+      new DelegatingMultiSinkOutputFormatProvider(conf, splitField, bucket, projectName, datasetName))
+    );
   }
 
   /**
