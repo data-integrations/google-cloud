@@ -9,7 +9,6 @@ Feature: BigQuery source - Validate BigQuery source plugin error scenarios
     Then Validate mandatory property error for "<property>"
     Examples:
       | property      |
-      | referenceName |
       | dataset       |
       | table         |
 
