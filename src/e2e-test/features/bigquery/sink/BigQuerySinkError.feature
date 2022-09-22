@@ -9,7 +9,6 @@ Feature: BigQuery sink - Validate BigQuery sink plugin error scenarios
     Then Validate mandatory property error for "<property>"
     Examples:
       | property      |
-      | referenceName |
       | dataset       |
       | table         |
 
