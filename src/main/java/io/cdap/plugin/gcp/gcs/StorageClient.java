@@ -29,6 +29,7 @@ import com.google.cloud.storage.StorageOptions;
 import com.google.common.annotations.VisibleForTesting;
 import io.cdap.plugin.gcp.common.GCPConnectorConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
+import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -156,6 +157,68 @@ public class StorageClient {
    */
   public void move(GCSPath sourcePath, GCSPath destPath, boolean recursive, boolean overwrite) {
     pairTraverse(sourcePath, destPath, recursive, overwrite, BlobPair::move);
+  }
+
+  /**
+   * Get all the matching wildcard paths given the regex input.
+   *
+   * @param sourcePath the path that contains wildcard symbols
+   * @param recursive whether to move objects in all subdirectories
+   * @return list of all regex matching GCSPath
+   * @throws IllegalArgumentException if sourcePath does not contain wildcard symbols
+   */
+  public ArrayList<GCSPath> getAllMatchingWildcardPaths(GCSPath sourcePath, boolean recursive) {
+    ArrayList<GCSPath> matchedPaths = new ArrayList<GCSPath>();
+    String pattern = sourcePath.getName();
+    String bucket = sourcePath.getBucket();
+    // Count how many slashes we see to avoid duplicated copies
+    // matters when recursive true
+    // example: test_*/* will match test_1/ and test_1/sub_1/ and test_1/sub_1/sub_2/
+    long patternNumSlashes = countSlashes(pattern);
+    String prefix;
+    try {
+      prefix = pattern.substring(0, pattern.indexOf("*"));
+    } catch (Exception e) {
+      throw new IllegalArgumentException("No wildcard symbol '*' present, please check source path or "
+        + "disable use wildcard", e);
+    }
+    Page<Blob> blobPage = storage.list(sourcePath.getBucket(), Storage.BlobListOption.prefix(prefix));
+    Iterator<Blob> iterator = blobPage.getValues().iterator();
+    while (iterator.hasNext()) {
+      Blob blob = iterator.next();
+      String path = blob.getName();
+      GCSPath matchedPath = getMatchingWildcardPath(path, pattern, patternNumSlashes, recursive, bucket);
+      if (matchedPath != null) {
+        matchedPaths.add(matchedPath);
+      }
+    }
+    return matchedPaths;
+  }
+
+  /**
+   *
+   * @param path
+   * @param pattern
+   * @param patternNumSlashes
+   * @return GCSPath object
+   */
+  static GCSPath getMatchingWildcardPath(String path, String pattern, long patternNumSlashes
+                                          , boolean recursive, String bucket) {
+    long pathNumSlashes = countSlashes(path);
+    if (pathNumSlashes - patternNumSlashes > 1) {
+      return null;
+    }
+    if (FilenameUtils.wildcardMatch(path, pattern)) {
+      if (pathNumSlashes - patternNumSlashes == 1 && path.endsWith("/") && recursive) {
+        // test_*/* ---- test_1/sub_1/
+        String modifiedPath = path.substring(0, path.length() - 1);
+        return GCSPath.from(bucket + "/" + modifiedPath);
+      } else if (pathNumSlashes == patternNumSlashes && pattern.endsWith("/") == path.endsWith("/")) {
+        // test_*/* ---- test_1/file.json || test_*/ ---- test_1/
+        return GCSPath.from(bucket + "/" + path);
+      }
+    }
+    return null;
   }
 
   /**
@@ -327,6 +390,10 @@ public class StorageClient {
 
   public static StorageClient create(GCPConnectorConfig config) throws IOException {
     return create(config.getProject(), config.getServiceAccount(), config.isServiceAccountFilePath());
+  }
+
+  public static long countSlashes(String string) {
+    return string.chars().filter(ch -> ch == '/').count();
   }
 
   /**
