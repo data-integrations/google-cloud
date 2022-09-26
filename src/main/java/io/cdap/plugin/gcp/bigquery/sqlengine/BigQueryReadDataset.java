@@ -278,8 +278,9 @@ public class BigQueryReadDataset implements SQLDataset, BigQuerySQLDataset {
                                               String partitionFromDate,
                                               String partitionToDate) {
 
-    BigQuerySQLEngineUtils.createEmptyTable(sqlEngineConfig, bigQuery, destinationTableId.getProject(),
-                                            destinationTableId.getDataset(), destinationTableId.getTable());
+    BigQuerySQLEngineUtils.createEmptyTableWithSourceConfig(sqlEngineConfig, bigQuery, destinationTableId.getProject(),
+                                            destinationTableId.getDataset(), destinationTableId.getTable(),
+                                            sourceTable);
 
     String query = String.format("SELECT %s FROM `%s.%s.%s`",
                                  String.join(",", fields),

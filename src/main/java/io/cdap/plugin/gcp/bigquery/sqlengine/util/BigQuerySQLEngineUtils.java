@@ -159,6 +159,54 @@ public class BigQuerySQLEngineUtils {
   }
 
   /**
+   * Creates an empty table with schema, partitioning, clustering same as sourceTable.
+   * <p>
+   * If the Engine Configuration specifies a TTL for tables, the table is created with the specified TTL.
+   *
+   * @param config   BigQuery SQL Engine Config instance
+   * @param bigQuery BigQuery client
+   * @param project  Project Name
+   * @param dataset  Dataset Name
+   * @param table    Table Name
+   * @param sourceTable The source table from which we want to copy records
+   */
+  public static void createEmptyTableWithSourceConfig(BigQuerySQLEngineConfig config,
+                                      BigQuery bigQuery,
+                                      String project,
+                                      String dataset,
+                                      String table,
+                                      Table sourceTable) {
+
+    LOG.debug("Creating empty table {} in dataset {} and project {} with configurations similar to {}",
+              table, dataset, project, sourceTable.getTableId());
+
+    StandardTableDefinition tableDefinitionSource = sourceTable.getDefinition();
+
+    // Define table name and create builder.
+    TableId tableId = TableId.of(project, dataset, table);
+    TableDefinition tableDefinition =
+      StandardTableDefinition.newBuilder()
+        .setSchema(tableDefinitionSource.getSchema())
+        .setTimePartitioning(tableDefinitionSource.getTimePartitioning())
+        .setClustering(tableDefinitionSource.getClustering())
+        .build();
+
+    TableInfo.Builder tableInfoBuilder = TableInfo.newBuilder(tableId, tableDefinition);
+
+    // Set TTL for table if needed.
+    if (!config.shouldRetainTables() && config.getTempTableTTLHours() > 0) {
+      long ttlMillis = TimeUnit.MILLISECONDS.convert(config.getTempTableTTLHours(), TimeUnit.HOURS);
+      long expirationTime = Instant.now().toEpochMilli() + ttlMillis;
+      tableInfoBuilder.setExpirationTime(expirationTime);
+    }
+
+    bigQuery.create(tableInfoBuilder.build());
+
+    LOG.debug("Created empty table {} in dataset {} and project {} with configurations similar to {}",
+              table, dataset, project, sourceTable.getTableId());
+  }
+
+  /**
    * Validate input stage schema. Any errors will be added to the supplied list of validation issues.
    *
    * @param inputStage         Input Stage
