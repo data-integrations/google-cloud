@@ -62,10 +62,12 @@ import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 
@@ -204,6 +206,13 @@ public class BigQueryReadDataset implements SQLDataset, BigQuerySQLDataset {
       throw new IllegalArgumentException("Unable to get details about the BigQuery table: " + e.getMessage(), e);
     }
 
+    Long tableTTL = -1L;
+    // Calculate TTL for table if needed.
+    if (!sqlEngineConfig.shouldRetainTables() && sqlEngineConfig.getTempTableTTLHours() > 0) {
+      long ttlMillis = TimeUnit.MILLISECONDS.convert(sqlEngineConfig.getTempTableTTLHours(), TimeUnit.HOURS);
+      tableTTL = Instant.now().toEpochMilli() + ttlMillis;
+    }
+
     // no Filter + no view + no material + no external
     StandardTableDefinition tableDefinition = Objects.requireNonNull(sourceTable).getDefinition();
     Type type = tableDefinition.getType();
@@ -214,17 +223,18 @@ public class BigQueryReadDataset implements SQLDataset, BigQuerySQLDataset {
       SQLReadResult snapshotResult = executeBigQueryJob(jobConfiguration, sourceTable, sourceTableId,
                                                         BigQueryJobType.COPY_SNAPSHOT);
       if (snapshotResult.isSuccessful()) {
+        BigQuerySQLEngineUtils.updateTableExpiration(bigQuery, destinationTableId, tableTTL);
         return snapshotResult;
       }
-      LOG.warn("Big Query Snapshot process (copy job) failed. Going to fallback to basic Query Job which might" +
-                 "take longer to execute");
+      LOG.warn("Big Query Snapshot process used for direct BigQuery read failed. Using fallback table copy strategy.");
     }
 
     JobConfiguration queryConfig = getBQQueryJobConfiguration(sourceTable, sourceTableId,
                                                               fields,
                                                               sourceConfig.getFilter(),
                                                               sourceConfig.getPartitionFrom(),
-                                                              sourceConfig.getPartitionTo());
+                                                              sourceConfig.getPartitionTo(),
+                                                              tableTTL);
 
     return executeBigQueryJob(queryConfig, sourceTable, sourceTableId, BigQueryJobType.QUERY);
   }
@@ -276,11 +286,12 @@ public class BigQueryReadDataset implements SQLDataset, BigQuerySQLDataset {
                                               List<String> fields,
                                               String filter,
                                               String partitionFromDate,
-                                              String partitionToDate) {
+                                              String partitionToDate,
+                                              Long tableTTL) {
 
-    BigQuerySQLEngineUtils.createEmptyTableWithSourceConfig(sqlEngineConfig, bigQuery, destinationTableId.getProject(),
+    BigQuerySQLEngineUtils.createEmptyTableWithSourceConfig(bigQuery, destinationTableId.getProject(),
                                             destinationTableId.getDataset(), destinationTableId.getTable(),
-                                            sourceTable);
+                                            sourceTable, tableTTL);
 
     String query = String.format("SELECT %s FROM `%s.%s.%s`",
                                  String.join(",", fields),

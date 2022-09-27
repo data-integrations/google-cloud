@@ -163,19 +163,19 @@ public class BigQuerySQLEngineUtils {
    * <p>
    * If the Engine Configuration specifies a TTL for tables, the table is created with the specified TTL.
    *
-   * @param config   BigQuery SQL Engine Config instance
    * @param bigQuery BigQuery client
    * @param project  Project Name
    * @param dataset  Dataset Name
    * @param table    Table Name
    * @param sourceTable The source table from which we want to copy records
+   * @param tableTTL    Time to live for the destination table in millis
    */
-  public static void createEmptyTableWithSourceConfig(BigQuerySQLEngineConfig config,
-                                      BigQuery bigQuery,
-                                      String project,
-                                      String dataset,
-                                      String table,
-                                      Table sourceTable) {
+  public static void createEmptyTableWithSourceConfig(BigQuery bigQuery,
+                                                      String project,
+                                                      String dataset,
+                                                      String table,
+                                                      Table sourceTable,
+                                                      Long tableTTL) {
 
     LOG.debug("Creating empty table {} in dataset {} and project {} with configurations similar to {}",
               table, dataset, project, sourceTable.getTableId());
@@ -194,16 +194,30 @@ public class BigQuerySQLEngineUtils {
     TableInfo.Builder tableInfoBuilder = TableInfo.newBuilder(tableId, tableDefinition);
 
     // Set TTL for table if needed.
-    if (!config.shouldRetainTables() && config.getTempTableTTLHours() > 0) {
-      long ttlMillis = TimeUnit.MILLISECONDS.convert(config.getTempTableTTLHours(), TimeUnit.HOURS);
-      long expirationTime = Instant.now().toEpochMilli() + ttlMillis;
-      tableInfoBuilder.setExpirationTime(expirationTime);
+    if (tableTTL > 0) {
+      tableInfoBuilder.setExpirationTime(tableTTL);
     }
 
     bigQuery.create(tableInfoBuilder.build());
 
     LOG.debug("Created empty table {} in dataset {} and project {} with configurations similar to {}",
               table, dataset, project, sourceTable.getTableId());
+  }
+
+  /**
+   *
+   * @param bigQuery the bq client
+   * @param tableId  The tableId of the table whose expiration is to be updated
+   * @param tableTTL Time to live for the above tableId in millis
+   */
+  public static void updateTableExpiration(BigQuery bigQuery, TableId tableId, @Nullable Long tableTTL) {
+    if (tableTTL == null || tableTTL <= 0) {
+      return;
+    }
+
+    Table table = bigQuery.getTable(tableId);
+    bigQuery.update(table.toBuilder().setExpirationTime(tableTTL).build());
+    LOG.debug("Updated {}'s Expiration time to {}", tableId, tableTTL);
   }
 
   /**
