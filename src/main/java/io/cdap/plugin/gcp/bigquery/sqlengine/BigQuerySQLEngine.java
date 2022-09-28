@@ -92,6 +92,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+
 /**
  * SQL Engine implementation using BigQuery as the execution engine.
  */
@@ -363,6 +364,7 @@ public class BigQuerySQLEngine
     String destinationTable = BigQuerySQLEngineUtils.getNewTableName(runId);
 
     // Create empty table to store query results.
+    BigQuerySQLEngineUtils.createEmptyTable(sqlEngineConfig, bigQuery, project, dataset, destinationTable);
     TableId destinationTableId = TableId.of(datasetProject, dataset, destinationTable);
 
     // Build Big Query Write instance and execute write operation.

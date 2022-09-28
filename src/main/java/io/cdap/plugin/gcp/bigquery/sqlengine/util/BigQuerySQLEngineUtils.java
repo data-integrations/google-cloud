@@ -159,68 +159,6 @@ public class BigQuerySQLEngineUtils {
   }
 
   /**
-   * Creates an empty table with schema, partitioning, clustering same as sourceTable.
-   * <p>
-   * If the Engine Configuration specifies a TTL for tables, the table is created with the specified TTL.
-   *
-   * @param bigQuery BigQuery client
-   * @param project  Project Name
-   * @param dataset  Dataset Name
-   * @param table    Table Name
-   * @param sourceTable The source table from which we want to copy records
-   * @param tableTTL    Time to live for the destination table in millis
-   */
-  public static void createEmptyTableWithSourceConfig(BigQuery bigQuery,
-                                                      String project,
-                                                      String dataset,
-                                                      String table,
-                                                      Table sourceTable,
-                                                      Long tableTTL) {
-
-    LOG.debug("Creating empty table {} in dataset {} and project {} with configurations similar to {}",
-              table, dataset, project, sourceTable.getTableId());
-
-    StandardTableDefinition tableDefinitionSource = sourceTable.getDefinition();
-
-    // Define table name and create builder.
-    TableId tableId = TableId.of(project, dataset, table);
-    TableDefinition tableDefinition =
-      StandardTableDefinition.newBuilder()
-        .setSchema(tableDefinitionSource.getSchema())
-        .setTimePartitioning(tableDefinitionSource.getTimePartitioning())
-        .setClustering(tableDefinitionSource.getClustering())
-        .build();
-
-    TableInfo.Builder tableInfoBuilder = TableInfo.newBuilder(tableId, tableDefinition);
-
-    // Set TTL for table if needed.
-    if (tableTTL > 0) {
-      tableInfoBuilder.setExpirationTime(tableTTL);
-    }
-
-    bigQuery.create(tableInfoBuilder.build());
-
-    LOG.debug("Created empty table {} in dataset {} and project {} with configurations similar to {}",
-              table, dataset, project, sourceTable.getTableId());
-  }
-
-  /**
-   *
-   * @param bigQuery the bq client
-   * @param tableId  The tableId of the table whose expiration is to be updated
-   * @param tableTTL Time to live for the above tableId in millis
-   */
-  public static void updateTableExpiration(BigQuery bigQuery, TableId tableId, @Nullable Long tableTTL) {
-    if (tableTTL == null || tableTTL <= 0) {
-      return;
-    }
-
-    Table table = bigQuery.getTable(tableId);
-    bigQuery.update(table.toBuilder().setExpirationTime(tableTTL).build());
-    LOG.debug("Updated {}'s Expiration time to {}", tableId, tableTTL);
-  }
-
-  /**
    * Validate input stage schema. Any errors will be added to the supplied list of validation issues.
    *
    * @param inputStage         Input Stage
