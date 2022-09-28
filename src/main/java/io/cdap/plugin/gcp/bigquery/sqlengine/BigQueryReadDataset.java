@@ -34,9 +34,11 @@ package io.cdap.plugin.gcp.bigquery.sqlengine;
 
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
+import com.google.cloud.bigquery.CopyJobConfiguration;
 import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.Job;
+import com.google.cloud.bigquery.JobConfiguration;
 import com.google.cloud.bigquery.JobId;
 import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.bigquery.JobStatistics;
@@ -45,7 +47,6 @@ import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableDefinition.Type;
 import com.google.cloud.bigquery.TableId;
-import com.google.cloud.bigquery.TableResult;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
@@ -61,10 +62,12 @@ import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 
@@ -73,12 +76,15 @@ import javax.annotation.Nullable;
  */
 public class BigQueryReadDataset implements SQLDataset, BigQuerySQLDataset {
 
+  private enum BigQueryJobType { QUERY, COPY, COPY_SNAPSHOT };
+
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryReadDataset.class);
   private static final Gson GSON = new Gson();
 
   public static final String SQL_INPUT_CONFIG = "config";
   public static final String SQL_INPUT_FIELDS = "fields";
   public static final String SQL_INPUT_SCHEMA = "schema";
+  public static final String BQ_COPY_SNAPSHOT_OP_TYPE = "SNAPSHOT";
   private static final java.lang.reflect.Type LIST_OF_STRINGS_TYPE = new TypeToken<ArrayList<String>>() {
   }.getType();
 
@@ -193,13 +199,6 @@ public class BigQueryReadDataset implements SQLDataset, BigQuerySQLDataset {
       return SQLReadResult.unsupported(datasetName);
     }
 
-    // Get source table instance
-    Table srcTable = bigQuery.getTable(sourceTableId);
-
-    // Get source table instance
-    Table destTable = bigQuery.getTable(sourceTableId);
-
-    //Get Source Table Object : will be used for metadata like TABLE.TYPE and Time Partitioning
     Table sourceTable;
     try {
       sourceTable = bigQuery.getTable(sourceTableId);
@@ -207,48 +206,137 @@ public class BigQueryReadDataset implements SQLDataset, BigQuerySQLDataset {
       throw new IllegalArgumentException("Unable to get details about the BigQuery table: " + e.getMessage(), e);
     }
 
-    // Get query job configuration based on wether the job is an insert or update/upsert
-    QueryJobConfiguration.Builder queryConfigBuilder = getQueryBuilder(sourceTable, sourceTableId,
-                                                                       destinationTableId,
-                                                                       fields,
-                                                                       sourceConfig.getFilter(),
-                                                                       sourceConfig.getPartitionFrom(),
-                                                                       sourceConfig.getPartitionTo());
+    Long tableTTL = -1L;
+    // Calculate TTL for table if needed.
+    if (!sqlEngineConfig.shouldRetainTables() && sqlEngineConfig.getTempTableTTLHours() > 0) {
+      long ttlMillis = TimeUnit.MILLISECONDS.convert(sqlEngineConfig.getTempTableTTLHours(), TimeUnit.HOURS);
+      tableTTL = Instant.now().toEpochMilli() + ttlMillis;
+    }
 
-    QueryJobConfiguration queryConfig = queryConfigBuilder.build();
+    // no Filter + no view + no material + no external
+    StandardTableDefinition tableDefinition = Objects.requireNonNull(sourceTable).getDefinition();
+    Type type = tableDefinition.getType();
+    if (!(type == Type.VIEW || type == Type.MATERIALIZED_VIEW || type == Type.EXTERNAL)
+        && sourceConfig.getFilter() == null) {
+      // TRY SNAPSHOT
+      JobConfiguration jobConfiguration = getBQSnapshotJobConf(sourceTableId, destinationTableId);
+      SQLReadResult snapshotResult = executeBigQueryJob(jobConfiguration, sourceTable, sourceTableId,
+                                                        BigQueryJobType.COPY_SNAPSHOT);
+      if (snapshotResult.isSuccessful()) {
+        BigQuerySQLEngineUtils.updateTableExpiration(bigQuery, destinationTableId, tableTTL);
+        return snapshotResult;
+      }
+      LOG.warn("Big Query Snapshot process used for direct BigQuery read failed. Using fallback table copy strategy.");
+    }
+
+    JobConfiguration queryConfig = getBQQueryJobConfiguration(sourceTable, sourceTableId,
+                                                              fields,
+                                                              sourceConfig.getFilter(),
+                                                              sourceConfig.getPartitionFrom(),
+                                                              sourceConfig.getPartitionTo(),
+                                                              tableTTL);
+
+    return executeBigQueryJob(queryConfig, sourceTable, sourceTableId, BigQueryJobType.QUERY);
+  }
+
+  private SQLReadResult executeBigQueryJob(JobConfiguration jobConfiguration,
+                                           Table sourceTable,
+                                           TableId sourceTableId,
+                                           BigQueryJobType bigQueryJobType)
+    throws InterruptedException {
     // Create a job ID so that we can safely retry.
     JobId bqJobId = JobId.newBuilder()
       .setJob(jobId)
       .setLocation(sqlEngineConfig.getLocation())
       .setProject(sqlEngineConfig.getProject())
       .build();
-    Job queryJob = bigQuery.create(JobInfo.newBuilder(queryConfig).setJobId(bqJobId).build());
-    TableResult result = null;
+
+    Job bqJob = bigQuery.create(JobInfo.newBuilder(jobConfiguration).setJobId(bqJobId).build());
 
     // Wait for the query to complete.
-    queryJob = queryJob.waitFor();
-    JobStatistics.QueryStatistics queryJobStats = queryJob.getStatistics();
+    bqJob = bqJob.waitFor();
 
     // Check for errors
-    if (queryJob.getStatus().getError() != null) {
-      BigQuerySQLEngineUtils.logJobMetrics(queryJob, metrics);
-      LOG.error("Error executing BigQuery Job: '{}' in Project '{}', Dataset '{}': {}",
-                jobId, sqlEngineConfig.getProject(), sqlEngineConfig.getDatasetProject(),
-                queryJob.getStatus().getError().toString());
+    if (bqJob.getStatus().getError() != null) {
+      BigQuerySQLEngineUtils.logJobMetrics(bqJob, metrics);
+      LOG.error("Error executing BigQuery Job of type {} : '{}' in Project '{}', Dataset '{}': {}",
+               bigQueryJobType, jobId, sqlEngineConfig.getProject(), sqlEngineConfig.getDatasetProject(),
+               bqJob.getStatus().getError().toString());
       return SQLReadResult.failure(datasetName);
     }
 
     // Number of rows is taken from the job statistics if available.
-    // If not, we use the number of source table records.
-    long numRows = queryJobStats != null && queryJobStats.getNumDmlAffectedRows() != null ?
-      queryJobStats.getNumDmlAffectedRows() : srcTable.getNumRows().longValue();
+    // If not, we use the number of source table records. (This is also the case for snapshot copy)
+    long numRows = sourceTable.getNumRows().longValue();
+    if (bigQueryJobType.equals(BigQueryJobType.QUERY)) {
+      JobStatistics.QueryStatistics queryJobStats = bqJob.getStatistics();
+      numRows = queryJobStats != null && queryJobStats.getNumDmlAffectedRows() != null ?
+        queryJobStats.getNumDmlAffectedRows() : numRows;
+    }
+
     LOG.info("Executed read operation for {} records from {}.{}.{} into {}.{}.{}", numRows,
              sourceTableId.getProject(), sourceTableId.getDataset(), sourceTableId.getTable(),
-             sourceTableId.getProject(), sourceTableId.getDataset(), sourceTableId.getTable());
-    BigQuerySQLEngineUtils.logJobMetrics(queryJob, metrics);
+             destinationTableId.getProject(), destinationTableId.getDataset(), destinationTableId.getTable());
+    BigQuerySQLEngineUtils.logJobMetrics(bqJob, metrics);
 
     return SQLReadResult.success(datasetName, this);
   }
+
+  JobConfiguration getBQQueryJobConfiguration(Table sourceTable, TableId sourceTableId,
+                                              List<String> fields,
+                                              String filter,
+                                              String partitionFromDate,
+                                              String partitionToDate,
+                                              Long tableTTL) {
+
+    BigQuerySQLEngineUtils.createEmptyTableWithSourceConfig(bigQuery, destinationTableId.getProject(),
+                                            destinationTableId.getDataset(), destinationTableId.getTable(),
+                                            sourceTable, tableTTL);
+
+    String query = String.format("SELECT %s FROM `%s.%s.%s`",
+                                 String.join(",", fields),
+                                 sourceTableId.getProject(),
+                                 sourceTableId.getDataset(),
+                                 sourceTableId.getTable());
+
+    StringBuilder condition = new StringBuilder();
+
+    //Depending on the Type of Table --> add partitioning
+    StandardTableDefinition tableDefinition = Objects.requireNonNull(sourceTable).getDefinition();
+    Type type = tableDefinition.getType();
+    if (!(type == Type.VIEW || type == Type.MATERIALIZED_VIEW || type == Type.EXTERNAL)) {
+      condition.append(
+        BigQueryUtil.generateTimePartitionCondition(tableDefinition, partitionFromDate, partitionToDate));
+    }
+
+    //If filter is present add it.
+    if (!Strings.isNullOrEmpty(filter)) {
+      if (condition.length() == 0) {
+        condition.append(filter);
+      } else {
+        condition.append(" and (").append(filter).append(")");
+      }
+    }
+
+    if (condition.length() > 0) {
+      query = String.format("%s WHERE %s", query, condition);
+    }
+
+    LOG.info("Reading data from `{}.{}.{}` to `{}.{}.{}` using SQL statement: {} ",
+             sourceTableId.getProject(), sourceTableId.getDataset(), sourceTableId.getTable(),
+             destinationTableId.getProject(), destinationTableId.getDataset(), destinationTableId.getTable(),
+             query);
+
+    QueryJobConfiguration.Builder queryConfigBuilder = QueryJobConfiguration.newBuilder(query)
+      .setDestinationTable(destinationTableId)
+      .setCreateDisposition(JobInfo.CreateDisposition.CREATE_NEVER)
+      .setWriteDisposition(JobInfo.WriteDisposition.WRITE_APPEND)
+      .setPriority(sqlEngineConfig.getJobPriority())
+      .setLabels(BigQuerySQLEngineUtils.getJobTags("read"));
+
+    return queryConfigBuilder.build();
+  }
+
 
   @VisibleForTesting
   QueryJobConfiguration.Builder getQueryBuilder(Table sourceTable, TableId sourceTableId,
@@ -297,6 +385,16 @@ public class BigQueryReadDataset implements SQLDataset, BigQuerySQLDataset {
       .setWriteDisposition(JobInfo.WriteDisposition.WRITE_APPEND)
       .setPriority(sqlEngineConfig.getJobPriority())
       .setLabels(BigQuerySQLEngineUtils.getJobTags("read"));
+  }
+
+  private JobConfiguration getBQSnapshotJobConf(TableId sourceTable, TableId destinationTable) {
+    CopyJobConfiguration copyJobConfiguration =
+      CopyJobConfiguration.newBuilder(destinationTable, sourceTable)
+        .setOperationType(BQ_COPY_SNAPSHOT_OP_TYPE)
+        .setLabels(BigQuerySQLEngineUtils.getJobTags("read"))
+        .build();
+
+    return copyJobConfiguration;
   }
 
   /**
