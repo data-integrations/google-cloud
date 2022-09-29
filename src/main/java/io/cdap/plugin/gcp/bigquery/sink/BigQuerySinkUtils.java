@@ -111,25 +111,50 @@ public final class BigQuerySinkUtils {
   public static void createResources(BigQuery bigQuery, Storage storage,
                                      DatasetId datasetId, String bucketName, @Nullable String location,
                                      @Nullable CryptoKeyName cmekKeyName) throws IOException {
+    // Get the required Dataset and bucket instances using the supplied clients
     Dataset dataset = bigQuery.getDataset(datasetId);
     Bucket bucket = storage.get(bucketName);
 
+    createResources(bigQuery, dataset, datasetId, storage, bucket, bucketName, location, cmekKeyName);
+  }
+
+  /**
+   * Creates the given dataset and bucket if the supplied ones are null.
+   *
+   * If the dataset already exists but the
+   * bucket does not, the bucket will be created in the same location as the dataset. If the bucket already exists
+   * but the dataset does not, the dataset will attempt to be created in the same location. This may fail if the bucket
+   * is in a location that BigQuery does not yet support.
+   *
+   * @param bigQuery the bigquery client for the project
+   * @param dataset the bigquery dataset instance (may be null)
+   * @param datasetId the Id of the dataset
+   * @param storage the storage client for the project
+   * @param bucket the storage bucket instance (may be null)
+   * @param bucketName the name of the bucket
+   * @param location the location of the resources, this is only applied if both the bucket and dataset do not exist
+   * @param cmekKey the name of the cmek key
+   * @throws IOException
+   */
+  public static void createResources(BigQuery bigQuery, @Nullable Dataset dataset, DatasetId datasetId,
+                                     Storage storage, @Nullable Bucket bucket, String bucketName,
+                                     @Nullable String location, @Nullable CryptoKeyName cmekKey) throws IOException {
     if (dataset == null && bucket == null) {
-      createBucket(storage, bucketName, location, cmekKeyName,
+      createBucket(storage, bucketName, location, cmekKey,
                    () -> String.format("Unable to create Cloud Storage bucket '%s'", bucketName));
-      createDataset(bigQuery, datasetId, location, cmekKeyName,
+      createDataset(bigQuery, datasetId, location, cmekKey,
                     () -> String.format("Unable to create BigQuery dataset '%s.%s'", datasetId.getProject(),
                                         datasetId.getDataset()));
     } else if (bucket == null) {
       createBucket(
-        storage, bucketName, dataset.getLocation(), cmekKeyName,
+        storage, bucketName, dataset.getLocation(), cmekKey,
         () -> String.format(
           "Unable to create Cloud Storage bucket '%s' in the same location ('%s') as BigQuery dataset '%s'. "
             + "Please use a bucket that is in the same location as the dataset.",
           bucketName, dataset.getLocation(), datasetId.getProject() + "." + datasetId.getDataset()));
     } else if (dataset == null) {
       createDataset(
-        bigQuery, datasetId, bucket.getLocation(), cmekKeyName,
+        bigQuery, datasetId, bucket.getLocation(), cmekKey,
         () -> String.format(
           "Unable to create BigQuery dataset '%s' in the same location ('%s') as Cloud Storage bucket '%s'. "
             + "Please use a bucket that is in a supported location.",

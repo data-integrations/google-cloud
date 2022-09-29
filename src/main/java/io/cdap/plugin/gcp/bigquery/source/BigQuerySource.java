@@ -28,7 +28,6 @@ import com.google.cloud.bigquery.TableDefinition.Type;
 import com.google.cloud.bigquery.TimePartitioning;
 import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.Storage;
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.Gson;
 import io.cdap.cdap.api.annotation.Description;
@@ -52,11 +51,9 @@ import io.cdap.cdap.etl.api.engine.sql.SQLEngineInput;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.plugin.common.Asset;
 import io.cdap.plugin.common.LineageRecorder;
-import io.cdap.plugin.common.ReferenceNames;
 import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnector;
 import io.cdap.plugin.gcp.bigquery.sqlengine.BigQueryReadDataset;
 import io.cdap.plugin.gcp.bigquery.sqlengine.BigQuerySQLEngine;
-import io.cdap.plugin.gcp.bigquery.sqlengine.BigQueryWrite;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.CmekUtils;
@@ -150,10 +147,12 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     configuration = BigQueryUtil.getBigQueryConfig(serviceAccount, config.getProject(), cmekKeyName,
                                                    config.getServiceAccountType());
 
+    String bucketName = getBucketName(context, dataset);
+
     // Configure GCS Bucket to use
     String bucket = BigQuerySourceUtils.getOrCreateBucket(configuration,
                                                           storage,
-                                                          config.getBucket(),
+                                                          bucketName,
                                                           dataset,
                                                           bucketPath,
                                                           cmekKeyName);
@@ -392,5 +391,21 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
       lineageRecorder.recordRead("Read", String.format("Read from BigQuery %s '%s'.", type, table),
                                  schema.getFields().stream().map(Schema.Field::getName).collect(Collectors.toList()));
     }
+  }
+
+  @Nullable
+  private String getBucketName(BatchSourceContext context, Dataset dataset) {
+    // Get the bucket name from configuration, and the bucket prefix if defined.
+    String bucketName = config.getBucket();
+    String bucketPrefix = BigQueryUtil.getBucketPrefix(context.getArguments());
+
+    // If temp bucket name is not defined in configuration, and a common bucket name prefix has been specified,
+    // we must set this prefix along with the source dataset location.
+    // Otherwise, return the original bucket name (may be null).
+    if (bucketName == null && bucketPrefix != null) {
+      bucketName = BigQueryUtil.getBucketNameForLocation(bucketPrefix, dataset.getLocation());
+    }
+
+    return bucketName;
   }
 }

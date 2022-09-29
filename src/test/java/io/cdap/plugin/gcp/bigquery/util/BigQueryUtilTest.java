@@ -20,22 +20,29 @@ import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.StandardSQLTypeName;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.cdap.etl.api.action.SettableArguments;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize.BigNumeric;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize.Numeric;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.anyString;
 
 @RunWith(PowerMockRunner.class)
 public class BigQueryUtilTest {
+
+  private static final String BUCKET_PREFIX_ARG = "gcp.bigquery.bucket.prefix";
+
   @Test
   public void testGetTableSchema() {
     List<Field> fieldList = new ArrayList<>();
@@ -127,6 +134,127 @@ public class BigQueryUtilTest {
       BigQueryUtil.validateFieldModeMatches(bigQueryField, recordField, false, collector);
 
       Mockito.verify(collector, Mockito.times(0)).addFailure(anyString(), anyString());
+  }
+
+  @Test
+  public void testGetBucketPrefix() {
+    SettableArguments args = Mockito.mock(SettableArguments.class);
+    Mockito.when(args.has(BUCKET_PREFIX_ARG))
+      .thenReturn(true);
+    Mockito.when(args.get(BUCKET_PREFIX_ARG))
+      .thenReturn("this-is-valid-as-a-prefix-to-use-123456789_.abcdef");
+    BigQueryUtil.getBucketPrefix(args);
+
+    // Ensure method was called.
+    Mockito.verify(args, Mockito.times(1)).has(BUCKET_PREFIX_ARG);
+    Mockito.verify(args, Mockito.times(1)).get(BUCKET_PREFIX_ARG);
+  }
+
+  @Test
+  public void testGetBucketPrefixNotSet() {
+    SettableArguments args = Mockito.mock(SettableArguments.class);
+    Mockito.when(args.has(BUCKET_PREFIX_ARG))
+      .thenReturn(false);
+    Mockito.when(args.get(BUCKET_PREFIX_ARG))
+      .thenReturn("this-is-valid-as-a-prefix-to-use-123456789_.abcdef");
+    BigQueryUtil.getBucketPrefix(args);
+
+    // Ensure method was called.
+    Mockito.verify(args, Mockito.times(1)).has(BUCKET_PREFIX_ARG);
+    Mockito.verify(args, Mockito.times(0)).get(BUCKET_PREFIX_ARG);
+  }
+
+  @Test
+  public void testGetBucketPrefixInvalidBucketName() {
+    SettableArguments args = Mockito.mock(SettableArguments.class);
+    Mockito.when(args.has(BUCKET_PREFIX_ARG))
+      .thenReturn(true);
+    Mockito.when(args.get(BUCKET_PREFIX_ARG))
+      .thenReturn("This is an invalid bucket name!@");
+
+    IllegalArgumentException e = null;
+
+    try {
+      BigQueryUtil.getBucketPrefix(args);
+    } catch (IllegalArgumentException ie) {
+      e = ie;
     }
+
+    Assert.assertNotNull(e);
+    Assert.assertEquals("The configured bucket prefix 'This is an invalid bucket name!@' is not a valid " +
+                          "bucket name. Bucket names can only contain lowercase letters, numeric " +
+                          "characters, dashes (-), underscores (_), and dots (.).", e.getMessage());
+  }
+
+  @Test
+  public void testGetBucketPrefixTooLong() {
+    SettableArguments args = Mockito.mock(SettableArguments.class);
+    Mockito.when(args.has(BUCKET_PREFIX_ARG))
+      .thenReturn(true);
+    Mockito.when(args.get(BUCKET_PREFIX_ARG))
+      .thenReturn("this-prefix-is-too-long-to-be-used-as-a-prefix-oops");
+
+    IllegalArgumentException e = null;
+
+    try {
+      BigQueryUtil.getBucketPrefix(args);
+    } catch (IllegalArgumentException ie) {
+      e = ie;
+    }
+
+    Assert.assertNotNull(e);
+    Assert.assertEquals("The configured bucket prefix 'this-prefix-is-too-long-to-be-used-as-a-prefix-oops'" +
+                          " should be 50 characters or shorter.", e.getMessage());
+  }
+
+  @Test
+  public void testCRC32LocationDoesNotCollide() {
+    // Set containing all current GCP region names.
+    Set<String> locations = new HashSet<>();
+    locations.add("us");
+    locations.add("eu");
+    locations.add("asia-east1");
+    locations.add("asia-east2");
+    locations.add("asia-northeast1");
+    locations.add("asia-northeast2");
+    locations.add("asia-northeast3");
+    locations.add("asia-south1");
+    locations.add("asia-south2");
+    locations.add("asia-southeast1");
+    locations.add("asia-southeast2");
+    locations.add("australia-southeast1");
+    locations.add("australia-southeast2");
+    locations.add("europe-central2");
+    locations.add("europe-north1");
+    locations.add("europe-southwest1");
+    locations.add("europe-west1");
+    locations.add("europe-west2");
+    locations.add("europe-west3");
+    locations.add("europe-west4");
+    locations.add("europe-west6");
+    locations.add("europe-west8");
+    locations.add("europe-west9");
+    locations.add("northamerica-northeast1");
+    locations.add("northamerica-northeast2");
+    locations.add("southamerica-east1");
+    locations.add("southamerica-west1");
+    locations.add("us-central1");
+    locations.add("us-east1");
+    locations.add("us-east4");
+    locations.add("us-east5");
+    locations.add("us-south1");
+    locations.add("us-west1");
+    locations.add("us-west2");
+    locations.add("us-west3");
+    locations.add("us-west4");
+
+    // Check there are no collisions
+    Set<String> hashValues = new HashSet<>();
+    for (String location : locations) {
+      String hash = BigQueryUtil.crc32location(location);
+      Assert.assertFalse(hashValues.contains(hash));
+      hashValues.add(hash);
+    }
+  }
 
 }
