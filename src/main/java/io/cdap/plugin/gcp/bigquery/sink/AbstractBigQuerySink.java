@@ -17,10 +17,13 @@ package io.cdap.plugin.gcp.bigquery.sink;
 
 import com.google.auth.Credentials;
 import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
 import com.google.cloud.kms.v1.CryptoKeyName;
+import com.google.cloud.storage.Bucket;
+import com.google.cloud.storage.Storage;
 import com.google.common.base.Strings;
 import io.cdap.cdap.api.data.batch.Output;
 import io.cdap.cdap.api.data.batch.OutputFormatProvider;
@@ -32,7 +35,6 @@ import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.plugin.common.Asset;
-import io.cdap.plugin.common.ReferenceNames;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
@@ -88,14 +90,23 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
     CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(config.cmekKey, context.getArguments().asMap(), collector);
     collector.getOrThrowException();
     baseConfiguration = getBaseConfiguration(cmekKeyName);
-    String bucket = BigQuerySinkUtils.configureBucket(baseConfiguration, config.getBucket(), runUUID.toString());
+
+    // Get required dataset ID and dataset instance (if it exists)
+    DatasetId datasetId = DatasetId.of(config.getDatasetProject(), config.getDataset());
+    Dataset dataset = bigQuery.getDataset(datasetId);
+
+    // Get the required bucket name and bucket instance (if it exists)
+    Storage storage =  GCPUtils.getStorage(project, credentials);
+    String bucketName = getStagingBucketName(context, config, dataset);
+    Bucket bucket = storage.get(bucketName);
+
     if (!context.isPreviewEnabled()) {
-      BigQuerySinkUtils.createResources(bigQuery, GCPUtils.getStorage(project, credentials),
-                                        DatasetId.of(config.getDatasetProject(), config.getDataset()),
-                                        bucket, config.getLocation(), cmekKeyName);
+      BigQuerySinkUtils.createResources(bigQuery, dataset, datasetId,
+                                        storage, bucket, bucketName,
+                                        config.getLocation(), cmekKeyName);
     }
 
-    prepareRunInternal(context, bigQuery, bucket);
+    prepareRunInternal(context, bigQuery, bucketName);
   }
 
   @Override
@@ -289,6 +300,36 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
   protected Configuration getOutputConfiguration() throws IOException {
     Configuration configuration = new Configuration(baseConfiguration);
     return configuration;
+  }
+
+  /**
+   * Identify a stating bucket name from the pipeline context and sink configuration
+   * @param context Sink Context
+   * @param config Sink Configuration
+   * @return Bucket name to use for this sink.
+   */
+  protected String getStagingBucketName(BatchSinkContext context,
+                                        AbstractBigQuerySinkConfig config,
+                                        @Nullable Dataset dataset) {
+    // Get temporary bucket name from sink configuration
+    String bucketName = config.getBucket();
+
+    // Get Bucket Prefix from configuration
+    String bucketPrefix = BigQueryUtil.getBucketPrefix(context.getArguments());
+
+    // If temp bucket name is not defined in configuration, and a common bucket name prefix has been specified,
+    // we must set this prefix along with the destination location in order to create/reuse the bucket.
+    // Otherwise, if temp bucket name is defined, or a prefix is not set, the configureBucket method will prepare
+    // for a new bucket creation.
+    if (bucketName == null && bucketPrefix != null) {
+      // If the destination dataset exists, use the dataset location. Otherwise, use location from configuration.
+      String datasetLocation = dataset != null ? dataset.getLocation() : config.getLocation();
+
+      // Get the bucket name for the specified location.
+      bucketName = BigQueryUtil.getBucketNameForLocation(bucketPrefix, datasetLocation);
+    }
+
+    return BigQuerySinkUtils.configureBucket(baseConfiguration, bucketName, runUUID.toString());
   }
 
 }

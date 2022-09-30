@@ -29,11 +29,13 @@ import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TimePartitioning;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.kms.v1.CryptoKeyName;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.cdap.etl.api.action.SettableArguments;
 import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
 import io.cdap.cdap.etl.api.validation.InvalidStageException;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
@@ -63,6 +65,8 @@ import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
+import java.util.zip.CRC32;
+import java.util.zip.Checksum;
 import javax.annotation.Nullable;
 
 /**
@@ -73,6 +77,7 @@ public final class BigQueryUtil {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryUtil.class);
 
   private static final String DEFAULT_PARTITION_COLUMN_NAME = "_PARTITIONTIME";
+  private static final String BIGQUERY_BUCKET_PREFIX_PROPERTY_NAME = "gcp.bigquery.bucket.prefix";
 
   public static final String BUCKET_PATTERN = "[a-z0-9._-]+";
   public static final String DATASET_PATTERN = "[A-Za-z0-9_]+";
@@ -771,5 +776,67 @@ public final class BigQueryUtil {
   public static String getFQN(String datasetProject, String datasetName, String tableName) {
     return String.join(":", BigQueryConstants.BQ_FQN_PREFIX,
                        datasetProject, datasetName, tableName);
+  }
+
+  /**
+   * Get the bucket prefix from the runtime arguments. If not set, it will be created and set.
+   *
+   * @param arguments settable arguments instance to verify
+   * @return the bucket prefix to use for this pipeline
+   */
+  @Nullable
+  public static String getBucketPrefix(SettableArguments arguments) {
+    // If the bucket prefix property is set, use it.
+    if (arguments.has(BIGQUERY_BUCKET_PREFIX_PROPERTY_NAME)) {
+      String bucketPrefix = arguments.get(BIGQUERY_BUCKET_PREFIX_PROPERTY_NAME);
+      validateBucketPrefix(bucketPrefix);
+      LOG.debug("Using bucket prefix for temporary buckets: {}", bucketPrefix);
+      return bucketPrefix;
+    }
+    return null;
+  }
+
+  /**
+   * Ensures configured bucket prefix is valid per the GCS naming convention.
+   *
+   * @param bucketPrefix
+   */
+  private static void validateBucketPrefix(String bucketPrefix) {
+    if (!bucketPrefix.matches("^[a-z0-9-_.]+$")) {
+      throw new IllegalArgumentException("The configured bucket prefix '" + bucketPrefix + "' is not a valid bucket " +
+                                           "name. Bucket names can only contain lowercase letters, numeric " +
+                                           "characters, dashes (-), underscores (_), and dots (.).");
+    }
+
+    if (!bucketPrefix.contains(".") && bucketPrefix.length() > 50) {
+      throw new IllegalArgumentException("The configured bucket prefix '" + bucketPrefix + "' should be 50 " +
+                                           "characters or shorter.");
+    }
+  }
+
+  /**
+   * Method to generate the CRC32 checksum for a location.
+   * We use this to ensure location name length is constant (only 8 characters).
+   *
+   * @param location location to checksum
+   * @return checksum value as an 8 character string (hex).
+   */
+  @VisibleForTesting
+  public static String crc32location(String location) {
+    byte[] bytes = location.toLowerCase().getBytes();
+    Checksum checksum = new CRC32();
+    checksum.update(bytes, 0, bytes.length);
+    return Long.toHexString(checksum.getValue());
+  }
+
+  /**
+   * Build bucket name concatenating the bucket prefix with the location crc32 hash using a hyphen (-)
+   *
+   * @param bucketPrefix Bucket prefix
+   * @param location     location to use.
+   * @return String containing the bucket location.
+   */
+  public static String getBucketNameForLocation(String bucketPrefix, String location) {
+    return String.format("%s-%s", bucketPrefix, crc32location(location));
   }
 }
