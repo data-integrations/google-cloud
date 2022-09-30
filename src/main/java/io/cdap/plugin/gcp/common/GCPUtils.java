@@ -258,15 +258,15 @@ public class GCPUtils {
       builder.setCredentials(credentials);
     }
 
-    // Add retry settings with up to 1 hour delay.
+    // Add retry settings with up to a 15 minute total timeout
     builder.setRetrySettings(RetrySettings.newBuilder()
                                .setInitialRetryDelay(Duration.ofSeconds(1))
-                               .setMaxRetryDelay(Duration.ofMinutes(1))
-                               .setRetryDelayMultiplier(2.0)
+                               .setMaxRetryDelay(Duration.ofSeconds(30))
+                               .setRetryDelayMultiplier(1.5)
                                .setInitialRpcTimeout(Duration.ofSeconds(50))
                                .setMaxRpcTimeout(Duration.ofSeconds(50))
                                .setMaxAttempts(60)
-                               .setTotalTimeout(Duration.ofHours(1))
+                               .setTotalTimeout(Duration.ofMinutes(15))
                                .build());
 
     return builder.build().getService();
@@ -278,7 +278,6 @@ public class GCPUtils {
     if (location != null) {
       builder.setLocation(location);
     }
-    
     if (cmekKeyName != null) {
       builder.setDefaultKmsKeyName(cmekKeyName.toString());
     }
