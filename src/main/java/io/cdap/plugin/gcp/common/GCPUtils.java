@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.common;
 
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.ExternalAccountCredentials;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -36,6 +37,7 @@ import com.google.gson.reflect.TypeToken;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 import io.cdap.plugin.gcp.gcs.ServiceAccountAccessTokenProvider;
 import org.apache.hadoop.conf.Configuration;
+import org.threeten.bp.Duration;
 
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
@@ -255,6 +257,18 @@ public class GCPUtils {
     if (credentials != null) {
       builder.setCredentials(credentials);
     }
+
+    // Add retry settings with up to a 15 minute total timeout
+    builder.setRetrySettings(RetrySettings.newBuilder()
+                               .setInitialRetryDelay(Duration.ofSeconds(1))
+                               .setMaxRetryDelay(Duration.ofSeconds(30))
+                               .setRetryDelayMultiplier(1.5)
+                               .setInitialRpcTimeout(Duration.ofSeconds(50))
+                               .setMaxRpcTimeout(Duration.ofSeconds(50))
+                               .setMaxAttempts(60)
+                               .setTotalTimeout(Duration.ofMinutes(15))
+                               .build());
+
     return builder.build().getService();
   }
 
