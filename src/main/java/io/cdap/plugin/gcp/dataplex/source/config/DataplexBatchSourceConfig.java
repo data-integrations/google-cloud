@@ -153,7 +153,9 @@ public class DataplexBatchSourceConfig extends DataplexBaseConfig {
    */
   public Entity getAndValidateEntityConfiguration(FailureCollector collector,
                                                   GoogleCredentials credentials) throws IOException {
-    IdUtils.validateReferenceName(referenceName, collector);
+    if (!Strings.isNullOrEmpty(referenceName)) {
+      IdUtils.validateReferenceName(referenceName, collector);
+    }
     String projectID = tryGetProject();
     if (!Strings.isNullOrEmpty(location) && !containsMacro(NAME_LOCATION)) {
       if (!Strings.isNullOrEmpty(lake) && !containsMacro(NAME_LAKE)) {
@@ -396,7 +398,7 @@ public class DataplexBatchSourceConfig extends DataplexBaseConfig {
   }
 
   private DataplexBatchSourceConfig(String entity, String schema, String location, String lake, String zone,
-                                    GCPConnectorConfig connection, String referenceName, String partitionTo,
+                                    GCPConnectorConfig connection, @Nullable String referenceName, String partitionTo,
                                     String partitionFrom, String filter) {
     this.entity = entity;
     this.schema = schema;

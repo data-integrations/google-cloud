@@ -181,6 +181,11 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
     @Description("The existing connection to use.")
     private GCPConnectorConfig connection;
 
+    @Override
+    public void validate() {
+      // no-op
+    }
+
     public void validate(FailureCollector collector) {
       super.validate(collector);
       ConfigUtil.validateConnection(this, useConnection, connection, collector);

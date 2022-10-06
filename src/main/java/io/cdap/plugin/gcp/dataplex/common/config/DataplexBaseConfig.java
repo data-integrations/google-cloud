@@ -47,6 +47,7 @@ public class DataplexBaseConfig extends PluginConfig {
   private static final Logger LOG = LoggerFactory.getLogger(DataplexBaseConfig.class);
 
   @Name(REFERENCE_NAME)
+  @Nullable
   @Description("Name used to uniquely identify this plugin for lineage, annotating metadata, etc.")
   protected String referenceName;
 
