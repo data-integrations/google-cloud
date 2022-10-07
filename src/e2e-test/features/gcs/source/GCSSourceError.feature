@@ -9,7 +9,6 @@ Feature: GCS source - Verify GCS Source plugin error scenarios
     Then Validate mandatory property error for "<property>"
     Examples:
       | property        |
-      | referenceName   |
       | path            |
       | format          |
 
