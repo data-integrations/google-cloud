@@ -128,7 +128,9 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
   }
 
   public void validate(FailureCollector collector, Map<String, String> arguments) {
-    IdUtils.validateReferenceName(referenceName, collector);
+    if (!Strings.isNullOrEmpty(referenceName)) {
+      IdUtils.validateReferenceName(referenceName, collector);
+    }
     ConfigUtil.validateConnection(this, useConnection, connection, collector);
     String bucket = getBucket();
     if (!containsMacro(NAME_BUCKET)) {
