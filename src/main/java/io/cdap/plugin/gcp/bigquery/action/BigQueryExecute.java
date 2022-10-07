@@ -17,10 +17,8 @@
 package io.cdap.plugin.gcp.bigquery.action;
 
 import com.google.auth.Credentials;
-import com.google.cloud.ServiceOptions;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
-import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.EncryptionConfiguration;
 import com.google.cloud.bigquery.Field;
@@ -42,11 +40,9 @@ import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.action.Action;
 import io.cdap.cdap.etl.api.action.ActionContext;
-import io.cdap.plugin.common.ConfigUtil;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.CmekUtils;
-import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -124,6 +120,9 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
           EncryptionConfiguration.newBuilder().setKmsKeyName(cmekKeyName.toString()).build());
       }
     }
+
+    // Add labels for the BigQuery Execute job.
+    builder.setLabels(BigQueryUtil.getJobTags(BigQueryUtil.BQ_JOB_TYPE_EXECUTE_TAG));
 
     QueryJobConfiguration queryConfig = builder.build();
 

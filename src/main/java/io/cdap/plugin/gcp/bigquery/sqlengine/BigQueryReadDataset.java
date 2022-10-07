@@ -85,8 +85,8 @@ public class BigQueryReadDataset implements SQLDataset, BigQuerySQLDataset {
   public static final String SQL_INPUT_FIELDS = "fields";
   public static final String SQL_INPUT_SCHEMA = "schema";
   public static final String BQ_COPY_SNAPSHOT_OP_TYPE = "SNAPSHOT";
-  private static final java.lang.reflect.Type LIST_OF_STRINGS_TYPE = new TypeToken<ArrayList<String>>() {
-  }.getType();
+  private static final java.lang.reflect.Type LIST_OF_STRINGS_TYPE = new TypeToken<ArrayList<String>>() { }.getType();
+  private static final String BQ_PUSHDOWN_OPERATION_TAG = "read";
 
   private final BigQuerySQLEngineConfig sqlEngineConfig;
   private final BigQuery bigQuery;
@@ -332,7 +332,7 @@ public class BigQueryReadDataset implements SQLDataset, BigQuerySQLDataset {
       .setCreateDisposition(JobInfo.CreateDisposition.CREATE_NEVER)
       .setWriteDisposition(JobInfo.WriteDisposition.WRITE_APPEND)
       .setPriority(sqlEngineConfig.getJobPriority())
-      .setLabels(BigQuerySQLEngineUtils.getJobTags("read"));
+      .setLabels(BigQuerySQLEngineUtils.getJobTags(BQ_PUSHDOWN_OPERATION_TAG));
 
     return queryConfigBuilder.build();
   }
@@ -384,14 +384,14 @@ public class BigQueryReadDataset implements SQLDataset, BigQuerySQLDataset {
       .setCreateDisposition(JobInfo.CreateDisposition.CREATE_NEVER)
       .setWriteDisposition(JobInfo.WriteDisposition.WRITE_APPEND)
       .setPriority(sqlEngineConfig.getJobPriority())
-      .setLabels(BigQuerySQLEngineUtils.getJobTags("read"));
+      .setLabels(BigQuerySQLEngineUtils.getJobTags(BQ_PUSHDOWN_OPERATION_TAG));
   }
 
   private JobConfiguration getBQSnapshotJobConf(TableId sourceTable, TableId destinationTable) {
     CopyJobConfiguration copyJobConfiguration =
       CopyJobConfiguration.newBuilder(destinationTable, sourceTable)
         .setOperationType(BQ_COPY_SNAPSHOT_OP_TYPE)
-        .setLabels(BigQuerySQLEngineUtils.getJobTags("read"))
+        .setLabels(BigQuerySQLEngineUtils.getJobTags(BQ_PUSHDOWN_OPERATION_TAG))
         .build();
 
     return copyJobConfiguration;
