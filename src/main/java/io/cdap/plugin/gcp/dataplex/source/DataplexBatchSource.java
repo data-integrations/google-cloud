@@ -240,7 +240,8 @@ public class DataplexBatchSource extends BatchSource<Object, Object, StructuredR
     TableDefinition.Type sourceTableType = config.getSourceTableType(datasetProject, dataset, tableId);
     emitLineage(context, outputSchema, sourceTableType);
     context.setInput(
-      Input.of(config.getReferenceName(), new DataplexInputFormatProvider(configuration)));
+      Input.of(config.getReferenceNameOrNormalizedFQN(BigQueryUtil.getFQN(datasetProject, dataset, tableId)),
+               new DataplexInputFormatProvider(configuration)));
   }
 
   /**
@@ -262,10 +263,8 @@ public class DataplexBatchSource extends BatchSource<Object, Object, StructuredR
   private void emitLineage(BatchSourceContext context, Schema schema, TableDefinition.Type sourceTableType) {
     getEntityValuesFromDataPathForBQEntities(entity.getDataPath());
     String fqn = BigQueryUtil.getFQN(datasetProject, dataset, tableId);
-    String referenceName = Strings.isNullOrEmpty(config.getReferenceName())
-      ? ReferenceNames.normalizeFqn(fqn)
-      : config.getReferenceName();
-    Asset asset = Asset.builder(referenceName).setFqn(fqn).setLocation(config.getLocation()).build();
+    Asset asset = Asset.builder(
+      config.getReferenceNameOrNormalizedFQN(fqn)).setFqn(fqn).setLocation(config.getLocation()).build();
     LineageRecorder lineageRecorder = new LineageRecorder(context, asset);
     lineageRecorder.createExternalDataset(schema);
 
@@ -315,7 +314,10 @@ public class DataplexBatchSource extends BatchSource<Object, Object, StructuredR
     FileInputFormat.setInputDirRecursive(job, true);
 
     Schema schema = DataplexUtil.getTableSchema(entity.getSchema(), collector);
-    LineageRecorder lineageRecorder = new LineageRecorder(context, config.getReferenceName());
+    io.cdap.plugin.common.Asset asset = io.cdap.plugin.common.Asset.builder(
+      config.getReferenceNameOrNormalizedFQN(entity.getDataPath()))
+      .setFqn(entity.getDataPath()).setLocation(config.getLocation()).build();
+    LineageRecorder lineageRecorder = new LineageRecorder(context, asset);
     lineageRecorder.createExternalDataset(schema);
 
     if (schema != null && schema.getFields() != null) {
@@ -344,7 +346,8 @@ public class DataplexBatchSource extends BatchSource<Object, Object, StructuredR
       }
     }
     configuration.set(DataplexConstants.DATAPLEX_ENTITY_TYPE, entity.getSystem().toString());
-    context.setInput(Input.of(config.getReferenceName(), new DataplexInputFormatProvider(configuration)));
+    context.setInput(Input.of(config.getReferenceNameOrNormalizedFQN(entity.getDataPath()),
+                              new DataplexInputFormatProvider(configuration)));
   }
 
   /**

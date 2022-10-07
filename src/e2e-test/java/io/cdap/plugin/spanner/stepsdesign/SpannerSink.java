@@ -33,7 +33,7 @@ public class SpannerSink implements CdfHelper {
 
   @When("Sink is Spanner")
   public void sinkIsSpanner() {
-    CdfStudioActions.clickSink();
+    CdfStudioActions.expandPluginGroupIfNotAlreadyExpanded("Sink");
     selectSinkPlugin("Spanner");
   }
 

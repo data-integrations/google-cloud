@@ -416,10 +416,8 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
       .collect(Collectors.toList());
     String fqn = BigQueryUtil.getFQN(datasetProject, dataset, config.getTable());
     String location = bigQuery.getDataset(datasetId).getLocation();
-    String referenceName = Strings.isNullOrEmpty(config.getReferenceName())
-      ? ReferenceNames.normalizeFqn(fqn)
-      : config.getReferenceName();
-    io.cdap.plugin.common.Asset lineageAsset = io.cdap.plugin.common.Asset.builder(referenceName)
+    io.cdap.plugin.common.Asset lineageAsset = io.cdap.plugin.common.Asset.builder(
+      config.getReferenceNameOrNormalizedFQN(fqn))
       .setFqn(fqn).setLocation(location).build();
     BigQuerySinkUtils.recordLineage(context, lineageAsset, tableSchema, fieldNames);
     configuration.set(DataplexOutputFormatProvider.DATAPLEX_ASSET_TYPE, DataplexConstants.BIGQUERY_DATASET_ASSET_TYPE);
@@ -475,33 +473,6 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
   private void prepareRunStorageBucket(BatchSinkContext context) throws Exception {
     ValidatingOutputFormat validatingOutputFormat = validateOutputFormatForRun(context);
     FailureCollector collector = context.getFailureCollector();
-    // record field level lineage information
-    // needs to happen before context.addOutput(), otherwise an external dataset without schema will be created.
-    Schema schema = config.getSchema(collector);
-    if (schema == null) {
-      schema = context.getInputSchema();
-    }
-    LineageRecorder lineageRecorder = new LineageRecorder(context, config.getReferenceName());
-    lineageRecorder.createExternalDataset(schema);
-    if (schema != null && schema.getFields() != null && !schema.getFields().isEmpty()) {
-      recordLineage(lineageRecorder,
-        schema.getFields().stream().map(Schema.Field::getName).collect(Collectors.toList()));
-    }
-
-    Map<String, String> outputProperties = new HashMap<>(validatingOutputFormat.getOutputFormatConfiguration());
-    String outputDir = getOutputDir(context.getLogicalStartTime());
-    outputProperties.put(FileOutputFormat.OUTDIR, outputDir);
-    outputProperties.put(DataplexOutputFormatProvider.DATAPLEX_OUTPUT_BASE_DIR, outputDir);
-    outputProperties.put(DataplexOutputFormatProvider.DATAPLEX_ASSET_TYPE, config.getAssetType());
-    outputProperties.putAll(getFileSystemProperties());
-    // Added to not create _SUCCESS file in the output directory.
-    outputProperties.put("mapreduce.fileoutputcommitter.marksuccessfuljobs", "false");
-    // Added to not write metadata files for parquet format in the output directory.
-    if (config.getFormat().equals(FileFormat.PARQUET)) {
-      outputProperties.put("parquet.enable.summary-metadata", "false");
-    }
-    context.addOutput(Output.of(config.getReferenceName(),
-      new SinkOutputFormatProvider(validatingOutputFormat.getOutputFormatClassName(), outputProperties)));
     String cmekKey = context.getArguments().get(CmekUtils.CMEK_KEY);
     CryptoKeyName cmekKeyName = null;
     if (!Strings.isNullOrEmpty(cmekKey)) {
@@ -522,6 +493,26 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     if (bucket == null) {
       GCPUtils.createBucket(storage, bucketName, config.getLocation(), cmekKeyName);
     }
+    String outputDir = getOutputDir(context.getLogicalStartTime());
+    Map<String, String> outputProperties = getStorageBucketOutputProperties(validatingOutputFormat, outputDir);
+    
+    // record field level lineage information
+    // needs to happen before context.addOutput(), otherwise an external dataset without schema will be created.
+    Schema schema = config.getSchema(collector);
+    if (schema == null) {
+      schema = context.getInputSchema();
+    }
+    io.cdap.plugin.common.Asset asset = io.cdap.plugin.common.Asset.builder(
+      config.getReferenceNameOrNormalizedFQN(outputDir))
+      .setFqn(outputDir).setLocation(config.getLocation()).build();
+    LineageRecorder lineageRecorder = new LineageRecorder(context, asset);
+    lineageRecorder.createExternalDataset(schema);
+    if (schema != null && schema.getFields() != null && !schema.getFields().isEmpty()) {
+      recordLineage(lineageRecorder,
+                    schema.getFields().stream().map(Schema.Field::getName).collect(Collectors.toList()));
+    }
+    context.addOutput(Output.of(config.getReferenceNameOrNormalizedFQN(outputDir),
+      new SinkOutputFormatProvider(validatingOutputFormat.getOutputFormatClassName(), outputProperties)));
   }
 
   /**
@@ -545,6 +536,22 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
       outputPath, new HashMap<>());
     properties.put(GCSBatchSink.CONTENT_TYPE, config.getContentType(config.getFormat().toString()));
     return properties;
+  }
+
+  protected Map<String, String> getStorageBucketOutputProperties(ValidatingOutputFormat validatingOutputFormat,
+                                                                 String outputDir) {
+    Map<String, String> outputProperties = new HashMap<>(validatingOutputFormat.getOutputFormatConfiguration());
+    outputProperties.put(FileOutputFormat.OUTDIR, outputDir);
+    outputProperties.put(DataplexOutputFormatProvider.DATAPLEX_OUTPUT_BASE_DIR, outputDir);
+    outputProperties.put(DataplexOutputFormatProvider.DATAPLEX_ASSET_TYPE, config.getAssetType());
+    outputProperties.putAll(getFileSystemProperties());
+    // Added to not create _SUCCESS file in the output directory.
+    outputProperties.put("mapreduce.fileoutputcommitter.marksuccessfuljobs", "false");
+    // Added to not write metadata files for parquet format in the output directory.
+    if (config.getFormat().equals(FileFormat.PARQUET)) {
+      outputProperties.put("parquet.enable.summary-metadata", "false");
+    }
+    return outputProperties;
   }
 
   /**

@@ -21,11 +21,13 @@ import com.google.api.gax.rpc.StatusCode;
 import com.google.auth.oauth2.ComputeEngineCredentials;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
+import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.plugin.PluginConfig;
 import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.plugin.common.ReferenceNames;
 import io.cdap.plugin.gcp.common.GCPConnectorConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import org.slf4j.Logger;
@@ -74,6 +76,10 @@ public class DataplexBaseConfig extends PluginConfig {
 
   public String getReferenceName() {
     return referenceName;
+  }
+
+  public String getReferenceNameOrNormalizedFQN(String fqn) {
+    return Strings.isNullOrEmpty(referenceName) ? ReferenceNames.normalizeFqn(fqn) : referenceName;
   }
 
   public String getLake() {
