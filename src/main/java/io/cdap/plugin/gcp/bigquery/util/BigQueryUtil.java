@@ -59,6 +59,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -82,6 +83,12 @@ public final class BigQueryUtil {
   public static final String BUCKET_PATTERN = "[a-z0-9._-]+";
   public static final String DATASET_PATTERN = "[A-Za-z0-9_]+";
   public static final String TABLE_PATTERN = "[A-Za-z0-9_]+";
+
+  // Tags for BQ Jobs
+  public static final String BQ_JOB_TYPE_SOURCE_TAG = "bq_source_plugin";
+  public static final String BQ_JOB_TYPE_EXECUTE_TAG = "bq_execute_plugin";
+  public static final String BQ_JOB_TYPE_SINK_TAG = "bq_sink_plugin";
+  public static final String BQ_JOB_TYPE_PUSHDOWN_TAG = "bq_pushdown";
 
   // array of arrays and map of arrays are not supported by big query
   public static final Set<Schema.Type> UNSUPPORTED_ARRAY_TYPES = ImmutableSet.of(Schema.Type.ARRAY, Schema.Type.MAP);
@@ -838,5 +845,17 @@ public final class BigQueryUtil {
    */
   public static String getBucketNameForLocation(String bucketPrefix, String location) {
     return String.format("%s-%s", bucketPrefix, crc32location(location));
+  }
+
+  /**
+   * Get tags for a BigQuery Job.
+   * @param jobType the job type to set in the labels.
+   * @return map containing labels for a BigQuery job launched by this plugin.
+   */
+  public static Map<String, String> getJobTags(String jobType) {
+    Map<String, String> labels = new HashMap<>();
+    labels.put("job_source", "cdap");
+    labels.put("type", jobType);
+    return labels;
   }
 }

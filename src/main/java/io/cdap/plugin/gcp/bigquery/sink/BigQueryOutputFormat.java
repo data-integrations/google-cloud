@@ -63,6 +63,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
+import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
@@ -369,7 +370,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
 
       //Depending on Operation type and no of gcs paths present , trigger suitable BQ job.
       temporaryTableReference = null;
-      if (operation.equals(Operation.INSERT) &&  gcsPaths.size() <= BQ_IMPORT_MAX_BATCH_SIZE) {
+      if (operation.equals(Operation.INSERT) && gcsPaths.size() <= BQ_IMPORT_MAX_BATCH_SIZE) {
         // Directly load data into destination table when total no of input paths is loadable into BQ
         loadConfig.setSourceUris(gcsPaths);
         loadConfig.setWriteDisposition(writeDisposition);
@@ -377,6 +378,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
 
         JobConfiguration config = new JobConfiguration();
         config.setLoad(loadConfig);
+        config.setLabels(BigQueryUtil.getJobTags(BigQueryUtil.BQ_JOB_TYPE_SINK_TAG));
         triggerBigqueryJob(projectId, jobId , dataset, config, tableRef);
       } else {
         // First load the data in a temp table.
@@ -440,6 +442,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
         loadConfig.setSourceUris(gcsPathBatch);
         JobConfiguration config = new JobConfiguration();
         config.setLoad(loadConfig);
+        config.setLabels(BigQueryUtil.getJobTags(BigQueryUtil.BQ_JOB_TYPE_SINK_TAG));
 
         triggerBigqueryJob(projectId, jobId + "_" + jobcount, dataset, config, tableRef);
         jobcount++;
@@ -583,6 +586,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
 
       JobConfiguration config = new JobConfiguration();
       config.setCopy(tableCopyConfig);
+      config.setLabels(BigQueryUtil.getJobTags(BigQueryUtil.BQ_JOB_TYPE_SINK_TAG));
       triggerBigqueryJob(projectId, jobId, dataset, config, tableRef);
     }
 
@@ -610,14 +614,20 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
                                                                  partitionFilter);
       LOG.info("Update/Upsert query: " + query);
 
-      JobConfiguration jobConfiguration = new JobConfiguration();
+      // Configure query execution
       JobConfigurationQuery jobConfigurationQuery = new JobConfigurationQuery();
       jobConfigurationQuery.setQuery(query);
       jobConfigurationQuery.setUseLegacySql(false);
       EncryptionConfiguration encryptionConfiguration = new EncryptionConfiguration();
       encryptionConfiguration.setKmsKeyName(cmekKey);
       jobConfigurationQuery.setDestinationEncryptionConfiguration(encryptionConfiguration);
+
+      // Create Job Configuration and add job labels
+      JobConfiguration jobConfiguration = new JobConfiguration();
+      jobConfiguration.setLabels(BigQueryUtil.getJobTags(BigQueryUtil.BQ_JOB_TYPE_SINK_TAG));
       jobConfiguration.setQuery(jobConfigurationQuery);
+
+      // Trigger job execution
       triggerBigqueryJob(projectId, jobId.getJob(), dataset, jobConfiguration, tableRef);
     }
 

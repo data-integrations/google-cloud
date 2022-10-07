@@ -6,7 +6,6 @@ import com.google.api.services.bigquery.model.JobConfigurationQuery;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
-import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.TableDefinition.Type;
 import com.google.cloud.bigquery.TimePartitioning;
@@ -238,6 +237,7 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
 
     JobConfiguration config = new JobConfiguration();
     config.setQuery(queryConfig);
+    config.setLabels(BigQueryUtil.getJobTags(BigQueryUtil.BQ_JOB_TYPE_SOURCE_TAG));
 
     JobReference jobReference = getJobReference(configuration, bigQueryHelper, projectId, location);
 

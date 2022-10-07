@@ -72,6 +72,7 @@ public class BigQueryWrite {
   public static final String SQL_OUTPUT_FIELDS = "fields";
   public static final String SQL_OUTPUT_SCHEMA = "schema";
   private static final Type LIST_OF_STRINGS_TYPE = new TypeToken<ArrayList<String>>() { }.getType();
+  private static final String BQ_PUSHDOWN_OPERATION_TAG = "write";
 
   private final BigQuerySQLEngineConfig sqlEngineConfig;
   private final BigQuery bigQuery;
@@ -354,7 +355,7 @@ public class BigQueryWrite {
       .setCreateDisposition(JobInfo.CreateDisposition.CREATE_NEVER)
       .setWriteDisposition(JobInfo.WriteDisposition.WRITE_APPEND)
       .setPriority(sqlEngineConfig.getJobPriority())
-      .setLabels(BigQuerySQLEngineUtils.getJobTags("copy"));
+      .setLabels(BigQuerySQLEngineUtils.getJobTags(BQ_PUSHDOWN_OPERATION_TAG));
   }
 
   protected QueryJobConfiguration.Builder getUpdateUpsertQueryJobBuilder(TableId sourceTableId,
@@ -394,7 +395,7 @@ public class BigQueryWrite {
 
     return QueryJobConfiguration.newBuilder(query)
       .setPriority(sqlEngineConfig.getJobPriority())
-      .setLabels(BigQuerySQLEngineUtils.getJobTags("copy"));
+      .setLabels(BigQuerySQLEngineUtils.getJobTags(BQ_PUSHDOWN_OPERATION_TAG));
   }
 
   /**

@@ -36,12 +36,11 @@ import io.cdap.cdap.etl.api.join.JoinStage;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
 import io.cdap.plugin.gcp.bigquery.sqlengine.BigQueryJobType;
 import io.cdap.plugin.gcp.bigquery.sqlengine.BigQuerySQLEngineConfig;
+import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -358,11 +357,9 @@ public class BigQuerySQLEngineUtils {
    * @return Map containing tags for a job.
    */
   public static Map<String, String> getJobTags(String operation) {
-    Map<String, String> labels = new HashMap<>();
-    labels.put("job_source", "cdap");
-    labels.put("type", "bq_pushdown");
+    Map<String, String> labels = BigQueryUtil.getJobTags(BigQueryUtil.BQ_JOB_TYPE_PUSHDOWN_TAG);
     labels.put("pushdown_operation", operation);
-    return Collections.unmodifiableMap(labels);
+    return labels;
   }
 
   /**
