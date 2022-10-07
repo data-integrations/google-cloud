@@ -9,7 +9,6 @@ Feature: Spanner Source - Verify Spanner source plugin error scenarios
     Then Validate mandatory property error for "<property>"
     Examples:
       | property        |
-      | referenceName   |
       | instance        |
       | database        |
       | table           |

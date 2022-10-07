@@ -9,6 +9,5 @@ Feature: GCS sink - Verify GCS Sink plugin error scenarios
     Then Validate mandatory property error for "<property>"
     Examples:
       | property        |
-      | referenceName   |
       | path            |
       | format          |
