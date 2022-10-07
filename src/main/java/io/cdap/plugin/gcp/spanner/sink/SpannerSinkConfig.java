@@ -27,9 +27,10 @@ import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.common.ConfigUtil;
 import io.cdap.plugin.common.Constants;
 import io.cdap.plugin.common.IdUtils;
+import io.cdap.plugin.common.ReferenceNames;
 import io.cdap.plugin.gcp.common.CmekUtils;
 import io.cdap.plugin.gcp.common.GCPConnectorConfig;
-import io.cdap.plugin.gcp.common.GCPReferenceSinkConfig;
+import io.cdap.plugin.gcp.spanner.SpannerConstants;
 import io.cdap.plugin.gcp.spanner.common.SpannerUtil;
 
 import java.io.IOException;
@@ -147,6 +148,10 @@ public class SpannerSinkConfig extends PluginConfig {
     return keys;
   }
 
+  public String getReferenceNameOrNormalizedFQN() {
+    return Strings.isNullOrEmpty(referenceName) ? ReferenceNames.normalizeFqn(getFQN()) : referenceName;
+  }
+
   public void validate(FailureCollector collector) {
     validate(collector, Collections.emptyMap());
   }
@@ -197,5 +202,16 @@ public class SpannerSinkConfig extends PluginConfig {
 
   public int getBatchSize() {
     return batchSize == null ? DEFAULT_SPANNER_WRITE_BATCH_SIZE : batchSize;
+  }
+
+  /**
+   * Get fully-qualified name (FQN) for a Spanner table (FQN format: spanner://{instanceId}.{database}.{table}).
+   *
+   * @return String fqn
+   */
+  public String getFQN() {
+    String secondFQNPart = String.join(".", instance, database, table);
+    return SpannerConstants.SPANNER_FQN_PREFIX + secondFQNPart;
+
   }
 }

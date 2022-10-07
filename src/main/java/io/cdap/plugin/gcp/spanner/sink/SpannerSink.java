@@ -17,7 +17,11 @@
 package io.cdap.plugin.gcp.spanner.sink;
 
 import com.google.cloud.kms.v1.CryptoKeyName;
+import com.google.cloud.spanner.Instance;
+import com.google.cloud.spanner.InstanceConfig;
 import com.google.cloud.spanner.Mutation;
+import com.google.cloud.spanner.ReplicaInfo;
+import com.google.cloud.spanner.Spanner;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Metadata;
 import io.cdap.cdap.api.annotation.MetadataProperty;
@@ -34,11 +38,13 @@ import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.connector.Connector;
+import io.cdap.plugin.common.Asset;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.common.ReferenceBatchSink;
 import io.cdap.plugin.common.batch.sink.SinkOutputFormatProvider;
 import io.cdap.plugin.gcp.common.CmekUtils;
 import io.cdap.plugin.gcp.spanner.SpannerConstants;
+import io.cdap.plugin.gcp.spanner.common.SpannerUtil;
 import io.cdap.plugin.gcp.spanner.connector.SpannerConnector;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
@@ -95,14 +101,30 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
                                                      context.getFailureCollector());
     Configuration configuration = new Configuration();
     configuration.setBoolean(SpannerConstants.IS_PREVIEW_ENABLED, context.isPreviewEnabled());
+    String location = null;
     if (cmekKeyName != null) {
       configuration.set(SpannerConstants.CMEK_KEY, cmekKeyName.toString());
     }
-    LineageRecorder lineageRecorder = new LineageRecorder(context, config.getReferenceName());
+    // initialize spanner
+    try (Spanner spanner = SpannerUtil.getSpannerService(config.connection.getServiceAccount(),
+                                                         config.connection.isServiceAccountFilePath(),
+                                                         config.connection.getProject())) {
+      // get location for lineage data (location info resides in instance config for spanner)
+      Instance spannerInstance = spanner.getInstanceAdminClient().getInstance(config.getInstance());
+      InstanceConfig instanceConfig = spanner.getInstanceAdminClient().
+        getInstanceConfig(spannerInstance.getInstanceConfigId().getInstanceConfig());
+      ReplicaInfo replica = instanceConfig.getReplicas().get(0);
+      if (replica != null) {
+        location = replica.getLocation();
+      }
+    }
+    Asset asset = Asset.builder(config.getReferenceNameOrNormalizedFQN())
+      .setFqn(config.getFQN()).setLocation(location).build();
+    LineageRecorder lineageRecorder = new LineageRecorder(context, asset);
     lineageRecorder.createExternalDataset(schema);
 
     SpannerOutputFormat.configure(configuration, config, schema);
-    context.addOutput(Output.of(config.getReferenceName(),
+    context.addOutput(Output.of(config.getReferenceNameOrNormalizedFQN(),
                                 new SinkOutputFormatProvider(SpannerOutputFormat.class, configuration)));
 
     List<Schema.Field> fields = schema.getFields();

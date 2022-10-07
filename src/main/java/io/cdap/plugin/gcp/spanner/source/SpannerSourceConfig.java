@@ -28,7 +28,9 @@ import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.common.ConfigUtil;
 import io.cdap.plugin.common.Constants;
 import io.cdap.plugin.common.IdUtils;
+import io.cdap.plugin.common.ReferenceNames;
 import io.cdap.plugin.gcp.common.GCPConnectorConfig;
+import io.cdap.plugin.gcp.spanner.SpannerConstants;
 import io.cdap.plugin.gcp.spanner.common.SpannerUtil;
 
 import java.io.IOException;
@@ -132,6 +134,10 @@ public class SpannerSourceConfig extends PluginConfig {
     return connection;
   }
 
+  public String getReferenceNameOrNormalizedFQN() {
+    return Strings.isNullOrEmpty(referenceName) ? ReferenceNames.normalizeFqn(getFQN()) : referenceName;
+  }
+
   /**
    * Return true if the service account is set to auto-detect but it can't be fetched from the environment.
    * This shouldn't result in a deployment failure, as the credential could be detected at runtime if the pipeline
@@ -186,5 +192,15 @@ public class SpannerSourceConfig extends PluginConfig {
     return connection != null && connection.canConnect() && !containsMacro(SpannerSourceConfig.NAME_SCHEMA) &&
       !containsMacro(SpannerSourceConfig.NAME_DATABASE) && !containsMacro(SpannerSourceConfig.NAME_TABLE) &&
       !containsMacro(SpannerSourceConfig.NAME_INSTANCE) && !containsMacro(SpannerSourceConfig.NAME_IMPORT_QUERY);
+  }
+
+  /**
+   * Get fully-qualified name (FQN) for a Spanner table (FQN format: spanner://{instanceId}.{database}.{table}).
+   *
+   * @return String fqn
+   */
+  public String getFQN() {
+    String secondFQNPart = String.join(".", instance, database, table);
+    return SpannerConstants.SPANNER_FQN_PREFIX + secondFQNPart;
   }
 }
