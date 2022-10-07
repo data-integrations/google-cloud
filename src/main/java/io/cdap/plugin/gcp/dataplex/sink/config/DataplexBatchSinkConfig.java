@@ -415,7 +415,9 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
    * @param dataplexServiceClient
    */
   public void validateAssetConfiguration(FailureCollector collector, DataplexServiceClient dataplexServiceClient) {
-    IdUtils.validateReferenceName(referenceName, collector);
+    if (!Strings.isNullOrEmpty(referenceName)) {
+      IdUtils.validateReferenceName(referenceName, collector);
+    }
     String projectID = tryGetProject();
     if (!Strings.isNullOrEmpty(location) && !containsMacro(NAME_LOCATION)) {
       if (!Strings.isNullOrEmpty(lake) && !containsMacro(NAME_LAKE)) {
@@ -977,7 +979,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   }
 
 
-  private DataplexBatchSinkConfig(String referenceName, String asset, @Nullable String assetType,
+  private DataplexBatchSinkConfig(@Nullable String referenceName, String asset, @Nullable String assetType,
                                   @Nullable String location, @Nullable String lake, @Nullable String zone,
                                   @Nullable String format, @Nullable GCPConnectorConfig connection,
                                   @Nullable String table, @Nullable String tableKey, @Nullable String dedupeBy,

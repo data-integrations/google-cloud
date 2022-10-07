@@ -101,6 +101,7 @@ public class SpannerSinkConfig extends PluginConfig {
   protected String cmekKey;
 
   @Name(Constants.Reference.REFERENCE_NAME)
+  @Nullable
   @Description("This will be used to uniquely identify this source for lineage, annotating metadata, etc.")
   public String referenceName;
 
@@ -157,7 +158,9 @@ public class SpannerSinkConfig extends PluginConfig {
   }
 
   public void validate(FailureCollector collector, Map<String, String> arguments) {
-    IdUtils.validateReferenceName(referenceName, collector);
+    if (!Strings.isNullOrEmpty(referenceName)) {
+      IdUtils.validateReferenceName(referenceName, collector);
+    }
     ConfigUtil.validateConnection(this, useConnection, connection, collector);
     Schema schema = getSchema(collector);
     if (!containsMacro(NAME_SCHEMA) && schema != null) {
