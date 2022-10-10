@@ -1,7 +1,7 @@
 @BQExecute
 Feature: BigQueryExecute - Verify data transfer using BigQuery Execute plugin
 
-  @BQ_SOURCE_TEST @BQ_SINK_TEST @BQ_EXECUTE_SQL
+  @BQ_SOURCE_TEST @BQ_SINK_TEST @BQ_EXECUTE_SQL @BQExecute_Required
   Scenario: Verify Store results in a BigQuery Table functionality of BQExecute plugin
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
@@ -106,7 +106,7 @@ Feature: BigQueryExecute - Verify data transfer using BigQuery Execute plugin
     Then Verify the pipeline status is "Succeeded"
     Then Verify BigQuery table: "bqSourceTable" is deleted
 
-  @BQ_SOURCE_BQ_EXECUTE_TEST @BQ_EXECUTE_INSERT_SQL
+  @BQ_SOURCE_BQ_EXECUTE_TEST @BQ_EXECUTE_INSERT_SQL @BQExecute_Required
   Scenario: Verify BQExecute plugin functionality for DML query - Insert data
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
@@ -124,7 +124,7 @@ Feature: BigQueryExecute - Verify data transfer using BigQuery Execute plugin
     Then Verify the pipeline status is "Succeeded"
     Then Verify 1 records inserted in BigQuery table: "bqSourceTable" with query "bqExecuteCountDMLInsert"
 
-  @BQ_SOURCE_TEST @BQ_EXECUTE_UPSERT_SQL
+  @BQ_SOURCE_TEST @BQ_EXECUTE_UPSERT_SQL @BQExecute_Required
   Scenario: Verify BQExecute plugin functionality for DML query - Upsert data
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
@@ -156,7 +156,7 @@ Feature: BigQueryExecute - Verify data transfer using BigQuery Execute plugin
     Then Verify the pipeline status is "Succeeded"
     Then Verify 1 records updated in BigQuery table: "bqSourceTable" with query "bqExecuteCountDMLUpsertUpdate"
 
-  @BQ_SOURCE_TEST @BQ_EXECUTE_UPDATE_SQL
+  @BQ_SOURCE_TEST @BQ_EXECUTE_UPDATE_SQL @BQExecute_Required
   Scenario: Verify BQExecute plugin functionality for DML query - Update data
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
