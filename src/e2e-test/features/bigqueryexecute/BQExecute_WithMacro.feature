@@ -5,7 +5,7 @@ Feature: BigQueryExecute - Verify data transfer using BigQuery Execute plugin wi
   Scenario:Verify Store results in a BigQuery Table functionality of BQExecute plugin using macro arguments
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
-    When Select plugin: "BigQuery Execute" from the plugins list as: "Conditions and Actions"
+    When Select plugin: "Big Query Execute" from the plugins list as: "Conditions and Actions"
     When Navigate to the properties page of plugin: "BigQuery Execute"
     Then Click on the Macro button of Property: "projectId" and set the value to: "bqeProjectId"
     Then Click on the Macro button of Property: "sql" and set the value in textarea: "bqeSQl"

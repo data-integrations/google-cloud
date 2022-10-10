@@ -4,7 +4,7 @@ Feature: BigQueryExecute - Verify BigQueryExecute plugin error scenarios
   Scenario: Verify BigQueryExecute validation error for mandatory field SQL Query
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
-    When Select plugin: "BigQuery Execute" from the plugins list as: "Conditions and Actions"
+    When Select plugin: "Big Query Execute" from the plugins list as: "Conditions and Actions"
     When Navigate to the properties page of plugin: "BigQuery Execute"
     Then Validate mandatory property error for "sql"
 
@@ -12,7 +12,7 @@ Feature: BigQueryExecute - Verify BigQueryExecute plugin error scenarios
   Scenario: Verify BigQueryExecute validation error for mandatory field job location
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
-    When Select plugin: "BigQuery Execute" from the plugins list as: "Conditions and Actions"
+    When Select plugin: "Big Query Execute" from the plugins list as: "Conditions and Actions"
     When Navigate to the properties page of plugin: "BigQuery Execute"
     Then Replace input plugin property: "projectId" with value: "projectId"
     Then Enter textarea plugin property: "sql" with value: "bqExecuteQuery"
@@ -23,7 +23,7 @@ Feature: BigQueryExecute - Verify BigQueryExecute plugin error scenarios
   Scenario: Verify BigQueryExecute validation error for empty datasetName
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
-    When Select plugin: "BigQuery Execute" from the plugins list as: "Conditions and Actions"
+    When Select plugin: "Big Query Execute" from the plugins list as: "Conditions and Actions"
     When Navigate to the properties page of plugin: "BigQuery Execute"
     Then Replace input plugin property: "projectId" with value: "projectId"
     Then Enter textarea plugin property: "sql" with value: "bqExecuteQuery"
@@ -37,7 +37,7 @@ Feature: BigQueryExecute - Verify BigQueryExecute plugin error scenarios
   Scenario: Verify BigQueryExecute validation error for empty table name
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
-    When Select plugin: "BigQuery Execute" from the plugins list as: "Conditions and Actions"
+    When Select plugin: "Big Query Execute" from the plugins list as: "Conditions and Actions"
     When Navigate to the properties page of plugin: "BigQuery Execute"
     Then Replace input plugin property: "projectId" with value: "projectId"
     Then Enter textarea plugin property: "sql" with value: "bqExecuteQuery"

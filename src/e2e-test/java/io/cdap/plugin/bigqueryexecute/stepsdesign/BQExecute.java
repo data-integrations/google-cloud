@@ -18,6 +18,7 @@ package io.cdap.plugin.bigqueryexecute.stepsdesign;
 import com.google.cloud.bigquery.BigQueryException;
 import io.cdap.e2e.utils.BigQueryClient;
 import io.cdap.e2e.utils.PluginPropertyUtils;
+import io.cdap.plugin.common.stepsdesign.TestSetupHooks;
 import io.cucumber.java.en.Then;
 import org.junit.Assert;
 import stepsdesign.BeforeActions;
@@ -69,15 +70,17 @@ public class BQExecute {
     }
   }
 
-  @Then("Verify number of records inserted in BigQuery table: {string} with query {string}")
-  public void verifyNumberOfRecordsInsertedInBigQueryTableWithQuery(String table, String countQuery)
+  @Then("Verify {int} records inserted in BigQuery table: {string} with query {string}")
+  public void verifyNumberOfRecordsInsertedInBigQueryTableWithQuery(int expectedCount, String table, String countQuery)
     throws IOException, InterruptedException {
-    String bqExecuteQuery = PluginPropertyUtils.pluginProp(countQuery)
-      .replace("DATASET", PluginPropertyUtils.pluginProp("dataset"))
-      .replace("PROJECT_NAME", PluginPropertyUtils.pluginProp("projectId"))
-      .replace("TABLENAME", PluginPropertyUtils.pluginProp(table));
-    Optional<String> result = BigQueryClient.getSoleQueryResult(bqExecuteQuery);
-    int count = result.map(Integer::parseInt).orElse(0);
-    Assert.assertEquals("BQExecute plugin should insert record in BigQuery table", 1, count);
+    int count = TestSetupHooks.getBigQueryRecordsCountByQuery(table, countQuery);
+    Assert.assertEquals("BQExecute plugin should insert record in BigQuery table", expectedCount, count);
+  }
+
+  @Then("Verify {int} records updated in BigQuery table: {string} with query {string}")
+  public void verifyRecordsUpdatedInBigQueryTableWithQuery(int expectedCount, String table, String countQuery)
+    throws IOException, InterruptedException {
+    int count = TestSetupHooks.getBigQueryRecordsCountByQuery(table, countQuery);
+    Assert.assertEquals("BQExecute plugin should update record in BigQuery table", expectedCount, count);
   }
 }

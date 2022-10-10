@@ -44,6 +44,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
@@ -847,5 +848,33 @@ public class TestSetupHooks {
   private static void setQueryBackWithTableDetailsPlaceholder(String queryProperty) {
     PluginPropertyUtils.addPluginProp(queryProperty, PluginPropertyUtils.pluginProp("tempStore" + queryProperty));
     PluginPropertyUtils.removePluginProp("tempStore" + queryProperty);
+  }
+
+  public static int getBigQueryRecordsCountByQuery(String table, String countQuery)
+    throws IOException, InterruptedException {
+    replaceTableDetailsInQuery(countQuery, table);
+    Optional<String> result = BigQueryClient.getSoleQueryResult(PluginPropertyUtils.pluginProp(countQuery));
+    setQueryBackWithTableDetailsPlaceholder(countQuery);
+    return result.map(Integer::parseInt).orElse(0);
+  }
+
+  @Before(order = 2, value = "@BQ_EXECUTE_UPSERT_SQL")
+  public static void replaceTableDetailsInUpsertQuery() {
+    replaceTableDetailsInQuery("bqExecuteDMLUpsert", "bqSourceTable");
+  }
+
+  @After(order = 2, value = "@BQ_EXECUTE_UPSERT_SQL")
+  public static void setUpsertQueryBackWithTableDetailsPlaceholder() {
+    setQueryBackWithTableDetailsPlaceholder("bqExecuteDMLUpsert");
+  }
+
+  @Before(order = 2, value = "@BQ_EXECUTE_UPDATE_SQL")
+  public static void replaceTableDetailsInUpdateQuery() {
+    replaceTableDetailsInQuery("bqExecuteDMLUpdate", "bqSourceTable");
+  }
+
+  @After(order = 2, value = "@BQ_EXECUTE_UPDATE_SQL")
+  public static void setUpdateQueryBackWithTableDetailsPlaceholder() {
+    setQueryBackWithTableDetailsPlaceholder("bqExecuteDMLUpdate");
   }
 }

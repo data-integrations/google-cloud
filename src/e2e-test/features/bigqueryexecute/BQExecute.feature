@@ -5,7 +5,7 @@ Feature: BigQueryExecute - Verify data transfer using BigQuery Execute plugin
   Scenario: Verify Store results in a BigQuery Table functionality of BQExecute plugin
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
-    When Select plugin: "BigQuery Execute" from the plugins list as: "Conditions and Actions"
+    When Select plugin: "Big Query Execute" from the plugins list as: "Conditions and Actions"
     When Navigate to the properties page of plugin: "BigQuery Execute"
     Then Replace input plugin property: "projectId" with value: "projectId"
     Then Enter textarea plugin property: "sql" with value: "bqExecuteQuery"
@@ -27,7 +27,7 @@ Feature: BigQueryExecute - Verify data transfer using BigQuery Execute plugin
   Scenario: Verify Row As Arguments functionality of BQExecute plugin
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
-    When Select plugin: "BigQuery Execute" from the plugins list as: "Conditions and Actions"
+    When Select plugin: "Big Query Execute" from the plugins list as: "Conditions and Actions"
     When Navigate to the properties page of plugin: "BigQuery Execute"
     Then Replace input plugin property: "projectId" with value: "projectId"
     Then Enter textarea plugin property: "sql" with value: "bqExecuteRowAsArgQuery"
@@ -74,7 +74,7 @@ Feature: BigQueryExecute - Verify data transfer using BigQuery Execute plugin
   Scenario: Verify BQExecute plugin functionality for DDL query - Create table
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
-    When Select plugin: "BigQuery Execute" from the plugins list as: "Conditions and Actions"
+    When Select plugin: "Big Query Execute" from the plugins list as: "Conditions and Actions"
     When Navigate to the properties page of plugin: "BigQuery Execute"
     Then Replace input plugin property: "projectId" with value: "projectId"
     Then Enter textarea plugin property: "sql" with value: "bqExecuteDDLCreate"
@@ -92,7 +92,7 @@ Feature: BigQueryExecute - Verify data transfer using BigQuery Execute plugin
   Scenario: Verify BQExecute plugin functionality for DDL query - Drop table
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
-    When Select plugin: "BigQuery Execute" from the plugins list as: "Conditions and Actions"
+    When Select plugin: "Big Query Execute" from the plugins list as: "Conditions and Actions"
     When Navigate to the properties page of plugin: "BigQuery Execute"
     Then Replace input plugin property: "projectId" with value: "projectId"
     Then Enter textarea plugin property: "sql" with value: "bqExecuteDDLDrop"
@@ -110,7 +110,7 @@ Feature: BigQueryExecute - Verify data transfer using BigQuery Execute plugin
   Scenario: Verify BQExecute plugin functionality for DML query - Insert data
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
-    When Select plugin: "BigQuery Execute" from the plugins list as: "Conditions and Actions"
+    When Select plugin: "Big Query Execute" from the plugins list as: "Conditions and Actions"
     When Navigate to the properties page of plugin: "BigQuery Execute"
     Then Replace input plugin property: "projectId" with value: "projectId"
     Then Enter textarea plugin property: "sql" with value: "bqExecuteDMLInsert"
@@ -122,4 +122,54 @@ Feature: BigQueryExecute - Verify data transfer using BigQuery Execute plugin
     Then Wait till pipeline is in running state
     Then Open and capture logs
     Then Verify the pipeline status is "Succeeded"
-    Then Verify number of records inserted in BigQuery table: "bqSourceTable" with query "bqExecuteCountDMLInsert"
+    Then Verify 1 records inserted in BigQuery table: "bqSourceTable" with query "bqExecuteCountDMLInsert"
+
+  @BQ_SOURCE_TEST @BQ_EXECUTE_UPSERT_SQL
+  Scenario: Verify BQExecute plugin functionality for DML query - Upsert data
+    Given Open Datafusion Project to configure pipeline
+    When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
+    When Select plugin: "Big Query Execute" from the plugins list as: "Conditions and Actions"
+    When Navigate to the properties page of plugin: "BigQuery Execute"
+    Then Replace input plugin property: "projectId" with value: "projectId"
+    Then Enter textarea plugin property: "sql" with value: "bqExecuteDMLUpsert"
+    Then Override Service account details if set in environment variables
+    Then Validate "BigQuery Execute" plugin properties
+    Then Close the Plugin Properties page
+    Then Save and Deploy Pipeline
+    Then Run the Pipeline in Runtime
+    Then Wait till pipeline is in running state
+    Then Open and capture logs
+    Then Close the pipeline logs
+    Then Verify the pipeline status is "Succeeded"
+    Then Verify 1 records inserted in BigQuery table: "bqSourceTable" with query "bqExecuteCountDMLUpsertInsert"
+    Then Open pipeline actions menu
+    Then Select pipeline action: "Duplicate"
+    Then Verify plugin: "BigQuery Execute" node is displayed on the canvas with a timeout of 120 seconds
+    Then Navigate to the properties page of plugin: "BigQuery Execute"
+    Then Validate "BigQuery Execute" plugin properties
+    Then Close the Plugin Properties page
+    Then Save and Deploy Pipeline
+    Then Run the Pipeline in Runtime
+    Then Wait till pipeline is in running state
+    Then Open and capture logs
+    Then Close the pipeline logs
+    Then Verify the pipeline status is "Succeeded"
+    Then Verify 1 records updated in BigQuery table: "bqSourceTable" with query "bqExecuteCountDMLUpsertUpdate"
+
+  @BQ_SOURCE_TEST @BQ_EXECUTE_UPDATE_SQL
+  Scenario: Verify BQExecute plugin functionality for DML query - Update data
+    Given Open Datafusion Project to configure pipeline
+    When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
+    When Select plugin: "Big Query Execute" from the plugins list as: "Conditions and Actions"
+    When Navigate to the properties page of plugin: "BigQuery Execute"
+    Then Replace input plugin property: "projectId" with value: "projectId"
+    Then Enter textarea plugin property: "sql" with value: "bqExecuteDMLUpdate"
+    Then Override Service account details if set in environment variables
+    Then Validate "BigQuery Execute" plugin properties
+    Then Close the Plugin Properties page
+    Then Save and Deploy Pipeline
+    Then Run the Pipeline in Runtime
+    Then Wait till pipeline is in running state
+    Then Open and capture logs
+    Then Verify the pipeline status is "Succeeded"
+    Then Verify 1 records updated in BigQuery table: "bqSourceTable" with query "bqExecuteCountDMLUpdate"
