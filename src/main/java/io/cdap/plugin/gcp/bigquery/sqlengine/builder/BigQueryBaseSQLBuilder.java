@@ -47,6 +47,8 @@ public abstract class BigQueryBaseSQLBuilder {
   public static final String ORDER_DESC = "DESC";
   public static final String ORDER_ASC = "ASC";
   public static final String SELECT_DEDUPLICATE_STATEMENT = "SELECT * EXCEPT(`%s`) FROM (%s) WHERE `%s` = 1";
+
+  public static final String OVER = "OVER";
   public static final String ROW_NUMBER_PARTITION_COLUMN =
     "ROW_NUMBER() OVER ( %s ) AS `%s`";
   public static final String PARTITION_BY = "PARTITION BY ";
