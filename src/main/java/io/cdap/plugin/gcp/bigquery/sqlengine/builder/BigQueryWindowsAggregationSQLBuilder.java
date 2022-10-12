@@ -72,23 +72,48 @@ public class BigQueryWindowsAggregationSQLBuilder extends BigQueryBaseSQLBuilder
 
   @Override
   public String getQuery() {
-    // SELECT ...
-
-    String query = SELECT + getSelectedFields(windowAggregationDefinition.getSelectExpressions()) +
-      SPACE
-      + OVER + OPEN_GROUP + SPACE + PARTITION_BY + SPACE +
+    String query = SELECT + getSelectedFields(windowAggregationDefinition.getSelectExpressions()) + SPACE + OVER +
+      OPEN_GROUP + SPACE + PARTITION_BY + SPACE +
       getPartitionFields(windowAggregationDefinition.getPartitionExpressions()) + SPACE
-      + getOrderByFields(windowAggregationDefinition.getOrderByExpressions()) + SPACE + CLOSE_GROUP +
-      FROM + OPEN_GROUP + SPACE + source + SPACE + CLOSE_GROUP + SPACE + AS + sourceAlias;
+      + getOrderByFields(windowAggregationDefinition.getOrderByExpressions()) + SPACE +
+      getWindowFrameDefinition(windowAggregationDefinition) + SPACE + CLOSE_GROUP + FROM + OPEN_GROUP + SPACE + source +
+      SPACE + CLOSE_GROUP + SPACE + AS + sourceAlias;
     LOG.debug("Query is " + query);
     return query;
   }
 
-  private String getPartitionFields(List<Expression> partitionFields) {
+  private String getWindowFrameDefinition(WindowAggregationDefinition windowAggregationDefinition) {
+    String def = "";
+    if (windowAggregationDefinition.getWindowFrameType() == WindowAggregationDefinition.WindowFrameType.NONE) {
+      return def;
+    }
+    if (windowAggregationDefinition.getWindowFrameType() == WindowAggregationDefinition.WindowFrameType.RANGE) {
+      def = def + "RANGE";
+    } else if (windowAggregationDefinition.getWindowFrameType() == WindowAggregationDefinition.WindowFrameType.ROW) {
+      def = def + "ROWS";
+    }
+    def = def + SPACE + "BETWEEN";
+    if (windowAggregationDefinition.getUnboundedPreceding()) {
+      def = def + SPACE + "UNBOUNDED PRECEDING";
+    } else {
+      def = def + SPACE + windowAggregationDefinition.getPreceding();
+    }
+    def = def + SPACE;
+    if (windowAggregationDefinition.getUnboundedFollowing()) {
+      def = def + SPACE + "UNBOUNDED FOLLOWING";
+    } else {
+      def = def + SPACE + windowAggregationDefinition.getFollowing();
+    }
+    return def;
+  }
+
+  @VisibleForTesting
+  public String getPartitionFields(List<Expression> partitionFields) {
     return getExpressionSQLStream(partitionFields).collect(Collectors.joining(COMMA));
   }
 
-  private String getOrderByFields(List<WindowAggregationDefinition.OrderByExpression> orderFields) {
+  @VisibleForTesting
+  public String getOrderByFields(List<WindowAggregationDefinition.OrderByExpression> orderFields) {
     String order = "";
     for (WindowAggregationDefinition.OrderByExpression field : orderFields) {
       String type = field.getOrderBy().equals(WindowAggregationDefinition.OrderBy.ASCENDING) ? ORDER_ASC : ORDER_DESC;

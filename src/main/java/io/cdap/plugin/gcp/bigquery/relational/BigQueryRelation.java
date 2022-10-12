@@ -18,6 +18,7 @@ import io.cdap.plugin.gcp.bigquery.sqlengine.builder.BigQuerySelectSQLBuilder;
 import io.cdap.plugin.gcp.bigquery.sqlengine.builder.BigQueryWindowsAggregationSQLBuilder;
 import org.apache.parquet.Strings;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -283,10 +284,10 @@ public class BigQueryRelation implements Relation {
   @Override
   public Relation window(WindowAggregationDefinition definition) {
     // Check if window feature is enabled
-   /* if (!Feature.PUSHDOWN_TRANSFORMATION_WINDOWAGGREGATION.isEnabled(featureFlagsProvider)) {
+    if (!Feature.PUSHDOWN_TRANSFORMATION_WINDOWAGGREGATION.isEnabled(featureFlagsProvider)) {
       return getInvalidRelation(String.format("Feature %s is not enabled.",
         Feature.PUSHDOWN_TRANSFORMATION_WINDOWAGGREGATION.getFeatureFlagString()));
-    }*/
+    }
 
     // Ensure all expressions supplied in this definition are supported and valid
     if (!supportsWindowAggregationDefinition(definition)) {
@@ -543,8 +544,13 @@ public class BigQueryRelation implements Relation {
   protected static boolean supportsWindowAggregationDefinition(WindowAggregationDefinition def) {
     Collection<Expression> partitionExpressions =  def.getPartitionExpressions();
     Collection<Expression> selectExpressions = def.getSelectExpressions().values();
-    return supportsExpressions(partitionExpressions)
-      && supportsExpressions(selectExpressions);
+    Collection<WindowAggregationDefinition.OrderByExpression> orderByExpressions = def.getOrderByExpressions();
+    Collection<Expression> orderExpressions = new ArrayList<>(orderByExpressions.size());
+    for (WindowAggregationDefinition.OrderByExpression orderByExpression : orderByExpressions) {
+      orderExpressions.add(orderByExpression.getExpression());
+    }
+    return supportsExpressions(partitionExpressions) && supportsExpressions(selectExpressions)
+      && supportsExpressions(orderExpressions);
   }
   protected static WindowAggregationDefinition qualify(WindowAggregationDefinition def) {
     WindowAggregationDefinition.Builder builder = WindowAggregationDefinition.builder();
@@ -570,7 +576,11 @@ public class BigQueryRelation implements Relation {
     // Gets all expressions defined in this definition
     Collection<Expression> selectExpressions = def.getSelectExpressions().values();
     Collection<Expression> partitionExpressions = def.getPartitionExpressions();
-
+    Collection<WindowAggregationDefinition.OrderByExpression> orderByExpressions = def.getOrderByExpressions();
+    Collection<Expression> orderExpressions = new ArrayList<>(orderByExpressions.size());
+    for (WindowAggregationDefinition.OrderByExpression orderByExpression : orderByExpressions) {
+      orderExpressions.add(orderByExpression.getExpression());
+    }
     // Get all invalid expression causes, and prepend field origin to error reasons
     String selectErrors = getInvalidExpressionCauses(selectExpressions);
     if (!Strings.isNullOrEmpty(selectErrors)) {
@@ -582,8 +592,13 @@ public class BigQueryRelation implements Relation {
       partitionErrors = "Window fields: " + partitionErrors;
     }
 
+    String orderErrors = getInvalidExpressionCauses(orderExpressions);
+    if (!Strings.isNullOrEmpty(orderErrors)) {
+      orderErrors = "Order fields: " + orderErrors;
+    }
+
     // Build string which concatenates all non-empty error groups, separated by a hyphen.
-    return Stream.of(selectErrors, partitionErrors)
+    return Stream.of(selectErrors, partitionErrors, orderErrors)
       .filter(Objects::nonNull)
       .collect(Collectors.joining(" - "));
   }
