@@ -47,7 +47,6 @@ import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize.Numeric;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
@@ -64,12 +63,11 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-
 import javax.annotation.Nullable;
 
 /**
  * Utility class for the BigQuery DelegatingMultiSink.
- *
+ * <p>
  * The logic in this class has been extracted from the {@link AbstractBigQuerySink} in order to make this functionality
  * available to other classes in this package.
  */
@@ -80,7 +78,8 @@ public final class BigQuerySinkUtils {
   private static final String DATETIME = "DATETIME";
   private static final String RECORD = "RECORD";
   private static final Gson GSON = new Gson();
-  private static final Type LIST_OF_FIELD_TYPE = new TypeToken<ArrayList<Field>>() { }.getType();
+  private static final Type LIST_OF_FIELD_TYPE = new TypeToken<ArrayList<Field>>() {
+  }.getType();
 
   // Fields used to build update/upsert queries
   private static final String CRITERIA_TEMPLATE = "T.`%s` = S.`%s`";
@@ -89,6 +88,8 @@ public final class BigQuerySinkUtils {
   private static final String UPDATE_QUERY = "UPDATE %s T SET %s FROM %s S WHERE %s";
   private static final String UPSERT_QUERY = "MERGE %s T USING %s S ON %s WHEN MATCHED THEN UPDATE SET %s " +
     "WHEN NOT MATCHED THEN INSERT (%s) VALUES(%s)";
+  private static final String INSERT_ONLY_UPSERT_QUERY = "MERGE %s T USING %s S ON %s WHEN NOT MATCHED THEN " +
+    "INSERT (%s) VALUES(%s)";
   private static final List<String> COMPARISON_OPERATORS =
     Arrays.asList("=", "<", ">", "<=", ">=", "!=", "<>",
                   "LIKE", "NOT LIKE", "BETWEEN", "NOT BETWEEN", "IN", "NOT IN", "IS NULL", "IS NOT NULL",
@@ -100,11 +101,11 @@ public final class BigQuerySinkUtils {
    * but the dataset does not, the dataset will attempt to be created in the same location. This may fail if the bucket
    * is in a location that BigQuery does not yet support.
    *
-   * @param bigQuery the bigquery client for the project
-   * @param storage the storage client for the project
-   * @param datasetId the Id of the dataset
-   * @param bucketName the name of the bucket
-   * @param location the location of the resources, this is only applied if both the bucket and dataset do not exist
+   * @param bigQuery    the bigquery client for the project
+   * @param storage     the storage client for the project
+   * @param datasetId   the Id of the dataset
+   * @param bucketName  the name of the bucket
+   * @param location    the location of the resources, this is only applied if both the bucket and dataset do not exist
    * @param cmekKeyName the name of the cmek key
    * @throws IOException if there was an error creating or fetching any GCP resource
    */
@@ -120,20 +121,20 @@ public final class BigQuerySinkUtils {
 
   /**
    * Creates the given dataset and bucket if the supplied ones are null.
-   *
+   * <p>
    * If the dataset already exists but the
    * bucket does not, the bucket will be created in the same location as the dataset. If the bucket already exists
    * but the dataset does not, the dataset will attempt to be created in the same location. This may fail if the bucket
    * is in a location that BigQuery does not yet support.
    *
-   * @param bigQuery the bigquery client for the project
-   * @param dataset the bigquery dataset instance (may be null)
-   * @param datasetId the Id of the dataset
-   * @param storage the storage client for the project
-   * @param bucket the storage bucket instance (may be null)
+   * @param bigQuery   the bigquery client for the project
+   * @param dataset    the bigquery dataset instance (may be null)
+   * @param datasetId  the Id of the dataset
+   * @param storage    the storage client for the project
+   * @param bucket     the storage bucket instance (may be null)
    * @param bucketName the name of the bucket
-   * @param location the location of the resources, this is only applied if both the bucket and dataset do not exist
-   * @param cmekKey the name of the cmek key
+   * @param location   the location of the resources, this is only applied if both the bucket and dataset do not exist
+   * @param cmekKey    the name of the cmek key
    * @throws IOException
    */
   public static void createResources(BigQuery bigQuery, @Nullable Dataset dataset, DatasetId datasetId,
@@ -164,16 +165,17 @@ public final class BigQuerySinkUtils {
 
   /**
    * Creates a Dataset in the specified location using the supplied BigQuery client.
-   * @param bigQuery the bigQuery client.
-   * @param dataset the Id of the dataset to create.
-   * @param location Location for this dataset.
-   * @param cmekKeyName CMEK key to use for this dataset.
+   *
+   * @param bigQuery     the bigQuery client.
+   * @param dataset      the Id of the dataset to create.
+   * @param location     Location for this dataset.
+   * @param cmekKeyName  CMEK key to use for this dataset.
    * @param errorMessage Supplier for the error message to output if the dataset could not be created.
    * @throws IOException if the dataset could not be created.
    */
   private static void createDataset(BigQuery bigQuery, DatasetId dataset, @Nullable String location,
-                                   @Nullable CryptoKeyName cmekKeyName,
-                                   Supplier<String> errorMessage) throws IOException {
+                                    @Nullable CryptoKeyName cmekKeyName,
+                                    Supplier<String> errorMessage) throws IOException {
     DatasetInfo.Builder builder = DatasetInfo.newBuilder(dataset);
     if (location != null) {
       builder.setLocation(location);
@@ -196,10 +198,11 @@ public final class BigQuerySinkUtils {
 
   /**
    * Creates a Dataset in the specified location using the supplied BigQuery client if it does not exist.
-   * @param bigQuery the bigQuery client.
-   * @param datasetId the Id of the dataset to create.
-   * @param location Location for this dataset.
-   * @param cmekKeyName CMEK key to use for this dataset.
+   *
+   * @param bigQuery     the bigQuery client.
+   * @param datasetId    the Id of the dataset to create.
+   * @param location     Location for this dataset.
+   * @param cmekKeyName  CMEK key to use for this dataset.
    * @param errorMessage Supplier for the error message to output if the dataset could not be created.
    * @throws IOException if the dataset could not be created.
    */
@@ -216,10 +219,11 @@ public final class BigQuerySinkUtils {
 
   /**
    * Creates the specified GCS bucket using the supplied GCS client.
-   * @param storage GCS Client.
-   * @param bucket Bucket Name.
-   * @param location Location for this bucket.
-   * @param cmekKeyName CMEK key to use for this bucket.
+   *
+   * @param storage      GCS Client.
+   * @param bucket       Bucket Name.
+   * @param location     Location for this bucket.
+   * @param cmekKeyName  CMEK key to use for this bucket.
    * @param errorMessage Supplier for the error message to output if the bucket could not be created.
    * @throws IOException if the bucket could not be created.
    */
@@ -279,10 +283,10 @@ public final class BigQuerySinkUtils {
    * Configures output for Sink
    *
    * @param configuration Hadoop configuration instance
-   * @param datasetId id of the dataset to use
-   * @param tableName name of the table to use
-   * @param gcsPath GCS path to use for output
-   * @param fields list of BigQuery table fields
+   * @param datasetId     id of the dataset to use
+   * @param tableName     name of the table to use
+   * @param gcsPath       GCS path to use for output
+   * @param fields        list of BigQuery table fields
    * @throws IOException if the output cannot be configured
    */
   public static void configureOutput(Configuration configuration,
@@ -311,10 +315,10 @@ public final class BigQuerySinkUtils {
    * Configures output for MultiSink
    *
    * @param configuration Hadoop configuration instance
-   * @param datasetId name of the dataset to use
-   * @param tableName name of the table to use
-   * @param gcsPath GCS path to use for output
-   * @param fields list of BigQuery table fields
+   * @param datasetId     name of the dataset to use
+   * @param tableName     name of the table to use
+   * @param gcsPath       GCS path to use for output
+   * @param fields        list of BigQuery table fields
    * @throws IOException if the output cannot be configured
    */
   public static void configureMultiSinkOutput(Configuration configuration,
@@ -345,8 +349,9 @@ public final class BigQuerySinkUtils {
 
   /**
    * Relaxes the Destination Table Schema based on the matching field names from the source table
-   * @param bigquery BigQuery client
-   * @param sourceTable source table, which contains the updated field definition
+   *
+   * @param bigquery         BigQuery client
+   * @param sourceTable      source table, which contains the updated field definition
    * @param destinationTable destination table, whose fields definitions may be relaxed depending on the source table.
    */
   public static void relaxTableSchema(BigQuery bigquery,
@@ -361,9 +366,10 @@ public final class BigQuerySinkUtils {
 
   /**
    * Relaxes the Destination Table Schema based on the matching field names from the source table
-   * @param bigquery BigQuery client
-   * @param destinationTable destination table, whose fields definitions may be relaxed depending on the source fields.
-   * @param sourceFields fields in the source table that need to be used to relax the destination table
+   *
+   * @param bigquery          BigQuery client
+   * @param destinationTable  destination table, whose fields definitions may be relaxed depending on the source fields.
+   * @param sourceFields      fields in the source table that need to be used to relax the destination table
    * @param destinationFields fields in the destination table that may be relaxed depending on the source fields
    */
   public static void relaxTableSchema(BigQuery bigquery,
@@ -436,13 +442,13 @@ public final class BigQuerySinkUtils {
       // of that record.
       if (Schema.Type.ARRAY == fieldCdapSchema.getType()) {
         schemaFields = Objects.requireNonNull(
-            BigQueryUtil.getNonNullableSchema(fieldCdapSchema.getComponentSchema()).getFields());
+          BigQueryUtil.getNonNullableSchema(fieldCdapSchema.getComponentSchema()).getFields());
       } else {
         schemaFields = fieldCdapSchema.getFields();
       }
       fieldSchema.setFields(Objects.requireNonNull(schemaFields).stream()
-          .map(BigQuerySinkUtils::generateTableFieldSchema)
-          .collect(Collectors.toList()));
+                              .map(BigQuerySinkUtils::generateTableFieldSchema)
+                              .collect(Collectors.toList()));
 
     }
     return fieldSchema;
@@ -613,8 +619,8 @@ public final class BigQuerySinkUtils {
       .map(s -> String.format(CRITERIA_TEMPLATE, s, s)).collect(Collectors.joining(", "));
 
     orderedByList = orderedByList.stream().map(s -> s.trim()).map(s -> {
-        return "`" + s.split(" ")[0] + "` " + s.split(" ", 2)[1];
-      }).collect(Collectors.toList());
+      return "`" + s.split(" ")[0] + "` " + s.split(" ", 2)[1];
+    }).collect(Collectors.toList());
 
     String orderedBy = orderedByList.isEmpty() ? "" : " ORDER BY " + String.join(", ", orderedByList);
     String sourceTable = String.format(SOURCE_DATA_QUERY, "`" + String.join("`, `", tableKeyList) + "`",
@@ -624,6 +630,11 @@ public final class BigQuerySinkUtils {
         return String.format(UPDATE_QUERY, destination, fieldsForUpdate, sourceTable, criteria);
       case UPSERT:
         String insertFields = "`" + String.join("`, `", tableFieldsList) + "`";
+        // if all fields are keys we update no field and only insert new rows
+        if (fieldsForUpdate.isEmpty()) {
+          return String.format(INSERT_ONLY_UPSERT_QUERY, destination, sourceTable, criteria,
+                               insertFields, insertFields);
+        }
         return String.format(UPSERT_QUERY, destination, sourceTable, criteria, fieldsForUpdate,
                              insertFields, insertFields);
       default:
@@ -634,7 +645,7 @@ public final class BigQuerySinkUtils {
   private static String formatPartitionFilter(String partitionFilter) {
     String[] queryWords = partitionFilter.split(" ");
     int index = 0;
-    for (String word: queryWords) {
+    for (String word : queryWords) {
       if (COMPARISON_OPERATORS.contains(word.toUpperCase())) {
         queryWords[index - 1] = queryWords[index - 1].replace(queryWords[index - 1],
                                                               "T." + queryWords[index - 1]);
@@ -674,7 +685,7 @@ public final class BigQuerySinkUtils {
       if (table != null) {
         com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
         validateSchema(tableName, bqSchema, tableSchema, allowSchemaRelaxation, isTruncateTableSet, dataset,
-          collector);
+                       collector);
       }
     } catch (BigQueryException e) {
       collector.addFailure("Unable to get details about the BigQuery table: " + e.getMessage(), null)
@@ -728,7 +739,7 @@ public final class BigQuerySinkUtils {
       for (String nonNullableField : nonNullableFields) {
         collector.addFailure(
             String.format("Required field '%s' does not exist in BigQuery table '%s.%s'.",
-              nonNullableField, dataset, tableName),
+                          nonNullableField, dataset, tableName),
             "Change the field to be nullable.")
           .withInputSchemaField(nonNullableField).withOutputSchemaField(nonNullableField);
       }
@@ -739,7 +750,7 @@ public final class BigQuerySinkUtils {
       for (String missingField : missingBQFields) {
         collector.addFailure(
             String.format("Field '%s' does not exist in BigQuery table '%s.%s'.",
-              missingField, dataset, tableName),
+                          missingField, dataset, tableName),
             String.format("Remove '%s' from the input, or add a column to the BigQuery table.", missingField))
           .withInputSchemaField(missingField).withOutputSchemaField(missingField);
       }
@@ -751,7 +762,7 @@ public final class BigQuerySinkUtils {
         // Mode is optional. If the mode is unspecified, the column defaults to NULLABLE.
         if (mode != null && mode != Field.Mode.NULLABLE) {
           collector.addFailure(String.format("Required Column '%s' is not present in the schema.", field),
-            String.format("Add '%s' to the schema.", field));
+                               String.format("Add '%s' to the schema.", field));
         }
       }
     }
@@ -770,8 +781,8 @@ public final class BigQuerySinkUtils {
             failure.withInputSchemaField(fieldName).withOutputSchemaField(fieldName);
           }
           BigQueryUtil.validateFieldModeMatches(bqFields.get(fieldName), field,
-            allowSchemaRelaxation,
-            collector);
+                                                allowSchemaRelaxation,
+                                                collector);
         }
       }
     }
@@ -783,12 +794,13 @@ public final class BigQuerySinkUtils {
    * {@link IllegalArgumentException}
    * if the output schema has more fields than Big Query table or output schema field types does not match
    * Big Query column types unless schema relaxation policy is allowed.
-   * @param table                   table name
-   * @param tableSchema             configured table schema
-   * @param allowSchemaRelaxation   allows schema relaxation policy
-   * @param isTruncateTableSet      to truncate the table before writing or not while inserting
-   * @param dataset                 dataset name
-   * @param collector               failure collector
+   *
+   * @param table                 table name
+   * @param tableSchema           configured table schema
+   * @param allowSchemaRelaxation allows schema relaxation policy
+   * @param isTruncateTableSet    to truncate the table before writing or not while inserting
+   * @param dataset               dataset name
+   * @param collector             failure collector
    */
   public static void validateInsertSchema(Table table, @Nullable Schema tableSchema,
                                           boolean allowSchemaRelaxation,
@@ -813,7 +825,7 @@ public final class BigQuerySinkUtils {
     for (String field : remainingBQFields) {
       if (bqFields.get(field).getMode() != Field.Mode.NULLABLE) {
         collector.addFailure(String.format("Required Column '%s' is not present in the schema.", field),
-          String.format("Add '%s' to the schema.", field));
+                             String.format("Add '%s' to the schema.", field));
       }
     }
 
@@ -831,8 +843,8 @@ public final class BigQuerySinkUtils {
           failure.withInputSchemaField(fieldName).withOutputSchemaField(fieldName);
         }
         BigQueryUtil.validateFieldModeMatches(bqFields.get(fieldName), field,
-          allowSchemaRelaxation,
-          collector);
+                                              allowSchemaRelaxation,
+                                              collector);
       }
     }
     collector.getOrThrowException();
@@ -840,8 +852,9 @@ public final class BigQuerySinkUtils {
 
   /**
    * Returns list of duplicated fields (case insensitive)
+   *
    * @param schemaFields List of schema fields
-   * @return             return set of duplicate fields
+   * @return return set of duplicate fields
    */
   public static Set<String> getDuplicatedFields(List<String> schemaFields) {
     final Set<String> duplicatedFields = new HashSet<>();
@@ -856,6 +869,7 @@ public final class BigQuerySinkUtils {
 
   /**
    * returns whether any logical type is supported or not in BigQuery.
+   *
    * @param logicalType logical type of schema field
    * @return boolean value
    */
@@ -869,6 +883,7 @@ public final class BigQuerySinkUtils {
 
   /**
    * returns a Map, if fields are coming multiple times in fieldList.
+   *
    * @param values
    * @return Map containing Field as key and occurrence as value
    */
@@ -880,10 +895,11 @@ public final class BigQuerySinkUtils {
 
   /**
    * Record the lineage for the plugin
-   * @param context       Batch sink context
-   * @param asset         asset object of table
-   * @param tableSchema   schema of table
-   * @param fieldNames    field list
+   *
+   * @param context     Batch sink context
+   * @param asset       asset object of table
+   * @param tableSchema schema of table
+   * @param fieldNames  field list
    */
   public static void recordLineage(BatchSinkContext context,
                                    Asset asset,

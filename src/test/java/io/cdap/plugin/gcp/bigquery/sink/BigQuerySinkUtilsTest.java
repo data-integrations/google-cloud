@@ -595,4 +595,41 @@ public class BigQuerySinkUtilsTest {
                           "WHEN MATCHED THEN UPDATE SET T.`c` = S.`c` " +
                           "WHEN NOT MATCHED THEN INSERT (`a`, `b`, `c`) VALUES(`a`, `b`, `c`)", query);
   }
+
+  @Test
+  public void testGenerateUpdateUpsertQueryUpsertWithAllFieldsAsKeys() {
+    Operation operation = Operation.UPSERT;
+
+    TableId sourceTableId = TableId.of("dummy_src_project", "dummy_src_dataset",
+                                       "dummy_src_table");
+    TableId destinationTableId = TableId.of("dummy_dest_project", "dummy_dest_dataset",
+                                            "dummy_dest_table");
+
+    List<String> tableFieldsList = new ArrayList<>(3);
+    tableFieldsList.add("a");
+    tableFieldsList.add("b");
+    tableFieldsList.add("c");
+
+    List<String> tableKeyList = new ArrayList<>(1);
+    tableKeyList.add("a");
+    tableKeyList.add("b");
+    tableKeyList.add("c");
+
+    List<String> orderedByList = new ArrayList<>(1);
+    orderedByList.add("b ASC");
+    orderedByList.add("c DESC");
+
+    String partitionFilter = null;
+
+    String query = BigQuerySinkUtils.generateUpdateUpsertQuery(operation, sourceTableId, destinationTableId,
+                                                               tableFieldsList, tableKeyList, orderedByList,
+                                                               partitionFilter);
+
+    Assert.assertEquals("MERGE `dummy_dest_project.dummy_dest_dataset.dummy_dest_table` T USING (SELECT * " +
+                          "FROM (SELECT row_number() OVER (PARTITION BY `a`, `b`, `c` " +
+                          "ORDER BY `b` ASC, `c` DESC) as rowid, * FROM " +
+                          "`dummy_src_project.dummy_src_dataset.dummy_src_table`) " +
+                          "where rowid = 1) S ON T.`a` = S.`a` AND T.`b` = S.`b` AND T.`c` = S.`c` " +
+                          "WHEN NOT MATCHED THEN INSERT (`a`, `b`, `c`) VALUES(`a`, `b`, `c`)", query);
+  }
 }
