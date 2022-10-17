@@ -127,9 +127,13 @@ public class SpannerSinkConfig extends PluginConfig {
     this.schema = schema;
     this.cmekKey = cmekKey;
   }
-  
+
+  /**
+   * Return reference name if provided, otherwise, normalize the FQN and return it as reference name
+   * @return referenceName (if provided)/normalized FQN
+   */
   public String getReferenceName() {
-    return referenceName;
+    return Strings.isNullOrEmpty(referenceName) ? ReferenceNames.normalizeFqn(getFQN()) : referenceName;
   }
 
   public String getTable() {
@@ -147,10 +151,6 @@ public class SpannerSinkConfig extends PluginConfig {
   @Nullable
   public String getKeys() {
     return keys;
-  }
-
-  public String getReferenceNameOrNormalizedFQN() {
-    return Strings.isNullOrEmpty(referenceName) ? ReferenceNames.normalizeFqn(getFQN()) : referenceName;
   }
 
   public void validate(FailureCollector collector) {

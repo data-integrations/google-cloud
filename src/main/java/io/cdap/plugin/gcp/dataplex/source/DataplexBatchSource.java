@@ -240,7 +240,7 @@ public class DataplexBatchSource extends BatchSource<Object, Object, StructuredR
     TableDefinition.Type sourceTableType = config.getSourceTableType(datasetProject, dataset, tableId);
     emitLineage(context, outputSchema, sourceTableType);
     context.setInput(
-      Input.of(config.getReferenceNameOrNormalizedFQN(BigQueryUtil.getFQN(datasetProject, dataset, tableId)),
+      Input.of(config.getReferenceName(BigQueryUtil.getFQN(datasetProject, dataset, tableId)),
                new DataplexInputFormatProvider(configuration)));
   }
 
@@ -264,7 +264,7 @@ public class DataplexBatchSource extends BatchSource<Object, Object, StructuredR
     getEntityValuesFromDataPathForBQEntities(entity.getDataPath());
     String fqn = BigQueryUtil.getFQN(datasetProject, dataset, tableId);
     Asset asset = Asset.builder(
-      config.getReferenceNameOrNormalizedFQN(fqn)).setFqn(fqn).setLocation(config.getLocation()).build();
+      config.getReferenceName(fqn)).setFqn(fqn).setLocation(config.getLocation()).build();
     LineageRecorder lineageRecorder = new LineageRecorder(context, asset);
     lineageRecorder.createExternalDataset(schema);
 
@@ -315,7 +315,7 @@ public class DataplexBatchSource extends BatchSource<Object, Object, StructuredR
 
     Schema schema = DataplexUtil.getTableSchema(entity.getSchema(), collector);
     io.cdap.plugin.common.Asset asset = io.cdap.plugin.common.Asset.builder(
-      config.getReferenceNameOrNormalizedFQN(entity.getDataPath()))
+      config.getReferenceName(entity.getDataPath()))
       .setFqn(entity.getDataPath()).setLocation(config.getLocation()).build();
     LineageRecorder lineageRecorder = new LineageRecorder(context, asset);
     lineageRecorder.createExternalDataset(schema);
@@ -346,7 +346,7 @@ public class DataplexBatchSource extends BatchSource<Object, Object, StructuredR
       }
     }
     configuration.set(DataplexConstants.DATAPLEX_ENTITY_TYPE, entity.getSystem().toString());
-    context.setInput(Input.of(config.getReferenceNameOrNormalizedFQN(entity.getDataPath()),
+    context.setInput(Input.of(config.getReferenceName(entity.getDataPath()),
                               new DataplexInputFormatProvider(configuration)));
   }
 

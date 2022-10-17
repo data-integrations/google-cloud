@@ -143,10 +143,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     }
     this.outputPath = getOutputDir(context);
     // create asset for lineage
-    String referenceName = Strings.isNullOrEmpty(config.getReferenceName())
-      ? ReferenceNames.normalizeFqn(config.getPath())
-      : config.getReferenceName();
-    asset = Asset.builder(referenceName)
+    asset = Asset.builder(config.getReferenceName())
       .setFqn(config.getPath()).setLocation(location).build();
     
     // super is called down here to avoid instantiating the lineage recorder with a null asset
@@ -444,9 +441,13 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
       }
     }
 
+    /**
+     * Return reference name if provided, otherwise, normalize the FQN and return it as reference name
+     * @return referenceName (if provided)/normalized FQN
+     */
     @Override
     public String getReferenceName() {
-      return referenceName;
+      return Strings.isNullOrEmpty(referenceName) ? ReferenceNames.normalizeFqn(getPath()) : referenceName;
     }
 
     public GCSBatchSinkConfig(@Nullable String referenceName, @Nullable String project,
