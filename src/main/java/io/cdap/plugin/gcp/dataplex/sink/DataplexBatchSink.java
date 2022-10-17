@@ -64,7 +64,6 @@ import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.validation.FormatContext;
 import io.cdap.cdap.etl.api.validation.ValidatingOutputFormat;
 import io.cdap.plugin.common.LineageRecorder;
-import io.cdap.plugin.common.ReferenceNames;
 import io.cdap.plugin.common.batch.sink.SinkOutputFormatProvider;
 import io.cdap.plugin.format.FileFormat;
 import io.cdap.plugin.gcp.bigquery.sink.AbstractBigQuerySink;
@@ -299,8 +298,9 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     Schema outputSchema = configSchema == null ? context.getInputSchema() : configSchema;
     configureTable(outputSchema, dataset, datasetProject, collector);
     configureBigQuerySink();
-    initOutput(context, bigQuery, config.getReferenceName(), config.getTable(), outputSchema, bucket, collector,
-      dataset, datasetProject);
+    initOutput(context, bigQuery,
+               config.getReferenceName(BigQueryUtil.getFQN(datasetProject, dataset, config.getTable())),
+               config.getTable(), outputSchema, bucket, collector, dataset, datasetProject);
   }
 
 
@@ -417,7 +417,7 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     String fqn = BigQueryUtil.getFQN(datasetProject, dataset, config.getTable());
     String location = bigQuery.getDataset(datasetId).getLocation();
     io.cdap.plugin.common.Asset lineageAsset = io.cdap.plugin.common.Asset.builder(
-      config.getReferenceNameOrNormalizedFQN(fqn))
+      config.getReferenceName(fqn))
       .setFqn(fqn).setLocation(location).build();
     BigQuerySinkUtils.recordLineage(context, lineageAsset, tableSchema, fieldNames);
     configuration.set(DataplexOutputFormatProvider.DATAPLEX_ASSET_TYPE, DataplexConstants.BIGQUERY_DATASET_ASSET_TYPE);
@@ -503,7 +503,7 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
       schema = context.getInputSchema();
     }
     io.cdap.plugin.common.Asset asset = io.cdap.plugin.common.Asset.builder(
-      config.getReferenceNameOrNormalizedFQN(outputDir))
+      config.getReferenceName(outputDir))
       .setFqn(outputDir).setLocation(config.getLocation()).build();
     LineageRecorder lineageRecorder = new LineageRecorder(context, asset);
     lineageRecorder.createExternalDataset(schema);
@@ -511,7 +511,7 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
       recordLineage(lineageRecorder,
                     schema.getFields().stream().map(Schema.Field::getName).collect(Collectors.toList()));
     }
-    context.addOutput(Output.of(config.getReferenceNameOrNormalizedFQN(outputDir),
+    context.addOutput(Output.of(config.getReferenceName(outputDir),
       new SinkOutputFormatProvider(validatingOutputFormat.getOutputFormatClassName(), outputProperties)));
   }
 

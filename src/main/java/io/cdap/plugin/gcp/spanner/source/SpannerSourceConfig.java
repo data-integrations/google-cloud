@@ -135,7 +135,11 @@ public class SpannerSourceConfig extends PluginConfig {
     return connection;
   }
 
-  public String getReferenceNameOrNormalizedFQN() {
+  /**
+   * Return reference name if provided, otherwise, normalize the FQN and return it as reference name
+   * @return referenceName (if provided)/normalized FQN
+   */
+  public String getReferenceName() {
     return Strings.isNullOrEmpty(referenceName) ? ReferenceNames.normalizeFqn(getFQN()) : referenceName;
   }
 
