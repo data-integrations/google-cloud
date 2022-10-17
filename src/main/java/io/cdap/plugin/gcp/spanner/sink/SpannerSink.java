@@ -118,13 +118,13 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
         location = replica.getLocation();
       }
     }
-    Asset asset = Asset.builder(config.getReferenceNameOrNormalizedFQN())
+    Asset asset = Asset.builder(config.getReferenceName())
       .setFqn(config.getFQN()).setLocation(location).build();
     LineageRecorder lineageRecorder = new LineageRecorder(context, asset);
     lineageRecorder.createExternalDataset(schema);
 
     SpannerOutputFormat.configure(configuration, config, schema);
-    context.addOutput(Output.of(config.getReferenceNameOrNormalizedFQN(),
+    context.addOutput(Output.of(config.getReferenceName(),
                                 new SinkOutputFormatProvider(SpannerOutputFormat.class, configuration)));
 
     List<Schema.Field> fields = schema.getFields();

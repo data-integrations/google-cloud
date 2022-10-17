@@ -75,11 +75,11 @@ public class DataplexBaseConfig extends PluginConfig {
   @Description("The existing connection to use.")
   protected GCPConnectorConfig connection;
 
-  public String getReferenceName() {
-    return referenceName;
-  }
-
-  public String getReferenceNameOrNormalizedFQN(String fqn) {
+  /**
+   * Return reference name if provided, otherwise, normalize the FQN and return it as reference name
+   * @return referenceName (if provided)/normalized FQN
+   */
+  public String getReferenceName(String fqn) {
     return Strings.isNullOrEmpty(referenceName) ? ReferenceNames.normalizeFqn(fqn) : referenceName;
   }
 
