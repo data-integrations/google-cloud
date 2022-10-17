@@ -482,7 +482,6 @@ public class BigQueryRelation implements Relation {
       && supportsExpressions(orderExpressions);
   }
 
-
   /**
    * Check if all expressions contained in a {@link DeduplicateAggregationDefinition} are supported.
    *
@@ -552,17 +551,13 @@ public class BigQueryRelation implements Relation {
     return supportsExpressions(partitionExpressions) && supportsExpressions(selectExpressions)
       && supportsExpressions(orderExpressions);
   }
+
   protected static WindowAggregationDefinition qualify(WindowAggregationDefinition def) {
-    WindowAggregationDefinition.Builder builder = WindowAggregationDefinition.builder();
-    builder.select(qualifyKeys(def.getSelectExpressions()));
-    builder.partition(def.getPartitionExpressions());
-    builder.orderBy(def.getOrderByExpressions());
-    builder.windowFrameType(def.getWindowFrameType());
-    builder.unboundedFollowing(def.getUnboundedFollowing());
-    builder.unboundedPreceding(def.getUnboundedPreceding());
-    builder.following(def.getFollowing());
-    builder.preceding(def.getPreceding());
-    return builder.build();
+    return WindowAggregationDefinition.builder().select(qualifyKeys(def.getSelectExpressions()))
+      .partition(def.getPartitionExpressions()).orderBy(def.getOrderByExpressions())
+      .windowFrameType(def.getWindowFrameType()).unboundedFollowing(def.getUnboundedFollowing())
+      .unboundedPreceding(def.getUnboundedPreceding()).following(def.getFollowing()).preceding(def.getPreceding())
+      .build();
   }
 
   @VisibleForTesting
@@ -602,7 +597,6 @@ public class BigQueryRelation implements Relation {
       .filter(Objects::nonNull)
       .collect(Collectors.joining(" - "));
   }
-
 
   /**
    * Check if a collection of expressions are all valid
