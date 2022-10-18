@@ -397,7 +397,7 @@ BigQueryRelationTest {
     // Build aggregation definition
     dedupFields = new ArrayList<>(1);
     dedupFields.add(factory.compile("a"));
-    // Build FilterFIelds definition
+    // Build FilterFields definition
     filterFields = new ArrayList<>(1);
     filterFields.add(new DeduplicateAggregationDefinition.FilterExpression(
       factory.compile("a"), DeduplicateAggregationDefinition.FilterFunction.MAX));
@@ -518,7 +518,6 @@ BigQueryRelationTest {
     selectFields.clear();
     dedupFields.clear();
     filterFields.clear();
-
 
     // Check invalid select field
     selectFields.put("a", new InvalidSQLExpression("a"));
@@ -677,7 +676,6 @@ BigQueryRelationTest {
     partitionFields.clear();
     orderByExpressions.clear();
 
-
     // Check invalid select field
     selectFields.put("a", new InvalidSQLExpression("a"));
     partitionFields.add(factory.compile("a"));
@@ -745,7 +743,6 @@ BigQueryRelationTest {
     List<Expression> partitionFields = new ArrayList<>(1);
     List<WindowAggregationDefinition.OrderByExpression> orderFields = new ArrayList<>(1);
 
-
     // Set up mocks
     WindowAggregationDefinition def = mock(WindowAggregationDefinition.class);
     when(def.getSelectExpressions()).thenReturn(selectFields);
@@ -763,7 +760,6 @@ BigQueryRelationTest {
     partitionFields.clear();
     orderFields.clear();
 
-
     // Check invalid select field
     selectFields.put("a", new InvalidSQLExpression("a", "oops1"));
     partitionFields.add(factory.compile("a"));
@@ -775,7 +771,6 @@ BigQueryRelationTest {
     selectFields.clear();
     partitionFields.clear();
     orderFields.clear();
-
 
     // Check invalid window field
     selectFields.put("a", factory.compile("a"));
@@ -789,7 +784,6 @@ BigQueryRelationTest {
     partitionFields.clear();
     orderFields.clear();
 
-
     // Check invalid order field
     selectFields.put("a", factory.compile("a"));
     partitionFields.add(factory.compile("a"));
@@ -800,7 +794,6 @@ BigQueryRelationTest {
     selectFields.clear();
     partitionFields.clear();
     orderFields.clear();
-
 
     // Check all invalid fields
     selectFields.put("a", new InvalidSQLExpression("a", "oops1a"));
