@@ -72,14 +72,19 @@ public class BigQueryWindowsAggregationSQLBuilder extends BigQueryBaseSQLBuilder
 
   @Override
   public String getQuery() {
-    String query = SELECT + getSelectedFields(windowAggregationDefinition.getSelectExpressions()) + SPACE + OVER +
+    String overClause = getOverClause();
+    String query = SELECT + getSelectedFields(windowAggregationDefinition.getSelectExpressions()) + SPACE + overClause +
+      SPACE + AS + sourceAlias;
+    LOG.debug("Query is " + query);
+    return query;
+  }
+  
+  private String getOverClause() {
+    return OVER +
       OPEN_GROUP + SPACE + PARTITION_BY + SPACE +
       getPartitionFields(windowAggregationDefinition.getPartitionExpressions()) + SPACE
       + getOrderByFields(windowAggregationDefinition.getOrderByExpressions()) + SPACE +
-      getWindowFrameDefinition(windowAggregationDefinition) + SPACE + CLOSE_GROUP + FROM + OPEN_GROUP + SPACE + source +
-      SPACE + CLOSE_GROUP + SPACE + AS + sourceAlias;
-    LOG.debug("Query is " + query);
-    return query;
+      getWindowFrameDefinition(windowAggregationDefinition) + SPACE + CLOSE_GROUP;
   }
 
   private String getWindowFrameDefinition(WindowAggregationDefinition windowAggregationDefinition) {
@@ -98,11 +103,11 @@ public class BigQueryWindowsAggregationSQLBuilder extends BigQueryBaseSQLBuilder
     } else {
       def = def + SPACE + windowAggregationDefinition.getPreceding();
     }
-    def = def + SPACE + AND;
+    def = def + AND;
     if (windowAggregationDefinition.getUnboundedFollowing()) {
-      def = def + SPACE + "UNBOUNDED FOLLOWING";
+      def = def + "UNBOUNDED FOLLOWING";
     } else {
-      def = def + SPACE + windowAggregationDefinition.getFollowing();
+      def = def + windowAggregationDefinition.getFollowing();
     }
     return def;
   }

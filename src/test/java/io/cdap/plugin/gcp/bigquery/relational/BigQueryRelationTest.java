@@ -320,6 +320,8 @@ BigQueryRelationTest {
     //Build aggregation definition
     selectFields = new LinkedHashMap<>();
     selectFields.put("a", factory.compile("a"));
+    selectFields.put("b", factory.compile("b"));
+    selectFields.put("c", factory.compile("c"));
     partitionFields = new ArrayList<>();
     partitionFields.add(factory.compile("a"));
     orderFields = new ArrayList<>();
@@ -342,11 +344,12 @@ BigQueryRelationTest {
     Assert.assertEquals(baseRelation, bqRelation.getParent());
 
     Set<String> columns = bqRelation.getColumns();
-    Assert.assertEquals(1, columns.size());
+    Assert.assertEquals(3, columns.size());
     Assert.assertTrue(columns.contains("a"));
     String transformExpression = bqRelation.getSQLStatement();
-    Assert.assertEquals(transformExpression, "SELECT a OVER( PARTITION BY  a ORDER BY  a ASC ROWS BETWEEN " +
-      "UNBOUNDED PRECEDING  UNBOUNDED FOLLOWING ) FROM ( select * from tbl )  AS `d s`");
+    Assert.assertEquals(transformExpression, "SELECT a , b , c OVER( PARTITION BY  a ORDER BY  a ASC ROWS" +
+      " BETWEEN " +
+      "UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING )  AS `d s`");
   }
 
   @Test
