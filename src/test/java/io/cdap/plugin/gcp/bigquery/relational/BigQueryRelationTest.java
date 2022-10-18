@@ -349,7 +349,7 @@ BigQueryRelationTest {
     String transformExpression = bqRelation.getSQLStatement();
     Assert.assertEquals(transformExpression, "SELECT a , b , c OVER( PARTITION BY  a ORDER BY  a ASC ROWS" +
       " BETWEEN " +
-      "UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING )  AS `d s`");
+      "UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING )  FROM ( select * from tbl )   AS `d s`");
   }
 
   @Test

@@ -73,10 +73,26 @@ public class BigQueryWindowsAggregationSQLBuilder extends BigQueryBaseSQLBuilder
   @Override
   public String getQuery() {
     String overClause = getOverClause();
-    String query = SELECT + getSelectedFields(windowAggregationDefinition.getSelectExpressions()) + SPACE + overClause +
-      SPACE + AS + sourceAlias;
+    String aggregateFields = getAggregateFields(overClause);
+    String query = SELECT + getSelectedFields(windowAggregationDefinition.getSelectExpressions()) + aggregateFields +
+      SPACE + FROM + OPEN_GROUP + SPACE + source + SPACE + CLOSE_GROUP + SPACE + AS + sourceAlias;
     LOG.debug("Query is " + query);
     return query;
+  }
+
+  @VisibleForTesting
+  protected String getAggregateFields(String overClause) {
+    String aggregateString = "";
+    Map<String, Expression> aggregateExpressions = windowAggregationDefinition.getAggregateExpressions();
+    for (String s : aggregateExpressions.keySet()) {
+      SQLExpression e = (SQLExpression) aggregateExpressions.get(s);
+      if (!"".equals(aggregateString)) {
+        aggregateString = aggregateString + COMMA;
+      }
+        aggregateString = aggregateString + SPACE + e.extract() + SPACE + overClause + AS + s;
+
+    }
+    return aggregateString;
   }
   
   private String getOverClause() {

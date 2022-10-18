@@ -7,16 +7,14 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class BigQueryWindowsAggregationSQLBuilderTest {
   private BigQueryWindowsAggregationSQLBuilder helper;
   private SQLExpressionFactory factory;
   private Map<String, Expression> selectFields;
   private List<Expression> partitionFields;
+  private Map<String, Expression> aggregationFields;
   private List<WindowAggregationDefinition.OrderByExpression> orderFields;
   private WindowAggregationDefinition fullDefinition;
   private WindowAggregationDefinition.WindowFrameType windowFrameType;
@@ -26,13 +24,15 @@ public class BigQueryWindowsAggregationSQLBuilderTest {
     factory = new SQLExpressionFactory();
 
     // Build aggregation definition
+    aggregationFields = new HashMap<>();
+    aggregationFields.put("f", factory.compile("first_value(f)"));
+    aggregationFields.put("c", factory.compile("last_value(c)"));
     selectFields = new LinkedHashMap<>();
     selectFields.put("alias_a", factory.compile("a"));
     selectFields.put("alias_b", factory.compile("b"));
     selectFields.put("c", factory.compile("c"));
     selectFields.put("d", factory.compile("d"));
     selectFields.put("e", factory.compile("e"));
-    selectFields.put("f", factory.compile("first_value(f)"));
     partitionFields = new ArrayList<>();
     partitionFields.add(factory.compile("a"));
     partitionFields.add(factory.compile("b"));
@@ -41,6 +41,7 @@ public class BigQueryWindowsAggregationSQLBuilderTest {
                                                                       WindowAggregationDefinition.OrderBy.ASCENDING));
     orderFields.add(new WindowAggregationDefinition.OrderByExpression(factory.compile("d"),
                                                                       WindowAggregationDefinition.OrderBy.DESCENDING));
+
     windowFrameType = WindowAggregationDefinition.WindowFrameType.NONE;
     fullDefinition = WindowAggregationDefinition.builder().select(selectFields).partition(partitionFields)
       .orderBy(orderFields).windowFrameType(windowFrameType).unboundedFollowing(true).unboundedPreceding(true)
@@ -52,12 +53,12 @@ public class BigQueryWindowsAggregationSQLBuilderTest {
   @Test
   public void testGetQuery() {
     Assert.assertEquals("SELECT a , b , c , d , e , first_value(f) OVER( PARTITION BY  a , b ORDER BY  c ASC ,"
-      + " d DESC  ) FROM ( select * from tbl )  AS ds", helper.getQuery());
+      + " d DESC  )  FROM ( select * from tbl )  AS ds", helper.getQuery());
   }
 
   @Test
   public void testGetSelectedFields() {
-    Assert.assertEquals("a , b , c , d , e , first_value(f)",
+    Assert.assertEquals("a , b , c , d , e",
                         helper.getSelectedFields(fullDefinition.getSelectExpressions()));
   }
 
@@ -69,5 +70,10 @@ public class BigQueryWindowsAggregationSQLBuilderTest {
   @Test
   public void testGetOrderByFields() {
     Assert.assertEquals("ORDER BY  c ASC , d DESC", helper.getOrderByFields(orderFields));
+  }
+
+  @Test
+  public void testGetAggregateFields() {
+    Assert.assertEquals("first_value(f) over, last_value(c) over", helper.getAggregateFields("over"));
   }
 }
