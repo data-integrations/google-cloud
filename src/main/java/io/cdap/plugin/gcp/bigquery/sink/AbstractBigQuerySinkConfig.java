@@ -88,6 +88,10 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
     super(connection, dataset, cmekKey, bucket);
   }
 
+  /**
+   * Return reference name if provided, otherwise, normalize the FQN and return it as reference name
+   * @return referenceName (if provided)/normalized FQN
+   */
   @Nullable
   public String getReferenceName() {
     return Strings.isNullOrEmpty(referenceName)

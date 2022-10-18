@@ -182,13 +182,13 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
       location = instanceConfig.getReplicas().get(0).getLocation();
     }
 
-    Asset asset = Asset.builder(config.getReferenceNameOrNormalizedFQN())
+    Asset asset = Asset.builder(config.getReferenceName())
       .setFqn(config.getFQN()).setLocation(location).build();
     LineageRecorder lineageRecorder = new LineageRecorder(batchSourceContext, asset);
     lineageRecorder.createExternalDataset(configuredSchema);
 
     // set input format and pass configuration
-    batchSourceContext.setInput(Input.of(config.getReferenceNameOrNormalizedFQN(),
+    batchSourceContext.setInput(Input.of(config.getReferenceName(),
                                          new SourceInputFormatProvider(SpannerInputFormat.class, configuration)));
     schema = batchSourceContext.getOutputSchema();
     if (schema != null) {
