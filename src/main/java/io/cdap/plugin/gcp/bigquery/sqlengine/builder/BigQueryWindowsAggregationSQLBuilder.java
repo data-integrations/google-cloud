@@ -98,7 +98,7 @@ public class BigQueryWindowsAggregationSQLBuilder extends BigQueryBaseSQLBuilder
     } else {
       def = def + SPACE + windowAggregationDefinition.getPreceding();
     }
-    def = def + SPACE;
+    def = def + SPACE + AND;
     if (windowAggregationDefinition.getUnboundedFollowing()) {
       def = def + SPACE + "UNBOUNDED FOLLOWING";
     } else {
