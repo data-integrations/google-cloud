@@ -171,7 +171,6 @@ public class BigQueryConnectorTest {
     pluginProperties.put("connection", "${conn(connection-id)}");
     pluginProperties.put("dataset", dataset);
     pluginProperties.put("table", table);
-    pluginProperties.put("referenceName", dataset + "." + table);
     expectedRelatedPlugins.add(new PluginSpec(BigQueryMultiSink.NAME, BatchSink.PLUGIN_TYPE, pluginProperties));
     expectedRelatedPlugins.add(new PluginSpec(BigQuerySink.NAME, BatchSink.PLUGIN_TYPE, pluginProperties));
     expectedRelatedPlugins.add(new PluginSpec(BigQuerySource.NAME, BigQuerySource.PLUGIN_TYPE, pluginProperties));

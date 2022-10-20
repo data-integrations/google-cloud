@@ -173,7 +173,6 @@ public class GCSConnector extends AbstractFileConnector<GCPConnectorConfig> {
       GCSPath gcsPath = GCSPath.from(path);
       String referenceName = ReferenceNames.cleanseReferenceName(gcsPath.getBucket() + "." + gcsPath.getName());
       sourceProperties.put(Constants.Reference.REFERENCE_NAME, referenceName);
-      sinkProperties.put(Constants.Reference.REFERENCE_NAME, referenceName);
     }
     builder.addRelatedPlugin(new PluginSpec(GCSSource.NAME, BatchSource.PLUGIN_TYPE, sourceProperties));
     builder.addRelatedPlugin(new PluginSpec(GCSBatchSink.NAME, BatchSink.PLUGIN_TYPE, sinkProperties));
