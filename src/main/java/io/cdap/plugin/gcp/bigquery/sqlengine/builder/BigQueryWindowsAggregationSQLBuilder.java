@@ -74,54 +74,59 @@ public class BigQueryWindowsAggregationSQLBuilder extends BigQueryBaseSQLBuilder
   public String getQuery() {
     String overClause = getOverClause();
     String aggregateFields = getAggregateFields(overClause);
-    String query = SELECT + getSelectedFields(windowAggregationDefinition.getSelectExpressions()) + aggregateFields +
-      SPACE + FROM + OPEN_GROUP + SPACE + source + SPACE + CLOSE_GROUP + SPACE + AS + sourceAlias;
+    String query = SELECT + getSelectedFields(windowAggregationDefinition.getSelectExpressions()) +
+      COMMA + aggregateFields + SPACE + FROM + OPEN_GROUP + SPACE + source + SPACE + CLOSE_GROUP + SPACE + AS +
+      sourceAlias;
     LOG.debug("Query is " + query);
     return query;
   }
 
   @VisibleForTesting
   protected String getAggregateFields(String overClause) {
-    String aggregateString = "";
+    //String aggregateString = EMPTY;
     Map<String, Expression> aggregateExpressions = windowAggregationDefinition.getAggregateExpressions();
-    for (String s : aggregateExpressions.keySet()) {
+
+    return aggregateExpressions.keySet().stream().map(s -> {
       SQLExpression e = (SQLExpression) aggregateExpressions.get(s);
-      if (!"".equals(aggregateString)) {
+      return e.extract() + SPACE + overClause + AS + s;
+    }).collect(Collectors.joining(COMMA));
+
+    /*for (String s : aggregateExpressions.keySet()) {
+      SQLExpression e = (SQLExpression) aggregateExpressions.get(s);
+      if (!EMPTY.equals(aggregateString)) {
         aggregateString = aggregateString + COMMA;
       }
-        aggregateString = aggregateString + SPACE + e.extract() + SPACE + overClause + AS + s;
-
+      aggregateString = aggregateString + SPACE + e.extract() + SPACE + overClause + AS + s;
     }
-    return aggregateString;
+    return aggregateString;*/
   }
   
   private String getOverClause() {
-    return OVER +
-      OPEN_GROUP + SPACE + PARTITION_BY + SPACE +
+    return OVER + OPEN_GROUP + SPACE + PARTITION_BY + SPACE +
       getPartitionFields(windowAggregationDefinition.getPartitionExpressions()) + SPACE
       + getOrderByFields(windowAggregationDefinition.getOrderByExpressions()) + SPACE +
       getWindowFrameDefinition(windowAggregationDefinition) + SPACE + CLOSE_GROUP;
   }
 
   private String getWindowFrameDefinition(WindowAggregationDefinition windowAggregationDefinition) {
-    String def = "";
+    String def = EMPTY;
     if (windowAggregationDefinition.getWindowFrameType() == WindowAggregationDefinition.WindowFrameType.NONE) {
       return def;
     }
     if (windowAggregationDefinition.getWindowFrameType() == WindowAggregationDefinition.WindowFrameType.RANGE) {
-      def = def + "RANGE";
+      def = def + RANGE;
     } else if (windowAggregationDefinition.getWindowFrameType() == WindowAggregationDefinition.WindowFrameType.ROW) {
-      def = def + "ROWS";
+      def = def + ROWS;
     }
-    def = def + SPACE + "BETWEEN";
+    def = def + BETWEEN;
     if (windowAggregationDefinition.getUnboundedPreceding()) {
-      def = def + SPACE + "UNBOUNDED PRECEDING";
+      def = def + UNBOUNDED_PRECEDING;
     } else {
-      def = def + SPACE + windowAggregationDefinition.getPreceding();
+      def = def + windowAggregationDefinition.getPreceding();
     }
     def = def + AND;
     if (windowAggregationDefinition.getUnboundedFollowing()) {
-      def = def + "UNBOUNDED FOLLOWING";
+      def = def + UNBOUNDED_FOLLOWING;
     } else {
       def = def + windowAggregationDefinition.getFollowing();
     }
@@ -135,12 +140,12 @@ public class BigQueryWindowsAggregationSQLBuilder extends BigQueryBaseSQLBuilder
 
   @VisibleForTesting
   public String getOrderByFields(List<WindowAggregationDefinition.OrderByExpression> orderFields) {
-    String order = "";
+    String order = EMPTY;
     for (WindowAggregationDefinition.OrderByExpression field : orderFields) {
       String type = field.getOrderBy().equals(WindowAggregationDefinition.OrderBy.ASCENDING) ? ORDER_ASC : ORDER_DESC;
       SQLExpression e = (SQLExpression) field.getExpression();
 
-      if ("".equals(order)) {
+      if (EMPTY.equals(order)) {
         order = ORDER_BY + SPACE + e.extract() + SPACE + type;
       } else {
         order = order + COMMA + e.extract() + SPACE + type;

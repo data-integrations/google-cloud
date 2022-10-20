@@ -543,21 +543,26 @@ public class BigQueryRelation implements Relation {
   protected static boolean supportsWindowAggregationDefinition(WindowAggregationDefinition def) {
     Collection<Expression> partitionExpressions =  def.getPartitionExpressions();
     Collection<Expression> selectExpressions = def.getSelectExpressions().values();
-    Collection<WindowAggregationDefinition.OrderByExpression> orderByExpressions = def.getOrderByExpressions();
-    Collection<Expression> orderExpressions = new ArrayList<>(orderByExpressions.size());
-    for (WindowAggregationDefinition.OrderByExpression orderByExpression : orderByExpressions) {
-      orderExpressions.add(orderByExpression.getExpression());
-    }
+    Collection<Expression> orderExpressions = getWindowAggregationOrderByExpression(def);
     return supportsExpressions(partitionExpressions) && supportsExpressions(selectExpressions)
       && supportsExpressions(orderExpressions);
   }
 
+  private static Collection<Expression> getWindowAggregationOrderByExpression(WindowAggregationDefinition def) {
+    Collection<Expression> orderExpressions = new ArrayList<>(def.getOrderByExpressions().size());
+    for (WindowAggregationDefinition.OrderByExpression orderByExpression : def.getOrderByExpressions()) {
+      orderExpressions.add(orderByExpression.getExpression());
+    }
+    return orderExpressions;
+  }
+
+  @VisibleForTesting
   protected static WindowAggregationDefinition qualify(WindowAggregationDefinition def) {
     return WindowAggregationDefinition.builder().select(qualifyKeys(def.getSelectExpressions()))
-      .partition(def.getPartitionExpressions()).orderBy(def.getOrderByExpressions())
-      .windowFrameType(def.getWindowFrameType()).unboundedFollowing(def.getUnboundedFollowing())
-      .unboundedPreceding(def.getUnboundedPreceding()).following(def.getFollowing()).preceding(def.getPreceding())
-      .build();
+      .partition(def.getPartitionExpressions()).aggregate(def.getAggregateExpressions())
+      .orderBy(def.getOrderByExpressions()).windowFrameType(def.getWindowFrameType())
+      .unboundedFollowing(def.getUnboundedFollowing()).unboundedPreceding(def.getUnboundedPreceding())
+      .following(def.getFollowing()).preceding(def.getPreceding()).build();
   }
 
   @VisibleForTesting
@@ -569,20 +574,15 @@ public class BigQueryRelation implements Relation {
     }
 
     // Gets all expressions defined in this definition
-    Collection<Expression> selectExpressions = def.getSelectExpressions().values();
-    Collection<Expression> partitionExpressions = def.getPartitionExpressions();
     Collection<WindowAggregationDefinition.OrderByExpression> orderByExpressions = def.getOrderByExpressions();
-    Collection<Expression> orderExpressions = new ArrayList<>(orderByExpressions.size());
-    for (WindowAggregationDefinition.OrderByExpression orderByExpression : orderByExpressions) {
-      orderExpressions.add(orderByExpression.getExpression());
-    }
+    Collection<Expression> orderExpressions = getWindowAggregationOrderByExpression(def);
     // Get all invalid expression causes, and prepend field origin to error reasons
-    String selectErrors = getInvalidExpressionCauses(selectExpressions);
+    String selectErrors = getInvalidExpressionCauses(def.getSelectExpressions().values());
     if (!Strings.isNullOrEmpty(selectErrors)) {
       selectErrors = "Select fields: " + selectErrors;
     }
 
-    String partitionErrors = getInvalidExpressionCauses(partitionExpressions);
+    String partitionErrors = getInvalidExpressionCauses(def.getPartitionExpressions());
     if (!Strings.isNullOrEmpty(partitionErrors)) {
       partitionErrors = "Window fields: " + partitionErrors;
     }

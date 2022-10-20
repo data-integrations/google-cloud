@@ -7,7 +7,11 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 public class BigQueryWindowsAggregationSQLBuilderTest {
   private BigQueryWindowsAggregationSQLBuilder helper;
@@ -26,7 +30,7 @@ public class BigQueryWindowsAggregationSQLBuilderTest {
     // Build aggregation definition
     aggregationFields = new HashMap<>();
     aggregationFields.put("f", factory.compile("first_value(f)"));
-    aggregationFields.put("c", factory.compile("last_value(c)"));
+    aggregationFields.put("g", factory.compile("last_value(g)"));
     selectFields = new LinkedHashMap<>();
     selectFields.put("alias_a", factory.compile("a"));
     selectFields.put("alias_b", factory.compile("b"));
@@ -44,16 +48,17 @@ public class BigQueryWindowsAggregationSQLBuilderTest {
 
     windowFrameType = WindowAggregationDefinition.WindowFrameType.NONE;
     fullDefinition = WindowAggregationDefinition.builder().select(selectFields).partition(partitionFields)
-      .orderBy(orderFields).windowFrameType(windowFrameType).unboundedFollowing(true).unboundedPreceding(true)
-        .build();
+      .aggregate(aggregationFields).orderBy(orderFields).windowFrameType(windowFrameType).unboundedFollowing(true)
+      .unboundedPreceding(true).build();
     helper = new BigQueryWindowsAggregationSQLBuilder(fullDefinition, "select * from tbl", "ds",
                                                       "the_row_number");
   }
 
   @Test
   public void testGetQuery() {
-    Assert.assertEquals("SELECT a , b , c , d , e , first_value(f) OVER( PARTITION BY  a , b ORDER BY  c ASC ,"
-      + " d DESC  )  FROM ( select * from tbl )  AS ds", helper.getQuery());
+    Assert.assertEquals("SELECT a , b , c , d , e , first_value(f) OVER( PARTITION BY  a , b ORDER BY  c " +
+                          "ASC , d DESC  ) AS f , last_value(g) OVER( PARTITION BY  a , b ORDER BY  c ASC , " +
+                          "d DESC  ) AS g  FROM ( select * from tbl )  AS ds", helper.getQuery());
   }
 
   @Test
@@ -74,6 +79,7 @@ public class BigQueryWindowsAggregationSQLBuilderTest {
 
   @Test
   public void testGetAggregateFields() {
-    Assert.assertEquals("first_value(f) over, last_value(c) over", helper.getAggregateFields("over"));
+    Assert.assertEquals("first_value(f) over AS f , last_value(g) over AS g",
+                        helper.getAggregateFields("over"));
   }
 }

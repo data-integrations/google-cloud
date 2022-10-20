@@ -308,6 +308,7 @@ BigQueryRelationTest {
     WindowAggregationDefinition def;
     WindowAggregationDefinition.Builder builder;
     Map<String, Expression> selectFields;
+    Map<String, Expression> aggregationFields;
     List<Expression> partitionFields;
     List<WindowAggregationDefinition.OrderByExpression> orderFields;
     WindowAggregationDefinition.WindowFrameType frame;
@@ -324,6 +325,9 @@ BigQueryRelationTest {
     selectFields.put("c", factory.compile("c"));
     partitionFields = new ArrayList<>();
     partitionFields.add(factory.compile("a"));
+    aggregationFields = new LinkedHashMap<>();
+    aggregationFields.put("d", factory.compile("FIRST_VALUE(d)"));
+    aggregationFields.put("e", factory.compile("LAST_VALUE(e)"));
     orderFields = new ArrayList<>();
     orderFields.add(new WindowAggregationDefinition.OrderByExpression(factory.compile("a"),
                                                                       WindowAggregationDefinition.OrderBy.ASCENDING));
@@ -332,7 +336,8 @@ BigQueryRelationTest {
     preceding = "UNBOUNDED PRECEDING";
 
     //Set Definition
-    def = builder.windowFrameType(frame).partition(partitionFields).orderBy(orderFields).select(selectFields)
+    def = builder.windowFrameType(frame).partition(partitionFields).aggregate(aggregationFields)
+            .orderBy(orderFields).select(selectFields)
     .preceding(preceding).following(following).build();
 
     //Call Window
@@ -347,9 +352,10 @@ BigQueryRelationTest {
     Assert.assertEquals(3, columns.size());
     Assert.assertTrue(columns.contains("a"));
     String transformExpression = bqRelation.getSQLStatement();
-    Assert.assertEquals(transformExpression, "SELECT a , b , c OVER( PARTITION BY  a ORDER BY  a ASC ROWS" +
-      " BETWEEN " +
-      "UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING )  FROM ( select * from tbl )   AS `d s`");
+    Assert.assertEquals(transformExpression, "SELECT a , b , c , FIRST_VALUE(d) OVER( PARTITION BY  a ORDER BY  a"
+      + " ASC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING ) AS d , LAST_VALUE(e) OVER( PARTITION BY  a " +
+      "ORDER BY  a ASC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING ) AS e  FROM ( select * from tbl )" +
+      "  AS `d s`");
   }
 
   @Test
@@ -357,6 +363,7 @@ BigQueryRelationTest {
     WindowAggregationDefinition def;
     WindowAggregationDefinition.Builder builder;
     Map<String, Expression> selectFields;
+    Map<String, Expression> aggregationFields;
     List<Expression> partitionFields;
     List<WindowAggregationDefinition.OrderByExpression> orderFields;
     WindowAggregationDefinition.WindowFrameType frame;
@@ -373,10 +380,12 @@ BigQueryRelationTest {
     orderFields = new ArrayList<>();
     orderFields.add(new WindowAggregationDefinition.OrderByExpression(factory.compile("a"),
                                                                       WindowAggregationDefinition.OrderBy.ASCENDING));
-    frame = WindowAggregationDefinition.WindowFrameType.ROW;
-
+    frame = WindowAggregationDefinition.WindowFrameType.NONE;
+    aggregationFields = new LinkedHashMap<>();
+    aggregationFields.put("b", new InvalidSQLExpression("first_value(b)"));
     //Set Definition
-    def = builder.windowFrameType(frame).partition(partitionFields).orderBy(orderFields).select(selectFields).build();
+    def = builder.windowFrameType(frame).partition(partitionFields).aggregate(aggregationFields)
+            .orderBy(orderFields).select(selectFields).build();
 
     //Call Window
     rel = baseRelation.window(def);

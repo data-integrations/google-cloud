@@ -36,6 +36,12 @@ public abstract class BigQueryBaseSQLBuilder {
   public static final String EQ = " = ";
   public static final String AND = " AND ";
   public static final String OR = " OR ";
+  public static final String ROWS = "ROWS";
+  public static final String RANGE = "RANGE";
+  public static final String BETWEEN = " BETWEEN ";
+  public static final String EMPTY = "";
+  public static final String UNBOUNDED_PRECEDING = "UNBOUNDED PRECEDING";
+  public static final String UNBOUNDED_FOLLOWING = "UNBOUNDED FOLLOWING";
   public static final String DOT = ".";
   public static final String COMMA = " , ";
   public static final String IS_NULL = " IS NULL";
