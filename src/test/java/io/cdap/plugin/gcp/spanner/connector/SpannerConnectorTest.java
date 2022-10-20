@@ -160,10 +160,11 @@ public class SpannerConnectorTest {
     properties.put("table", table);
     properties.put("connection", null);
     properties.put("useConnection", "true");
-    properties.put("referenceName", String.format("%s.%s.%s", instance, database, table));
+    Map<String, String> sourceProperties = new HashMap<>(properties);
+    sourceProperties.put("referenceName", String.format("%s.%s.%s", instance, database, table));
     ConnectorSpec expected = ConnectorSpec.builder()
       .setSchema(expectedSchema)
-      .addRelatedPlugin(new PluginSpec(SpannerSource.NAME, BatchSource.PLUGIN_TYPE, properties))
+      .addRelatedPlugin(new PluginSpec(SpannerSource.NAME, BatchSource.PLUGIN_TYPE, sourceProperties))
       .addRelatedPlugin(new PluginSpec(SpannerSink.NAME, BatchSink.PLUGIN_TYPE, properties))
       .build();
 
