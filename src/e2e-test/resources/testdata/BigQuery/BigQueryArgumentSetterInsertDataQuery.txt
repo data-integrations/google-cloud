@@ -1,0 +1,2 @@
+insert into `DATASET.TABLE_NAME` (table, dataset, name, Age) values
+('one','test_automation','iqbal', 25);

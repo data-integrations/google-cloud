@@ -1,0 +1,2 @@
+create table `DATASET.TABLE_NAME` (table STRING, dataset STRING, name STRING, Age INT64
+)

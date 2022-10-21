@@ -266,7 +266,8 @@ public class TestSetupHooks {
     BeforeActions.scenario.write("BQ source Table " + bqSourceTable + " created successfully");
   }
 
-  @After(order = 1, value = "@BQ_SOURCE_TEST or @BQ_PARTITIONED_SOURCE_TEST or @BQ_SOURCE_DATATYPE_TEST")
+  @After(order = 1, value = "@BQ_SOURCE_TEST or @BQ_PARTITIONED_SOURCE_TEST or @BQ_SOURCE_DATATYPE_TEST or " +
+    " @BQ_ARGUMENT_SETTER_TEST")
   public static void deleteTempSourceBQTable() throws IOException, InterruptedException {
     BigQueryClient.dropBqQuery(bqSourceTable);
     PluginPropertyUtils.removePluginProp("bqSourceTable");
@@ -731,5 +732,10 @@ public class TestSetupHooks {
     CdfConnectionActions.openConnectionActionMenu(connectionType, connectionName);
     CdfConnectionActions.selectConnectionAction(connectionType, connectionName, "Delete");
     CdfPluginPropertiesActions.clickPluginPropertyButton("Delete");
+  }
+  @Before(order = 1, value = "@BQ_ARGUMENT_SETTER_TEST")
+  public static void createSourceBQTable() throws IOException, InterruptedException {
+    createSourceBQTableWithQueries(PluginPropertyUtils.pluginProp("bqArgumentSetterCreateTableQueryFile"),
+            PluginPropertyUtils.pluginProp("bqArgumentSetterInsertDataQueryFile"));
   }
 }
