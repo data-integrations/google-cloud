@@ -163,7 +163,11 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
     List<String> fieldNames = fields.stream()
       .map(BigQueryTableFieldSchema::getName)
       .collect(Collectors.toList());
-    Asset asset = Asset.builder(outputName).setFqn(fqn).setLocation(getConfig().getLocation()).build();
+    // Get the dataset location (if it exists)
+    DatasetId datasetId = DatasetId.of(getConfig().getDatasetProject(), getConfig().getDataset());
+    Dataset dataset = bigQuery.getDataset(datasetId);
+    String location = dataset != null ? dataset.getLocation() : getConfig().getLocation();
+    Asset asset = Asset.builder(outputName).setFqn(fqn).setLocation(location).build();
     BigQuerySinkUtils.recordLineage(context, asset, tableSchema, fieldNames);
     context.addOutput(Output.of(outputName, getOutputFormatProvider(configuration, tableName, tableSchema)));
   }
