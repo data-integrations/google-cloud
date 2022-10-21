@@ -90,15 +90,6 @@ public class BigQueryWindowsAggregationSQLBuilder extends BigQueryBaseSQLBuilder
       SQLExpression e = (SQLExpression) aggregateExpressions.get(s);
       return e.extract() + SPACE + overClause + AS + s;
     }).collect(Collectors.joining(COMMA));
-
-    /*for (String s : aggregateExpressions.keySet()) {
-      SQLExpression e = (SQLExpression) aggregateExpressions.get(s);
-      if (!EMPTY.equals(aggregateString)) {
-        aggregateString = aggregateString + COMMA;
-      }
-      aggregateString = aggregateString + SPACE + e.extract() + SPACE + overClause + AS + s;
-    }
-    return aggregateString;*/
   }
   
   private String getOverClause() {
@@ -122,13 +113,13 @@ public class BigQueryWindowsAggregationSQLBuilder extends BigQueryBaseSQLBuilder
     if (windowAggregationDefinition.getUnboundedPreceding()) {
       def = def + UNBOUNDED_PRECEDING;
     } else {
-      def = def + windowAggregationDefinition.getPreceding();
+      def = def + windowAggregationDefinition.getPreceding() + PRECEDING;
     }
     def = def + AND;
     if (windowAggregationDefinition.getUnboundedFollowing()) {
       def = def + UNBOUNDED_FOLLOWING;
     } else {
-      def = def + windowAggregationDefinition.getFollowing();
+      def = def + windowAggregationDefinition.getFollowing() + FOLLOWING;
     }
     return def;
   }

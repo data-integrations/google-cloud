@@ -332,8 +332,8 @@ BigQueryRelationTest {
     orderFields.add(new WindowAggregationDefinition.OrderByExpression(factory.compile("a"),
                                                                       WindowAggregationDefinition.OrderBy.ASCENDING));
     frame = WindowAggregationDefinition.WindowFrameType.ROW;
-    following = "UNBOUNDED FOLLOWING";
-    preceding = "UNBOUNDED PRECEDING";
+    following = "1";
+    preceding = "1";
 
     //Set Definition
     def = builder.windowFrameType(frame).partition(partitionFields).aggregate(aggregationFields)
@@ -353,8 +353,8 @@ BigQueryRelationTest {
     Assert.assertTrue(columns.contains("a"));
     String transformExpression = bqRelation.getSQLStatement();
     Assert.assertEquals(transformExpression, "SELECT a , b , c , FIRST_VALUE(d) OVER( PARTITION BY  a ORDER BY  a"
-      + " ASC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING ) AS d , LAST_VALUE(e) OVER( PARTITION BY  a " +
-      "ORDER BY  a ASC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING ) AS e  FROM ( select * from tbl )" +
+      + " ASC ROWS BETWEEN 1 PRECEDING  AND 1 FOLLOWING  ) AS d , LAST_VALUE(e) OVER( PARTITION BY  a " +
+      "ORDER BY  a ASC ROWS BETWEEN 1 PRECEDING  AND 1 FOLLOWING  ) AS e  FROM ( select * from tbl )" +
       "  AS `d s`");
   }
 
