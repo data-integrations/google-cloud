@@ -198,6 +198,7 @@ public class BigQueryReadDataset implements SQLDataset, BigQuerySQLDataset {
                 destinationDatasetId.getDataset(), destDataset.getLocation());
       return SQLReadResult.unsupported(datasetName);
     }
+    String jobLocation = srcDataset.getLocation();
 
     Table sourceTable;
     try {
@@ -221,7 +222,7 @@ public class BigQueryReadDataset implements SQLDataset, BigQuerySQLDataset {
       // TRY SNAPSHOT
       JobConfiguration jobConfiguration = getBQSnapshotJobConf(sourceTableId, destinationTableId);
       SQLReadResult snapshotResult = executeBigQueryJob(jobConfiguration, sourceTable, sourceTableId,
-                                                        BigQueryJobType.COPY_SNAPSHOT);
+                                                        BigQueryJobType.COPY_SNAPSHOT, jobLocation);
       if (snapshotResult.isSuccessful()) {
         BigQuerySQLEngineUtils.updateTableExpiration(bigQuery, destinationTableId, tableTTL);
         return snapshotResult;
@@ -236,18 +237,19 @@ public class BigQueryReadDataset implements SQLDataset, BigQuerySQLDataset {
                                                               sourceConfig.getPartitionTo(),
                                                               tableTTL);
 
-    return executeBigQueryJob(queryConfig, sourceTable, sourceTableId, BigQueryJobType.QUERY);
+    return executeBigQueryJob(queryConfig, sourceTable, sourceTableId, BigQueryJobType.QUERY, jobLocation);
   }
 
   private SQLReadResult executeBigQueryJob(JobConfiguration jobConfiguration,
                                            Table sourceTable,
                                            TableId sourceTableId,
-                                           BigQueryJobType bigQueryJobType)
+                                           BigQueryJobType bigQueryJobType,
+                                           String jobLocation)
     throws InterruptedException {
     // Create a job ID so that we can safely retry.
     JobId bqJobId = JobId.newBuilder()
       .setJob(jobId)
-      .setLocation(sqlEngineConfig.getLocation())
+      .setLocation(jobLocation)
       .setProject(sqlEngineConfig.getProject())
       .build();
 
