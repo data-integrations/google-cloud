@@ -62,6 +62,20 @@ public class BigQueryWindowsAggregationSQLBuilderTest {
   }
 
   @Test
+  public void testGetQueryWithBoundedCondition() {
+    windowFrameType = WindowAggregationDefinition.WindowFrameType.ROW;
+    fullDefinition = WindowAggregationDefinition.builder().select(selectFields).partition(partitionFields)
+      .aggregate(aggregationFields).orderBy(orderFields).windowFrameType(windowFrameType).unboundedFollowing(false)
+      .unboundedPreceding(false).preceding("1").following("1").build();
+    helper = new BigQueryWindowsAggregationSQLBuilder(fullDefinition, "select * from tbl", "ds",
+                                                      "the_row_number");
+    Assert.assertEquals("SELECT a , b , c , d , e , first_value(f) OVER( PARTITION BY  a , b ORDER BY  c " +
+       "ASC , d DESC ROWS BETWEEN 1 PRECEDING  AND 1 FOLLOWING  ) AS f , last_value(g) OVER( PARTITION BY  a , b ORDER"
+       + " BY  c ASC , d DESC ROWS BETWEEN 1 PRECEDING  AND 1 FOLLOWING  ) AS g  FROM ( select * from tbl )  AS ds",
+       helper.getQuery());
+  }
+
+  @Test
   public void testGetSelectedFields() {
     Assert.assertEquals("a , b , c , d , e",
                         helper.getSelectedFields(fullDefinition.getSelectExpressions()));

@@ -90,21 +90,20 @@ public class BigQueryWindowsAggregationSQLBuilder extends BigQueryBaseSQLBuilder
       SQLExpression e = (SQLExpression) aggregateExpressions.get(s);
       return e.extract() + SPACE + overClause + AS + s;
     }).collect(Collectors.joining(COMMA));
-
-    /*for (String s : aggregateExpressions.keySet()) {
-      SQLExpression e = (SQLExpression) aggregateExpressions.get(s);
-      if (!EMPTY.equals(aggregateString)) {
-        aggregateString = aggregateString + COMMA;
-      }
-      aggregateString = aggregateString + SPACE + e.extract() + SPACE + overClause + AS + s;
-    }
-    return aggregateString;*/
   }
-  
+
+  /**
+   * Gets over clause as a string. Over clause is always followed by aggregate function.
+   *
+   * @return over clause containing appended partition fields,order by fields, frame definition as string
+   */
   private String getOverClause() {
     return OVER + OPEN_GROUP + SPACE + PARTITION_BY + SPACE +
+      //Append partition fields
       getPartitionFields(windowAggregationDefinition.getPartitionExpressions()) + SPACE
+      //Append order by fields
       + getOrderByFields(windowAggregationDefinition.getOrderByExpressions()) + SPACE +
+      //Append window frame definition
       getWindowFrameDefinition(windowAggregationDefinition) + SPACE + CLOSE_GROUP;
   }
 
@@ -122,13 +121,13 @@ public class BigQueryWindowsAggregationSQLBuilder extends BigQueryBaseSQLBuilder
     if (windowAggregationDefinition.getUnboundedPreceding()) {
       def = def + UNBOUNDED_PRECEDING;
     } else {
-      def = def + windowAggregationDefinition.getPreceding();
+      def = def + windowAggregationDefinition.getPreceding() + PRECEDING;
     }
     def = def + AND;
     if (windowAggregationDefinition.getUnboundedFollowing()) {
       def = def + UNBOUNDED_FOLLOWING;
     } else {
-      def = def + windowAggregationDefinition.getFollowing();
+      def = def + windowAggregationDefinition.getFollowing() + FOLLOWING;
     }
     return def;
   }
