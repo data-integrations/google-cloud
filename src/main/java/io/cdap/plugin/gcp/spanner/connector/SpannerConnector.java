@@ -155,29 +155,35 @@ public class SpannerConnector implements DirectConnector {
     throws IOException {
     SpannerPath path = new SpannerPath(connectorSpecRequest.getPath());
     ConnectorSpec.Builder specBuilder = ConnectorSpec.builder();
-    Map<String, String> properties = new HashMap<>();
-    properties.put(ConfigUtil.NAME_USE_CONNECTION, "true");
-    properties.put(ConfigUtil.NAME_CONNECTION, connectorSpecRequest.getConnectionWithMacro());
+    Map<String, String> sourceProperties = new HashMap<>();
+    Map<String, String> sinkProperties = new HashMap<>();
+    sourceProperties.put(ConfigUtil.NAME_USE_CONNECTION, "true");
+    sinkProperties.put(ConfigUtil.NAME_USE_CONNECTION, "true");
+    sourceProperties.put(ConfigUtil.NAME_CONNECTION, connectorSpecRequest.getConnectionWithMacro());
+    sinkProperties.put(ConfigUtil.NAME_CONNECTION, connectorSpecRequest.getConnectionWithMacro());
 
     String instanceName = path.getInstance();
     if (instanceName != null) {
-      properties.put(SpannerSourceConfig.NAME_INSTANCE, instanceName);
+      sourceProperties.put(SpannerSourceConfig.NAME_INSTANCE, instanceName);
+      sinkProperties.put(SpannerSourceConfig.NAME_INSTANCE, instanceName);
     }
     String databaseName = path.getDatabase();
     if (databaseName != null) {
-      properties.put(SpannerSourceConfig.NAME_DATABASE, databaseName);
+      sourceProperties.put(SpannerSourceConfig.NAME_DATABASE, databaseName);
+      sinkProperties.put(SpannerSourceConfig.NAME_DATABASE, databaseName);
     }
     String tableName = path.getTable();
     if (tableName != null) {
-      properties.put(SpannerSourceConfig.NAME_TABLE, tableName);
-      properties.put(Constants.Reference.REFERENCE_NAME,
+      sourceProperties.put(SpannerSourceConfig.NAME_TABLE, tableName);
+      sinkProperties.put(SpannerSourceConfig.NAME_TABLE, tableName);
+      sourceProperties.put(Constants.Reference.REFERENCE_NAME,
                      ReferenceNames.cleanseReferenceName(instanceName + "." + databaseName + "." + tableName));
       Schema schema = getTableSchema(instanceName, databaseName, tableName, context.getFailureCollector());
       specBuilder.setSchema(schema);
     }
     return specBuilder
-      .addRelatedPlugin(new PluginSpec(SpannerSource.NAME, BatchSource.PLUGIN_TYPE, properties))
-      .addRelatedPlugin(new PluginSpec(SpannerSink.NAME, BatchSink.PLUGIN_TYPE, properties))
+      .addRelatedPlugin(new PluginSpec(SpannerSource.NAME, BatchSource.PLUGIN_TYPE, sourceProperties))
+      .addRelatedPlugin(new PluginSpec(SpannerSink.NAME, BatchSink.PLUGIN_TYPE, sinkProperties))
       .build();
   }
 
