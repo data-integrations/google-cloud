@@ -194,8 +194,8 @@ public class BigQueryReadDataset implements SQLDataset, BigQuerySQLDataset {
     if (!Objects.equals(srcDataset.getLocation(), destDataset.getLocation())) {
       LOG.error("Direct table read is only supported if both datasets are in the same location. "
                  + "'{}' is '{}' , '{}' is '{}' .",
-               sourceDatasetId.getDataset(), srcDataset.getLocation(),
-               sourceDatasetId.getDataset(), destDataset.getLocation());
+                sourceDatasetId.getDataset(), srcDataset.getLocation(),
+                destinationDatasetId.getDataset(), destDataset.getLocation());
       return SQLReadResult.unsupported(datasetName);
     }
 
