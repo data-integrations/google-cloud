@@ -74,6 +74,8 @@ public class BigQueryWindowsAggregationSQLBuilder extends BigQueryBaseSQLBuilder
   public String getQuery() {
     String overClause = getOverClause();
     String aggregateFields = getAggregateFields(overClause);
+    /*The final query looks like SELECT <fields>, aggregate fields over(partition fields order fields windowFrameDef)
+    FROM ( <source> ) AS sourceAlias */
     String query = SELECT + getSelectedFields(windowAggregationDefinition.getSelectExpressions()) +
       COMMA + aggregateFields + SPACE + FROM + OPEN_GROUP + SPACE + source + SPACE + CLOSE_GROUP + SPACE + AS +
       sourceAlias;
@@ -83,7 +85,6 @@ public class BigQueryWindowsAggregationSQLBuilder extends BigQueryBaseSQLBuilder
 
   @VisibleForTesting
   protected String getAggregateFields(String overClause) {
-    //String aggregateString = EMPTY;
     Map<String, Expression> aggregateExpressions = windowAggregationDefinition.getAggregateExpressions();
 
     return aggregateExpressions.keySet().stream().map(s -> {
@@ -98,6 +99,7 @@ public class BigQueryWindowsAggregationSQLBuilder extends BigQueryBaseSQLBuilder
    * @return over clause containing appended partition fields,order by fields, frame definition as string
    */
   private String getOverClause() {
+    // OVER ( PARTITION BY <partitionFields> <orderFields> <windowFrameDef> )
     return OVER + OPEN_GROUP + SPACE + PARTITION_BY + SPACE +
       //Append partition fields
       getPartitionFields(windowAggregationDefinition.getPartitionExpressions()) + SPACE
