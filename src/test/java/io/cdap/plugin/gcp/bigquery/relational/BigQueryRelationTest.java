@@ -19,6 +19,7 @@ package io.cdap.plugin.gcp.bigquery.relational;
 import io.cdap.cdap.api.feature.FeatureFlagsProvider;
 import io.cdap.cdap.etl.api.aggregation.DeduplicateAggregationDefinition;
 import io.cdap.cdap.etl.api.aggregation.GroupByAggregationDefinition;
+import io.cdap.cdap.etl.api.aggregation.WindowAggregationDefinition;
 import io.cdap.cdap.etl.api.relational.Expression;
 import io.cdap.cdap.etl.api.relational.InvalidRelation;
 import io.cdap.cdap.etl.api.relational.Relation;
@@ -303,6 +304,95 @@ BigQueryRelationTest {
   }
 
   @Test
+  public void testWindow() {
+    WindowAggregationDefinition def;
+    WindowAggregationDefinition.Builder builder;
+    Map<String, Expression> selectFields;
+    Map<String, Expression> aggregationFields;
+    List<Expression> partitionFields;
+    List<WindowAggregationDefinition.OrderByExpression> orderFields;
+    WindowAggregationDefinition.WindowFrameType frame;
+    String following, preceding;
+    Relation rel;
+
+    //Create builder for aggregation definitions
+    builder = WindowAggregationDefinition.builder();
+
+    //Build aggregation definition
+    selectFields = new LinkedHashMap<>();
+    selectFields.put("a", factory.compile("a"));
+    selectFields.put("b", factory.compile("b"));
+    selectFields.put("c", factory.compile("c"));
+    partitionFields = new ArrayList<>();
+    partitionFields.add(factory.compile("a"));
+    aggregationFields = new LinkedHashMap<>();
+    aggregationFields.put("d", factory.compile("FIRST_VALUE(d)"));
+    aggregationFields.put("e", factory.compile("LAST_VALUE(e)"));
+    orderFields = new ArrayList<>();
+    orderFields.add(new WindowAggregationDefinition.OrderByExpression(factory.compile("a"),
+                                                                      WindowAggregationDefinition.OrderBy.ASCENDING));
+    frame = WindowAggregationDefinition.WindowFrameType.ROW;
+    following = "1";
+    preceding = "1";
+
+    //Set Definition
+    def = builder.windowFrameType(frame).partition(partitionFields).aggregate(aggregationFields)
+            .orderBy(orderFields).select(selectFields)
+    .preceding(preceding).following(following).build();
+
+    //Call Window
+    rel = baseRelation.window(def);
+    Assert.assertTrue(rel instanceof BigQueryRelation);
+
+    // Cast to BigQueryRelation
+    BigQueryRelation bqRelation = (BigQueryRelation) rel;
+    Assert.assertEquals(baseRelation, bqRelation.getParent());
+
+    Set<String> columns = bqRelation.getColumns();
+    Assert.assertEquals(3, columns.size());
+    Assert.assertTrue(columns.contains("a"));
+    String transformExpression = bqRelation.getSQLStatement();
+    Assert.assertEquals(transformExpression, "SELECT a , b , c , FIRST_VALUE(d) OVER( PARTITION BY  a ORDER BY  a"
+      + " ASC ROWS BETWEEN 1 PRECEDING  AND 1 FOLLOWING  ) AS d , LAST_VALUE(e) OVER( PARTITION BY  a " +
+      "ORDER BY  a ASC ROWS BETWEEN 1 PRECEDING  AND 1 FOLLOWING  ) AS e  FROM ( select * from tbl )" +
+      "  AS `d s`");
+  }
+
+  @Test
+  public void testInvalidWindow() {
+    WindowAggregationDefinition def;
+    WindowAggregationDefinition.Builder builder;
+    Map<String, Expression> selectFields;
+    Map<String, Expression> aggregationFields;
+    List<Expression> partitionFields;
+    List<WindowAggregationDefinition.OrderByExpression> orderFields;
+    WindowAggregationDefinition.WindowFrameType frame;
+    Relation rel;
+
+    //Create builder for aggregation definitions
+    builder = WindowAggregationDefinition.builder();
+
+    //Build aggregation definition
+    selectFields = new LinkedHashMap<>();
+    selectFields.put("a", new InvalidSQLExpression("a"));
+    partitionFields = new ArrayList<>();
+    partitionFields.add(factory.compile("a"));
+    orderFields = new ArrayList<>();
+    orderFields.add(new WindowAggregationDefinition.OrderByExpression(factory.compile("a"),
+                                                                      WindowAggregationDefinition.OrderBy.ASCENDING));
+    frame = WindowAggregationDefinition.WindowFrameType.NONE;
+    aggregationFields = new LinkedHashMap<>();
+    aggregationFields.put("b", new InvalidSQLExpression("first_value(b)"));
+    //Set Definition
+    def = builder.windowFrameType(frame).partition(partitionFields).aggregate(aggregationFields)
+            .orderBy(orderFields).select(selectFields).build();
+
+    //Call Window
+    rel = baseRelation.window(def);
+    Assert.assertTrue(rel instanceof InvalidRelation);
+  }
+
+  @Test
   public void testInvalidDeduplicate() {
     DeduplicateAggregationDefinition def;
     DeduplicateAggregationDefinition.Builder builder;
@@ -319,7 +409,7 @@ BigQueryRelationTest {
     // Build aggregation definition
     dedupFields = new ArrayList<>(1);
     dedupFields.add(factory.compile("a"));
-    // Build FilterFIelds definition
+    // Build FilterFields definition
     filterFields = new ArrayList<>(1);
     filterFields.add(new DeduplicateAggregationDefinition.FilterExpression(
       factory.compile("a"), DeduplicateAggregationDefinition.FilterFunction.MAX));
@@ -440,7 +530,6 @@ BigQueryRelationTest {
     selectFields.clear();
     dedupFields.clear();
     filterFields.clear();
-
 
     // Check invalid select field
     selectFields.put("a", new InvalidSQLExpression("a"));
@@ -575,6 +664,163 @@ BigQueryRelationTest {
     selectFields.clear();
     dedupFields.clear();
     filterFields.clear();
+  }
+
+  @Test
+  public void testSupportsWindowAggregationDefinition() {
+    Map<String, Expression> selectFields = new LinkedHashMap<>();
+    List<Expression> partitionFields = new ArrayList<>(1);
+    List<WindowAggregationDefinition.OrderByExpression> orderByExpressions = new ArrayList<>(1);
+
+    // Set up mocks
+    WindowAggregationDefinition def = mock(WindowAggregationDefinition.class);
+    when(def.getSelectExpressions()).thenReturn(selectFields);
+    when(def.getPartitionExpressions()).thenReturn(partitionFields);
+    when(def.getOrderByExpressions()).thenReturn(orderByExpressions);
+
+    // Check valid definition
+    selectFields.put("a", factory.compile("a"));
+    partitionFields.add(factory.compile("a"));
+    orderByExpressions.add(new WindowAggregationDefinition.OrderByExpression(factory.compile("a"),
+      WindowAggregationDefinition.OrderBy.ASCENDING));
+    Assert.assertTrue(BigQueryRelation.supportsWindowAggregationDefinition(def));
+    selectFields.clear();
+    partitionFields.clear();
+    orderByExpressions.clear();
+
+    // Check invalid select field
+    selectFields.put("a", new InvalidSQLExpression("a"));
+    partitionFields.add(factory.compile("a"));
+    orderByExpressions.add(new WindowAggregationDefinition.OrderByExpression(factory.compile("a"),
+      WindowAggregationDefinition.OrderBy.ASCENDING));
+    Assert.assertFalse(BigQueryRelation.supportsWindowAggregationDefinition(def));
+    selectFields.clear();
+    partitionFields.clear();
+    orderByExpressions.clear();
+
+    // Check unsupported Select field
+    selectFields.put("a", new NonSQLExpression());
+    partitionFields.add(factory.compile("a"));
+    orderByExpressions.add(new WindowAggregationDefinition.OrderByExpression(factory.compile("a"),
+      WindowAggregationDefinition.OrderBy.ASCENDING));
+    Assert.assertFalse(BigQueryRelation.supportsWindowAggregationDefinition(def));
+    selectFields.clear();
+    partitionFields.clear();
+    orderByExpressions.clear();
+
+    // Check invalid partition field
+    selectFields.put("a", factory.compile("a"));
+    partitionFields.add(new InvalidSQLExpression("a"));
+    orderByExpressions.add(new WindowAggregationDefinition.OrderByExpression(factory.compile("a"),
+      WindowAggregationDefinition.OrderBy.ASCENDING));
+    Assert.assertFalse(BigQueryRelation.supportsWindowAggregationDefinition(def));
+    selectFields.clear();
+    partitionFields.clear();
+    orderByExpressions.clear();
+
+    // Check unsupported partition field
+    selectFields.put("a", factory.compile("a"));
+    partitionFields.add(new NonSQLExpression());
+    orderByExpressions.add(new WindowAggregationDefinition.OrderByExpression(factory.compile("a"),
+      WindowAggregationDefinition.OrderBy.ASCENDING));
+    Assert.assertFalse(BigQueryRelation.supportsWindowAggregationDefinition(def));
+    selectFields.clear();
+    partitionFields.clear();
+    orderByExpressions.clear();
+
+    // Check invalid order field
+    selectFields.put("a", factory.compile("a"));
+    partitionFields.add(factory.compile("a"));
+    orderByExpressions.add(new WindowAggregationDefinition.OrderByExpression(new InvalidSQLExpression("a"),
+      WindowAggregationDefinition.OrderBy.ASCENDING));
+    Assert.assertFalse(BigQueryRelation.supportsWindowAggregationDefinition(def));
+    selectFields.clear();
+    partitionFields.clear();
+    orderByExpressions.clear();
+
+    // Check unsupported order field
+    selectFields.put("a", factory.compile("a"));
+    partitionFields.add(factory.compile("a"));
+    orderByExpressions.add(new WindowAggregationDefinition.OrderByExpression(new NonSQLExpression(),
+      WindowAggregationDefinition.OrderBy.ASCENDING));
+    Assert.assertFalse(BigQueryRelation.supportsWindowAggregationDefinition(def));
+    selectFields.clear();
+    partitionFields.clear();
+    orderByExpressions.clear();
+  }
+
+  @Test
+  public void testCollectWindowAggregationDefinitionErrors() {
+    Map<String, Expression> selectFields = new LinkedHashMap<>();
+    List<Expression> partitionFields = new ArrayList<>(1);
+    List<WindowAggregationDefinition.OrderByExpression> orderFields = new ArrayList<>(1);
+
+    // Set up mocks
+    WindowAggregationDefinition def = mock(WindowAggregationDefinition.class);
+    when(def.getSelectExpressions()).thenReturn(selectFields);
+    when(def.getPartitionExpressions()).thenReturn(partitionFields);
+    when(def.getOrderByExpressions()).thenReturn(orderFields);
+
+    // Check valid definition
+    selectFields.put("a", factory.compile("a"));
+    partitionFields.add(factory.compile("a"));
+    orderFields.add(new WindowAggregationDefinition.OrderByExpression(factory.compile("a"),
+                                                                      WindowAggregationDefinition.OrderBy.ASCENDING));
+
+    Assert.assertNull(BigQueryRelation.collectWindowAggregationDefinitionErrors(def));
+    selectFields.clear();
+    partitionFields.clear();
+    orderFields.clear();
+
+    // Check invalid select field
+    selectFields.put("a", new InvalidSQLExpression("a", "oops1"));
+    partitionFields.add(factory.compile("a"));
+    orderFields.add(new WindowAggregationDefinition.OrderByExpression(factory.compile("a"),
+                                                                      WindowAggregationDefinition.OrderBy.ASCENDING));
+
+    Assert.assertEquals("Select fields: oops1",
+                        BigQueryRelation.collectWindowAggregationDefinitionErrors(def));
+    selectFields.clear();
+    partitionFields.clear();
+    orderFields.clear();
+
+    // Check invalid window field
+    selectFields.put("a", factory.compile("a"));
+    partitionFields.add(new InvalidSQLExpression("a", "oops2"));
+    orderFields.add(new WindowAggregationDefinition.OrderByExpression(factory.compile("a"),
+                                                                      WindowAggregationDefinition.OrderBy.ASCENDING));
+
+    Assert.assertEquals("Window fields: oops2",
+                        BigQueryRelation.collectWindowAggregationDefinitionErrors(def));
+    selectFields.clear();
+    partitionFields.clear();
+    orderFields.clear();
+
+    // Check invalid order field
+    selectFields.put("a", factory.compile("a"));
+    partitionFields.add(factory.compile("a"));
+    orderFields.add(new WindowAggregationDefinition.OrderByExpression(new InvalidSQLExpression("a", "oops3"),
+                                                                      null));
+    Assert.assertEquals("Order fields: oops3",
+                        BigQueryRelation.collectWindowAggregationDefinitionErrors(def));
+    selectFields.clear();
+    partitionFields.clear();
+    orderFields.clear();
+
+    // Check all invalid fields
+    selectFields.put("a", new InvalidSQLExpression("a", "oops1a"));
+    selectFields.put("b", new InvalidSQLExpression("b", "oops1b"));
+    partitionFields.add(new InvalidSQLExpression("a", "oops2a"));
+    orderFields.add(new WindowAggregationDefinition.OrderByExpression(new InvalidSQLExpression("a", "oops3"),
+                                                                     WindowAggregationDefinition.OrderBy.ASCENDING));
+
+    Assert.assertEquals("Select fields: oops1a ; oops1b" +
+                          " - Window fields: oops2a" +
+                          " - Order fields: oops3",
+                        BigQueryRelation.collectWindowAggregationDefinitionErrors(def));
+    selectFields.clear();
+    partitionFields.clear();
+    orderFields.clear();
   }
 
   @Test

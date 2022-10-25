@@ -36,6 +36,14 @@ public abstract class BigQueryBaseSQLBuilder {
   public static final String EQ = " = ";
   public static final String AND = " AND ";
   public static final String OR = " OR ";
+  public static final String ROWS = "ROWS";
+  public static final String RANGE = "RANGE";
+  public static final String BETWEEN = " BETWEEN ";
+  public static final String EMPTY = "";
+  public static final String UNBOUNDED_PRECEDING = "UNBOUNDED PRECEDING";
+  public static final String PRECEDING = " PRECEDING ";
+  public static final String UNBOUNDED_FOLLOWING = "UNBOUNDED FOLLOWING";
+  public static final String FOLLOWING = " FOLLOWING ";
   public static final String DOT = ".";
   public static final String COMMA = " , ";
   public static final String IS_NULL = " IS NULL";
@@ -47,6 +55,8 @@ public abstract class BigQueryBaseSQLBuilder {
   public static final String ORDER_DESC = "DESC";
   public static final String ORDER_ASC = "ASC";
   public static final String SELECT_DEDUPLICATE_STATEMENT = "SELECT * EXCEPT(`%s`) FROM (%s) WHERE `%s` = 1";
+
+  public static final String OVER = "OVER";
   public static final String ROW_NUMBER_PARTITION_COLUMN =
     "ROW_NUMBER() OVER ( %s ) AS `%s`";
   public static final String PARTITION_BY = "PARTITION BY ";

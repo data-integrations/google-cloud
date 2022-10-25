@@ -4,6 +4,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.cdap.cdap.api.feature.FeatureFlagsProvider;
 import io.cdap.cdap.etl.api.aggregation.DeduplicateAggregationDefinition;
 import io.cdap.cdap.etl.api.aggregation.GroupByAggregationDefinition;
+import io.cdap.cdap.etl.api.aggregation.WindowAggregationDefinition;
 import io.cdap.cdap.etl.api.engine.sql.SQLEngineException;
 import io.cdap.cdap.etl.api.relational.Expression;
 import io.cdap.cdap.etl.api.relational.InvalidRelation;
@@ -14,8 +15,10 @@ import io.cdap.plugin.gcp.bigquery.sqlengine.builder.BigQueryDeduplicateSQLBuild
 import io.cdap.plugin.gcp.bigquery.sqlengine.builder.BigQueryGroupBySQLBuilder;
 import io.cdap.plugin.gcp.bigquery.sqlengine.builder.BigQueryNestedSelectSQLBuilder;
 import io.cdap.plugin.gcp.bigquery.sqlengine.builder.BigQuerySelectSQLBuilder;
+import io.cdap.plugin.gcp.bigquery.sqlengine.builder.BigQueryWindowsAggregationSQLBuilder;
 import org.apache.parquet.Strings;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -278,6 +281,27 @@ public class BigQueryRelation implements Relation {
     return new BigQueryRelation(datasetName, columns, featureFlagsProvider, this, supplier);
   }
 
+  @Override
+  public Relation window(WindowAggregationDefinition definition) {
+    // Check if window feature is enabled
+    if (!Feature.PUSHDOWN_TRANSFORMATION_WINDOWAGGREGATION.isEnabled(featureFlagsProvider)) {
+      return getInvalidRelation(String.format("Feature %s is not enabled.",
+        Feature.PUSHDOWN_TRANSFORMATION_WINDOWAGGREGATION.getFeatureFlagString()));
+    }
+
+    // Ensure all expressions supplied in this definition are supported and valid
+    if (!supportsWindowAggregationDefinition(definition)) {
+      return getInvalidRelation("WindowAggregationDefinition contains "
+        + "unsupported or invalid expressions: "
+        + collectWindowAggregationDefinitionErrors(definition));
+    }
+
+    Set<String> columns = definition.getSelectExpressions().keySet();
+    Supplier<String> supplier =
+      () -> buildWindow(definition, getSQLStatement(), datasetName);
+    return new BigQueryRelation(datasetName, columns, featureFlagsProvider, this, supplier);
+  }
+
   private static String buildBaseSelect(Map<String, Expression> columns,
                                         String sourceTable,
                                         String datasetName) {
@@ -321,6 +345,15 @@ public class BigQueryRelation implements Relation {
     BigQueryDeduplicateSQLBuilder builder = new BigQueryDeduplicateSQLBuilder(qualify(definition),
                                                                               sourceExpression,
                                                                               qualify(datasetName));
+    return builder.getQuery();
+  }
+
+  private static String buildWindow(WindowAggregationDefinition definition,
+                                    String sourceExpression,
+                                    String datasetName) {
+    BigQueryWindowsAggregationSQLBuilder builder = new BigQueryWindowsAggregationSQLBuilder(qualify(definition),
+                                                                                            sourceExpression,
+                                                                                            qualify(datasetName));
     return builder.getQuery();
   }
 
@@ -507,6 +540,64 @@ public class BigQueryRelation implements Relation {
     return builder.build();
   }
 
+  protected static boolean supportsWindowAggregationDefinition(WindowAggregationDefinition def) {
+    Collection<Expression> partitionExpressions =  def.getPartitionExpressions();
+    Collection<Expression> selectExpressions = def.getSelectExpressions().values();
+    Collection<Expression> orderExpressions = getWindowAggregationOrderByExpression(def);
+    return supportsExpressions(partitionExpressions) && supportsExpressions(selectExpressions)
+      && supportsExpressions(orderExpressions);
+  }
+
+  private static Collection<Expression> getWindowAggregationOrderByExpression(WindowAggregationDefinition def) {
+    Collection<Expression> orderExpressions = new ArrayList<>(def.getOrderByExpressions().size());
+    for (WindowAggregationDefinition.OrderByExpression orderByExpression : def.getOrderByExpressions()) {
+      orderExpressions.add(orderByExpression.getExpression());
+    }
+    return orderExpressions;
+  }
+
+  @VisibleForTesting
+  protected static WindowAggregationDefinition qualify(WindowAggregationDefinition def) {
+    return WindowAggregationDefinition.builder().select(qualifyKeys(def.getSelectExpressions()))
+      .partition(def.getPartitionExpressions()).aggregate(def.getAggregateExpressions())
+      .orderBy(def.getOrderByExpressions()).windowFrameType(def.getWindowFrameType())
+      .unboundedFollowing(def.getUnboundedFollowing()).unboundedPreceding(def.getUnboundedPreceding())
+      .following(def.getFollowing()).preceding(def.getPreceding()).build();
+  }
+
+  @VisibleForTesting
+  @Nullable
+  protected static String collectWindowAggregationDefinitionErrors(WindowAggregationDefinition def) {
+    // If the expression is valid, this must be null.
+    if (supportsWindowAggregationDefinition(def)) {
+      return null;
+    }
+
+    // Gets all expressions defined in this definition
+    Collection<WindowAggregationDefinition.OrderByExpression> orderByExpressions = def.getOrderByExpressions();
+    Collection<Expression> orderExpressions = getWindowAggregationOrderByExpression(def);
+    // Get all invalid expression causes, and prepend field origin to error reasons
+    String selectErrors = getInvalidExpressionCauses(def.getSelectExpressions().values());
+    if (!Strings.isNullOrEmpty(selectErrors)) {
+      selectErrors = "Select fields: " + selectErrors;
+    }
+
+    String partitionErrors = getInvalidExpressionCauses(def.getPartitionExpressions());
+    if (!Strings.isNullOrEmpty(partitionErrors)) {
+      partitionErrors = "Window fields: " + partitionErrors;
+    }
+
+    String orderErrors = getInvalidExpressionCauses(orderExpressions);
+    if (!Strings.isNullOrEmpty(orderErrors)) {
+      orderErrors = "Order fields: " + orderErrors;
+    }
+
+    // Build string which concatenates all non-empty error groups, separated by a hyphen.
+    return Stream.of(selectErrors, partitionErrors, orderErrors)
+      .filter(Objects::nonNull)
+      .collect(Collectors.joining(" - "));
+  }
+
   /**
    * Check if a collection of expressions are all valid
    *
@@ -577,5 +668,4 @@ public class BigQueryRelation implements Relation {
     // Return validation error for this expression.
     return expression.getValidationError() != null ? expression.getValidationError() : "Unknown";
   }
-
 }
