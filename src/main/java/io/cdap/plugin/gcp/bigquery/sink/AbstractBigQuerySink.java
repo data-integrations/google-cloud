@@ -97,7 +97,9 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
 
     // Get the required bucket name and bucket instance (if it exists)
     Storage storage =  GCPUtils.getStorage(project, credentials);
-    String bucketName = getStagingBucketName(context, config, dataset);
+    String bucketName = BigQueryUtil.getStagingBucketName(context.getArguments().asMap(), config.getLocation(),
+                                                          dataset, config.getBucket());
+    bucketName = BigQuerySinkUtils.configureBucket(baseConfiguration, bucketName, runUUID.toString());
     Bucket bucket = storage.get(bucketName);
 
     if (!context.isPreviewEnabled()) {
@@ -304,36 +306,6 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
   protected Configuration getOutputConfiguration() throws IOException {
     Configuration configuration = new Configuration(baseConfiguration);
     return configuration;
-  }
-
-  /**
-   * Identify a stating bucket name from the pipeline context and sink configuration
-   * @param context Sink Context
-   * @param config Sink Configuration
-   * @return Bucket name to use for this sink.
-   */
-  protected String getStagingBucketName(BatchSinkContext context,
-                                        AbstractBigQuerySinkConfig config,
-                                        @Nullable Dataset dataset) {
-    // Get temporary bucket name from sink configuration
-    String bucketName = config.getBucket();
-
-    // Get Bucket Prefix from configuration
-    String bucketPrefix = BigQueryUtil.getBucketPrefix(context.getArguments());
-
-    // If temp bucket name is not defined in configuration, and a common bucket name prefix has been specified,
-    // we must set this prefix along with the destination location in order to create/reuse the bucket.
-    // Otherwise, if temp bucket name is defined, or a prefix is not set, the configureBucket method will prepare
-    // for a new bucket creation.
-    if (bucketName == null && bucketPrefix != null) {
-      // If the destination dataset exists, use the dataset location. Otherwise, use location from configuration.
-      String datasetLocation = dataset != null ? dataset.getLocation() : config.getLocation();
-
-      // Get the bucket name for the specified location.
-      bucketName = BigQueryUtil.getBucketNameForLocation(bucketPrefix, datasetLocation);
-    }
-
-    return BigQuerySinkUtils.configureBucket(baseConfiguration, bucketName, runUUID.toString());
   }
 
 }

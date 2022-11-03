@@ -147,7 +147,8 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     configuration = BigQueryUtil.getBigQueryConfig(serviceAccount, config.getProject(), cmekKeyName,
                                                    config.getServiceAccountType());
 
-    String bucketName = getBucketName(context, dataset);
+    String bucketName = BigQueryUtil.getStagingBucketName(context.getArguments().asMap(), null,
+                                                          dataset, config.getBucket());
 
     // Configure GCS Bucket to use
     String bucket = BigQuerySourceUtils.getOrCreateBucket(configuration,
@@ -391,21 +392,5 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
       lineageRecorder.recordRead("Read", String.format("Read from BigQuery %s '%s'.", type, table),
                                  schema.getFields().stream().map(Schema.Field::getName).collect(Collectors.toList()));
     }
-  }
-
-  @Nullable
-  private String getBucketName(BatchSourceContext context, Dataset dataset) {
-    // Get the bucket name from configuration, and the bucket prefix if defined.
-    String bucketName = config.getBucket();
-    String bucketPrefix = BigQueryUtil.getBucketPrefix(context.getArguments());
-
-    // If temp bucket name is not defined in configuration, and a common bucket name prefix has been specified,
-    // we must set this prefix along with the source dataset location.
-    // Otherwise, return the original bucket name (may be null).
-    if (bucketName == null && bucketPrefix != null) {
-      bucketName = BigQueryUtil.getBucketNameForLocation(bucketPrefix, dataset.getLocation());
-    }
-
-    return bucketName;
   }
 }

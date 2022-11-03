@@ -19,6 +19,7 @@ package io.cdap.plugin.gcp.bigquery.util;
 import com.google.api.client.googleapis.media.MediaHttpUploader;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
+import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.LegacySQLTypeName;
@@ -792,9 +793,9 @@ public final class BigQueryUtil {
    * @return the bucket prefix to use for this pipeline
    */
   @Nullable
-  public static String getBucketPrefix(SettableArguments arguments) {
+  public static String getBucketPrefix(Map<String, String> arguments) {
     // If the bucket prefix property is set, use it.
-    if (arguments.has(BIGQUERY_BUCKET_PREFIX_PROPERTY_NAME)) {
+    if (arguments.containsKey(BIGQUERY_BUCKET_PREFIX_PROPERTY_NAME)) {
       String bucketPrefix = arguments.get(BIGQUERY_BUCKET_PREFIX_PROPERTY_NAME);
       validateBucketPrefix(bucketPrefix);
       LOG.debug("Using bucket prefix for temporary buckets: {}", bucketPrefix);
@@ -857,5 +858,32 @@ public final class BigQueryUtil {
     labels.put("job_source", "cdap");
     labels.put("type", jobType);
     return labels;
+  }
+
+  /**
+   * Identify a stating bucket name from the pipeline context and plugin configuration
+   * @param arguments runtime arguments
+   * @param configLocation location from plugin configuration
+   * @param dataset BigQuery dataset
+   * @param bucket bucket from plugin configuration
+   * @return Bucket name to use for this sink.
+   */
+  @Nullable
+  public static String getStagingBucketName(Map<String, String> arguments, @Nullable String configLocation,
+                                            @Nullable Dataset dataset, @Nullable String bucket) {
+    // Get Bucket Prefix from configuration
+    String bucketPrefix = BigQueryUtil.getBucketPrefix(arguments);
+
+    // If temp bucket name is not defined in configuration, and a common bucket name prefix has been specified,
+    // we must set this prefix along with the destination location in order to create/reuse the bucket.
+    // Otherwise, if temp bucket name is defined, or a prefix is not set, the configureBucket method will prepare
+    // for a new bucket creation.
+    if (Strings.isNullOrEmpty(bucket) && bucketPrefix != null) {
+      // If the destination dataset exists, use the dataset location. Otherwise, use location from configuration.
+      String datasetLocation = dataset != null ? dataset.getLocation() : configLocation;
+      // Get the bucket name for the specified location.
+      bucket = BigQueryUtil.getBucketNameForLocation(bucketPrefix, datasetLocation);
+    }
+    return bucket;
   }
 }

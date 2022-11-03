@@ -20,7 +20,6 @@ import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.StandardSQLTypeName;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
-import io.cdap.cdap.etl.api.action.SettableArguments;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize.BigNumeric;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize.Numeric;
@@ -31,8 +30,10 @@ import org.mockito.Mockito;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
@@ -138,39 +139,22 @@ public class BigQueryUtilTest {
 
   @Test
   public void testGetBucketPrefix() {
-    SettableArguments args = Mockito.mock(SettableArguments.class);
-    Mockito.when(args.has(BUCKET_PREFIX_ARG))
-      .thenReturn(true);
-    Mockito.when(args.get(BUCKET_PREFIX_ARG))
-      .thenReturn("this-is-valid-as-a-prefix-to-use-123456789_.abcdef");
-    BigQueryUtil.getBucketPrefix(args);
-
-    // Ensure method was called.
-    Mockito.verify(args, Mockito.times(1)).has(BUCKET_PREFIX_ARG);
-    Mockito.verify(args, Mockito.times(1)).get(BUCKET_PREFIX_ARG);
+    Map<String, String> args = new HashMap<>();
+    String prefix = "this-is-valid-as-a-prefix-to-use-123456789_.abcdef";
+    args.put(BUCKET_PREFIX_ARG, prefix);
+    Assert.assertEquals(BigQueryUtil.getBucketPrefix(args), prefix);
   }
 
   @Test
   public void testGetBucketPrefixNotSet() {
-    SettableArguments args = Mockito.mock(SettableArguments.class);
-    Mockito.when(args.has(BUCKET_PREFIX_ARG))
-      .thenReturn(false);
-    Mockito.when(args.get(BUCKET_PREFIX_ARG))
-      .thenReturn("this-is-valid-as-a-prefix-to-use-123456789_.abcdef");
-    BigQueryUtil.getBucketPrefix(args);
-
-    // Ensure method was called.
-    Mockito.verify(args, Mockito.times(1)).has(BUCKET_PREFIX_ARG);
-    Mockito.verify(args, Mockito.times(0)).get(BUCKET_PREFIX_ARG);
+    Map<String, String> args = new HashMap<>();
+    Assert.assertNull(BigQueryUtil.getBucketPrefix(args));
   }
 
   @Test
   public void testGetBucketPrefixInvalidBucketName() {
-    SettableArguments args = Mockito.mock(SettableArguments.class);
-    Mockito.when(args.has(BUCKET_PREFIX_ARG))
-      .thenReturn(true);
-    Mockito.when(args.get(BUCKET_PREFIX_ARG))
-      .thenReturn("This is an invalid bucket name!@");
+    Map<String, String> args = new HashMap<>();
+    args.put(BUCKET_PREFIX_ARG, "This is an invalid bucket name!@");
 
     IllegalArgumentException e = null;
 
@@ -188,11 +172,8 @@ public class BigQueryUtilTest {
 
   @Test
   public void testGetBucketPrefixTooLong() {
-    SettableArguments args = Mockito.mock(SettableArguments.class);
-    Mockito.when(args.has(BUCKET_PREFIX_ARG))
-      .thenReturn(true);
-    Mockito.when(args.get(BUCKET_PREFIX_ARG))
-      .thenReturn("this-prefix-is-too-long-to-be-used-as-a-prefix-oops");
+    Map<String, String> args = new HashMap<>();
+    args.put(BUCKET_PREFIX_ARG, "this-prefix-is-too-long-to-be-used-as-a-prefix-oops");
 
     IllegalArgumentException e = null;
 
