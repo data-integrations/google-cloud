@@ -428,6 +428,10 @@ public class DataplexBatchSourceConfig extends DataplexBaseConfig {
     private String partitionFrom;
     private String filter;
 
+    public Builder setEntity(String entity) {
+      this.entity = entity;
+      return this;
+    }
 
     public Builder setSchema(String schema) {
       this.schema = schema;
