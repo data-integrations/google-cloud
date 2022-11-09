@@ -80,7 +80,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   private static final String NAME_ASSET_TYPE = "assetType";
   private static final Logger LOG = LoggerFactory.getLogger(DataplexBatchSinkConfig.class);
   private static final String WHERE = "WHERE";
-  private static final String NAME_FORMAT = "format";
+  protected static final String NAME_FORMAT = "format";
   private static final String NAME_TABLE_KEY = "tableKey";
   private static final String NAME_DEDUPE_BY = "dedupeBy";
   private static final String NAME_OPERATION = "operation";

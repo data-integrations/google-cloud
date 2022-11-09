@@ -17,6 +17,10 @@
 package io.cdap.plugin.gcp.dataplex.sink;
 
 import io.cdap.cdap.api.data.format.StructuredRecord;
+import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.etl.api.validation.FormatContext;
+import io.cdap.cdap.etl.api.validation.ValidatingOutputFormat;
+import io.cdap.plugin.gcp.bigquery.sink.AvroOutputFormat;
 import io.cdap.plugin.gcp.dataplex.common.util.DataplexConstants;
 import io.cdap.plugin.gcp.gcs.sink.GCSOutputFormatProvider;
 
@@ -50,6 +54,7 @@ import static org.mockito.Mockito.when;
 @RunWith(MockitoJUnitRunner.class)
 public class DataPlexOutputFormatProviderTest {
 
+  public static final String DELEGATE_OUTPUTFORMAT_CLASSNAME = "gcssink.delegate.outputformat.classname";
   @Mock
   FileOutputCommitter fileOutputCommitter;
   @Mock
@@ -58,6 +63,16 @@ public class DataPlexOutputFormatProviderTest {
   private RecordWriter mockWriter;
   @Mock
   private NullWritable mockWritable;
+  @Mock
+  private Configuration configuration;
+  @Mock
+  private Schema schema;
+  @Mock
+  private JobContext jobContext;
+  @Mock
+  private FormatContext context;
+  @Mock
+  private ValidatingOutputFormat delegate;
   @Mock
   private StructuredRecord mockRecord;
   @Mock
@@ -77,7 +92,28 @@ public class DataPlexOutputFormatProviderTest {
 
     //Verify count is being recorded as expected
     Assert.assertEquals(configuration
-      .getLong(String.format(GCSOutputFormatProvider.RECORD_COUNT_FORMAT, mockContext.getTaskAttemptID()), 0), 1);
+      .getLong(String.format(GCSOutputFormatProvider.RECORD_COUNT_FORMAT,
+        mockContext.getTaskAttemptID()), 0), 1);
+  }
+
+  @Test
+  public void testGetClassName() {
+    DataplexOutputFormatProvider dataplexOutputFormatProvider = new DataplexOutputFormatProvider
+      (configuration, schema, delegate);
+    dataplexOutputFormatProvider.validate(context);
+    dataplexOutputFormatProvider.getOutputFormatConfiguration();
+    Assert.assertEquals("io.cdap.plugin.gcp.dataplex.sink.DataplexOutputFormatProvider$DataplexOutputFormat",
+      dataplexOutputFormatProvider.getOutputFormatClassName());
+  }
+
+  @Test
+  public void testGetConfigurationWithDelegateNull() {
+    Configuration configuration = new Configuration();
+    configuration.set("name", "configName");
+    configuration.set("blockSize", "240");
+    DataplexOutputFormatProvider dataplexOutputFormatProvider = new DataplexOutputFormatProvider(configuration,
+      schema, null);
+    Assert.assertEquals("configName", dataplexOutputFormatProvider.getOutputFormatConfiguration().get("name"));
   }
 
   @Test
@@ -121,4 +157,89 @@ public class DataPlexOutputFormatProviderTest {
     committerToTest.commitTask(mockContext);
     verify(fileOutputCommitter, times(1)).commitTask(mockContext);
   }
+
+  /**
+   * Exception is thrown as output path is not provided here.
+   */
+  @Test
+  public void testDataPexOutputCommitterWDifferentFormat() throws IOException, InterruptedException {
+    Configuration configuration = new Configuration();
+    configuration.set(DataplexOutputFormatProvider.DATAPLEX_ASSET_TYPE, "assetType");
+    configuration.set("dataplexsink.assettype", "BIGQUERY_DATASET");
+    configuration.set("mapred.bq.output.dataset.id", "id");
+    configuration.set("mapred.bq.output.table.id", "tableId");
+    configuration.set("mapred.bq.output.gcs.fileformat", "AVRO");
+    configuration.set("mapred.bq.output.project.id", "projectId");
+    configuration.set("mapred.bq.output.gcs.outputformatclass", AvroOutputFormat.class.getName());
+    when(mockContext.getConfiguration()).thenReturn(configuration);
+    DataplexOutputFormatProvider.DataplexOutputFormat dataplexOutputFormat =
+      new DataplexOutputFormatProvider.DataplexOutputFormat();
+    Assert.assertThrows(IOException.class, () -> {
+      dataplexOutputFormat.getOutputCommitter(mockContext);
+    });
+
+  }
+
+  /**
+   * Exception is thrown as output path is not provided here.
+   */
+  @Test
+  public void testOutputFormatWBigqueryDataset() throws IOException, InterruptedException {
+    DataplexOutputFormatProvider.DataplexOutputFormat dataplexOutputFormat =
+      new DataplexOutputFormatProvider.DataplexOutputFormat();
+    Configuration configuration = new Configuration();
+    configuration.set("name", "configName");
+    configuration.set("blockSize", "240");
+    configuration.set("dataplexsink.assettype", "BIGQUERY_DATASET");
+    configuration.set("mapred.bq.output.dataset.id", "id");
+    configuration.set("mapred.bq.output.table.id", "tableId");
+    configuration.set("mapred.bq.output.gcs.fileformat", "AVRO");
+    configuration.set("mapred.bq.output.project.id", "projectId");
+    configuration.set("mapred.bq.output.gcs.outputformatclass", AvroOutputFormat.class.getName());
+    when(mockContext.getConfiguration()).thenReturn(configuration);
+    when(jobContext.getConfiguration()).thenReturn(configuration);
+    Assert.assertThrows(IOException.class, () -> {
+      dataplexOutputFormat.checkOutputSpecs(jobContext);
+    });
+    Assert.assertThrows(IOException.class, () -> {
+      dataplexOutputFormat.getOutputCommitter(mockContext);
+    });
+
+  }
+
+  @Test
+  public void testGetRecordWriter() throws IOException, InterruptedException {
+    DataplexOutputFormatProvider.DataplexOutputFormat dataplexOutputFormat =
+      new DataplexOutputFormatProvider.DataplexOutputFormat();
+    Configuration configuration = new Configuration();
+    configuration.set("name", "configName");
+    configuration.set("blockSize", "240");
+    configuration.set("dataplexsink.assettype", "BIGQUERY_DATASET");
+    configuration.set("mapred.bq.output.dataset.id", "id");
+    configuration.set("mapred.bq.output.table.id", "tableId");
+    configuration.set("mapred.bq.output.gcs.fileformat", "AVRO");
+    when(mockContext.getConfiguration()).thenReturn(configuration);
+    Assert.assertThrows(IOException.class, () -> {
+      dataplexOutputFormat.getRecordWriter(mockContext);
+    });
+  }
+
+  @Test
+  public void testGetRecordWriterWithDifferentDataset() throws IOException, InterruptedException {
+    DataplexOutputFormatProvider.DataplexOutputFormat dataplexOutputFormat =
+      new DataplexOutputFormatProvider.DataplexOutputFormat();
+    Configuration configuration = new Configuration();
+    configuration.set("name", "configName");
+    configuration.set("blockSize", "240");
+    configuration.set("dataplexsink.assettype", "DATASET");
+    configuration.set("mapred.bq.output.dataset.id", "id");
+    configuration.set("mapred.bq.output.table.id", "tableId");
+    configuration.set("mapred.bq.output.gcs.fileformat", "AVRO");
+    configuration.set(DELEGATE_OUTPUTFORMAT_CLASSNAME, "class");
+    when(mockContext.getConfiguration()).thenReturn(configuration);
+    Assert.assertThrows(IOException.class, () -> {
+      dataplexOutputFormat.getRecordWriter(mockContext);
+    });
+  }
+
 }
