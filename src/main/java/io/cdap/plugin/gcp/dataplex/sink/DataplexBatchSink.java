@@ -20,6 +20,7 @@ import com.google.api.gax.rpc.ApiException;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.Job;
@@ -284,23 +285,29 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     baseConfiguration = getBaseConfiguration(cmekKeyName);
     // asset.getResourceSpec().getName() will be of format 'projects/datasetProjectName/datasets/datasetName'
     String[] assetValues = asset.getResourceSpec().getName().split("/");
-    String dataset = assetValues[assetValues.length - 1];
+    String datasetName = assetValues[assetValues.length - 1];
     String datasetProject = assetValues[assetValues.length - 3];
     bigQuery = GCPUtils.getBigQuery(datasetProject, credentials);
-    String bucket = BigQuerySinkUtils.configureBucket(baseConfiguration, null, runUUID.toString());
+    // Get required dataset ID and dataset instance (if it exists)
+    DatasetId datasetId = DatasetId.of(datasetProject, datasetName);
+    Dataset dataset = bigQuery.getDataset(datasetId);
+    String bucket = BigQueryUtil.getStagingBucketName(context.getArguments().asMap(), config.getLocation(),
+                                                      dataset, null);
+    String fallbackBucketName = "dataplex-" + runUUID;
+    bucket = BigQuerySinkUtils.configureBucket(baseConfiguration, bucket, fallbackBucketName);
     if (!context.isPreviewEnabled()) {
       BigQuerySinkUtils.createResources(bigQuery, GCPUtils.getStorage(project, credentials),
-        DatasetId.of(datasetProject, dataset),
+        DatasetId.of(datasetProject, datasetName),
         bucket, config.getLocation(), cmekKeyName);
     }
 
     Schema configSchema = config.getSchema(collector);
     Schema outputSchema = configSchema == null ? context.getInputSchema() : configSchema;
-    configureTable(outputSchema, dataset, datasetProject, collector);
+    configureTable(outputSchema, datasetName, datasetProject, collector);
     configureBigQuerySink();
     initOutput(context, bigQuery,
-               config.getReferenceName(BigQueryUtil.getFQN(datasetProject, dataset, config.getTable())),
-               config.getTable(), outputSchema, bucket, collector, dataset, datasetProject);
+               config.getReferenceName(BigQueryUtil.getFQN(datasetProject, datasetName, config.getTable())),
+               config.getTable(), outputSchema, bucket, collector, datasetName, datasetProject);
   }
 
 

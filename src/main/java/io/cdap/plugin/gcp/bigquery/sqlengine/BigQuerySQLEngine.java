@@ -19,6 +19,7 @@ package io.cdap.plugin.gcp.bigquery.sqlengine;
 import com.google.auth.Credentials;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
+import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.Job;
 import com.google.cloud.bigquery.TableId;
@@ -26,7 +27,6 @@ import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.Storage;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
-import io.cdap.cdap.api.RuntimeContext;
 import io.cdap.cdap.api.SQLEngineContext;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Metadata;
@@ -116,7 +116,7 @@ public class BigQuerySQLEngine
   private Configuration configuration;
   private String project;
   private String datasetProject;
-  private String dataset;
+  private String datasetName;
   private String bucket;
   private String runId;
   private Map<String, BigQuerySQLDataset> datasets;
@@ -153,12 +153,14 @@ public class BigQuerySQLEngine
       null : GCPUtils.loadServiceAccountCredentials(serviceAccount, sqlEngineConfig.isServiceAccountFilePath());
     project = sqlEngineConfig.getProject();
     datasetProject = sqlEngineConfig.getDatasetProject();
-    dataset = sqlEngineConfig.getDataset();
-    bucket = sqlEngineConfig.getBucket() != null ? sqlEngineConfig.getBucket() : "bqpushdown-" + runId;
+    datasetName = sqlEngineConfig.getDataset();
 
     // Initialize BQ and GCS clients.
     bigQuery = GCPUtils.getBigQuery(project, credentials);
     storage = GCPUtils.getStorage(project, credentials);
+    Dataset dataset = bigQuery.getDataset(DatasetId.of(datasetProject, datasetName));
+    bucket = BigQueryUtil.getStagingBucketName(context.getRuntimeArguments(), sqlEngineConfig.getLocation(),
+                                               dataset, sqlEngineConfig.getBucket());
 
     String cmekKey = !Strings.isNullOrEmpty(sqlEngineConfig.cmekKey) ? sqlEngineConfig.cmekKey :
       ctx.getRuntimeArguments().get(CmekUtils.CMEK_KEY);
@@ -169,11 +171,12 @@ public class BigQuerySQLEngine
     configuration = BigQueryUtil.getBigQueryConfig(sqlEngineConfig.getServiceAccount(), sqlEngineConfig.getProject(),
                                                    cmekKeyName, sqlEngineConfig.getServiceAccountType());
     // Create resources needed for this execution
-    BigQuerySinkUtils.createResources(bigQuery, storage, DatasetId.of(datasetProject, dataset), bucket,
+    BigQuerySinkUtils.createResources(bigQuery, storage, DatasetId.of(datasetProject, datasetName), bucket,
                                       sqlEngineConfig.getLocation(), cmekKeyName);
     // Configure GCS bucket that is used to stage temporary files.
-    // If the bucket is created for this run, mar it for deletion after executon is completed
-    BigQuerySinkUtils.configureBucket(configuration, bucket, runId, sqlEngineConfig.getBucket() == null);
+    // If the bucket is created for this run, mark it for deletion after executon is completed
+    String fallbackBucketName = "bqpushdown-" + runId;
+    BigQuerySinkUtils.configureBucket(configuration, bucket, fallbackBucketName);
 
     // Configure credentials for the source
     BigQuerySourceUtils.configureServiceAccount(configuration, sqlEngineConfig.connection);
@@ -210,7 +213,7 @@ public class BigQuerySQLEngine
                                         sqlEngineConfig,
                                         configuration,
                                         bigQuery,
-                                        DatasetId.of(datasetProject, dataset),
+                                        DatasetId.of(datasetProject, datasetName),
                                         bucket,
                                         runId);
 
@@ -241,7 +244,7 @@ public class BigQuerySQLEngine
       return BigQueryPullDataset.getInstance(sqlPullRequest,
                                              configuration,
                                              bigQuery,
-                                             DatasetId.of(datasetProject, dataset),
+                                             DatasetId.of(datasetProject, datasetName),
                                              table,
                                              bucket,
                                              runId);
@@ -306,7 +309,7 @@ public class BigQuerySQLEngine
     // Get SQL builder for this Join operation
     BigQueryJoinSQLBuilder builder = new BigQueryJoinSQLBuilder(
       sqlJoinRequest.getJoinDefinition(),
-      DatasetId.of(datasetProject, dataset),
+      DatasetId.of(datasetProject, datasetName),
       getStageNameToBQTableNameMap());
 
     // Execute Select job with the supplied query.
@@ -328,7 +331,7 @@ public class BigQuerySQLEngine
 
     return new BigQuerySparkDatasetProducer(sqlEngineConfig,
                                             datasetProject,
-                                            dataset,
+                                            datasetName,
                                             table,
                                             pullRequest.getDatasetSchema());
   }
@@ -363,7 +366,7 @@ public class BigQuerySQLEngine
     String destinationTable = BigQuerySQLEngineUtils.getNewTableName(runId);
 
     // Create empty table to store query results.
-    TableId destinationTableId = TableId.of(datasetProject, dataset, destinationTable);
+    TableId destinationTableId = TableId.of(datasetProject, this.datasetName, destinationTable);
 
     // Build Big Query Write instance and execute write operation.
     BigQueryReadDataset readDataset = BigQueryReadDataset.getInstance(datasetName,
@@ -393,7 +396,7 @@ public class BigQuerySQLEngine
 
     // Get source table information (from the stage we are attempting to write into the sink)
     String sourceTable = datasets.get(writeRequest.getDatasetName()).getBigQueryTable();
-    TableId sourceTableId = TableId.of(datasetProject, dataset, sourceTable);
+    TableId sourceTableId = TableId.of(datasetProject, this.datasetName, sourceTable);
 
     // Build Big Query Write instance and execute write operation.
     BigQueryWrite bigQueryWrite = BigQueryWrite.getInstance(datasetName,
@@ -560,7 +563,7 @@ public class BigQuerySQLEngine
     String table = BigQuerySQLEngineUtils.getNewTableName(runId);
 
     // Create empty table to store query results.
-    BigQuerySQLEngineUtils.createEmptyTable(sqlEngineConfig, bigQuery, project, dataset, table);
+    BigQuerySQLEngineUtils.createEmptyTable(sqlEngineConfig, bigQuery, project, this.datasetName, table);
 
     BigQuerySelectDataset selectDataset = BigQuerySelectDataset.getInstance(
       datasetName,
@@ -568,7 +571,7 @@ public class BigQuerySQLEngine
       sqlEngineConfig,
       bigQuery,
       project,
-      DatasetId.of(datasetProject, dataset),
+      DatasetId.of(datasetProject, this.datasetName),
       table,
       jobId,
       jobType,
@@ -640,7 +643,7 @@ public class BigQuerySQLEngine
     }
 
     String tableName = bqDataset.getBigQueryTable();
-    TableId tableId = TableId.of(datasetProject, dataset, tableName);
+    TableId tableId = TableId.of(datasetProject, datasetName, tableName);
 
     // Delete this table if found
     if (bigQuery.getTable(tableId) != null) {

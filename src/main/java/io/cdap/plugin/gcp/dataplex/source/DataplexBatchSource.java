@@ -45,6 +45,7 @@ import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.StageConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
+import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
 import io.cdap.cdap.etl.api.validation.ValidatingInputFormat;
@@ -52,6 +53,7 @@ import io.cdap.plugin.common.Asset;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.common.ReferenceNames;
 import io.cdap.plugin.common.batch.JobUtils;
+import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
 import io.cdap.plugin.gcp.bigquery.source.BigQueryAvroToStructuredTransformer;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceUtils;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
@@ -60,6 +62,7 @@ import io.cdap.plugin.gcp.common.GCPConnectorConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.dataplex.common.util.DataplexConstants;
 import io.cdap.plugin.gcp.dataplex.common.util.DataplexUtil;
+import io.cdap.plugin.gcp.dataplex.sink.config.DataplexBatchSinkConfig;
 import io.cdap.plugin.gcp.dataplex.source.config.DataplexBatchSourceConfig;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 
@@ -223,8 +226,10 @@ public class DataplexBatchSource extends BatchSource<Object, Object, StructuredR
       config.getServiceAccountType());
 
     // Configure temporay GCS Bucket to use
-    String bucket = createBucket(configuration,
-      config.getProject(), bigQuery, credentials, bucketPath);
+    String bucketName = BigQueryUtil.getStagingBucketName(context.getArguments().asMap(), config.getLocation(),
+                                                          bigQuery.getDataset(DatasetId.of(datasetProject, dataset)),
+                                                          null);
+    String bucket = createBucket(configuration, config.getProject(), bigQuery, credentials, bucketName, bucketPath);
 
     // Configure Service account credentials
     configureServiceAccount(configuration, config.getConnection());
@@ -464,18 +469,21 @@ public class DataplexBatchSource extends BatchSource<Object, Object, StructuredR
    * @param project       GCP projectId
    * @param bigQuery      bigquery client
    * @param credentials   GCP credentials
-   * @param bucketName    bucket Name
+   * @param bucket        bucket name
+   * @param bucketPath    bucket path to use. Will be used as a bucket name if needed..
    * @return Bucket name.
    */
   private String createBucket(Configuration configuration,
                               String project,
                               BigQuery bigQuery,
                               Credentials credentials,
-                              String bucketName) throws IOException {
-    String bucket = String.format(BQ_TEMP_BUCKET_NAME_TEMPLATE, bucketName);
-    // By default, this option is false, meaning the job can not delete the bucket.
-    configuration.setBoolean("fs.gs.bucket.delete.enable", true);
-
+                              @Nullable String bucket,
+                              String bucketPath) throws IOException {
+    if (bucket == null) {
+      bucket = String.format(BQ_TEMP_BUCKET_NAME_TEMPLATE, bucketPath);
+      // By default, this option is false, meaning the job can not delete the bucket.
+      configuration.setBoolean("fs.gs.bucket.delete.enable", true);
+    }
     // the dataset existence is validated before, so this cannot be null
     Dataset bigQueryDataset = bigQuery.getDataset(DatasetId.of(datasetProject, dataset));
     createBucket(configuration, GCPUtils.getStorage(project, credentials),
