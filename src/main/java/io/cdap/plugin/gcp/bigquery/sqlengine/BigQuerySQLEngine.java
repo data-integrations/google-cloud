@@ -170,13 +170,14 @@ public class BigQuerySQLEngine
     }
     configuration = BigQueryUtil.getBigQueryConfig(sqlEngineConfig.getServiceAccount(), sqlEngineConfig.getProject(),
                                                    cmekKeyName, sqlEngineConfig.getServiceAccountType());
-    // Create resources needed for this execution
-    BigQuerySinkUtils.createResources(bigQuery, storage, DatasetId.of(datasetProject, datasetName), bucket,
-                                      sqlEngineConfig.getLocation(), cmekKeyName);
     // Configure GCS bucket that is used to stage temporary files.
     // If the bucket is created for this run, mark it for deletion after executon is completed
     String fallbackBucketName = "bqpushdown-" + runId;
-    BigQuerySinkUtils.configureBucket(configuration, bucket, fallbackBucketName);
+    bucket = BigQuerySinkUtils.configureBucket(configuration, bucket, fallbackBucketName);
+
+    // Create resources needed for this execution
+    BigQuerySinkUtils.createResources(bigQuery, storage, DatasetId.of(datasetProject, datasetName), bucket,
+                                      sqlEngineConfig.getLocation(), cmekKeyName);
 
     // Configure credentials for the source
     BigQuerySourceUtils.configureServiceAccount(configuration, sqlEngineConfig.connection);
