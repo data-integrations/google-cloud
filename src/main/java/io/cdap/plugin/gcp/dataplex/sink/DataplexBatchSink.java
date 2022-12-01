@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.dataplex.sink;
 
+import com.google.api.gax.rpc.ApiException;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.bigquery.BigQuery;
@@ -28,7 +29,15 @@ import com.google.cloud.bigquery.JobStatistics;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.dataplex.v1.Asset;
 import com.google.cloud.dataplex.v1.AssetName;
+import com.google.cloud.dataplex.v1.CreateEntityRequest;
 import com.google.cloud.dataplex.v1.DataplexServiceClient;
+import com.google.cloud.dataplex.v1.Entity;
+import com.google.cloud.dataplex.v1.EntityName;
+import com.google.cloud.dataplex.v1.GetEntityRequest;
+import com.google.cloud.dataplex.v1.MetadataServiceClient;
+import com.google.cloud.dataplex.v1.StorageFormat;
+import com.google.cloud.dataplex.v1.StorageSystem;
+import com.google.cloud.dataplex.v1.UpdateEntityRequest;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
 import com.google.cloud.kms.v1.CryptoKeyName;
@@ -87,6 +96,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -120,6 +130,7 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
   protected BigQuery bigQuery;
   private String outputPath;
   private Asset asset;
+  private Entity entityBean = null;
 
   public DataplexBatchSink(DataplexBatchSinkConfig config) {
     this.config = config;
@@ -147,6 +158,9 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
       if (config.getAssetType().equals(DataplexConstants.STORAGE_BUCKET_ASSET_TYPE)) {
         config.validateStorageBucket(collector);
         config.validateFormatForStorageBucket(pipelineConfigurer, collector);
+        if (config.isUpdateDataplexMetadata()) {
+          prepareDataplexMetadataUpdate(collector, configuredSchema);
+        }
         return;
       }
     } catch (IOException e) {
@@ -174,6 +188,9 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
       }
       if (config.getAssetType().equals(DataplexConstants.STORAGE_BUCKET_ASSET_TYPE)) {
         config.validateStorageBucket(collector);
+        if (config.isUpdateDataplexMetadata()) {
+          prepareDataplexMetadataUpdate(collector, config.getSchema(collector));
+        }
         prepareRunStorageBucket(context);
       }
     }
@@ -199,10 +216,41 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
   public void onRunFinish(boolean succeeded, BatchSinkContext context) {
     if (this.config.getAssetType().equalsIgnoreCase(DataplexConstants.STORAGE_BUCKET_ASSET_TYPE)) {
       emitMetricsForStorageBucket(succeeded, context);
+      // Create entity when pipeline run has succeeded to enable manual discovery in dataplex.
+      // CreateEntity API only allows CRUD operations for GCS assets
+      if (succeeded && config.isUpdateDataplexMetadata()) {
+        FailureCollector collector = context.getFailureCollector();
+        GoogleCredentials googleCredentials = config.validateAndGetServiceAccountCredentials(collector);
+        Schema schema = config.getSchema(collector);
+        if (schema == null) {
+          schema = context.getInputSchema();
+        }
+        String bucketName = "";
+        try {
+          bucketName = asset.getResourceSpec().getName();
+        } catch (StorageException e) {
+          throw new RuntimeException(
+            "Unable to read bucket name. See error details for more information ", e);
+        }
+        try (
+          DataplexServiceClient dataplexServiceClient =
+            DataplexUtil.getDataplexServiceClient(googleCredentials)
+        ) {
+
+          String assetFullPath = DataplexConstants.STORAGE_BUCKET_PATH_PREFIX + bucketName +
+            "/" + config.getTable();
+          configureDataplexMetadataUpdate(googleCredentials, assetFullPath,
+                                                       StorageSystem.CLOUD_STORAGE, schema);
+        } catch (ApiException | IOException e) {
+          throw new RuntimeException(
+            String.format("Unable create entity for bucket %s. ", bucketName)
+              + "See error details for more information.", e);
+        }
+      }
       return;
     }
 
-    Path gcsPath = new Path(String.format("gs://%s", runUUID));
+    Path gcsPath = new Path(DataplexConstants.STORAGE_BUCKET_PATH_PREFIX + runUUID);
     try {
       FileSystem fs = gcsPath.getFileSystem(baseConfiguration);
       if (fs.exists(gcsPath)) {
@@ -533,9 +581,11 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     String suffix = config.getSuffix();
     String defaultTimestampFormat = "yyyy-MM-dd-HH-mm";
     String tableName = config.getTable();
-    String timeSuffix = suffix == null || suffix.isEmpty() ?
-      "ts=" + new SimpleDateFormat(defaultTimestampFormat).format(logicalStartTime) :
-      "ts=" + new SimpleDateFormat(suffix).format(logicalStartTime);
+    suffix = Strings.isNullOrEmpty(suffix) ? defaultTimestampFormat : suffix;
+    String timeSuffix = String.format("%s=%s",
+      DataplexConstants.STORAGE_BUCKET_PARTITION_KEY,
+      new SimpleDateFormat(suffix).format(logicalStartTime)
+    );
     String configPath = GCSPath.SCHEME + asset.getResourceSpec().getName();
     String finalPath = String.format("%s/%s/%s/", configPath, tableName, timeSuffix);
     this.outputPath = finalPath;
@@ -553,6 +603,125 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
         new MetricsEmitter(context.getMetrics())::emitMetrics);
     } catch (Exception e) {
       LOG.warn("Metrics for the number of affected rows in GCS Sink maybe incorrect.", e);
+    }
+  }
+
+  /**
+   * Prepares metadata update in Dataplex if update dataplex metadata is enabled
+   *
+   * @param collector
+   * @param schema
+   * @throws IOException
+   */
+  private void prepareDataplexMetadataUpdate(FailureCollector collector, Schema schema)
+    throws IOException {
+    Optional<Schema.Field> partitionKey = Objects.requireNonNull(schema.getFields()).stream()
+      .filter(avroField -> avroField.getName().equals(DataplexConstants.STORAGE_BUCKET_PARTITION_KEY)).findAny();
+
+    if (partitionKey.isPresent()) {
+      collector.addFailure(
+        String.format("Field '%s' is used by dataplex sink to create time partitioned layout on GCS." +
+          " To avoid conflict, presence of a column with the name '%s' on the input schema is not allowed.",
+                      DataplexConstants.STORAGE_BUCKET_PARTITION_KEY, DataplexConstants.STORAGE_BUCKET_PARTITION_KEY),
+        String.format(
+          "Remove '%s' field from the output schema or rename the '%s' field in the input schema by adding" +
+            " a transform step.",
+          DataplexConstants.STORAGE_BUCKET_PARTITION_KEY, DataplexConstants.STORAGE_BUCKET_PARTITION_KEY
+        )
+      );
+    }
+
+    String entityID = config.getTable().replaceAll("[^a-zA-Z0-9_]", "_");
+    try (MetadataServiceClient metadataServiceClient =
+           DataplexUtil.getMetadataServiceClient(config.getCredentials(collector))) {
+      entityBean =
+        metadataServiceClient.getEntity(GetEntityRequest.newBuilder().setName(EntityName.of(
+            config.tryGetProject(), config.getLocation(), config.getLake(), config.getZone(), entityID).toString())
+                                          .setView(GetEntityRequest.EntityView.FULL)
+                                          .build());
+    } catch (ApiException e) {
+      int statusCode = e.getStatusCode().getCode().getHttpStatusCode();
+      if (statusCode != 404) {
+        collector.addFailure("Unable to fetch entity information.", null);
+      }
+    }
+
+    if (entityBean != null && entityBean.getSchema().getUserManaged() == false) {
+      collector.addFailure("Entity already exists, but the schema is not user-managed.", null);
+    }
+  }
+
+  /**
+   * Configures metadata update in Dataplex if update dataplex metadata is enabled
+   *
+   * @param credentials
+   * @param assetFullPath
+   * @param storageSystem
+   * @param schema
+   * @throws IOException
+   */
+  private void configureDataplexMetadataUpdate(
+    GoogleCredentials credentials, String assetFullPath, StorageSystem storageSystem, Schema schema
+  ) throws IOException {
+    String entityID = config.getTable().replaceAll("[^a-zA-Z0-9_]", "_");
+    try (MetadataServiceClient metadataServiceClient =
+           DataplexUtil.getMetadataServiceClient(credentials)) {
+      com.google.cloud.dataplex.v1.Schema dataplexSchema = DataplexUtil.getDataplexSchema(schema);
+      Entity.Builder entityBuilder = Entity.newBuilder()
+        .setId(entityID)
+        .setAsset(config.getAsset())
+        .setDataPath(assetFullPath)
+        .setType(Entity.Type.TABLE)
+        .setSystem(storageSystem)
+        .setSchema(dataplexSchema)
+        .setFormat(StorageFormat
+                     .newBuilder()
+                     .setMimeType(DataplexUtil.getStorageFormatForEntity(config.getFormatStr()))
+                     .build()
+        );
+
+      if (entityBean != null) {
+        try {
+          entityBean = metadataServiceClient.updateEntity(
+            UpdateEntityRequest.newBuilder()
+              .setEntity(entityBuilder
+                           .setName(entityBean.getName())
+                           .setEtag(entityBean.getEtag())
+                           .build()
+              )
+              .build()
+          );
+        } catch (ApiException e) {
+          throw new RuntimeException(
+            String.format("%s: %s", "There was a problem updating the entity for metadata updates.", e.getMessage()));
+        }
+      } else {
+        try {
+          String entityParent = "projects/" + config.tryGetProject() +
+            "/locations/" + config.getLocation() +
+            "/lakes/" + config.getLake() +
+            "/zones/" + config.getZone();
+          entityBean = metadataServiceClient.createEntity(
+            CreateEntityRequest.newBuilder()
+              .setParent(entityParent)
+              .setEntity(entityBuilder.build())
+              .build()
+          );
+        } catch (ApiException e) {
+          throw new RuntimeException(
+            String.format("%s: %s", "There was a problem creating the entity for metadata updates.", e.getMessage()));
+        }
+      }
+      try {
+        DataplexUtil.addPartitionInfo(entityBean, credentials,
+                                    asset.getResourceSpec().getName(), config.getTable(), config.getProject());
+      } catch (ApiException e) {
+        // extract last 14 chars of the error message to make sure it's "already exists" and safe to ignore
+        String errMessage = e.getMessage().substring(e.getMessage().length() - 14);
+        if (!errMessage.equals("already exists")) {
+          throw new RuntimeException(String.format("Unable to create add partition information for %s. ", entityID));
+        }
+      }
     }
   }
 

@@ -87,6 +87,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   private static final String NAME_PARTITION_FILTER = "partitionFilter";
   private static final String NAME_PARTITIONING_TYPE = "partitioningType";
   private static final String NAME_TRUNCATE_TABLE = "truncateTable";
+  private static final String NAME_UPDATE_DATAPLEX_METADATA = "updateDataplexMetadata";
   private static final String NAME_UPDATE_SCHEMA = "allowSchemaRelaxation";
   private static final String NAME_PARTITION_BY_FIELD = "partitionField";
   private static final String NAME_REQUIRE_PARTITION_FIELD = "requirePartitionField";
@@ -205,6 +206,14 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     "operation.")
   protected Boolean truncateTable;
 
+  @Name(NAME_UPDATE_DATAPLEX_METADATA)
+  @Nullable
+  @Macro
+  @Description("Whether to update Dataplex metadata for the newly created entities." + 
+    "If enabled, the pipeline will automatically copy the output schema to the destination " + 
+    "Dataplex entities, and the automated Dataplex Discovery won't run for them.")
+  protected Boolean updateDataplexMetadata;
+
   @Name(NAME_UPDATE_SCHEMA)
   @Nullable
   @Macro
@@ -257,6 +266,11 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   @Nullable
   public FileFormat getFormat() {
     return FileFormat.from(format, FileFormat::canWrite);
+  }
+
+  @Nullable
+  public String getFormatStr() {
+    return format;
   }
 
   @Nullable
@@ -321,6 +335,11 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
   public JobInfo.WriteDisposition getWriteDisposition() {
     return isTruncateTable() ? JobInfo.WriteDisposition.WRITE_TRUNCATE
       : JobInfo.WriteDisposition.WRITE_APPEND;
+  }
+
+  @Nullable
+  public Boolean isUpdateDataplexMetadata() {
+    return updateDataplexMetadata != null && updateDataplexMetadata;
   }
 
   @Nullable
@@ -944,7 +963,6 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     }
   }
 
-
   /*  This method gets the value of content type. Valid content types for each format are:
    *
    *  avro -> application/avro, application/octet-stream
@@ -966,10 +984,10 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
                                   @Nullable String operation, @Nullable String partitionFilter,
                                   @Nullable String partitioningType, @Nullable Long rangeStart,
                                   @Nullable Long rangeEnd, @Nullable Long rangeInterval,
-                                  @Nullable Boolean truncateTable, @Nullable Boolean allowSchemaRelaxation,
-                                  @Nullable String partitionByField, @Nullable Boolean requirePartitionField,
-                                  @Nullable String clusteringOrder, @Nullable String suffix,
-                                  @Nullable String schema) {
+                                  @Nullable Boolean truncateTable, @Nullable Boolean updateDataplexMetadata, 
+                                  @Nullable Boolean allowSchemaRelaxation, @Nullable String partitionByField,
+                                  @Nullable Boolean requirePartitionField, @Nullable String clusteringOrder, 
+                                  @Nullable String suffix, @Nullable String schema) {
     this.referenceName = referenceName;
     this.connection = connection;
     this.location = location;
@@ -988,6 +1006,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     this.rangeEnd = rangeEnd;
     this.rangeInterval = rangeInterval;
     this.truncateTable = truncateTable;
+    this.updateDataplexMetadata = updateDataplexMetadata;
     this.allowSchemaRelaxation = allowSchemaRelaxation;
     this.partitionByField = partitionByField;
     this.requirePartitionField = requirePartitionField;
@@ -1018,6 +1037,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     private Long rangeEnd;
     private Long rangeInterval;
     private Boolean truncateTable;
+    private Boolean updateDataplexMetadata;
     private Boolean allowSchemaRelaxation;
     private String partitionByField;
     private Boolean requirePartitionField;
@@ -1095,6 +1115,11 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
       return this;
     }
 
+    public Builder setUpdateDataplexMetadata(Boolean updateDataplexMetadata) {
+      this.updateDataplexMetadata = updateDataplexMetadata;
+      return this;
+    }
+
     public Builder setAllowSchemaRelaxation(Boolean allowSchemaRelaxation) {
       this.allowSchemaRelaxation = allowSchemaRelaxation;
       return this;
@@ -1153,7 +1178,8 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     public DataplexBatchSinkConfig build() {
       return new DataplexBatchSinkConfig(referenceName, asset, assetType, location, lake, zone, format, connection,
         table, tableKey, dedupeBy, operation, partitionFilter,
-        partitioningType, rangeStart, rangeEnd, rangeInterval, truncateTable, allowSchemaRelaxation, partitionByField,
+        partitioningType, rangeStart, rangeEnd, rangeInterval, truncateTable,
+        updateDataplexMetadata, allowSchemaRelaxation, partitionByField,
         requirePartitionField, clusteringOrder, suffix, schema);
     }
 

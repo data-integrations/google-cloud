@@ -2,7 +2,7 @@
   "metadata": {
     "spec-version": "1.5"
   },
-  "display-name": "Dataplex (Preview)",
+  "display-name": "Dataplex",
   "configuration-groups": [
     {
       "label": "Basic",
@@ -179,6 +179,22 @@
           }
         },
         {
+          "widget-type": "toggle",
+          "label": "Update Dataplex Metadata",
+          "name": "updateDataplexMetadata",
+          "widget-attributes": {
+            "default": "false",
+            "on": {
+              "value": "true",
+              "label": "True"
+            },
+            "off": {
+              "value": "false",
+              "label": "False"
+            }
+          }
+        },
+        {
           "widget-type": "radio-group",
           "name": "operation",
           "label": "Operation",
@@ -352,6 +368,10 @@
         {
           "type": "property",
           "name": "contentType"
+        },
+        {
+          "type": "property",
+          "name": "updateDataplexMetadata"
         }
       ]
     },
