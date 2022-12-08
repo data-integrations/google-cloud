@@ -333,7 +333,7 @@ BigQueryRelationTest {
                                                                       WindowAggregationDefinition.OrderBy.ASCENDING));
     frame = WindowAggregationDefinition.WindowFrameType.ROW;
     following = "1";
-    preceding = "1";
+    preceding = "-1";
 
     //Set Definition
     def = builder.windowFrameType(frame).partition(partitionFields).aggregate(aggregationFields)

@@ -22,6 +22,9 @@ public class BigQueryWindowsAggregationSQLBuilderTest {
   private List<WindowAggregationDefinition.OrderByExpression> orderFields;
   private WindowAggregationDefinition fullDefinition;
   private WindowAggregationDefinition.WindowFrameType windowFrameType;
+  private String q1 = "SELECT a , b , c , d , e , first_value(f) OVER( PARTITION BY  a , b ORDER BY  c ASC , d DESC";
+  private String q2 =  "  ) AS f , last_value(g) OVER( PARTITION BY  a , b ORDER BY  c ASC , d DESC";
+  private String q3 = "  ) AS g  FROM ( select * from tbl )  AS ds";
 
   @Before
   public void setUp() {
@@ -56,29 +59,50 @@ public class BigQueryWindowsAggregationSQLBuilderTest {
 
   @Test
   public void testGetQuery() {
-    Assert.assertEquals("SELECT a , b , c , d , e , first_value(f) OVER( PARTITION BY  a , b ORDER BY  c " +
-                          "ASC , d DESC  ) AS f , last_value(g) OVER( PARTITION BY  a , b ORDER BY  c ASC , " +
-                          "d DESC  ) AS g  FROM ( select * from tbl )  AS ds", helper.getQuery());
+    Assert.assertEquals(q1 + q2 + q3, helper.getQuery());
   }
 
   @Test
-  public void testGetQueryWithBoundedCondition() {
+  public void testGetQueryWithBoundedConditionRow() {
     windowFrameType = WindowAggregationDefinition.WindowFrameType.ROW;
+    String query = getQueryWithBoundedConditions("-1", "1", windowFrameType);
+    Assert.assertEquals(q1 + " ROWS BETWEEN 1 PRECEDING  AND 1 FOLLOWING" + q2 + " ROWS BETWEEN 1 PRECEDING" +
+                          "  AND 1 FOLLOWING" + q3, query);
+    query = getQueryWithBoundedConditions("2", "-2", windowFrameType);
+    Assert.assertEquals(q1 + " ROWS BETWEEN 2 FOLLOWING  AND 2 PRECEDING" + q2 + " ROWS BETWEEN 2 FOLLOWING" +
+                          "  AND 2 PRECEDING" + q3, query);
+    query = getQueryWithBoundedConditions("0", "1", windowFrameType);
+    Assert.assertEquals(q1 + " ROWS BETWEEN  CURRENT ROW  AND 1 FOLLOWING" + q2 + " ROWS BETWEEN  CURRENT ROW" +
+                          "  AND 1 FOLLOWING" + q3, query);
+  }
+
+  @Test
+  public void testGetQueryWithBoundedConditionRange() {
+    windowFrameType = WindowAggregationDefinition.WindowFrameType.RANGE;
+    String query = getQueryWithBoundedConditions("-1", "1", windowFrameType);
+    Assert.assertEquals(q1 + " RANGE BETWEEN 1 PRECEDING  AND 1 FOLLOWING" + q2 + " RANGE BETWEEN 1 PRECEDING  "
+                          + "AND 1 FOLLOWING" + q3, query);
+    query = getQueryWithBoundedConditions("2", "-2", windowFrameType);
+    Assert.assertEquals(q1 + " RANGE BETWEEN 2 FOLLOWING  AND 2 PRECEDING" + q2 + " RANGE BETWEEN 2 FOLLOWING" +
+                          "  AND 2 PRECEDING" + q3, query);
+    query = getQueryWithBoundedConditions("0", "1", windowFrameType);
+    Assert.assertEquals(q1 + " RANGE BETWEEN  CURRENT ROW  AND 1 FOLLOWING" + q2 + " RANGE BETWEEN  CURRENT ROW"
+                          + "  AND 1 FOLLOWING" + q3, query);
+  }
+
+  private String getQueryWithBoundedConditions(String preceding, String following,
+    WindowAggregationDefinition.WindowFrameType windowFrameType) {
     fullDefinition = WindowAggregationDefinition.builder().select(selectFields).partition(partitionFields)
       .aggregate(aggregationFields).orderBy(orderFields).windowFrameType(windowFrameType).unboundedFollowing(false)
-      .unboundedPreceding(false).preceding("1").following("1").build();
+      .unboundedPreceding(false).preceding(preceding).following(following).build();
     helper = new BigQueryWindowsAggregationSQLBuilder(fullDefinition, "select * from tbl", "ds",
                                                       "the_row_number");
-    Assert.assertEquals("SELECT a , b , c , d , e , first_value(f) OVER( PARTITION BY  a , b ORDER BY  c " +
-       "ASC , d DESC ROWS BETWEEN 1 PRECEDING  AND 1 FOLLOWING  ) AS f , last_value(g) OVER( PARTITION BY  a , b ORDER"
-       + " BY  c ASC , d DESC ROWS BETWEEN 1 PRECEDING  AND 1 FOLLOWING  ) AS g  FROM ( select * from tbl )  AS ds",
-       helper.getQuery());
+    return helper.getQuery();
   }
 
   @Test
   public void testGetSelectedFields() {
-    Assert.assertEquals("a , b , c , d , e",
-                        helper.getSelectedFields(fullDefinition.getSelectExpressions()));
+    Assert.assertEquals("a , b , c , d , e", helper.getSelectedFields(fullDefinition.getSelectExpressions()));
   }
 
   @Test

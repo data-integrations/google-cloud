@@ -36,6 +36,7 @@ public abstract class BigQueryBaseSQLBuilder {
   public static final String EQ = " = ";
   public static final String AND = " AND ";
   public static final String OR = " OR ";
+  public static final String CURRENT_ROW = " CURRENT ROW ";
   public static final String ROWS = "ROWS";
   public static final String RANGE = "RANGE";
   public static final String BETWEEN = " BETWEEN ";
