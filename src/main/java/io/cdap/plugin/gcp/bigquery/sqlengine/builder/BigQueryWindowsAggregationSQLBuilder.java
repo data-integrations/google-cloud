@@ -123,13 +123,29 @@ public class BigQueryWindowsAggregationSQLBuilder extends BigQueryBaseSQLBuilder
     if (windowAggregationDefinition.getUnboundedPreceding()) {
       def = def + UNBOUNDED_PRECEDING;
     } else {
-      def = def + windowAggregationDefinition.getPreceding() + PRECEDING;
+      int preceding = Integer.parseInt(windowAggregationDefinition.getPreceding());
+      if (preceding == 0) {
+        def = def + CURRENT_ROW;
+      } else if (preceding < 0) {
+        preceding = preceding * -1;
+        def = def + preceding + PRECEDING;
+      } else {
+        def = def + preceding + FOLLOWING;
+      }
     }
     def = def + AND;
     if (windowAggregationDefinition.getUnboundedFollowing()) {
       def = def + UNBOUNDED_FOLLOWING;
     } else {
-      def = def + windowAggregationDefinition.getFollowing() + FOLLOWING;
+      int following = Integer.parseInt(windowAggregationDefinition.getFollowing());
+      if (following == 0) {
+        def = def + CURRENT_ROW;
+      } else if (following < 0) {
+        following = following * -1;
+        def = def + following + PRECEDING;
+      } else {
+        def = def + following + FOLLOWING;
+      }
     }
     return def;
   }
