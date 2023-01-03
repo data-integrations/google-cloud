@@ -8,7 +8,7 @@ Feature: GCS source - Verification of GCS to GCS successful data transfer using 
     Then Click plugin property: "gcsConnectionRow"
     Then Enter input plugin property: "name" with value: "gcsConnectionName"
     Then Replace input plugin property: "projectId" with value: "projectId"
-    Then Override Service account details if set in environment variables
+    Then Override Service account details in Wrangler connection page if set in environment variables
     Then Click plugin property: "testConnection" button
     Then Verify the test connection is successful
     Then Click plugin property: "connectionCreate" button
