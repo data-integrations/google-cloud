@@ -8,7 +8,7 @@ Feature: Spanner source - Verification of Spanner to Spanner successful data tra
     Then Click plugin property: "spannerConnectionRow"
     Then Enter input plugin property: "name" with value: "spannerConnectionName"
     Then Replace input plugin property: "projectId" with value: "projectId"
-    Then Override Service account details if set in environment variables
+    Then Override Service account details in Wrangler connection page if set in environment variables
     Then Click plugin property: "testConnection" button
     Then Verify the test connection is successful
     Then Click plugin property: "connectionCreate" button

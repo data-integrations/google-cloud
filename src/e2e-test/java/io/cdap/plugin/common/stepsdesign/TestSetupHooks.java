@@ -716,7 +716,7 @@ public class TestSetupHooks {
     CdfPluginPropertiesActions.clickPluginPropertyElement(connectionType);
     CdfPluginPropertiesActions.enterValueInInputProperty("name", connectionName);
     CdfPluginPropertiesActions.replaceValueInInputProperty("projectId", "projectId");
-    CdfPluginPropertiesActions.overrideServiceAccountDetailsIfProvided();
+    CdfPluginPropertiesActions.overrideServiceAccountDetailsInWranglerConnectionPageIfProvided();
   }
 
   private static void testAndCreateConnection(String connectionName) {
