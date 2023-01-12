@@ -18,6 +18,7 @@ package io.cdap.plugin.gcp.publisher.source;
 import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
+import com.google.api.services.pubsub.Pubsub;
 import com.google.auth.Credentials;
 import com.google.cloud.pubsub.v1.SubscriptionAdminClient;
 import com.google.cloud.pubsub.v1.SubscriptionAdminSettings;
@@ -31,6 +32,8 @@ import com.google.pubsub.v1.PullRequest;
 import com.google.pubsub.v1.PullResponse;
 import com.google.pubsub.v1.PushConfig;
 import com.google.pubsub.v1.ReceivedMessage;
+import com.google.pubsub.v1.SeekRequest;
+import com.google.pubsub.v1.Snapshot;
 import com.google.pubsub.v1.TopicName;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import org.apache.spark.storage.StorageLevel;
@@ -169,6 +172,12 @@ public class PubSubReceiver extends Receiver<PubSubMessage> {
   @Override
   public void onStop() {
     //Shutdown thread pool executor
+    if(Snapshot) {
+      SeekRequest request = SeekRequest.newBuilder().setSnapshot("prev-snapshot").build();
+      Pubsub.Projects.Subscriptions(subscription, request);
+    }
+    Snapshot snapshot = Snapshot.newBuilder().setName("prev-snapshot")
+                          .setTopic(topic).build();
     if (executor != null && !executor.isShutdown()) {
       executor.shutdown();
       try {
