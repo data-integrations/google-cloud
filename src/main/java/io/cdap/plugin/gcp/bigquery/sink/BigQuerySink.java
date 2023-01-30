@@ -308,14 +308,18 @@ public final class BigQuerySink extends AbstractBigQuerySink {
    * Sets the output table for the AbstractBigQuerySink's Hadoop configuration
    */
   private void configureTable(Schema schema) {
-    AbstractBigQuerySinkConfig config = getConfig();
+    BigQuerySinkConfig config = getConfig();
     Table table = BigQueryUtil.getBigQueryTable(config.getDatasetProject(), config.getDataset(),
                                                 config.getTable(),
                                                 config.getServiceAccount(),
                                                 config.isServiceAccountFilePath());
     baseConfiguration.setBoolean(BigQueryConstants.CONFIG_DESTINATION_TABLE_EXISTS, table != null);
     List<String> tableFieldsNames = null;
-    if (table != null) {
+
+    if (!config.getOperation().equals(Operation.INSERT) && schema != null) {
+      tableFieldsNames = schema.getFields().stream()
+              .map(Schema.Field::getName).collect(Collectors.toList());
+    } else if (table != null) {
        tableFieldsNames = Objects.requireNonNull(table.getDefinition().getSchema()).getFields().stream()
         .map(Field::getName).collect(Collectors.toList());
     } else if (schema != null) {
