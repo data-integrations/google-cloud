@@ -289,7 +289,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
 
       // If schema change is not allowed and if the destination table already exists, use the destination table schema
       // See PLUGIN-395
-      if (!allowSchemaRelaxation && tableExists) {
+      if (!Operation.UPDATE.equals(operation) && !allowSchemaRelaxation && tableExists) {
         loadConfig.setSchema(bigQueryHelper.getTable(tableRef).getSchema());
       } else {
         loadConfig.setSchema(schema);

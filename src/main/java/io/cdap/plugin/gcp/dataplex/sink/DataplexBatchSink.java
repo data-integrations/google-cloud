@@ -69,6 +69,7 @@ import io.cdap.plugin.common.batch.sink.SinkOutputFormatProvider;
 import io.cdap.plugin.format.FileFormat;
 import io.cdap.plugin.gcp.bigquery.sink.AbstractBigQuerySink;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
+import io.cdap.plugin.gcp.bigquery.sink.Operation;
 import io.cdap.plugin.gcp.bigquery.sink.PartitionType;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
@@ -360,7 +361,10 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
       collector);
     baseConfiguration.setBoolean(BigQueryConstants.CONFIG_DESTINATION_TABLE_EXISTS, table != null);
     List<String> tableFieldsNames = null;
-    if (table != null) {
+    if (config.getOperation().equals(Operation.UPDATE) && schema != null) {
+      tableFieldsNames = schema.getFields().stream()
+              .map(Schema.Field::getName).collect(Collectors.toList());
+    } else if (table != null) {
       tableFieldsNames = Objects.requireNonNull(table.getDefinition().getSchema()).getFields().stream()
         .map(Field::getName).collect(Collectors.toList());
     } else if (schema != null) {
@@ -408,7 +412,8 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     LOG.debug("Init output for table '{}' with schema: {}", tableName, tableSchema);
 
     List<BigQueryTableFieldSchema> fields = BigQuerySinkUtils.getBigQueryTableFields(bigQuery, tableName, tableSchema,
-      this.config.isUpdateTableSchema(), datasetProject, dataset, this.config.isTruncateTable(), collector);
+      this.config.isUpdateTableSchema(), datasetProject, dataset, this.config.isTruncateTable(),
+            Operation.UPDATE.equals(config.getOperation()), collector);
 
     Configuration configuration = new Configuration(baseConfiguration);
 

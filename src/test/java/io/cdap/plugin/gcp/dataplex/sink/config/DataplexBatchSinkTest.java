@@ -287,7 +287,7 @@ public class DataplexBatchSinkTest {
     Mockito.when(BigQuerySinkUtils.getBigQueryTableFields(bigQuery, "table", schema,
         false,
         "datasetProjectName", "datasetName",
-        false, mockFailureCollector)).
+        false, false, mockFailureCollector)).
       thenReturn(fields);
     DatasetId datasetId = DatasetId.of("datasetProjectName", "datasetName");
     Dataset dataset = Mockito.mock(Dataset.class);

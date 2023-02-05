@@ -665,6 +665,7 @@ public final class BigQuerySinkUtils {
    * @param datasetProject        project name of dataset
    * @param dataset               dataset name
    * @param isTruncateTableSet    to truncate the table before writing or not while inserting
+   * @param isUpdateOperation     is the operation a BigQuery Update
    * @param collector             failure collector
    * @return list of Big Query fields
    */
@@ -673,6 +674,7 @@ public final class BigQuerySinkUtils {
                                                                       boolean allowSchemaRelaxation,
                                                                       String datasetProject,
                                                                       String dataset, boolean isTruncateTableSet,
+                                                                      boolean isUpdateOperation,
                                                                       FailureCollector collector) {
     if (tableSchema == null) {
       return Collections.emptyList();
@@ -684,8 +686,13 @@ public final class BigQuerySinkUtils {
       // if table is null that mean it does not exist. So there is no need to perform validation
       if (table != null) {
         com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
-        validateSchema(tableName, bqSchema, tableSchema, allowSchemaRelaxation, isTruncateTableSet, dataset,
-                       collector);
+        if (isUpdateOperation) {
+          validateUpdateSchema(tableName, bqSchema, tableSchema, allowSchemaRelaxation, isTruncateTableSet, dataset,
+                  collector);
+        } else {
+          validateSchema(tableName, bqSchema, tableSchema, allowSchemaRelaxation, isTruncateTableSet, dataset,
+                  collector);
+        }
       }
     } catch (BigQueryException e) {
       collector.addFailure("Unable to get details about the BigQuery table: " + e.getMessage(), null)
@@ -789,6 +796,52 @@ public final class BigQuerySinkUtils {
     collector.getOrThrowException();
   }
 
+  /**
+   * Validates output schema against Big Query table schema for Update Operation.
+   * It throws {@link IllegalArgumentException} if the output schema field types does not match
+   * Big Query column types unless schema relaxation policy is allowed.
+   *
+   * @param tableName             big query table
+   * @param bqSchema              BigQuery table schema
+   * @param tableSchema           Configured table schema
+   * @param allowSchemaRelaxation allows schema relaxation policy
+   * @param isTruncateTableSet    to truncate the table before writing or not while inserting
+   * @param dataset               dataset name
+   * @param collector             failure collector
+   */
+  public static void validateUpdateSchema(
+          String tableName,
+          com.google.cloud.bigquery.Schema bqSchema,
+          @Nullable Schema tableSchema,
+          boolean allowSchemaRelaxation,
+          boolean isTruncateTableSet,
+          String dataset,
+          FailureCollector collector) {
+    if (bqSchema == null || bqSchema.getFields().isEmpty() || tableSchema == null) {
+      // Table is created without schema, so no further validation is required.
+      return;
+    }
+
+    FieldList bqFields = bqSchema.getFields();
+
+    // column type changes should be disallowed for update (allowSchemaRelaxation or truncate table are not set).
+    if (!allowSchemaRelaxation || !isTruncateTableSet) {
+      // Match output schema field type with BigQuery column type
+      for (Schema.Field field : tableSchema.getFields()) {
+        String fieldName = field.getName();
+        ValidationFailure failure = BigQueryUtil.validateFieldSchemaMatches(
+                bqFields.get(field.getName()), field, dataset, tableName,
+                AbstractBigQuerySinkConfig.SUPPORTED_TYPES, collector);
+        if (failure != null) {
+          failure.withInputSchemaField(fieldName).withOutputSchemaField(fieldName);
+        }
+        BigQueryUtil.validateFieldModeMatches(bqFields.get(fieldName), field,
+                allowSchemaRelaxation,
+                collector);
+      }
+    }
+    collector.getOrThrowException();
+  }
   /**
    * Validates output schema against Big Query table schema for Insert operation. It throws
    * {@link IllegalArgumentException}

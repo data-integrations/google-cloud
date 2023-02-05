@@ -147,9 +147,15 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
                                   FailureCollector collector) throws IOException {
     LOG.debug("Init output for table '{}' with schema: {}", tableName, tableSchema);
 
+    boolean isUpdateOperation = false;
+
+    if (getConfig() instanceof  BigQuerySinkConfig) {
+      isUpdateOperation = Operation.UPDATE.equals(((BigQuerySinkConfig) getConfig()).getOperation());
+    }
+
     List<BigQueryTableFieldSchema> fields = BigQuerySinkUtils.getBigQueryTableFields(bigQuery, tableName, tableSchema,
       getConfig().isAllowSchemaRelaxation(), getConfig().getDatasetProject(),
-      getConfig().getDataset(), getConfig().isTruncateTableSet(), collector);
+      getConfig().getDataset(), getConfig().isTruncateTableSet(), isUpdateOperation , collector);
 
     Configuration configuration = new Configuration(baseConfiguration);
 

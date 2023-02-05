@@ -175,7 +175,8 @@ public final class BigQuerySink extends AbstractBigQuerySink {
 
     List<BigQueryTableFieldSchema> fields = BigQuerySinkUtils.getBigQueryTableFields(bigQuery, tableName, tableSchema,
       getConfig().isAllowSchemaRelaxation(),
-      config.getDatasetProject(), config.getDataset(), config.isTruncateTableSet(), collector);
+      config.getDatasetProject(), config.getDataset(), config.isTruncateTableSet(),
+            Operation.UPDATE.equals(config.getOperation()) , collector);
 
     List<String> fieldNames = fields.stream()
       .map(BigQueryTableFieldSchema::getName)
@@ -315,7 +316,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
                                                 config.isServiceAccountFilePath());
     baseConfiguration.setBoolean(BigQueryConstants.CONFIG_DESTINATION_TABLE_EXISTS, table != null);
     List<String> tableFieldsNames = null;
-    if (!config.getOperation().equals(Operation.INSERT) && schema != null) {
+    if (config.getOperation().equals(Operation.UPDATE) && schema != null) {
       tableFieldsNames = schema.getFields().stream()
               .map(Schema.Field::getName).collect(Collectors.toList());
     } else if (table != null) {
