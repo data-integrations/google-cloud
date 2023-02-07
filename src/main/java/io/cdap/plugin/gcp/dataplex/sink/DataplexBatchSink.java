@@ -426,7 +426,7 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     io.cdap.plugin.common.Asset lineageAsset = io.cdap.plugin.common.Asset.builder(
       config.getReferenceName(fqn))
       .setFqn(fqn).setLocation(location).build();
-    BigQuerySinkUtils.recordLineage(context, lineageAsset, tableSchema, fieldNames);
+    BigQuerySinkUtils.recordLineage(context, lineageAsset, tableSchema, fieldNames, null);
     configuration.set(DataplexOutputFormatProvider.DATAPLEX_ASSET_TYPE, DataplexConstants.BIGQUERY_DATASET_ASSET_TYPE);
     context.addOutput(Output.of(outputName, new DataplexOutputFormatProvider(configuration, tableSchema, null)));
   }

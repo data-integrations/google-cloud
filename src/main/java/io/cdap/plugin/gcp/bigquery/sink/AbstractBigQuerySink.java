@@ -141,10 +141,11 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
    * @param tableName table name
    * @param tableSchema table schema
    * @param bucket bucket name
+   * @param marker marker for the asset, if applicable
    */
   protected final void initOutput(BatchSinkContext context, BigQuery bigQuery, String outputName, String fqn,
                                   String tableName, @Nullable Schema tableSchema, String bucket,
-                                  FailureCollector collector) throws IOException {
+                                  FailureCollector collector, @Nullable String marker) throws IOException {
     LOG.debug("Init output for table '{}' with schema: {}", tableName, tableSchema);
 
     List<BigQueryTableFieldSchema> fields = BigQuerySinkUtils.getBigQueryTableFields(bigQuery, tableName, tableSchema,
@@ -169,8 +170,9 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
     DatasetId datasetId = DatasetId.of(getConfig().getDatasetProject(), getConfig().getDataset());
     Dataset dataset = bigQuery.getDataset(datasetId);
     String location = dataset != null ? dataset.getLocation() : getConfig().getLocation();
-    Asset asset = Asset.builder(outputName).setFqn(fqn).setLocation(location).build();
-    BigQuerySinkUtils.recordLineage(context, asset, tableSchema, fieldNames);
+    Asset asset = (marker == null) ? Asset.builder(outputName).setFqn(fqn).setLocation(location).build()
+      : Asset.builder(outputName).setFqn(fqn).setLocation(location).setMarker(marker).build();
+    BigQuerySinkUtils.recordLineage(context, asset, tableSchema, fieldNames, tableName);
     context.addOutput(Output.of(outputName, getOutputFormatProvider(configuration, tableName, tableSchema)));
   }
 

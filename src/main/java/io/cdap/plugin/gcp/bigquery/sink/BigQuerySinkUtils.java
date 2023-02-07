@@ -900,15 +900,17 @@ public final class BigQuerySinkUtils {
    * @param asset       asset object of table
    * @param tableSchema schema of table
    * @param fieldNames  field list
+   * @param operationNameSuffix suffix for operation name, if applicable
    */
   public static void recordLineage(BatchSinkContext context,
                                    Asset asset,
                                    Schema tableSchema,
-                                   List<String> fieldNames) {
+                                   List<String> fieldNames, @Nullable String operationNameSuffix) {
     LineageRecorder lineageRecorder = new LineageRecorder(context, asset);
     lineageRecorder.createExternalDataset(tableSchema);
     if (!fieldNames.isEmpty()) {
-      lineageRecorder.recordWrite("Write", "Wrote to BigQuery table.", fieldNames);
+      String operationName = operationNameSuffix == null ? "Write" : "Write_To_" + operationNameSuffix;
+      lineageRecorder.recordWrite(operationName, "Wrote to BigQuery table.", fieldNames);
     }
   }
 

@@ -18,7 +18,6 @@ package io.cdap.plugin.gcp.bigquery.sink;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.Table;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Metadata;
 import io.cdap.cdap.api.annotation.MetadataProperty;
@@ -33,14 +32,12 @@ import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.connector.Connector;
-import io.cdap.plugin.common.ReferenceNames;
 import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnector;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import org.apache.hadoop.conf.Configuration;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -137,7 +134,7 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
         outputName = sanitizeOutputName(outputName);
         initOutput(context, bigQuery, outputName,
                    BigQueryUtil.getFQN(config.getDatasetProject(), config.getDataset(), tableName),
-                   tableName, tableSchema, bucket, context.getFailureCollector());
+                   tableName, tableSchema, bucket, context.getFailureCollector(), tableName);
       } catch (IOException e) {
         collector.addFailure("Invalid schema: " + e.getMessage(), null);
       }

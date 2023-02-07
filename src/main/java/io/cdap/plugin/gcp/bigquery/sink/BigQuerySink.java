@@ -25,7 +25,6 @@ import com.google.cloud.bigquery.JobId;
 import com.google.cloud.bigquery.JobStatistics;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.Gson;
 import io.cdap.cdap.api.annotation.Description;
@@ -42,7 +41,6 @@ import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.connector.Connector;
 import io.cdap.cdap.etl.api.engine.sql.SQLEngineOutput;
-import io.cdap.plugin.common.ReferenceNames;
 import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnector;
 import io.cdap.plugin.gcp.bigquery.sqlengine.BigQuerySQLEngine;
 import io.cdap.plugin.gcp.bigquery.sqlengine.BigQueryWrite;
@@ -133,7 +131,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
     configureBigQuerySink();
     initOutput(context, bigQuery, config.getReferenceName(),
                BigQueryUtil.getFQN(config.getDatasetProject(), config.getDataset(), config.getTable()),
-               config.getTable(), outputSchema, bucket, collector);
+               config.getTable(), outputSchema, bucket, collector, null);
     initSQLEngineOutput(context, bigQuery, config.getReferenceName(), context.getStageName(), config.getTable(),
                         outputSchema, collector);
   }
