@@ -700,6 +700,10 @@
           <groupId>net.java.dev.jets3t</groupId>
           <artifactId>jets3t</artifactId>
         </exclusion>
+        <exclusion>
+          <groupId>io.netty</groupId>
+          <artifactId>netty-all</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
     <dependency>
@@ -1127,6 +1131,11 @@
       </build>
 
       <dependencies>
+        <dependency>
+          <groupId>com.google.guava</groupId>
+          <artifactId>guava</artifactId>
+          <version>31.1-jre</version>
+        </dependency>
         <dependency>
           <groupId>io.cdap.tests.e2e</groupId>
           <artifactId>cdap-e2e-framework</artifactId>
