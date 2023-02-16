@@ -223,7 +223,7 @@ public class BigQueryWrite {
     // Create a job ID so that we can safely retry.
     JobId bqJobId = JobId.newBuilder()
       .setJob(jobId)
-      .setLocation(sqlEngineConfig.getLocation())
+      .setLocation(srcDataset.getLocation())
       .setProject(sqlEngineConfig.getProject())
       .build();
     Job queryJob = bigQuery.create(JobInfo.newBuilder(queryConfig).setJobId(bqJobId).build());
