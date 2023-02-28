@@ -15,17 +15,16 @@
  */
 package io.cdap.plugin.gcp.publisher.source;
 
+import com.google.pubsub.v1.ProjectSnapshotName;
+import com.google.pubsub.v1.Snapshot;
 import io.cdap.cdap.etl.api.streaming.StreamingContext;
-import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.api.java.JavaDStream;
-import org.apache.spark.streaming.dstream.DStream;
-import org.apache.spark.streaming.dstream.ReceiverInputDStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.collection.JavaConverters;
 import scala.reflect.ClassTag;
 
-import java.util.ArrayList;
+import java.io.IOException;
+import java.util.Optional;
 
 /**
  * Utility class to create a JavaDStream of received messages.
@@ -70,7 +69,7 @@ public final class PubSubSubscriberUtil {
   protected static JavaDStream<PubSubMessage> getInputDStream(StreamingContext streamingContext,
                                                               PubSubSubscriberConfig config,
                                                               boolean autoAcknowledge) {
-    ArrayList<DStream<PubSubMessage>> receivers = new ArrayList<>(config.getNumberOfReaders());
+    /* ArrayList<DStream<PubSubMessage>> receivers = new ArrayList<>(config.getNumberOfReaders());
     ClassTag<PubSubMessage> tag = scala.reflect.ClassTag$.MODULE$.apply(PubSubMessage.class);
 
     for (int i = 1; i <= config.getNumberOfReaders(); i++) {
@@ -83,7 +82,21 @@ public final class PubSubSubscriberUtil {
     DStream<PubSubMessage> dStream = streamingContext.getSparkStreamingContext().ssc()
       .union(JavaConverters.collectionAsScalaIterableConverter(receivers).asScala().toSeq(), tag);
 
-    return new JavaDStream<>(dStream, tag);
+    return new JavaDStream<>(dStream, tag); */
+    ClassTag<PubSubMessage> tag = scala.reflect.ClassTag$.MODULE$.apply(PubSubMessage.class);
+    //TODO - decide on a time based on batch duration
+    String snapShotName = null;
+    try {
+      Optional<byte[]> state = streamingContext.getState(config.getSubscription());
+      if (state.isPresent()) {
+        Snapshot snapshot = Snapshot.parseFrom(state.get());
+        snapShotName = ProjectSnapshotName.parse(snapshot.getName()).getSnapshot();
+      }
+    } catch (IOException e) {
+
+    }
+    LOG.info("Found saved snapshot {} .", snapShotName);
+    return new JavaDStream<>(new PubSubDirectDStream(streamingContext, config, 30000L, snapShotName), tag);
   }
 
 }

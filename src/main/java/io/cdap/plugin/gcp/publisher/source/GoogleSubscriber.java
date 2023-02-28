@@ -26,6 +26,7 @@ import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.streaming.StreamingSource;
 import io.cdap.cdap.etl.api.streaming.StreamingSourceContext;
+import io.cdap.cdap.etl.api.streaming.StreamingStateHandler;
 import io.cdap.cdap.format.StructuredRecordStringConverter;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.format.avro.AvroToStructuredTransformer;
@@ -56,7 +57,7 @@ import javax.annotation.Nullable;
 @Plugin(type = StreamingSource.PLUGIN_TYPE)
 @Name("GoogleSubscriber")
 @Description("Streaming Source to read messages from Google PubSub.")
-public class GoogleSubscriber extends PubSubSubscriber<StructuredRecord> {
+public class GoogleSubscriber extends PubSubSubscriber<StructuredRecord> implements StreamingStateHandler {
   private static final String SCHEMA = "schema";
   private static final Schema DEFAULT_SCHEMA =
     Schema.recordOf("event",
