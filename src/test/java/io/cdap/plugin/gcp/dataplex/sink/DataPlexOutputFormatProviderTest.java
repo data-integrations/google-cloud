@@ -42,6 +42,7 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import java.io.IOException;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -162,6 +163,7 @@ public class DataPlexOutputFormatProviderTest {
    * Exception is thrown as output path is not provided here.
    */
   @Test
+  @PowerMockIgnore()
   public void testDataPexOutputCommitterWDifferentFormat() throws IOException, InterruptedException {
     Configuration configuration = new Configuration();
     configuration.set(DataplexOutputFormatProvider.DATAPLEX_ASSET_TYPE, "assetType");
@@ -184,6 +186,7 @@ public class DataPlexOutputFormatProviderTest {
    * Exception is thrown as output path is not provided here.
    */
   @Test
+  @PowerMockIgnore()
   public void testOutputFormatWBigqueryDataset() throws IOException, InterruptedException {
     DataplexOutputFormatProvider.DataplexOutputFormat dataplexOutputFormat =
       new DataplexOutputFormatProvider.DataplexOutputFormat();
