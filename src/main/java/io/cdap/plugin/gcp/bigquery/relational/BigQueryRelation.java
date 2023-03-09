@@ -1,6 +1,7 @@
 package io.cdap.plugin.gcp.bigquery.relational;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.feature.FeatureFlagsProvider;
 import io.cdap.cdap.etl.api.aggregation.DeduplicateAggregationDefinition;
 import io.cdap.cdap.etl.api.aggregation.GroupByAggregationDefinition;
@@ -40,6 +41,7 @@ public class BigQueryRelation implements Relation {
   private final Set<String> columns;
   private final BigQueryRelation parent;
   private final Supplier<String> sqlStatementSupplier;
+  private final Schema schema;
 
   private Map<String, BigQuerySQLDataset> sourceDatasets;
 
@@ -56,13 +58,37 @@ public class BigQueryRelation implements Relation {
     return new BigQueryRelation(datasetName, columnNames, featureFlagsProvider);
   }
 
+  /**
+   * Gets a new BigQueryRelation instance with a schema supplied
+   *
+   * @param datasetName source dataset name
+   * @param columnNames column names to use when initializing this relation.
+   * @param schema the CDAP representation of the schema of the relation.
+   * @return new BigQueryRelation instance for this table.
+   */
+  public static BigQueryRelation getInstance(String datasetName,
+                                             Set<String> columnNames,
+                                             FeatureFlagsProvider featureFlagsProvider,
+                                             @Nullable Schema schema) {
+    return new BigQueryRelation(datasetName, columnNames, featureFlagsProvider, schema);
+  }
+
   @VisibleForTesting
   protected BigQueryRelation(String datasetName,
                              Set<String> columns,
                              FeatureFlagsProvider featureFlagsProvider) {
+    this(datasetName, columns, featureFlagsProvider, null);
+  }
+
+  @VisibleForTesting
+  protected BigQueryRelation(String datasetName,
+                             Set<String> columns,
+                             FeatureFlagsProvider featureFlagsProvider,
+                             @Nullable Schema schema) {
     this.datasetName = datasetName;
     this.columns = columns;
     this.featureFlagsProvider = featureFlagsProvider;
+    this.schema = schema;
     this.parent = null;
     this.sqlStatementSupplier = () -> {
 
@@ -90,11 +116,22 @@ public class BigQueryRelation implements Relation {
                              FeatureFlagsProvider featureFlagsProvider,
                              @Nullable BigQueryRelation parent,
                              Supplier<String> sqlStatementSupplier) {
+    this(datasetName, columns, featureFlagsProvider, parent, sqlStatementSupplier, null);
+  }
+
+  @VisibleForTesting
+  protected BigQueryRelation(String datasetName,
+                             Set<String> columns,
+                             FeatureFlagsProvider featureFlagsProvider,
+                             @Nullable BigQueryRelation parent,
+                             Supplier<String> sqlStatementSupplier,
+                             @Nullable Schema schema) {
     this.datasetName = datasetName;
     this.columns = columns;
     this.featureFlagsProvider = featureFlagsProvider;
     this.parent = parent;
     this.sqlStatementSupplier = sqlStatementSupplier;
+    this.schema = schema;
   }
 
   private Relation getInvalidRelation(String validationError) {
@@ -137,6 +174,16 @@ public class BigQueryRelation implements Relation {
    */
   public Set<String> getColumns() {
     return columns;
+  }
+
+  /**
+   * Get the {@link Schema} of the relation if available, null otherwise.
+   *
+   * @return the schema of the relation.
+   */
+  @Nullable
+  public Schema getSchema() {
+    return schema;
   }
 
   /**
