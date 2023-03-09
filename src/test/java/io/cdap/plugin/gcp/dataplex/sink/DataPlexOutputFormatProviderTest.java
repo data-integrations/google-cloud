@@ -40,9 +40,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 
 import java.io.IOException;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
 
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
