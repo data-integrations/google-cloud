@@ -36,7 +36,6 @@ import org.apache.hadoop.mapreduce.TaskID;
 import org.apache.hadoop.mapreduce.TaskType;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -164,7 +163,7 @@ public class DataPlexOutputFormatProviderTest {
    * Exception is thrown as output path is not provided here.
    */
   @Test
-  @Ignore
+  @PowerMockIgnore({"org.apache.hadoop.*","javax.*","com.sun.org.apache.*"})
   public void testDataPexOutputCommitterWDifferentFormat() throws IOException, InterruptedException {
     Configuration configuration = new Configuration();
     configuration.set(DataplexOutputFormatProvider.DATAPLEX_ASSET_TYPE, "assetType");
@@ -187,7 +186,7 @@ public class DataPlexOutputFormatProviderTest {
    * Exception is thrown as output path is not provided here.
    */
   @Test
-  @Ignore
+  @PowerMockIgnore({"org.apache.hadoop.*","javax.*","com.sun.org.apache.*"})
   public void testOutputFormatWBigqueryDataset() throws IOException, InterruptedException {
     DataplexOutputFormatProvider.DataplexOutputFormat dataplexOutputFormat =
       new DataplexOutputFormatProvider.DataplexOutputFormat();
