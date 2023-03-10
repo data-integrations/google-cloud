@@ -163,7 +163,7 @@ public class DataPlexOutputFormatProviderTest {
    * Exception is thrown as output path is not provided here.
    */
   @Test
-  @PowerMockIgnore({"org.apache.hadoop.*","javax.*","com.sun.org.apache.*"})
+  @PowerMockIgnore({"org.apache.hadoop.*", "javax.*", "com.sun.org.apache.*"})
   public void testDataPexOutputCommitterWDifferentFormat() throws IOException, InterruptedException {
     Configuration configuration = new Configuration();
     configuration.set(DataplexOutputFormatProvider.DATAPLEX_ASSET_TYPE, "assetType");
@@ -186,7 +186,7 @@ public class DataPlexOutputFormatProviderTest {
    * Exception is thrown as output path is not provided here.
    */
   @Test
-  @PowerMockIgnore({"org.apache.hadoop.*","javax.*","com.sun.org.apache.*"})
+  @PowerMockIgnore({"org.apache.hadoop.*", "javax.*", "com.sun.org.apache.*"})
   public void testOutputFormatWBigqueryDataset() throws IOException, InterruptedException {
     DataplexOutputFormatProvider.DataplexOutputFormat dataplexOutputFormat =
       new DataplexOutputFormatProvider.DataplexOutputFormat();
