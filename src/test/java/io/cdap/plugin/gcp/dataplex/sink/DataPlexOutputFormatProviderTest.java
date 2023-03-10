@@ -163,8 +163,9 @@ public class DataPlexOutputFormatProviderTest {
    * Exception is thrown as output path is not provided here.
    */
   @Test
-  @PowerMockIgnore({"org.apache.hadoop.*","javax.*","com.sun.org.apache.*"})
-  public void testDataPexOutputCommitterWDifferentFormat() throws IOException, InterruptedException {
+  @PowerMockIgnore({"org.apache.hadoop.*", "javax.*", "com.sun.org.apache.*"})
+  public void testDataPexOutputCommitterWDifferentFormat()
+      throws IOException, InterruptedException {
     Configuration configuration = new Configuration();
     configuration.set(DataplexOutputFormatProvider.DATAPLEX_ASSET_TYPE, "assetType");
     configuration.set("dataplexsink.assettype", "BIGQUERY_DATASET");
@@ -175,7 +176,7 @@ public class DataPlexOutputFormatProviderTest {
     configuration.set("mapred.bq.output.gcs.outputformatclass", AvroOutputFormat.class.getName());
     when(mockContext.getConfiguration()).thenReturn(configuration);
     DataplexOutputFormatProvider.DataplexOutputFormat dataplexOutputFormat =
-      new DataplexOutputFormatProvider.DataplexOutputFormat();
+        new DataplexOutputFormatProvider.DataplexOutputFormat();
     Assert.assertThrows(IOException.class, () -> {
       dataplexOutputFormat.getOutputCommitter(mockContext);
     });
@@ -186,10 +187,10 @@ public class DataPlexOutputFormatProviderTest {
    * Exception is thrown as output path is not provided here.
    */
   @Test
-  @PowerMockIgnore({"org.apache.hadoop.*","javax.*","com.sun.org.apache.*"})
+  @PowerMockIgnore({"org.apache.hadoop.*", "javax.*", "com.sun.org.apache.*"})
   public void testOutputFormatWBigqueryDataset() throws IOException, InterruptedException {
     DataplexOutputFormatProvider.DataplexOutputFormat dataplexOutputFormat =
-      new DataplexOutputFormatProvider.DataplexOutputFormat();
+        new DataplexOutputFormatProvider.DataplexOutputFormat();
     Configuration configuration = new Configuration();
     configuration.set("name", "configName");
     configuration.set("blockSize", "240");
