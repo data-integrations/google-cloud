@@ -41,6 +41,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 
 import java.io.IOException;
 
@@ -163,7 +164,7 @@ public class DataPlexOutputFormatProviderTest {
    * Exception is thrown as output path is not provided here.
    */
   @Test
-  @Ignore
+  @PowerMockIgnore({"org.apache.hadoop.*", "javax.*", "com.sun.org.apache.*"})
   public void testDataPexOutputCommitterWDifferentFormat()
       throws IOException, InterruptedException {
     Configuration configuration = new Configuration();
@@ -187,7 +188,7 @@ public class DataPlexOutputFormatProviderTest {
    * Exception is thrown as output path is not provided here.
    */
   @Test
-  @Ignore
+  @PowerMockIgnore({"org.apache.hadoop.*", "javax.*", "com.sun.org.apache.*"})
   public void testOutputFormatWBigqueryDataset() throws IOException, InterruptedException {
     DataplexOutputFormatProvider.DataplexOutputFormat dataplexOutputFormat =
         new DataplexOutputFormatProvider.DataplexOutputFormat();
