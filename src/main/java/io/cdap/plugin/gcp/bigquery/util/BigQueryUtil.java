@@ -113,7 +113,8 @@ public final class BigQueryUtil {
     Set<LegacySQLTypeName>>builder()
     .put(Schema.Type.INT, ImmutableSet.of(LegacySQLTypeName.INTEGER))
     .put(Schema.Type.LONG, ImmutableSet.of(LegacySQLTypeName.INTEGER))
-    .put(Schema.Type.STRING, ImmutableSet.of(LegacySQLTypeName.STRING, LegacySQLTypeName.DATETIME))
+    .put(Schema.Type.STRING, ImmutableSet.of(LegacySQLTypeName.STRING, LegacySQLTypeName.DATETIME,
+                                             LegacySQLTypeName.valueOf("JSON")))
     .put(Schema.Type.FLOAT, ImmutableSet.of(LegacySQLTypeName.FLOAT))
     .put(Schema.Type.DOUBLE, ImmutableSet.of(LegacySQLTypeName.FLOAT))
     .put(Schema.Type.BOOLEAN, ImmutableSet.of(LegacySQLTypeName.BOOLEAN))
@@ -285,77 +286,81 @@ public final class BigQueryUtil {
                                         @Nullable String recordPrefix) {
     LegacySQLTypeName type = field.getType();
     StandardSQLTypeName standardType = type.getStandardType();
-    switch (standardType) {
-      case FLOAT64:
-        // float is a float64, so corresponding type becomes double
-        return Schema.of(Schema.Type.DOUBLE);
-      case BOOL:
-        return Schema.of(Schema.Type.BOOLEAN);
-      case INT64:
-        // int is a int64, so corresponding type becomes long
-        return Schema.of(Schema.Type.LONG);
-      case STRING:
-        return Schema.of(Schema.Type.STRING);
-      case DATETIME:
-        return Schema.of(Schema.LogicalType.DATETIME);
-      case BYTES:
-        return Schema.of(Schema.Type.BYTES);
-      case TIME:
-        return Schema.of(Schema.LogicalType.TIME_MICROS);
-      case DATE:
-        return Schema.of(Schema.LogicalType.DATE);
-      case TIMESTAMP:
-        return Schema.of(Schema.LogicalType.TIMESTAMP_MICROS);
-      case NUMERIC:
-        // bigquery has Numeric.PRECISION digits of precision and Numeric.SCALE digits of scale for NUMERIC.
-        // https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#decimal_types
-        return Schema.decimalOf(Numeric.PRECISION, Numeric.SCALE);
-      case BIGNUMERIC:
-        // bigquery has BigNumeric.PRECISION digits of precision and BigNumeric.SCALE digits of scale for BIGNUMERIC.
-        // https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#decimal_types
-        return Schema.decimalOf(BigNumeric.PRECISION, BigNumeric.SCALE);
-      case STRUCT:
-        FieldList fields = field.getSubFields();
-        List<Schema.Field> schemaFields = new ArrayList<>();
+    if (standardType != null) {
+      switch (standardType) {
+        case FLOAT64:
+          // float is a float64, so corresponding type becomes double
+          return Schema.of(Schema.Type.DOUBLE);
+        case BOOL:
+          return Schema.of(Schema.Type.BOOLEAN);
+        case INT64:
+          // int is a int64, so corresponding type becomes long
+          return Schema.of(Schema.Type.LONG);
+        case STRING:
+          return Schema.of(Schema.Type.STRING);
+        case DATETIME:
+          return Schema.of(Schema.LogicalType.DATETIME);
+        case BYTES:
+          return Schema.of(Schema.Type.BYTES);
+        case TIME:
+          return Schema.of(Schema.LogicalType.TIME_MICROS);
+        case DATE:
+          return Schema.of(Schema.LogicalType.DATE);
+        case TIMESTAMP:
+          return Schema.of(Schema.LogicalType.TIMESTAMP_MICROS);
+        case NUMERIC:
+          // bigquery has Numeric.PRECISION digits of precision and Numeric.SCALE digits of scale for NUMERIC.
+          // https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#decimal_types
+          return Schema.decimalOf(Numeric.PRECISION, Numeric.SCALE);
+        case BIGNUMERIC:
+          // bigquery has BigNumeric.PRECISION digits of precision and BigNumeric.SCALE digits of scale for BIGNUMERIC.
+          // https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#decimal_types
+          return Schema.decimalOf(BigNumeric.PRECISION, BigNumeric.SCALE);
+        case STRUCT:
+          FieldList fields = field.getSubFields();
+          List<Schema.Field> schemaFields = new ArrayList<>();
 
-        // Record names have to be unique as Avro doesn't allow to redefine them.
-        // We can make them unique by prepending the previous records names to their name.
-        String recordTypeName = "";
-        if (recordPrefix != null) {
-          recordTypeName = recordPrefix + '.';
-        }
-        recordTypeName = recordTypeName + field.getName();
-
-        for (Field f : fields) {
-          Schema.Field schemaField = getSchemaField(f, collector, recordTypeName);
-          // if schema field is null, that means that there was a validation error. We will still continue in order to
-          // collect more errors
-          if (schemaField == null) {
-            continue;
+          // Record names have to be unique as Avro doesn't allow to redefine them.
+          // We can make them unique by prepending the previous records names to their name.
+          String recordTypeName = "";
+          if (recordPrefix != null) {
+            recordTypeName = recordPrefix + '.';
           }
-          schemaFields.add(schemaField);
-        }
-        // do not return schema for the struct field if none of the nested fields are of supported types
-        if (!schemaFields.isEmpty()) {
-          Schema namingSchema = Schema.recordOf(schemaFields);
-          recordTypeName = recordTypeName + namingSchema.getRecordName();
-          return Schema.recordOf(recordTypeName, schemaFields);
-        } else {
+          recordTypeName = recordTypeName + field.getName();
+
+          for (Field f : fields) {
+            Schema.Field schemaField = getSchemaField(f, collector, recordTypeName);
+            // if schema field is null, that means that there was a validation error. We will still continue in order to
+            // collect more errors
+            if (schemaField == null) {
+              continue;
+            }
+            schemaFields.add(schemaField);
+          }
+          // do not return schema for the struct field if none of the nested fields are of supported types
+          if (!schemaFields.isEmpty()) {
+            Schema namingSchema = Schema.recordOf(schemaFields);
+            recordTypeName = recordTypeName + namingSchema.getRecordName();
+            return Schema.recordOf(recordTypeName, schemaFields);
+          } else {
+            return null;
+          }
+        default:
+          String error =
+            String.format("BigQuery column '%s' is of unsupported type '%s'.", field.getName(), standardType.name());
+          String action = String.format("Supported column types are: %s.",
+                                        BigQueryUtil.BQ_TYPE_MAP.keySet().stream().map(t -> t.getStandardType().name())
+                                          .collect(Collectors.joining(", ")));
+          if (collector != null) {
+            collector.addFailure(error, action);
+          } else {
+            throw new RuntimeException(error + action);
+          }
           return null;
-        }
-      default:
-        String error =
-          String.format("BigQuery column '%s' is of unsupported type '%s'.", field.getName(), standardType.name());
-        String action = String.format("Supported column types are: %s.",
-                                      BigQueryUtil.BQ_TYPE_MAP.keySet().stream().map(t -> t.getStandardType().name())
-                                        .collect(Collectors.joining(", ")));
-        if (collector != null) {
-          collector.addFailure(error, action);
-        } else {
-          throw new RuntimeException(error + action);
-        }
-        return null;
+      }
     }
+    // standardType is null only in case of JSON datatype. We convert JSON to STRING here
+    return Schema.of(Schema.Type.STRING);
   }
 
   /**

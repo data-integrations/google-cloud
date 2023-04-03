@@ -20,6 +20,7 @@ import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.FieldValue;
 import com.google.cloud.bigquery.FieldValueList;
+import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.StandardSQLTypeName;
 import com.google.cloud.bigquery.TableResult;
 import com.google.common.io.BaseEncoding;
@@ -71,6 +72,8 @@ public class BigQueryDataParserTest {
     fieldList.add(timeField);
     Field timestampField = Field.newBuilder("timestamp", StandardSQLTypeName.TIMESTAMP).build();
     fieldList.add(timestampField);
+    Field jsonField = Field.newBuilder("json", LegacySQLTypeName.valueOf("JSON")).build();
+    fieldList.add(jsonField);
 
 
     com.google.cloud.bigquery.Schema bqSchema = com.google.cloud.bigquery.Schema.of(fieldList);
@@ -100,6 +103,8 @@ public class BigQueryDataParserTest {
     FieldValue timestampValue = FieldValue.of(FieldValue.Attribute.PRIMITIVE,
       String.valueOf(timestamp.toEpochSecond()) + "." + paddHeaddingZero(String.valueOf(timestamp.getNano()), 9));
     valueList.add(timestampValue);
+    FieldValue jsonValue = FieldValue.of(FieldValue.Attribute.PRIMITIVE, "{\"age\":30,\"name\":\"Alice\"}");
+    valueList.add(jsonValue);
 
 
     List<FieldValueList> rows = Arrays.asList(FieldValueList.of(valueList, FieldList.of(fieldList)));
@@ -130,6 +135,8 @@ public class BigQueryDataParserTest {
     Schema.Field cdapTimestampField =
       Schema.Field.of("timestamp", Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS)));
     cdapFieldList.add(cdapTimestampField);
+    Schema.Field cdapJsonField = Schema.Field.of("json", Schema.nullableOf(Schema.of(Schema.Type.STRING)));
+    cdapFieldList.add(cdapJsonField);
 
     Schema expectedSchema = Schema.recordOf("output", cdapFieldList);
 
@@ -151,6 +158,7 @@ public class BigQueryDataParserTest {
     Assert.assertEquals(
       Long.valueOf(timestamp.toEpochSecond() * 1000000 + TimeUnit.NANOSECONDS.toMicros(timestamp.getNano())),
       record.get("timestamp"));
+    Assert.assertEquals("{\"age\":30,\"name\":\"Alice\"}", record.get("json"));
   }
 
   private String paddHeaddingZero(String value, int length) {

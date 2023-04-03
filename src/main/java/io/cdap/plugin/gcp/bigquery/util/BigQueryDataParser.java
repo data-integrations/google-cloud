@@ -160,47 +160,51 @@ public final class BigQueryDataParser {
   public static Object convertValue(Field field, FieldValue fieldValue) {
     LegacySQLTypeName type = field.getType();
     StandardSQLTypeName standardType = type.getStandardType();
-    switch (standardType) {
-      case TIME:
-        return LocalTime.parse(fieldValue.getStringValue());
-      case DATE:
-        return LocalDate.parse(fieldValue.getStringValue());
-      case TIMESTAMP:
-        long tsMicroValue = fieldValue.getTimestampValue();
-        return getZonedDateTime(tsMicroValue);
-      case NUMERIC:
-        BigDecimal decimal = fieldValue.getNumericValue();
-        if (decimal.scale() < Numeric.SCALE) {
-          // scale up the big decimal. this is because structured record expects scale to be exactly same as schema
-          // Big Query supports maximum unscaled value up to Numeric.SCALE digits. so scaling up should
-          // still be <= max precision
-          decimal = decimal.setScale(Numeric.SCALE);
-        }
-        return decimal;
-      case BIGNUMERIC:
-        BigDecimal bigDecimal = fieldValue.getNumericValue();
-        if (bigDecimal.scale() < BigNumeric.SCALE) {
-          // scale up the big decimal. this is because structured record expects scale to be exactly same as schema
-          // Big Query Big Numeric supports maximum unscaled value up to BigNumeric.SCALE digits.
-          //  so scaling up should still be <= max precision
-          bigDecimal = bigDecimal.setScale(BigNumeric.SCALE);
-        }
-        return bigDecimal;
-      case DATETIME:
-        return LocalDateTime.parse(fieldValue.getStringValue());
-      case STRING:
-        return fieldValue.getStringValue();
-      case BOOL:
-        return fieldValue.getBooleanValue();
-      case FLOAT64:
-        return fieldValue.getDoubleValue();
-      case INT64:
-        return fieldValue.getLongValue();
-      case BYTES:
-        return fieldValue.getBytesValue();
-      default:
-        throw new RuntimeException(String.format("BigQuery type %s is not supported.", standardType));
+    if (standardType != null) {
+      switch (standardType) {
+        case TIME:
+          return LocalTime.parse(fieldValue.getStringValue());
+        case DATE:
+          return LocalDate.parse(fieldValue.getStringValue());
+        case TIMESTAMP:
+          long tsMicroValue = fieldValue.getTimestampValue();
+          return getZonedDateTime(tsMicroValue);
+        case NUMERIC:
+          BigDecimal decimal = fieldValue.getNumericValue();
+          if (decimal.scale() < Numeric.SCALE) {
+            // scale up the big decimal. this is because structured record expects scale to be exactly same as schema
+            // Big Query supports maximum unscaled value up to Numeric.SCALE digits. so scaling up should
+            // still be <= max precision
+            decimal = decimal.setScale(Numeric.SCALE);
+          }
+          return decimal;
+        case BIGNUMERIC:
+          BigDecimal bigDecimal = fieldValue.getNumericValue();
+          if (bigDecimal.scale() < BigNumeric.SCALE) {
+            // scale up the big decimal. this is because structured record expects scale to be exactly same as schema
+            // Big Query Big Numeric supports maximum unscaled value up to BigNumeric.SCALE digits.
+            //  so scaling up should still be <= max precision
+            bigDecimal = bigDecimal.setScale(BigNumeric.SCALE);
+          }
+          return bigDecimal;
+        case DATETIME:
+          return LocalDateTime.parse(fieldValue.getStringValue());
+        case STRING:
+          return fieldValue.getStringValue();
+        case BOOL:
+          return fieldValue.getBooleanValue();
+        case FLOAT64:
+          return fieldValue.getDoubleValue();
+        case INT64:
+          return fieldValue.getLongValue();
+        case BYTES:
+          return fieldValue.getBytesValue();
+        default:
+          throw new RuntimeException(String.format("BigQuery type %s is not supported.", standardType));
+      }
     }
+    // standardType is null only in case of JSON datatype. We convert JSON to STRING here
+    return fieldValue.getStringValue();
   }
 
   /**

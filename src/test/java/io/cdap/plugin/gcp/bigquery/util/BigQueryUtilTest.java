@@ -17,6 +17,7 @@
 package io.cdap.plugin.gcp.bigquery.util;
 
 import com.google.cloud.bigquery.Field;
+import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.StandardSQLTypeName;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
@@ -69,6 +70,8 @@ public class BigQueryUtilTest {
     fieldList.add(timeField);
     Field timestampField = Field.newBuilder("timestamp", StandardSQLTypeName.TIMESTAMP).build();
     fieldList.add(timestampField);
+    Field jsonField = Field.newBuilder("json", LegacySQLTypeName.valueOf("JSON")).build();
+    fieldList.add(jsonField);
 
     Field subStringField = Field.newBuilder("subStringField", StandardSQLTypeName.STRING).build();
     Field subRecord = Field.newBuilder("subStructure", StandardSQLTypeName.STRUCT, subStringField).build();
@@ -103,6 +106,8 @@ public class BigQueryUtilTest {
     Schema.Field cdapTimestampField =
       Schema.Field.of("timestamp", Schema.nullableOf(Schema.of(Schema.LogicalType.TIMESTAMP_MICROS)));
     cdapFieldList.add(cdapTimestampField);
+    Schema.Field cdapJsonField = Schema.Field.of("json", Schema.nullableOf(Schema.of(Schema.Type.STRING)));
+    cdapFieldList.add(cdapJsonField);
 
     Schema.Field cdapSubStringField = Schema.Field.of("subStringField",
         Schema.nullableOf(Schema.of(Schema.Type.STRING)));
