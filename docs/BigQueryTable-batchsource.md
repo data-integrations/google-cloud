@@ -105,3 +105,4 @@ corresponding CDAP data type for each BigQuery type.
 | struct        | record                             |
 | time          | time (microseconds)                |
 | timestamp     | timestamp (microseconds)           |
+| json          | unsupported                        |
