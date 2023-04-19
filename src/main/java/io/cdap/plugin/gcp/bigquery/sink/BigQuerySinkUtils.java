@@ -613,8 +613,12 @@ public final class BigQuerySinkUtils {
       .map(s -> String.format(CRITERIA_TEMPLATE, s, s)).collect(Collectors.joining(", "));
 
     orderedByList = orderedByList.stream().map(s -> s.trim()).map(s -> {
-        return "`" + s.split(" ")[0] + "` " + s.split(" ", 2)[1];
-      }).collect(Collectors.toList());
+      StringBuilder sb = new StringBuilder("`").append(s.split(" ")[0]).append("` ");
+      if (s.split(" ").length > 1) {
+        sb.append(s.split(" ", 2)[1]);
+      }
+      return sb.toString();
+    }).collect(Collectors.toList());
 
     String orderedBy = orderedByList.isEmpty() ? "" : " ORDER BY " + String.join(", ", orderedByList);
     String sourceTable = String.format(SOURCE_DATA_QUERY, "`" + String.join("`, `", tableKeyList) + "`",
