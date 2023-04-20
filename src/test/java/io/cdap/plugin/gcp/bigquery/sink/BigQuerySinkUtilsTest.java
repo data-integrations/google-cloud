@@ -545,6 +545,7 @@ public class BigQuerySinkUtilsTest {
     List<String> orderedByList = new ArrayList<>(1);
     orderedByList.add("b ASC");
     orderedByList.add("a DESC");
+    orderedByList.add("c");
 
     String partitionFilter = null;
 
@@ -554,7 +555,7 @@ public class BigQuerySinkUtilsTest {
 
     Assert.assertEquals("UPDATE `dummy_dest_project.dummy_dest_dataset.dummy_dest_table` T SET " +
                           "T.`b` = S.`b`, T.`c` = S.`c` FROM (SELECT * FROM (SELECT row_number() OVER " +
-                          "(PARTITION BY `a` ORDER BY `b` ASC, `a` DESC) as rowid, * " +
+                          "(PARTITION BY `a` ORDER BY `b` ASC, `a` DESC, `c` ) as rowid, * " +
                           "FROM `dummy_src_project.dummy_src_dataset.dummy_src_table`) " +
                           "where rowid = 1) S WHERE T.`a` = S.`a`", query);
   }
