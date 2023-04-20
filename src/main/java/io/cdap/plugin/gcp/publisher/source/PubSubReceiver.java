@@ -29,7 +29,6 @@ import com.google.pubsub.v1.AcknowledgeRequest;
 import com.google.pubsub.v1.ProjectSubscriptionName;
 import com.google.pubsub.v1.PullRequest;
 import com.google.pubsub.v1.PullResponse;
-import com.google.pubsub.v1.PushConfig;
 import com.google.pubsub.v1.ReceivedMessage;
 import com.google.pubsub.v1.TopicName;
 import io.cdap.plugin.gcp.common.GCPUtils;
@@ -39,11 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.Serializable;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -74,20 +69,6 @@ public class PubSubReceiver extends Receiver<PubSubMessage> {
     "Failed to fetch new messages using subscription '%s' for project '%s'.";
   private static final String INTERRUPTED_EXCEPTION_MSG =
     "Interrupted Exception when sleeping during backoff.";
-
-  // Retryable status codes. These need to be handled in case Pub/Sub throws a StatusRuntimeException.
-  private static final int RESOURCE_EXHAUSTED = StatusCode.Code.RESOURCE_EXHAUSTED.getHttpStatusCode();
-  private static final int CANCELLED = StatusCode.Code.CANCELLED.getHttpStatusCode();
-  private static final int INTERNAL = StatusCode.Code.INTERNAL.getHttpStatusCode();
-  private static final int UNAVAILABLE = StatusCode.Code.UNAVAILABLE.getHttpStatusCode();
-  private static final int DEADLINE_EXCEEDED = StatusCode.Code.DEADLINE_EXCEEDED.getHttpStatusCode();
-  private static final Set<Integer> RETRYABLE_STATUS_CODES = Collections.unmodifiableSet(new HashSet<Integer>() {{
-    add(RESOURCE_EXHAUSTED);
-    add(CANCELLED);
-    add(INTERNAL);
-    add(UNAVAILABLE);
-    add(DEADLINE_EXCEEDED);
-  }});
 
   private final PubSubSubscriberConfig config;
   private final boolean autoAcknowledge;
@@ -223,55 +204,26 @@ public class PubSubReceiver extends Receiver<PubSubMessage> {
       return;
     }
 
-    int backoff = backoffConfig.getInitialBackoffMs();
-    int attempts = 5;
-
-    ApiException lastApiException = null;
-
-    while (!isStopped() && attempts-- > 0) {
-
-      try (SubscriptionAdminClient subscriptionAdminClient = buildSubscriptionAdminClient()) {
-
-        int ackDeadline = 60; // 60 seconds before resending the message.
-        subscriptionAdminClient.createSubscription(
-          subscription, topic, PushConfig.getDefaultInstance(), ackDeadline);
-        return;
-
-      } catch (ApiException ae) {
-
-        lastApiException = ae;
-
-        //If the subscription already exists, ignore the error.
-        if (ae.getStatusCode().getCode().equals(StatusCode.Code.ALREADY_EXISTS)) {
-          return;
-        }
-
-        //This error is thrown is the Topic does not exist.
-        // Call the stop method so the pipeline fails.
-        if (ae.getStatusCode().getCode().equals(StatusCode.Code.NOT_FOUND)) {
-          String message = String.format(MISSING_TOPIC_ERROR_MSG, topic, project);
-          stop(message, ae);
-          return;
-        }
-
-        //Retry if the exception is retryable.
-        if (isApiExceptionRetryable(ae)) {
-          backoff = sleepAndIncreaseBackoff(backoff);
-          continue;
-        }
-
-        //Report that we were not able to create the subscription and stop the receiver.
-        stop(String.format(CREATE_SUBSCRIPTION_ERROR_MSG, subscription), ae);
-        return;
-      } catch (IOException ioe) {
-        //Report that we were not able to create the subscription admin client and stop the receiver.
-        stop(String.format(CREATE_SUBSCRIPTION_ADMIN_CLIENT_ERROR_MSG, subscription), ioe);
+    try {
+      PubSubSubscriberUtil.createSubscription(() -> !isStopped(), backoffConfig, subscription, topic,
+                                              this::buildSubscriptionAdminClient, this::isApiExceptionRetryable);
+    } catch (InterruptedException e) {
+      stop(INTERRUPTED_EXCEPTION_MSG, e);
+    } catch (IOException e) {
+      //Report that we were not able to create the subscription admin client and stop the receiver.
+      stop(String.format(CREATE_SUBSCRIPTION_ADMIN_CLIENT_ERROR_MSG, subscription), e);
+    } catch (ApiException e) {
+      if (e.getStatusCode().getCode().equals(StatusCode.Code.NOT_FOUND)) {
+        String message = String.format(MISSING_TOPIC_ERROR_MSG, topic, project);
+        stop(message, e);
         return;
       }
+      //Report that we were not able to create the subscription and stop the receiver.
+      stop(String.format(CREATE_SUBSCRIPTION_ERROR_MSG, subscription), e);
+    } catch (RuntimeException e) {
+      //If we were not able to create the subscription after re-attempts, stop the pipeline and report the error.
+      stop(String.format(CREATE_SUBSCRIPTION_RETRY_ERROR_MSG, subscription), e);
     }
-
-    //If we were not able to create the subscription after 5 attempts, stop the pipeline and report the error.
-    stop(String.format(CREATE_SUBSCRIPTION_RETRY_ERROR_MSG, subscription), lastApiException);
   }
 
   /**
@@ -432,8 +384,12 @@ public class PubSubReceiver extends Receiver<PubSubMessage> {
    * @return Subscription Admin Client instance.
    * @throws IOException if the subscription admin client could not be created.
    */
-  protected SubscriptionAdminClient buildSubscriptionAdminClient() throws IOException {
-    return SubscriptionAdminClient.create(buildSubscriptionAdminSettings());
+  protected SubscriptionAdminClient buildSubscriptionAdminClient()  {
+    try {
+      return SubscriptionAdminClient.create(buildSubscriptionAdminSettings());
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   /**
@@ -503,89 +459,7 @@ public class PubSubReceiver extends Receiver<PubSubMessage> {
    * @return boolean stating whether we should retry this request.
    */
   protected boolean isApiExceptionRetryable(ApiException ae) {
-    return ae.isRetryable() || RETRYABLE_STATUS_CODES.contains(ae.getStatusCode().getCode().getHttpStatusCode());
-  }
-
-  /**
-   * Class used to configure exponential backoff for Pub/Sub API requests.
-   */
-  public static class BackoffConfig implements Serializable {
-    final int initialBackoffMs;
-    final int maximumBackoffMs;
-    final double backoffFactor;
-
-    static final BackoffConfig defaultInstance() {
-      return new BackoffConfig(100, 10000, 2.0);
-    }
-
-    public BackoffConfig(int initialBackoffMs, int maximumBackoffMs, double backoffFactor) {
-      this.initialBackoffMs = initialBackoffMs;
-      this.maximumBackoffMs = maximumBackoffMs;
-      this.backoffFactor = backoffFactor;
-    }
-
-    public int getInitialBackoffMs() {
-      return initialBackoffMs;
-    }
-
-    public int getMaximumBackoffMs() {
-      return maximumBackoffMs;
-    }
-
-    public double getBackoffFactor() {
-      return backoffFactor;
-    }
-  }
-
-  /**
-   * Builder class for BackoffConfig
-   */
-  public static class BackoffConfigBuilder implements Serializable {
-    public int initialBackoffMs = 100;
-    public int maximumBackoffMs = 10000;
-    public double backoffFactor = 2.0;
-
-    protected BackoffConfigBuilder() {
-    }
-
-    public static BackoffConfigBuilder getInstance() {
-      return new BackoffConfigBuilder();
-    }
-
-    public BackoffConfig build() {
-      if (initialBackoffMs > maximumBackoffMs) {
-        throw new IllegalArgumentException("Maximum backoff cannot be smaller than Initial backoff");
-      }
-
-      return new BackoffConfig(initialBackoffMs, maximumBackoffMs, backoffFactor);
-    }
-
-    public int getInitialBackoffMs() {
-      return initialBackoffMs;
-    }
-
-    public BackoffConfigBuilder setInitialBackoffMs(int initialBackoffMs) {
-      this.initialBackoffMs = initialBackoffMs;
-      return this;
-    }
-
-    public int getMaximumBackoffMs() {
-      return maximumBackoffMs;
-    }
-
-    public BackoffConfigBuilder setMaximumBackoffMs(int maximumBackoffMs) {
-      this.maximumBackoffMs = maximumBackoffMs;
-      return this;
-    }
-
-    public double getBackoffFactor() {
-      return backoffFactor;
-    }
-
-    public BackoffConfigBuilder setBackoffFactor(int backoffFactor) {
-      this.backoffFactor = backoffFactor;
-      return this;
-    }
+    return PubSubSubscriberUtil.isApiExceptionRetryable(ae);
   }
 
   /**

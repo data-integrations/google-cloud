@@ -65,7 +65,7 @@ public class PubSubReceiverSubscriptionTest {
   @Mock
   SubscriptionAdminClient subscriptionAdminClient;
   @Mock
-  PubSubReceiver.BackoffConfig backoffConfig;
+  BackoffConfig backoffConfig;
   @Mock
   ScheduledThreadPoolExecutor executor;
   @Mock

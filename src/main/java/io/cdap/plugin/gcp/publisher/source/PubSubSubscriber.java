@@ -48,8 +48,7 @@ public abstract class PubSubSubscriber<T> extends StreamingSource<T> {
       throw new IllegalArgumentException("Mapping Function must be specified for a PubSubSubscriber");
     }
 
-    return (JavaDStream<T>) PubSubSubscriberUtil.getStream(context, config)
-      .map(pubSubMessage -> mappingFunction.apply(pubSubMessage));
+    return PubSubSubscriberUtil.getStream(context, config, mappingFunction);
   }
 
   @Override
