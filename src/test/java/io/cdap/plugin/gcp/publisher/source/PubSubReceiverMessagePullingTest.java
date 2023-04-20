@@ -73,7 +73,7 @@ public class PubSubReceiverMessagePullingTest {
   @Mock
   UnaryCallable<AcknowledgeRequest, Empty> acknowledgeCallable;
   @Mock
-  PubSubReceiver.BackoffConfig backoffConfig;
+  BackoffConfig backoffConfig;
   @Mock
   ScheduledThreadPoolExecutor executor;
 
