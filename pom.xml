@@ -96,7 +96,7 @@
     <junit.version>4.13.1</junit.version>
     <powermock.version>2.0.2</powermock.version>
     <slf4j.version>1.7.5</slf4j.version>
-    <spark3.version>3.1.1</spark3.version>
+    <spark3.version>3.4.0</spark3.version>
     <spark-bq-connector.version>0.23.1</spark-bq-connector.version>
     <testSourceLocation>${project.basedir}/src/test/java/</testSourceLocation>
   </properties>
