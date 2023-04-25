@@ -16,6 +16,7 @@
 package io.cdap.plugin.gcp.publisher.source;
 
 import com.google.api.gax.core.FixedCredentialsProvider;
+import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.ApiException;
 import com.google.api.gax.rpc.StatusCode;
 import com.google.auth.Credentials;
@@ -29,6 +30,7 @@ import org.apache.spark.streaming.dstream.DStream;
 import org.apache.spark.streaming.dstream.ReceiverInputDStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.threeten.bp.Duration;
 import scala.collection.JavaConverters;
 import scala.reflect.ClassTag;
 
@@ -58,6 +60,7 @@ public final class PubSubSubscriberUtil {
   private static final Set<Integer> RETRYABLE_STATUS_CODES =
     Stream.of(RESOURCE_EXHAUSTED, CANCELLED, INTERNAL, UNAVAILABLE, DEADLINE_EXCEEDED).
       collect(Collectors.toSet());
+  private static final int MAX_ATTEMPTS = 5;
 
   private PubSubSubscriberUtil() {
   }
@@ -70,17 +73,16 @@ public final class PubSubSubscriberUtil {
    * @return JavaDStream of all received pub/sub messages.
    * @throws Exception when the credentials could not be loaded.
    */
-  public static JavaDStream<PubSubMessage> getStream(StreamingContext streamingContext,
-                                                     PubSubSubscriberConfig config) throws Exception {
+  public static <T> JavaDStream<T> getStream(
+    StreamingContext streamingContext, PubSubSubscriberConfig config,
+    SerializableFunction<PubSubMessage, T> mappingFunction) throws Exception {
+
     boolean autoAcknowledge = true;
     if (streamingContext.isPreviewEnabled()) {
       autoAcknowledge = false;
     }
 
-    JavaDStream<PubSubMessage> stream =
-      getInputDStream(streamingContext, config, autoAcknowledge);
-
-    return stream;
+    return getInputDStream(streamingContext, config, autoAcknowledge, mappingFunction);
   }
 
   /**
@@ -92,9 +94,19 @@ public final class PubSubSubscriberUtil {
    * @return JavaDStream containing all received messages.
    */
   @SuppressWarnings("unchecked")
-  protected static JavaDStream<PubSubMessage> getInputDStream(StreamingContext streamingContext,
-                                                              PubSubSubscriberConfig config,
-                                                              boolean autoAcknowledge) {
+  protected static <T> JavaDStream<T> getInputDStream(StreamingContext streamingContext,
+                                                      PubSubSubscriberConfig config,
+                                                      boolean autoAcknowledge,
+                                                      SerializableFunction<PubSubMessage, T> mappingFn) {
+    if (streamingContext.isStateStoreEnabled()) {
+      ClassTag<PubSubMessage> tag = scala.reflect.ClassTag$.MODULE$.apply(PubSubMessage.class);
+      PubSubDirectDStream pubSubDirectDStream = new PubSubDirectDStream(streamingContext, config,
+                                                                        streamingContext.getBatchInterval(),
+                                                                        autoAcknowledge,
+                                                                        mappingFn);
+      return new JavaDStream<>(pubSubDirectDStream, tag);
+    }
+
     ArrayList<DStream<PubSubMessage>> receivers = new ArrayList<>(config.getNumberOfReaders());
     ClassTag<PubSubMessage> tag = scala.reflect.ClassTag$.MODULE$.apply(PubSubMessage.class);
 
@@ -108,17 +120,17 @@ public final class PubSubSubscriberUtil {
     DStream<PubSubMessage> dStream = streamingContext.getSparkStreamingContext().ssc()
       .union(JavaConverters.collectionAsScalaIterableConverter(receivers).asScala().toSeq(), tag);
 
-    return new JavaDStream<>(dStream, tag);
+    return new JavaDStream<>(dStream, tag).map(message -> mappingFn.apply(message));
   }
 
   /**
    * Create a new subscription (if needed) for the supplied topic.
    *
-   * @param preCheck      Any checks that need to be applied before each retry.
-   * @param backoffConfig {@link BackoffConfig} for retries.
-   * @param subscription  Subscription name string.
-   * @param topic         Topic name string.
-   * @param clientSupplier Supplier for creating {@link SubscriptionAdminClient}
+   * @param preCheck             Any checks that need to be applied before each retry.
+   * @param backoffConfig        {@link BackoffConfig} for retries.
+   * @param subscription         Subscription name string.
+   * @param topic                Topic name string.
+   * @param clientSupplier       Supplier for creating {@link SubscriptionAdminClient}
    * @param isRetryableException Predicate for checking if the exception is retryable.
    * @throws InterruptedException If the wait for retry is interrupted.
    * @throws IOException          If {@link SubscriptionAdminClient} cannot be created.
@@ -175,6 +187,14 @@ public final class PubSubSubscriberUtil {
    */
   public static boolean isApiExceptionRetryable(ApiException ae) {
     return ae.isRetryable() || RETRYABLE_STATUS_CODES.contains(ae.getStatusCode().getCode().getHttpStatusCode());
+  }
+
+  public static RetrySettings getRetrySettings() {
+    BackoffConfig backoffConfig = BackoffConfig.defaultInstance();
+    return RetrySettings.newBuilder()
+      .setInitialRetryDelay(Duration.ofMillis(backoffConfig.getInitialBackoffMs()))
+      .setMaxRetryDelay(Duration.ofMillis(backoffConfig.getMaximumBackoffMs()))
+      .setRetryDelayMultiplier(backoffConfig.getBackoffFactor()).setMaxAttempts(MAX_ATTEMPTS).build();
   }
 
   private static SubscriptionAdminClient buildSubscriptionAdminClient(Credentials credentials) throws IOException {
