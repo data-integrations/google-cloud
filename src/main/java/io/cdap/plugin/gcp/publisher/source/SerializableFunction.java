@@ -15,6 +15,8 @@
  */
 package io.cdap.plugin.gcp.publisher.source;
 
+import scala.Function1;
+
 import java.io.Serializable;
 import java.util.function.Function;
 
@@ -23,5 +25,5 @@ import java.util.function.Function;
  * @param <T> the type of the input to the function
  * @param <R> the type of the result of the function
  */
-public interface SerializableFunction<T, R> extends Function<T, R>, Serializable {
+public interface SerializableFunction<T, R> extends Function<T, R>, Function1<T, R>, Serializable {
 }
