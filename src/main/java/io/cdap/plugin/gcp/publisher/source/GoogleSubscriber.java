@@ -24,8 +24,12 @@ import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.streaming.StreamingSource;
 import io.cdap.cdap.etl.api.streaming.StreamingSourceContext;
+import io.cdap.cdap.etl.api.streaming.StreamingStateHandler;
+import io.cdap.cdap.features.Feature;
 import io.cdap.plugin.common.LineageRecorder;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -34,7 +38,7 @@ import java.util.stream.Collectors;
 @Plugin(type = StreamingSource.PLUGIN_TYPE)
 @Name("GoogleSubscriber")
 @Description("Streaming Source to read messages from Google PubSub.")
-public class GoogleSubscriber extends PubSubSubscriber<StructuredRecord> {
+public class GoogleSubscriber extends PubSubSubscriber<StructuredRecord> implements StreamingStateHandler {
 
   private GoogleSubscriberConfig config;
 
@@ -52,6 +56,17 @@ public class GoogleSubscriber extends PubSubSubscriber<StructuredRecord> {
     FailureCollector collector = pipelineConfigurer.getStageConfigurer().getFailureCollector();
     config.validate(collector);
     pipelineConfigurer.getStageConfigurer().setOutputSchema(config.getSchema());
+    if (!pipelineConfigurer.isFeatureEnabled(Feature.STREAMING_PIPELINE_NATIVE_STATE_TRACKING.getFeatureFlagString())) {
+      return;
+    }
+
+    // A seek is required on the snapshot for preventing data loss when a failure retry happens.
+    // To ensure this happens and is consistent for all partitions, task and stage retries are disabled.
+    // Job has a retry which will make sure seek is done before retrying .
+    Map<String, String> additionalProps = new HashMap<>();
+    additionalProps.put("spark.task.maxFailures", "1");
+    additionalProps.put("spark.stage.maxConsecutiveAttempts", "1");
+    pipelineConfigurer.setPipelineProperties(additionalProps);
   }
 
   @Override
