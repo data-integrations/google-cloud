@@ -23,6 +23,7 @@ import com.google.auth.Credentials;
 import com.google.cloud.pubsub.v1.SubscriptionAdminClient;
 import com.google.cloud.pubsub.v1.SubscriptionAdminSettings;
 import com.google.pubsub.v1.PushConfig;
+import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.etl.api.streaming.StreamingContext;
 import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.api.java.JavaDStream;
@@ -187,6 +188,17 @@ public final class PubSubSubscriberUtil {
    */
   public static boolean isApiExceptionRetryable(ApiException ae) {
     return ae.isRetryable() || RETRYABLE_STATUS_CODES.contains(ae.getStatusCode().getCode().getHttpStatusCode());
+  }
+
+  /**
+   * Return the mapping function to convert PubSubMessage to StructuredRecord.
+   *
+   * @param config {@link GoogleSubscriberConfig}
+   * @return {@link SerializableFunction}
+   */
+  public static SerializableFunction<PubSubMessage, StructuredRecord>
+  getMappingFunction(GoogleSubscriberConfig config) {
+    return new PubSubStructuredRecordConverter(config);
   }
 
   public static RetrySettings getRetrySettings() {

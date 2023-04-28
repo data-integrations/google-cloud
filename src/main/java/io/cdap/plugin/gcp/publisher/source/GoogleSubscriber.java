@@ -45,10 +45,8 @@ public class GoogleSubscriber extends PubSubSubscriber<StructuredRecord> impleme
   public GoogleSubscriber(GoogleSubscriberConfig config) {
     super(config);
     this.config = config;
-
-    //Set mapping function for output records.
-    super.setMappingFunction(new PubSubStructuredRecordConverter(config));
   }
+
 
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
@@ -82,5 +80,10 @@ public class GoogleSubscriber extends PubSubSubscriber<StructuredRecord> impleme
       recorder.recordRead("Read", "Read from Pub/Sub",
                           schema.getFields().stream().map(Schema.Field::getName).collect(Collectors.toList()));
     }
+  }
+
+  @Override
+  public SerializableFunction<PubSubMessage, StructuredRecord> getMappingFunction() {
+    return PubSubSubscriberUtil.getMappingFunction(config);
   }
 }
