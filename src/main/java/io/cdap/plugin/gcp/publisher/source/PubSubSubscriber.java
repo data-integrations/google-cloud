@@ -38,14 +38,14 @@ public abstract class PubSubSubscriber<T> extends StreamingSource<T> {
     this.mappingFunction = mappingFunction;
   }
 
-  protected void setMappingFunction(SerializableFunction<PubSubMessage, T> mappingFunction) {
-    this.mappingFunction = mappingFunction;
-  }
-
   @Override
   public JavaDStream<T> getStream(StreamingContext context) throws Exception {
     if (mappingFunction == null) {
-      throw new IllegalArgumentException("Mapping Function must be specified for a PubSubSubscriber");
+      SerializableFunction<PubSubMessage, T> serializableFunction = getMappingFunction();
+      if (serializableFunction == null) {
+        throw new IllegalArgumentException("Mapping Function must be specified for a PubSubSubscriber");
+      }
+      mappingFunction = serializableFunction;
     }
 
     return PubSubSubscriberUtil.getStream(context, config, mappingFunction);
@@ -56,4 +56,10 @@ public abstract class PubSubSubscriber<T> extends StreamingSource<T> {
     return config.getNumberOfReaders();
   }
 
+  /**
+   * Get the mapping function
+   *
+   * @return {@link SerializableFunction<PubSubMessage, T>}
+   */
+  public abstract SerializableFunction<PubSubMessage, T> getMappingFunction();
 }
