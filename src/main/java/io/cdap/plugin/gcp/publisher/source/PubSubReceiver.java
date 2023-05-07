@@ -205,9 +205,9 @@ public class PubSubReceiver extends Receiver<PubSubMessage> {
       return;
     }
 
-    try {
+    try (SubscriptionAdminClient subscriptionAdminClient = buildSubscriptionAdminClient()) {
       PubSubSubscriberUtil.createSubscription(() -> !isStopped(), backoffConfig, subscription, topic,
-                                              this::buildSubscriptionAdminClient, this::isApiExceptionRetryable);
+                                              () -> subscriptionAdminClient, this::isApiExceptionRetryable);
     } catch (InterruptedException e) {
       stop(INTERRUPTED_EXCEPTION_MSG, e);
     } catch (IOException e) {
