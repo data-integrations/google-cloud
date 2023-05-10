@@ -94,18 +94,18 @@ public class PubSubDirectDStream<T> extends InputDStream<T> implements Streaming
 
   @Override
   public void start() {
+    try {
+      subscriptionAdminClient = buildSubscriptionAdminClient(credentials);
+    } catch (IOException e) {
+      throw new RuntimeException("SubscriptionAdminClient creation failed.", e);
+    }
+
     if (config.getTopic() != null) {
       try {
         createSubscriptionIfNotPresent();
       } catch (IOException | InterruptedException e) {
         throw new RuntimeException("Subscription creation failed.", e);
       }
-    }
-
-    try {
-      subscriptionAdminClient = buildSubscriptionAdminClient(credentials);
-    } catch (IOException e) {
-      throw new RuntimeException("SubscriptionAdminClient creation failed.", e);
     }
 
     // If state with snapshot is present, seek to it.

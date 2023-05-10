@@ -148,8 +148,8 @@ public final class PubSubSubscriberUtil {
 
     while (preCheck.getAsBoolean() && attempts-- > 0) {
 
-      try (SubscriptionAdminClient subscriptionAdminClient = clientSupplier.get()) {
-
+      try {
+        SubscriptionAdminClient subscriptionAdminClient = clientSupplier.get();
         int ackDeadline = 60; // 60 seconds before resending the message.
         subscriptionAdminClient.createSubscription(
           subscription, topic, PushConfig.getDefaultInstance(), ackDeadline);

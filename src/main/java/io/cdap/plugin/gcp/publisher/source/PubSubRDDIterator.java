@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import scala.collection.Iterator;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -48,6 +49,8 @@ public class PubSubRDDIterator implements Iterator<PubSubMessage> {
 
   private static final Logger LOG = LoggerFactory.getLogger(PubSubRDDIterator.class);
   private static final int MAX_MESSAGES = 1000;
+  private static final int MAX_MESSAGE_SIZE = 20 * 1024 * 1024; //20 MB. Max size for "data" field of a message is 10MB.
+  private static final int RETRY_DELAY = 100;
 
   private final long startTime;
   private final PubSubSubscriberConfig config;
@@ -82,14 +85,15 @@ public class PubSubRDDIterator implements Iterator<PubSubMessage> {
     }
 
     long currentTimeMillis = System.currentTimeMillis();
-    if (currentTimeMillis >= (startTime + batchDuration)) {
+    long expiryTimeMillis = startTime + batchDuration;
+    if (currentTimeMillis >= expiryTimeMillis) {
       LOG.debug("Time exceeded for batch. Total time is {} millis. Total messages returned is {} .",
                 currentTimeMillis - startTime, messageCount);
       return false;
     }
 
     try {
-      List<ReceivedMessage> messages = fetchAndAck();
+      List<ReceivedMessage> messages = fetchAndAck(expiryTimeMillis);
       //If there are no messages to process, continue.
       if (messages.isEmpty()) {
         LOG.debug("No more messages. Total messages returned is {} .", messageCount);
@@ -119,11 +123,14 @@ public class PubSubRDDIterator implements Iterator<PubSubMessage> {
     if (credentials != null) {
       builder.setCredentialsProvider(FixedCredentialsProvider.create(credentials));
     }
+    builder.setTransportChannelProvider(
+      SubscriberStubSettings.defaultGrpcTransportProviderBuilder()
+        .setMaxInboundMessageSize(MAX_MESSAGE_SIZE).build());
     builder.getSubscriptionSettings().setRetrySettings(PubSubSubscriberUtil.getRetrySettings());
     return GrpcSubscriberStub.create(builder.build());
   }
 
-  private List<ReceivedMessage> fetchAndAck() throws IOException {
+  private List<ReceivedMessage> fetchAndAck(long expiryTimeMillis) throws IOException {
     if (this.subscriber == null) {
       this.subscriber = buildSubscriberClient();
       context.addTaskCompletionListener(context1 -> {
@@ -142,16 +149,33 @@ public class PubSubRDDIterator implements Iterator<PubSubMessage> {
         .build();
     }
 
-    PullResponse pullResponse = subscriber.pullCallable().call(pullRequest);
-    List<ReceivedMessage> receivedMessagesList = pullResponse.getReceivedMessagesList();
-    if (receivedMessagesList.isEmpty()) {
+    // From  the docs - "A pull response that comes with 0 messages must not be used as an indicator that there are no
+    // messages in the backlog. It's possible to get a response with 0 messages and have a subsequent
+    // request that returns messages." Since 0 messages do not indicate a lack of available messages, a fixed delay
+    // is included  between retries instead of exponential backoff.
+    // Messages will be read till batch duration completes, to account for messages published
+    // later in the batch. No documented quota on the number of synchronous subscriber requests and no issues observed
+    // in testing when repeated calls are made when no data is available in the subscription.
+    while (System.currentTimeMillis() < expiryTimeMillis) {
+      PullResponse pullResponse = subscriber.pullCallable().call(pullRequest);
+      List<ReceivedMessage> receivedMessagesList = pullResponse.getReceivedMessagesList();
+      if (receivedMessagesList.isEmpty()) {
+        // Delay before re-attempt
+        try {
+          TimeUnit.MILLISECONDS.sleep(RETRY_DELAY);
+        } catch (InterruptedException e) {
+          LOG.debug("Interrupted while waiting for retry. ", e);
+          return Collections.EMPTY_LIST;
+        }
+        continue;
+      }
+
+      List<String> ackIds =
+        receivedMessagesList.stream().map(ReceivedMessage::getAckId).collect(Collectors.toList());
+      ackMessages(ackIds, autoAcknowledge, subscriptionFormatted);
       return receivedMessagesList;
     }
-
-    List<String> ackIds =
-      receivedMessagesList.stream().map(ReceivedMessage::getAckId).collect(Collectors.toList());
-    ackMessages(ackIds, autoAcknowledge, subscriptionFormatted);
-    return receivedMessagesList;
+    return Collections.EMPTY_LIST;
   }
 
   private void ackMessages(List<String> ackIds, boolean autoAcknowledge, String subscriptionFormatted) {
