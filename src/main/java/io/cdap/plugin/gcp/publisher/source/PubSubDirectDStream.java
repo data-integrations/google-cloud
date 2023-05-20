@@ -21,6 +21,7 @@ import com.google.api.gax.rpc.NotFoundException;
 import com.google.auth.Credentials;
 import com.google.cloud.pubsub.v1.SubscriptionAdminClient;
 import com.google.cloud.pubsub.v1.SubscriptionAdminSettings;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.pubsub.v1.CreateSnapshotRequest;
 import com.google.pubsub.v1.ProjectSnapshotName;
@@ -248,9 +249,22 @@ public class PubSubDirectDStream<T> extends InputDStream<T> implements Streaming
     CreateSnapshotRequest request = CreateSnapshotRequest.newBuilder()
       .setName(projectSnapshotName.toString())
       .setSubscription(projectSubscriptionName.toString())
-      .putAllLabels(Collections.singletonMap(CDAP_PIPELINE, pipeline))
+      .putAllLabels(Collections.singletonMap(CDAP_PIPELINE, getLabelValue(pipeline)))
       .build();
     return subscriptionAdminClient.createSnapshot(request);
+  }
+
+  @VisibleForTesting
+  static String getLabelValue(String pipeline) {
+    // Pipeline name will match this regex - [a-zA-Z0-9_-]+
+    // Label value reqs - Max length of 63, only lowercase letters, numeric characters, underscores, and dashes.
+    // All characters must use UTF-8 encoding, and international characters are allowed
+    String labelValue = pipeline.toLowerCase();
+    if (labelValue.length() > 63) {
+      labelValue = labelValue.substring(0, 63);
+      LOG.debug("Trimming pipeline name to 63 chars to add as label for snapshot.");
+    }
+    return labelValue;
   }
 
   private void deleteSnapshot(ProjectSnapshotName projectSnapshotName) {
