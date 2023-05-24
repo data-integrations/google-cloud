@@ -30,7 +30,6 @@ import com.google.pubsub.v1.SeekRequest;
 import com.google.pubsub.v1.Snapshot;
 import com.google.pubsub.v1.TopicName;
 import io.cdap.cdap.etl.api.streaming.StreamingEventHandler;
-import io.cdap.plugin.gcp.common.GCPUtils;
 import org.apache.spark.rdd.RDD;
 import org.apache.spark.streaming.StreamingContext;
 import org.apache.spark.streaming.Time;
@@ -81,14 +80,15 @@ public class PubSubDirectDStream<T> extends InputDStream<T> implements Streaming
     this.autoAcknowledge = autoAcknowledge;
     this.mappingFn = mappingFn;
     this.pipeline = context.getPipelineName();
-    this.credentials = createCredentials(config.getServiceAccount(), config.isServiceAccountFilePath());
+    this.credentials = PubSubSubscriberUtil.createCredentials(config.getServiceAccount(),
+                                                              config.isServiceAccountFilePath());
   }
 
   @Override
   public Option<RDD<T>> compute(Time validTime) {
     LOG.debug("Computing RDD for time {}.", validTime);
     PubSubRDD pubSubRDD = new PubSubRDD(streamingContext.sparkContext(), validTime, readDuration, config,
-                                        autoAcknowledge, credentials);
+                                        autoAcknowledge);
     RDD<T> mapped = pubSubRDD.map(mappingFn, scala.reflect.ClassTag$.MODULE$.apply(PubSubMessage.class));
     return Option.apply(mapped);
   }
@@ -292,14 +292,5 @@ public class PubSubDirectDStream<T> extends InputDStream<T> implements Streaming
     builder.deleteSnapshotSettings().setRetrySettings(retrySettings);
 
     return SubscriptionAdminClient.create(builder.build());
-  }
-
-  private Credentials createCredentials(String serviceAccount, boolean serviceAccountFilePath) {
-    try {
-      return serviceAccount == null ? null : GCPUtils.loadServiceAccountCredentials(serviceAccount,
-                                                                                    serviceAccountFilePath);
-    } catch (IOException e) {
-      throw new RuntimeException("error creating credentials from service account.", e);
-    }
   }
 }
