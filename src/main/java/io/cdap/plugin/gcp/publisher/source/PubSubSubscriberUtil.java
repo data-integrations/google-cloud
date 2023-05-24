@@ -25,6 +25,7 @@ import com.google.cloud.pubsub.v1.SubscriptionAdminSettings;
 import com.google.pubsub.v1.PushConfig;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.etl.api.streaming.StreamingContext;
+import io.cdap.plugin.gcp.common.GCPUtils;
 import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.dstream.DStream;
@@ -43,6 +44,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.annotation.Nullable;
 
 /**
  * Utility class to create a JavaDStream of received messages.
@@ -207,6 +209,22 @@ public final class PubSubSubscriberUtil {
       .setInitialRetryDelay(Duration.ofMillis(backoffConfig.getInitialBackoffMs()))
       .setMaxRetryDelay(Duration.ofMillis(backoffConfig.getMaximumBackoffMs()))
       .setRetryDelayMultiplier(backoffConfig.getBackoffFactor()).setMaxAttempts(MAX_ATTEMPTS).build();
+  }
+
+  /**
+   * Create {@link Credentials} based on the params.
+   * @param serviceAccount Service account string, could be a path or JSON.
+   * @param serviceAccountFilePath Indicates whether first param is service account path.
+   * @return {@link Credentials} or null.
+   */
+  @Nullable
+  public static Credentials createCredentials(String serviceAccount, boolean serviceAccountFilePath) {
+    try {
+      return serviceAccount == null ? null : GCPUtils.loadServiceAccountCredentials(serviceAccount,
+                                                                                    serviceAccountFilePath);
+    } catch (IOException e) {
+      throw new RuntimeException("Error creating credentials from service account.", e);
+    }
   }
 
   private static SubscriptionAdminClient buildSubscriptionAdminClient(Credentials credentials) throws IOException {

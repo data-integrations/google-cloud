@@ -56,7 +56,6 @@ public class PubSubRDDIterator implements Iterator<PubSubMessage> {
   private final PubSubSubscriberConfig config;
   private final TaskContext context;
   private final long batchDuration;
-  private final Credentials credentials;
   private final String subscriptionFormatted;
   private final boolean autoAcknowledge;
   private final Queue<ReceivedMessage> receivedMessages;
@@ -66,11 +65,10 @@ public class PubSubRDDIterator implements Iterator<PubSubMessage> {
   private long messageCount;
 
   public PubSubRDDIterator(PubSubSubscriberConfig config, TaskContext context, Time batchTime, long batchDuration,
-                           boolean autoAcknowledge, Credentials credentials) {
+                           boolean autoAcknowledge) {
     this.config = config;
     this.context = context;
     this.batchDuration = batchDuration;
-    this.credentials = credentials;
     this.startTime = batchTime.milliseconds();
     this.autoAcknowledge = autoAcknowledge;
     subscriptionFormatted = ProjectSubscriptionName.format(this.config.getProject(), this.config.getSubscription());
@@ -120,6 +118,8 @@ public class PubSubRDDIterator implements Iterator<PubSubMessage> {
 
   private SubscriberStub buildSubscriberClient() throws IOException {
     SubscriberStubSettings.Builder builder = SubscriberStubSettings.newBuilder();
+    Credentials credentials = PubSubSubscriberUtil.createCredentials(config.getServiceAccount(),
+                                                                     config.isServiceAccountFilePath());
     if (credentials != null) {
       builder.setCredentialsProvider(FixedCredentialsProvider.create(credentials));
     }
