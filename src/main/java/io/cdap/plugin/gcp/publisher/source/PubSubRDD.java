@@ -15,7 +15,6 @@
  */
 package io.cdap.plugin.gcp.publisher.source;
 
-import com.google.auth.Credentials;
 import org.apache.spark.Partition;
 import org.apache.spark.SparkContext;
 import org.apache.spark.TaskContext;
@@ -38,23 +37,21 @@ public class PubSubRDD extends RDD<PubSubMessage> {
   private final long readDuration;
   private final PubSubSubscriberConfig config;
   private final boolean autoAcknowledge;
-  private final Credentials credentials;
 
   PubSubRDD(SparkContext sparkContext, Time batchTime, long readDuration, PubSubSubscriberConfig config,
-            boolean autoAcknowledge, Credentials credentials) {
+            boolean autoAcknowledge) {
     super(sparkContext, scala.collection.JavaConverters.asScalaBuffer(Collections.emptyList()),
           scala.reflect.ClassTag$.MODULE$.apply(PubSubMessage.class));
     this.batchTime = batchTime;
     this.readDuration = readDuration;
     this.config = config;
     this.autoAcknowledge = autoAcknowledge;
-    this.credentials = credentials;
   }
 
   @Override
   public Iterator<PubSubMessage> compute(Partition split, TaskContext context) {
     LOG.debug("Computing for partition {} .", split.index());
-    return new PubSubRDDIterator(config, context, batchTime, readDuration, autoAcknowledge, credentials);
+    return new PubSubRDDIterator(config, context, batchTime, readDuration, autoAcknowledge);
   }
 
   @Override
