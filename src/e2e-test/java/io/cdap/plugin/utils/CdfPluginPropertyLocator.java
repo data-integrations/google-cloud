@@ -33,6 +33,8 @@ public enum CdfPluginPropertyLocator {
   PUBSUB_ERROR_THRESHOLD("errorThreshold"),
   OUTPUT_SCHEMA_MACRO_INPUT("Output Schema-macro-input"),
   GCS_DELETE_OBJECTS_TO_DELETE("paths"),
+  GCS_CREATE_OBJECTS_TO_CREATE("paths"),
+  GCS_CREATE_FAIL_IF_OBJECT_EXISTS("failIfExists"),
   GCS_MOVE_SOURCE_PATH("sourcePath"),
   GCS_MOVE_DESTINATION_PATH("destPath");
 
@@ -68,6 +70,8 @@ public enum CdfPluginPropertyLocator {
       .put("errorThreshold", CdfPluginPropertyLocator.PUBSUB_ERROR_THRESHOLD)
       .put("outputSchema", CdfPluginPropertyLocator.OUTPUT_SCHEMA_MACRO_INPUT)
       .put("objectsToDelete", CdfPluginPropertyLocator.GCS_DELETE_OBJECTS_TO_DELETE)
+      .put("objectsToCreate", CdfPluginPropertyLocator.GCS_CREATE_OBJECTS_TO_CREATE)
+      .put("createFailIfObjectExists", CdfPluginPropertyLocator.GCS_CREATE_FAIL_IF_OBJECT_EXISTS)
       .put("gcsMoveSourcePath", CdfPluginPropertyLocator.GCS_MOVE_SOURCE_PATH)
       .put("gcsMoveDestinationPath", CdfPluginPropertyLocator.GCS_MOVE_DESTINATION_PATH)
       .build();
