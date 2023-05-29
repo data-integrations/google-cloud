@@ -36,6 +36,12 @@ public class GCSMoveLocators {
   @FindBy(how = How.XPATH, using = "//input[@data-cy='destPath']")
   public static WebElement gcsMoveDestinationPath;
 
+  @FindBy(how = How.XPATH, using = "//input[@data-cy='serviceFilePath']")
+  public static WebElement gcsServiceAccountFilePath;
+
+  @FindBy(how = How.XPATH, using = "//input[@data-cy='path']")
+  public static WebElement gcsDoneFileMarkerPath;
+
   public static WebElement moveAllSubdirectories(String value) {
     return SeleniumDriver.getDriver().findElement(By.xpath("//input[@name='recursive' and @value='" + value + "']"));
   }

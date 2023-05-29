@@ -42,6 +42,14 @@ public class GCSMoveActions {
     ElementHelper.replaceElementValue(GCSMoveLocators.gcsMoveDestinationPath, destinationPath);
   }
 
+  public static void enterFileMarkerPath(String path) {
+    ElementHelper.replaceElementValue(GCSMoveLocators.gcsDoneFileMarkerPath, path);
+  }
+
+  public static void enterServiceAccountFilePath(String path) {
+    ElementHelper.replaceElementValue(GCSMoveLocators.gcsServiceAccountFilePath, path);
+  }
+
   public static void selectMoveAllSubdirectories(String value) {
     ElementHelper.selectRadioButton(GCSMoveLocators.moveAllSubdirectories(value));
   }
