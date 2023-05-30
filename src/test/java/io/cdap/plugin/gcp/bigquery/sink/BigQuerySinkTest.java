@@ -32,6 +32,7 @@ import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.validation.ValidationException;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
+import io.cdap.cdap.etl.mock.common.MockMetrics;
 import io.cdap.cdap.etl.mock.common.MockStageMetrics;
 import io.cdap.cdap.etl.mock.validation.MockFailureCollector;
 import io.cdap.cdap.etl.spark.batch.SparkBatchSinkContext;
@@ -144,11 +145,14 @@ public class BigQuerySinkTest {
   private void testMetric(Job mockJob, long expectedCount, int invocations)
     throws NoSuchFieldException {
     BigQuerySink sink = getSinkToTest(mockJob);
+    MockMetrics mockMetrics = Mockito.spy(new MockMetrics());
     MockStageMetrics mockStageMetrics = Mockito.spy(new MockStageMetrics("test"));
     BatchSinkContext context = getContextWithMetrics(mockStageMetrics);
+    Mockito.when(mockStageMetrics.child(Mockito.any())).thenReturn(mockMetrics);
     sink.recordMetric(true, context);
     if (expectedCount > -1) {
       Assert.assertEquals(expectedCount, mockStageMetrics.getCount(AbstractBigQuerySink.RECORDS_UPDATED_METRIC));
+      Assert.assertEquals(expectedCount, mockMetrics.getCount(BigQuerySinkUtils.BYTES_PROCESSED_METRIC));
     }
     Mockito.verify(mockStageMetrics, times(invocations)).count(anyString(), anyInt());
   }
@@ -189,6 +193,7 @@ public class BigQuerySinkTest {
     JobStatistics.LoadStatistics loadStatistics = mock(JobStatistics.LoadStatistics.class);
     when(job.getStatistics()).thenReturn(loadStatistics);
     when(loadStatistics.getOutputRows()).thenReturn(count);
+    when(loadStatistics.getOutputBytes()).thenReturn(count);
     return job;
   }
 
@@ -200,6 +205,7 @@ public class BigQuerySinkTest {
     JobStatistics.QueryStatistics queryStatistics = mock(JobStatistics.QueryStatistics.class);
     when(job.getStatistics()).thenReturn(queryStatistics);
     when(queryStatistics.getNumDmlAffectedRows()).thenReturn(count);
+    when(queryStatistics.getTotalBytesProcessed()).thenReturn(count);
     return job;
   }
 
