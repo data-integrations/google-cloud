@@ -28,6 +28,9 @@ import io.cdap.plugin.utils.E2EHelper;
 import io.cdap.plugin.utils.E2ETestConstants;
 import io.cucumber.java.en.Then;
 import org.junit.Assert;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.support.FindBy;
+import org.openqa.selenium.support.How;
 import stepsdesign.BeforeActions;
 
 import java.io.IOException;
@@ -221,6 +224,35 @@ public class GCSMove implements E2EHelper {
       } else {
         Assert.fail(e.getMessage());
       }
+    }
+  }
+
+  @Then("Enter GCSMove property source path")
+  public void enterGCSMovePropertySourcePath() {
+    GCSMoveActions.enterSourcePath("gs://" + TestSetupHooks.gcsSourceBucketName);
+  }
+
+  @Then("Enter wrong value for GCSMove property service account file path")
+  public void enterWrongValueForGCSMovePropertyServiceAccountFilePath() {
+    GCSMoveActions.enterServiceAccountFilePath("/dummy/path/pipeline/to/file");
+  }
+
+  @Then("Verify whether the {string} object present in destination bucket")
+  public void verifyWhetherTheObjectPresentInDestinationBucket(String path) throws IOException {
+    String targetGCSBucket = TestSetupHooks.gcsTargetBucketName;
+    String gcsObject = PluginPropertyUtils.pluginProp(path);
+
+    boolean isObjectPresentInBucket = false;
+    for (Blob blob : StorageClient.listObjects(targetGCSBucket).iterateAll()) {
+      if (blob.getName().contains(gcsObject)) {
+        isObjectPresentInBucket = true;
+        break;
+      }
+    }
+    if (isObjectPresentInBucket) {
+      BeforeActions.scenario.write("Object is created in source GCS Bucket " + targetGCSBucket + " successfully");
+    } else {
+      Assert.fail("Object is not created in source bucket" + targetGCSBucket);
     }
   }
 }
