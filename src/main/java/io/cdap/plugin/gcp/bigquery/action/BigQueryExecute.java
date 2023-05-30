@@ -26,6 +26,7 @@ import com.google.cloud.bigquery.FieldValueList;
 import com.google.cloud.bigquery.Job;
 import com.google.cloud.bigquery.JobId;
 import com.google.cloud.bigquery.JobInfo;
+import com.google.cloud.bigquery.JobStatistics;
 import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.Schema;
@@ -33,6 +34,7 @@ import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableResult;
 import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
@@ -40,6 +42,7 @@ import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.action.Action;
 import io.cdap.cdap.etl.api.action.ActionContext;
+import io.cdap.cdap.etl.common.Constants;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.CmekUtils;
@@ -132,7 +135,7 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     LOG.debug("The BigQuery SQL is {}", config.getSql());
 
     // Wait for the query to complete
-    queryJob.waitFor();
+    queryJob = queryJob.waitFor();
 
     // Check for errors
     if (queryJob.getStatus().getError() != null) {
@@ -166,7 +169,16 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
       }
     }
 
+    long processedBytes =
+        ((JobStatistics.QueryStatistics) queryJob.getStatistics()).getTotalBytesProcessed();
+    LOG.info("Job {} processed {} bytes", queryJob.getJobId(), processedBytes);
+    Map<String, String> tags = new ImmutableMap.Builder<String, String>()
+        .put(Constants.Metrics.Tag.APP_ENTITY_TYPE, Action.PLUGIN_TYPE)
+        .put(Constants.Metrics.Tag.APP_ENTITY_TYPE_NAME, BigQueryExecute.NAME)
+        .build();
     context.getMetrics().gauge(RECORDS_PROCESSED, rows);
+    context.getMetrics().child(tags).gauge(BigQuerySinkUtils.BYTES_PROCESSED_METRIC,
+        processedBytes);
   }
 
   @Override
