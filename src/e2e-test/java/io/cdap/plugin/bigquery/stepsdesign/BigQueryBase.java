@@ -257,5 +257,4 @@ public class BigQueryBase implements E2EHelper {
     BeforeActions.scenario.write("Number of records transferred from source table to target table:" + count);
     Assert.assertEquals(count, countRecordsTarget);
   }
-  // Change to trigger the build
 }
