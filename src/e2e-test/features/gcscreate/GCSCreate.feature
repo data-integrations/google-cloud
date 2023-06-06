@@ -23,7 +23,7 @@ Feature: GCSCreate - Verification of GCS Create plugin
     Then Verify that the object "gcsCreateObject1" created successfully
     Then Verify that the object "gcsCreateObject2" created successfully
 
-  @GCS_CSV_TEST
+  @GCS_CSV_TEST @GCSCreate_Required
   Scenario: Verify the pipeline with GCSCreate should fail on second run when fail if objects exists is true
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
@@ -43,7 +43,7 @@ Feature: GCSCreate - Verification of GCS Create plugin
     Then Wait till pipeline is in running state
     Then Verify the pipeline status is "Failed"
 
-  @GCS_CSV_TEST
+  @GCS_CSV_TEST @GCSCreate_Required
   Scenario: Verify the pipeline with GCSCreate should not fail on second run when fail if objects exists is false
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
