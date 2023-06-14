@@ -20,10 +20,10 @@ import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.validation.FormatContext;
 import io.cdap.cdap.etl.api.validation.ValidatingOutputFormat;
-import io.cdap.plugin.gcp.bigquery.sink.AvroOutputFormat;
 import io.cdap.plugin.gcp.dataplex.common.util.DataplexConstants;
 import io.cdap.plugin.gcp.gcs.sink.GCSOutputFormatProvider;
 
+import org.apache.avro.mapred.AvroOutputFormat;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.JobContext;
@@ -36,7 +36,6 @@ import org.apache.hadoop.mapreduce.TaskID;
 import org.apache.hadoop.mapreduce.TaskType;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -163,7 +162,6 @@ public class DataPlexOutputFormatProviderTest {
    * Exception is thrown as output path is not provided here.
    */
   @Test
-  @Ignore
   public void testDataPexOutputCommitterWDifferentFormat()
       throws IOException, InterruptedException {
     Configuration configuration = new Configuration();
@@ -187,7 +185,6 @@ public class DataPlexOutputFormatProviderTest {
    * Exception is thrown as output path is not provided here.
    */
   @Test
-  @Ignore
   public void testOutputFormatWBigqueryDataset() throws IOException, InterruptedException {
     DataplexOutputFormatProvider.DataplexOutputFormat dataplexOutputFormat =
         new DataplexOutputFormatProvider.DataplexOutputFormat();
