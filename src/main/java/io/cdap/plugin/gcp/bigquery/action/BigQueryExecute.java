@@ -177,7 +177,7 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
         .put(Constants.Metrics.Tag.APP_ENTITY_TYPE_NAME, BigQueryExecute.NAME)
         .build();
     context.getMetrics().gauge(RECORDS_PROCESSED, rows);
-    context.getMetrics().child(tags).gauge(BigQuerySinkUtils.BYTES_PROCESSED_METRIC,
+    context.getMetrics().child(tags).countLong(BigQuerySinkUtils.BYTES_PROCESSED_METRIC,
         processedBytes);
   }
 

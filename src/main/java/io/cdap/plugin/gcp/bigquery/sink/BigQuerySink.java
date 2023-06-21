@@ -226,7 +226,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
         .put(Constants.Metrics.Tag.APP_ENTITY_TYPE_NAME, BigQuerySink.NAME)
         .build();
     long totalBytes = getTotalBytes(queryJob);
-    context.getMetrics().child(tags).gauge(BigQuerySinkUtils.BYTES_PROCESSED_METRIC, totalBytes);
+    context.getMetrics().child(tags).countLong(BigQuerySinkUtils.BYTES_PROCESSED_METRIC, totalBytes);
   }
 
   @Nullable
