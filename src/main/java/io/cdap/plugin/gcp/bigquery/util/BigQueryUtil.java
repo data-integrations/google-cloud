@@ -36,7 +36,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
-import io.cdap.cdap.etl.api.action.SettableArguments;
 import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
 import io.cdap.cdap.etl.api.validation.InvalidStageException;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
@@ -44,7 +43,6 @@ import io.cdap.plugin.gcp.bigquery.sink.BigQuerySink;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySource;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceConfig;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize.BigNumeric;
-import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize.Numeric;
 import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.GCSPath;
@@ -307,13 +305,8 @@ public final class BigQueryUtil {
       case TIMESTAMP:
         return Schema.of(Schema.LogicalType.TIMESTAMP_MICROS);
       case NUMERIC:
-        // bigquery has Numeric.PRECISION digits of precision and Numeric.SCALE digits of scale for NUMERIC.
-        // https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#decimal_types
-        return Schema.decimalOf(Numeric.PRECISION, Numeric.SCALE);
       case BIGNUMERIC:
-        // bigquery has BigNumeric.PRECISION digits of precision and BigNumeric.SCALE digits of scale for BIGNUMERIC.
-        // https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types#decimal_types
-        return Schema.decimalOf(BigNumeric.PRECISION, BigNumeric.SCALE);
+        return Schema.decimalOf(Math.toIntExact(field.getPrecision()), Math.toIntExact(field.getScale()));
       case STRUCT:
         FieldList fields = field.getSubFields();
         List<Schema.Field> schemaFields = new ArrayList<>();
