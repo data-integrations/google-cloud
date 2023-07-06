@@ -199,3 +199,69 @@ Feature: GCS sink - Verification of GCS Sink plugin
     Then Open and capture logs
     Then Verify the pipeline status is "Succeeded"
     Then Verify data is transferred to target GCS bucket
+
+  @BQ_SOURCE_DATATYPE_TEST @GCS_SINK_TEST
+  Scenario: To verify data is getting transferred successfully from BigQuery to GCS using json output format
+    Given Open Datafusion Project to configure pipeline
+    When Source is BigQuery
+    When Sink is GCS
+    Then Connect source as "BigQuery" and sink as "GCS" to establish connection
+    Then Open BigQuery source properties
+    Then Enter the BigQuery source mandatory properties
+    Then Click on the Get Schema button
+    Then Validate "BigQuery" plugin properties
+    Then Verify the Output Schema matches the Expected Schema: "bqSourceSchemaDatatype"
+    Then Close the BigQuery properties
+    Then Open GCS sink properties
+    Then Enter GCS property projectId and reference name
+    Then Enter GCS sink property path
+    Then Select GCS property format "json"
+    Then Validate "GCS" plugin properties
+    Then Close the GCS properties
+    Then Save the pipeline
+    Then Preview and run the pipeline
+    Then Wait till pipeline preview is in running state
+    Then Open and capture pipeline preview logs
+    Then Verify the preview run status of pipeline in the logs is "succeeded"
+    Then Close the pipeline logs
+    Then Close the preview
+    Then Deploy the pipeline
+    Then Run the Pipeline in Runtime
+    Then Wait till pipeline is in running state
+    Then Open and capture logs
+    Then Verify the pipeline status is "Succeeded"
+    Then Verify data is transferred to target GCS bucket
+    Then Validate the values of records transferred to GCS bucket is equal to the values from source BigQuery table
+
+  @BQ_SOURCE_TEST @GCS_SINK_TEST
+  Scenario: To verify data is getting transferred successfully from BigQuery to GCS using delimiter output format
+    Given Open Datafusion Project to configure pipeline
+    When Source is BigQuery
+    When Sink is GCS
+    Then Connect source as "BigQuery" and sink as "GCS" to establish connection
+    Then Open BigQuery source properties
+    Then Enter the BigQuery source mandatory properties
+    Then Click on the Get Schema button
+    Then Validate output schema with expectedSchema "bqSourceSchema"
+    Then Validate "BigQuery" plugin properties
+    Then Close the BigQuery properties
+    Then Open GCS sink properties
+    Then Enter GCS property projectId and reference name
+    Then Enter GCS sink property path
+    Then Select GCS property format "delimited"
+    Then Enter input plugin property: "delimiter" with value: "gcsDelimiter"
+    Then Validate "GCS" plugin properties
+    Then Close the GCS properties
+    Then Save the pipeline
+    Then Preview and run the pipeline
+    Then Wait till pipeline preview is in running state
+    Then Open and capture pipeline preview logs
+    Then Verify the preview run status of pipeline in the logs is "succeeded"
+    Then Close the pipeline logs
+    Then Close the preview
+    Then Deploy the pipeline
+    Then Run the Pipeline in Runtime
+    Then Wait till pipeline is in running state
+    Then Open and capture logs
+    Then Verify the pipeline status is "Succeeded"
+    Then Verify data is transferred to target GCS bucket
