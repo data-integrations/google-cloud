@@ -15,13 +15,14 @@
  */
 package io.cdap.plugin.spanner.stepsdesign;
 
+import io.cdap.e2e.pages.locators.CdfStudioLocators;
 import io.cdap.e2e.utils.BigQueryClient;
-import io.cdap.e2e.utils.CdfHelper;
 import io.cdap.e2e.utils.ElementHelper;
 import io.cdap.e2e.utils.PluginPropertyUtils;
 import io.cdap.plugin.common.stepsdesign.TestSetupHooks;
 import io.cdap.plugin.spanner.actions.SpannerActions;
 import io.cdap.plugin.spanner.locators.SpannerLocators;
+import io.cdap.plugin.utils.E2EHelper;
 import io.cdap.plugin.utils.SpannerClient;
 import io.cucumber.java.en.Then;
 import org.junit.Assert;
@@ -33,7 +34,7 @@ import java.util.Optional;
 /**
  * Spanner plugin related common test step definitions.
  */
-public class SpannerBase implements CdfHelper {
+public class SpannerBase implements E2EHelper {
 
   @Then("Enter Spanner property reference name")
   public void enterSpannerPropertyReferenceName() {
@@ -65,6 +66,11 @@ public class SpannerBase implements CdfHelper {
     int bqTargetRecordCount = BigQueryClient.countBqQuery(TestSetupHooks.bqTargetTable);
     BeforeActions.scenario.write("No of Records transferred to BigQuery :" + bqTargetRecordCount);
     Assert.assertEquals(spannerTableRecordCount, bqTargetRecordCount);
+  }
+
+  @Then("Enter Spanner property {string} as macro argument {string}")
+  public void enterSpannerPropertyAsMacroArgument(String pluginProperty, String macroArgument) {
+    enterPropertyAsMacroArgument(pluginProperty, macroArgument);
   }
 
   @Then("Validate records transferred to target BigQuery table with record counts of spanner Import Query {string}")
@@ -151,5 +157,15 @@ public class SpannerBase implements CdfHelper {
                                    + spannerTargetTableRecordCount);
 
     Assert.assertEquals(spannerSourceTableRecordCount, spannerTargetTableRecordCount);
+  }
+
+  @Then("Enter runtime argument value for Spanner Instance ID key {string}")
+  public void enterRuntimeArgumentValueForSpannerInstanceIDKey(String runtimeArgumentKey) {
+    ElementHelper.sendKeys(CdfStudioLocators.runtimeArgsValue(runtimeArgumentKey), TestSetupHooks.spannerInstance);
+  }
+
+  @Then("Enter runtime argument value for Spanner Database Name key {string}")
+  public void enterRuntimeArgumentValueForSpannerDatabaseNameKey(String runtimeArgumentKey) {
+    ElementHelper.sendKeys(CdfStudioLocators.runtimeArgsValue(runtimeArgumentKey), TestSetupHooks.spannerDatabase);
   }
 }
