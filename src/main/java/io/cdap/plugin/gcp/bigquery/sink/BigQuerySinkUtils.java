@@ -94,6 +94,7 @@ public final class BigQuerySinkUtils {
     Arrays.asList("=", "<", ">", "<=", ">=", "!=", "<>",
                   "LIKE", "NOT LIKE", "BETWEEN", "NOT BETWEEN", "IN", "NOT IN", "IS NULL", "IS NOT NULL",
                   "IS TRUE", "IS NOT TRUE", "IS FALSE", "IS NOT FALSE");
+  public static final String BYTES_PROCESSED_METRIC = "bytes.processed";
 
   /**
    * Creates the given dataset and bucket if they do not already exist. If the dataset already exists but the

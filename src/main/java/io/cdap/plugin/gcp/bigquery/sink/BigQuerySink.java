@@ -41,6 +41,7 @@ import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.connector.Connector;
 import io.cdap.cdap.etl.api.engine.sql.SQLEngineOutput;
+import io.cdap.cdap.etl.common.Constants;
 import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnector;
 import io.cdap.plugin.gcp.bigquery.sqlengine.BigQuerySQLEngine;
 import io.cdap.plugin.gcp.bigquery.sqlengine.BigQueryWrite;
@@ -54,6 +55,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -218,6 +220,13 @@ public final class BigQuerySink extends AbstractBigQuerySink {
       context.getMetrics().count(RECORDS_UPDATED_METRIC, rowCount);
       totalRows -= rowCount;
     }
+
+    Map<String, String> tags = new ImmutableMap.Builder<String, String>()
+        .put(Constants.Metrics.Tag.APP_ENTITY_TYPE, BatchSink.PLUGIN_TYPE)
+        .put(Constants.Metrics.Tag.APP_ENTITY_TYPE_NAME, BigQuerySink.NAME)
+        .build();
+    long totalBytes = getTotalBytes(queryJob);
+    context.getMetrics().child(tags).countLong(BigQuerySinkUtils.BYTES_PROCESSED_METRIC, totalBytes);
   }
 
   @Nullable
@@ -254,6 +263,22 @@ public final class BigQuerySink extends AbstractBigQuerySink {
       return ((JobStatistics.QueryStatistics) queryJob.getStatistics()).getNumDmlAffectedRows();
     }
     LOG.warn("Unable to identify BigQuery job type. No metric will be emitted for the number of affected rows.");
+    return 0;
+  }
+
+  private long getTotalBytes(Job queryJob) {
+    JobConfiguration.Type type = queryJob.getConfiguration().getType();
+    if (type == JobConfiguration.Type.LOAD) {
+      long outputBytes = ((JobStatistics.LoadStatistics) queryJob.getStatistics()).getOutputBytes();
+      LOG.info("Job {} loaded {} bytes", queryJob.getJobId(), outputBytes);
+      return outputBytes;
+    } else if (type == JobConfiguration.Type.QUERY) {
+      long processedBytes = ((JobStatistics.QueryStatistics) queryJob.getStatistics()).getTotalBytesProcessed();
+      LOG.info("Job {} processed {} bytes", queryJob.getJobId(), processedBytes);
+      return processedBytes;
+    }
+    // BQ Sink triggers jobs of type query and load so this code should not be executed.
+    LOG.warn("Unable to identify BigQuery job type. No metric will be emitted for the number of affected bytes.");
     return 0;
   }
 
