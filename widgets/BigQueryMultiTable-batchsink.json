@@ -131,6 +131,12 @@
       "label": "Advanced",
       "properties": [
         {
+          "name": "jsonStringFields",
+          "widget-type": "hidden",
+          "label": "JSON String",
+          "widget-attributes": {}
+        },
+        {
           "widget-type": "textbox",
           "label": "Temporary Bucket Name",
           "name": "bucket",

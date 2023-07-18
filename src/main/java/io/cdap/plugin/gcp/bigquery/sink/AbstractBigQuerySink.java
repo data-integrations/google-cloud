@@ -19,6 +19,7 @@ import com.google.auth.Credentials;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetId;
+import com.google.cloud.bigquery.Table;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
 import com.google.cloud.kms.v1.CryptoKeyName;
@@ -47,7 +48,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -145,7 +150,8 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
    */
   protected final void initOutput(BatchSinkContext context, BigQuery bigQuery, String outputName, String fqn,
                                   String tableName, @Nullable Schema tableSchema, String bucket,
-                                  FailureCollector collector, @Nullable String marker) throws IOException {
+                                  FailureCollector collector, @Nullable String marker,
+                                  Table table) throws IOException {
     LOG.debug("Init output for table '{}' with schema: {}", tableName, tableSchema);
 
     List<BigQueryTableFieldSchema> fields = BigQuerySinkUtils.getBigQueryTableFields(bigQuery, tableName, tableSchema,
@@ -153,6 +159,18 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
       getConfig().getDataset(), getConfig().isTruncateTableSet(), collector);
 
     Configuration configuration = new Configuration(baseConfiguration);
+    if (table != null) {
+      com.google.cloud.bigquery.Schema bqSchema = table.getDefinition().getSchema();
+      if (bqSchema != null) {
+        String jsonStringFields = BigQuerySinkUtils.getJsonStringFieldsFromBQSchema(bqSchema);
+        configuration.set(BigQueryConstants.CONFIG_JSON_STRING_FIELDS, jsonStringFields);
+        BigQuerySinkUtils.setJsonStringFields(fields, jsonStringFields);
+      }
+    }
+
+    if (getConfig().getJsonStringFields() != null && !getConfig().getJsonStringFields().isEmpty()) {
+      BigQuerySinkUtils.setJsonStringFields(fields, getConfig().getJsonStringFields());
+    }
 
     // Build GCS storage path for this bucket output.
     String temporaryGcsPath = BigQuerySinkUtils.getTemporaryGcsPath(bucket, runUUID.toString(), tableName);
@@ -229,6 +247,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
                                  config.isAllowSchemaRelaxation());
     baseConfiguration.setStrings(BigQueryConfiguration.OUTPUT_TABLE_WRITE_DISPOSITION.getKey(),
                                  config.getWriteDisposition().name());
+    baseConfiguration.setStrings(BigQueryConstants.CONFIG_JSON_STRING_FIELDS, config.getJsonStringFields());
     // this setting is needed because gcs has default chunk size of 64MB. This is large default chunk size which can
     // cause OOM issue if there are many tables being written. See this - CDAP-16670
     String gcsChunkSize = "8388608";
@@ -308,6 +327,84 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
   protected Configuration getOutputConfiguration() throws IOException {
     Configuration configuration = new Configuration(baseConfiguration);
     return configuration;
+  }
+
+  /**
+   * Validates that the fields to be converted to JSON strings are present in the Output Schema.
+   * @param schema Output Schema.
+   * @param jsonStringFields List of fields to be converted to JSON strings comma separated.
+   * @param collector FailureCollector to collect errors.
+   */
+  public void validateJsonStringFields(Schema schema,
+                                              String jsonStringFields, FailureCollector collector) {
+    Set<String> jsonFields = new HashSet<>(Arrays.asList(jsonStringFields.split(",")));
+    Set<String> jsonFieldsValidated = new HashSet<>();
+    validateJsonStringFields(schema, jsonFields, new ArrayList<>(), collector, jsonFieldsValidated);
+    jsonFields.removeAll(jsonFieldsValidated);
+    if (!jsonFields.isEmpty()) {
+      collector.addFailure(String.format("Field(s) '%s' are not present in the Output Schema.",
+                              String.join(", ", jsonFields)),
+                      "Remove the field(s) from the list of fields to be converted to JSON strings.")
+              .withConfigProperty(AbstractBigQuerySinkConfig.NAME_JSON_STRING_FIELDS);
+    }
+  }
+
+  private void validateJsonStringFields(Schema schema, Set<String> jsonFields, ArrayList<String> path,
+                                                  FailureCollector collector, Set<String> jsonFieldsValidated) {
+    String fieldPath = String.join(".", path);
+    String actionMessage = "Only type 'STRING' is supported.";
+
+    Schema.LogicalType logicalType = schema.isNullable() ? schema.getNonNullable().getLogicalType() :
+            schema.getLogicalType();
+    if (logicalType != null && jsonFields.contains(fieldPath)) {
+      collector.addFailure(
+              String.format("Field '%s' is of type '%s' which is not supported for conversion to JSON string.",
+                      fieldPath, logicalType),
+              actionMessage).withConfigProperty(AbstractBigQuerySinkConfig.NAME_JSON_STRING_FIELDS);
+      return;
+    }
+    Schema.Type type = getEffectiveType(schema);
+    List<Schema.Field> fields = getEffectiveFields(schema);
+    String errorMessage = String.format(
+            "Field '%s' is of type '%s' which is not supported for conversion to JSON string.", fieldPath, type);
+
+    if (type == Schema.Type.RECORD && fields != null) {
+      if (jsonFields.contains(fieldPath)) {
+        collector.addFailure(errorMessage, actionMessage)
+                .withConfigProperty(AbstractBigQuerySinkConfig.NAME_JSON_STRING_FIELDS);
+      }
+      for (Schema.Field field : fields) {
+        path.add(field.getName());
+        validateJsonStringFields(field.getSchema(), jsonFields, path, collector, jsonFieldsValidated);
+        path.remove(path.size() - 1);
+      }
+    } else {
+      jsonFieldsValidated.add(fieldPath);
+      if (type != Schema.Type.STRING && jsonFields.contains(fieldPath)) {
+        collector.addFailure(errorMessage, actionMessage)
+                .withConfigProperty(AbstractBigQuerySinkConfig.NAME_JSON_STRING_FIELDS);
+      }
+    }
+  }
+
+  private static Schema.Type getEffectiveType(Schema schema) {
+    Schema nonNullableSchema = schema.isNullable() ? schema.getNonNullable() : schema;
+    if (nonNullableSchema.getType() == Schema.Type.ARRAY && nonNullableSchema.getComponentSchema() != null) {
+      return nonNullableSchema.getComponentSchema().isNullable() ?
+              nonNullableSchema.getComponentSchema().getNonNullable().getType() :
+              nonNullableSchema.getComponentSchema().getType();
+    }
+    return nonNullableSchema.getType();
+  }
+
+  private static List<Schema.Field> getEffectiveFields(Schema schema) {
+    Schema nonNullableSchema = schema.isNullable() ? schema.getNonNullable() : schema;
+    if (nonNullableSchema.getType() == Schema.Type.ARRAY && nonNullableSchema.getComponentSchema() != null) {
+      return nonNullableSchema.getComponentSchema().isNullable() ?
+              nonNullableSchema.getComponentSchema().getNonNullable().getFields() :
+              nonNullableSchema.getComponentSchema().getFields();
+    }
+    return nonNullableSchema.getFields();
   }
 
 }

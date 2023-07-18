@@ -139,6 +139,12 @@
       "label": "Advanced",
       "properties": [
         {
+          "name": "jsonStringFields",
+          "widget-type": "csv",
+          "label": "JSON String",
+          "widget-attributes": {}
+        },
+        {
           "widget-type": "radio-group",
           "name": "operation",
           "label": "Operation",
