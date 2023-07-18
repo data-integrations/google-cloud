@@ -52,6 +52,13 @@ bucket will be created and then deleted after the run finishes.
 
 **GCS Upload Request Chunk Size**: GCS upload request chunk size in bytes. Default value is 8388608 bytes.
 
+**JSON String**: List of fields to be written to BigQuery as a JSON string.
+The fields must be of type STRING. To target nested fields, use dot notation.
+For example, 'name.first' will target the 'first' field in the 'name' record. (Macro Enabled)
+
+Use a comma-separated list to specify multiple fields in macro format.
+Example: "nestedObject.nestedArray.raw, nestedArray.raw".
+
 **Operation**: Type of write operation to perform. This can be set to Insert, Update or Upsert.
 * Insert - all records will be inserted in destination table.
 * Update - records that match on Table Key will be updated in the table. Records that do not match 

@@ -16,6 +16,11 @@
 
 package io.cdap.plugin.gcp.bigquery.sink;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import com.google.gson.stream.JsonWriter;
 import io.cdap.cdap.api.common.Bytes;
 import io.cdap.cdap.api.data.format.StructuredRecord;
@@ -34,11 +39,14 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
@@ -56,8 +64,11 @@ public final class BigQueryRecordToJson {
    * @param object object to be written
    * @param fieldSchema field schema to be written
    */
-  public static void write(JsonWriter writer, String name, Object object, Schema fieldSchema) throws IOException {
-    write(writer, name, false, object, fieldSchema);
+  public static void write(JsonWriter writer, String name, Object object, Schema fieldSchema,
+                           Set<String> jsonStringFieldsPaths) throws IOException {
+    List<String> path = new ArrayList<>();
+    path.add(name);
+    write(writer, name, false, object, fieldSchema, path, jsonStringFieldsPaths);
   }
 
   /**
@@ -70,7 +81,8 @@ public final class BigQueryRecordToJson {
    * @param fieldSchema field schema to be written
    */
   private static void write(JsonWriter writer, String name, boolean isArrayItem, Object object,
-                            Schema fieldSchema) throws IOException {
+                            Schema fieldSchema, List<String> path,
+                            Set<String> jsonStringFieldsPaths) throws IOException {
     Schema schema = BigQueryUtil.getNonNullableSchema(fieldSchema);
     switch (schema.getType()) {
       case NULL:
@@ -81,13 +93,13 @@ public final class BigQueryRecordToJson {
       case BOOLEAN:
       case STRING:
       case BYTES:
-        writeSimpleTypes(writer, name, isArrayItem, object, schema);
+        writeSimpleTypes(writer, name, isArrayItem, object, schema, path, jsonStringFieldsPaths);
         break;
       case ARRAY:
-        writeArray(writer, name, object, schema);
+        writeArray(writer, name, object, schema, path, jsonStringFieldsPaths);
         break;
       case RECORD:
-        writeRecord(writer, name, object, schema);
+        writeRecord(writer, name, object, schema, path, jsonStringFieldsPaths);
         break;
       default:
         throw new IllegalStateException(
@@ -105,7 +117,8 @@ public final class BigQueryRecordToJson {
    * @param schema field schema to be written
    */
   private static void writeSimpleTypes(JsonWriter writer, String name, boolean isArrayItem, Object object,
-                                       Schema schema) throws IOException {
+                                       Schema schema, List<String> path,
+                                       Set<String> jsonStringFieldsPaths) throws IOException {
     if (!isArrayItem) {
       writer.name(name);
     }
@@ -114,6 +127,8 @@ public final class BigQueryRecordToJson {
       writer.nullValue();
       return;
     }
+
+    String pathString = String.join(".", path);
 
     Schema.LogicalType logicalType = schema.getLogicalType();
     if (logicalType != null) {
@@ -166,6 +181,19 @@ public final class BigQueryRecordToJson {
         writer.value((Boolean) object);
         break;
       case STRING:
+        if (jsonStringFieldsPaths.contains(pathString)) {
+          Gson gson = new Gson();
+          String jsonString = object.toString();
+          if (jsonString.startsWith("{") && jsonString.endsWith("}")) {
+            writeJsonObjectToWriter(gson.fromJson(jsonString, JsonObject.class), writer);
+          } else if (jsonString.startsWith("[") && jsonString.endsWith("]")) {
+            writeJsonArrayToWriter(gson.fromJson(jsonString, JsonArray.class), writer);
+          } else {
+            throw new IllegalStateException(String.format("Expected value of Field '%s' to be a valid JSON " +
+                    "object or array.", name));
+          }
+          break;
+        }
         writer.value(object.toString());
         break;
       case BYTES:
@@ -187,7 +215,8 @@ public final class BigQueryRecordToJson {
   private static void writeArray(JsonWriter writer,
                                  String name,
                                  @Nullable Object value,
-                                 Schema fieldSchema) throws IOException {
+                                 Schema fieldSchema,
+                                 List<String> path, Set<String> jsonStringFieldsPaths) throws IOException {
     writer.name(name);
     writer.beginArray();
 
@@ -221,9 +250,14 @@ public final class BigQueryRecordToJson {
         }
         if (element instanceof StructuredRecord) {
           StructuredRecord record = (StructuredRecord) element;
-          processRecord(writer, record, Objects.requireNonNull(record.getSchema().getFields()));
+          path.add(name);
+          processRecord(writer, record, Objects.requireNonNull(record.getSchema().getFields()),
+                  path, jsonStringFieldsPaths);
+          path.remove(path.size() - 1);
         } else {
-          write(writer, name, true, element, componentSchema);
+          path.add(name);
+          write(writer, name, true, element, componentSchema, path, jsonStringFieldsPaths);
+          path.remove(path.size() - 1);
         }
       }
     }
@@ -233,7 +267,8 @@ public final class BigQueryRecordToJson {
   private static void writeRecord(JsonWriter writer,
                                   String name,
                                   @Nullable Object value,
-                                  Schema fieldSchema) throws IOException {
+                                  Schema fieldSchema,
+                                  List<String> path, Set<String> jsonStringFieldsPaths) throws IOException {
     if (value == null) {
       writer.name(name);
       writer.nullValue();
@@ -247,15 +282,20 @@ public final class BigQueryRecordToJson {
     }
 
     writer.name(name);
-    processRecord(writer, (StructuredRecord) value, Objects.requireNonNull(fieldSchema.getFields()));
+    processRecord(writer, (StructuredRecord) value, Objects.requireNonNull(fieldSchema.getFields()), path
+    , jsonStringFieldsPaths);
   }
 
   private static void processRecord(JsonWriter writer,
                                     StructuredRecord record,
-                                    List<Schema.Field> fields) throws IOException {
+                                    List<Schema.Field> fields,
+                                    List<String> path, Set<String> jsonStringFieldsPaths) throws IOException {
     writer.beginObject();
     for (Schema.Field field : fields) {
-      write(writer, field.getName(), record.get(field.getName()), field.getSchema());
+      path.add(field.getName());
+      write(writer, field.getName(), false, record.get(field.getName()), field.getSchema(), path,
+              jsonStringFieldsPaths);
+      path.remove(path.size() - 1);
     }
     writer.endObject();
   }
@@ -286,5 +326,48 @@ public final class BigQueryRecordToJson {
 
   private BigQueryRecordToJson() {
     //no-op
+  }
+
+  private static void writeJsonObjectToWriter(JsonObject jsonObject, JsonWriter jsonWriter) throws IOException {
+    jsonWriter.beginObject();
+    for (Map.Entry<String, JsonElement> entry : jsonObject.entrySet()) {
+      String key = entry.getKey();
+      JsonElement value = entry.getValue();
+
+      jsonWriter.name(key);
+      writeJsonElementToWriter(value, jsonWriter); // Recursively write the value
+    }
+    jsonWriter.endObject();
+  }
+
+  private static void writeJsonElementToWriter(JsonElement jsonElement, JsonWriter jsonWriter) throws IOException {
+    if (jsonElement.isJsonObject()) {
+      writeJsonObjectToWriter(jsonElement.getAsJsonObject(), jsonWriter);
+    } else if (jsonElement.isJsonArray()) {
+      writeJsonArrayToWriter(jsonElement.getAsJsonArray(), jsonWriter);
+    } else if (jsonElement.isJsonPrimitive()) {
+      writeJsonPrimitiveToWriter(jsonElement.getAsJsonPrimitive(), jsonWriter);
+    } else if (jsonElement.isJsonNull()) {
+      jsonWriter.nullValue();
+    }
+  }
+
+  private static void writeJsonArrayToWriter(JsonArray jsonArray, JsonWriter jsonWriter) throws IOException {
+    jsonWriter.beginArray();
+    for (JsonElement element : jsonArray) {
+      writeJsonElementToWriter(element, jsonWriter); // Recursively write array elements
+    }
+    jsonWriter.endArray();
+  }
+
+  private static void writeJsonPrimitiveToWriter(JsonPrimitive jsonPrimitive, JsonWriter jsonWriter)
+          throws IOException {
+    if (jsonPrimitive.isNumber()) {
+      jsonWriter.value(jsonPrimitive.getAsNumber());
+    } else if (jsonPrimitive.isBoolean()) {
+      jsonWriter.value(jsonPrimitive.getAsBoolean());
+    } else if (jsonPrimitive.isString()) {
+      jsonWriter.value(jsonPrimitive.getAsString());
+    }
   }
 }

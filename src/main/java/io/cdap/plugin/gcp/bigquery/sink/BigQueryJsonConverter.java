@@ -23,12 +23,21 @@ import io.cdap.plugin.common.RecordConverter;
 
 import java.io.IOException;
 import java.util.Objects;
+import java.util.Set;
 import javax.annotation.Nullable;
 
 /**
  * BigQueryJsonConverter converts a {@link StructuredRecord} to {@link JsonObject}
  */
 public class BigQueryJsonConverter extends RecordConverter<StructuredRecord, JsonObject> {
+  private Set<String> jsonStringFieldsPaths;
+
+  public BigQueryJsonConverter() {
+  }
+
+  public BigQueryJsonConverter(Set<String> jsonStringFieldsPaths) {
+    this.jsonStringFieldsPaths = jsonStringFieldsPaths;
+  }
 
   @Override
   public JsonObject transform(StructuredRecord input, @Nullable Schema schema) throws IOException {
@@ -40,7 +49,7 @@ public class BigQueryJsonConverter extends RecordConverter<StructuredRecord, Jso
           continue;
         }
         BigQueryRecordToJson.write(writer, recordField.getName(), input.get(recordField.getName()),
-                                   recordField.getSchema());
+                                   recordField.getSchema(), jsonStringFieldsPaths);
       }
       writer.endObject();
       return writer.get().getAsJsonObject();
