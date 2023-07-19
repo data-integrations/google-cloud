@@ -71,12 +71,13 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <avro.version>1.8.2</avro.version>
     <bigquery.connector.hadoop2.version>hadoop2-1.0.0</bigquery.connector.hadoop2.version>
+    <util.hadoop2.version>hadoop2-2.0.0</util.hadoop2.version>
     <commons.codec.version>1.4</commons.codec.version>
     <cdap.version>6.9.1</cdap.version>
     <cdap.plugin.version>2.11.1</cdap.plugin.version>
     <dropwizard.metrics-core.version>3.2.6</dropwizard.metrics-core.version>
     <flogger.system.backend.version>0.3.1</flogger.system.backend.version>
-    <gcs.connector.version>hadoop2-2.0.0</gcs.connector.version>
+    <gcs.connector.version>hadoop2-2.2.9</gcs.connector.version>
     <google.cloud.bigtable.version>1.17.1</google.cloud.bigtable.version>
     <google.cloud.bigquery.version>1.137.1</google.cloud.bigquery.version>
     <google.cloud.kms.version>2.0.2</google.cloud.kms.version>
@@ -556,7 +557,7 @@
     <dependency>
       <groupId>com.google.cloud.bigdataoss</groupId>
       <artifactId>util-hadoop</artifactId>
-      <version>${gcs.connector.version}</version>
+      <version>${util.hadoop2.version}</version>
     </dependency>
     <dependency>
       <groupId>com.google.cloud.bigdataoss</groupId>
@@ -564,8 +565,24 @@
       <version>${gcs.connector.version}</version>
       <exclusions>
         <exclusion>
+          <artifactId>grpc-api</artifactId>
+          <groupId>io.grpc</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>grpc-census</artifactId>
+          <groupId>io.grpc</groupId>
+        </exclusion>
+        <exclusion>
           <groupId>com.google.flogger</groupId>
           <artifactId>flogger-log4j-backend</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.google.flogger</groupId>
+          <artifactId>flogger</artifactId>
+        </exclusion>
+        <exclusion>
+          <artifactId>guava</artifactId>
+          <groupId>com.google.guava</groupId>
         </exclusion>
       </exclusions>
     </dependency>
