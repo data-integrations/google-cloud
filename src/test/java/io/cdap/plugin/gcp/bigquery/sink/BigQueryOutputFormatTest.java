@@ -69,8 +69,8 @@ public class BigQueryOutputFormatTest {
 
     Configuration conf = new Configuration();
     conf.set("mapred.bq.output.project.id", "test_project");
-    conf.set(BigQueryConfiguration.OUTPUT_DATASET_ID_KEY, "test_dataset");
-    conf.set(BigQueryConfiguration.OUTPUT_TABLE_ID_KEY, "test_table");
+    conf.set(BigQueryConfiguration.OUTPUT_DATASET_ID.getKey(), "test_dataset");
+    conf.set(BigQueryConfiguration.OUTPUT_TABLE_ID.getKey(), "test_table");
     conf.set("mapred.bq.output.gcs.fileformat", BigQueryFileFormat.AVRO.toString());
     conf.set(BigQueryConstants.CONFIG_OPERATION, operation);
 

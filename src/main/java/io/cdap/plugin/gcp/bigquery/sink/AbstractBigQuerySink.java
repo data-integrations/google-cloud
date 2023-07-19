@@ -227,7 +227,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
                                                                      cmekKeyName, config.getServiceAccountType());
     baseConfiguration.setBoolean(BigQueryConstants.CONFIG_ALLOW_SCHEMA_RELAXATION,
                                  config.isAllowSchemaRelaxation());
-    baseConfiguration.setStrings(BigQueryConfiguration.OUTPUT_TABLE_WRITE_DISPOSITION_KEY,
+    baseConfiguration.setStrings(BigQueryConfiguration.OUTPUT_TABLE_WRITE_DISPOSITION.getKey(),
                                  config.getWriteDisposition().name());
     // this setting is needed because gcs has default chunk size of 64MB. This is large default chunk size which can
     // cause OOM issue if there are many tables being written. See this - CDAP-16670
