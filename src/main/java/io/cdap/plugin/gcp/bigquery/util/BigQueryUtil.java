@@ -174,9 +174,10 @@ public final class BigQueryUtil {
     configuration.set("fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
     configuration.set("fs.gs.project.id", projectId);
     configuration.set("fs.gs.working.dir", GCSPath.ROOT_DIR);
-    configuration.set(BigQueryConfiguration.PROJECT_ID_KEY, projectId);
+    configuration.set(BigQueryConfiguration.PROJECT_ID.getKey(), projectId);
     if (cmekKeyName != null) {
-      configuration.set(BigQueryConfiguration.OUTPUT_TABLE_KMS_KEY_NAME_KEY, cmekKeyName.toString());
+      configuration.set(BigQueryConfiguration.OUTPUT_TABLE_KMS_KEY_NAME.getKey(),
+          cmekKeyName.toString());
     }
     return configuration;
   }

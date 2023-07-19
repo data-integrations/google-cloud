@@ -18,6 +18,7 @@ import com.google.cloud.hadoop.io.bigquery.BigQueryHelper;
 import com.google.cloud.hadoop.io.bigquery.BigQueryUtils;
 import com.google.cloud.hadoop.io.bigquery.ExportFileFormat;
 import com.google.cloud.hadoop.util.ConfigurationUtil;
+import com.google.cloud.hadoop.util.HadoopConfigurationProperty;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -36,6 +37,7 @@ import org.apache.hadoop.util.Progressable;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -95,14 +97,17 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
     } catch (GeneralSecurityException gse) {
       throw new IOException("Failed to create BigQuery client", gse);
     }
+
+    List<HadoopConfigurationProperty<?>> hadoopConfigurationProperties = new ArrayList<>(
+        BigQueryConfiguration.MANDATORY_CONFIG_PROPERTIES_INPUT);
     Map<String, String> mandatoryConfig = ConfigurationUtil.getMandatoryConfig(
-      configuration, BigQueryConfiguration.MANDATORY_CONFIG_PROPERTIES_INPUT);
-    String projectId = mandatoryConfig.get(BigQueryConfiguration.PROJECT_ID_KEY);
-    String datasetProjectId = mandatoryConfig.get(BigQueryConfiguration.INPUT_PROJECT_ID_KEY);
-    String datasetId = mandatoryConfig.get(BigQueryConfiguration.INPUT_DATASET_ID_KEY);
-    String tableName = mandatoryConfig.get(BigQueryConfiguration.INPUT_TABLE_ID_KEY);
+      configuration, hadoopConfigurationProperties);
+    String projectId = mandatoryConfig.get(BigQueryConfiguration.PROJECT_ID.getKey());
+    String datasetProjectId = mandatoryConfig.get(BigQueryConfiguration.INPUT_PROJECT_ID.getKey());
+    String datasetId = mandatoryConfig.get(BigQueryConfiguration.INPUT_DATASET_ID.getKey());
+    String tableName = mandatoryConfig.get(BigQueryConfiguration.INPUT_TABLE_ID.getKey());
     String serviceAccount = configuration.get(BigQueryConstants.CONFIG_SERVICE_ACCOUNT, null);
-    Boolean isServiceAccountFilePath = configuration.getBoolean(BigQueryConstants.CONFIG_SERVICE_ACCOUNT_IS_FILE,
+    boolean isServiceAccountFilePath = configuration.getBoolean(BigQueryConstants.CONFIG_SERVICE_ACCOUNT_IS_FILE,
                                                                 true);
 
     String partitionFromDate = configuration.get(BigQueryConstants.CONFIG_PARTITION_FROM_DATE, null);
@@ -131,11 +136,11 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
       runQuery(configuration, bigQueryHelper, projectId, exportTableReference, query, location);
 
       // Default values come from BigquerySource config, and can be overridden by config.
-      configuration.set(BigQueryConfiguration.INPUT_PROJECT_ID_KEY,
+      configuration.set(BigQueryConfiguration.INPUT_PROJECT_ID.getKey(),
                         configuration.get(BigQueryConstants.CONFIG_VIEW_MATERIALIZATION_PROJECT));
-      configuration.set(BigQueryConfiguration.INPUT_DATASET_ID_KEY,
+      configuration.set(BigQueryConfiguration.INPUT_DATASET_ID.getKey(),
                         configuration.get(BigQueryConstants.CONFIG_VIEW_MATERIALIZATION_DATASET));
-      configuration.set(BigQueryConfiguration.INPUT_TABLE_ID_KEY, temporaryTableName);
+      configuration.set(BigQueryConfiguration.INPUT_TABLE_ID.getKey(), temporaryTableName);
     }
   }
 
