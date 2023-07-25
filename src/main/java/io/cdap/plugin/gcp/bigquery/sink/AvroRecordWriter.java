@@ -30,6 +30,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.function.Supplier;
 
 /**
  * avro record writer
@@ -40,7 +41,7 @@ public class AvroRecordWriter extends RecordWriter<AvroKey<GenericRecord>, NullW
   private Schema prevSchema;
   private GenericData dataModel;
   private CodecFactory compressionCodec;
-  private OutputStream outputStream;
+  private Supplier<OutputStream> outputStreamSupplier;
   private int syncInterval;
 
   /**
@@ -48,28 +49,28 @@ public class AvroRecordWriter extends RecordWriter<AvroKey<GenericRecord>, NullW
    *
    * @param writerSchema The writer schema for the records in the Avro container file.
    * @param compressionCodec A compression codec factory for the Avro container file.
-   * @param outputStream The output stream to write the Avro container file to.
+   * @param outputStreamSupplier A supplier to give the output stream to write the Avro container file to.
    * @param syncInterval The sync interval for the Avro container file.
    * @throws IOException If the record writer cannot be opened.
    */
   public AvroRecordWriter(Schema writerSchema, GenericData dataModel, CodecFactory compressionCodec,
-                          OutputStream outputStream, int syncInterval) throws IOException {
+                          Supplier<OutputStream>  outputStreamSupplier, int syncInterval) {
     this.dataModel = dataModel;
     this.compressionCodec = compressionCodec;
-    this.outputStream = outputStream;
     this.syncInterval = syncInterval;
+    this.outputStreamSupplier = outputStreamSupplier;
   }
   /**
    * Constructor.
    *
    * @param writerSchema The writer schema for the records in the Avro container file.
    * @param compressionCodec A compression codec factory for the Avro container file.
-   * @param outputStream The output stream to write the Avro container file to.
+   * @param outputStreamSupplier The output stream to write the Avro container file to.
    * @throws IOException If the record writer cannot be opened.
    */
   public AvroRecordWriter(Schema writerSchema, GenericData dataModel,
-                          CodecFactory compressionCodec, OutputStream outputStream) throws IOException {
-    this(writerSchema, dataModel, compressionCodec, outputStream,
+                          CodecFactory compressionCodec, Supplier<OutputStream>  outputStreamSupplier) {
+    this(writerSchema, dataModel, compressionCodec, outputStreamSupplier,
          DataFileConstants.DEFAULT_SYNC_INTERVAL);
   }
 
@@ -78,6 +79,7 @@ public class AvroRecordWriter extends RecordWriter<AvroKey<GenericRecord>, NullW
   public void write(AvroKey<GenericRecord> record, NullWritable ignore) throws IOException {
     // Create an Avro container file and a writer to it.
     Schema writerSchema = record.datum().getSchema();
+
     if (mAvroFileWriter == null) {
       createFileWriter(writerSchema);
     }
@@ -94,7 +96,7 @@ public class AvroRecordWriter extends RecordWriter<AvroKey<GenericRecord>, NullW
     mAvroFileWriter = new DataFileWriter<GenericRecord>(dataModel.createDatumWriter(writerSchema));
     mAvroFileWriter.setCodec(compressionCodec);
     mAvroFileWriter.setSyncInterval(syncInterval);
-    mAvroFileWriter.create(writerSchema, outputStream);
+    mAvroFileWriter.create(writerSchema, outputStreamSupplier.get());
     prevSchema = writerSchema;
   }
 
