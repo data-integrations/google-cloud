@@ -63,3 +63,73 @@ Feature: GCS source - Verify GCS Source plugin error scenarios
     Then Toggle GCS source property skip header to true
     Then Click on the Get Schema button
     Then Verify that the Plugin is displaying an error message: "errorMessageInvalidPath" on the header
+
+  @GCS_CSV_TEST
+  Scenario: To verify Error message for invalid minimum split size
+    Given Open Datafusion Project to configure pipeline
+    When Source is GCS
+    Then Open GCS source properties
+    Then Enter GCS property projectId and reference name
+    Then Override Service account details if set in environment variables
+    Then Enter GCS source property path "gcsCsvFile"
+    Then Select GCS property format "csv"
+    Then Toggle GCS source property skip header to true
+    Then Enter GCS source property minimum split size "gcsMinSplitSize" and maximum split size "gcsInvalidMinSplitSize"
+    Then Click on the Get Schema button
+    Then Verify that the Plugin Property: "minSplitSize" is displaying an in-line error message: "errorMessageIncorrectMinimumSplitSize"
+
+  @GCS_CSV_TEST
+  Scenario: To verify Error message for invalid maximum split size
+    Given Open Datafusion Project to configure pipeline
+    When Source is GCS
+    Then Open GCS source properties
+    Then Enter GCS property projectId and reference name
+    Then Override Service account details if set in environment variables
+    Then Enter GCS source property path "gcsCsvFile"
+    Then Select GCS property format "csv"
+    Then Toggle GCS source property skip header to true
+    Then Enter GCS source property minimum split size "gcsInvalidMaxSplitSize" and maximum split size "gcsMaxSplitSize"
+    Then Click on the Get Schema button
+    Then Verify that the Plugin Property: "maxSplitSize" is displaying an in-line error message: "errorMessageIncorrectMaximumSplitSize"
+
+  @GCS_CSV_TEST
+  Scenario: To verify Error message for invalid regex path filter
+    Given Open Datafusion Project to configure pipeline
+    When Source is GCS
+    Then Open GCS source properties
+    Then Enter GCS property projectId and reference name
+    Then Override Service account details if set in environment variables
+    Then Enter GCS source property path "gcsCsvFile"
+    Then Select GCS property format "csv"
+    Then Toggle GCS source property skip header to true
+    Then Enter input plugin property: "fileRegex" with value: "gcsInvalidRegexPathFilter"
+    Then Click on the Get Schema button
+    Then Verify that the Plugin Property: "fileRegex" is displaying an in-line error message: "errorMessageIncorrectRegexPathFilter"
+
+  @GCS_CSV_TEST
+  Scenario: To verify Error message for invalid file system properties
+    Given Open Datafusion Project to configure pipeline
+    When Source is GCS
+    Then Open GCS source properties
+    Then Enter GCS property projectId and reference name
+    Then Override Service account details if set in environment variables
+    Then Enter GCS source property path "gcsCsvFile"
+    Then Select GCS property format "csv"
+    Then Toggle GCS source property skip header to true
+    Then Enter textarea plugin property: "fileSystemProperties" with value: "gcsInvalidFileSysProperty"
+    Then Click on the Get Schema button
+    Then Verify that the Plugin Property: "fileSystemProperties" is displaying an in-line error message: "errorMessageIncorrectFileSystemProperties"
+
+  @GCS_CSV_TEST
+  Scenario: To verify Error message for invalid reference name
+    Given Open Datafusion Project to configure pipeline
+    When Source is GCS
+    Then Open GCS source properties
+    Then Enter GCS property projectId and reference name
+    Then Override Service account details if set in environment variables
+    Then Enter GCS source property path "gcsCsvFile"
+    Then Select GCS property format "csv"
+    Then Toggle GCS source property skip header to true
+    Then Enter input plugin property: "referenceName" with value: "gcsInvalidRefName"
+    Then Click on the Get Schema button
+    Then Verify that the Plugin Property: "referenceName" is displaying an in-line error message: "errorMessageInvalidReferenceName"
