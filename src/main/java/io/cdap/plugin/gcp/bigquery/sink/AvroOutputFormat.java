@@ -28,14 +28,19 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.UncheckedIOException;
+import java.util.function.Supplier;
 
 /**
  * avro output format.
  */
 public class AvroOutputFormat extends AvroKeyOutputFormat<GenericRecord> {
+
   public AvroOutputFormat() {
     super();
   }
@@ -65,8 +70,21 @@ public class AvroOutputFormat extends AvroKeyOutputFormat<GenericRecord> {
     }
 
     GenericData dataModel = AvroSerialization.createDataModel(conf);
-    return create(writerSchema, dataModel, getCompressionCodec(context),
-                  getAvroFileOutputStream(context), getSyncInterval(context));
+
+    return create(writerSchema, dataModel, getCompressionCodec(context), getOutputStreamSupplier(context),
+                  getSyncInterval(context));
+  }
+
+  //Creating a supplier for outputstream , which will get triggered only if there is a record to written.
+  //This is to avoid creation of output stream for empty tasks ( no writes )
+  private Supplier<OutputStream> getOutputStreamSupplier(TaskAttemptContext context) {
+    return  () -> {
+      try {
+        return getAvroFileOutputStream(context);
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
+    };
   }
 
   /**
@@ -74,12 +92,12 @@ public class AvroOutputFormat extends AvroKeyOutputFormat<GenericRecord> {
    *
    * @param writerSchema The writer schema for the records to write.
    * @param compressionCodec The compression type for the writer file.
-   * @param outputStream The target output stream for the records.
+   * @param outputStreamSupplier A supplier to give the target output stream for the records.
    * @param syncInterval The sync interval for the writer file.
    */
   private RecordWriter<AvroKey<GenericRecord>, NullWritable> create(
     Schema writerSchema, GenericData dataModel, CodecFactory compressionCodec,
-    OutputStream outputStream, int syncInterval) throws IOException {
-    return new AvroRecordWriter(writerSchema, dataModel, compressionCodec, outputStream, syncInterval);
+    Supplier<OutputStream> outputStreamSupplier, int syncInterval) {
+    return new AvroRecordWriter(writerSchema, dataModel, compressionCodec, outputStreamSupplier, syncInterval);
   }
 }
