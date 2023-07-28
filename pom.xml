@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
+
 <!--
   ~ Copyright © 2016-2019 Cask Data, Inc.
   ~
@@ -1200,6 +1201,7 @@
           <execution>
             <goals>
               <goal>integration-test</goal>
+              <goal>verify</goal>
             </goals>
           </execution>
         </executions>
@@ -1245,6 +1247,12 @@
           <groupId>io.cdap.tests.e2e</groupId>
           <artifactId>cdap-e2e-framework</artifactId>
           <version>0.4.0-SNAPSHOT</version>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>mysql</groupId>
+          <artifactId>mysql-connector-java</artifactId>
+          <version>8.0.19</version>
           <scope>test</scope>
         </dependency>
         <dependency>

@@ -1,4 +1,4 @@
-# Copyright © 2021 Cask Data, Inc.
+# Copyright © 2021-2023 Cask Data, Inc.
 #  Licensed under the Apache License, Version 2.0 (the "License"); you may not
 #  use this file except in compliance with the License. You may obtain a copy of
 #  the License at
@@ -40,7 +40,7 @@ jobs:
           )
     strategy:
       matrix:
-        tests: [bigquery, common, gcs, pubsub, spanner, gcscreate, gcsdelete, gcsmove, bigqueryexecute, gcscopy]
+        tests: [bigquery, common, gcs, pubsub, spanner, gcscreate, gcsdelete, gcsmove, bigqueryexecute, gcscopy, bigquerymultitable]
       fail-fast: false
     steps:
       # Pinned 1.0.0 version
@@ -68,13 +68,38 @@ jobs:
           key: ${{ runner.os }}-maven-${{ github.workflow }}-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-maven-${{ github.workflow }}
+
+      - name: Get Secrets from GCP Secret Manager
+        id: secrets
+        uses: 'google-github-actions/get-secretmanager-secrets@v0'
+        with:
+          secrets: |-
+                        MYSQL_HOST:cdapio-github-builds/MYSQL_HOST
+                        MYSQL_USERNAME:cdapio-github-builds/MYSQL_USERNAME
+                        MYSQL_PASSWORD:cdapio-github-builds/MYSQL_PASSWORD
+                        MYSQL_PORT:cdapio-github-builds/MYSQL_PORT
+                        CONNECTION_STRING:cdapio-github-builds/CONNECTION_STRING
+
       - name: Run required e2e tests
         if: github.event_name != 'workflow_dispatch' && github.event_name != 'push' && steps.filter.outputs.e2e-test == 'false'
         run: python3 e2e/src/main/scripts/run_e2e_test.py --testRunner **/${{ matrix.tests }}/**/TestRunnerRequired.java
+        env:
+          MYSQL_HOST: ${{ steps.secrets.outputs.MYSQL_HOST }}
+          MYSQL_USERNAME: ${{ steps.secrets.outputs.MYSQL_USERNAME }}
+          MYSQL_PASSWORD: ${{ steps.secrets.outputs.MYSQL_PASSWORD }}
+          MYSQL_PORT: ${{ steps.secrets.outputs.MYSQL_PORT }}
+          CONNECTION_STRING: ${{ steps.secrets.outputs.CONNECTION_STRING }}
+
       - name: Run all e2e tests
         if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || steps.filter.outputs.e2e-test == 'true'
         run: python3 e2e/src/main/scripts/run_e2e_test.py --testRunner **/${{ matrix.tests }}/**/TestRunner.java
-      - name: Upload debug files 
+        env:
+          MYSQL_HOST: ${{ steps.secrets.outputs.MYSQL_HOST }}
+          MYSQL_USERNAME: ${{ steps.secrets.outputs.MYSQL_USERNAME }}
+          MYSQL_PASSWORD: ${{ steps.secrets.outputs.MYSQL_PASSWORD }}
+          MYSQL_PORT: ${{ steps.secrets.outputs.MYSQL_PORT }}
+          CONNECTION_STRING: ${{ steps.secrets.outputs.CONNECTION_STRING }}
+      - name: Upload debug files
         uses: actions/upload-artifact@v3
         if: always()
         with:
