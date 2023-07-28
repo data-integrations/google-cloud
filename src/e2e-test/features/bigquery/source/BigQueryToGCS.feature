@@ -75,6 +75,7 @@ Feature: BigQuery source - Verification of BigQuery to GCS successful data trans
     Then Open and capture logs
     Then Verify the pipeline status is "Succeeded"
     Then Verify data is transferred to target GCS bucket
+    Then Validate the values of records transferred to GCS bucket is equal to the values from source BigQuery table
 
   @BQ_SOURCE_TEST @BQ_SOURCE_VIEW_TEST @GCS_SINK_TEST
   Scenario:Validate successful records transfer from BigQuery to GCS by enable querying views

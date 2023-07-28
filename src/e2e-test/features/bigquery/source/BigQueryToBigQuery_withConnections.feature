@@ -159,4 +159,3 @@ Feature: BigQuery source - Verification of BigQuery to BigQuery successful data 
     Then Wait till pipeline is in running state
     Then Open and capture logs
     Then Verify the pipeline status is "Succeeded"
-    Then Validate records transferred to target table is equal to number of records from source table

@@ -310,33 +310,4 @@ public class GCSBase implements E2EHelper {
 
     String filePart;
   }
-
-  @Then("Validate the values of records transferred to GCS bucket is equal to the values from source BigQuery table")
-  public void validateTheValuesOfRecordsTransferredToGcsBucketIsEqualToTheValuesFromSourceBigQueryTable()
-    throws InterruptedException, IOException {
-    int sourceBQRecordsCount = BigQueryClient.countBqQuery(PluginPropertyUtils.pluginProp("bqSourceTable"));
-    BeforeActions.scenario.write("No of Records from source BigQuery table:" + sourceBQRecordsCount);
-    Assert.assertEquals("Out records should match with GCS file records count",
-                        CdfPipelineRunAction.getCountDisplayedOnSourcePluginAsRecordsOut(), sourceBQRecordsCount);
-
-    boolean recordsMatched = ValidationHelper.validateBQDataToGCS(
-      TestSetupHooks.bqSourceTable, TestSetupHooks.gcsTargetBucketName);
-    Assert.assertTrue("Value of records transferred to the GCS bucket file should be equal to the value " +
-                        "of the records in the source table", recordsMatched);
-  }
-
-  @Then("Validate the values of records transferred from GCS bucket file is equal to the values of " +
-    "target BigQuery table")
-  public void validateTheValuesOfRecordsTransferredFromGcsBucketFileIsEqualToTheValuesOfTargetBigQueryTable()
-    throws InterruptedException, IOException {
-    int targetBQRecordsCount = BigQueryClient.countBqQuery(PluginPropertyUtils.pluginProp("bqTargetTable"));
-    BeforeActions.scenario.write("No of Records from source BigQuery table:" + targetBQRecordsCount);
-    Assert.assertEquals("Out records should match with GCS file records count",
-                        CdfPipelineRunAction.getCountDisplayedOnSourcePluginAsRecordsOut(), targetBQRecordsCount);
-
-    boolean recordsMatched = ValidationHelper.validateGCSDataToBQ(
-      TestSetupHooks.gcsSourceBucketName, TestSetupHooks.bqTargetTable);
-    Assert.assertTrue("Value of records transferred to the GCS bucket file should be equal to the value " +
-                        "of the records in the source table", recordsMatched);
-  }
 }
