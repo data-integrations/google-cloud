@@ -17,14 +17,16 @@
 package io.cdap.plugin.gcp.bigquery.source;
 
 import com.google.api.client.auth.oauth2.Credential;
+import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFactory;
-import com.google.cloud.hadoop.util.AccessTokenProviderClassFromConfigFactory;
 import com.google.cloud.hadoop.util.CredentialFromAccessTokenProviderClassFactory;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
+import com.google.common.collect.ImmutableList;
 import org.apache.hadoop.conf.Configuration;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -41,18 +43,16 @@ public class BigQueryFactoryWithScopes extends BigQueryFactory {
   @Override
   public Credential createBigQueryCredential(Configuration config) throws GeneralSecurityException, IOException {
     Credential credential =
-      CredentialFromAccessTokenProviderClassFactory.credential(
-        new AccessTokenProviderClassFromConfigFactory().withOverridePrefix("mapred.bq"),
-        config,
-        scopes);
+        CredentialFromAccessTokenProviderClassFactory.credential(
+            config,
+            Collections.singletonList(BigQueryConfiguration.BIGQUERY_CONFIG_PREFIX),
+            scopes);
     if (credential != null) {
       return credential;
     }
 
-    return HadoopCredentialConfiguration.newBuilder()
-      .withConfiguration(config)
-      .withOverridePrefix(BIGQUERY_CONFIG_PREFIX)
-      .build()
-      .getCredential(scopes);
+    return HadoopCredentialConfiguration.getCredentialFactory(
+            config, String.valueOf(ImmutableList.of(BigQueryConfiguration.BIGQUERY_CONFIG_PREFIX)))
+        .getCredential(BIGQUERY_OAUTH_SCOPES);
   }
 }

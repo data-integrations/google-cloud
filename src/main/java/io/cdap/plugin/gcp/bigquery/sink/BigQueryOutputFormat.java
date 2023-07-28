@@ -57,6 +57,7 @@ import com.google.cloud.hadoop.io.bigquery.output.BigQueryOutputConfiguration;
 import com.google.cloud.hadoop.io.bigquery.output.ForwardingBigQueryFileOutputCommitter;
 import com.google.cloud.hadoop.io.bigquery.output.ForwardingBigQueryFileOutputFormat;
 import com.google.cloud.hadoop.util.ConfigurationUtil;
+import com.google.cloud.hadoop.util.HadoopConfigurationProperty;
 import com.google.cloud.hadoop.util.ResilientOperation;
 import com.google.cloud.hadoop.util.RetryDeterminer;
 import com.google.common.base.Strings;
@@ -487,7 +488,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
           .setLocation(jobReference.getLocation());
 
         Job pollJob = ResilientOperation.retry(
-          ResilientOperation.getGoogleRequestCallable(get),
+          get::execute,
           operationBackOff,
           RetryDeterminer.RATE_LIMIT_ERRORS,
           IOException.class,
@@ -546,10 +547,10 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
     private static TableReference getTableReference(Configuration conf) throws IOException {
       // Ensure the BigQuery output information is valid.
       String projectId = BigQueryOutputConfiguration.getProjectId(conf);
-      String datasetId =
-        ConfigurationUtil.getMandatoryConfig(conf, BigQueryConfiguration.OUTPUT_DATASET_ID_KEY);
-      String tableId =
-        ConfigurationUtil.getMandatoryConfig(conf, BigQueryConfiguration.OUTPUT_TABLE_ID_KEY);
+      String datasetId = ConfigurationUtil.getMandatoryConfig(conf,
+          BigQueryConfiguration.OUTPUT_DATASET_ID);
+      String tableId = ConfigurationUtil.getMandatoryConfig(conf,
+          BigQueryConfiguration.OUTPUT_TABLE_ID);
 
       return new TableReference().setProjectId(projectId).setDatasetId(datasetId).setTableId(tableId);
     }
@@ -559,14 +560,14 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
      * Optional<TableSchema> instead of Optional<BigQueryTableSchema>.
      */
     private static Optional<TableSchema> getTableSchema(Configuration conf) throws IOException {
-      String fieldsJson = conf.get(BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY);
+      String fieldsJson = conf.get(BigQueryConfiguration.OUTPUT_TABLE_SCHEMA.getKey());
       if (!Strings.isNullOrEmpty(fieldsJson)) {
         try {
           TableSchema tableSchema = createTableSchemaFromFields(fieldsJson);
           return Optional.of(tableSchema);
         } catch (IOException e) {
           throw new IOException(
-            "Unable to parse key '" + BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY + "'.", e);
+            "Unable to parse key '" + BigQueryConfiguration.OUTPUT_TABLE_SCHEMA.getKey() + "'.", e);
         }
       }
       return Optional.empty();
@@ -748,7 +749,8 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
   }
 
   private static BigQuery getBigQuery(Configuration config) throws IOException {
-    String projectId = ConfigurationUtil.getMandatoryConfig(config, BigQueryConfiguration.PROJECT_ID_KEY);
+    String projectId = ConfigurationUtil.getMandatoryConfig(config,
+        BigQueryConfiguration.PROJECT_ID);
     Credentials credentials = GCPUtils.loadCredentialsFromConf(config);
     return GCPUtils.getBigQuery(projectId, credentials);
   }

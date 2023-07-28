@@ -26,8 +26,8 @@ import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem;
-import com.google.cloud.hadoop.util.AccessTokenProviderClassFromConfigFactory;
 import com.google.cloud.hadoop.util.CredentialFactory;
+import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
 import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.BucketInfo;
 import com.google.cloud.storage.Storage;
@@ -129,7 +129,7 @@ public class GCPUtils {
    */
   public static Map<String, String> generateGCSAuthProperties(@Nullable String serviceAccount,
                                                               String serviceAccountType) {
-    return generateAuthProperties(serviceAccount, serviceAccountType, CredentialFactory.GCS_SCOPES, GCS_PREFIX);
+    return generateAuthProperties(serviceAccount, serviceAccountType, CredentialFactory.DEFAULT_SCOPES, GCS_PREFIX);
   }
 
   /**
@@ -142,7 +142,7 @@ public class GCPUtils {
    */
   public static Map<String, String> generateBigQueryAuthProperties(@Nullable String serviceAccount,
                                                                    String serviceAccountType) {
-    List<String> scopes = new ArrayList<>(CredentialFactory.GCS_SCOPES);
+    List<String> scopes = new ArrayList<>(CredentialFactory.DEFAULT_SCOPES);
     scopes.addAll(BIGQUERY_SCOPES);
     return generateAuthProperties(serviceAccount, serviceAccountType, scopes, GCS_PREFIX, BQ_PREFIX);
   }
@@ -176,7 +176,7 @@ public class GCPUtils {
     //   mapred.bq.auth.access.token.provider.impl
     // for use by GCS and BQ.
     for (String prefix : prefixes) {
-      properties.put(prefix + AccessTokenProviderClassFromConfigFactory.ACCESS_TOKEN_PROVIDER_IMPL_SUFFIX,
+      properties.put(prefix + HadoopCredentialConfiguration.ACCESS_TOKEN_PROVIDER_IMPL_SUFFIX,
                      ServiceAccountAccessTokenProvider.class.getName());
     }
     return properties;
