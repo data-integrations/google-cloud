@@ -67,6 +67,7 @@ public class TestSetupHooks {
   public static String spannerTargetDatabase = StringUtils.EMPTY;
   public static String spannerTargetTable = StringUtils.EMPTY;
   public static boolean firstSpannerTestFlag = true;
+  public static String datasetName = PluginPropertyUtils.pluginProp("dataset");
 
   @Before(order = 1)
   public static void overrideServiceAccountFilePathIfProvided() {
@@ -255,7 +256,7 @@ public class TestSetupHooks {
       records.append(" (").append(index).append(", ").append((int) (Math.random() * 1000 + 1)).append(", '")
         .append(UUID.randomUUID()).append("'), ");
     }
-    BigQueryClient.getSoleQueryResult("create table `test_automation." + bqSourceTable + "` as " +
+    BigQueryClient.getSoleQueryResult("create table `" + datasetName + "." + bqSourceTable + "` as " +
                                         "SELECT * FROM UNNEST([ " +
                                         " STRUCT(1 AS Id, " + ((int) (Math.random() * 1000 + 1)) + " as Value, " +
                                         "'" + UUID.randomUUID() + "' as UID), " +
@@ -267,7 +268,8 @@ public class TestSetupHooks {
     BeforeActions.scenario.write("BQ source Table " + bqSourceTable + " created successfully");
   }
 
-  @After(order = 1, value = "@BQ_SOURCE_TEST or @BQ_PARTITIONED_SOURCE_TEST or @BQ_SOURCE_DATATYPE_TEST")
+  @After(order = 1, value = "@BQ_SOURCE_TEST or @BQ_PARTITIONED_SOURCE_TEST or @BQ_SOURCE_DATATYPE_TEST or " +
+    "@BQ_INSERT_SOURCE_TEST or @BQ_UPDATE_SINK_TEST")
   public static void deleteTempSourceBQTable() throws IOException, InterruptedException {
     BigQueryClient.dropBqQuery(bqSourceTable);
     PluginPropertyUtils.removePluginProp("bqSourceTable");
@@ -285,11 +287,11 @@ public class TestSetupHooks {
   @Before(order = 1, value = "@BQ_PARTITIONED_SOURCE_TEST")
   public static void createTempPartitionedSourceBQTable() throws IOException, InterruptedException {
     bqSourceTable = "E2E_SOURCE_" + UUID.randomUUID().toString().replaceAll("-", "_");
-    BigQueryClient.getSoleQueryResult("create table `test_automation." + bqSourceTable + "` " +
+    BigQueryClient.getSoleQueryResult("create table `" + datasetName + "." + bqSourceTable + "` " +
                                         "(transaction_id INT64, transaction_uid STRING, transaction_date DATE ) " +
                                         "PARTITION BY _PARTITIONDATE");
     try {
-      BigQueryClient.getSoleQueryResult("INSERT INTO `test_automation." + bqSourceTable + "` " +
+      BigQueryClient.getSoleQueryResult("INSERT INTO `" + datasetName + "." + bqSourceTable + "` " +
                                           "(transaction_id, transaction_uid, transaction_date) " +
                                           "SELECT ROW_NUMBER() OVER(ORDER BY GENERATE_UUID()), GENERATE_UUID(), date " +
                                           "FROM UNNEST(GENERATE_DATE_ARRAY('2022-01-01', current_date())) AS date");
@@ -362,7 +364,7 @@ public class TestSetupHooks {
     createSourceBQViewWithQueries(PluginPropertyUtils.pluginProp("bqCreateViewQueryFile"));
   }
 
-  @After(order = 2, value = "@BQ_SOURCE_VIEW_TEST")
+  @After(order = 2, value = "@BQ_SOURCE_VIEW_TESTT")
   public static void deleteTempSourceBQView() throws IOException, InterruptedException {
     BigQueryClient.getSoleQueryResult("DROP VIEW IF EXISTS " + PluginPropertyUtils.pluginProp("dataset") +
                                         "." + bqSourceView);
@@ -763,12 +765,11 @@ public class TestSetupHooks {
   @Before(order = 1, value = "@BQ_SOURCE_BQ_EXECUTE_TEST")
   public static void createBQTableForBQExecuteTest() throws IOException, InterruptedException {
     String bqSourceBQExecuteTable = "E2E_SOURCE_" + UUID.randomUUID().toString().replaceAll("-", "_");
-    BigQueryClient.getSoleQueryResult("create table `" + PluginPropertyUtils.pluginProp("dataset") + "."
-                                        + bqSourceBQExecuteTable + "` as " +
+    BigQueryClient.getSoleQueryResult("create table `" + datasetName + "." + bqSourceBQExecuteTable + "` as " +
                                         "SELECT * FROM UNNEST([ " +
                                         " STRUCT(1 AS Id, '" + PluginPropertyUtils.pluginProp("projectId")
                                         + "' as ProjectId, " +
-                                        "'" + PluginPropertyUtils.pluginProp("dataset") + "' as Dataset)" + "])");
+                                        "'" + datasetName + "' as Dataset)" + "])");
     PluginPropertyUtils.addPluginProp("bqSourceTable", bqSourceBQExecuteTable);
     BeforeActions.scenario.write("BQ source Table " + bqSourceBQExecuteTable + " " +
                                    "for @BQ_SOURCE_BQ_EXECUTE_TEST created successfully");
@@ -876,5 +877,47 @@ public class TestSetupHooks {
   @After(order = 2, value = "@BQ_EXECUTE_UPDATE_SQL")
   public static void setUpdateQueryBackWithTableDetailsPlaceholder() {
     setQueryBackWithTableDetailsPlaceholder("bqExecuteDMLUpdate");
+  }
+
+  @Before(order = 1, value = "@BQ_INSERT_SOURCE_TEST")
+  public static void createSourceBQInsertTable() throws IOException, InterruptedException {
+    bqSourceTable = "E2E_SOURCE_" + UUID.randomUUID().toString().replaceAll("-" , "_");
+    io.cdap.e2e.utils.BigQueryClient.getSoleQueryResult("create table `" + datasetName + "." + bqSourceTable + "` " +
+                                                          "(PersonID INT64, LastName STRING, " + "FirstName STRING ) ");
+    try {
+      io.cdap.e2e.utils.BigQueryClient.getSoleQueryResult("INSERT INTO `" + datasetName + "." + bqSourceTable + "` " +
+                                                            "(PersonID,  LastName, FirstName)" +
+                                                            "VALUES" + "(5, 'Rani', 'Raja')");
+
+    } catch (NoSuchElementException e) {
+      // Insert query does not return any record.
+      // Iterator on TableResult values in getSoleQueryResult method throws NoSuchElementException
+    }
+    PluginPropertyUtils.addPluginProp("bqSourceTable", bqSourceTable);
+    BeforeActions.scenario.write("BQ Source Table " + bqSourceTable + " created successfully");
+  }
+
+  @Before(order = 1, value = "@BQ_UPDATE_SINK_TEST")
+  public static void createSourceBQUpdateTable() throws IOException, InterruptedException {
+
+    bqTargetTable = "E2E_TARGET_" + UUID.randomUUID().toString().replaceAll("-", "_");
+    PluginPropertyUtils.addPluginProp("bqTargetTable", bqTargetTable);
+    BeforeActions.scenario.write("BQ Target table name - " + bqTargetTable);
+    io.cdap.e2e.utils.BigQueryClient.getSoleQueryResult("create table `" + datasetName + "." + bqTargetTable + "` " +
+                                                          "(PersonID INT64,LastName STRING," +
+                                                          "FirstName STRING ) ");
+
+    try {
+      io.cdap.e2e.utils.BigQueryClient.getSoleQueryResult("INSERT INTO `" + datasetName + "." + bqTargetTable + "` " +
+                                                            "(PersonID,  LastName, FirstName)" +
+                                                            "VALUES" + "(5, 'Kumar', 'Rajan')");
+
+    } catch (NoSuchElementException e) {
+      // Insert query does not return any record.
+      // Iterator on TableResult values in getSoleQueryResult method throws NoSuchElementException
+    }
+
+    PluginPropertyUtils.addPluginProp(" bqTargetTable",  bqTargetTable);
+    BeforeActions.scenario.write("BQ Target Table " +  bqTargetTable + " updated successfully");
   }
 }
