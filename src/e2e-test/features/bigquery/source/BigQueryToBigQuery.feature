@@ -179,7 +179,7 @@ Feature: BigQuery source - Verification of BigQuery to BigQuery successful data 
     Then Verify the pipeline status is "Succeeded"
     Then Verify the partition table is created with partitioned on field "bqPartitionFieldTime"
 
-  @BQ_SOURCE_DATATYPE_TEST @BQ_SINK_TEST
+  @BQ_SOURCE_DATATYPE_TEST @BQ_SINK_TEST @BigQuery_Source_Required
   Scenario:Validate successful records transfer from BigQuery to BigQuery with all the datatypes
     Given Open Datafusion Project to configure pipeline
     When Source is BigQuery

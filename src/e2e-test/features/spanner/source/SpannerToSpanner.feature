@@ -1,7 +1,7 @@
 @Spanner_Source @SPANNER_TEST
 Feature: Spanner source - Verification of Spanner to Spanner successful data transfer without using connections
 
-  @SPANNER_SINK_TEST @SPANNER_TEST
+  @SPANNER_SINK_TEST @SPANNER_TEST @Spanner_Source_Required
   Scenario: To verify data is getting transferred from Spanner to Spanner without using connection functionality
     Given Open Datafusion Project to configure pipeline
     When Select plugin: "Spanner" from the plugins list as: "Source"

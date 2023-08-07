@@ -35,7 +35,7 @@ Feature: GCS sink - Verification of GCS Sink plugin
     Then Verify data is transferred to target GCS bucket
     Then Validate the cmek key "cmekGCS" of target GCS bucket if cmek is enabled
 
-  @GCS_SINK_TEST @BQ_SOURCE_TEST
+  @GCS_SINK_TEST @BQ_SOURCE_TEST @GCS_Sink_Required
   Scenario Outline: To verify data is getting transferred successfully from BigQuery to GCS for different formats
     Given Open Datafusion Project to configure pipeline
     When Source is BigQuery
@@ -172,7 +172,7 @@ Feature: GCS sink - Verification of GCS Sink plugin
     Then Verify the pipeline status is "Succeeded"
     Then Verify data is transferred to target GCS bucket with path suffix "gcsPathSuffix"
 
-  @GCS_DATATYPE_TEST @GCS_SINK_TEST
+  @GCS_DATATYPE_TEST @GCS_SINK_TEST @GCS_Sink_Required
   Scenario: To verify data is getting transferred from GCS to GCS with supported DataTypes
     Given Open Datafusion Project to configure pipeline
     When Source is GCS
