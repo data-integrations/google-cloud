@@ -1,6 +1,7 @@
 @BigQuery_Sink
 Feature: BigQuery sink - Validate BigQuery sink plugin error scenarios
 
+  @BigQuery_Sink_Required
   Scenario Outline:Verify BigQuery Sink properties validation errors for mandatory fields
     Given Open Datafusion Project to configure pipeline
     When Sink is BigQuery

@@ -1,7 +1,7 @@
 @BigQuery_Source
 Feature: BigQuery source - Verification of BigQuery to BigQuery successful data transfer using connections
 
-  @BQ_SOURCE_TEST @BQ_SINK_TEST @BQ_CONNECTION
+  @BQ_SOURCE_TEST @BQ_SINK_TEST @BQ_CONNECTION @BigQuery_Source_Required
   Scenario: To verify data transfer from BigQuery to BigQuery with pipeline connection created from wrangler
     Given Open Wrangler connections page
     Then Click plugin property: "addConnection" button

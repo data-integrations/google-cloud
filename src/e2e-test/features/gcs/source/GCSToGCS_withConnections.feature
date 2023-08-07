@@ -66,7 +66,7 @@ Feature: GCS source - Verification of GCS to GCS successful data transfer using 
     Then Click plugin property: "Delete" button
     Then Verify connection: "gcsConnectionName" of type: "GCS" is deleted successfully
 
-  @GCS_CSV_TEST @GCS_SINK_TEST @EXISTING_GCS_CONNECTION
+  @GCS_CSV_TEST @GCS_SINK_TEST @EXISTING_GCS_CONNECTION @GCS_Source_Required
   Scenario: To verify data is getting transferred from GCS to GCS with use connection functionality
     Given Open Datafusion Project to configure pipeline
     When Select plugin: "GCS" from the plugins list as: "Source"
