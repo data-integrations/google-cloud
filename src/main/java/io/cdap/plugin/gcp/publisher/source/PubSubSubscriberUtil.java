@@ -227,6 +227,36 @@ public final class PubSubSubscriberUtil {
     }
   }
 
+  /**
+   * Call provided supplier with retries.
+   *
+   * @param supplier      The supplier to be invoked
+   * @param backoffConfig {@link BackoffConfig} for the retries
+   * @param maxAttempts   Integer indicating max number of attempts
+   * @param <T>
+   * @return Value returned by supplier
+   * @throws Exception Any exception that is not retryable or exceeded retry
+   */
+  public static <T> T callWithRetry(Supplier<T> supplier,
+                                    BackoffConfig backoffConfig, int maxAttempts) throws Exception {
+    int backoff = backoffConfig.getInitialBackoffMs();
+    ApiException lastApiException = null;
+    while (maxAttempts-- > 0) {
+      try {
+        return supplier.get();
+      } catch (ApiException ae) {
+        lastApiException = ae;
+        //Retry if the exception is retryable.
+        if (PubSubSubscriberUtil.isApiExceptionRetryable(ae)) {
+          backoff = PubSubSubscriberUtil.sleepAndIncreaseBackoff(() -> true, backoff, backoffConfig);
+          continue;
+        }
+        throw ae;
+      }
+    }
+    throw new RuntimeException(lastApiException);
+  }
+
   private static SubscriptionAdminClient buildSubscriptionAdminClient(Credentials credentials) throws IOException {
     SubscriptionAdminSettings.Builder builder = SubscriptionAdminSettings.newBuilder();
     if (credentials != null) {
