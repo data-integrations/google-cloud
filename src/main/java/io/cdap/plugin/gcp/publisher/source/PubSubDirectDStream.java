@@ -55,6 +55,7 @@ public class PubSubDirectDStream<T> extends InputDStream<T> implements Streaming
 
   private static final Logger LOG = LoggerFactory.getLogger(PubSubDirectDStream.class);
   private static final String CDAP_PIPELINE = "cdap_pipeline";
+  private static final int MAX_SNAPSHOT_ATTEMPTS = 3;
 
   private final Credentials credentials;
   private final PubSubSubscriberConfig config;
@@ -64,6 +65,7 @@ public class PubSubDirectDStream<T> extends InputDStream<T> implements Streaming
   private final SerializableFunction<PubSubMessage, T> mappingFn;
   private final StreamingContext streamingContext;
   private final String pipeline;
+  private final BackoffConfig backoffConfig;
 
   private SubscriptionAdminClient subscriptionAdminClient;
   private ProjectSnapshotName currentSnapshotName;
@@ -82,6 +84,7 @@ public class PubSubDirectDStream<T> extends InputDStream<T> implements Streaming
     this.pipeline = context.getPipelineName();
     this.credentials = PubSubSubscriberUtil.createCredentials(config.getServiceAccount(),
                                                               config.isServiceAccountFilePath());
+    backoffConfig = BackoffConfig.defaultInstance();
   }
 
   @Override
@@ -195,7 +198,7 @@ public class PubSubDirectDStream<T> extends InputDStream<T> implements Streaming
   }
 
   private void createSubscriptionIfNotPresent() throws IOException, InterruptedException {
-    PubSubSubscriberUtil.createSubscription(() -> true, BackoffConfig.defaultInstance(),
+    PubSubSubscriberUtil.createSubscription(() -> true, backoffConfig,
                                             ProjectSubscriptionName.format(config.getProject(),
                                                                            config.getSubscription()),
                                             TopicName.format(config.getProject(), config.getTopic()),
@@ -243,15 +246,21 @@ public class PubSubDirectDStream<T> extends InputDStream<T> implements Streaming
 
   private Snapshot createSnapshot(ProjectSnapshotName projectSnapshotName,
                                   ProjectSubscriptionName projectSubscriptionName) {
-    // Creation takes around 3.5 s .
     LOG.debug("Creating snapshot {} for subscription {} in Pub/Sub .", projectSnapshotName.toString(),
               projectSubscriptionName.toString());
-    CreateSnapshotRequest request = CreateSnapshotRequest.newBuilder()
-      .setName(projectSnapshotName.toString())
-      .setSubscription(projectSubscriptionName.toString())
-      .putAllLabels(Collections.singletonMap(CDAP_PIPELINE, getLabelValue(pipeline)))
-      .build();
-    return subscriptionAdminClient.createSnapshot(request);
+    try {
+      return PubSubSubscriberUtil.callWithRetry(() -> {
+        // Creation takes around 3.5 s .
+        CreateSnapshotRequest request = CreateSnapshotRequest.newBuilder()
+          .setName(projectSnapshotName.toString())
+          .setSubscription(projectSubscriptionName.toString())
+          .putAllLabels(Collections.singletonMap(CDAP_PIPELINE, getLabelValue(pipeline)))
+          .build();
+        return subscriptionAdminClient.createSnapshot(request);
+      }, backoffConfig, MAX_SNAPSHOT_ATTEMPTS);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @VisibleForTesting
@@ -268,9 +277,16 @@ public class PubSubDirectDStream<T> extends InputDStream<T> implements Streaming
   }
 
   private void deleteSnapshot(ProjectSnapshotName projectSnapshotName) {
-    // Deletion takes around 2.5 s .
-    // TODO - Consider making this asynchronous
-    subscriptionAdminClient.deleteSnapshot(projectSnapshotName);
+    try {
+      PubSubSubscriberUtil.callWithRetry(() -> {
+        // Deletion takes around 2.5 s .
+        // TODO - Consider making this asynchronous
+        subscriptionAdminClient.deleteSnapshot(projectSnapshotName);
+        return null;
+      }, backoffConfig, MAX_SNAPSHOT_ATTEMPTS);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 
   private void saveSnapshotAsState(Snapshot snapshot, String subscription,
