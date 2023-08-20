@@ -57,22 +57,26 @@ import com.google.cloud.hadoop.io.bigquery.output.BigQueryOutputConfiguration;
 import com.google.cloud.hadoop.io.bigquery.output.ForwardingBigQueryFileOutputCommitter;
 import com.google.cloud.hadoop.io.bigquery.output.ForwardingBigQueryFileOutputFormat;
 import com.google.cloud.hadoop.util.ConfigurationUtil;
-import com.google.cloud.hadoop.util.HadoopConfigurationProperty;
 import com.google.cloud.hadoop.util.ResilientOperation;
 import com.google.cloud.hadoop.util.RetryDeterminer;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import io.cdap.cdap.api.data.format.StructuredRecord;
+import io.cdap.plugin.gcp.bigquery.source.BigQueryFactoryWithScopes;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.mapred.FileAlreadyExistsException;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.JobStatus;
 import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.util.Progressable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -138,6 +142,44 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
   }
 
   /**
+   * This method is copied from
+   * {@link ForwardingBigQueryFileOutputFormat#checkOutputSpecs(JobContext)} to override
+   * {@link BigQueryFactory} with {@link BigQueryFactoryWithScopes}.
+   */
+  @Override
+  public void checkOutputSpecs(JobContext job) throws FileAlreadyExistsException, IOException {
+    Configuration conf = job.getConfiguration();
+
+    // Validate the output configuration.
+    BigQueryOutputConfiguration.validateConfiguration(conf);
+
+    // Get the output path.
+    Path outputPath = BigQueryOutputConfiguration.getGcsOutputPath(conf);
+    LOG.info("Using output path '%s'.", outputPath);
+
+    // Error if the output path already exists.
+    FileSystem outputFileSystem = outputPath.getFileSystem(conf);
+    if (outputFileSystem.exists(outputPath)) {
+      throw new IOException("The output path '" + outputPath + "' already exists.");
+    }
+
+    // Error if compression is set as there's mixed support in BigQuery.
+    if (FileOutputFormat.getCompressOutput(job)) {
+      throw new IOException("Compression isn't supported for this OutputFormat.");
+    }
+
+    // Error if unable to create a BigQuery helper.
+    try {
+      new BigQueryFactoryWithScopes(GCPUtils.BIGQUERY_SCOPES).getBigQueryHelper(conf);
+    } catch (GeneralSecurityException gse) {
+      throw new IOException("Failed to create BigQuery client", gse);
+    }
+
+    // Let delegate process its checks.
+    getDelegate(conf).checkOutputSpecs(job);
+  }
+
+  /**
    * BigQuery Output committer.
    */
   public static class BigQueryOutputCommitter extends ForwardingBigQueryFileOutputCommitter {
@@ -158,7 +200,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
     BigQueryOutputCommitter(TaskAttemptContext context, OutputCommitter delegate) throws IOException {
       super(context, delegate);
       try {
-        BigQueryFactory bigQueryFactory = new BigQueryFactory();
+        BigQueryFactory bigQueryFactory = new BigQueryFactoryWithScopes(GCPUtils.BIGQUERY_SCOPES);
         this.bigQueryHelper = bigQueryFactory.getBigQueryHelper(context.getConfiguration());
       } catch (GeneralSecurityException e) {
         throw new IOException("Failed to create Bigquery client.", e);
