@@ -1,4 +1,4 @@
 /**
- * Package contains the stepDesign for the GCS features.
+ * Package contains the step definitions for the GCS plugin.
  */
 package io.cdap.plugin.gcs.stepsdesign;
