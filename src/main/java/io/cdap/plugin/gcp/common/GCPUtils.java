@@ -172,12 +172,13 @@ public class GCPUtils {
     // AccessTokenProviderClassFromConfigFactory will by default look for
     //   google.cloud.auth.access.token.provider.impl
     // but can be configured to also look for the conf with other prefixes like
-    //   gs.fs.auth.access.token.provider.impl
+    //   fs.gs.auth.access.token.provider.impl
     //   mapred.bq.auth.access.token.provider.impl
     // for use by GCS and BQ.
     for (String prefix : prefixes) {
-      properties.put(prefix + HadoopCredentialConfiguration.ACCESS_TOKEN_PROVIDER_IMPL_SUFFIX,
-                     ServiceAccountAccessTokenProvider.class.getName());
+      properties.put(
+          prefix + HadoopCredentialConfiguration.ACCESS_TOKEN_PROVIDER_IMPL_SUFFIX.getKey(),
+          ServiceAccountAccessTokenProvider.class.getName());
     }
     return properties;
   }
