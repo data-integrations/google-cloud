@@ -40,6 +40,7 @@ public interface BigQueryConstants {
   String CONFIG_VIEW_MATERIALIZATION_PROJECT = "cdap.bq.source.view.materialization.project";
   String CONFIG_VIEW_MATERIALIZATION_DATASET = "cdap.bq.source.view.materialization.dataset";
   String CONFIG_PARTITION_TYPE = "cdap.bq.sink.partition.type";
+  String CONFIG_TIME_PARTITIONING_TYPE = "cdap.bq.sink.time.partitioning.type";
   String CONFIG_PARTITION_INTEGER_RANGE_START = "cdap.bq.sink.partition.integer.range.start";
   String CONFIG_PARTITION_INTEGER_RANGE_END = "cdap.bq.sink.partition.integer.range.end";
   String CONFIG_PARTITION_INTEGER_RANGE_INTERVAL = "cdap.bq.sink.partition.integer.range.interval";
