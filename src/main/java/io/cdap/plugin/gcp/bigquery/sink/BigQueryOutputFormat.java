@@ -229,6 +229,9 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
       LOG.debug("Allow schema relaxation: '{}'", allowSchemaRelaxation);
       PartitionType partitionType = conf.getEnum(BigQueryConstants.CONFIG_PARTITION_TYPE, PartitionType.NONE);
       LOG.debug("Create Partitioned Table type: '{}'", partitionType);
+      com.google.cloud.bigquery.TimePartitioning.Type timePartitioningType = conf.getEnum(
+              BigQueryConstants.CONFIG_TIME_PARTITIONING_TYPE, com.google.cloud.bigquery.TimePartitioning.Type.DAY
+      );
       Range range = partitionType == PartitionType.INTEGER ? createRangeForIntegerPartitioning(conf) : null;
       String partitionByField = conf.get(BigQueryConstants.CONFIG_PARTITION_BY_FIELD, null);
       LOG.debug("Partition Field: '{}'", partitionByField);
@@ -254,7 +257,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
 
       try {
         importFromGcs(destProjectId, destTable, destSchema.orElse(null), kmsKeyName, outputFileFormat,
-                      writeDisposition, sourceUris, partitionType, range, partitionByField,
+                      writeDisposition, sourceUris, partitionType, timePartitioningType, range, partitionByField,
                       requirePartitionFilter, clusteringOrderList, tableExists, conf);
       } catch (Exception e) {
         throw new IOException("Failed to import GCS into BigQuery. ", e);
@@ -298,8 +301,9 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
      */
     private void importFromGcs(String projectId, TableReference tableRef, @Nullable TableSchema schema,
                                @Nullable String kmsKeyName, BigQueryFileFormat sourceFormat, String writeDisposition,
-                               List<String> gcsPaths, PartitionType partitionType, @Nullable Range range,
-                               @Nullable String partitionByField, boolean requirePartitionFilter,
+                               List<String> gcsPaths, PartitionType partitionType,
+                               com.google.cloud.bigquery.TimePartitioning.Type timePartitioningType,
+                               @Nullable Range range, @Nullable String partitionByField, boolean requirePartitionFilter,
                                List<String> clusteringOrderList, boolean tableExists, Configuration conf)
       throws IOException, InterruptedException {
       LOG.info("Importing into table '{}' from {} paths; path[0] is '{}'; awaitCompletion: {}",
@@ -357,7 +361,8 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
       if (!tableExists) {
         switch (partitionType) {
           case TIME:
-            TimePartitioning timePartitioning = createTimePartitioning(partitionByField, requirePartitionFilter);
+            TimePartitioning timePartitioning = createTimePartitioning(partitionByField, requirePartitionFilter,
+                    timePartitioningType);
             loadConfig.setTimePartitioning(timePartitioning);
             break;
           case INTEGER:
@@ -756,9 +761,10 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
     }
 
     private TimePartitioning createTimePartitioning(
-      @Nullable String partitionByField, boolean requirePartitionFilter) {
+            @Nullable String partitionByField, boolean requirePartitionFilter,
+      com.google.cloud.bigquery.TimePartitioning.Type timePartitioningType) {
       TimePartitioning timePartitioning = new TimePartitioning();
-      timePartitioning.setType("DAY");
+      timePartitioning.setType(timePartitioningType.name());
       if (partitionByField != null) {
         timePartitioning.setField(partitionByField);
       }

@@ -24,6 +24,7 @@ import com.google.cloud.bigquery.JobConfiguration;
 import com.google.cloud.bigquery.JobId;
 import com.google.cloud.bigquery.JobStatistics;
 import com.google.cloud.bigquery.Table;
+import com.google.cloud.bigquery.TimePartitioning;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.Gson;
@@ -315,6 +316,9 @@ public final class BigQuerySink extends AbstractBigQuerySink {
 
     PartitionType partitioningType = getConfig().getPartitioningType();
     baseConfiguration.setEnum(BigQueryConstants.CONFIG_PARTITION_TYPE, partitioningType);
+
+    TimePartitioning.Type timePartitioningType = getConfig().getTimePartitioningType();
+    baseConfiguration.setEnum(BigQueryConstants.CONFIG_TIME_PARTITIONING_TYPE, timePartitioningType);
 
     if (config.getRangeStart() != null) {
       baseConfiguration.setLong(BigQueryConstants.CONFIG_PARTITION_INTEGER_RANGE_START, config.getRangeStart());

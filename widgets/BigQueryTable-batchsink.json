@@ -281,6 +281,33 @@
           }
         },
         {
+          "widget-type": "radio-group",
+          "label": "Time Partitioning Type",
+          "name": "timePartitioningType",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "DAY",
+            "options": [
+              {
+                "id": "DAY",
+                "label": "Daily"
+              },
+              {
+                "id": "HOUR",
+                "label": "Hourly"
+              },
+              {
+                "id": "MONTH",
+                "label": "Monthly"
+              },
+              {
+                "id": "YEAR",
+                "label": "Yearly"
+              }
+            ]
+          }
+        },
+        {
           "widget-type": "Number",
           "label": "Range Start (inclusive)",
           "name": "rangeStart",
@@ -372,6 +399,18 @@
         {
           "type": "property",
           "name": "clientAccessToken"
+        }
+      ]
+    },
+    {
+      "name": "PartitioningTimeFieldsFilter",
+      "condition": {
+        "expression": "partitioningType == 'TIME'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "timePartitioningType"
         }
       ]
     },

@@ -92,6 +92,9 @@ is ignored if the table already exists.
 * When this is set to Integer, table will be created with range partitioning.
 * When this is set to None, table will be created without time partitioning.
 
+**Time Partitioning Type**: Specifies the time partitioning type. Can either be Daily or Hourly or Monthly or Yearly.
+Default is Daily. Ignored when table already exists
+
 **Range Start**: For integer partitioning, specifies the start of the range. Only used when table doesn’t 
 exist already, and partitioning type is set to Integer.
 * The start value is inclusive.
