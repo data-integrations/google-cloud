@@ -83,7 +83,7 @@ public class DataplexBatchSourceConfigTest {
     dataplexBatchSourceConfig = DataplexBatchSourceConfig.builder()
       .setReferenceName("test").build();
     try {
-      dataplexBatchSourceConfig.validateBigQueryDataset(mockFailureCollector, "project", "dataset", "table-wrong");
+      dataplexBatchSourceConfig.validateBigQueryDataset(mockFailureCollector, "project", "dataset", "table.wrong");
     } catch (Exception e) {
     }
 

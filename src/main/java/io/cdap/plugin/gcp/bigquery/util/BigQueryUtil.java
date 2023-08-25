@@ -71,7 +71,7 @@ public final class BigQueryUtil {
 
   public static final String BUCKET_PATTERN = "[a-z0-9._-]+";
   public static final String DATASET_PATTERN = "[A-Za-z0-9_]+";
-  public static final String TABLE_PATTERN = "[A-Za-z0-9_]+";
+  public static final String TABLE_PATTERN = "[A-Za-z0-9_-]+";
 
   // array of arrays and map of arrays are not supported by big query
   public static final Set<Schema.Type> UNSUPPORTED_ARRAY_TYPES = ImmutableSet.of(Schema.Type.ARRAY, Schema.Type.MAP);
@@ -657,7 +657,7 @@ public final class BigQueryUtil {
    */
   public static void validateTable(String table, String tablePropertyName, FailureCollector collector) {
     // Allowed character validation for table name as per https://cloud.google.com/bigquery/docs/tables
-    String errorMessage = "Table name can only contain letters (lower or uppercase), numbers and '_'.";
+    String errorMessage = "Table name can only contain letters (lower or uppercase), numbers, '_' and '-'.";
     match(table, tablePropertyName, TABLE_PATTERN, collector, errorMessage);
   }
 
