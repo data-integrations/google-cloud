@@ -35,10 +35,9 @@ Feature:GCSDoneFileMarker - Validate GCSDoneFileMarker scenarios with GCSMove pi
     When Select plugin: "GCS Move" from the plugins list as: "Conditions and Actions"
     When Navigate to the properties page of plugin: "GCS Move"
     Then Enter GCSMove property projectId "projectId"
-    Then Enter GCSMove property source path
+    Then Enter input plugin property: "sourcePath" with value: "wrongSourcePath"
     Then Enter GCSMove property destination path
     Then Select GCSMove property move all subdirectories as "true"
-    Then Enter wrong value for GCSMove property service account file path
     Then Override Service account details if set in environment variables
     Then Validate "GCSMove" plugin properties
     Then Close GCSMove properties
