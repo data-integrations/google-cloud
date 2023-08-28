@@ -69,6 +69,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   public static final String NAME_OPERATION = "operation";
   public static final String PARTITION_FILTER = "partitionFilter";
   public static final String NAME_PARTITIONING_TYPE = "partitioningType";
+  public static final String NAME_TIME_PARTITIONING_TYPE = "timePartitioningType";
   public static final String NAME_RANGE_START = "rangeStart";
   public static final String NAME_RANGE_END = "rangeEnd";
   public static final String NAME_RANGE_INTERVAL = "rangeInterval";
@@ -101,6 +102,13 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   @Description("Specifies the partitioning type. Can either be Integer or Time or None. "
     + "Ignored when table already exists")
   protected String partitioningType;
+
+  @Name(NAME_TIME_PARTITIONING_TYPE)
+  @Macro
+  @Nullable
+  @Description("Specifies the time partitioning type. Can either be Daily or Hourly or Monthly or Yearly. "
+    + "Ignored when table already exists")
+  protected String timePartitioningType;
 
   @Name(NAME_RANGE_START)
   @Macro
@@ -267,6 +275,11 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     }
     return Strings.isNullOrEmpty(partitioningType) ? PartitionType.TIME
       : PartitionType.valueOf(partitioningType.toUpperCase());
+  }
+
+  public TimePartitioning.Type getTimePartitioningType() {
+    return Strings.isNullOrEmpty(timePartitioningType) ? TimePartitioning.Type.DAY :
+            TimePartitioning.Type.valueOf(timePartitioningType.toUpperCase());
   }
 
   /**
@@ -458,7 +471,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     Schema fieldSchema = field.getSchema();
     fieldSchema = fieldSchema.isNullable() ? fieldSchema.getNonNullable() : fieldSchema;
     if (partitioningType == PartitionType.TIME) {
-      validateTimePartitioningColumn(columnName, collector, fieldSchema);
+      validateTimePartitioningColumn(columnName, collector, fieldSchema, getTimePartitioningType());
     } else if (partitioningType == PartitionType.INTEGER) {
       validateIntegerPartitioningColumn(columnName, collector, fieldSchema);
       validateIntegerPartitioningRange(getRangeStart(), getRangeEnd(), getRangeInterval(), collector);
@@ -474,15 +487,30 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     }
   }
 
-  private void validateTimePartitioningColumn(String columnName, FailureCollector collector, Schema fieldSchema) {
+  private void validateTimePartitioningColumn(String columnName, FailureCollector collector,
+                                              Schema fieldSchema, TimePartitioning.Type timePartitioningType) {
+
     Schema.LogicalType logicalType = fieldSchema.getLogicalType();
-    if (logicalType != LogicalType.DATE && logicalType != LogicalType.TIMESTAMP_MICROS
-      && logicalType != LogicalType.TIMESTAMP_MILLIS) {
+
+    boolean isTimestamp = logicalType == LogicalType.TIMESTAMP_MICROS || logicalType == LogicalType.TIMESTAMP_MILLIS;
+    boolean isDate = logicalType == LogicalType.DATE;
+    boolean isTimestampOrDate = isTimestamp || isDate;
+
+    // If timePartitioningType is HOUR, then logicalType cannot be DATE Only TIMESTAMP_MICROS and TIMESTAMP_MILLIS
+    if (timePartitioningType == TimePartitioning.Type.HOUR && !isTimestamp) {
       collector.addFailure(
-        String.format("Partition column '%s' is of invalid type '%s'.", columnName, fieldSchema.getDisplayName()),
-        "Partition column must be a date or timestamp.")
-        .withConfigProperty(NAME_PARTITION_BY_FIELD)
-        .withOutputSchemaField(columnName).withInputSchemaField(columnName);
+                      String.format("Partition column '%s' is of invalid type '%s'.",
+                              columnName, fieldSchema.getDisplayName()),
+                      "Partition column must be a timestamp.").withConfigProperty(NAME_PARTITION_BY_FIELD)
+              .withOutputSchemaField(columnName).withInputSchemaField(columnName);
+
+    // For any other timePartitioningType (DAY, MONTH, YEAR) logicalType can be DATE, TIMESTAMP_MICROS, TIMESTAMP_MILLIS
+    } else if (!isTimestampOrDate) {
+      collector.addFailure(
+                      String.format("Partition column '%s' is of invalid type '%s'.",
+                              columnName, fieldSchema.getDisplayName()),
+                      "Partition column must be a date or timestamp.").withConfigProperty(NAME_PARTITION_BY_FIELD)
+              .withOutputSchemaField(columnName).withInputSchemaField(columnName);
     }
   }
 
