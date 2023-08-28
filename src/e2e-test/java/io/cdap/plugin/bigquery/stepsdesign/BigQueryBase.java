@@ -234,6 +234,9 @@ public class BigQueryBase implements E2EHelper {
     } else if (property.equalsIgnoreCase("bucket")) {
       expectedErrorMessage = PluginPropertyUtils
         .errorProp(E2ETestConstants.ERROR_MSG_BQ_INCORRECT_TEMPORARY_BUCKET);
+    } else if (property.equalsIgnoreCase("table")) {
+      expectedErrorMessage = PluginPropertyUtils
+        .errorProp(E2ETestConstants.ERROR_MSG_INCORRECT_TABLE_NAME);
     } else {
       expectedErrorMessage = PluginPropertyUtils.errorProp(E2ETestConstants.ERROR_MSG_BQ_INCORRECT_PROPERTY).
         replaceAll("PROPERTY", property.substring(0, 1).toUpperCase() + property.substring(1));
