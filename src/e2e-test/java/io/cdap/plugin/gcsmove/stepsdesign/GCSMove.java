@@ -232,11 +232,6 @@ public class GCSMove implements E2EHelper {
     GCSMoveActions.enterSourcePath("gs://" + TestSetupHooks.gcsSourceBucketName);
   }
 
-  @Then("Enter wrong value for GCSMove property service account file path")
-  public void enterWrongValueForGCSMovePropertyServiceAccountFilePath() {
-    GCSMoveActions.enterServiceAccountFilePath("/dummy/path/pipeline/to/file");
-  }
-
   @Then("Verify whether the {string} object present in destination bucket")
   public void verifyWhetherTheObjectPresentInDestinationBucket(String path) throws IOException {
     String targetGCSBucket = TestSetupHooks.gcsTargetBucketName;
