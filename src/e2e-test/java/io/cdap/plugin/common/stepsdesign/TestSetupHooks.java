@@ -178,7 +178,7 @@ public class TestSetupHooks {
   @After(order = 1, value = "@GCS_CSV_TEST or @GCS_TSV_TEST or @GCS_BLOB_TEST " +
     "or @GCS_DELIMITED_TEST or @GCS_TEXT_TEST or @GCS_OUTPUT_FIELD_TEST or @GCS_DATATYPE_1_TEST or " +
     "@GCS_DATATYPE_2_TEST or @GCS_READ_RECURSIVE_TEST or @GCS_DELETE_WILDCARD_TEST or @GCS_CSV_RANGE_TEST or" +
-    " @GCS_PARQUET_TEST or @GCS_AVRO_TEST or @GCS_DATATYPE_TEST")
+    " @GCS_PARQUET_TEST or @GCS_AVRO_TEST or @GCS_DATATYPE_TEST or @GCS_AVRO_FILE")
   public static void deleteSourceBucketWithFile() {
     deleteGCSBucket(gcsSourceBucketName);
     PluginPropertyUtils.removePluginProp("gcsSourceBucketName");
@@ -919,5 +919,9 @@ public class TestSetupHooks {
 
     PluginPropertyUtils.addPluginProp(" bqTargetTable",  bqTargetTable);
     BeforeActions.scenario.write("BQ Target Table " +  bqTargetTable + " updated successfully");
+  }
+  @Before(order = 1, value = "@GCS_AVRO_FILE")
+  public static void createGcsBucketWithAvro() throws IOException, URISyntaxException {
+    gcsSourceBucketName = createGCSBucketWithFile(PluginPropertyUtils.pluginProp("gcsAvroAllDataFile"));
   }
 }

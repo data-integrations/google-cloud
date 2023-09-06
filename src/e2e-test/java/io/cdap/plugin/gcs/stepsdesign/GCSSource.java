@@ -23,6 +23,7 @@ import io.cdap.e2e.utils.PluginPropertyUtils;
 import io.cdap.e2e.utils.SeleniumHelper;
 import io.cdap.e2e.utils.WaitHelper;
 import io.cdap.plugin.common.stepsdesign.TestSetupHooks;
+import io.cdap.plugin.gcs.GCSValidationHelper;
 import io.cdap.plugin.utils.CdfPluginPropertyLocator;
 import io.cdap.plugin.utils.E2EHelper;
 import io.cucumber.java.en.Then;
@@ -127,5 +128,12 @@ public class GCSSource implements E2EHelper {
   @Then("Select GCS source property path filename only as {string}")
   public void selectGCSSourcePropertyPathFilenameOnlyAs(String value) {
     CdfGcsActions.selectPathFilenameOnly(value);
+  }
+
+  @Then("Validate the data transferred from GCS Source to GCS Sink with Expected avro file and target data in " +
+    "GCS bucket")
+  public void validateTheDataTransferredFromGCSSourceToGCSSinkWithExpectedAvroFileAndTargetDataInGCSBucket() throws
+    IOException {
+    GCSValidationHelper.validateGCSSourceToGCSSink(TestSetupHooks.gcsTargetBucketName);
   }
 }
