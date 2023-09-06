@@ -56,6 +56,12 @@ public class ServiceAccountAccessTokenProvider implements AccessTokenProvider {
 
   private GoogleCredentials getCredentials() throws IOException {
     if (credentials == null) {
+      if (conf == null) {
+        // {@link CredentialFromAccessTokenProviderClassFactory#credential} does not propagate the
+        // config to {@link ServiceAccountAccessTokenProvider} which causes NPE when
+        // initializing {@link ForwardingBigQueryFileOutputCommitter because conf is null.
+        conf = new Configuration();
+      }
       credentials = GCPUtils.loadCredentialsFromConf(conf);
     }
     return credentials;

@@ -17,10 +17,13 @@
 package io.cdap.plugin.gcp.bigquery.source;
 
 import com.google.api.client.auth.oauth2.Credential;
+import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFactory;
-import com.google.cloud.hadoop.util.AccessTokenProviderClassFromConfigFactory;
+import com.google.cloud.hadoop.util.AccessTokenProvider;
 import com.google.cloud.hadoop.util.CredentialFromAccessTokenProviderClassFactory;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
+import com.google.common.collect.ImmutableList;
+import io.cdap.plugin.gcp.gcs.ServiceAccountAccessTokenProvider;
 import org.apache.hadoop.conf.Configuration;
 
 import java.io.IOException;
@@ -41,18 +44,27 @@ public class BigQueryFactoryWithScopes extends BigQueryFactory {
   @Override
   public Credential createBigQueryCredential(Configuration config) throws GeneralSecurityException, IOException {
     Credential credential =
-      CredentialFromAccessTokenProviderClassFactory.credential(
-        new AccessTokenProviderClassFromConfigFactory().withOverridePrefix("mapred.bq"),
-        config,
-        scopes);
+        CredentialFromAccessTokenProviderClassFactory.credential(getAccessTokenProvider(config),
+            scopes);
     if (credential != null) {
       return credential;
     }
 
-    return HadoopCredentialConfiguration.newBuilder()
-      .withConfiguration(config)
-      .withOverridePrefix(BIGQUERY_CONFIG_PREFIX)
-      .build()
-      .getCredential(scopes);
+    return HadoopCredentialConfiguration.getCredentialFactory(
+            config, String.valueOf(ImmutableList.of(BigQueryConfiguration.BIGQUERY_CONFIG_PREFIX)))
+        .getCredential(scopes);
+  }
+
+  /**
+   * returns the {@link AccessTokenProvider} that uses the newer GoogleCredentials
+   * library to get the credentials.
+   *
+   * @param config Hadoop {@link Configuration}
+   * @return {@link ServiceAccountAccessTokenProvider}
+   */
+  private AccessTokenProvider getAccessTokenProvider(Configuration config) {
+    AccessTokenProvider accessTokenProvider = new ServiceAccountAccessTokenProvider();
+    accessTokenProvider.setConf(config);
+    return accessTokenProvider;
   }
 }
