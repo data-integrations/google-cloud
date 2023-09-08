@@ -134,6 +134,15 @@ public class GCSSource implements E2EHelper {
     "GCS bucket")
   public void validateTheDataTransferredFromGCSSourceToGCSSinkWithExpectedAvroFileAndTargetDataInGCSBucket() throws
     IOException {
-    GCSValidationHelper.validateGCSSourceToGCSSink(TestSetupHooks.gcsTargetBucketName);
+    GCSValidationHelper.validateGCSSourceToGCSSinkWithAVROFormat(TestSetupHooks.gcsTargetBucketName);
+  }
+
+  @Then("Validate the data from GCS Source to GCS Sink with expected csv file and target data in GCS bucket")
+  public void validateTheDataFromGCSSourceToGCSSinkWithExpectedCsvFileAndTargetDataInGCSBucket() {
+    GCSValidationHelper.validateGCSSourceToGCSSinkWithCSVFormat(TestSetupHooks.gcsTargetBucketName);
+  }
+  @Then("Validate the data from GCS Source to GCS Sink with expected json file and target data in GCS bucket")
+  public void validateTheDataFromGCSSourceToGCSSinkWithExpectedJsonFileAndTargetDataInGCSBucket() {
+    GCSValidationHelper.validateGCSSourceToGCSSinkWithJsonFormat(TestSetupHooks.gcsTargetBucketName);
   }
 }
