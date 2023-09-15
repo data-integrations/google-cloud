@@ -262,3 +262,96 @@ Feature: BigQuery source - Verification of BigQuery to BigQuery successful data 
     Then Open and capture logs
     Then Verify the pipeline status is "Succeeded"
     Then Validate the values of records transferred to BQ sink is equal to the values from source BigQuery table
+
+  @BQ_EXISTING_SOURCE_TEST @BQ_EXISTING_SINK_TEST @EXISTING_BQ_CONNECTION
+  Scenario: Validate user is able to read data from BigQuery source(existing table) and store them in BigQuery sink(existing table) with use connection functionality
+    Given Open Datafusion Project to configure pipeline
+    When Expand Plugin group in the LHS plugins list: "Source"
+    When Select plugin: "BigQuery" from the plugins list as: "Source"
+    When Expand Plugin group in the LHS plugins list: "Sink"
+    When Select plugin: "BigQuery" from the plugins list as: "Sink"
+    Then Connect plugins: "BigQuery" and "BigQuery2" to establish connection
+    Then Navigate to the properties page of plugin: "BigQuery"
+    Then Click plugin property: "switch-useConnection"
+    Then Click on the Browse Connections button
+    Then Select connection: "bqConnectionName"
+    Then Click on the Browse button inside plugin properties
+    Then Select connection data row with name: "dataset"
+    Then Select connection data row with name: "bqSourceTable"
+    Then Wait till connection data loading completes with a timeout of 60 seconds
+    Then Verify input plugin property: "dataset" contains value: "dataset"
+    Then Verify input plugin property: "table" contains value: "bqSourceTable"
+    Then Click on the Get Schema button
+    Then Validate "BigQuery" plugin properties
+    And Close the Plugin Properties page
+    Then Navigate to the properties page of plugin: "BigQuery2"
+    Then Click plugin property: "useConnection"
+    Then Click on the Browse Connections button
+    Then Select connection: "bqConnectionName"
+    Then Enter input plugin property: "referenceName" with value: "BQSinkReferenceName"
+    Then Click on the Browse button inside plugin properties
+    Then Click SELECT button inside connection data row with name: "dataset"
+    Then Wait till connection data loading completes with a timeout of 60 seconds
+    Then Verify input plugin property: "dataset" contains value: "dataset"
+    Then Enter input plugin property: "table" with value: "bqTargetTable"
+    Then Validate "BigQuery" plugin properties
+    Then Close the BigQuery properties
+    Then Save the pipeline
+    Then Preview and run the pipeline
+    Then Wait till pipeline preview is in running state
+    Then Open and capture pipeline preview logs
+    Then Verify the preview run status of pipeline in the logs is "succeeded"
+    Then Close the pipeline logs
+    Then Close the preview
+    Then Deploy the pipeline
+    Then Run the Pipeline in Runtime
+    Then Wait till pipeline is in running state
+    Then Open and capture logs
+    Then Verify the pipeline status is "Succeeded"
+    Then Validate the data transferred from BigQuery to BigQuery with actual And expected file for: "bqExpectedFile"
+
+  @BQ_EXISTING_SOURCE_TEST @BQ_SINK_TEST @EXISTING_BQ_CONNECTION
+  Scenario: Validate user is able to read data from BigQuery source(existing table) without clicking on the validate button of BigQuery source and store them in BigQuery sink(new table) with use connection functionality
+    Given Open Datafusion Project to configure pipeline
+    When Expand Plugin group in the LHS plugins list: "Source"
+    When Select plugin: "BigQuery" from the plugins list as: "Source"
+    When Expand Plugin group in the LHS plugins list: "Sink"
+    When Select plugin: "BigQuery" from the plugins list as: "Sink"
+    Then Connect plugins: "BigQuery" and "BigQuery2" to establish connection
+    Then Navigate to the properties page of plugin: "BigQuery"
+    Then Click plugin property: "switch-useConnection"
+    Then Click on the Browse Connections button
+    Then Select connection: "bqConnectionName"
+    Then Click on the Browse button inside plugin properties
+    Then Select connection data row with name: "dataset"
+    Then Select connection data row with name: "bqSourceTable"
+    Then Wait till connection data loading completes with a timeout of 60 seconds
+    Then Verify input plugin property: "dataset" contains value: "dataset"
+    Then Verify input plugin property: "table" contains value: "bqSourceTable"
+    Then Click on the Get Schema button
+    And Close the Plugin Properties page
+    Then Navigate to the properties page of plugin: "BigQuery2"
+    Then Click plugin property: "useConnection"
+    Then Click on the Browse Connections button
+    Then Select connection: "bqConnectionName"
+    Then Enter input plugin property: "referenceName" with value: "BQSinkReferenceName"
+    Then Click on the Browse button inside plugin properties
+    Then Click SELECT button inside connection data row with name: "dataset"
+    Then Wait till connection data loading completes with a timeout of 60 seconds
+    Then Verify input plugin property: "dataset" contains value: "dataset"
+    Then Enter input plugin property: "table" with value: "bqTargetTable"
+    Then Validate "BigQuery" plugin properties
+    Then Close the BigQuery properties
+    Then Save the pipeline
+    Then Preview and run the pipeline
+    Then Wait till pipeline preview is in running state
+    Then Open and capture pipeline preview logs
+    Then Verify the preview run status of pipeline in the logs is "succeeded"
+    Then Close the pipeline logs
+    Then Close the preview
+    Then Deploy the pipeline
+    Then Run the Pipeline in Runtime
+    Then Wait till pipeline is in running state
+    Then Open and capture logs
+    Then Verify the pipeline status is "Succeeded"
+    Then Validate the values of records transferred to BQ sink is equal to the values from source BigQuery table

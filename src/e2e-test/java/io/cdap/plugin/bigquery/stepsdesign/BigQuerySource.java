@@ -32,6 +32,7 @@ import org.apache.commons.lang3.time.DateUtils;
 import org.junit.Assert;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.UUID;
@@ -159,5 +160,14 @@ public class BigQuerySource implements E2EHelper {
   @Then("Enter BigQuery source property table name as view")
   public void enterBigQuerySourcePropertyTableNameAsView() {
     CdfBigQueryPropertiesActions.enterBigQueryTable(TestSetupHooks.bqSourceView);
+  }
+
+  @Then("Validate the data transferred from BigQuery to BigQuery with actual And expected file for: {string}")
+  public void validateTheDataFromBQToBQWithActualAndExpectedFileFor(String expectedFile) throws IOException,
+    InterruptedException, URISyntaxException {
+    boolean recordsMatched = BQValidationExistingTables.validateActualDataToExpectedData(
+      PluginPropertyUtils.pluginProp("bqTargetTable"),
+      PluginPropertyUtils.pluginProp(expectedFile));
+    Assert.assertTrue("Value of records in actual and expected file is equal", recordsMatched);
   }
 }
