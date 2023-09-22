@@ -178,7 +178,8 @@ public class TestSetupHooks {
   @After(order = 1, value = "@GCS_CSV_TEST or @GCS_TSV_TEST or @GCS_BLOB_TEST " +
     "or @GCS_DELIMITED_TEST or @GCS_TEXT_TEST or @GCS_OUTPUT_FIELD_TEST or @GCS_DATATYPE_1_TEST or " +
     "@GCS_DATATYPE_2_TEST or @GCS_READ_RECURSIVE_TEST or @GCS_DELETE_WILDCARD_TEST or @GCS_CSV_RANGE_TEST or" +
-    " @GCS_PARQUET_TEST or @GCS_AVRO_TEST or @GCS_DATATYPE_TEST or @GCS_AVRO_FILE")
+    " @GCS_PARQUET_TEST or @GCS_AVRO_TEST or @GCS_DATATYPE_TEST or @GCS_AVRO_FILE or @GCS_CSV or " +
+    "@GCS_MULTIPLE_FILES_TEST or @GCS_MULTIPLE_FILES_REGEX_TEST")
   public static void deleteSourceBucketWithFile() {
     deleteGCSBucket(gcsSourceBucketName);
     PluginPropertyUtils.removePluginProp("gcsSourceBucketName");
@@ -923,5 +924,21 @@ public class TestSetupHooks {
   @Before(order = 1, value = "@GCS_AVRO_FILE")
   public static void createGcsBucketWithAvro() throws IOException, URISyntaxException {
     gcsSourceBucketName = createGCSBucketWithFile(PluginPropertyUtils.pluginProp("gcsAvroAllDataFile"));
+  }
+
+  @Before(order = 1, value = "@GCS_CSV")
+  public static void createGcsBucketWithCsv() throws IOException, URISyntaxException {
+    gcsSourceBucketName = createGCSBucketWithFile(PluginPropertyUtils.pluginProp("gcsCsvDataFile"));
+  }
+
+  @Before(order = 1, value = "@GCS_MULTIPLE_FILES_TEST")
+  public static void createBucketWithMultipleTestFiles() throws IOException, URISyntaxException {
+    gcsSourceBucketName = createGCSBucketWithMultipleFiles(PluginPropertyUtils.pluginProp("gcsMultipleFilesPath"));
+  }
+
+  @Before(order = 1, value = "@GCS_MULTIPLE_FILES_REGEX_TEST")
+  public static void createBucketWithMultipleTestFilesWithRegex() throws IOException, URISyntaxException {
+    gcsSourceBucketName = createGCSBucketWithMultipleFiles(PluginPropertyUtils.pluginProp(
+      "gcsMultipleFilesFilterRegexPath"));
   }
 }
