@@ -1,3 +1,19 @@
+/*
+ * Copyright © 2023 Cask Data, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+
 package io.cdap.plugin.gcp.bigquery.source;
 
 import com.google.api.services.bigquery.model.Job;
@@ -10,7 +26,6 @@ import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.TableDefinition.Type;
 import com.google.cloud.bigquery.TimePartitioning;
 import com.google.cloud.hadoop.io.bigquery.AbstractBigQueryInputFormat;
-import com.google.cloud.hadoop.io.bigquery.AvroBigQueryInputFormat;
 import com.google.cloud.hadoop.io.bigquery.AvroRecordReader;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFactory;
@@ -51,7 +66,7 @@ import javax.annotation.Nullable;
 public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<LongWritable, GenericData.Record> {
 
   private InputFormat<LongWritable, GenericData.Record> delegateInputFormat =
-    new AvroBigQueryInputFormat();
+    new AvroBigQueryInputFormatWithScopes();
 
   @Override
   public ExportFileFormat getExportFileFormat() {
