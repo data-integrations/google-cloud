@@ -1,7 +1,7 @@
 @BigQuery_Sink
 Feature: BigQuery sink - Verification of GCS to BigQuery successful data transfer
 
-  @CMEK @GCS_CSV_TEST @BQ_SINK_TEST
+  @CMEK @GCS_CSV_TEST @BQ_SINK_TEST @BigQuery_Sink_Required
   Scenario:Validate successful records transfer from GCS to BigQuery
     Given Open Datafusion Project to configure pipeline
     When Source is GCS

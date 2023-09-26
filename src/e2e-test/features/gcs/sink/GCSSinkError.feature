@@ -48,7 +48,7 @@ Feature: GCS sink - Verify GCS Sink plugin error scenarios
     Then Click on the Validate button
     Then Verify that the Plugin Property: "path" is displaying an in-line error message: "errorMessageInvalidBucketName"
 
-  @BQ_SOURCE_DATATYPE_TEST @GCS_SINK_TEST
+  @BQ_SOURCE_DATATYPE_TEST @GCS_SINK_TEST @GCS_Sink_Required
   Scenario: To verify error message when unsupported format is used in GCS sink with multiple datatypes provided in source table
     Given Open Datafusion Project to configure pipeline
     When Source is BigQuery

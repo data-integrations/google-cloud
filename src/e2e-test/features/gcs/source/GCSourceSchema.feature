@@ -20,6 +20,7 @@ Feature: GCS source - Validate GCS plugin output schema for different formats
       | GcsPath      | FileFormat  | ExpectedSchema     |
       | gcsTsvFile   | tsv         | gcsTsvFileSchema   |
 
+  @GCS_Source_Required
   Scenario Outline:GCS Source output schema validation for blob, parquet, avro and text format
     Given Open Datafusion Project to configure pipeline
     When Source is GCS
