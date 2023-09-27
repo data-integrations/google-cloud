@@ -178,8 +178,7 @@ public class TestSetupHooks {
   @After(order = 1, value = "@GCS_CSV_TEST or @GCS_TSV_TEST or @GCS_BLOB_TEST " +
     "or @GCS_DELIMITED_TEST or @GCS_TEXT_TEST or @GCS_OUTPUT_FIELD_TEST or @GCS_DATATYPE_1_TEST or " +
     "@GCS_DATATYPE_2_TEST or @GCS_READ_RECURSIVE_TEST or @GCS_DELETE_WILDCARD_TEST or @GCS_CSV_RANGE_TEST or" +
-    " @GCS_PARQUET_TEST or @GCS_AVRO_TEST or @GCS_DATATYPE_TEST or @GCS_AVRO_FILE or @GCS_CSV or " +
-    "@GCS_MULTIPLE_FILES_TEST or @GCS_MULTIPLE_FILES_REGEX_TEST")
+    " @GCS_PARQUET_TEST or @GCS_AVRO_TEST or @GCS_DATATYPE_TEST or @GCS_AVRO_FILE")
   public static void deleteSourceBucketWithFile() {
     deleteGCSBucket(gcsSourceBucketName);
     PluginPropertyUtils.removePluginProp("gcsSourceBucketName");
@@ -270,7 +269,8 @@ public class TestSetupHooks {
   }
 
   @After(order = 1, value = "@BQ_SOURCE_TEST or @BQ_PARTITIONED_SOURCE_TEST or @BQ_SOURCE_DATATYPE_TEST or " +
-    "@BQ_INSERT_SOURCE_TEST or @BQ_UPDATE_SINK_TEST")
+    "@BQ_INSERT_SOURCE_TEST or @BQ_UPDATE_SINK_TEST or @BQ_EXISTING_SOURCE_TEST or @BQ_EXISTING_SINK_TEST or " +
+    "@BQ_EXISTING_SOURCE_DATATYPE_TEST or @BQ_EXISTING_SINK_DATATYPE_TEST")
   public static void deleteTempSourceBQTable() throws IOException, InterruptedException {
     BigQueryClient.dropBqQuery(bqSourceTable);
     PluginPropertyUtils.removePluginProp("bqSourceTable");
@@ -937,8 +937,97 @@ public class TestSetupHooks {
   }
 
   @Before(order = 1, value = "@GCS_MULTIPLE_FILES_REGEX_TEST")
-  public static void createBucketWithMultipleTestFilesWithRegex() throws IOException, URISyntaxException {
+  public static void createBucketWithMultipleTestFilesWithRegex () throws IOException, URISyntaxException {
     gcsSourceBucketName = createGCSBucketWithMultipleFiles(PluginPropertyUtils.pluginProp(
       "gcsMultipleFilesFilterRegexPath"));
+    PluginPropertyUtils.addPluginProp(" bqTargetTable", bqTargetTable);
+    BeforeActions.scenario.write("BQ Target Table " + bqTargetTable + " updated successfully");
+  }
+
+  @Before(order = 1, value = "@BQ_EXISTING_SOURCE_TEST")
+  public static void createSourceBQExistingTable() throws IOException, InterruptedException {
+    bqSourceTable = "E2E_SOURCE_" + UUID.randomUUID().toString().replaceAll("-" , "_");
+    io.cdap.e2e.utils.BigQueryClient.getSoleQueryResult("create table `" + datasetName + "." + bqSourceTable + "` " +
+                                                          "(ID INT64, Name STRING, " + "Price FLOAT64," +
+                                                          "Customer_Exists BOOL ) ");
+    try {
+      io.cdap.e2e.utils.BigQueryClient.getSoleQueryResult("INSERT INTO `" + datasetName + "." + bqSourceTable + "` " +
+                                                            "(ID, Name, Price, Customer_Exists)" +
+                                                            "VALUES" + "(1, 'Raja Sharma', 200.0, true)");
+    } catch (NoSuchElementException e) {
+      // Insert query does not return any record.
+      // Iterator on TableResult values in getSoleQueryResult method throws NoSuchElementException
+      BeforeActions.scenario.write("Error inserting the record in the table" + e.getStackTrace());
+    }
+    PluginPropertyUtils.addPluginProp("bqSourceTable", bqSourceTable);
+    BeforeActions.scenario.write("BQ Source Table " + bqSourceTable + " created successfully");
+  }
+
+  @Before(order = 1, value = "@BQ_EXISTING_SINK_TEST")
+  public static void createSinkBQExistingTable() throws IOException, InterruptedException {
+
+    bqTargetTable = "E2E_TARGET_" + UUID.randomUUID().toString().replaceAll("-", "_");
+    PluginPropertyUtils.addPluginProp("bqTargetTable", bqTargetTable);
+    BeforeActions.scenario.write("BQ Target table name - " + bqTargetTable);
+    io.cdap.e2e.utils.BigQueryClient.getSoleQueryResult("create table `" + datasetName + "." + bqTargetTable + "` " +
+                                                          "(ID INT64,Name STRING," +
+                                                          "Price FLOAT64, Customer_Exists BOOL ) ");
+    try {
+      io.cdap.e2e.utils.BigQueryClient.getSoleQueryResult("INSERT INTO `" + datasetName + "." + bqTargetTable + "` " +
+                                                            "(ID,  Name, Price, Customer_Exists)" +
+                                                            "VALUES" + "(3, 'Rajan Kumar', 100.0, true)");
+    } catch (NoSuchElementException e) {
+      // Insert query does not return any record.
+      // Iterator on TableResult values in getSoleQueryResult method throws NoSuchElementException
+      BeforeActions.scenario.write("Error inserting the record in the table" + e.getStackTrace());
+    }
+  }
+
+    @Before(order = 1, value = "@BQ_EXISTING_SOURCE_DATATYPE_TEST")
+    public static void createSourceBQExistingDatatypeTable () throws IOException, InterruptedException {
+      bqSourceTable = "E2E_SOURCE_" + UUID.randomUUID().toString().replaceAll("-", "_");
+      io.cdap.e2e.utils.BigQueryClient.getSoleQueryResult("create table `" + datasetName + "." + bqSourceTable + "` " +
+                                                            "(ID INT64, Name STRING, " + "Price FLOAT64," +
+                                                            "Customer_Exists BOOL, transaction_date DATE," +
+                                                            "business_ratio NUMERIC, updated_on TIMESTAMP ) ");
+      try {
+        io.cdap.e2e.utils.BigQueryClient.getSoleQueryResult("INSERT INTO `" + datasetName + "." + bqSourceTable + "` " +
+                                                              "(ID, Name, Price, Customer_Exists,transaction_date," +
+                                                              "business_ratio,updated_on)" +
+                                                              "VALUES" + "(1, 'Raja Sharma', 200.0, true," +
+                                                              "'2021-01-28'," + "0.0904809091," +
+                                                              "'2018-03-10 04:50:01 UTC' " +
+                                                              ") ");
+      } catch (NoSuchElementException e) {
+        // Insert query does not return any record.
+        // Iterator on TableResult values in getSoleQueryResult method throws NoSuchElementException
+        BeforeActions.scenario.write("Error inserting the record in the table" + e.getStackTrace());
+      }
+      PluginPropertyUtils.addPluginProp("bqSourceTable", bqSourceTable);
+      BeforeActions.scenario.write("BQ Source Table " + bqSourceTable + " created successfully");
+    }
+
+  @Before(order = 1, value = "@BQ_EXISTING_SINK_DATATYPE_TEST")
+  public static void createSinkBQExistingDatatypeTable() throws IOException, InterruptedException {
+
+    bqTargetTable = "E2E_TARGET_" + UUID.randomUUID().toString().replaceAll("-", "_");
+    PluginPropertyUtils.addPluginProp("bqTargetTable", bqTargetTable);
+    BeforeActions.scenario.write("BQ Target table name - " + bqTargetTable);
+    io.cdap.e2e.utils.BigQueryClient.getSoleQueryResult("create table `" + datasetName + "." + bqTargetTable + "` " +
+                                                          "(ID INT64,Name STRING," +
+                                                          "Price FLOAT64, Customer_Exists BOOL ) ");
+    try {
+      io.cdap.e2e.utils.BigQueryClient.getSoleQueryResult("INSERT INTO `" + datasetName + "." + bqTargetTable + "` " +
+                                                            "(ID,  Name, Price, Customer_Exists)" +
+                                                            "VALUES" + "(3, 'Rajan Kumar', 100.0, true)");
+
+    } catch (NoSuchElementException e) {
+      // Insert query does not return any record.
+      // Iterator on TableResult values in getSoleQueryResult method throws NoSuchElementException
+      BeforeActions.scenario.write("Error inserting the record in the table" + e.getStackTrace());
+    }
+
+    PluginPropertyUtils.addPluginProp(" bqTargetTable",  bqTargetTable);
+    BeforeActions.scenario.write("BQ Target Table " +  bqTargetTable + " updated successfully");
   }
 }
