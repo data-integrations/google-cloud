@@ -226,6 +226,22 @@
           }
         },
         {
+          "widget-type": "textbox",
+          "label": "Length Field",
+          "name": "lengthField",
+          "widget-attributes": {
+            "placeholder": "Output field to place the length of the file that was read from"
+          }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Modification Time Field",
+          "name": "modificationTimeField",
+          "widget-attributes": {
+            "placeholder": "Output field to place the modification time of the file that was read from"
+          }
+        },
+        {
           "widget-type": "radio-group",
           "name": "filenameOnly",
           "label": "Path Filename Only",
