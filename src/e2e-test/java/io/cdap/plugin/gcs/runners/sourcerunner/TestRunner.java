@@ -28,10 +28,9 @@ import org.junit.runner.RunWith;
   features = {"src/e2e-test/features"},
   glue = {"io.cdap.plugin.gcs.stepsdesign", "io.cdap.plugin.bigquery.stepsdesign",
     "stepsdesign", "io.cdap.plugin.common.stepsdesign"},
-  tags = {"@GCS_Source and not @PLUGIN-823 and not @PLUGIN-1113 and not @CDAP-18494 and not @PLUGIN-825"},
+  tags = {"@GCS_Source and not @PLUGIN-823 and not @PLUGIN-1113 and not @PLUGIN-825"},
   /* TODO :Enable tests once issues fixed https://cdap.atlassian.net/browse/PLUGIN-823,
-      https://cdap.atlassian.net/browse/PLUGIN-1113,
-  https://cdap.atlassian.net/browse/PLUGIN-825, https://cdap.atlassian.net/browse/CDAP-18494  */
+      https://cdap.atlassian.net/browse/PLUGIN-1113, https://cdap.atlassian.net/browse/PLUGIN-825 */
   monochrome = true,
   plugin = {"pretty", "html:target/cucumber-html-report/gcs-source",
     "json:target/cucumber-reports/cucumber-gcs-source.json",
