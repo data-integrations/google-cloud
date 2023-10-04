@@ -40,7 +40,7 @@ import javax.annotation.Nullable;
 
 
 /**
- * An action plugin to move GCS objects.
+ * An action plugin to move GCS objects
  */
 @Plugin(type = Action.PLUGIN_TYPE)
 @Name(GCSCopy.NAME)
