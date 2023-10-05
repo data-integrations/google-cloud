@@ -38,14 +38,14 @@ Feature: GCS source - Validate GCS plugin output schema for different formats
     Examples:
       | GcsPath      | FileFormat  | ExpectedSchema     |
       | gcsTextFile  | text        | gcsTextFileSchema  |
-    @GCS_PARQUET_TEST @CDAP-18494
+    @GCS_PARQUET_TEST
     Examples:
       | GcsPath        | FileFormat | ExpectedSchema       |
       | gcsParquetFile | parquet    | gcsParquetFileSchema |
-    @GCS_AVRO_TEST @CDAP-18494
+    @GCS_AVRO_FILE
     Examples:
-      | GcsPath        | FileFormat | ExpectedSchema       |
-      | gcsAvroFile    | avro       | gcsAvroFileSchema    |
+      | GcsPath             | FileFormat | ExpectedSchema           |
+      | gcsAvroAllDataFile  | avro       | gcsAvroAllTypeDataSchema |
 
   @GCS_Source
   Scenario Outline:GCS Source output schema validation for delimited files
