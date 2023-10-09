@@ -78,7 +78,7 @@ jobs:
                         MYSQL_USERNAME:cdapio-github-builds/MYSQL_USERNAME
                         MYSQL_PASSWORD:cdapio-github-builds/MYSQL_PASSWORD
                         MYSQL_PORT:cdapio-github-builds/MYSQL_PORT
-                        CONNECTION_STRING:cdapio-github-builds/CONNECTION_STRING
+                        BQMT_CONNECTION_STRING:cdapio-github-builds/BQMT_CONNECTION_STRING
 
       - name: Run required e2e tests
         if: github.event_name != 'workflow_dispatch' && github.event_name != 'push' && steps.filter.outputs.e2e-test == 'false'
@@ -88,7 +88,7 @@ jobs:
           MYSQL_USERNAME: ${{ steps.secrets.outputs.MYSQL_USERNAME }}
           MYSQL_PASSWORD: ${{ steps.secrets.outputs.MYSQL_PASSWORD }}
           MYSQL_PORT: ${{ steps.secrets.outputs.MYSQL_PORT }}
-          CONNECTION_STRING: ${{ steps.secrets.outputs.CONNECTION_STRING }}
+          BQMT_CONNECTION_STRING: ${{ steps.secrets.outputs.BQMT_CONNECTION_STRING }}
 
       - name: Run all e2e tests
         if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || steps.filter.outputs.e2e-test == 'true'
@@ -98,7 +98,7 @@ jobs:
           MYSQL_USERNAME: ${{ steps.secrets.outputs.MYSQL_USERNAME }}
           MYSQL_PASSWORD: ${{ steps.secrets.outputs.MYSQL_PASSWORD }}
           MYSQL_PORT: ${{ steps.secrets.outputs.MYSQL_PORT }}
-          CONNECTION_STRING: ${{ steps.secrets.outputs.CONNECTION_STRING }}
+          BQMT_CONNECTION_STRING: ${{ steps.secrets.outputs.BQMT_CONNECTION_STRING }}
       - name: Upload debug files
         uses: actions/upload-artifact@v3
         if: always()

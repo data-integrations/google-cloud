@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
 <!--
   ~ Copyright © 2016-2019 Cask Data, Inc.
   ~
@@ -1201,7 +1200,6 @@
           <execution>
             <goals>
               <goal>integration-test</goal>
-              <goal>verify</goal>
             </goals>
           </execution>
         </executions>
@@ -1252,7 +1250,7 @@
         <dependency>
           <groupId>mysql</groupId>
           <artifactId>mysql-connector-java</artifactId>
-          <version>8.0.19</version>
+          <version>8.0.25</version>
           <scope>test</scope>
         </dependency>
         <dependency>
