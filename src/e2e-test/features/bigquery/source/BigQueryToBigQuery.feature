@@ -1,7 +1,7 @@
 @BigQuery_Source
 Feature: BigQuery source - Verification of BigQuery to BigQuery successful data transfer
 
-#TestingPurpose3
+#TestingPurpose4
   @BQ_SOURCE_TEST @BQ_SINK_TEST
   Scenario:Validate successful records transfer from BigQuery to BigQuery with filter
     Given Open Datafusion Project to configure pipeline
