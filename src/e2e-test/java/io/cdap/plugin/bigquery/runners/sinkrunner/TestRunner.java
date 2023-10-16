@@ -27,7 +27,8 @@ import org.junit.runner.RunWith;
   features = {"src/e2e-test/features"},
   glue = {"io.cdap.plugin.bigquery.stepsdesign", "io.cdap.plugin.gcs.stepsdesign",
     "stepsdesign", "io.cdap.plugin.common.stepsdesign"},
-  tags = {"@BigQuery_Sink"},
+  tags = {"@BigQuery_Sink and not @CDAP-20830"},
+  //TODO: Enable test once issue is fixed https://cdap.atlassian.net/browse/CDAP-20830
   monochrome = true,
   plugin = {"pretty", "html:target/cucumber-html-report/bigquery-sink",
     "json:target/cucumber-reports/cucumber-bigquery-sink.json",
