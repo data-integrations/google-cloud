@@ -1,5 +1,5 @@
 /*
- * Copyright © 2022 Cask Data, Inc.
+ * Copyright © 2023 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -13,25 +13,25 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package io.cdap.plugin.gcsmove.runners;
+
+package io.cdap.plugin.gcscopy.runners;
 
 import io.cucumber.junit.Cucumber;
 import io.cucumber.junit.CucumberOptions;
 import org.junit.runner.RunWith;
 
 /**
- * Test Runner to execute only required GCSMove test cases.
+ * Test Runner to execute only GCSCopy test cases.
  */
 @RunWith(Cucumber.class)
 @CucumberOptions(
   features = {"src/e2e-test/features"},
-  glue = {"io.cdap.plugin.gcsmove.stepsdesign", "io.cdap.plugin.gcs.stepsdesign",
-    "stepsdesign", "io.cdap.plugin.common.stepsdesign"},
-  tags = {"@GCSMove_Required"},
+  glue = {"io.cdap.plugin.gcscopy.stepsdesign", "stepsdesign", "io.cdap.plugin.common.stepsdesign"},
+  tags = {"@GCSCopy_Required"},
   monochrome = true,
-  plugin = {"pretty", "html:target/cucumber-html-report/gcsmove-action-required",
-    "json:target/cucumber-reports/cucumber-gcsmove-action-required.json",
-    "junit:target/cucumber-reports/cucumber-gcsmove-action-required.xml"}
+  plugin = {"pretty", "html:target/cucumber-html-report/gcscopy-action",
+    "json:target/cucumber-reports/cucumber-gcscopy-action.json",
+    "junit:target/cucumber-reports/cucumber-gcscopy-action.xml"}
 )
 public class TestRunnerRequired {
 }

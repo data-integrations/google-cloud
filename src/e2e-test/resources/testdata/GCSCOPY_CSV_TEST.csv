@@ -1,0 +1,11 @@
+id,EmployeeDepartment,Employeename,Salary,wotkhours
+1,Plumber,Surya,10000,3
+2,Plumber,Sahil,70000,5
+3,Plumber,Waugh,10000,6
+4,Plumber,Steve,10000,7
+5,Plumber,Smith,20000,8
+6,Electrician,Ragini,30000,2
+7,Electrician,Williamson,10000,9
+8,Electrician,James,80000,10
+9,Electrician,Steve Smith,10000,23
+10,Electrician,Mark Waugh,10000,32

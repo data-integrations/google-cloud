@@ -82,7 +82,7 @@ Feature:GCSMove - Verification of successful objects move from one bucket to ano
     Then Verify the pipeline status is "Succeeded"
     Then Validate GCSMove successfully moved object "gcsCsvFile" to destination bucket
 
-  @GCS_CSV_TEST @GCS_SINK_EXISTING_BUCKET_TEST @PLUGIN-1134
+  @GCS_CSV_TEST @GCS_SINK_EXISTING_BUCKET_TEST
   Scenario:Validate successful move objects from one bucket to another existing bucket with Overwrite Existing Files set to false
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
@@ -99,7 +99,7 @@ Feature:GCSMove - Verification of successful objects move from one bucket to ano
     Then Run the Pipeline in Runtime
     Then Wait till pipeline is in running state
     Then Open and capture logs
-    Then Verify the pipeline status is "failed"
+    And Verify the pipeline status is "Failed"
     Then Validate GCSMove failed to move object "gcsCsvFile" to destination bucket
 
   @GCS_CSV_TEST @GCS_SINK_TEST
