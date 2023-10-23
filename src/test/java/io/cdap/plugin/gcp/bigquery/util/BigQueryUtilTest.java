@@ -146,6 +146,44 @@ public class BigQueryUtilTest {
   }
 
   @Test
+  public void testFormatAsFQNComponentWithReservedCharacters() {
+    String input = ":special`chars \t\n";
+    String expected = "`:special`chars \t\n`";
+    String result = BigQueryUtil.formatAsFQNComponent(input);
+    Assert.assertEquals(expected, result);
+  }
+
+  @Test
+  public void testFormatAsFQNComponentWithoutReservedCharacters() {
+    String input = "validComponent";
+    String expected = "validComponent";
+    String result = BigQueryUtil.formatAsFQNComponent(input);
+    Assert.assertEquals(expected, result);
+  }
+
+  @Test
+  public void testGetFQNWithReservedCharacters() {
+    String datasetProject = "google.com:project";
+    String datasetName = "dataset";
+    String tableName = "table";
+    String expectedFQN = "bigquery:`google.com:project`.dataset.table";
+
+    String result = BigQueryUtil.getFQN(datasetProject, datasetName, tableName);
+    Assert.assertEquals(result, expectedFQN);
+  }
+
+  @Test
+  public void testGetFQNWithoutReservedCharacters() {
+    String datasetProject = "project";
+    String datasetName = "dataset";
+    String tableName = "table";
+    String expectedFQN = "bigquery:project.dataset.table";
+
+    String result = BigQueryUtil.getFQN(datasetProject, datasetName, tableName);
+    Assert.assertEquals(result, expectedFQN);
+  }
+
+  @Test
   public void testGetBucketPrefixNotSet() {
     Map<String, String> args = new HashMap<>();
     Assert.assertNull(BigQueryUtil.getBucketPrefix(args));

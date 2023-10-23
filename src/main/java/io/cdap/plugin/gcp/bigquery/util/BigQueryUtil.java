@@ -84,6 +84,7 @@ public final class BigQueryUtil {
   public static final String BUCKET_PATTERN = "[a-z0-9._-]+";
   public static final String DATASET_PATTERN = "[A-Za-z0-9_]+";
   public static final String TABLE_PATTERN = "[A-Za-z0-9_-]+";
+  public static final String FQN_RESERVED_CHARACTERS_PATTERN = ".*[.:` \t\n].*";
 
   // Tags for BQ Jobs
   public static final String BQ_JOB_TYPE_SOURCE_TAG = "bq_source_plugin";
@@ -774,17 +775,43 @@ public final class BigQueryUtil {
     return timePartitionCondition.toString();
   }
 
+
   /**
-   * Get fully-qualified name (FQN) for a BQ table (FQN format: bigquery:{projectId}.{datasetId}.{tableId}).
+   * Formats a string as a component of a Fully-Qualified Name (FQN).
+   *
+   * @param component The string component to format.
+   * @return The formatted string component, enclosed in backticks if special characters are
+   *     present.
+   */
+  public static String formatAsFQNComponent(String component) {
+    Pattern pattern = Pattern.compile(FQN_RESERVED_CHARACTERS_PATTERN);
+
+    if (pattern.matcher(component).matches()) {
+      return String.format("`%s`", component);
+    } else {
+      return component;
+    }
+  }
+
+  /**
+   * Get fully-qualified name (FQN) for a BQ table (FQN format:
+   * bigquery:{projectId}.{datasetId}.{tableId}).
    *
    * @param datasetProject Name of the BQ project
-   * @param datasetName    Name of the BQ dataset
-   * @param tableName      Name of the BQ table
+   * @param datasetName Name of the BQ dataset
+   * @param tableName Name of the BQ table
    * @return String fqn
    */
   public static String getFQN(String datasetProject, String datasetName, String tableName) {
-    return String.format("%s:%s.%s.%s", BigQueryConstants.BQ_FQN_PREFIX,
-                  datasetProject, datasetName, tableName);
+
+    String formattedProject = formatAsFQNComponent(datasetProject);
+    String formattedDataset = formatAsFQNComponent(datasetName);
+    String formattedTable = formatAsFQNComponent(tableName);
+
+    String fqn = String.format("%s:%s.%s.%s", BigQueryConstants.BQ_FQN_PREFIX, formattedProject,
+        formattedDataset, formattedTable);
+    LOG.trace("Formatted Fully-Qualified Name (FQN): {}", fqn);
+    return fqn;
   }
 
   /**
