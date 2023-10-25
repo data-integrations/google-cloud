@@ -58,7 +58,8 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   private static final String WHERE = "WHERE";
   public static final Set<Schema.Type> SUPPORTED_CLUSTERING_TYPES =
     ImmutableSet.of(Schema.Type.INT, Schema.Type.LONG, Schema.Type.STRING, Schema.Type.BOOLEAN, Schema.Type.BYTES);
-  private static final Pattern FIELD_PATTERN = Pattern.compile("[a-zA-Z0-9_]+");
+  // Read More : https://cloud.google.com/bigquery/docs/schemas#flexible-column-names
+  private static final Pattern FIELD_PATTERN = Pattern.compile("[\\p{L}\\p{M}\\p{N}\\p{Pc}\\p{Pd}&%+=:'<>#| ]+");
 
   public static final String NAME_TABLE = "table";
   public static final String NAME_SCHEMA = "schema";
@@ -75,6 +76,8 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   public static final String NAME_RANGE_INTERVAL = "rangeInterval";
 
   public static final int MAX_NUMBER_OF_COLUMNS = 4;
+  // As defined in https://cloud.google.com/bigquery/docs/schemas#column_names
+  private static final int MAX_LENGTH_OF_COLUMN_NAME = 300;
 
   @Name(NAME_TABLE)
   @Macro
@@ -345,9 +348,18 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
         String name = field.getName();
         // BigQuery column names only allow alphanumeric characters and _
         // https://cloud.google.com/bigquery/docs/schemas#column_names
+        // Allow support for Flexible column names
+        // https://cloud.google.com/bigquery/docs/schemas#flexible-column-names
         if (!FIELD_PATTERN.matcher(name).matches()) {
-          collector.addFailure(String.format("Output field '%s' must only contain alphanumeric characters and '_'.",
-                                             name), null).withOutputSchemaField(name);
+          collector.addFailure(String.format("Output field '%s' contains invalid characters. " +
+                          "Check column names docs for more details.",
+                  name), null).withOutputSchemaField(name);
+        }
+
+        // Check if the field name exceeds the maximum length of 300 characters.
+        if (name.length() > MAX_LENGTH_OF_COLUMN_NAME) {
+          collector.addFailure(String.format("Output field '%s' exceeds the maximum length of 300 characters.",
+                  name), null).withOutputSchemaField(name);
         }
 
         // check if the required fields are present in the input schema.

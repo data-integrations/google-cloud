@@ -40,7 +40,6 @@ import com.google.cloud.dataplex.v1.StorageFormat;
 import com.google.cloud.dataplex.v1.StorageSystem;
 import com.google.cloud.dataplex.v1.UpdateEntityRequest;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
-import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
 import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
@@ -70,6 +69,7 @@ import io.cdap.plugin.format.FileFormat;
 import io.cdap.plugin.gcp.bigquery.sink.AbstractBigQuerySink;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
 import io.cdap.plugin.gcp.bigquery.sink.PartitionType;
+import io.cdap.plugin.gcp.bigquery.sink.lib.BigQueryTableFieldSchema;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.CmekUtils;
@@ -80,7 +80,6 @@ import io.cdap.plugin.gcp.dataplex.sink.config.DataplexBatchSinkConfig;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 import io.cdap.plugin.gcp.gcs.StorageClient;
 import io.cdap.plugin.gcp.gcs.sink.GCSBatchSink;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -101,7 +100,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
-
 import javax.annotation.Nullable;
 
 /**
