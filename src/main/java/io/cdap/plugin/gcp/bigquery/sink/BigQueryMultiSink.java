@@ -29,6 +29,7 @@ import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
+import io.cdap.cdap.etl.api.StageConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.connector.Connector;
@@ -70,6 +71,15 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     config.validate(pipelineConfigurer.getStageConfigurer().getFailureCollector());
     super.configurePipeline(pipelineConfigurer);
+
+    StageConfigurer configurer = pipelineConfigurer.getStageConfigurer();
+    FailureCollector collector = configurer.getFailureCollector();
+    Schema inputSchema = configurer.getInputSchema();
+    String jsonStringFields = config.getJsonStringFields();
+    if (jsonStringFields != null && inputSchema != null) {
+      validateJsonStringFields(inputSchema, jsonStringFields, collector);
+    }
+    collector.getOrThrowException();
   }
 
   @Override
@@ -134,7 +144,7 @@ public class BigQueryMultiSink extends AbstractBigQuerySink {
         outputName = sanitizeOutputName(outputName);
         initOutput(context, bigQuery, outputName,
                    BigQueryUtil.getFQN(config.getDatasetProject(), config.getDataset(), tableName),
-                   tableName, tableSchema, bucket, context.getFailureCollector(), tableName);
+                   tableName, tableSchema, bucket, context.getFailureCollector(), tableName, table);
       } catch (IOException e) {
         collector.addFailure("Invalid schema: " + e.getMessage(), null);
       }

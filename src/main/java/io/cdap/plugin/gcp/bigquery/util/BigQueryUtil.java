@@ -113,7 +113,8 @@ public final class BigQueryUtil {
     Set<LegacySQLTypeName>>builder()
     .put(Schema.Type.INT, ImmutableSet.of(LegacySQLTypeName.INTEGER))
     .put(Schema.Type.LONG, ImmutableSet.of(LegacySQLTypeName.INTEGER))
-    .put(Schema.Type.STRING, ImmutableSet.of(LegacySQLTypeName.STRING, LegacySQLTypeName.DATETIME))
+    .put(Schema.Type.STRING, ImmutableSet.of(LegacySQLTypeName.STRING, LegacySQLTypeName.DATETIME,
+            LegacySQLTypeName.valueOf("JSON")))
     .put(Schema.Type.FLOAT, ImmutableSet.of(LegacySQLTypeName.FLOAT))
     .put(Schema.Type.DOUBLE, ImmutableSet.of(LegacySQLTypeName.FLOAT))
     .put(Schema.Type.BOOLEAN, ImmutableSet.of(LegacySQLTypeName.BOOLEAN))

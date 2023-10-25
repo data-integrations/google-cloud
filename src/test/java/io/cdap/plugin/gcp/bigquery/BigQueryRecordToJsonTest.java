@@ -17,6 +17,9 @@
 package io.cdap.plugin.gcp.bigquery;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.internal.bind.JsonTreeWriter;
@@ -24,6 +27,7 @@ import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.plugin.gcp.bigquery.sink.BigQueryRecordToJson;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -35,11 +39,19 @@ import java.util.Base64;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Tests for {@link BigQueryRecordToJson}.
  */
 public class BigQueryRecordToJsonTest {
+
+  Gson gson;
+
+  @Before
+  public void setUp() {
+    gson = new Gson();
+  }
 
   @Test
   public void test() throws IOException {
@@ -63,13 +75,14 @@ public class BigQueryRecordToJsonTest {
       .set("bytes2", ByteBuffer.wrap(bytes))
       .setDateTime("datetime", localDateTime)
       .build();
+    Set<String> jsonStringFieldsPaths = ImmutableSet.of("raw");
 
     try (JsonTreeWriter writer = new JsonTreeWriter()) {
       writer.beginObject();
       for (Schema.Field recordField : Objects.requireNonNull(record.getSchema().getFields())) {
         if (schema.getField(recordField.getName()) != null) {
           BigQueryRecordToJson.write(writer, recordField.getName(), record.get(recordField.getName()),
-                                     recordField.getSchema());
+                                     recordField.getSchema(), jsonStringFieldsPaths);
         }
       }
       writer.endObject();
@@ -102,12 +115,13 @@ public class BigQueryRecordToJsonTest {
       .set("bytes", "test")
       .build();
 
+    Set<String> jsonStringFieldsPaths = ImmutableSet.of("raw");
     try (JsonTreeWriter writer = new JsonTreeWriter()) {
       writer.beginObject();
       for (Schema.Field recordField : Objects.requireNonNull(record.getSchema().getFields())) {
         if (schema.getField(recordField.getName()) != null) {
           BigQueryRecordToJson.write(writer, recordField.getName(), record.get(recordField.getName()),
-                                     recordField.getSchema());
+                                     recordField.getSchema(), jsonStringFieldsPaths);
         }
       }
       writer.endObject();
@@ -147,13 +161,13 @@ public class BigQueryRecordToJsonTest {
                                            .build()))
       .set("name", "Tod")
       .build();
-
+    Set<String> jsonStringFieldsPaths = ImmutableSet.of("raw");
     try (JsonTreeWriter writer = new JsonTreeWriter()) {
       writer.beginObject();
       for (Schema.Field recordField : Objects.requireNonNull(record.getSchema().getFields())) {
         if (schema.getField(recordField.getName()) != null) {
           BigQueryRecordToJson.write(writer, recordField.getName(), record.get(recordField.getName()),
-                                     recordField.getSchema());
+                                     recordField.getSchema(), jsonStringFieldsPaths);
         }
       }
       writer.endObject();
@@ -214,7 +228,7 @@ public class BigQueryRecordToJsonTest {
       for (Schema.Field recordField : Objects.requireNonNull(record.getSchema().getFields())) {
         if (schema.getField(recordField.getName()) != null) {
           BigQueryRecordToJson.write(writer, recordField.getName(), record.get(recordField.getName()),
-                                     recordField.getSchema());
+                                     recordField.getSchema(), null);
         }
       }
       writer.endObject();
@@ -225,4 +239,212 @@ public class BigQueryRecordToJsonTest {
                           actual.get("base").getAsJsonObject().get("innerB").getAsJsonObject().get("int").getAsInt());
     }
   }
+
+  @Test
+  public void testNestedRecordWithJsonString() throws IOException {
+    Schema nestedRecordSchema = Schema.recordOf(
+            "nestedRecord",
+            Schema.Field.of("nestedString", Schema.of(Schema.Type.STRING)),
+            Schema.Field.of("nestedJsonString", Schema.of(Schema.Type.STRING)),
+            Schema.Field.of("nestedInt", Schema.of(Schema.Type.INT))
+    );
+
+    Schema recordSchema = Schema.recordOf(
+            "record",
+            Schema.Field.of("string", Schema.of(Schema.Type.STRING)),
+            Schema.Field.of("jsonString", Schema.of(Schema.Type.STRING)),
+            Schema.Field.of("int", Schema.of(Schema.Type.INT)),
+            Schema.Field.of("nestedRecord", nestedRecordSchema)
+    );
+
+    String jsonString = "{\"string\":\"string\",\"int\":1}";
+    String nestedJsonString = "{\"nestedString\":\"nestedString\",\"nestedInt\":1}";
+
+    StructuredRecord nestedRecord = StructuredRecord.builder(nestedRecordSchema)
+            .set("nestedString", "nestedString")
+            .set("nestedJsonString", nestedJsonString)
+            .set("nestedInt", 1)
+            .build();
+
+    StructuredRecord record = StructuredRecord.builder(recordSchema)
+            .set("string", "string")
+            .set("jsonString", jsonString)
+            .set("int", 1)
+            .set("nestedRecord", nestedRecord)
+            .build();
+
+    JsonObject jsonObject = gson.fromJson(jsonString, JsonObject.class);
+    JsonObject nestedJsonObject = gson.fromJson(nestedJsonString, JsonObject.class);
+
+    Set<String> jsonStringFieldsPaths = ImmutableSet.of("jsonString", "nestedRecord.nestedJsonString");
+    try (JsonTreeWriter writer = new JsonTreeWriter()) {
+      writer.beginObject();
+      for (Schema.Field recordField : Objects.requireNonNull(record.getSchema().getFields())) {
+        if (recordSchema.getField(recordField.getName()) != null) {
+          BigQueryRecordToJson.write(writer, recordField.getName(), record.get(recordField.getName()),
+                  recordField.getSchema(), jsonStringFieldsPaths);
+        }
+      }
+      writer.endObject();
+
+      JsonObject actual = writer.get().getAsJsonObject();
+
+      Assert.assertEquals(jsonObject, actual.get("jsonString").getAsJsonObject());
+      Assert.assertEquals(nestedJsonObject, actual.get("nestedRecord").getAsJsonObject().get("nestedJsonString")
+              .getAsJsonObject());
+    }
+  }
+
+  @Test
+  public void testJsonStringWithNestedObjects() throws IOException {
+    Schema recordSchema = Schema.recordOf(
+            "record",
+            Schema.Field.of("jsonString", Schema.of(Schema.Type.STRING))
+    );
+
+    String jsonString = "{\n" +
+            "  \"string\": \"string\",\n" +
+            "  \"int\": 1,\n" +
+            "  \"bool\": true,\n" +
+            "  \"null\": null,\n" +
+            "  \"nestedObject\": {\n" +
+            "    \"nestedString\": \"nestedString\",\n" +
+            "    \"nestedInt\": 1,\n" +
+            "    \"nestedBool\": true,\n" +
+            "    \"nestedNull\": null\n" +
+            "  },\n" +
+            "  \"array\": [\n" +
+            "    \"string\",\n" +
+            "    1,\n" +
+            "    true,\n" +
+            "    null,\n" +
+            "    {\n" +
+            "      \"nestedString\": \"nestedString\",\n" +
+            "      \"nestedInt\": 1,\n" +
+            "      \"nestedBool\": true,\n" +
+            "      \"nestedNull\": null\n" +
+            "    }\n" +
+            "  ],\n" +
+            "  \"nestedArray\": [\n" +
+            "    [\n" +
+            "      \"string\",\n" +
+            "      1,\n" +
+            "      true,\n" +
+            "      null,\n" +
+            "      {\n" +
+            "        \"nestedString\": \"nestedString\",\n" +
+            "        \"nestedInt\": 1,\n" +
+            "        \"nestedBool\": true,\n" +
+            "        \"nestedNull\": null\n" +
+            "      }\n" +
+            "    ]\n" +
+            "  ],\n" +
+            "  \"nestedObjectArray\": [\n" +
+            "    {\n" +
+            "      \"nestedString\": \"nestedString\",\n" +
+            "      \"nestedInt\": 1,\n" +
+            "      \"nestedBool\": true,\n" +
+            "      \"nestedNull\": null\n" +
+            "    }\n" +
+            "  ]\n" +
+            "}";
+    JsonObject jsonObject = gson.fromJson(jsonString, JsonObject.class);
+
+    StructuredRecord record = StructuredRecord.builder(recordSchema).set("jsonString", jsonString).build();
+    Set<String> jsonStringFieldsPaths = ImmutableSet.of("jsonString");
+
+    try (JsonTreeWriter writer = new JsonTreeWriter()) {
+      writer.beginObject();
+      for (Schema.Field recordField : Objects.requireNonNull(record.getSchema().getFields())) {
+        if (recordSchema.getField(recordField.getName()) != null) {
+          BigQueryRecordToJson.write(writer, recordField.getName(), record.get(recordField.getName()),
+                  recordField.getSchema(), jsonStringFieldsPaths);
+        }
+      }
+      writer.endObject();
+
+      JsonObject actual = writer.get().getAsJsonObject();
+
+      Assert.assertEquals(jsonObject, actual.get("jsonString").getAsJsonObject());
+    }
+  }
+
+  @Test
+  public void testJsonStringWithEmptyObject() throws IOException {
+    Schema recordSchema = Schema.recordOf(
+            "record",
+            Schema.Field.of("jsonString", Schema.of(Schema.Type.STRING))
+    );
+    String jsonString = "{}";
+    JsonObject jsonObject = gson.fromJson(jsonString, JsonObject.class);
+    StructuredRecord record = StructuredRecord.builder(recordSchema).set("jsonString", jsonString).build();
+    Set<String> jsonStringFieldsPaths = ImmutableSet.of("jsonString");
+    try (JsonTreeWriter writer = new JsonTreeWriter()) {
+
+      writer.beginObject();
+      for (Schema.Field recordField : Objects.requireNonNull(record.getSchema().getFields())) {
+        if (recordSchema.getField(recordField.getName()) != null) {
+          BigQueryRecordToJson.write(writer, recordField.getName(), record.get(recordField.getName()),
+                  recordField.getSchema(), jsonStringFieldsPaths);
+        }
+      }
+      writer.endObject();
+
+      JsonObject actual = writer.get().getAsJsonObject();
+
+      Assert.assertEquals(jsonObject, actual.get("jsonString").getAsJsonObject());
+    }
+  }
+
+  @Test
+  public void testJsonStringWithEmptyArray() throws IOException {
+    Schema recordSchema = Schema.recordOf(
+            "record",
+            Schema.Field.of("jsonString", Schema.of(Schema.Type.STRING))
+    );
+    String jsonString = "[]";
+    JsonArray jsonObject = gson.fromJson(jsonString, JsonArray.class);
+    StructuredRecord record = StructuredRecord.builder(recordSchema).set("jsonString", jsonString).build();
+    Set<String> jsonStringFieldsPaths = ImmutableSet.of("jsonString");
+    try (JsonTreeWriter writer = new JsonTreeWriter()) {
+      writer.beginObject();
+      for (Schema.Field recordField : Objects.requireNonNull(record.getSchema().getFields())) {
+        if (recordSchema.getField(recordField.getName()) != null) {
+          BigQueryRecordToJson.write(writer, recordField.getName(), record.get(recordField.getName()),
+                  recordField.getSchema(), jsonStringFieldsPaths);
+        }
+      }
+      writer.endObject();
+
+      JsonObject actual = writer.get().getAsJsonObject();
+
+      Assert.assertEquals(jsonObject, actual.get("jsonString").getAsJsonArray());
+    }
+  }
+
+
+  /**
+   * Empty JSON string is not a valid JSON string and should throw an exception.
+   * @throws IOException
+   */
+  @Test(expected = IllegalStateException.class)
+  public void testEmptyJsonString() throws IOException {
+    Schema recordSchema = Schema.recordOf(
+            "record",
+            Schema.Field.of("jsonString", Schema.of(Schema.Type.STRING))
+    );
+    String jsonString = "";
+    StructuredRecord record = StructuredRecord.builder(recordSchema).set("jsonString", jsonString).build();
+    Set<String> jsonStringFieldsPaths = ImmutableSet.of("jsonString");
+    JsonTreeWriter writer = new JsonTreeWriter();
+    writer.beginObject();
+    for (Schema.Field recordField : Objects.requireNonNull(record.getSchema().getFields())) {
+      if (recordSchema.getField(recordField.getName()) != null) {
+        BigQueryRecordToJson.write(writer, recordField.getName(), record.get(recordField.getName()),
+                recordField.getSchema(), jsonStringFieldsPaths);
+      }
+    }
+    writer.endObject();
+  }
+
 }
