@@ -87,9 +87,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -121,9 +123,12 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
                                                                       io.cdap.cdap.api.data.schema.Schema schema)
     throws IOException, InterruptedException {
     Configuration configuration = taskAttemptContext.getConfiguration();
+    String jsonStringFields = configuration.get(BigQueryConstants.CONFIG_JSON_STRING_FIELDS, null);
+    Set<String> jsonFields = jsonStringFields == null ? Collections.emptySet() :
+            new HashSet<>(Arrays.asList(jsonStringFields.split(",")));
     return new BigQueryRecordWriter(getDelegate(configuration).getRecordWriter(taskAttemptContext),
                                     BigQueryOutputConfiguration.getFileFormat(configuration),
-                                    schema);
+                                    schema, jsonFields);
   }
 
   private io.cdap.cdap.api.data.schema.Schema getOutputSchema(Configuration configuration) throws IOException {

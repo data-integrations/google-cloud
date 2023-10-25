@@ -109,6 +109,10 @@ public final class BigQuerySink extends AbstractBigQuerySink {
     if (schema != null) {
       validateConfiguredSchema(schema, collector);
     }
+
+    if (config.getJsonStringFields() != null && schema != null) {
+      validateJsonStringFields(schema, config.getJsonStringFields() , collector);
+    }
   }
 
   @Override
@@ -132,9 +136,12 @@ public final class BigQuerySink extends AbstractBigQuerySink {
 
     configureTable(outputSchema);
     configureBigQuerySink();
+    Table table = BigQueryUtil.getBigQueryTable(config.getDatasetProject(), config.getDataset(), config.getTable(),
+            config.getServiceAccount(), config.isServiceAccountFilePath(),
+            collector);
     initOutput(context, bigQuery, config.getReferenceName(),
                BigQueryUtil.getFQN(config.getDatasetProject(), config.getDataset(), config.getTable()),
-               config.getTable(), outputSchema, bucket, collector, null);
+               config.getTable(), outputSchema, bucket, collector, null, table);
     initSQLEngineOutput(context, bigQuery, config.getReferenceName(), context.getStageName(), config.getTable(),
                         outputSchema, collector);
   }

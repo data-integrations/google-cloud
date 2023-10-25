@@ -51,6 +51,7 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
   private static final String NAME_GCS_CHUNK_SIZE = "gcsChunkSize";
   protected static final String NAME_UPDATE_SCHEMA = "allowSchemaRelaxation";
   private static final String SCHEME = "gs://";
+  protected static final String NAME_JSON_STRING_FIELDS = "jsonStringFields";
 
   @Name(Constants.Reference.REFERENCE_NAME)
   @Nullable
@@ -84,6 +85,12 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
     "This value is ignored if the dataset or temporary bucket already exist.")
   protected String location;
 
+  @Name(NAME_JSON_STRING_FIELDS)
+  @Nullable
+  @Description("Fields in input schema that should be treated as JSON strings. " +
+          "The schema of these fields should be of type STRING.")
+  protected String jsonStringFields;
+
   public AbstractBigQuerySinkConfig(BigQueryConnectorConfig connection, String dataset, String cmekKey, String bucket) {
     super(connection, dataset, cmekKey, bucket);
   }
@@ -112,6 +119,11 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
   @Nullable
   public String getGcsChunkSize() {
     return gcsChunkSize;
+  }
+
+  @Nullable
+  public String getJsonStringFields() {
+    return jsonStringFields;
   }
 
   public boolean isAllowSchemaRelaxation() {
