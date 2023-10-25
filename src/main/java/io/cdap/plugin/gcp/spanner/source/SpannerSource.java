@@ -52,6 +52,7 @@ import io.cdap.cdap.etl.api.batch.BatchSourceContext;
 import io.cdap.cdap.etl.api.connector.Connector;
 import io.cdap.plugin.common.Asset;
 import io.cdap.plugin.common.LineageRecorder;
+import io.cdap.plugin.common.ReferenceNames;
 import io.cdap.plugin.common.SourceInputFormatProvider;
 import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.common.Schemas;
@@ -152,6 +153,7 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
     String location;
 
     // initialize spanner
+    String instanceConfigId;
     try (Spanner spanner = SpannerUtil.getSpannerService(config.getServiceAccount(), config.isServiceAccountFilePath(),
                                                          projectId)) {
       BatchClient batchClient =
@@ -177,18 +179,23 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
       configuration.set(SpannerConstants.PARTITIONS_LIST, getSerializedObjectString(partitions));
       // get location for lineage data (location info resides in instance config for spanner)
       Instance spannerInstance = spanner.getInstanceAdminClient().getInstance(config.instance);
-      InstanceConfig instanceConfig = spanner.getInstanceAdminClient().
-        getInstanceConfig(spannerInstance.getInstanceConfigId().getInstanceConfig());
+      instanceConfigId = spannerInstance.getInstanceConfigId().getInstanceConfig();
+      InstanceConfig instanceConfig = spanner.getInstanceAdminClient()
+          .getInstanceConfig(instanceConfigId);
       location = instanceConfig.getReplicas().get(0).getLocation();
     }
 
-    Asset asset = Asset.builder(config.getReferenceName())
-      .setFqn(config.getFQN()).setLocation(location).build();
+    String fqn = SpannerUtil.getFQN(config.getConnection().getProject(), instanceConfigId,
+        config.getInstance(), config.getDatabase(), config.getTable());
+    String referenceName =
+        Strings.isNullOrEmpty(config.getReferenceName()) ? ReferenceNames.normalizeFqn(fqn)
+            : config.getReferenceName();
+    Asset asset = Asset.builder(referenceName).setFqn(fqn).setLocation(location).build();
     LineageRecorder lineageRecorder = new LineageRecorder(batchSourceContext, asset);
     lineageRecorder.createExternalDataset(configuredSchema);
 
     // set input format and pass configuration
-    batchSourceContext.setInput(Input.of(config.getReferenceName(),
+    batchSourceContext.setInput(Input.of(referenceName,
                                          new SourceInputFormatProvider(SpannerInputFormat.class, configuration)));
     schema = batchSourceContext.getOutputSchema();
     if (schema != null) {

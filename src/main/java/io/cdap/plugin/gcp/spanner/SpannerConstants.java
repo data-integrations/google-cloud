@@ -36,5 +36,5 @@ public final class SpannerConstants {
   public static final String IS_PREVIEW_ENABLED = "is.preview.enabled";
   public static final String CMEK_KEY = "cmek.key";
   public static final String KEYS = "keys";
-  public static final String SPANNER_FQN_PREFIX = "spanner://";
+  public static final String SPANNER_FQN_PREFIX = "spanner";
 }

@@ -30,7 +30,6 @@ import io.cdap.plugin.common.Constants;
 import io.cdap.plugin.common.IdUtils;
 import io.cdap.plugin.common.ReferenceNames;
 import io.cdap.plugin.gcp.common.GCPConnectorConfig;
-import io.cdap.plugin.gcp.spanner.SpannerConstants;
 import io.cdap.plugin.gcp.spanner.common.SpannerUtil;
 
 import java.io.IOException;
@@ -44,7 +43,6 @@ public class SpannerSourceConfig extends PluginConfig {
   private static final Set<Schema.Type> SUPPORTED_TYPES = ImmutableSet.of(Schema.Type.BOOLEAN, Schema.Type.STRING,
                                                                           Schema.Type.LONG, Schema.Type.DOUBLE,
                                                                           Schema.Type.BYTES, Schema.Type.ARRAY);
-
   public static final String NAME_MAX_PARTITIONS = "maxPartitions";
   public static final String NAME_PARTITION_SIZE_MB = "partitionSizeMB";
   public static final String NAME_INSTANCE = "instance";
@@ -109,6 +107,18 @@ public class SpannerSourceConfig extends PluginConfig {
     return connection.getProject();
   }
 
+  public String getTable() {
+    return table;
+  }
+
+  public String getInstance() {
+    return instance;
+  }
+
+  public String getDatabase() {
+    return database;
+  }
+
   @Nullable
   public String tryGetProject() {
     return connection == null ? null : connection.tryGetProject();
@@ -135,11 +145,12 @@ public class SpannerSourceConfig extends PluginConfig {
   }
 
   /**
-   * Return reference name if provided, otherwise, normalize the FQN and return it as reference name
-   * @return referenceName (if provided)/normalized FQN
+   * Returns the reference name
+   *
+   * @return referenceName
    */
   public String getReferenceName() {
-    return Strings.isNullOrEmpty(referenceName) ? ReferenceNames.normalizeFqn(getFQN()) : referenceName;
+    return referenceName;
   }
 
   /**
@@ -196,15 +207,5 @@ public class SpannerSourceConfig extends PluginConfig {
     return connection != null && connection.canConnect() && !containsMacro(SpannerSourceConfig.NAME_SCHEMA) &&
       !containsMacro(SpannerSourceConfig.NAME_DATABASE) && !containsMacro(SpannerSourceConfig.NAME_TABLE) &&
       !containsMacro(SpannerSourceConfig.NAME_INSTANCE) && !containsMacro(SpannerSourceConfig.NAME_IMPORT_QUERY);
-  }
-
-  /**
-   * Get fully-qualified name (FQN) for a Spanner table (FQN format: spanner://{instanceId}.{database}.{table}).
-   *
-   * @return String fqn
-   */
-  public String getFQN() {
-    String secondFQNPart = String.join(".", instance, database, table);
-    return SpannerConstants.SPANNER_FQN_PREFIX + secondFQNPart;
   }
 }
