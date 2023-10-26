@@ -46,6 +46,8 @@ import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.crypto.EncryptedFileSystem;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 import io.cdap.plugin.gcp.gcs.connector.GCSConnector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Type;
 import java.util.Collections;
@@ -64,6 +66,7 @@ import javax.annotation.Nullable;
 @Metadata(properties = {@MetadataProperty(key = Connector.PLUGIN_TYPE, value = GCSConnector.NAME)})
 public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
   public static final String NAME = "GCSFile";
+  private static final Logger LOG = LoggerFactory.getLogger(GCSSource.class);
   private final GCSSourceConfig config;
   private Asset asset;
 
@@ -95,11 +98,12 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
     }
 
     // create asset for lineage
+    String fqn = GCSPath.getFQN(config.getPath());
     String referenceName = Strings.isNullOrEmpty(config.getReferenceName())
-      ? ReferenceNames.normalizeFqn(config.getPath())
-      : config.getReferenceName();
+        ? ReferenceNames.normalizeFqn(fqn)
+        : config.getReferenceName();
     asset = Asset.builder(referenceName)
-      .setFqn(config.getPath()).setLocation(location).build();
+        .setFqn(fqn).setLocation(location).build();
 
     // super is called down here to avoid instantiating the lineage recorder with a null asset
     super.prepareRun(context);

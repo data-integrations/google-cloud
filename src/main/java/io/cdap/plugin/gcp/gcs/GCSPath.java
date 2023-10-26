@@ -32,6 +32,8 @@ public class GCSPath {
   private final URI uri;
   private final String bucket;
   private final String name;
+  public static final String FQN_RESERVED_CHARACTERS_PATTERN = ".*[.:` \t\n].*";
+  public static final String GCS_FQN_PREFIX = "gcs";
 
   private GCSPath(URI uri, String bucket, String name) {
     this.uri = uri;
@@ -115,4 +117,36 @@ public class GCSPath {
     URI uri = URI.create(SCHEME + bucket + "/" + UrlEscapers.urlFragmentEscaper().escape(file));
     return new GCSPath(uri, bucket, file);
   }
+
+  /**
+   * Formats a string as a component of a Fully-Qualified Name (FQN).
+   *
+   * @param component The string component to format.
+   * @return The formatted string component, enclosed in backticks if special characters are
+   * present.
+   */
+  public static String formatAsFQNComponent(String component) {
+    Pattern pattern = Pattern.compile(FQN_RESERVED_CHARACTERS_PATTERN);
+
+    if (pattern.matcher(component).matches()) {
+      return String.format("`%s`", component);
+    } else {
+      return component;
+    }
+  }
+
+  /**
+   * Get fully-qualified name (FQN) with format: gcs:{bucket}.{virtualPath}
+   *
+   * @param path the path string to parse
+   * @return String fqn
+   */
+  public static String getFQN(String path) {
+    GCSPath gcsPath = GCSPath.from(path);
+    String formattedBucket = formatAsFQNComponent(gcsPath.bucket);
+    String formattedFile = formatAsFQNComponent(gcsPath.name);
+
+    return String.format("%s:%s.%s", GCS_FQN_PREFIX, formattedBucket, formattedFile);
+  }
+
 }
