@@ -54,6 +54,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
 /**
@@ -75,6 +76,7 @@ public class GCPUtils {
   // needs to be added, by default, this scope is not included
   public static final List<String> BIGQUERY_SCOPES = Arrays.asList("https://www.googleapis.com/auth/drive",
                                                                    "https://www.googleapis.com/auth/bigquery");
+  public static final String FQN_RESERVED_CHARACTERS_PATTERN = ".*[.:` \t\n].*";
 
   /**
    * Load a service account from the local file system.
@@ -283,5 +285,21 @@ public class GCPUtils {
       builder.setDefaultKmsKeyName(cmekKeyName.toString());
     }
     storage.create(builder.build());
+  }
+  /**
+   * Formats a string as a component of a Fully-Qualified Name (FQN).
+   *
+   * @param component The string component to format.
+   * @return The formatted string component, enclosed in backticks if special characters are
+   * present.
+   */
+  public static String formatAsFQNComponent(String component) {
+    Pattern pattern = Pattern.compile(FQN_RESERVED_CHARACTERS_PATTERN);
+
+    if (pattern.matcher(component).matches()) {
+      return String.format("`%s`", component);
+    } else {
+      return component;
+    }
   }
 }

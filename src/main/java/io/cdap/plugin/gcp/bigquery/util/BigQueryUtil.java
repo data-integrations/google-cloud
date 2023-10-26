@@ -84,7 +84,6 @@ public final class BigQueryUtil {
   public static final String BUCKET_PATTERN = "[a-z0-9._-]+";
   public static final String DATASET_PATTERN = "[A-Za-z0-9_]+";
   public static final String TABLE_PATTERN = "[A-Za-z0-9_-]+";
-  public static final String FQN_RESERVED_CHARACTERS_PATTERN = ".*[.:` \t\n].*";
 
   // Tags for BQ Jobs
   public static final String BQ_JOB_TYPE_SOURCE_TAG = "bq_source_plugin";
@@ -776,24 +775,6 @@ public final class BigQueryUtil {
     return timePartitionCondition.toString();
   }
 
-
-  /**
-   * Formats a string as a component of a Fully-Qualified Name (FQN).
-   *
-   * @param component The string component to format.
-   * @return The formatted string component, enclosed in backticks if special characters are
-   *     present.
-   */
-  public static String formatAsFQNComponent(String component) {
-    Pattern pattern = Pattern.compile(FQN_RESERVED_CHARACTERS_PATTERN);
-
-    if (pattern.matcher(component).matches()) {
-      return String.format("`%s`", component);
-    } else {
-      return component;
-    }
-  }
-
   /**
    * Get fully-qualified name (FQN) for a BQ table (FQN format:
    * bigquery:{projectId}.{datasetId}.{tableId}).
@@ -805,9 +786,9 @@ public final class BigQueryUtil {
    */
   public static String getFQN(String datasetProject, String datasetName, String tableName) {
 
-    String formattedProject = formatAsFQNComponent(datasetProject);
-    String formattedDataset = formatAsFQNComponent(datasetName);
-    String formattedTable = formatAsFQNComponent(tableName);
+    String formattedProject = GCPUtils.formatAsFQNComponent(datasetProject);
+    String formattedDataset = GCPUtils.formatAsFQNComponent(datasetName);
+    String formattedTable = GCPUtils.formatAsFQNComponent(tableName);
 
     String fqn = String.format("%s:%s.%s.%s", BigQueryConstants.BQ_FQN_PREFIX, formattedProject,
         formattedDataset, formattedTable);

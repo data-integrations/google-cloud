@@ -18,6 +18,7 @@ package io.cdap.plugin.gcp.gcs;
 
 import com.google.common.net.UrlEscapers;
 
+import io.cdap.plugin.gcp.common.GCPUtils;
 import java.net.URI;
 import java.util.Objects;
 import java.util.regex.Pattern;
@@ -32,6 +33,7 @@ public class GCSPath {
   private final URI uri;
   private final String bucket;
   private final String name;
+  public static final String GCS_FQN_PREFIX = "gcs";
 
   private GCSPath(URI uri, String bucket, String name) {
     this.uri = uri;
@@ -114,5 +116,19 @@ public class GCSPath {
     String file = idx > 0 ? path.substring(idx).replaceAll("^/", "") : "";
     URI uri = URI.create(SCHEME + bucket + "/" + UrlEscapers.urlFragmentEscaper().escape(file));
     return new GCSPath(uri, bucket, file);
+  }
+
+  /**
+   * Get fully-qualified name (FQN) with format: gcs:{bucket}.{virtualPath}
+   *
+   * @param path the path string to parse
+   * @return String fqn
+   */
+  public static String getFQN(String path) {
+    GCSPath gcsPath = GCSPath.from(path);
+    String formattedBucket = GCPUtils.formatAsFQNComponent(gcsPath.bucket);
+    String formattedFile = GCPUtils.formatAsFQNComponent(gcsPath.name);
+
+    return String.format("%s:%s.%s", GCS_FQN_PREFIX, formattedBucket, formattedFile);
   }
 }
