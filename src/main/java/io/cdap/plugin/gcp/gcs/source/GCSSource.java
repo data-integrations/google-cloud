@@ -95,11 +95,12 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
     }
 
     // create asset for lineage
+    String fqn = GCSPath.getFQN(config.getPath());
     String referenceName = Strings.isNullOrEmpty(config.getReferenceName())
-      ? ReferenceNames.normalizeFqn(config.getPath())
-      : config.getReferenceName();
+        ? ReferenceNames.normalizeFqn(fqn)
+        : config.getReferenceName();
     asset = Asset.builder(referenceName)
-      .setFqn(config.getPath()).setLocation(location).build();
+        .setFqn(fqn).setLocation(location).build();
 
     // super is called down here to avoid instantiating the lineage recorder with a null asset
     super.prepareRun(context);

@@ -23,6 +23,7 @@ import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize.BigNumeric;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize.Numeric;
+import io.cdap.plugin.gcp.common.GCPUtils;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -149,7 +150,7 @@ public class BigQueryUtilTest {
   public void testFormatAsFQNComponentWithReservedCharacters() {
     String input = ":special`chars \t\n";
     String expected = "`:special`chars \t\n`";
-    String result = BigQueryUtil.formatAsFQNComponent(input);
+    String result = GCPUtils.formatAsFQNComponent(input);
     Assert.assertEquals(expected, result);
   }
 
@@ -157,7 +158,7 @@ public class BigQueryUtilTest {
   public void testFormatAsFQNComponentWithoutReservedCharacters() {
     String input = "validComponent";
     String expected = "validComponent";
-    String result = BigQueryUtil.formatAsFQNComponent(input);
+    String result = GCPUtils.formatAsFQNComponent(input);
     Assert.assertEquals(expected, result);
   }
 
