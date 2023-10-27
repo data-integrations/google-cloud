@@ -169,6 +169,17 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
       }
     }
 
+    context.getMetrics().gauge(RECORDS_PROCESSED, rows);
+    try {
+      recordBytesProcessedMetric(context, queryJob);
+    } catch (Exception exception) {
+      // log the exception but not fail the pipeline
+      LOG.warn("Exception while trying to emit bytes processed metric.",
+          exception);
+    }
+  }
+
+  private void recordBytesProcessedMetric(ActionContext context, Job queryJob) {
     long processedBytes =
         ((JobStatistics.QueryStatistics) queryJob.getStatistics()).getTotalBytesProcessed();
     LOG.info("Job {} processed {} bytes", queryJob.getJobId(), processedBytes);
@@ -176,7 +187,6 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
         .put(Constants.Metrics.Tag.APP_ENTITY_TYPE, Action.PLUGIN_TYPE)
         .put(Constants.Metrics.Tag.APP_ENTITY_TYPE_NAME, BigQueryExecute.NAME)
         .build();
-    context.getMetrics().gauge(RECORDS_PROCESSED, rows);
     context.getMetrics().child(tags).countLong(BigQuerySinkUtils.BYTES_PROCESSED_METRIC,
         processedBytes);
   }
