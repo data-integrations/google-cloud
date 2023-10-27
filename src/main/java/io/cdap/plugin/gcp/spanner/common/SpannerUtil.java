@@ -580,4 +580,26 @@ public class SpannerUtil {
 
     return database;
   }
+
+  /**
+   * Get fully-qualified name (FQN) for a Spanner table (FQN format:
+   * spanner:{projectId}.{instanceConfigId}.{instanceId}.{databaseId}.{tableId}).
+   *
+   * @return String fqn
+   */
+  public static String getFQN(String projectId, String instanceConfigId, String instanceId,
+      String databaseId, String tableId) {
+    String formattedProjectId = GCPUtils.formatAsFQNComponent(projectId);
+    String formattedInstanceConfigId = GCPUtils.formatAsFQNComponent(instanceConfigId);
+    String formattedInstanceId = GCPUtils.formatAsFQNComponent(instanceId);
+    String formattedDatabaseId = GCPUtils.formatAsFQNComponent(databaseId);
+    String formattedTableId = GCPUtils.formatAsFQNComponent(tableId);
+
+    String fqn = String.format("%s:%s.%s.%s.%s.%s", SpannerConstants.SPANNER_FQN_PREFIX,
+        formattedProjectId, formattedInstanceConfigId, formattedInstanceId,
+        formattedDatabaseId, formattedTableId);
+
+    LOG.trace("Formatted Fully-Qualified Name (FQN): {}", fqn);
+    return fqn;
+  }
 }
