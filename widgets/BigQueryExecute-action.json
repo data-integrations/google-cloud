@@ -202,6 +202,58 @@
           "widget-type": "textbox",
           "label": "Service Account JSON",
           "name": "serviceAccountJSON"
+        },
+        {
+          "widget-type": "hidden",
+          "label": "Retry On Backend Error",
+          "name": "retryOnBackendError",
+          "widget-attributes": {
+            "on": {
+              "value": "true",
+              "label": "YES"
+            },
+            "off": {
+              "value": "false",
+              "label": "NO"
+            },
+            "default": "true"
+          }
+        },
+        {
+          "widget-type": "hidden",
+          "label": "Initial Retry Duration (Seconds)",
+          "name": "initialRetryDuration",
+          "widget-attributes": {
+            "default": "1",
+            "minimum": "1"
+          }
+        },
+        {
+          "widget-type": "hidden",
+          "label": "Max Retry Duration (Seconds)",
+          "name": "maxRetryDuration",
+          "widget-attributes": {
+            "default": "32",
+            "minimum": "1"
+          }
+        },
+        {
+          "widget-type": "hidden",
+          "label": "Max Retry Count",
+          "name": "maxRetryCount",
+          "widget-attributes": {
+            "default": "5",
+            "minimum": "1"
+          }
+        },
+        {
+          "widget-type": "hidden",
+          "label": "Retry Multiplier",
+          "name": "retryMultiplier",
+          "widget-attributes": {
+            "default": "2",
+            "placeholder": "The multiplier to use on retry attempts."
+          }
         }
       ]
     }
