@@ -125,7 +125,7 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     }
 
     // Add labels for the BigQuery Execute job.
-    builder.setLabels(BigQueryUtil.getJobTags(BigQueryUtil.BQ_JOB_TYPE_EXECUTE_TAG));
+    builder.setLabels(BigQueryUtil.getJobLabels(BigQueryUtil.BQ_JOB_TYPE_EXECUTE_TAG));
 
     QueryJobConfiguration queryConfig = builder.build();
 

@@ -357,7 +357,7 @@ public class BigQuerySQLEngineUtils {
    * @return Map containing tags for a job.
    */
   public static Map<String, String> getJobTags(String operation) {
-    Map<String, String> labels = BigQueryUtil.getJobTags(BigQueryUtil.BQ_JOB_TYPE_PUSHDOWN_TAG);
+    Map<String, String> labels = BigQueryUtil.getJobLabels(BigQueryUtil.BQ_JOB_TYPE_PUSHDOWN_TAG);
     labels.put("pushdown_operation", operation);
     return labels;
   }
