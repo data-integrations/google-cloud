@@ -196,7 +196,7 @@ Feature: BigQuery sink - Verification of BigQuery to BigQuery successful data tr
     Then Verify the pipeline status is "Succeeded"
     Then Verify the partition table is created with partitioned on field "bqPartitionFieldTime"
 
-  @BQ_EXISTING_SOURCE_DATATYPE_TEST @BQ_EXISTING_SINK_DATATYPE_TEST @EXISTING_BQ_CONNECTION
+  @BQ_EXISTING_SOURCE_DATATYPE_TEST @BQ_EXISTING_SINK_DATATYPE_TEST @EXISTING_BQ_CONNECTION @BigQuery_Sink_Required @ITN_TEST
   Scenario: Validate user is able to read the records from BigQuery source(existing table),source table here has more columns than BigQuery sink(existing table) with update button schema with use connection functionality
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Source"
@@ -244,7 +244,7 @@ Feature: BigQuery sink - Verification of BigQuery to BigQuery successful data tr
     Then Verify the pipeline status is "Succeeded"
     Then Validate the data transferred from BigQuery to BigQuery with actual And expected file for: "bgInsertDatatypeFile"
 
-  @BQ_INSERT_SOURCE_TEST @BQ_UPDATE_SINK_TEST @EXISTING_BQ_CONNECTION
+  @BQ_INSERT_SOURCE_TEST @BQ_UPDATE_SINK_TEST @EXISTING_BQ_CONNECTION @BigQuery_Sink_Required @ITN_TEST
   Scenario:Validate successful records transfer from BigQuery to BigQuery with Advanced Operations Update without updating the destination table schema with use connection functionality
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Source"
@@ -295,7 +295,7 @@ Feature: BigQuery sink - Verification of BigQuery to BigQuery successful data tr
     Then Verify the pipeline status is "Succeeded"
     Then Validate the values of records transferred to BQ sink is equal to the values from source BigQuery table
 
-  @BQ_INSERT_SOURCE_TEST @BQ_SINK_TEST @EXISTING_BQ_CONNECTION
+  @BQ_INSERT_SOURCE_TEST @BQ_SINK_TEST @EXISTING_BQ_CONNECTION @BigQuery_Sink_Required @ITN_TEST
   Scenario:Validate successful records transfer from BigQuery to BigQuery with Advanced operations Upsert without updating the destination table schema with use connection functionality
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Source"

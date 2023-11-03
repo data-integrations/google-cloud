@@ -1,7 +1,7 @@
 @GCS_Source
 Feature: GCS source - Verification of GCS to GCS Additional Tests successful
 
-  @GCS_AVRO_FILE @GCS_SINK_TEST
+  @GCS_AVRO_FILE @GCS_SINK_TEST @GCS_Source_Required @ITN_TEST
   Scenario: To verify data is getting transferred from GCS to GCS using Avro and Json file format with different data types
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Source"
@@ -43,7 +43,7 @@ Feature: GCS source - Verification of GCS to GCS Additional Tests successful
     Then Verify the pipeline status is "Succeeded"
     Then Validate the data transferred from GCS Source to GCS Sink with Expected avro file and target data in GCS bucket
 
-  @GCS_AVRO_FILE @GCS_SINK_TEST @EXISTING_GCS_CONNECTION
+  @GCS_AVRO_FILE @GCS_SINK_TEST @EXISTING_GCS_CONNECTION @GCS_Source_Required @ITN_TEST
   Scenario: To verify data is getting transferred from GCS to GCS using Avro and Json file format with different data types using connection
     Given Open Datafusion Project to configure pipeline
     When Select plugin: "GCS" from the plugins list as: "Source"
@@ -86,7 +86,7 @@ Feature: GCS source - Verification of GCS to GCS Additional Tests successful
     Then Verify the pipeline status is "Succeeded"
     Then Validate the data transferred from GCS Source to GCS Sink with Expected avro file and target data in GCS bucket
 
-  @GCS_CSV @GCS_SINK_TEST @EXISTING_GCS_CONNECTION
+  @GCS_CSV @GCS_SINK_TEST @EXISTING_GCS_CONNECTION @GCS_Source_Required @ITN_TEST
   Scenario: To verify data is getting transferred from GCS Source to GCS Sink using Schema Detection On Single File with connection
     Given Open Datafusion Project to configure pipeline
     When Select plugin: "GCS" from the plugins list as: "Source"
@@ -131,7 +131,7 @@ Feature: GCS source - Verification of GCS to GCS Additional Tests successful
     Then Verify the pipeline status is "Succeeded"
     Then Validate the data from GCS Source to GCS Sink with expected csv file and target data in GCS bucket
 
-  @GCS_CSV @GCS_SINK_TEST
+  @GCS_CSV @GCS_SINK_TEST @GCS_Source_Required @ITN_TEST
   Scenario: To verify data is getting transferred from GCS Source to GCS Sink using Schema Detection On Single File without connection
     Given Open Datafusion Project to configure pipeline
     When Select plugin: "GCS" from the plugins list as: "Source"
@@ -174,7 +174,7 @@ Feature: GCS source - Verification of GCS to GCS Additional Tests successful
     Then Verify the pipeline status is "Succeeded"
     Then Validate the data from GCS Source to GCS Sink with expected csv file and target data in GCS bucket
 
-  @GCS_CSV @GCS_SINK_TEST
+  @GCS_CSV @GCS_SINK_TEST @GCS_Source_Required @ITN_TEST
   Scenario: To verify the pipeline is getting failed from GCS to GCS when default schema is not cleared in GCS source On Single File
     Given Open Datafusion Project to configure pipeline
     When Select plugin: "GCS" from the plugins list as: "Source"
@@ -204,7 +204,7 @@ Feature: GCS source - Verification of GCS to GCS Additional Tests successful
     Then Open and capture logs
     Then Verify the pipeline status is "Failed"
 
-  @GCS_MULTIPLE_FILES_TEST @GCS_SINK_TEST @EXISTING_GCS_CONNECTION
+  @GCS_MULTIPLE_FILES_TEST @GCS_SINK_TEST @EXISTING_GCS_CONNECTION @GCS_Source_Required @ITN_TEST
   Scenario: To verify the pipeline is getting failed from GCS Source to GCS Sink On Multiple File having different schemas with connection
     Given Open Datafusion Project to configure pipeline
     When Select plugin: "GCS" from the plugins list as: "Source"
@@ -236,7 +236,7 @@ Feature: GCS source - Verification of GCS to GCS Additional Tests successful
     Then Wait till pipeline is in running state
     Then Verify the pipeline status is "Failed"
 
-  @GCS_MULTIPLE_FILES_TEST @GCS_SINK_TEST
+  @GCS_MULTIPLE_FILES_TEST @GCS_SINK_TEST @GCS_Source_Required @ITN_TEST
   Scenario: To verify the pipeline is getting failed from GCS Source to GCS Sink On Multiple File having different schemas without connection
     Given Open Datafusion Project to configure pipeline
     When Select plugin: "GCS" from the plugins list as: "Source"
@@ -271,7 +271,7 @@ Feature: GCS source - Verification of GCS to GCS Additional Tests successful
       | Level | Message                                                     |
       | ERROR | errorMessageMultipleFileWithFirstRowAsHeaderEnabled         |
 
-  @GCS_MULTIPLE_FILES_TEST @GCS_SINK_TEST
+  @GCS_MULTIPLE_FILES_TEST @GCS_SINK_TEST @GCS_Source_Required @ITN_TEST
   Scenario: To verify the pipeline is getting failed from GCS to GCS when default schema is not cleared in GCS source On Multiple File
     Given Open Datafusion Project to configure pipeline
     When Select plugin: "GCS" from the plugins list as: "Source"
@@ -305,7 +305,7 @@ Feature: GCS source - Verification of GCS to GCS Additional Tests successful
       | Level | Message                                                      |
       | ERROR | errorMessageMultipleFileWithoutClearDefaultSchema            |
 
-  @GCS_MULTIPLE_FILES_REGEX_TEST @GCS_SINK_TEST @EXISTING_GCS_CONNECTION
+  @GCS_MULTIPLE_FILES_REGEX_TEST @GCS_SINK_TEST @EXISTING_GCS_CONNECTION @GCS_Source_Required @ITN_TEST
   Scenario: To verify data is getting transferred from GCS to GCS On Multiple File with filter regex using connection
     Given Open Datafusion Project to configure pipeline
     When Select plugin: "GCS" from the plugins list as: "Source"
@@ -349,7 +349,7 @@ Feature: GCS source - Verification of GCS to GCS Additional Tests successful
     Then Verify the pipeline status is "Succeeded"
     Then Validate the data from GCS Source to GCS Sink with expected json file and target data in GCS bucket
 
-  @GCS_MULTIPLE_FILES_REGEX_TEST @GCS_SINK_TEST
+  @GCS_MULTIPLE_FILES_REGEX_TEST @GCS_SINK_TEST @GCS_Source_Required @ITN_TEST
   Scenario: To verify data is getting transferred from GCS to GCS On Multiple File with filter regex without using connection
     Given Open Datafusion Project to configure pipeline
     When Select plugin: "GCS" from the plugins list as: "Source"

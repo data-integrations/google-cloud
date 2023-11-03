@@ -263,7 +263,7 @@ Feature: BigQuery source - Verification of BigQuery to BigQuery successful data 
     Then Verify the pipeline status is "Succeeded"
     Then Validate the values of records transferred to BQ sink is equal to the values from source BigQuery table
 
-  @BQ_EXISTING_SOURCE_TEST @BQ_EXISTING_SINK_TEST @EXISTING_BQ_CONNECTION
+  @BQ_EXISTING_SOURCE_TEST @BQ_EXISTING_SINK_TEST @EXISTING_BQ_CONNECTION @BigQuery_Source_Required @ITN_TEST
   Scenario: Validate user is able to read data from BigQuery source(existing table) and store them in BigQuery sink(existing table) with use connection functionality
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Source"
@@ -310,7 +310,7 @@ Feature: BigQuery source - Verification of BigQuery to BigQuery successful data 
     Then Verify the pipeline status is "Succeeded"
     Then Validate the data transferred from BigQuery to BigQuery with actual And expected file for: "bqExpectedFile"
 
-  @BQ_EXISTING_SOURCE_TEST @BQ_SINK_TEST @EXISTING_BQ_CONNECTION
+  @BQ_EXISTING_SOURCE_TEST @BQ_SINK_TEST @EXISTING_BQ_CONNECTION @BigQuery_Source_Required @ITN_TEST
   Scenario: Validate user is able to read data from BigQuery source(existing table) without clicking on the validate button of BigQuery source and store them in BigQuery sink(new table) with use connection functionality
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Source"
