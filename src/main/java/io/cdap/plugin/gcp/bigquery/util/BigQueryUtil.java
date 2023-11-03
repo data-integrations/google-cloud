@@ -36,7 +36,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
-import io.cdap.cdap.etl.api.action.SettableArguments;
 import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
 import io.cdap.cdap.etl.api.validation.InvalidStageException;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
@@ -108,6 +107,10 @@ public final class BigQueryUtil {
     .put(LegacySQLTypeName.TIMESTAMP, "timestamp")
     .put(LegacySQLTypeName.NUMERIC, "decimal")
     .build();
+
+  public static final String BQ_JOB_SOURCE_TAG = "job_source";
+  public static final String BQ_JOB_TYPE_TAG = "type";
+  public static final Set<String> BQ_JOB_LABEL_SYSTEM_KEYS = ImmutableSet.of(BQ_JOB_SOURCE_TAG, BQ_JOB_TYPE_TAG);
 
   private static final Map<Schema.Type, Set<LegacySQLTypeName>> TYPE_MAP = ImmutableMap.<Schema.Type,
     Set<LegacySQLTypeName>>builder()
@@ -851,14 +854,37 @@ public final class BigQueryUtil {
   }
 
   /**
-   * Get tags for a BigQuery Job.
+   * Get labels for a BigQuery Job.
    * @param jobType the job type to set in the labels.
    * @return map containing labels for a BigQuery job launched by this plugin.
    */
-  public static Map<String, String> getJobTags(String jobType) {
+  public static Map<String, String> getJobLabels(String jobType) {
     Map<String, String> labels = new HashMap<>();
-    labels.put("job_source", "cdap");
-    labels.put("type", jobType);
+    labels.put(BQ_JOB_SOURCE_TAG, "cdap");
+    labels.put(BQ_JOB_TYPE_TAG, jobType);
+    return labels;
+  }
+
+  /**
+   * Get labels for a BigQuery Job.
+   * @param jobType the job type to set in the labels.
+   * @param userDefinedTags user defined tags to be added to the labels.
+   * @return map containing labels for a BigQuery job launched by this plugin.
+   */
+  public static Map<String, String> getJobLabels(String jobType, String userDefinedTags) {
+    Map<String, String> labels = getJobLabels(jobType);
+    if (Strings.isNullOrEmpty(userDefinedTags)) {
+        return labels;
+    }
+    for (String tag : userDefinedTags.trim().split(",")) {
+      String[] keyValue = tag.split(":");
+      if (keyValue.length == 1) {
+        labels.put(keyValue[0], "");
+      }
+      if (keyValue.length == 2) {
+        labels.put(keyValue[0], keyValue[1]);
+      }
+    }
     return labels;
   }
 

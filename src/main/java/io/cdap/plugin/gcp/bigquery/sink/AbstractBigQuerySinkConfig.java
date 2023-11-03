@@ -34,6 +34,7 @@ import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.CmekUtils;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
@@ -49,6 +50,7 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
   public static final String NAME_TRUNCATE_TABLE = "truncateTable";
   public static final String NAME_LOCATION = "location";
   private static final String NAME_GCS_CHUNK_SIZE = "gcsChunkSize";
+  public static final String NAME_BQ_JOB_LABELS = "jobLabels";
   protected static final String NAME_UPDATE_SCHEMA = "allowSchemaRelaxation";
   private static final String SCHEME = "gs://";
   protected static final String NAME_JSON_STRING_FIELDS = "jsonStringFields";
@@ -85,6 +87,13 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
     "This value is ignored if the dataset or temporary bucket already exist.")
   protected String location;
 
+  @Name(NAME_BQ_JOB_LABELS)
+  @Macro
+  @Nullable
+  @Description("Key value pairs to be added as labels to the BigQuery job. Keys must be unique. [job_source, type] " +
+    "are reserved keys and cannot be used as label keys.")
+  protected String jobLabelKeyValue;
+
   @Name(NAME_JSON_STRING_FIELDS)
   @Nullable
   @Description("Fields in input schema that should be treated as JSON strings. " +
@@ -120,6 +129,10 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
   public String getGcsChunkSize() {
     return gcsChunkSize;
   }
+  @Nullable
+  public String getJobLabelKeyValue() {
+    return jobLabelKeyValue;
+  }
 
   @Nullable
   public String getJsonStringFields() {
@@ -138,7 +151,6 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
   public boolean isTruncateTableSet() {
     return truncateTable != null && truncateTable;
   }
-
   public void validate(FailureCollector collector) {
     validate(collector, Collections.emptyMap());
   }
@@ -161,6 +173,9 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
     if (!containsMacro(NAME_CMEK_KEY)) {
       validateCmekKey(collector, arguments);
     }
+    if (!containsMacro(NAME_BQ_JOB_LABELS)) {
+      validateJobLabelKeyValue(collector);
+    }
   }
 
   void validateCmekKey(FailureCollector failureCollector, Map<String, String> arguments) {
@@ -170,6 +185,108 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
       return;
     }
     validateCmekKeyLocation(cmekKeyName, null, location, failureCollector);
+  }
+
+  /**
+   * Validates job label key value pairs, as per the following rules:
+   * Keys and values can contain only lowercase letters, numeric characters, underscores, and dashes.
+   * Defined in the following link:
+   * <a href="https://cloud.google.com/bigquery/docs/labels-intro#requirements">Docs</a>
+   * @param failureCollector failure collector
+   */
+  void validateJobLabelKeyValue(FailureCollector failureCollector) {
+    Set<String> reservedKeys = BigQueryUtil.BQ_JOB_LABEL_SYSTEM_KEYS;
+    int maxLabels = 64 - reservedKeys.size();
+    int maxKeyLength = 63;
+    int maxValueLength = 63;
+
+    String validLabelKeyRegex = "^[\\p{L}][a-z0-9-_\\p{L}]+$";
+    String validLabelValueRegex = "^[a-z0-9-_\\p{L}]+$";
+    String capitalLetterRegex = ".*[A-Z].*";
+    String labelKeyValue = getJobLabelKeyValue();
+
+    if (Strings.isNullOrEmpty(labelKeyValue)) {
+      return;
+    }
+
+    String[] keyValuePairs = labelKeyValue.split(",");
+    Set<String> uniqueKeys = new HashSet<>();
+
+    for (String keyValuePair : keyValuePairs) {
+
+      // Adding a label without a value is valid behavior
+      // Read more here: https://cloud.google.com/bigquery/docs/adding-labels#adding_a_label_without_a_value
+      String[] keyValue = keyValuePair.trim().split(":");
+      boolean isKeyPresent = keyValue.length == 1 || keyValue.length == 2;
+      boolean isValuePresent = keyValue.length == 2;
+
+
+      if (!isKeyPresent) {
+        failureCollector.addFailure(String.format("Invalid job label key value pair '%s'.", keyValuePair),
+                "Job label key value pair should be in the format 'key:value'.")
+                .withConfigProperty(NAME_BQ_JOB_LABELS);
+        continue;
+      }
+
+      // Check if key is reserved
+      if (reservedKeys.contains(keyValue[0])) {
+        failureCollector.addFailure(String.format("Invalid job label key '%s'.", keyValue[0]),
+                "A system label already exists with same name.").withConfigProperty(NAME_BQ_JOB_LABELS);
+        continue;
+      }
+
+      String key = keyValue[0];
+      String value = isValuePresent ? keyValue[1] : "";
+      boolean isKeyValid = true;
+      boolean isValueValid = true;
+
+      // Key cannot be empty
+      if (Strings.isNullOrEmpty(key)) {
+        failureCollector.addFailure(String.format("Invalid job label key '%s'.", key),
+                "Job label key cannot be empty.").withConfigProperty(NAME_BQ_JOB_LABELS);
+        isKeyValid = false;
+      }
+
+      // Key cannot be longer than 63 characters
+      if (key.length() > maxKeyLength) {
+        failureCollector.addFailure(String.format("Invalid job label key '%s'.", key),
+                "Job label key cannot be longer than 63 characters.").withConfigProperty(NAME_BQ_JOB_LABELS);
+        isKeyValid = false;
+      }
+
+      // Value cannot be longer than 63 characters
+      if (value.length() > maxValueLength) {
+        failureCollector.addFailure(String.format("Invalid job label value '%s'.", value),
+                "Job label value cannot be longer than 63 characters.").withConfigProperty(NAME_BQ_JOB_LABELS);
+        isValueValid = false;
+      }
+
+      if (isKeyValid && (!key.matches(validLabelKeyRegex) || key.matches(capitalLetterRegex))) {
+        failureCollector.addFailure(String.format("Invalid job label key '%s'.", key),
+                                    "Job label key can only contain lowercase letters, numeric characters, " +
+                                      "underscores, and dashes. Check docs for more details.")
+                .withConfigProperty(NAME_BQ_JOB_LABELS);
+        isKeyValid = false;
+      }
+
+      if (isValuePresent && isValueValid &&
+              (!value.matches(validLabelValueRegex) || value.matches(capitalLetterRegex))) {
+        failureCollector.addFailure(String.format("Invalid job label value '%s'.", value),
+                                    "Job label value can only contain lowercase letters, numeric characters, " +
+                                      "underscores, and dashes.").withConfigProperty(NAME_BQ_JOB_LABELS);
+      }
+
+      if (isKeyValid && !uniqueKeys.add(key)) {
+        failureCollector.addFailure(String.format("Duplicate job label key '%s'.", key),
+                        "Job label key should be unique.").withConfigProperty(NAME_BQ_JOB_LABELS);
+      }
+    }
+    // Check if number of labels is greater than 64 - reserved keys
+    if (uniqueKeys.size() > maxLabels) {
+      failureCollector.addFailure("Number of job labels exceeds the limit.",
+              String.format("Number of job labels cannot be greater than %d.", maxLabels))
+              .withConfigProperty(NAME_BQ_JOB_LABELS);
+    }
   }
 
   public String getDatasetProject() {
