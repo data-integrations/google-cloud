@@ -116,3 +116,4 @@ Feature: BigQuery source - Verification of BigQuery to GCS successful data trans
     Then Open and capture logs
     Then Verify the pipeline status is "Succeeded"
     Then Verify data is transferred to target GCS bucket
+
