@@ -93,7 +93,8 @@ public class BigQueryOutputFormatTest {
                                   ArgumentMatchers.any(),
                                   ArgumentMatchers.any(JobId.class),
                                   ArgumentMatchers.any(),
-                                  ArgumentMatchers.any(Dataset.class));
+                                  ArgumentMatchers.any(Dataset.class),
+                                  ArgumentMatchers.any());
 
     FieldSetter.setField(spy, bigQueryOutputCommitter.getClass().getDeclaredField("bigQueryHelper"),
                          bigQueryHelperMock);
@@ -157,7 +158,8 @@ public class BigQueryOutputFormatTest {
               ArgumentMatchers.any(),
               ArgumentMatchers.any(JobId.class),
               ArgumentMatchers.any(),
-              ArgumentMatchers.any(Dataset.class));
+              ArgumentMatchers.any(Dataset.class),
+              ArgumentMatchers.any());
   }
 
 }
