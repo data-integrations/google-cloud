@@ -48,4 +48,5 @@ public interface BigQueryConstants {
   String CONFIG_TEMPORARY_TABLE_NAME = "cdap.bq.source.temporary.table.name";
   String CDAP_BQ_SINK_OUTPUT_SCHEMA = "cdap.bq.sink.output.schema";
   String BQ_FQN_PREFIX = "bigquery";
+  String CONFIG_JOB_LABEL_KEY_VALUE = "cdap.bq.sink.job.label.key.value";
 }
