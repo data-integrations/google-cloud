@@ -107,12 +107,17 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
     bucketName = BigQuerySinkUtils.configureBucket(baseConfiguration, bucketName, runUUID.toString());
     Bucket bucket = storage.get(bucketName);
 
+    // Set user defined job label key value pair
+    String jobLabelKeyValue = getConfig().getJobLabelKeyValue();
+    if (jobLabelKeyValue != null) {
+      baseConfiguration.set(BigQueryConstants.CONFIG_JOB_LABEL_KEY_VALUE, jobLabelKeyValue);
+    }
+
     if (!context.isPreviewEnabled()) {
       BigQuerySinkUtils.createResources(bigQuery, dataset, datasetId,
                                         storage, bucket, bucketName,
                                         config.getLocation(), cmekKeyName);
     }
-
     prepareRunInternal(context, bigQuery, bucketName);
   }
 

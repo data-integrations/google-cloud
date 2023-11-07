@@ -197,12 +197,13 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
                              @Nullable String serviceAccountType, @Nullable String serviceFilePath,
                              @Nullable String serviceAccountJson,
                              @Nullable String dataset, @Nullable String table, @Nullable String location,
-                             @Nullable String cmekKey, @Nullable String bucket) {
+                             @Nullable String cmekKey, @Nullable String bucket, @Nullable String jobLabelKeyValue) {
     super(new BigQueryConnectorConfig(project, project, serviceAccountType,
             serviceFilePath, serviceAccountJson), dataset, cmekKey, bucket);
     this.referenceName = referenceName;
     this.table = table;
     this.location = location;
+    this.jobLabelKeyValue = jobLabelKeyValue;
   }
 
   public String getTable() {
@@ -696,6 +697,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     private String cmekKey;
     private String location;
     private String bucket;
+    private String jobLabelKeyValue;
 
     public BigQuerySinkConfig.Builder setReferenceName(@Nullable String referenceName) {
       this.referenceName = referenceName;
@@ -746,6 +748,10 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
       this.bucket = bucket;
       return this;
     }
+    public BigQuerySinkConfig.Builder setJobLabelKeyValue(@Nullable String jobLabelKeyValue) {
+      this.jobLabelKeyValue = jobLabelKeyValue;
+      return this;
+    }
 
     public BigQuerySinkConfig build() {
       return new BigQuerySinkConfig(
@@ -758,7 +764,8 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
         table,
         location,
         cmekKey,
-        bucket
+        bucket,
+        jobLabelKeyValue
       );
     }
 

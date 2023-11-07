@@ -257,7 +257,7 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
 
     JobConfiguration config = new JobConfiguration();
     config.setQuery(queryConfig);
-    config.setLabels(BigQueryUtil.getJobTags(BigQueryUtil.BQ_JOB_TYPE_SOURCE_TAG));
+    config.setLabels(BigQueryUtil.getJobLabels(BigQueryUtil.BQ_JOB_TYPE_SOURCE_TAG));
 
     JobReference jobReference = getJobReference(configuration, bigQueryHelper, projectId, location);
 
