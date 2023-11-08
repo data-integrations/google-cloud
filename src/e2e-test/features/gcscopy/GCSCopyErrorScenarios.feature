@@ -15,6 +15,7 @@
 @GCSCopy
 Feature: GCSCopy - Validate GCSCopy plugin error scenarios
 
+  @GCSCopy_Required @ITN_TEST
   Scenario:Verify GCSCopy plugin properties validation errors for mandatory fields
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
@@ -25,7 +26,7 @@ Feature: GCSCopy - Validate GCSCopy plugin error scenarios
       | sourcePath |
       | destPath   |
 
-  @GCS_SINK_TEST
+  @GCS_SINK_TEST @GCSCopy_Required @ITN_TEST
   Scenario:Verify GCSCopy plugin error message for invalid bucket name in Source Path
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
@@ -36,7 +37,7 @@ Feature: GCSCopy - Validate GCSCopy plugin error scenarios
     Then Click on the Validate button
     Then Verify that the Plugin Property: "sourcePath" is displaying an in-line error message: "errorMessageInvalidSourcePath"
 
-  @GCS_CSV_TEST
+  @GCS_CSV_TEST @GCSCopy_Required @ITN_TEST
   Scenario:Verify GCSCopy plugin error message for invalid bucket name in Destination Path
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
@@ -47,7 +48,7 @@ Feature: GCSCopy - Validate GCSCopy plugin error scenarios
     Then Click on the Validate button
     Then Verify that the Plugin Property: "destPath" is displaying an in-line error message: "errorMessageInvalidDestPath"
 
-  @GCS_CSV_TEST @GCS_SINK_TEST
+  @GCS_CSV_TEST @GCS_SINK_TEST @GCSCopy_Required @ITN_TEST
   Scenario:Verify GCSCopy plugin error message for invalid Encryption Key Name
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"

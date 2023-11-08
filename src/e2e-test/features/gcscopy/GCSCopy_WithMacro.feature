@@ -15,7 +15,7 @@
 @GCSCopy
 Feature:GCSCopy - Verification of successful objects copy from one bucket to another with macro arguments
 
-  @CMEK @GCS_CSV_TEST @GCS_SINK_TEST
+  @CMEK @GCS_CSV_TEST @GCS_SINK_TEST @GCSCopy_Required @ITN_TEST
   Scenario:Validate successful copy object from one bucket to another new bucket with macro arguments
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
