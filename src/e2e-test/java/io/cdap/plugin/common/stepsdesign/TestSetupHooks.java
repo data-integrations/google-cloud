@@ -15,8 +15,6 @@
  */
 package io.cdap.plugin.common.stepsdesign;
 
-import ch.qos.logback.core.CoreConstants;
-import ch.qos.logback.core.net.SyslogOutputStream;
 import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.StorageException;
@@ -31,7 +29,6 @@ import io.cucumber.java.After;
 import io.cucumber.java.Before;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.Assert;
-import scala.tools.nsc.interpreter.Power.Implicits2.symbolSubtypeOrdering$;
 import stepsdesign.BeforeActions;
 
 import java.io.File;
@@ -214,7 +211,7 @@ public class TestSetupHooks {
     BeforeActions.scenario.write("GCS target bucket name - " + gcsTargetBucketName);
   }
 
-  @After(order = 1, value = "@GCS_SINK_TEST or @GCS_SINK_EXISTING_BUCKET_TEST or @GCS_CSV_MULTI_PART_UPLOAD")
+  @After(order = 1, value = "@GCS_SINK_TEST or @GCS_SINK_EXISTING_BUCKET_TEST")
   public static void deleteTargetBucketWithFile() {
     deleteGCSBucket(gcsTargetBucketName);
     PluginPropertyUtils.removePluginProp("gcsTargetBucketName");
@@ -1033,17 +1030,4 @@ public class TestSetupHooks {
     PluginPropertyUtils.addPluginProp(" bqTargetTable",  bqTargetTable);
     BeforeActions.scenario.write("BQ Target Table " +  bqTargetTable + " updated successfully");
   }
-  private static String createGCSBucketWithFileAndLifeCycle(String filePath) throws IOException, URISyntaxException {
-    String bucketName = StorageClient.createBucketwithLifeCycle("00000000-e2e-" + UUID.randomUUID(),5 ).getName();
-    StorageClient.uploadObject(bucketName, filePath, filePath);
-    PluginPropertyUtils.addPluginProp("gcsSourceBucketName", bucketName);
-    PluginPropertyUtils.addPluginProp("gcsSourcePath", "gs://" + bucketName + "/" + filePath);
-    BeforeActions.scenario.write("Created GCS Bucket " + bucketName + " containing " + filePath + " file");
-    return bucketName;
-  }
-
-  @Before(order = 1, value = "@GCS_CSV_MULTI_PART_UPLOAD")
-  public static void createBucketWithCSVFileAND() throws IOException, URISyntaxException {
-    gcsTargetBucketName = createGCSBucketWithFileAndLifeCycle(PluginPropertyUtils.pluginProp("gcsCsvFile"));
-    BeforeActions.scenario.write("GCS target bucket name - " + gcsTargetBucketName);}
 }
