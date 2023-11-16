@@ -112,6 +112,11 @@ public class TinkDecryptor implements Decryptor, Configurable {
     }
 
     // Create the DecryptInfo
+    return getDecryptInfo(metadata);
+  }
+
+  static DecryptInfo getDecryptInfo(JSONObject metadata) throws IOException {
+    // Create the DecryptInfo
     try {
       String kmsURI = metadata.getString(KMS);
       KmsClients.add(new GcpKmsClient(kmsURI).withDefaultCredentials());
