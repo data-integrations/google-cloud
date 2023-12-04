@@ -1,0 +1,3 @@
+{"Customer_Exists":false,"ID":3,"Name":"string_3","Price":0.3}
+{"Customer_Exists":false,"ID":2,"Name":"string_1","Price":0.2}
+{"Customer_Exists":true,"ID":0,"Name":"string_0","Price":0.0}
