@@ -30,6 +30,14 @@ write BigQuery data to this project.
 
 **SQL**: SQL command to execute.
 
+**BQ Job Labels:** Key value pairs to be added as labels to the BigQuery job. Keys must be unique. (Macro Enabled)
+
+[job_source, type] are system defined labels used by CDAP for internal purpose and cannot be used as label keys.
+Macro format is supported. example `key1:val1,key2:val2`
+
+Keys and values can contain only lowercase letters, numeric characters, underscores, and dashes.
+For more information about labels, see [Docs](https://cloud.google.com/bigquery/docs/labels-intro#requirements).
+
 **Dialect**: Dialect of the SQL command. The value must be 'legacy' or 'standard'. If set to 'standard',
 the query will use BigQuery's standard SQL: https://cloud.google.com/bigquery/sql-reference/.
 If set to 'legacy', BigQuery's legacy SQL dialect will be used for this query.
