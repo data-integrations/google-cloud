@@ -29,6 +29,17 @@
       "label": "Advanced",
       "properties": [
         {
+          "name": "jobLabels",
+          "label": "BQ Job Labels",
+          "widget-type": "keyvalue",
+          "widget-attributes": {
+            "delimiter": ",",
+            "kv-delimiter": ":",
+            "key-placeholder": "Label key",
+            "value-placeholder": "Label value"
+          }
+        },
+        {
           "name": "dialect",
           "label": "Dialect",
           "widget-type": "radio-group",

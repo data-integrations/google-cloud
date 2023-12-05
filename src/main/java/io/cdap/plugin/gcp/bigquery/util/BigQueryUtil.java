@@ -39,6 +39,7 @@ import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
 import io.cdap.cdap.etl.api.validation.InvalidStageException;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
+import io.cdap.plugin.gcp.bigquery.sink.AbstractBigQuerySinkConfig;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySink;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySource;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceConfig;
@@ -60,6 +61,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -914,5 +916,107 @@ public final class BigQueryUtil {
       bucket = BigQueryUtil.getBucketNameForLocation(bucketPrefix, datasetLocation);
     }
     return bucket;
+  }
+
+  /**
+   * Validates job label key value pairs, as per the following rules:
+   * Keys and values can contain only lowercase letters, numeric characters, underscores, and dashes.
+   * Defined in the following link:
+   * <a href="https://cloud.google.com/bigquery/docs/labels-intro#requirements">Docs</a>
+   * @param failureCollector failure collector
+   */
+  public static void validateJobLabelKeyValue(String labelKeyValue, FailureCollector failureCollector,
+                                              String stageConfigProperty) {
+    Set<String> reservedKeys = BQ_JOB_LABEL_SYSTEM_KEYS;
+    int maxLabels = 64 - reservedKeys.size();
+    int maxKeyLength = 63;
+    int maxValueLength = 63;
+
+    String validLabelKeyRegex = "^[\\p{L}][a-z0-9-_\\p{L}]+$";
+    String validLabelValueRegex = "^[a-z0-9-_\\p{L}]+$";
+    String capitalLetterRegex = ".*[A-Z].*";
+
+    if (com.google.api.client.util.Strings.isNullOrEmpty(labelKeyValue)) {
+      return;
+    }
+
+    String[] keyValuePairs = labelKeyValue.split(",");
+    Set<String> uniqueKeys = new HashSet<>();
+
+    for (String keyValuePair : keyValuePairs) {
+
+      // Adding a label without a value is valid behavior
+      // Read more here: https://cloud.google.com/bigquery/docs/adding-labels#adding_a_label_without_a_value
+      String[] keyValue = keyValuePair.trim().split(":");
+      boolean isKeyPresent = keyValue.length == 1 || keyValue.length == 2;
+      boolean isValuePresent = keyValue.length == 2;
+
+
+      if (!isKeyPresent) {
+        failureCollector.addFailure(String.format("Invalid job label key value pair '%s'.", keyValuePair),
+                        "Job label key value pair should be in the format 'key:value'.")
+                .withConfigProperty(stageConfigProperty);
+        continue;
+      }
+
+      // Check if key is reserved
+      if (reservedKeys.contains(keyValue[0])) {
+        failureCollector.addFailure(String.format("Invalid job label key '%s'.", keyValue[0]),
+                "A system label already exists with same name.").withConfigProperty(stageConfigProperty);
+        continue;
+      }
+
+      String key = keyValue[0];
+      String value = isValuePresent ? keyValue[1] : "";
+      boolean isKeyValid = true;
+      boolean isValueValid = true;
+
+      // Key cannot be empty
+      if (com.google.api.client.util.Strings.isNullOrEmpty(key)) {
+        failureCollector.addFailure(String.format("Invalid job label key '%s'.", key),
+                "Job label key cannot be empty.").withConfigProperty(stageConfigProperty);
+        isKeyValid = false;
+      }
+
+      // Key cannot be longer than 63 characters
+      if (key.length() > maxKeyLength) {
+        failureCollector.addFailure(String.format("Invalid job label key '%s'.", key),
+                "Job label key cannot be longer than 63 characters.").withConfigProperty(stageConfigProperty);
+        isKeyValid = false;
+      }
+
+      // Value cannot be longer than 63 characters
+      if (value.length() > maxValueLength) {
+        failureCollector.addFailure(String.format("Invalid job label value '%s'.", value),
+                "Job label value cannot be longer than 63 characters.").withConfigProperty(stageConfigProperty);
+        isValueValid = false;
+      }
+
+      if (isKeyValid && (!key.matches(validLabelKeyRegex) || key.matches(capitalLetterRegex))) {
+        failureCollector.addFailure(String.format("Invalid job label key '%s'.", key),
+                        "Job label key can only contain lowercase letters, numeric characters, " +
+                                "underscores, and dashes. Check docs for more details.")
+                .withConfigProperty(stageConfigProperty);
+        isKeyValid = false;
+      }
+
+      if (isValuePresent && isValueValid &&
+              (!value.matches(validLabelValueRegex) || value.matches(capitalLetterRegex))) {
+        failureCollector.addFailure(String.format("Invalid job label value '%s'.", value),
+                "Job label value can only contain lowercase letters, numeric characters, " +
+                        "underscores, and dashes.").withConfigProperty(stageConfigProperty);
+      }
+
+      if (isKeyValid && !uniqueKeys.add(key)) {
+        failureCollector.addFailure(String.format("Duplicate job label key '%s'.", key),
+                "Job label key should be unique.").withConfigProperty(stageConfigProperty);
+      }
+    }
+    // Check if number of labels is greater than 64 - reserved keys
+    if (uniqueKeys.size() > maxLabels) {
+      failureCollector.addFailure("Number of job labels exceeds the limit.",
+                      String.format("Number of job labels cannot be greater than %d.", maxLabels))
+              .withConfigProperty(stageConfigProperty);
+    }
   }
 }
