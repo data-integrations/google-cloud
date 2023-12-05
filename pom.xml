@@ -598,6 +598,10 @@
           <groupId>io.grpc</groupId>
         </exclusion>
         <exclusion>
+          <groupId>io.opencensus</groupId>
+          <artifactId>opencensus-impl</artifactId>
+        </exclusion>
+        <exclusion>
           <artifactId>grpc-census</artifactId>
           <groupId>io.grpc</groupId>
         </exclusion>
@@ -959,6 +963,39 @@
             <goals>
               <goal>create-plugin-json</goal>
             </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <version>3.4.1</version>
+        <executions>
+          <execution>
+            <id>enforce-banned-dependencies</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <bannedDependencies>
+                  <excludes>
+                    <exclude>io.opencensus:opencensus-impl</exclude>
+                  </excludes>
+                  <message>
+                    Exclude Open Census implementations to disable Open Census stats and tracing.
+                    They are not used by the plugins. For tracing, Open Census spawns a new thread
+                    and loads a single global instance of a TracingComponent. CDAP uses a separate
+                    class loader for each plugin. This leads to spawning a new thread for each plugin
+                    with the Open Census dependency. As this thread keeps a reference to the class
+                    loader, it prevents the class loader from being garbage collected leading
+                    to leaks. If no implementation of TracingComponent is found at runtime,
+                    Open Census uses a NoopTraceComponent.
+                  </message>
+                </bannedDependencies>
+              </rules>
+              <fail>true</fail>
+            </configuration>
           </execution>
         </executions>
       </plugin>
