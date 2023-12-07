@@ -28,9 +28,6 @@ import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
-import com.google.cloud.hadoop.io.bigquery.output.BigQueryOutputConfiguration;
-import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
-import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableSchema;
 import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
@@ -43,6 +40,9 @@ import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.plugin.common.Asset;
 import io.cdap.plugin.common.LineageRecorder;
+import io.cdap.plugin.gcp.bigquery.sink.lib.BigQueryOutputConfiguration;
+import io.cdap.plugin.gcp.bigquery.sink.lib.BigQueryTableFieldSchema;
+import io.cdap.plugin.gcp.bigquery.sink.lib.BigQueryTableSchema;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize.Numeric;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
@@ -62,6 +62,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
@@ -609,6 +610,13 @@ public final class BigQuerySinkUtils {
   private static BigQueryFileFormat getFileFormat(List<BigQueryTableFieldSchema> fields) {
     for (BigQueryTableFieldSchema field : fields) {
       if (DATETIME.equals(field.getType())) {
+        return BigQueryFileFormat.NEWLINE_DELIMITED_JSON;
+      }
+      // If the field name is not in english characters, then we will use json format
+      // We do this as the avro load job in BQ does not support non-english characters in field names for now
+      String fieldName = field.getName();
+      final String englishCharactersRegex = "[\\w]+";
+      if (!Pattern.matches(englishCharactersRegex, fieldName)) {
         return BigQueryFileFormat.NEWLINE_DELIMITED_JSON;
       }
       // If the field is a record we have to check its subfields.

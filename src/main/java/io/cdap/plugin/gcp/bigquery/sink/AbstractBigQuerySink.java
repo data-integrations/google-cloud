@@ -21,7 +21,6 @@ import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.DatasetId;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
-import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
 import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
@@ -36,12 +35,12 @@ import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.plugin.common.Asset;
+import io.cdap.plugin.gcp.bigquery.sink.lib.BigQueryTableFieldSchema;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.CmekUtils;
 import io.cdap.plugin.gcp.common.GCPUtils;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.slf4j.Logger;
@@ -55,7 +54,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
-
 import javax.annotation.Nullable;
 
 /**

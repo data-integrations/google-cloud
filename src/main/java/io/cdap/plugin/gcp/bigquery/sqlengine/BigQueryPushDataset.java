@@ -18,7 +18,6 @@ package io.cdap.plugin.gcp.bigquery.sqlengine;
 
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.DatasetId;
-import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
@@ -28,6 +27,7 @@ import io.cdap.cdap.etl.api.engine.sql.request.SQLPushRequest;
 import io.cdap.plugin.gcp.bigquery.sink.BigQueryOutputFormatProvider;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
 import io.cdap.plugin.gcp.bigquery.sink.Operation;
+import io.cdap.plugin.gcp.bigquery.sink.lib.BigQueryTableFieldSchema;
 import io.cdap.plugin.gcp.bigquery.sqlengine.transform.PushTransform;
 import io.cdap.plugin.gcp.bigquery.sqlengine.util.BigQuerySQLEngineUtils;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;

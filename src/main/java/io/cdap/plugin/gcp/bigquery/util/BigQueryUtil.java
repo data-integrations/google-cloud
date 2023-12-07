@@ -82,7 +82,8 @@ public final class BigQueryUtil {
 
   public static final String BUCKET_PATTERN = "[a-z0-9._-]+";
   public static final String DATASET_PATTERN = "[A-Za-z0-9_]+";
-  public static final String TABLE_PATTERN = "[A-Za-z0-9_-]+";
+  // Read more about table naming in BigQuery here: https://cloud.google.com/bigquery/docs/tables#table_naming
+  public static final String TABLE_PATTERN = "[\\p{L}\\p{M}\\p{N}\\p{Pc}\\p{Pd}\\p{Zs}]+";
 
   // Tags for BQ Jobs
   public static final String BQ_JOB_TYPE_SOURCE_TAG = "bq_source_plugin";

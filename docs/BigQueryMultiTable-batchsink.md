@@ -255,3 +255,9 @@ GET https://www.googleapis.com/bigquery/v2/projects/xxxx/datasets/mysql_bq_perm?
 have the permission to read the dataset you specified in this plugin. You must grant "BigQuery Data Editor" role on the
 project identified by the `Dataset Project ID` you specified in this plugin to the service account. If you think you
 already granted the role, check if you granted the role on the wrong project (for example the one identified by the `Project ID`).
+
+Column Names
+------------
+A column name can contain the letters (a-z, A-Z), numbers (0-9), or underscores (_), and it must start with a letter or
+underscore. For more flexible column name support, see
+[flexible column names](https://cloud.google.com/bigquery/docs/schemas#flexible-column-names).
