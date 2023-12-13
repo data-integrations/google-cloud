@@ -125,7 +125,7 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     }
 
     // Add labels for the BigQuery Execute job.
-    builder.setLabels(BigQueryUtil.getJobLabels(BigQueryUtil.BQ_JOB_TYPE_EXECUTE_TAG));
+    builder.setLabels(BigQueryUtil.getJobLabels(BigQueryUtil.BQ_JOB_TYPE_EXECUTE_TAG, config.getJobLabelKeyValue()));
 
     QueryJobConfiguration queryConfig = builder.build();
 
@@ -205,6 +205,7 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     private static final String DATASET = "dataset";
     private static final String TABLE = "table";
     private static final String NAME_LOCATION = "location";
+    public static final String NAME_BQ_JOB_LABELS = "jobLabels";
     private static final int ERROR_CODE_NOT_FOUND = 404;
     private static final String STORE_RESULTS = "storeResults";
 
@@ -272,10 +273,17 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     @Description("Whether to store results in a BigQuery Table.")
     private Boolean storeResults;
 
+    @Name(NAME_BQ_JOB_LABELS)
+    @Macro
+    @Nullable
+    @Description("Key value pairs to be added as labels to the BigQuery job. Keys must be unique. [job_source, type] " +
+            "are reserved keys and cannot be used as label keys.")
+    protected String jobLabelKeyValue;
+
     private Config(@Nullable String project, @Nullable String serviceAccountType, @Nullable String serviceFilePath,
                    @Nullable String serviceAccountJson, @Nullable String dataset, @Nullable String table,
                    @Nullable String location, @Nullable String cmekKey, @Nullable String dialect, @Nullable String sql,
-                   @Nullable String mode, @Nullable Boolean storeResults) {
+                   @Nullable String mode, @Nullable Boolean storeResults, @Nullable String jobLabelKeyValue) {
       this.project = project;
       this.serviceAccountType = serviceAccountType;
       this.serviceFilePath = serviceFilePath;
@@ -288,6 +296,7 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
       this.sql = sql;
       this.mode = mode;
       this.storeResults = storeResults;
+      this.jobLabelKeyValue = jobLabelKeyValue;
     }
 
     public boolean isLegacySQL() {
@@ -326,6 +335,11 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     @Nullable
     public String getTable() {
       return table;
+    }
+
+    @Nullable
+    public String getJobLabelKeyValue() {
+      return jobLabelKeyValue;
     }
 
     @Override
@@ -376,7 +390,15 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
         validateCmekKey(failureCollector, arguments);
       }
 
+      if (!containsMacro(NAME_BQ_JOB_LABELS)) {
+        validateJobLabelKeyValue(failureCollector);
+      }
+
       failureCollector.getOrThrowException();
+    }
+
+    void validateJobLabelKeyValue(FailureCollector failureCollector) {
+      BigQueryUtil.validateJobLabelKeyValue(jobLabelKeyValue, failureCollector, NAME_BQ_JOB_LABELS);
     }
 
     void validateCmekKey(FailureCollector failureCollector, Map<String, String> arguments) {
@@ -449,6 +471,7 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
       private String sql;
       private String mode;
       private Boolean storeResults;
+      private String jobLabelKeyValue;
 
       public Builder setProject(@Nullable String project) {
         this.project = project;
@@ -505,6 +528,11 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
         return this;
       }
 
+      public Builder setJobLabelKeyValue(@Nullable String jobLabelKeyValue) {
+        this.jobLabelKeyValue = jobLabelKeyValue;
+        return this;
+      }
+
       public Config build() {
         return new Config(
           project,
@@ -518,7 +546,8 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
           dialect,
           sql,
           mode,
-          storeResults
+          storeResults,
+          jobLabelKeyValue
         );
       }
 

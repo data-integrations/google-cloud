@@ -131,7 +131,7 @@
       "label": "Advanced",
       "properties": [
         {
-          "name": "jobLabel",
+          "name": "jobLabels",
           "label": "BQ Job Labels",
           "widget-type": "keyvalue",
           "widget-attributes": {
