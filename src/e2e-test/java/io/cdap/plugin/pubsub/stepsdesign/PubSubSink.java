@@ -27,13 +27,16 @@ import io.cdap.plugin.pubsub.locators.PubSubLocators;
 import io.cdap.plugin.utils.E2EHelper;
 import io.cdap.plugin.utils.E2ETestConstants;
 import io.cdap.plugin.utils.PubSubClient;
+import io.cucumber.java.en.And;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.apache.commons.lang3.StringUtils;
 import org.junit.Assert;
+import org.openqa.selenium.support.ui.Select;
 import stepsdesign.BeforeActions;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 /**
  * PubSub Sink Plugin related step design.
@@ -233,5 +236,32 @@ public class PubSubSink implements E2EHelper {
   @Then("Click on preview data for PubSub sink")
   public void clickOnPreviewDataForPubSubSink() {
     openSinkPluginPreviewData("GooglePublisher");
+  }
+
+  @Then("Subscribe to the Pub/Sub messages")
+  public void subscribeToTheMessages() throws InterruptedException {
+    TimeUnit time = TimeUnit.SECONDS;
+    time.sleep(60);
+    PubSubClient.subscribeAsync(PluginPropertyUtils.pluginProp(ConstantsUtil.PROJECT_ID),
+                                       TestSetupHooks.pubSubSourceSubscription);
+  }
+
+  @And("Click on batch time and select format")
+  public void clickOnBatchTimeAndSelectFormat() {
+    Select select = new Select(PubSubLocators.batchTime);
+    select.selectByIndex(0);
+    Select selectformat = new Select(PubSubLocators.timeSelect);
+    selectformat.selectByIndex(1);
+    ElementHelper.clickOnElement(PubSubLocators.saveButton);
+  }
+
+  @And("Click on configure button")
+  public void clickOnConfigureButton() {
+    ElementHelper.clickOnElement(PubSubLocators.configButton);
+  }
+
+  @And("Click on pipeline config")
+  public void clickOnPipelineConfig() {
+    ElementHelper.clickOnElement(PubSubLocators.pipelineConfig);
   }
 }

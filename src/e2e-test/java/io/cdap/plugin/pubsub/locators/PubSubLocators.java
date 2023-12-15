@@ -64,6 +64,20 @@ public class PubSubLocators {
 
   @FindBy(how = How.XPATH, using = "//input[@data-cy='numberOfReaders']")
   public static WebElement numberOfReaders;
+  @FindBy(how = How.XPATH, using = "//input[@placeholder='Field name' and @value='']")
+  public static WebElement addField;
+  @FindBy(how = How.XPATH, using = "//span[contains(text(), \"Batch interval\")]//following-sibling::div//select[1]")
+  public static WebElement batchTime;
+  @FindBy(how = How.XPATH, using = "//span[contains(text(), \"Batch interval\")]//following-sibling::div//select[2]")
+  public static WebElement timeSelect;
+  @FindBy(how = How.XPATH, using = "//button[@data-testid='config-apply-close']")
+  public static WebElement saveButton;
+  @FindBy(how = How.XPATH, using = "//*[@data-cy='pipeline-configure-modeless-btn']")
+  public static WebElement configButton;
+  @FindBy(how = How.XPATH, using = "//*[@data-cy='tab-content-Pipeline config']")
+  public static WebElement pipelineConfig;
+  @FindBy(how = How.XPATH, using = "//select[@title='bytes']")
+  public static WebElement messageDataType;
 
   public static WebElement formatType(String formatType) {
     return SeleniumDriver.getDriver()
@@ -73,5 +87,9 @@ public class PubSubLocators {
   public static WebElement selectedFormat(String format) {
     return SeleniumDriver.getDriver()
       .findElement(By.xpath("//*[@data-cy='select-format']/div[text()='" + format + "']"));
+  }
+
+  public static By locateDropdownListItem(String option) {
+    return By.xpath("//option[@data-cy='" + option + "']");
   }
 }

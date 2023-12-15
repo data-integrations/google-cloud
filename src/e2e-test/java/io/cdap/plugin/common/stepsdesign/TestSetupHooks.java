@@ -18,6 +18,7 @@ package io.cdap.plugin.common.stepsdesign;
 import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.StorageException;
+import com.google.pubsub.v1.Encoding;
 import io.cdap.e2e.pages.actions.CdfConnectionActions;
 import io.cdap.e2e.pages.actions.CdfPluginPropertiesActions;
 import io.cdap.e2e.utils.BigQueryClient;
@@ -62,6 +63,9 @@ public class TestSetupHooks {
   public static String bqSourceTable2 = StringUtils.EMPTY;
   public static String bqSourceView = StringUtils.EMPTY;
   public static String pubSubTargetTopic = StringUtils.EMPTY;
+  public static String pubSubSourceTopic = StringUtils.EMPTY;
+  public static String pubSubSourceSubscription = StringUtils.EMPTY;
+  public static String pubSubSchemaId = StringUtils.EMPTY;
   public static String spannerInstance = StringUtils.EMPTY;
   public static String spannerDatabase = StringUtils.EMPTY;
   public static String spannerSourceTable = StringUtils.EMPTY;
@@ -92,8 +96,8 @@ public class TestSetupHooks {
           return;
         }
         Assert.fail("ServiceAccount override failed - ServiceAccount type set in environment variable " +
-                       "'SERVICE_ACCOUNT_TYPE' with invalid value: '" + serviceAccountType + "'. " +
-                       "Value should be either 'FilePath' or 'JSON'");
+                      "'SERVICE_ACCOUNT_TYPE' with invalid value: '" + serviceAccountType + "'. " +
+                      "Value should be either 'FilePath' or 'JSON'");
       }
       beforeAllFlag = false;
     }
@@ -480,10 +484,92 @@ public class TestSetupHooks {
     return bucketName;
   }
 
+  @Before(order = 1, value = "@PUBSUB_SOURCE_TEST")
+  public static void createSourcePubSubTopic() throws IOException {
+    pubSubSourceTopic = "cdf-e2e-test-" + UUID.randomUUID();
+    PubSubClient.createTopic(pubSubSourceTopic);
+    BeforeActions.scenario.write("Source PubSub topic " + pubSubSourceTopic);
+  }
+
+  @Before(order = 1, value = "@PUBSUB_SCHEMA_TEST")
+  public static void createSourcePubSubSchema() throws IOException {
+    pubSubSchemaId = "cdf-e2e-test-" + UUID.randomUUID();
+    PubSubClient.createAvroSchema(pubSubSchemaId, PluginPropertyUtils.pluginProp("avrofile"));
+    BeforeActions.scenario.write("Source Schema " + pubSubSchemaId);
+  }
+
+  @Before(order = 2, value = "@PUBSUB_SCHEMA_TOPIC_TEST")
+  public static void createSourcePubSubSchemaTopic() throws IOException, InterruptedException {
+    pubSubSourceTopic = "cdf-e2e-test-" + UUID.randomUUID();
+    PubSubClient.createTopicWithSchema(pubSubSourceTopic, pubSubSchemaId, Encoding.BINARY);
+    BeforeActions.scenario.write("Schema Topic " + pubSubSourceTopic);
+  }
+
+  @Before(order = 3, value = "@PUBSUB_SUBSCRIPTION_TEST")
+  public static void createSubscriptionPubSubTopic() throws IOException {
+    pubSubSourceSubscription = "cdf-e2e-test-" + UUID.randomUUID();
+    PubSubClient.createSubscription(pubSubSourceSubscription, pubSubSourceTopic);
+    BeforeActions.scenario.write("Source PubSub subscription " + pubSubSourceSubscription);
+  }
+
+  @After(order = 1, value = "@PUBSUB_SOURCE_TEST")
+  public static void deleteSourcePubSubTopic() {
+    try {
+      PubSubClient.deleteTopic(pubSubSourceTopic);
+      BeforeActions.scenario.write("Deleted target PubSub topic " + pubSubSourceTopic);
+      pubSubSourceTopic = StringUtils.EMPTY;
+    } catch (Exception e) {
+      if (e.getMessage().contains("Invalid resource name given") || e.getMessage().contains("Resource not found")) {
+        BeforeActions.scenario.write("Source PubSub topic " + pubSubSourceTopic + " does not exist.");
+      } else {
+        Assert.fail(e.getMessage());
+      }
+      }
+    }
+
+  @After(order = 2, value = "@PUBSUB_SCHEMA_TOPIC_TEST")
+  public static void deleteSourcePubSubSchemaTopic() {
+    try {
+      PubSubClient.deleteTopic(pubSubSourceTopic);
+      BeforeActions.scenario.write("Deleted target PubSub topic " + pubSubSourceTopic);
+      pubSubSourceTopic = StringUtils.EMPTY;
+    } catch (Exception e) {
+      if (e.getMessage().contains("Invalid resource name given") || e.getMessage().contains("Resource not found")) {
+        BeforeActions.scenario.write("Schema " + pubSubSchemaId + " does not exist.");
+      } else {
+        Assert.fail(e.getMessage());
+      }
+    }
+  }
+
   @Before(order = 1, value = "@PUBSUB_SINK_TEST")
   public static void createTargetPubSubTopic() {
     pubSubTargetTopic = "cdf-e2e-test-" + UUID.randomUUID();
     BeforeActions.scenario.write("Target PubSub topic " + pubSubTargetTopic);
+  }
+
+  @After(order = 1, value = "@PUBSUB_SCHEMA_TEST")
+  public static void deletePubSubSchema() throws IOException {
+    PubSubClient.deleteSchema(PluginPropertyUtils.pluginProp("projectId"), pubSubSchemaId);
+    BeforeActions.scenario.write("Deleted PubSub schema " + pubSubSchemaId);
+  }
+
+  @After(order = 2, value = "@PUBSUB_SUBSCRIPTION_TEST")
+  public static void deletePubSubSubscription() throws IOException {
+    PubSubClient.deleteSubscription(PluginPropertyUtils.pluginProp("projectId"), pubSubSourceSubscription);
+    BeforeActions.scenario.write("Deleted PubSub subscription " + pubSubSourceSubscription);
+  }
+
+  public static void publishMessageJsonFormat() throws IOException, InterruptedException {
+    String jsonMessage = PluginPropertyUtils.pluginProp("message");
+    String jsonMessage2 = PluginPropertyUtils.pluginProp("message2");
+    List<String> jsonMessagesList = Arrays.asList(jsonMessage, jsonMessage2);
+    PubSubClient.publishWithErrorHandler(PluginPropertyUtils.pluginProp("projectId"),
+                                                pubSubSourceTopic, jsonMessagesList);
+  }
+
+  public static void publishMessageAvroFormat() throws IOException, InterruptedException, ExecutionException {
+    PubSubClient.publishAvroRecords(PluginPropertyUtils.pluginProp("projectId"), pubSubSourceTopic);
   }
 
   @After(order = 1, value = "@PUBSUB_SINK_TEST")
@@ -790,7 +876,7 @@ public class TestSetupHooks {
       } else {
         Assert.fail(e.getMessage());
       }
-  }
+    }
   }
 
   @Before(order = 2, value = "@BQ_EXECUTE_ROW_AS_ARG_SQL")
@@ -919,9 +1005,10 @@ public class TestSetupHooks {
       // Iterator on TableResult values in getSoleQueryResult method throws NoSuchElementException
     }
 
-    PluginPropertyUtils.addPluginProp(" bqTargetTable",  bqTargetTable);
-    BeforeActions.scenario.write("BQ Target Table " +  bqTargetTable + " updated successfully");
+    PluginPropertyUtils.addPluginProp(" bqTargetTable", bqTargetTable);
+    BeforeActions.scenario.write("BQ Target Table " + bqTargetTable + " updated successfully");
   }
+
   @Before(order = 1, value = "@GCS_AVRO_FILE")
   public static void createGcsBucketWithAvro() throws IOException, URISyntaxException {
     gcsSourceBucketName = createGCSBucketWithFile(PluginPropertyUtils.pluginProp("gcsAvroAllDataFile"));
@@ -984,29 +1071,29 @@ public class TestSetupHooks {
     }
   }
 
-    @Before(order = 1, value = "@BQ_EXISTING_SOURCE_DATATYPE_TEST")
-    public static void createSourceBQExistingDatatypeTable () throws IOException, InterruptedException {
-      bqSourceTable = "E2E_SOURCE_" + UUID.randomUUID().toString().replaceAll("-", "_");
-      io.cdap.e2e.utils.BigQueryClient.getSoleQueryResult("create table `" + datasetName + "." + bqSourceTable + "` " +
-                                                            "(ID INT64, Name STRING, " + "Price FLOAT64," +
-                                                            "Customer_Exists BOOL, transaction_date DATE," +
-                                                            "business_ratio NUMERIC, updated_on TIMESTAMP ) ");
-      try {
-        io.cdap.e2e.utils.BigQueryClient.getSoleQueryResult("INSERT INTO `" + datasetName + "." + bqSourceTable + "` " +
-                                                              "(ID, Name, Price, Customer_Exists,transaction_date," +
-                                                              "business_ratio,updated_on)" +
-                                                              "VALUES" + "(1, 'Raja Sharma', 200.0, true," +
-                                                              "'2021-01-28'," + "0.0904809091," +
-                                                              "'2018-03-10 04:50:01 UTC' " +
-                                                              ") ");
-      } catch (NoSuchElementException e) {
-        // Insert query does not return any record.
-        // Iterator on TableResult values in getSoleQueryResult method throws NoSuchElementException
-        BeforeActions.scenario.write("Error inserting the record in the table" + e.getStackTrace());
-      }
-      PluginPropertyUtils.addPluginProp("bqSourceTable", bqSourceTable);
-      BeforeActions.scenario.write("BQ Source Table " + bqSourceTable + " created successfully");
+  @Before(order = 1, value = "@BQ_EXISTING_SOURCE_DATATYPE_TEST")
+  public static void createSourceBQExistingDatatypeTable () throws IOException, InterruptedException {
+    bqSourceTable = "E2E_SOURCE_" + UUID.randomUUID().toString().replaceAll("-", "_");
+    io.cdap.e2e.utils.BigQueryClient.getSoleQueryResult("create table `" + datasetName + "." + bqSourceTable + "` " +
+                                                          "(ID INT64, Name STRING, " + "Price FLOAT64," +
+                                                          "Customer_Exists BOOL, transaction_date DATE," +
+                                                          "business_ratio NUMERIC, updated_on TIMESTAMP ) ");
+    try {
+      io.cdap.e2e.utils.BigQueryClient.getSoleQueryResult("INSERT INTO `" + datasetName + "." + bqSourceTable + "` " +
+                                                            "(ID, Name, Price, Customer_Exists,transaction_date," +
+                                                            "business_ratio,updated_on)" +
+                                                            "VALUES" + "(1, 'Raja Sharma', 200.0, true," +
+                                                            "'2021-01-28'," + "0.0904809091," +
+                                                            "'2018-03-10 04:50:01 UTC' " +
+                                                            ") ");
+    } catch (NoSuchElementException e) {
+      // Insert query does not return any record.
+      // Iterator on TableResult values in getSoleQueryResult method throws NoSuchElementException
+      BeforeActions.scenario.write("Error inserting the record in the table" + e.getStackTrace());
     }
+    PluginPropertyUtils.addPluginProp("bqSourceTable", bqSourceTable);
+    BeforeActions.scenario.write("BQ Source Table " + bqSourceTable + " created successfully");
+  }
 
   @Before(order = 1, value = "@BQ_EXISTING_SINK_DATATYPE_TEST")
   public static void createSinkBQExistingDatatypeTable() throws IOException, InterruptedException {
@@ -1141,7 +1228,7 @@ public class TestSetupHooks {
 
   @Before(value = "@BQ_INSERT_INT_SOURCE_TEST")
   public static void createSourceBQTable() throws IOException, InterruptedException {
-    bqSourceTable = "E2E_TARGET_" + UUID.randomUUID().toString().replaceAll("-", "_");
+    bqSourceTable = "E2E_SOURCE_" + UUID.randomUUID().toString().replaceAll("-", "_");
     PluginPropertyUtils.addPluginProp("bqSourceTable", bqSourceTable);
     BeforeActions.scenario.write("BQ source table name - " + bqSourceTable);
     BigQueryClient.getSoleQueryResult("create table `" + datasetName + "." + bqSourceTable + "` " +
@@ -1286,6 +1373,7 @@ public class TestSetupHooks {
     PluginPropertyUtils.addPluginProp(" bqTargetTable", bqTargetTable);
     BeforeActions.scenario.write("BQ Target Table " + bqTargetTable + " updated successfully");
   }
+
   private static String createGCSBucketLifeCycle() throws IOException, URISyntaxException {
     String bucketName = StorageClient.createBucketwithLifeCycle("00000000-e2e-" + UUID.randomUUID(), 30).getName();
     PluginPropertyUtils.addPluginProp("gcsTargetBucketName", bucketName);
@@ -1295,5 +1383,6 @@ public class TestSetupHooks {
   @Before(order = 1, value = "@GCS_SINK_MULTI_PART_UPLOAD")
   public static void createBucketWithLifeCycle() throws IOException, URISyntaxException {
     gcsTargetBucketName = createGCSBucketLifeCycle();
-    BeforeActions.scenario.write("GCS target bucket name - " + gcsTargetBucketName); }
+    BeforeActions.scenario.write("GCS target bucket name - " + gcsTargetBucketName);
+  }
 }
