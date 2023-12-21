@@ -69,7 +69,7 @@
   <properties>
     <jee.version>7</jee.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <avro.version>1.8.2</avro.version>
+    <avro.version>1.11.3</avro.version>
     <bigquery.connector.hadoop2.version>hadoop2-1.2.0</bigquery.connector.hadoop2.version>
     <commons.codec.version>1.4</commons.codec.version>
     <cdap.version>6.9.1</cdap.version>
