@@ -66,7 +66,7 @@ public class GCPUtils {
   private static final Type SCOPES_TYPE = new TypeToken<List<String>>() { }.getType();
   private static final String SERVICE_ACCOUNT_TYPE = "cdap.auth.service.account.type";
   private static final String SERVICE_ACCOUNT = "cdap.auth.service.account";
-  private static final String SERVICE_ACCOUNT_SCOPES = "cdap.auth.service.account.scopes";
+  public static final String SERVICE_ACCOUNT_SCOPES = "cdap.auth.service.account.scopes";
   private static final String SERVICE_ACCOUNT_TYPE_FILE_PATH = "filePath";
   // fs.gs prefix is for GoogleHadoopFileSystemBase.getCredential(), used by the GCS connector.
   private static final String GCS_PREFIX = "fs.gs";

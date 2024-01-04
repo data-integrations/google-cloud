@@ -18,13 +18,17 @@
 package io.cdap.plugin.gcp.gcs;
 
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.bigtable.repackaged.com.google.gson.Gson;
 import com.google.cloud.hadoop.util.AccessTokenProvider;
+import com.google.cloud.hadoop.util.CredentialFactory;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import org.apache.hadoop.conf.Configuration;
 
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Date;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * An AccessTokenProvider that uses the newer GoogleCredentials library to get the credentials. This is used instead
@@ -34,6 +38,7 @@ import java.util.Date;
 public class ServiceAccountAccessTokenProvider implements AccessTokenProvider {
   private Configuration conf;
   private GoogleCredentials credentials;
+  private static final Gson GSON = new Gson();
 
   @Override
   public AccessToken getAccessToken() {
@@ -61,6 +66,10 @@ public class ServiceAccountAccessTokenProvider implements AccessTokenProvider {
         // config to {@link ServiceAccountAccessTokenProvider} which causes NPE when
         // initializing {@link ForwardingBigQueryFileOutputCommitter because conf is null.
         conf = new Configuration();
+        // Add scopes information which is lost when running in sandbox mode.
+        conf.set(GCPUtils.SERVICE_ACCOUNT_SCOPES, GSON.toJson(
+            Stream.concat(CredentialFactory.DEFAULT_SCOPES.stream(),
+                GCPUtils.BIGQUERY_SCOPES.stream()).collect(Collectors.toList())));
       }
       credentials = GCPUtils.loadCredentialsFromConf(conf);
     }
