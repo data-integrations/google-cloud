@@ -1286,14 +1286,4 @@ public class TestSetupHooks {
     PluginPropertyUtils.addPluginProp(" bqTargetTable", bqTargetTable);
     BeforeActions.scenario.write("BQ Target Table " + bqTargetTable + " updated successfully");
   }
-  private static String createGCSBucketLifeCycle() throws IOException, URISyntaxException {
-    String bucketName = StorageClient.createBucketwithLifeCycle("00000000-e2e-" + UUID.randomUUID(), 30).getName();
-    PluginPropertyUtils.addPluginProp("gcsTargetBucketName", bucketName);
-    return bucketName;
-  }
-
-  @Before(order = 1, value = "@GCS_SINK_MULTI_PART_UPLOAD")
-  public static void createBucketWithLifeCycle() throws IOException, URISyntaxException {
-    gcsTargetBucketName = createGCSBucketLifeCycle();
-    BeforeActions.scenario.write("GCS target bucket name - " + gcsTargetBucketName); }
 }
