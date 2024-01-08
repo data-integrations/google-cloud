@@ -422,6 +422,58 @@ public class BigQueryRecordToJsonTest {
     }
   }
 
+  @Test
+  public void testJsonStringWithStringArray() throws IOException {
+    Schema recordSchema = Schema.recordOf("record",
+            Schema.Field.of("arrayOfString", Schema.arrayOf(Schema.of(Schema.Type.STRING))));
+    List<String> jsonStringList = ImmutableList.of("{\"arrayKey1\": \"arrayValue1\"}",
+            "{\"arrayKey2\": \"arrayValue2\"}");
+    StructuredRecord record = StructuredRecord.builder(recordSchema).set("arrayOfString", jsonStringList).build();
+    Set<String> jsonStringFieldsPaths = ImmutableSet.of("arrayOfString");
+    try (JsonTreeWriter writer = new JsonTreeWriter()) {
+      writer.beginObject();
+      for (Schema.Field recordField : Objects.requireNonNull(record.getSchema().getFields())) {
+        if (recordSchema.getField(recordField.getName()) != null) {
+          BigQueryRecordToJson.write(writer, recordField.getName(), record.get(recordField.getName()),
+                  recordField.getSchema(), jsonStringFieldsPaths);
+        }
+      }
+      writer.endObject();
+      JsonObject actual = writer.get().getAsJsonObject();
+      String actualJsonString = actual.get("arrayOfString").getAsJsonArray().toString();
+      String expectedJsonString = "[{\"arrayKey1\":\"arrayValue1\"},{\"arrayKey2\":\"arrayValue2\"}]";
+      Assert.assertEquals(expectedJsonString, actualJsonString);
+    }
+  }
+
+  @Test
+  public void testJsonStringWithArrayAndNestedRecord() throws IOException {
+    Schema nestedRecordSchema = Schema.recordOf("nestedRecord",
+            Schema.Field.of("nestedJsonString", Schema.of(Schema.Type.STRING)));
+    StructuredRecord nestedRecord = StructuredRecord.builder(nestedRecordSchema)
+            .set("nestedJsonString", "{\"nestedKey1\":\"nestedValue1\"}").build();
+    Schema recordSchema = Schema.recordOf("record",
+            Schema.Field.of("arrayOfNestedRecord", Schema.arrayOf(nestedRecordSchema)));
+    List<StructuredRecord> nestedRecordList = ImmutableList.of(nestedRecord);
+    StructuredRecord record = StructuredRecord.builder(recordSchema).set("arrayOfNestedRecord", nestedRecordList)
+            .build();
+
+    Set<String> jsonStringFieldsPaths = ImmutableSet.of("arrayOfNestedRecord.nestedJsonString");
+    try (JsonTreeWriter writer = new JsonTreeWriter()) {
+      writer.beginObject();
+      for (Schema.Field recordField : Objects.requireNonNull(record.getSchema().getFields())) {
+        if (recordSchema.getField(recordField.getName()) != null) {
+          BigQueryRecordToJson.write(writer, recordField.getName(), record.get(recordField.getName()),
+                  recordField.getSchema(), jsonStringFieldsPaths);
+        }
+      }
+      writer.endObject();
+      JsonObject actual = writer.get().getAsJsonObject();
+      String actualJsonString = actual.get("arrayOfNestedRecord").toString();
+      String expectedJsonString = "[{\"nestedJsonString\":{\"nestedKey1\":\"nestedValue1\"}}]";
+      Assert.assertEquals(expectedJsonString, actualJsonString);
+    }
+  }
 
   /**
    * Empty JSON string is not a valid JSON string and should throw an exception.
