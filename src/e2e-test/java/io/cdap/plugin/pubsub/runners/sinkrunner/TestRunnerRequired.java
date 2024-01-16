@@ -27,7 +27,7 @@ import org.junit.runner.RunWith;
   features = {"src/e2e-test/features"},
   glue = {"io.cdap.plugin.pubsub.stepsdesign", "io.cdap.plugin.gcs.stepsdesign",
     "io.cdap.plugin.common.stepsdesign", "io.cdap.plugin.bigquery.stepsdesign", "stepsdesign"},
-  tags = {"@PubSub_Sink_Required"},
+  tags = {"@PubSub_Sink_Required", "@PubSub_DataStream_Required"},
   monochrome = true,
   plugin = {"pretty", "html:target/cucumber-html-report/pubsub-sink-required",
     "json:target/cucumber-reports/cucumber-pubsub-sink-required.json",
