@@ -21,6 +21,7 @@ import com.google.cloud.storage.StorageException;
 import io.cdap.e2e.pages.actions.CdfConnectionActions;
 import io.cdap.e2e.pages.actions.CdfPluginPropertiesActions;
 import io.cdap.e2e.utils.BigQueryClient;
+import io.cdap.e2e.utils.ConstantsUtil;
 import io.cdap.e2e.utils.PluginPropertyUtils;
 import io.cdap.e2e.utils.StorageClient;
 import io.cdap.plugin.utils.PubSubClient;
@@ -61,7 +62,10 @@ public class TestSetupHooks {
   public static String bqSourceTable = StringUtils.EMPTY;
   public static String bqSourceTable2 = StringUtils.EMPTY;
   public static String bqSourceView = StringUtils.EMPTY;
+
   public static String pubSubTargetTopic = StringUtils.EMPTY;
+  public static String pubSubSourceTopic = StringUtils.EMPTY;
+  public static String pubSubSourceSubscription = StringUtils.EMPTY;
   public static String spannerInstance = StringUtils.EMPTY;
   public static String spannerDatabase = StringUtils.EMPTY;
   public static String spannerSourceTable = StringUtils.EMPTY;
@@ -479,6 +483,57 @@ public class TestSetupHooks {
                                    + fileCount + " files in " + folderPaths.get(0));
     return bucketName;
   }
+
+  @Before(order = 1, value = "@PUBSUB_SOURCE_TEST")
+  public static void createSourcePubSubTopic() throws IOException {
+    pubSubSourceTopic = "cdf-e2e-test-" + UUID.randomUUID();
+    PubSubClient.createTopic(pubSubSourceTopic);
+    BeforeActions.scenario.write("Source PubSub topic " + pubSubSourceTopic);
+  }
+
+  @Before(order = 1, value = "@PUBSUB_SUBSCRIPTION_TEST")
+  public static void createSubscriptionPubSubTopic() throws IOException {
+    pubSubSourceSubscription = "cdf-e2e-test-" + UUID.randomUUID();
+    PubSubClient.createSubscription(pubSubSourceSubscription , pubSubSourceTopic);
+    BeforeActions.scenario.write("Source PubSub subscription " + pubSubSourceSubscription);
+  }
+
+  @After(order = 1, value = "@PUBSUB_SOURCE_TEST")
+  public static void deleteSourcePubSubTopic() {
+    try {
+      PubSubClient.deleteTopic(pubSubSourceTopic);
+      BeforeActions.scenario.write("Deleted target PubSub topic " + pubSubSourceTopic);
+      pubSubSourceTopic = StringUtils.EMPTY;
+    } catch (Exception e) {
+      if (e.getMessage().contains("Invalid resource name given") || e.getMessage().contains("Resource not found")) {
+
+      }
+    }
+  }
+
+  @After(order = 1, value = "@PUBSUB_SUBSCRIPTION_TEST")
+  public static void deleteSourcePubSubSubscription() {
+    try {
+      PubSubClient.deleteTopic(pubSubSourceSubscription);
+      BeforeActions.scenario.write("Deleted target PubSub topic " + pubSubSourceSubscription);
+      pubSubSourceSubscription = StringUtils.EMPTY;
+    } catch (Exception e) {
+      if (e.getMessage().contains("Invalid resource name given") || e.getMessage().contains("Resource not found")) {
+        BeforeActions.scenario.write("Source PubSub topic " + pubSubSourceTopic + " does not exist.");
+      } else {
+        Assert.fail(e.getMessage());
+      }
+    }
+  }
+
+  public static void publishMessage() throws IOException, InterruptedException {
+    String dataMessage1 = PluginPropertyUtils.pluginProp("firstMessage");
+    String dataMessage2 = PluginPropertyUtils.pluginProp("secondMessage");
+    List<String> dataMessagesList = Arrays.asList(dataMessage1, dataMessage2);
+    PubSubClient.publishMessagesWithPubSub(PluginPropertyUtils.pluginProp
+      (ConstantsUtil.PROJECT_ID), pubSubSourceTopic, dataMessagesList);
+  }
+
 
   @Before(order = 1, value = "@PUBSUB_SINK_TEST")
   public static void createTargetPubSubTopic() {

@@ -74,4 +74,19 @@ public class PubSubLocators {
     return SeleniumDriver.getDriver()
       .findElement(By.xpath("//*[@data-cy='select-format']/div[text()='" + format + "']"));
   }
+
+  @FindBy(how = How.XPATH, using = "//span[contains(text(), \"Batch interval\")]//following-sibling::div//select[1]")
+  public static WebElement batchTime;
+
+  @FindBy(how = How.XPATH, using = "//span[contains(text(), \"Batch interval\")]//following-sibling::div//select[2]")
+  public static WebElement timeSelect;
+
+  @FindBy(how = How.XPATH, using = "//button[@data-testid='config-apply-close']")
+  public static WebElement saveButton;
+
+  @FindBy(how = How.XPATH, using = "//*[@data-cy='pipeline-configure-modeless-btn']")
+  public static WebElement configButton;
+
+  @FindBy(how = How.XPATH, using = "//*[@data-cy='tab-content-Pipeline config']")
+  public static WebElement pipelineConfig;
 }

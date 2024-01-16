@@ -16,9 +16,16 @@
 
 package io.cdap.plugin.pubsub.stepsdesign;
 
+import io.cdap.e2e.pages.locators.CdfStudioLocators;
 import io.cdap.e2e.utils.CdfHelper;
+import io.cdap.e2e.utils.ElementHelper;
+import io.cdap.plugin.common.stepsdesign.TestSetupHooks;
+import io.cdap.plugin.pubsub.actions.PubSubActions;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
+
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 /**
  * PubSub Source Plugin related step design.
@@ -34,5 +41,33 @@ public class PubSubSource implements CdfHelper {
   @Then("Open the PubSub source properties")
   public void openThePubSubSourceProperties() {
     openSourcePluginProperties("GooglePublisher");
+  }
+
+  @Then("Enter PubSub source property topic name")
+  public void enterPubSubSourcePropertyTopicName() {
+    PubSubActions.enterPubSubTopic(TestSetupHooks.pubSubSourceTopic);
+  }
+
+  @Then("Enter PubSub source property subscription name")
+  public void enterPubSubSourcePropertySubscriptionName() {
+    PubSubActions.enterSubscription(TestSetupHooks.pubSubSourceSubscription);
+  }
+
+  @Then("Publish the messages")
+  public void publishTheMessage() throws IOException, InterruptedException, IOException {
+    TimeUnit time = TimeUnit.SECONDS;
+    time.sleep(120);
+    TestSetupHooks.publishMessage();
+  }
+
+  @Then("Enter runtime argument value for PubSub source property topic key {string}")
+  public void enterRuntimeArgumentValueForPubSubSourcePropertyTopicKey(String runtimeArgumentKey) {
+    ElementHelper.sendKeys(CdfStudioLocators.runtimeArgsValue(runtimeArgumentKey), TestSetupHooks.pubSubSourceTopic);
+  }
+
+  @Then("Enter runtime argument value for PubSub source property subscription key {string}")
+  public void enterRuntimeArgumentValueForPubSubSourcePropertySubscriptionKey(String runtimeArgumentKey) {
+    ElementHelper.sendKeys(CdfStudioLocators.runtimeArgsValue(runtimeArgumentKey),
+                           TestSetupHooks.pubSubSourceSubscription);
   }
 }
