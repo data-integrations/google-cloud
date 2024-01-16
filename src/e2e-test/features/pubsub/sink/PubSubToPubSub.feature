@@ -26,7 +26,6 @@ Feature: PubSub - Verification of successful data transfer from DataStream PubSu
     Then Connect plugins: "Pub/Sub" and "Pub/Sub2" to establish connection
     Then Navigate to the properties page of plugin: "Pub/Sub"
     Then Replace input plugin property: "project" with value: "projectId"
-    #Then Override Service account details if set in environment variables
     Then Enter input plugin property: "referenceName" with value: "PubSubSourceReferenceName"
     Then Enter PubSub source property subscription name
     Then Enter PubSub source property topic name
@@ -34,7 +33,6 @@ Feature: PubSub - Verification of successful data transfer from DataStream PubSu
     And Close the Plugin Properties page
     Then Navigate to the properties page of plugin: "Pub/Sub2"
     Then Replace input plugin property: "project" with value: "projectId"
-    #Then Override Service account details if set in environment variables
     Then Enter input plugin property: "referenceName" with value: "PubSubSinkReferenceName"
     Then Enter PubSub sink property topic name
     Then Validate "Pub/Sub" plugin properties
@@ -49,7 +47,6 @@ Feature: PubSub - Verification of successful data transfer from DataStream PubSu
     Then Publish the messages
     Then Subscribe to the messages
     Then Validate OUT record count is equal to IN record count
-    Then Open and capture logs
     And Stop the pipeline
     Then Verify the pipeline status is "Stopped"
 
@@ -64,7 +61,6 @@ Feature: PubSub - Verification of successful data transfer from DataStream PubSu
     Then Connect plugins: "Pub/Sub" and "Pub/Sub2" to establish connection
     Then Navigate to the properties page of plugin: "Pub/Sub"
     Then Replace input plugin property: "project" with value: "projectId"
-    #Then Override Service account details if set in environment variables
     Then Enter input plugin property: "referenceName" with value: "PubSubSourceReferenceName"
     Then Click on the Macro button of Property: "topic" and set the value to: "pubSubSourceTopic"
     Then Click on the Macro button of Property: "subscription" and set the value to: "pubSubSourceSubscription"
@@ -72,7 +68,6 @@ Feature: PubSub - Verification of successful data transfer from DataStream PubSu
     And Close the Plugin Properties page
     Then Navigate to the properties page of plugin: "Pub/Sub2"
     Then Replace input plugin property: "project" with value: "projectId"
-    #Then Override Service account details if set in environment variables
     Then Enter input plugin property: "referenceName" with value: "PubSubSinkReferenceName"
     Then Enter PubSub sink property topic name
     Then Validate "Pub/Sub" plugin properties
@@ -89,7 +84,6 @@ Feature: PubSub - Verification of successful data transfer from DataStream PubSu
     Then Publish the messages
     Then Subscribe to the messages
     Then Validate OUT record count is equal to IN record count
-    Then Open and capture logs
     And Stop the pipeline
     Then Verify the pipeline status is "Stopped"
 
@@ -104,7 +98,6 @@ Feature: PubSub - Verification of successful data transfer from DataStream PubSu
     Then Connect plugins: "Pub/Sub" and "Pub/Sub2" to establish connection
     Then Navigate to the properties page of plugin: "Pub/Sub"
     Then Replace input plugin property: "project" with value: "projectId"
-    #Then Override Service account details if set in environment variables
     Then Enter input plugin property: "referenceName" with value: "PubSubSourceReferenceName"
     Then Enter PubSub source property subscription name
     Then Enter PubSub source property topic name
@@ -113,7 +106,6 @@ Feature: PubSub - Verification of successful data transfer from DataStream PubSu
     And Close the Plugin Properties page
     Then Navigate to the properties page of plugin: "Pub/Sub2"
     Then Replace input plugin property: "project" with value: "projectId"
-   # Then Override Service account details if set in environment variables
     Then Enter input plugin property: "referenceName" with value: "PubSubSinkReferenceName"
     Then Enter PubSub sink property topic name
     Then Select dropdown plugin property: "select-format" with option value: "text"
@@ -129,7 +121,6 @@ Feature: PubSub - Verification of successful data transfer from DataStream PubSu
     Then Publish the messages
     Then Subscribe to the messages
     Then Validate OUT record count is equal to IN record count
-    Then Open and capture logs
     And Stop the pipeline
     Then Verify the pipeline status is "Stopped"
 
@@ -144,7 +135,6 @@ Feature: PubSub - Verification of successful data transfer from DataStream PubSu
     Then Connect plugins: "Pub/Sub" and "Pub/Sub2" to establish connection
     Then Navigate to the properties page of plugin: "Pub/Sub"
     Then Replace input plugin property: "project" with value: "projectId"
-    #Then Override Service account details if set in environment variables
     Then Enter input plugin property: "referenceName" with value: "PubSubSourceReferenceName"
     Then Enter PubSub source property subscription name
     Then Enter PubSub source property topic name
@@ -153,7 +143,6 @@ Feature: PubSub - Verification of successful data transfer from DataStream PubSu
     And Close the Plugin Properties page
     Then Navigate to the properties page of plugin: "Pub/Sub2"
     Then Replace input plugin property: "project" with value: "projectId"
-    #Then Override Service account details if set in environment variables
     Then Enter input plugin property: "referenceName" with value: "PubSubSinkReferenceName"
     Then Enter PubSub sink property topic name
     Then Select dropdown plugin property: "select-format" with option value: "json"
@@ -169,6 +158,5 @@ Feature: PubSub - Verification of successful data transfer from DataStream PubSu
     Then Publish the messages
     Then Subscribe to the messages
     Then Validate OUT record count is equal to IN record count
-    Then Open and capture logs
     And Stop the pipeline
     Then Verify the pipeline status is "Stopped"
