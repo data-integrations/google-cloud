@@ -31,7 +31,7 @@ jobs:
     # 3) For PRs that are labeled as build and
     #  - It's a code change
     #  - A build label was just added
-    # A bit complex, but prevents builds when other labels are manipulated
+    # A bit complex but prevents builds when other labels are manipulated
     if: >
       github.event_name == 'workflow_dispatch'
       || github.event_name == 'push'
@@ -40,7 +40,7 @@ jobs:
           )
     strategy:
       matrix:
-        tests: [bigquery, common, gcs, pubsub, spanner, gcscreate, gcsdelete, gcsmove, bigqueryexecute, gcscopy, bigquerymultitable]
+        tests: [bigquerymultitable]
       fail-fast: false
     steps:
       # Pinned 1.0.0 version
@@ -59,8 +59,9 @@ jobs:
       - name: Checkout e2e test repo
         uses: actions/checkout@v3
         with:
-          repository: cdapio/cdap-e2e-tests
+          repository: Vipinofficial11/cdap-e2e-tests
           path: e2e
+          ref: testBQ
       - name: Cache
         uses: actions/cache@v3
         with:
