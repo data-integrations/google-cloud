@@ -51,6 +51,10 @@ This value is ignored if the bucket already exists.
 If the bucket already exists, this is ignored. More information can be found 
 [here](https://cloud.google.com/data-fusion/docs/how-to/customer-managed-encryption-keys)
 
+**Read Timeout:** Timeout in seconds to read data from an established HTTP connection (Default value is 20).
+For performing copy/move operation on large files in GCS buckets, a higher timeout might be needed. Setting it to 0
+implies infinite timeout (no limit on the timeout) [NOT RECOMMENDED]
+
 Example
 -------
 
