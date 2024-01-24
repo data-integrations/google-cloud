@@ -69,6 +69,7 @@ public class TestSetupHooks {
   public static String spannerTargetTable = StringUtils.EMPTY;
   public static boolean firstSpannerTestFlag = true;
   public static String datasetName = PluginPropertyUtils.pluginProp("dataset");
+  public static String spannerExistingTargetTable = StringUtils.EMPTY;
 
   @Before(order = 1)
   public static void overrideServiceAccountFilePathIfProvided() {
@@ -1296,4 +1297,38 @@ public class TestSetupHooks {
   public static void createBucketWithLifeCycle() throws IOException, URISyntaxException {
     gcsTargetBucketName = createGCSBucketLifeCycle();
     BeforeActions.scenario.write("GCS target bucket name - " + gcsTargetBucketName); }
+
+  @Before(order = 2, value = "@EXISTING_SPANNER_SINK")
+  public static void makeExistingTargetSpannerDBAndTableName() {
+    try {
+      spannerDatabase = spannerDatabase;
+      spannerExistingTargetTable = PluginPropertyUtils.pluginProp("spannerExistingTargetTable");
+      String createQuery = null;
+      try {
+        createQuery = new String(Files.readAllBytes(Paths.get(TestSetupHooks.class.getResource
+                ("/" + PluginPropertyUtils.pluginProp("spannerTestDataCreateExistingSinkTableQueriesFile")).toURI()))
+                , StandardCharsets.UTF_8);
+
+      } catch (Exception e) {
+        BeforeActions.scenario.write("Exception in reading "
+                + PluginPropertyUtils.pluginProp("spannerTestDataCreateExistingSinkTableQueriesFile")
+                + " - " + e.getMessage());
+        Assert.fail("Exception in Spanner testdata prerequisite setup - error in reading create existing table queries file "
+                + e.getMessage());
+      }
+      SpannerClient.executeDMLQuery(spannerInstance, spannerDatabase, createQuery);
+      PluginPropertyUtils.addPluginProp("spannerDatabase", spannerDatabase);
+      PluginPropertyUtils.addPluginProp("spannerExistingTargetTable", spannerExistingTargetTable);
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
+
+  @After(order = 2, value = "@EXISTING_SPANNER_SINK")
+  public static void emptyExistingTargetSpannerDBAndTableName() {
+    PluginPropertyUtils.removePluginProp("spannerDatabase");
+    PluginPropertyUtils.removePluginProp("spannerExistingTargetTable");
+    spannerDatabase = StringUtils.EMPTY;
+    spannerExistingTargetTable = StringUtils.EMPTY;
+  }
 }

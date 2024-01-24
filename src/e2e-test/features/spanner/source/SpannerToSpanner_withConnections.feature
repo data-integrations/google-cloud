@@ -163,3 +163,52 @@ Feature: Spanner source - Verification of Spanner to Spanner successful data tra
     Then Wait till pipeline is in running state
     Then Verify the pipeline status is "Succeeded"
     Then Validate records transferred to target spanner table with record counts of source spanner table
+
+  @EXISTING_SPANNER_SINK @EXISTING_SPANNER_CONNECTION @Spanner_Source_Required
+  Scenario: To verify data is getting transferred from Spanner source  to existing Spanner sink with use connection functionality
+    Given Open Datafusion Project to configure pipeline
+    When Select plugin: "Spanner" from the plugins list as: "Source"
+    When Expand Plugin group in the LHS plugins list: "Sink"
+    When Select plugin: "Spanner" from the plugins list as: "Sink"
+    Then Connect plugins: "Spanner" and "Spanner2" to establish connection
+    Then Navigate to the properties page of plugin: "Spanner"
+    Then Click plugin property: "switch-useConnection"
+    Then Click on the Browse Connections button
+    Then Select connection: "spannerConnectionName"
+    Then Click on the Browse button inside plugin properties
+    Then Select connection data row with name: "spannerInstance"
+    Then Select connection data row with name: "spannerDatabase"
+    Then Select connection data row with name: "spannerSourceTable"
+    Then Wait till connection data loading completes with a timeout of 60 seconds
+    Then Verify input plugin property: "instanceId" contains value: "spannerInstance"
+    Then Verify input plugin property: "databaseName" contains value: "spannerDatabase"
+    Then Verify input plugin property: "tableName" contains value: "spannerSourceTable"
+    Then Validate output schema with expectedSchema "spannerSourceSchema"
+    Then Validate "Spanner" plugin properties
+    Then Close the Plugin Properties page
+    Then Navigate to the properties page of plugin: "Spanner2"
+    Then Enter input plugin property: "referenceName" with value: "SpannerSinkReferenceName"
+    Then Click plugin property: "useConnection"
+    Then Click on the Browse Connections button
+    Then Select connection: "spannerConnectionName"
+    Then Click on the Browse button inside plugin properties
+    Then Click SELECT button inside connection data row with name: "spannerInstance"
+    Then Wait till connection data loading completes with a timeout of 60 seconds
+    Then Verify input plugin property: "instanceId" contains value: "spannerInstance"
+    Then Enter input plugin property: "databaseName" with value: "spannerDatabase"
+    Then Enter input plugin property: "tableName" with value: "spannerExistingTargetTable"
+    Then Enter Spanner sink property primary key "spannerSinkPrimaryKeySpanner"
+    Then Validate "Spanner" plugin properties
+    Then Close the Plugin Properties page
+    Then Save the pipeline
+    Then Preview and run the pipeline
+    Then Wait till pipeline preview is in running state
+    Then Open and capture pipeline preview logs
+    Then Verify the preview run status of pipeline in the logs is "succeeded"
+    Then Close the pipeline logs
+    Then Close the preview
+    Then Deploy the pipeline
+    Then Run the Pipeline in Runtime
+    Then Wait till pipeline is in running state
+    Then Verify the pipeline status is "Succeeded"
+    Then Validate records transferred to existing target spanner table with record counts of  source spanner table
