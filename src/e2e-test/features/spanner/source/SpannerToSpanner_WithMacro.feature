@@ -1,6 +1,7 @@
 @Spanner_Source @SPANNER_TEST
 Feature: Spanner source - Verification of Spanner to Spanner successful data transfer with macro arguments
 
+
   @SPANNER_SINK_TEST @SPANNER_TEST @Spanner_Source_Required
   Scenario: To verify data is getting transferred from Spanner to Spanner with macro arguments
     Given Open Datafusion Project to configure pipeline
