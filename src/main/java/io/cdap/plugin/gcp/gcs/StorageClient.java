@@ -120,11 +120,14 @@ public class StorageClient {
       LOG.info("Bucket {} has been created successfully", path.getBucket());
     } catch (StorageException e) {
       // Don't throw error if bucket already exists
-      // https://cloud.google.com/storage/docs/xml-api/reference-status#409%E2%80%94conflict
-      if (e.getCode() != 409) {
+      // https://cloud.google.com/storage/docs/json_api/v1/status-codes#409_Conflict
+      if (e.getCode() == 409) {
+        LOG.warn("Getting 409 Conflict: {} Bucket at destination path {} may already exist.",
+                 e.getMessage(), path.getUri());
+      } else {
         throw new RuntimeException(
-        String.format("Unable to create bucket %s. ", path.getBucket())
-          + "Ensure you entered the correct bucket path and have permissions for it.", e);
+          String.format("Unable to create bucket %s. Ensure you entered the correct bucket path and " +
+                          "have permissions for it.", path.getBucket()), e);
       }
     }
   }
