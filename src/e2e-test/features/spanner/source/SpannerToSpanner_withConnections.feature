@@ -165,7 +165,7 @@ Feature: Spanner source - Verification of Spanner to Spanner successful data tra
     Then Validate records transferred to target spanner table with record counts of source spanner table
 
   @EXISTING_SPANNER_SINK @EXISTING_SPANNER_CONNECTION @Spanner_Source_Required
-  Scenario: To verify data is getting transferred from Spanner source  to existing Spanner sink with use connection functionality
+  Scenario: To verify data is getting transferred from Spanner source  to existing Spanner sink
     Given Open Datafusion Project to configure pipeline
     When Select plugin: "Spanner" from the plugins list as: "Source"
     When Expand Plugin group in the LHS plugins list: "Sink"
@@ -211,4 +211,4 @@ Feature: Spanner source - Verification of Spanner to Spanner successful data tra
     Then Run the Pipeline in Runtime
     Then Wait till pipeline is in running state
     Then Verify the pipeline status is "Succeeded"
-    Then Validate records transferred to existing target spanner table with record counts of  source spanner table
+    Then Validate records transferred to already existing target spanner table with record counts of source table

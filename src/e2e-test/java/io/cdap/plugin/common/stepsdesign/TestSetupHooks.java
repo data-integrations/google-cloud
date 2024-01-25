@@ -1301,7 +1301,7 @@ public class TestSetupHooks {
   @Before(order = 2, value = "@EXISTING_SPANNER_SINK")
   public static void makeExistingTargetSpannerDBAndTableName() {
     try {
-      spannerDatabase = spannerDatabase;
+      spannerTargetDatabase = spannerDatabase;
       spannerExistingTargetTable = PluginPropertyUtils.pluginProp("spannerExistingTargetTable");
       String createQuery = null;
       try {
@@ -1313,22 +1313,16 @@ public class TestSetupHooks {
         BeforeActions.scenario.write("Exception in reading "
                 + PluginPropertyUtils.pluginProp("spannerTestDataCreateExistingSinkTableQueriesFile")
                 + " - " + e.getMessage());
-        Assert.fail("Exception in Spanner testdata prerequisite setup - error in reading create existing table queries file "
+        Assert.fail("Exception in Spanner testdata prerequisite -"
+                + "error in reading create existing table queries file."
                 + e.getMessage());
       }
-      SpannerClient.executeDMLQuery(spannerInstance, spannerDatabase, createQuery);
-      PluginPropertyUtils.addPluginProp("spannerDatabase", spannerDatabase);
+      SpannerClient.executeDMLQuery(spannerInstance, spannerTargetDatabase, createQuery);
+      PluginPropertyUtils.addPluginProp("spannerTargetDatabase", spannerTargetDatabase);
       PluginPropertyUtils.addPluginProp("spannerExistingTargetTable", spannerExistingTargetTable);
     } catch (Exception e) {
       e.printStackTrace();
     }
   }
 
-  @After(order = 2, value = "@EXISTING_SPANNER_SINK")
-  public static void emptyExistingTargetSpannerDBAndTableName() {
-    PluginPropertyUtils.removePluginProp("spannerDatabase");
-    PluginPropertyUtils.removePluginProp("spannerExistingTargetTable");
-    spannerDatabase = StringUtils.EMPTY;
-    spannerExistingTargetTable = StringUtils.EMPTY;
-  }
 }
