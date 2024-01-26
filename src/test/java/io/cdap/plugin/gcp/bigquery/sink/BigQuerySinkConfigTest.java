@@ -272,4 +272,34 @@ public class BigQuerySinkConfigTest {
       Assert.assertEquals(invalidTableNameErrorMessage, collector.getValidationFailures().get(0).getMessage());
     }
   }
+
+  @Test
+  public void testGetTimePartitioningType() {
+    Map<String, TimePartitioning.Type> expectedTimePartitioningType = new HashMap<>();
+    expectedTimePartitioningType.put(null, TimePartitioning.Type.DAY);
+    expectedTimePartitioningType.put("", TimePartitioning.Type.DAY);
+    expectedTimePartitioningType.put("Day", TimePartitioning.Type.DAY);
+    expectedTimePartitioningType.put("Daily", TimePartitioning.Type.DAY);
+    expectedTimePartitioningType.put("Hour", TimePartitioning.Type.HOUR);
+    expectedTimePartitioningType.put("Hourly", TimePartitioning.Type.HOUR);
+    expectedTimePartitioningType.put("Month", TimePartitioning.Type.MONTH);
+    expectedTimePartitioningType.put("Monthly", TimePartitioning.Type.MONTH);
+    expectedTimePartitioningType.put("Year", TimePartitioning.Type.YEAR);
+    expectedTimePartitioningType.put("Yearly", TimePartitioning.Type.YEAR);
+
+    // Valid types
+    for (Map.Entry<String, TimePartitioning.Type> entry : expectedTimePartitioningType.entrySet()) {
+      config = configBuilder.setTimePartitioningType(entry.getKey()).build();
+      Assert.assertEquals(entry.getValue(), config.getTimePartitioningType());
+    }
+
+    // Invalid value
+    config = configBuilder.setTimePartitioningType("Din").build();
+    try {
+      config.getTimePartitioningType();
+      Assert.fail("Expected IllegalArgumentException was not thrown.");
+    } catch (IllegalArgumentException e) {
+      Assert.assertEquals("Invalid time partitioning type: Din", e.getMessage());
+    }
+  }
 }
