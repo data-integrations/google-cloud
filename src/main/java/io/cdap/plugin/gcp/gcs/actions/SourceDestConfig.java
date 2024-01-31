@@ -43,6 +43,7 @@ public class SourceDestConfig extends GCPConfig {
   public static final String NAME_SOURCE_PATH = "sourcePath";
   public static final String NAME_DEST_PATH = "destPath";
   public static final String NAME_LOCATION = "location";
+  public static final String READ_TIMEOUT = "readTimeout";
 
   @Name(NAME_SOURCE_PATH)
   @Macro
@@ -74,15 +75,25 @@ public class SourceDestConfig extends GCPConfig {
     " at https://cloud.google.com/data-fusion/docs/how-to/customer-managed-encryption-keys")
   protected String cmekKey;
 
+  @Name(READ_TIMEOUT)
+  @Macro
+  @Nullable
+  @Description("Timeout in seconds to read data from an established HTTP connection (Default value is 20). " +
+    ("For performing copy/move operation on large files in GCS buckets, set a higher value. " +
+      "Set it to 0 for infinite(no limit)"))
+  protected Integer readTimeout;
+
   public SourceDestConfig(@Nullable String project, @Nullable String serviceAccountType,
                           @Nullable String serviceFilePath, @Nullable String serviceAccountJson,
-                          @Nullable String destPath, @Nullable String location, @Nullable String cmekKey) {
+                          @Nullable String destPath, @Nullable String location, @Nullable Integer readTimeout,
+                          @Nullable String cmekKey) {
     this.serviceAccountType = serviceAccountType;
     this.serviceAccountJson = serviceAccountJson;
     this.serviceFilePath = serviceFilePath;
     this.project = project;
     this.destPath = destPath;
     this.location = location;
+    this.readTimeout = readTimeout;
     this.cmekKey = cmekKey;
   }
 
@@ -125,7 +136,20 @@ public class SourceDestConfig extends GCPConfig {
     if (!containsMacro(NAME_CMEK_KEY)) {
       validateCmekKey(collector, arguments);
     }
+    if (!containsMacro(READ_TIMEOUT)) {
+      validateReadTimeout(collector);
+    }
     collector.getOrThrowException();
+  }
+
+  void validateReadTimeout(FailureCollector collector) {
+    if (readTimeout == null) {
+      return;
+    }
+    if (readTimeout < 0) {
+      collector.addFailure("Read Timeout cannot be less than 0. ",
+                           "Please enter 0 or a positive value.").withConfigProperty(READ_TIMEOUT);
+    }
   }
 
   //This method validated the pattern of CMEK Key resource ID.
@@ -161,6 +185,7 @@ public class SourceDestConfig extends GCPConfig {
     private String destPath;
     private String cmekKey;
     private String location;
+    private Integer readTimeout;
 
     public SourceDestConfig.Builder setProject(@Nullable String project) {
       this.project = project;
@@ -205,6 +230,7 @@ public class SourceDestConfig extends GCPConfig {
         serviceAccountJson,
         destPath,
         location,
+        readTimeout,
         cmekKey
       );
     }

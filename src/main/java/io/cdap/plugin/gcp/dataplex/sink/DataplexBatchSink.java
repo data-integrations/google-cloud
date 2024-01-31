@@ -615,7 +615,7 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     }
     try {
       StorageClient storageClient = StorageClient.create(config.getProject(), config.getServiceAccount(),
-        config.isServiceAccountFilePath());
+        config.isServiceAccountFilePath(), null);
       storageClient.mapMetaDataForAllBlobs(outputPath,
         new MetricsEmitter(context.getMetrics())::emitMetrics);
     } catch (Exception e) {
