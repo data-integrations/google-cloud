@@ -115,16 +115,20 @@ public class StorageClient {
    * @param cmekKeyName  the name of the cmek key
    */
   public void createBucketIfNotExists(GCSPath path, @Nullable String location, @Nullable CryptoKeyName cmekKeyName) {
-    Bucket bucket = null;
     try {
-      bucket = storage.get(path.getBucket());
-    } catch (StorageException e) {
-      throw new RuntimeException(
-        String.format("Unable to access bucket %s. ", path.getBucket())
-          + "Ensure you entered the correct bucket path and have permissions for it.", e);
-    }
-    if (bucket == null) {
       GCPUtils.createBucket(storage, path.getBucket(), location, cmekKeyName);
+      LOG.info("Bucket {} has been created successfully", path.getBucket());
+    } catch (StorageException e) {
+      // Don't throw error if bucket already exists
+      // https://cloud.google.com/storage/docs/json_api/v1/status-codes#409_Conflict
+      if (e.getCode() == 409) {
+        LOG.warn("Getting 409 Conflict: {} Bucket at destination path {} may already exist.",
+                 e.getMessage(), path.getUri());
+      } else {
+        throw new RuntimeException(
+          String.format("Unable to create bucket %s. Ensure you entered the correct bucket path and " +
+                          "have permissions for it.", path.getBucket()), e);
+      }
     }
   }
 
