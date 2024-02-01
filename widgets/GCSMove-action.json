@@ -128,6 +128,20 @@
           }
         }
       ]
+    },
+    {
+      "label" : "Advanced",
+      "properties" : [
+        {
+          "name": "readTimeout",
+          "label" : "Read Timeout",
+          "widget-type": "number",
+          "widget-attributes": {
+            "default": "20",
+            "minimum": "0"
+          }
+        }
+      ]
     }
   ],
   "filters": [
