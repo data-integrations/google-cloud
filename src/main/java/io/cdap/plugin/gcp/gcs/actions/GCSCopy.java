@@ -67,7 +67,7 @@ public class GCSCopy extends Action {
       return;
     }
     StorageClient storageClient = StorageClient.create(config.getProject(), config.getServiceAccount(),
-                                                       isServiceAccountFilePath);
+                                                       isServiceAccountFilePath, config.readTimeout);
 
     GCSPath destPath = config.getDestPath();
     CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(config.cmekKey, context.getArguments().asMap(), collector);
