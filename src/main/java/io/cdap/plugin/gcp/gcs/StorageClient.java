@@ -17,6 +17,7 @@
 package io.cdap.plugin.gcp.gcs;
 
 import com.google.api.gax.paging.Page;
+import com.google.cloud.http.HttpTransportOptions;
 import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
@@ -320,17 +321,21 @@ public class StorageClient {
   }
 
   public static StorageClient create(String project, @Nullable String serviceAccount,
-                                     Boolean isServiceAccountFilePath) throws IOException {
+                                     Boolean isServiceAccountFilePath, @Nullable Integer readTimeout)
+    throws IOException {
     StorageOptions.Builder builder = StorageOptions.newBuilder().setProjectId(project);
     if (serviceAccount != null) {
       builder.setCredentials(GCPUtils.loadServiceAccountCredentials(serviceAccount, isServiceAccountFilePath));
+    }
+    if (readTimeout != null) {
+      builder.setTransportOptions(HttpTransportOptions.newBuilder().setReadTimeout(readTimeout * 1000).build());
     }
     Storage storage = builder.build().getService();
     return new StorageClient(storage);
   }
 
   public static StorageClient create(GCPConnectorConfig config) throws IOException {
-    return create(config.getProject(), config.getServiceAccount(), config.isServiceAccountFilePath());
+    return create(config.getProject(), config.getServiceAccount(), config.isServiceAccountFilePath(), null);
   }
 
   /**
