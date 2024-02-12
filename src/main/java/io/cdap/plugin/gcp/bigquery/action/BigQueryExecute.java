@@ -33,8 +33,13 @@ import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableResult;
 import com.google.cloud.kms.v1.CryptoKeyName;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import dev.failsafe.Failsafe;
+import dev.failsafe.FailsafeException;
+import dev.failsafe.RetryPolicy;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
@@ -43,6 +48,7 @@ import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.action.Action;
 import io.cdap.cdap.etl.api.action.ActionContext;
 import io.cdap.cdap.etl.common.Constants;
+import io.cdap.plugin.gcp.bigquery.exception.BigQueryJobExecutionException;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.CmekUtils;
@@ -51,8 +57,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
 import javax.annotation.Nullable;
 
 /**
@@ -69,8 +77,18 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryExecute.class);
   public static final String NAME = "BigQueryExecute";
   private static final String RECORDS_PROCESSED = "records.processed";
-
   private Config config;
+  private static final String JOB_BACKEND_ERROR = "jobBackendError";
+  private static final String JOB_INTERNAL_ERROR = "jobInternalError";
+  private static final Set<String> RETRY_ON_REASON = ImmutableSet.of(JOB_BACKEND_ERROR, JOB_INTERNAL_ERROR);
+
+  BigQueryExecute() {
+   // no args constructor
+  }
+  @VisibleForTesting
+  BigQueryExecute(Config config) {
+    this.config = config;
+  }
 
   @Override
   public void run(ActionContext context) throws Exception {
@@ -103,9 +121,6 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     // Enable legacy SQL
     builder.setUseLegacySql(config.isLegacySQL());
 
-    // Location must match that of the dataset(s) referenced in the query.
-    JobId jobId = JobId.newBuilder().setRandomJob().setLocation(config.getLocation()).build();
-
     // API request - starts the query.
     Credentials credentials = config.getServiceAccount() == null ?
       null : GCPUtils.loadServiceAccountCredentials(config.getServiceAccount(),
@@ -129,19 +144,74 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
 
     QueryJobConfiguration queryConfig = builder.build();
 
-    Job queryJob = bigQuery.create(JobInfo.newBuilder(queryConfig).setJobId(jobId).build());
+    // Exponential backoff
+    if (config.getRetryOnBackendError()) {
+      try {
+        executeQueryWithExponentialBackoff(bigQuery, queryConfig, context);
+      } catch (Throwable e) {
+        throw new RuntimeException(e);
+      }
+    } else {
+      executeQuery(bigQuery, queryConfig, context);
+    }
+  }
 
-    LOG.info("Executing SQL as job {}.", jobId.getJob());
-    LOG.debug("The BigQuery SQL is {}", config.getSql());
+  protected void executeQueryWithExponentialBackoff(BigQuery bigQuery,
+                                                   QueryJobConfiguration queryConfig, ActionContext context)
+          throws Throwable {
+    try {
+      Failsafe.with(getRetryPolicy()).run(() -> executeQuery(bigQuery, queryConfig, context));
+    } catch (FailsafeException e) {
+      if (e.getCause() != null) {
+        throw e.getCause();
+      }
+      throw e;
+    }
+  }
 
-    // Wait for the query to complete
-    queryJob = queryJob.waitFor();
+  private RetryPolicy<Object> getRetryPolicy() {
+    return RetryPolicy.builder()
+            .handle(BigQueryJobExecutionException.class)
+            .withBackoff(Duration.ofSeconds(config.getInitialRetryDuration()),
+                    Duration.ofSeconds(config.getMaxRetryDuration()), config.getRetryMultiplier())
+            .withMaxRetries(config.getMaxRetryCount())
+            .onRetry(event -> LOG.debug("Retrying BigQuery Execute job. Retry count: {}", event.getAttemptCount()))
+            .onSuccess(event -> LOG.debug("BigQuery Execute job executed successfully."))
+            .onRetriesExceeded(event -> LOG.error("Retry limit reached for BigQuery Execute job."))
+            .build();
+  }
+
+  private void executeQuery(BigQuery bigQuery, QueryJobConfiguration queryConfig, ActionContext context)
+          throws InterruptedException, BigQueryJobExecutionException {
+    // Location must match that of the dataset(s) referenced in the query.
+    JobId jobId = JobId.newBuilder().setRandomJob().setLocation(config.getLocation()).build();
+    Job queryJob;
+
+    try {
+      queryJob = bigQuery.create(JobInfo.newBuilder(queryConfig).setJobId(jobId).build());
+
+      LOG.info("Executing SQL as job {}.", jobId.getJob());
+      LOG.debug("The BigQuery SQL is {}", config.getSql());
+
+      // Wait for the query to complete
+      queryJob = queryJob.waitFor();
+    } catch (BigQueryException e) {
+      LOG.error("The query job {} failed. Error: {}", jobId.getJob(), e.getError().getMessage());
+      if (RETRY_ON_REASON.contains(e.getError().getReason())) {
+        throw new BigQueryJobExecutionException(e.getError().getMessage(), e);
+      }
+      throw new RuntimeException(e);
+    }
 
     // Check for errors
     if (queryJob.getStatus().getError() != null) {
       // You can also look at queryJob.getStatus().getExecutionErrors() for all
       // errors, not just the latest one.
-      throw new RuntimeException(queryJob.getStatus().getExecutionErrors().toString());
+      LOG.error("The query job {} failed. Error: {}", jobId.getJob(), queryJob.getStatus().getError());
+      if (RETRY_ON_REASON.contains(queryJob.getStatus().getError().getReason())) {
+        throw new BigQueryJobExecutionException(queryJob.getStatus().getError().getMessage());
+      }
+      throw new RuntimeException(queryJob.getStatus().getError().getMessage());
     }
 
     TableResult queryResults = queryJob.getQueryResults();
@@ -181,14 +251,14 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
 
   private void recordBytesProcessedMetric(ActionContext context, Job queryJob) {
     long processedBytes =
-        ((JobStatistics.QueryStatistics) queryJob.getStatistics()).getTotalBytesProcessed();
+            ((JobStatistics.QueryStatistics) queryJob.getStatistics()).getTotalBytesProcessed();
     LOG.info("Job {} processed {} bytes", queryJob.getJobId(), processedBytes);
     Map<String, String> tags = new ImmutableMap.Builder<String, String>()
         .put(Constants.Metrics.Tag.APP_ENTITY_TYPE, Action.PLUGIN_TYPE)
         .put(Constants.Metrics.Tag.APP_ENTITY_TYPE_NAME, BigQueryExecute.NAME)
         .build();
     context.getMetrics().child(tags).countLong(BigQuerySinkUtils.BYTES_PROCESSED_METRIC,
-        processedBytes);
+            processedBytes);
   }
 
   @Override
@@ -208,6 +278,16 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     public static final String NAME_BQ_JOB_LABELS = "jobLabels";
     private static final int ERROR_CODE_NOT_FOUND = 404;
     private static final String STORE_RESULTS = "storeResults";
+    private static final String NAME_RETRY_ON_BACKEND_ERROR = "retryOnBackendError";
+    private static final String NAME_INITIAL_RETRY_DURATION = "initialRetryDuration";
+    private static final String NAME_MAX_RETRY_DURATION = "maxRetryDuration";
+    private static final String NAME_RETRY_MULTIPLIER = "retryMultiplier";
+    private static final String NAME_MAX_RETRY_COUNT = "maxRetryCount";
+    public static final long DEFAULT_INITIAL_RETRY_DURATION_SECONDS = 1L;
+    public static final double DEFAULT_RETRY_MULTIPLIER = 2.0;
+    public static final int DEFAULT_MAX_RETRY_COUNT = 5;
+    // Sn = a * (1 - r^n) / (r - 1)
+    public static final long DEFULT_MAX_RETRY_DURATION_SECONDS = 63L;
 
     @Description("Dialect of the SQL command. The value must be 'legacy' or 'standard'. " +
       "If set to 'standard', the query will use BigQuery's standard SQL: " +
@@ -268,6 +348,36 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     @Macro
     private String rowAsArguments;
 
+    @Name(NAME_RETRY_ON_BACKEND_ERROR)
+    @Description("Whether to retry on backend error. Default is false.")
+    @Macro
+    @Nullable
+    private Boolean retryOnBackendError;
+
+    @Name(NAME_INITIAL_RETRY_DURATION)
+    @Description("Time taken for the first retry. Default is 1 seconds.")
+    @Nullable
+    @Macro
+    private Long initialRetryDuration;
+
+    @Name(NAME_MAX_RETRY_DURATION)
+    @Description("Maximum time in seconds retries can take. Default is 32 seconds.")
+    @Nullable
+    @Macro
+    private Long maxRetryDuration;
+
+    @Name(NAME_MAX_RETRY_COUNT)
+    @Description("Maximum number of retries allowed. Default is 5.")
+    @Nullable
+    @Macro
+    private Integer maxRetryCount;
+
+    @Name(NAME_RETRY_MULTIPLIER)
+    @Description("Multiplier for exponential backoff. Default is 2.")
+    @Nullable
+    @Macro
+    private Double retryMultiplier;
+
     @Name(STORE_RESULTS)
     @Nullable
     @Description("Whether to store results in a BigQuery Table.")
@@ -283,7 +393,10 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     private Config(@Nullable String project, @Nullable String serviceAccountType, @Nullable String serviceFilePath,
                    @Nullable String serviceAccountJson, @Nullable String dataset, @Nullable String table,
                    @Nullable String location, @Nullable String cmekKey, @Nullable String dialect, @Nullable String sql,
-                   @Nullable String mode, @Nullable Boolean storeResults, @Nullable String jobLabelKeyValue) {
+                   @Nullable String mode, @Nullable Boolean storeResults, @Nullable String jobLabelKeyValue,
+                   @Nullable String rowAsArguments, @Nullable Boolean retryOnBackendError,
+                   @Nullable Long initialRetryDuration, @Nullable Long maxRetryDuration,
+                   @Nullable Double retryMultiplier, @Nullable Integer maxRetryCount) {
       this.project = project;
       this.serviceAccountType = serviceAccountType;
       this.serviceFilePath = serviceFilePath;
@@ -295,8 +408,14 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
       this.dialect = dialect;
       this.sql = sql;
       this.mode = mode;
+      this.rowAsArguments = rowAsArguments;
       this.storeResults = storeResults;
       this.jobLabelKeyValue = jobLabelKeyValue;
+      this.retryOnBackendError = retryOnBackendError;
+      this.initialRetryDuration = initialRetryDuration;
+      this.maxRetryDuration = maxRetryDuration;
+      this.maxRetryCount = maxRetryCount;
+      this.retryMultiplier = retryMultiplier;
     }
 
     public boolean isLegacySQL() {
@@ -340,6 +459,26 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     @Nullable
     public String getJobLabelKeyValue() {
       return jobLabelKeyValue;
+    }
+
+    public boolean getRetryOnBackendError() {
+      return retryOnBackendError == null || retryOnBackendError;
+    }
+
+    public long getInitialRetryDuration() {
+      return initialRetryDuration == null ? DEFAULT_INITIAL_RETRY_DURATION_SECONDS : initialRetryDuration;
+    }
+
+    public long getMaxRetryDuration() {
+      return maxRetryDuration == null ? DEFULT_MAX_RETRY_DURATION_SECONDS : maxRetryDuration;
+    }
+
+    public double getRetryMultiplier() {
+      return retryMultiplier == null ? DEFAULT_RETRY_MULTIPLIER : retryMultiplier;
+    }
+
+    public int getMaxRetryCount() {
+      return maxRetryCount == null ? DEFAULT_MAX_RETRY_COUNT : maxRetryCount;
     }
 
     @Override
@@ -399,6 +538,45 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
 
     void validateJobLabelKeyValue(FailureCollector failureCollector) {
       BigQueryUtil.validateJobLabelKeyValue(jobLabelKeyValue, failureCollector, NAME_BQ_JOB_LABELS);
+      // Verify retry configuration when retry on backend error is enabled and none of the retry configuration
+      // properties are macros.
+      if (!containsMacro(NAME_RETRY_ON_BACKEND_ERROR) && retryOnBackendError != null && retryOnBackendError &&
+          !containsMacro(NAME_INITIAL_RETRY_DURATION) && !containsMacro(NAME_MAX_RETRY_DURATION) &&
+          !containsMacro(NAME_MAX_RETRY_COUNT) && !containsMacro(NAME_RETRY_MULTIPLIER)) {
+          validateRetryConfiguration(
+            failureCollector, initialRetryDuration, maxRetryDuration, maxRetryCount, retryMultiplier
+          );
+      }
+      failureCollector.getOrThrowException();
+    }
+
+    void validateRetryConfiguration(FailureCollector failureCollector, Long initialRetryDuration,
+                                    Long maxRetryDuration, Integer maxRetryCount, Double retryMultiplier) {
+      if (initialRetryDuration != null && initialRetryDuration <= 0) {
+        failureCollector.addFailure("Initial retry duration must be greater than 0.",
+                        "Please specify a valid initial retry duration.")
+                .withConfigProperty(NAME_INITIAL_RETRY_DURATION);
+      }
+      if (maxRetryDuration != null && maxRetryDuration <= 0) {
+        failureCollector.addFailure("Max retry duration must be greater than 0.",
+                        "Please specify a valid max retry duration.")
+                .withConfigProperty(NAME_MAX_RETRY_DURATION);
+      }
+      if (maxRetryCount != null && maxRetryCount <= 0) {
+        failureCollector.addFailure("Max retry count must be greater than 0.",
+                        "Please specify a valid max retry count.")
+                .withConfigProperty(NAME_MAX_RETRY_COUNT);
+      }
+      if (retryMultiplier != null && retryMultiplier <= 1) {
+        failureCollector.addFailure("Retry multiplier must be strictly greater than 1.",
+                        "Please specify a valid retry multiplier.")
+                .withConfigProperty(NAME_RETRY_MULTIPLIER);
+      }
+      if (maxRetryDuration != null && initialRetryDuration != null && maxRetryDuration <= initialRetryDuration) {
+        failureCollector.addFailure("Max retry duration must be greater than initial retry duration.",
+                        "Please specify a valid max retry duration.")
+                .withConfigProperty(NAME_MAX_RETRY_DURATION);
+      }
     }
 
     void validateCmekKey(FailureCollector failureCollector, Map<String, String> arguments) {
@@ -470,8 +648,14 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
       private String dialect;
       private String sql;
       private String mode;
+      private String rowAsArguments;
       private Boolean storeResults;
       private String jobLabelKeyValue;
+      private Boolean retryOnBackendError;
+      private Long initialRetryDuration;
+      private Long maxRetryDuration;
+      private Integer maxRetryCount;
+      private Double retryMultiplier;
 
       public Builder setProject(@Nullable String project) {
         this.project = project;
@@ -523,6 +707,11 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
         return this;
       }
 
+      public Builder setRowAsArguments(@Nullable String rowAsArguments) {
+        this.rowAsArguments = rowAsArguments;
+        return this;
+      }
+
       public Builder setSql(@Nullable String sql) {
         this.sql = sql;
         return this;
@@ -530,6 +719,36 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
 
       public Builder setJobLabelKeyValue(@Nullable String jobLabelKeyValue) {
         this.jobLabelKeyValue = jobLabelKeyValue;
+        return this;
+      }
+
+      public Builder setRetryOnBackendError(@Nullable Boolean retryOnBackendError) {
+        this.retryOnBackendError = retryOnBackendError;
+        return this;
+      }
+
+      public Builder setStoreResults(@Nullable Boolean storeResults) {
+        this.storeResults = storeResults;
+        return this;
+      }
+
+      public Builder setInitialRetryDuration(@Nullable Long initialRetryDuration) {
+        this.initialRetryDuration = initialRetryDuration;
+        return this;
+      }
+
+      public Builder setMaxRetryDuration(@Nullable Long maxRetryDuration) {
+        this.maxRetryDuration = maxRetryDuration;
+        return this;
+      }
+
+      public Builder setMaxRetryCount(@Nullable Integer maxRetryCount) {
+        this.maxRetryCount = maxRetryCount;
+        return this;
+      }
+
+      public Builder setRetryMultiplier(@Nullable Double retryMultiplier) {
+        this.retryMultiplier = retryMultiplier;
         return this;
       }
 
@@ -547,10 +766,15 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
           sql,
           mode,
           storeResults,
-          jobLabelKeyValue
+          jobLabelKeyValue,
+          rowAsArguments,
+          retryOnBackendError,
+          initialRetryDuration,
+          maxRetryDuration,
+          retryMultiplier,
+          maxRetryCount
         );
       }
-
     }
   }
 }
