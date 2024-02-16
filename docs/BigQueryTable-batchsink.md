@@ -52,6 +52,21 @@ bucket will be created and then deleted after the run finishes.
 
 **GCS Upload Request Chunk Size**: GCS upload request chunk size in bytes. Default value is 8388608 bytes.
 
+**BQ Job Labels:** Key value pairs to be added as labels to the BigQuery job. Keys must be unique. (Macro Enabled)
+
+[job_source, type] are system defined labels used by CDAP for internal purpose and cannot be used as label keys.
+Macro format is supported. example `key1:val1,key2:val2`
+
+Keys and values can contain only lowercase letters, numeric characters, underscores, and dashes.
+For more information about labels, see [Docs](https://cloud.google.com/bigquery/docs/labels-intro#requirements).
+
+**JSON String**: List of fields to be written to BigQuery as a JSON string.
+The fields must be of type STRING. To target nested fields, use dot notation.
+For example, 'name.first' will target the 'first' field in the 'name' record. (Macro Enabled)
+
+Use a comma-separated list to specify multiple fields in macro format.
+Example: "nestedObject.nestedArray.raw, nestedArray.raw".
+
 **Operation**: Type of write operation to perform. This can be set to Insert, Update or Upsert.
 * Insert - all records will be inserted in destination table.
 * Update - records that match on Table Key will be updated in the table. Records that do not match 
@@ -91,6 +106,9 @@ is ignored if the table already exists.
 * When this is set to Time, table will be created with time partitioning.
 * When this is set to Integer, table will be created with range partitioning.
 * When this is set to None, table will be created without time partitioning.
+
+**Time Partitioning Type**: Specifies the time partitioning type. Can either be Daily or Hourly or Monthly or Yearly.
+Default is Daily. Ignored when table already exists
 
 **Range Start**: For integer partitioning, specifies the start of the range. Only used when table doesn’t 
 exist already, and partitioning type is set to Integer.
@@ -280,3 +298,9 @@ GET https://www.googleapis.com/bigquery/v2/projects/xxxx/datasets/mysql_bq_perm?
 have the permission to read the dataset you specified in this plugin. You must grant "BigQuery Data Editor" role on the
 project identified by the `Dataset Project ID` you specified in this plugin to the service account. If you think you
 already granted the role, check if you granted the role on the wrong project (for example the one identified by the `Project ID`).
+
+Column Names
+------------
+A column name can contain the letters (a-z, A-Z), numbers (0-9), or underscores (_), and it must start with a letter or
+underscore. For more flexible column name support, see
+[flexible column names](https://cloud.google.com/bigquery/docs/schemas#flexible-column-names).

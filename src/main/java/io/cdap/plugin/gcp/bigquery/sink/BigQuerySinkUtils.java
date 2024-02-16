@@ -28,9 +28,6 @@ import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
-import com.google.cloud.hadoop.io.bigquery.output.BigQueryOutputConfiguration;
-import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
-import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableSchema;
 import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
@@ -43,6 +40,9 @@ import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.plugin.common.Asset;
 import io.cdap.plugin.common.LineageRecorder;
+import io.cdap.plugin.gcp.bigquery.sink.lib.BigQueryOutputConfiguration;
+import io.cdap.plugin.gcp.bigquery.sink.lib.BigQueryTableFieldSchema;
+import io.cdap.plugin.gcp.bigquery.sink.lib.BigQueryTableSchema;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize.Numeric;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
@@ -62,6 +62,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
@@ -77,6 +78,7 @@ public final class BigQuerySinkUtils {
   private static final String TEMPORARY_BUCKET_FORMAT = GS_PATH_FORMAT + "/input/%s-%s";
   private static final String DATETIME = "DATETIME";
   private static final String RECORD = "RECORD";
+  private static final String JSON = "JSON";
   private static final Gson GSON = new Gson();
   private static final Type LIST_OF_FIELD_TYPE = new TypeToken<ArrayList<Field>>() {
   }.getType();
@@ -279,6 +281,34 @@ public final class BigQuerySinkUtils {
     baseConfiguration.setBoolean("fs.gs.metadata.cache.enable", false);
     return bucket;
   }
+  /**
+   * Sets string fields to JSON type if they are present in the provided list of fields.
+   * @param fields list of BigQuery table fields.
+   * @param jsonStringFields Comma separated list of fields that should be set to JSON type.
+   *
+   */
+  public static void setJsonStringFields(List<BigQueryTableFieldSchema> fields,
+                                                                   String jsonStringFields) {
+    Set<String> jsonFields = new HashSet<>(Arrays.asList(jsonStringFields.split(",")));
+    setJsonStringFields(fields, jsonFields, new ArrayList<>());
+  }
+
+  private static void setJsonStringFields(List<BigQueryTableFieldSchema> fields, Set<String> jsonFields,
+                                             List<String> path) {
+    for (BigQueryTableFieldSchema field : fields) {
+      String fieldName = field.getName();
+      String fieldType = field.getType();
+      String separator = path.isEmpty() ? "" : ".";
+      String fieldPath = String.join(".", path) + separator + fieldName;
+      if (jsonFields.contains(fieldPath) && fieldType.equals(LegacySQLTypeName.STRING.name())) {
+        field.setType(LegacySQLTypeName.valueOf(JSON).name());
+      } else if (field.getType().equals(LegacySQLTypeName.RECORD.name())) {
+        path.add(fieldName);
+        setJsonStringFields(field.getFields(), jsonFields, path);
+        path.remove(path.size() - 1);
+      }
+    }
+  }
 
   /**
    * Configures output for Sink
@@ -299,6 +329,10 @@ public final class BigQuerySinkUtils {
     // Set up table schema
     BigQueryTableSchema outputTableSchema = new BigQueryTableSchema();
     if (!fields.isEmpty()) {
+      String jsonStringFields = configuration.get(BigQueryConstants.CONFIG_JSON_STRING_FIELDS, null);
+      if (jsonStringFields != null) {
+        setJsonStringFields(fields, jsonStringFields);
+      }
       outputTableSchema.setFields(fields);
     }
 
@@ -576,6 +610,13 @@ public final class BigQuerySinkUtils {
   private static BigQueryFileFormat getFileFormat(List<BigQueryTableFieldSchema> fields) {
     for (BigQueryTableFieldSchema field : fields) {
       if (DATETIME.equals(field.getType())) {
+        return BigQueryFileFormat.NEWLINE_DELIMITED_JSON;
+      }
+      // If the field name is not in english characters, then we will use json format
+      // We do this as the avro load job in BQ does not support non-english characters in field names for now
+      String fieldName = field.getName();
+      final String englishCharactersRegex = "[\\w]+";
+      if (!Pattern.matches(englishCharactersRegex, fieldName)) {
         return BigQueryFileFormat.NEWLINE_DELIMITED_JSON;
       }
       // If the field is a record we have to check its subfields.
@@ -919,4 +960,26 @@ public final class BigQuerySinkUtils {
     }
   }
 
+  /**
+   * Get the list of fields that are of type JSON from the BigQuery schema.
+   * @param bqSchema BigQuery schema.
+   * @return comma separated list of fields that are of type JSON.
+   */
+  public static String getJsonStringFieldsFromBQSchema(com.google.cloud.bigquery.Schema bqSchema) {
+    ArrayList<String> fields = new ArrayList<>();
+    getJsonStringFieldsFromBQSchema(bqSchema.getFields(), fields, new ArrayList<>());
+    return String.join(",", fields);
+  }
+  private static void getJsonStringFieldsFromBQSchema(FieldList fieldList,
+                                                      ArrayList<String> fields, ArrayList<String> path) {
+    for (Field field : fieldList) {
+      path.add(field.getName());
+      if (field.getType() == LegacySQLTypeName.RECORD) {
+        getJsonStringFieldsFromBQSchema(field.getSubFields(), fields, path);
+      } else if (field.getType().equals(LegacySQLTypeName.valueOf(JSON))) {
+        fields.add(String.join(".", path));
+      }
+      path.remove(path.size() - 1);
+    }
+  }
 }

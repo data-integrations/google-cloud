@@ -21,9 +21,11 @@ import com.google.cloud.bigquery.StandardSQLTypeName;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
+import io.cdap.cdap.etl.mock.validation.MockFailureCollector;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize.BigNumeric;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize.Numeric;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
@@ -43,6 +45,12 @@ import static org.mockito.ArgumentMatchers.anyString;
 public class BigQueryUtilTest {
 
   private static final String BUCKET_PREFIX_ARG = "gcp.bigquery.bucket.prefix";
+  MockFailureCollector collector;
+
+  @Before
+  public void setUp() {
+    collector = new MockFailureCollector();
+  }
 
   @Test
   public void testGetTableSchema() {
@@ -236,6 +244,191 @@ public class BigQueryUtilTest {
       Assert.assertFalse(hashValues.contains(hash));
       hashValues.add(hash);
     }
+  }
+
+  @Test
+  public void testJobLabelWithDuplicateKeys() {
+    String jobLabelKeyValue = "key1:value1,key2:value2,key1:value3";
+    BigQueryUtil.validateJobLabelKeyValue(jobLabelKeyValue, collector, "test");
+    Assert.assertEquals(1, collector.getValidationFailures().size());
+    Assert.assertEquals("Duplicate job label key 'key1'.",
+            collector.getValidationFailures().get(0).getMessage());
+  }
+  @Test
+  public void testJobLabelWithDuplicateValues() {
+    String jobLabelKeyValue = "key1:value1,key2:value2,key3:value1";
+    BigQueryUtil.validateJobLabelKeyValue(jobLabelKeyValue, collector, "test");
+    Assert.assertEquals(0, collector.getValidationFailures().size());
+  }
+
+  @Test
+  public void testJobLabelWithCapitalLetters() {
+    String jobLabelKeyValue = "keY1:value1,key2:value2,key3:value1";
+    BigQueryUtil.validateJobLabelKeyValue(jobLabelKeyValue, collector, "test");
+    Assert.assertEquals(1, collector.getValidationFailures().size());
+    Assert.assertEquals("Invalid job label key 'keY1'.",
+            collector.getValidationFailures().get(0).getMessage());
+  }
+
+  @Test
+  public void testJobLabelStartingWithCapitalLetters() {
+    String jobLabelKeyValue = "Key1:value1,key2:value2,key3:value1";
+    BigQueryUtil.validateJobLabelKeyValue(jobLabelKeyValue, collector, "test");
+    Assert.assertEquals(1, collector.getValidationFailures().size());
+    Assert.assertEquals("Invalid job label key 'Key1'.",
+            collector.getValidationFailures().get(0).getMessage());
+  }
+
+  @Test
+  public void testJobLabelWithInvalidCharacters() {
+    String jobLabelKeyValue = "key1:value1,key2:value2,key3:value1@";
+    BigQueryUtil.validateJobLabelKeyValue(jobLabelKeyValue, collector, "test");
+    Assert.assertEquals(1, collector.getValidationFailures().size());
+    Assert.assertEquals("Invalid job label value 'value1@'.",
+            collector.getValidationFailures().get(0).getMessage());
+  }
+
+  @Test
+  public void testJobLabelWithEmptyKey() {
+    String jobLabelKeyValue = ":value1,key2:value2,key3:value1";
+    BigQueryUtil.validateJobLabelKeyValue(jobLabelKeyValue, collector, "test");
+    Assert.assertEquals(1, collector.getValidationFailures().size());
+    Assert.assertEquals("Invalid job label key ''.",
+            collector.getValidationFailures().get(0).getMessage());
+  }
+
+  @Test
+  public void testJobLabelWithEmptyValue() {
+    String jobLabelKeyValue = "key1:,key2:value2,key3:value1";
+    BigQueryUtil.validateJobLabelKeyValue(jobLabelKeyValue, collector, "test");
+    Assert.assertEquals(0, collector.getValidationFailures().size());
+  }
+
+  @Test
+  public void testJobLabelWithWrongFormat() {
+    String jobLabelKeyValue = "key1=value1";
+    BigQueryUtil.validateJobLabelKeyValue(jobLabelKeyValue, collector, "test");
+    Assert.assertEquals(1, collector.getValidationFailures().size());
+    Assert.assertEquals("Invalid job label key 'key1=value1'.",
+            collector.getValidationFailures().get(0).getMessage());
+  }
+
+  @Test
+  public void testJobLabelWithNull() {
+    String jobLabelKeyValue = null;
+    BigQueryUtil.validateJobLabelKeyValue(jobLabelKeyValue, collector, "test");
+    Assert.assertEquals(0, collector.getValidationFailures().size());
+  }
+
+  @Test
+  public void testJobLabelWithReservedKeys() {
+    String jobLabelKeyValue = "job_source:value1,type:value2";
+    BigQueryUtil.validateJobLabelKeyValue(jobLabelKeyValue, collector, "test");
+    Assert.assertEquals(2, collector.getValidationFailures().size());
+    Assert.assertEquals("Invalid job label key 'job_source'.",
+            collector.getValidationFailures().get(0).getMessage());
+  }
+
+  @Test
+  public void testJobLabelWith65Keys() {
+    StringBuilder sb = new StringBuilder();
+    for (int i = 1; i <= 65; i++) {
+      String key = "key" + i;
+      String value = "value" + i;
+      sb.append(key).append(":").append(value).append(",");
+    }
+    // remove the last comma
+    sb.deleteCharAt(sb.length() - 1);
+    Assert.assertEquals(65, sb.toString().split(",").length);
+    String jobLabelKeyValue = sb.toString();
+    BigQueryUtil.validateJobLabelKeyValue(jobLabelKeyValue, collector, "test");
+    Assert.assertEquals(1, collector.getValidationFailures().size());
+    Assert.assertEquals("Number of job labels exceeds the limit.",
+            collector.getValidationFailures().get(0).getMessage());
+  }
+
+  @Test
+  public void testJobLabelWithKeyLength64() {
+    String key64 = "1234567890123456789012345678901234567890123456789012345678901234";
+    String jobLabelKeyValue = key64 + ":value1";
+    BigQueryUtil.validateJobLabelKeyValue(jobLabelKeyValue, collector, "test");
+    Assert.assertEquals(1, collector.getValidationFailures().size());
+    Assert.assertEquals("Invalid job label key '" + key64 + "'.",
+            collector.getValidationFailures().get(0).getMessage());
+  }
+
+  @Test
+  public void testJobLabelWithValueLength64() {
+    String value64 = "1234567890123456789012345678901234567890123456789012345678901234";
+    String jobLabelKeyValue = "key1:" + value64;
+    BigQueryUtil.validateJobLabelKeyValue(jobLabelKeyValue, collector, "test");
+    Assert.assertEquals(1, collector.getValidationFailures().size());
+    Assert.assertEquals("Invalid job label value '" + value64 + "'.",
+            collector.getValidationFailures().get(0).getMessage());
+  }
+
+  @Test
+  public void testJobLabelWithKeyStartingWithNumber() {
+    String jobLabelKeyValue = "1key:value1";
+    BigQueryUtil.validateJobLabelKeyValue(jobLabelKeyValue, collector, "test");
+    Assert.assertEquals(1, collector.getValidationFailures().size());
+    Assert.assertEquals("Invalid job label key '1key'.",
+            collector.getValidationFailures().get(0).getMessage());
+  }
+
+  @Test
+  public void testJobLabelWithKeyStartingWithDash() {
+    String jobLabelKeyValue = "-key:value1";
+    BigQueryUtil.validateJobLabelKeyValue(jobLabelKeyValue, collector, "test");
+    Assert.assertEquals(1, collector.getValidationFailures().size());
+    Assert.assertEquals("Invalid job label key '-key'.",
+            collector.getValidationFailures().get(0).getMessage());
+  }
+
+  @Test
+  public void testJobLabelWithKeyStartingWithHyphen() {
+    String jobLabelKeyValue = "_key:value1";
+    BigQueryUtil.validateJobLabelKeyValue(jobLabelKeyValue, collector, "test");
+    Assert.assertEquals(1, collector.getValidationFailures().size());
+    Assert.assertEquals("Invalid job label key '_key'.",
+            collector.getValidationFailures().get(0).getMessage());
+  }
+
+  @Test
+  public void testJobLabelWithKeyWithChineseCharacter() {
+    String jobLabelKeyValue = "中文:value1";
+    BigQueryUtil.validateJobLabelKeyValue(jobLabelKeyValue, collector, "test");
+    Assert.assertEquals(0, collector.getValidationFailures().size());
+  }
+
+  @Test
+  public void testJobLabelWithKeyWithJapaneseCharacter() {
+    String jobLabelKeyValue = "日本語:value1";
+    BigQueryUtil.validateJobLabelKeyValue(jobLabelKeyValue, collector, "test");
+    Assert.assertEquals(0, collector.getValidationFailures().size());
+  }
+
+  @Test
+  public void testJobLabelWithValueStartingWithNumber() {
+    String jobLabelKeyValue = "key:1value";
+    BigQueryUtil.validateJobLabelKeyValue(jobLabelKeyValue, collector, "test");
+    Assert.assertEquals(0, collector.getValidationFailures().size());
+  }
+
+  @Test
+  public void testJobLabelWithValueStartingWithDash() {
+    String jobLabelKeyValue = "key:-value";
+    BigQueryUtil.validateJobLabelKeyValue(jobLabelKeyValue, collector, "test");
+    Assert.assertEquals(0, collector.getValidationFailures().size());
+  }
+
+  @Test
+  public void testJobLabelWithValueStartingWithCaptialLetter() {
+    String jobLabelKeyValue = "key:Value";
+    BigQueryUtil.validateJobLabelKeyValue(jobLabelKeyValue, collector, "test");
+    Assert.assertEquals(1, collector.getValidationFailures().size());
+    Assert.assertEquals("Invalid job label value 'Value'.",
+            collector.getValidationFailures().get(0).getMessage());
   }
 
 }

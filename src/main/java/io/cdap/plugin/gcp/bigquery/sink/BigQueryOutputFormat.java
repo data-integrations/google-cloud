@@ -51,7 +51,6 @@ import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFactory;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
 import com.google.cloud.hadoop.io.bigquery.BigQueryHelper;
-import com.google.cloud.hadoop.io.bigquery.BigQueryStrings;
 import com.google.cloud.hadoop.io.bigquery.BigQueryUtils;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryOutputConfiguration;
 import com.google.cloud.hadoop.io.bigquery.output.ForwardingBigQueryFileOutputCommitter;
@@ -62,6 +61,7 @@ import com.google.cloud.hadoop.util.RetryDeterminer;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import io.cdap.cdap.api.data.format.StructuredRecord;
+import io.cdap.plugin.gcp.bigquery.sink.lib.BigQueryStrings;
 import io.cdap.plugin.gcp.bigquery.source.BigQueryFactoryWithScopes;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
@@ -87,9 +87,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -121,9 +123,12 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
                                                                       io.cdap.cdap.api.data.schema.Schema schema)
     throws IOException, InterruptedException {
     Configuration configuration = taskAttemptContext.getConfiguration();
+    String jsonStringFields = configuration.get(BigQueryConstants.CONFIG_JSON_STRING_FIELDS, null);
+    Set<String> jsonFields = jsonStringFields == null ? Collections.emptySet() :
+            new HashSet<>(Arrays.asList(jsonStringFields.split(",")));
     return new BigQueryRecordWriter(getDelegate(configuration).getRecordWriter(taskAttemptContext),
                                     BigQueryOutputConfiguration.getFileFormat(configuration),
-                                    schema);
+                                    schema, jsonFields);
   }
 
   private io.cdap.cdap.api.data.schema.Schema getOutputSchema(Configuration configuration) throws IOException {
@@ -227,8 +232,12 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
       allowSchemaRelaxationOnEmptyOutput =
         conf.getBoolean(BigQueryConstants.CONFIG_ALLOW_SCHEMA_RELAXATION_ON_EMPTY_OUTPUT, false);
       LOG.debug("Allow schema relaxation: '{}'", allowSchemaRelaxation);
+      String jobLabelKeyValue = conf.get(BigQueryConstants.CONFIG_JOB_LABEL_KEY_VALUE, null);
       PartitionType partitionType = conf.getEnum(BigQueryConstants.CONFIG_PARTITION_TYPE, PartitionType.NONE);
       LOG.debug("Create Partitioned Table type: '{}'", partitionType);
+      com.google.cloud.bigquery.TimePartitioning.Type timePartitioningType = conf.getEnum(
+              BigQueryConstants.CONFIG_TIME_PARTITIONING_TYPE, com.google.cloud.bigquery.TimePartitioning.Type.DAY
+      );
       Range range = partitionType == PartitionType.INTEGER ? createRangeForIntegerPartitioning(conf) : null;
       String partitionByField = conf.get(BigQueryConstants.CONFIG_PARTITION_BY_FIELD, null);
       LOG.debug("Partition Field: '{}'", partitionByField);
@@ -254,8 +263,8 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
 
       try {
         importFromGcs(destProjectId, destTable, destSchema.orElse(null), kmsKeyName, outputFileFormat,
-                      writeDisposition, sourceUris, partitionType, range, partitionByField,
-                      requirePartitionFilter, clusteringOrderList, tableExists, conf);
+                      writeDisposition, sourceUris, partitionType, timePartitioningType, range, partitionByField,
+                      requirePartitionFilter, clusteringOrderList, tableExists, jobLabelKeyValue, conf);
       } catch (Exception e) {
         throw new IOException("Failed to import GCS into BigQuery. ", e);
       }
@@ -298,9 +307,11 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
      */
     private void importFromGcs(String projectId, TableReference tableRef, @Nullable TableSchema schema,
                                @Nullable String kmsKeyName, BigQueryFileFormat sourceFormat, String writeDisposition,
-                               List<String> gcsPaths, PartitionType partitionType, @Nullable Range range,
-                               @Nullable String partitionByField, boolean requirePartitionFilter,
-                               List<String> clusteringOrderList, boolean tableExists, Configuration conf)
+                               List<String> gcsPaths, PartitionType partitionType,
+                               com.google.cloud.bigquery.TimePartitioning.Type timePartitioningType,
+                               @Nullable Range range, @Nullable String partitionByField, boolean requirePartitionFilter,
+                               List<String> clusteringOrderList, boolean tableExists, String jobLabelKeyValue,
+                               Configuration conf)
       throws IOException, InterruptedException {
       LOG.info("Importing into table '{}' from {} paths; path[0] is '{}'; awaitCompletion: {}",
                BigQueryStrings.toString(tableRef), gcsPaths.size(), gcsPaths.isEmpty() ? "(empty)" : gcsPaths.get(0),
@@ -357,7 +368,8 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
       if (!tableExists) {
         switch (partitionType) {
           case TIME:
-            TimePartitioning timePartitioning = createTimePartitioning(partitionByField, requirePartitionFilter);
+            TimePartitioning timePartitioning = createTimePartitioning(partitionByField, requirePartitionFilter,
+                    timePartitioningType);
             loadConfig.setTimePartitioning(timePartitioning);
             break;
           case INTEGER:
@@ -421,18 +433,18 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
 
         JobConfiguration config = new JobConfiguration();
         config.setLoad(loadConfig);
-        config.setLabels(BigQueryUtil.getJobTags(BigQueryUtil.BQ_JOB_TYPE_SINK_TAG));
+        config.setLabels(BigQueryUtil.getJobLabels(BigQueryUtil.BQ_JOB_TYPE_SINK_TAG, jobLabelKeyValue));
         triggerBigqueryJob(projectId, jobId , dataset, config, tableRef);
       } else {
         // First load the data in a temp table.
-        loadInBatchesInTempTable(tableRef, loadConfig, gcsPaths, projectId, jobId, dataset);
+        loadInBatchesInTempTable(tableRef, loadConfig, gcsPaths, projectId, jobId, dataset, jobLabelKeyValue);
 
         if (operation.equals(Operation.INSERT)) { // For the case when gcs paths is more than 10000
           handleInsertOperation(tableRef, writeDisposition, loadConfig.getDestinationEncryptionConfiguration(),
-                                projectId, jobId, dataset, tableExists);
+                                projectId, jobId, dataset, tableExists, jobLabelKeyValue);
         } else {
           handleUpdateUpsertOperation(tableRef, tableExists, kmsKeyName, getJobIdForUpdateUpsert(conf),
-                                      projectId, dataset);
+                                      projectId, dataset, jobLabelKeyValue);
         }
       }
 
@@ -461,7 +473,8 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
     }
 
     private void loadInBatchesInTempTable(TableReference tableRef, JobConfigurationLoad loadConfig,
-                                          List<String> gcsPaths, String projectId, String jobId, Dataset dataset)
+                                          List<String> gcsPaths, String projectId, String jobId, Dataset dataset,
+                                          String jobLabelKeyValue)
       throws IOException, InterruptedException {
 
       LOG.info(" Importing into a temporary table first in batches of 10000");
@@ -485,7 +498,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
         loadConfig.setSourceUris(gcsPathBatch);
         JobConfiguration config = new JobConfiguration();
         config.setLoad(loadConfig);
-        config.setLabels(BigQueryUtil.getJobTags(BigQueryUtil.BQ_JOB_TYPE_SINK_TAG));
+        config.setLabels(BigQueryUtil.getJobLabels(BigQueryUtil.BQ_JOB_TYPE_SINK_TAG, jobLabelKeyValue));
 
         triggerBigqueryJob(projectId, jobId + "_" + jobcount, dataset, config, tableRef);
         jobcount++;
@@ -617,7 +630,8 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
 
     private void handleInsertOperation(TableReference tableRef, String writeDisposition,
                                        EncryptionConfiguration encryptionConfiguration, String projectId, String jobId,
-                                       Dataset dataset, boolean tableExists) throws IOException, InterruptedException {
+                                       Dataset dataset, boolean tableExists,
+                                       String jobLabelKeyValue) throws IOException, InterruptedException {
       if (allowSchemaRelaxation && tableExists) {
         updateTableSchema(tableRef);
       }
@@ -629,7 +643,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
 
       JobConfiguration config = new JobConfiguration();
       config.setCopy(tableCopyConfig);
-      config.setLabels(BigQueryUtil.getJobTags(BigQueryUtil.BQ_JOB_TYPE_SINK_TAG));
+      config.setLabels(BigQueryUtil.getJobLabels(BigQueryUtil.BQ_JOB_TYPE_SINK_TAG, jobLabelKeyValue));
       triggerBigqueryJob(projectId, jobId, dataset, config, tableRef);
     }
 
@@ -638,7 +652,8 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
                                              @Nullable String cmekKey,
                                              JobId jobId,
                                              String projectId,
-                                             Dataset dataset) throws IOException, InterruptedException {
+                                             Dataset dataset,
+                                             String jobLabelKeyValue) throws IOException, InterruptedException {
       if (allowSchemaRelaxation && tableExists) {
         updateTableSchema(tableRef);
       }
@@ -667,7 +682,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
 
       // Create Job Configuration and add job labels
       JobConfiguration jobConfiguration = new JobConfiguration();
-      jobConfiguration.setLabels(BigQueryUtil.getJobTags(BigQueryUtil.BQ_JOB_TYPE_SINK_TAG));
+      jobConfiguration.setLabels(BigQueryUtil.getJobLabels(BigQueryUtil.BQ_JOB_TYPE_SINK_TAG, jobLabelKeyValue));
       jobConfiguration.setQuery(jobConfigurationQuery);
 
       // Trigger job execution
@@ -756,9 +771,10 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
     }
 
     private TimePartitioning createTimePartitioning(
-      @Nullable String partitionByField, boolean requirePartitionFilter) {
+            @Nullable String partitionByField, boolean requirePartitionFilter,
+      com.google.cloud.bigquery.TimePartitioning.Type timePartitioningType) {
       TimePartitioning timePartitioning = new TimePartitioning();
-      timePartitioning.setType("DAY");
+      timePartitioning.setType(timePartitioningType.name());
       if (partitionByField != null) {
         timePartitioning.setField(partitionByField);
       }

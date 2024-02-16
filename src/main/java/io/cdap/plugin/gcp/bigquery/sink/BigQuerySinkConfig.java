@@ -58,7 +58,8 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   private static final String WHERE = "WHERE";
   public static final Set<Schema.Type> SUPPORTED_CLUSTERING_TYPES =
     ImmutableSet.of(Schema.Type.INT, Schema.Type.LONG, Schema.Type.STRING, Schema.Type.BOOLEAN, Schema.Type.BYTES);
-  private static final Pattern FIELD_PATTERN = Pattern.compile("[a-zA-Z0-9_]+");
+  // Read More : https://cloud.google.com/bigquery/docs/schemas#flexible-column-names
+  private static final Pattern FIELD_PATTERN = Pattern.compile("[\\p{L}\\p{M}\\p{N}\\p{Pc}\\p{Pd}&%+=:'<>#| ]+");
 
   public static final String NAME_TABLE = "table";
   public static final String NAME_SCHEMA = "schema";
@@ -69,11 +70,14 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   public static final String NAME_OPERATION = "operation";
   public static final String PARTITION_FILTER = "partitionFilter";
   public static final String NAME_PARTITIONING_TYPE = "partitioningType";
+  public static final String NAME_TIME_PARTITIONING_TYPE = "timePartitioningType";
   public static final String NAME_RANGE_START = "rangeStart";
   public static final String NAME_RANGE_END = "rangeEnd";
   public static final String NAME_RANGE_INTERVAL = "rangeInterval";
 
   public static final int MAX_NUMBER_OF_COLUMNS = 4;
+  // As defined in https://cloud.google.com/bigquery/docs/schemas#column_names
+  private static final int MAX_LENGTH_OF_COLUMN_NAME = 300;
 
   @Name(NAME_TABLE)
   @Macro
@@ -101,6 +105,13 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   @Description("Specifies the partitioning type. Can either be Integer or Time or None. "
     + "Ignored when table already exists")
   protected String partitioningType;
+
+  @Name(NAME_TIME_PARTITIONING_TYPE)
+  @Macro
+  @Nullable
+  @Description("Specifies the time partitioning type. Can either be Daily or Hourly or Monthly or Yearly. "
+    + "Ignored when table already exists")
+  protected String timePartitioningType;
 
   @Name(NAME_RANGE_START)
   @Macro
@@ -189,12 +200,13 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
                              @Nullable String serviceAccountType, @Nullable String serviceFilePath,
                              @Nullable String serviceAccountJson,
                              @Nullable String dataset, @Nullable String table, @Nullable String location,
-                             @Nullable String cmekKey, @Nullable String bucket) {
+                             @Nullable String cmekKey, @Nullable String bucket, @Nullable String jobLabelKeyValue) {
     super(new BigQueryConnectorConfig(project, project, serviceAccountType,
             serviceFilePath, serviceAccountJson), dataset, cmekKey, bucket);
     this.referenceName = referenceName;
     this.table = table;
     this.location = location;
+    this.jobLabelKeyValue = jobLabelKeyValue;
   }
 
   public String getTable() {
@@ -269,6 +281,11 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
       : PartitionType.valueOf(partitioningType.toUpperCase());
   }
 
+  public TimePartitioning.Type getTimePartitioningType() {
+    return Strings.isNullOrEmpty(timePartitioningType) ? TimePartitioning.Type.DAY :
+            TimePartitioning.Type.valueOf(timePartitioningType.toUpperCase());
+  }
+
   /**
    * @return the schema of the dataset
    */
@@ -331,9 +348,18 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
         String name = field.getName();
         // BigQuery column names only allow alphanumeric characters and _
         // https://cloud.google.com/bigquery/docs/schemas#column_names
+        // Allow support for Flexible column names
+        // https://cloud.google.com/bigquery/docs/schemas#flexible-column-names
         if (!FIELD_PATTERN.matcher(name).matches()) {
-          collector.addFailure(String.format("Output field '%s' must only contain alphanumeric characters and '_'.",
-                                             name), null).withOutputSchemaField(name);
+          collector.addFailure(String.format("Output field '%s' contains invalid characters. " +
+                          "Check column names docs for more details.",
+                  name), null).withOutputSchemaField(name);
+        }
+
+        // Check if the field name exceeds the maximum length of 300 characters.
+        if (name.length() > MAX_LENGTH_OF_COLUMN_NAME) {
+          collector.addFailure(String.format("Output field '%s' exceeds the maximum length of 300 characters.",
+                  name), null).withOutputSchemaField(name);
         }
 
         // check if the required fields are present in the input schema.
@@ -458,7 +484,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     Schema fieldSchema = field.getSchema();
     fieldSchema = fieldSchema.isNullable() ? fieldSchema.getNonNullable() : fieldSchema;
     if (partitioningType == PartitionType.TIME) {
-      validateTimePartitioningColumn(columnName, collector, fieldSchema);
+      validateTimePartitioningColumn(columnName, collector, fieldSchema, getTimePartitioningType());
     } else if (partitioningType == PartitionType.INTEGER) {
       validateIntegerPartitioningColumn(columnName, collector, fieldSchema);
       validateIntegerPartitioningRange(getRangeStart(), getRangeEnd(), getRangeInterval(), collector);
@@ -474,15 +500,30 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     }
   }
 
-  private void validateTimePartitioningColumn(String columnName, FailureCollector collector, Schema fieldSchema) {
+  private void validateTimePartitioningColumn(String columnName, FailureCollector collector,
+                                              Schema fieldSchema, TimePartitioning.Type timePartitioningType) {
+
     Schema.LogicalType logicalType = fieldSchema.getLogicalType();
-    if (logicalType != LogicalType.DATE && logicalType != LogicalType.TIMESTAMP_MICROS
-      && logicalType != LogicalType.TIMESTAMP_MILLIS) {
+
+    boolean isTimestamp = logicalType == LogicalType.TIMESTAMP_MICROS || logicalType == LogicalType.TIMESTAMP_MILLIS;
+    boolean isDate = logicalType == LogicalType.DATE;
+    boolean isTimestampOrDate = isTimestamp || isDate;
+
+    // If timePartitioningType is HOUR, then logicalType cannot be DATE Only TIMESTAMP_MICROS and TIMESTAMP_MILLIS
+    if (timePartitioningType == TimePartitioning.Type.HOUR && !isTimestamp) {
       collector.addFailure(
-        String.format("Partition column '%s' is of invalid type '%s'.", columnName, fieldSchema.getDisplayName()),
-        "Partition column must be a date or timestamp.")
-        .withConfigProperty(NAME_PARTITION_BY_FIELD)
-        .withOutputSchemaField(columnName).withInputSchemaField(columnName);
+                      String.format("Partition column '%s' is of invalid type '%s'.",
+                              columnName, fieldSchema.getDisplayName()),
+                      "Partition column must be a timestamp.").withConfigProperty(NAME_PARTITION_BY_FIELD)
+              .withOutputSchemaField(columnName).withInputSchemaField(columnName);
+
+    // For any other timePartitioningType (DAY, MONTH, YEAR) logicalType can be DATE, TIMESTAMP_MICROS, TIMESTAMP_MILLIS
+    } else if (!isTimestampOrDate) {
+      collector.addFailure(
+                      String.format("Partition column '%s' is of invalid type '%s'.",
+                              columnName, fieldSchema.getDisplayName()),
+                      "Partition column must be a date or timestamp.").withConfigProperty(NAME_PARTITION_BY_FIELD)
+              .withOutputSchemaField(columnName).withInputSchemaField(columnName);
     }
   }
 
@@ -668,6 +709,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     private String cmekKey;
     private String location;
     private String bucket;
+    private String jobLabelKeyValue;
 
     public BigQuerySinkConfig.Builder setReferenceName(@Nullable String referenceName) {
       this.referenceName = referenceName;
@@ -718,6 +760,10 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
       this.bucket = bucket;
       return this;
     }
+    public BigQuerySinkConfig.Builder setJobLabelKeyValue(@Nullable String jobLabelKeyValue) {
+      this.jobLabelKeyValue = jobLabelKeyValue;
+      return this;
+    }
 
     public BigQuerySinkConfig build() {
       return new BigQuerySinkConfig(
@@ -730,7 +776,8 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
         table,
         location,
         cmekKey,
-        bucket
+        bucket,
+        jobLabelKeyValue
       );
     }
 

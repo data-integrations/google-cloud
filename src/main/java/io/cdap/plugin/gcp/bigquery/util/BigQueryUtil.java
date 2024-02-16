@@ -36,10 +36,10 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
-import io.cdap.cdap.etl.api.action.SettableArguments;
 import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
 import io.cdap.cdap.etl.api.validation.InvalidStageException;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
+import io.cdap.plugin.gcp.bigquery.sink.AbstractBigQuerySinkConfig;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySink;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySource;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceConfig;
@@ -61,6 +61,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -83,7 +84,8 @@ public final class BigQueryUtil {
 
   public static final String BUCKET_PATTERN = "[a-z0-9._-]+";
   public static final String DATASET_PATTERN = "[A-Za-z0-9_]+";
-  public static final String TABLE_PATTERN = "[A-Za-z0-9_-]+";
+  // Read more about table naming in BigQuery here: https://cloud.google.com/bigquery/docs/tables#table_naming
+  public static final String TABLE_PATTERN = "[\\p{L}\\p{M}\\p{N}\\p{Pc}\\p{Pd}\\p{Zs}]+";
 
   // Tags for BQ Jobs
   public static final String BQ_JOB_TYPE_SOURCE_TAG = "bq_source_plugin";
@@ -109,11 +111,16 @@ public final class BigQueryUtil {
     .put(LegacySQLTypeName.NUMERIC, "decimal")
     .build();
 
+  public static final String BQ_JOB_SOURCE_TAG = "job_source";
+  public static final String BQ_JOB_TYPE_TAG = "type";
+  public static final Set<String> BQ_JOB_LABEL_SYSTEM_KEYS = ImmutableSet.of(BQ_JOB_SOURCE_TAG, BQ_JOB_TYPE_TAG);
+
   private static final Map<Schema.Type, Set<LegacySQLTypeName>> TYPE_MAP = ImmutableMap.<Schema.Type,
     Set<LegacySQLTypeName>>builder()
     .put(Schema.Type.INT, ImmutableSet.of(LegacySQLTypeName.INTEGER))
     .put(Schema.Type.LONG, ImmutableSet.of(LegacySQLTypeName.INTEGER))
-    .put(Schema.Type.STRING, ImmutableSet.of(LegacySQLTypeName.STRING, LegacySQLTypeName.DATETIME))
+    .put(Schema.Type.STRING, ImmutableSet.of(LegacySQLTypeName.STRING, LegacySQLTypeName.DATETIME,
+            LegacySQLTypeName.valueOf("JSON")))
     .put(Schema.Type.FLOAT, ImmutableSet.of(LegacySQLTypeName.FLOAT))
     .put(Schema.Type.DOUBLE, ImmutableSet.of(LegacySQLTypeName.FLOAT))
     .put(Schema.Type.BOOLEAN, ImmutableSet.of(LegacySQLTypeName.BOOLEAN))
@@ -850,14 +857,37 @@ public final class BigQueryUtil {
   }
 
   /**
-   * Get tags for a BigQuery Job.
+   * Get labels for a BigQuery Job.
    * @param jobType the job type to set in the labels.
    * @return map containing labels for a BigQuery job launched by this plugin.
    */
-  public static Map<String, String> getJobTags(String jobType) {
+  public static Map<String, String> getJobLabels(String jobType) {
     Map<String, String> labels = new HashMap<>();
-    labels.put("job_source", "cdap");
-    labels.put("type", jobType);
+    labels.put(BQ_JOB_SOURCE_TAG, "cdap");
+    labels.put(BQ_JOB_TYPE_TAG, jobType);
+    return labels;
+  }
+
+  /**
+   * Get labels for a BigQuery Job.
+   * @param jobType the job type to set in the labels.
+   * @param userDefinedTags user defined tags to be added to the labels.
+   * @return map containing labels for a BigQuery job launched by this plugin.
+   */
+  public static Map<String, String> getJobLabels(String jobType, String userDefinedTags) {
+    Map<String, String> labels = getJobLabels(jobType);
+    if (Strings.isNullOrEmpty(userDefinedTags)) {
+        return labels;
+    }
+    for (String tag : userDefinedTags.trim().split(",")) {
+      String[] keyValue = tag.split(":");
+      if (keyValue.length == 1) {
+        labels.put(keyValue[0], "");
+      }
+      if (keyValue.length == 2) {
+        labels.put(keyValue[0], keyValue[1]);
+      }
+    }
     return labels;
   }
 
@@ -886,5 +916,107 @@ public final class BigQueryUtil {
       bucket = BigQueryUtil.getBucketNameForLocation(bucketPrefix, datasetLocation);
     }
     return bucket;
+  }
+
+  /**
+   * Validates job label key value pairs, as per the following rules:
+   * Keys and values can contain only lowercase letters, numeric characters, underscores, and dashes.
+   * Defined in the following link:
+   * <a href="https://cloud.google.com/bigquery/docs/labels-intro#requirements">Docs</a>
+   * @param failureCollector failure collector
+   */
+  public static void validateJobLabelKeyValue(String labelKeyValue, FailureCollector failureCollector,
+                                              String stageConfigProperty) {
+    Set<String> reservedKeys = BQ_JOB_LABEL_SYSTEM_KEYS;
+    int maxLabels = 64 - reservedKeys.size();
+    int maxKeyLength = 63;
+    int maxValueLength = 63;
+
+    String validLabelKeyRegex = "^[\\p{L}][a-z0-9-_\\p{L}]+$";
+    String validLabelValueRegex = "^[a-z0-9-_\\p{L}]+$";
+    String capitalLetterRegex = ".*[A-Z].*";
+
+    if (com.google.api.client.util.Strings.isNullOrEmpty(labelKeyValue)) {
+      return;
+    }
+
+    String[] keyValuePairs = labelKeyValue.split(",");
+    Set<String> uniqueKeys = new HashSet<>();
+
+    for (String keyValuePair : keyValuePairs) {
+
+      // Adding a label without a value is valid behavior
+      // Read more here: https://cloud.google.com/bigquery/docs/adding-labels#adding_a_label_without_a_value
+      String[] keyValue = keyValuePair.trim().split(":");
+      boolean isKeyPresent = keyValue.length == 1 || keyValue.length == 2;
+      boolean isValuePresent = keyValue.length == 2;
+
+
+      if (!isKeyPresent) {
+        failureCollector.addFailure(String.format("Invalid job label key value pair '%s'.", keyValuePair),
+                        "Job label key value pair should be in the format 'key:value'.")
+                .withConfigProperty(stageConfigProperty);
+        continue;
+      }
+
+      // Check if key is reserved
+      if (reservedKeys.contains(keyValue[0])) {
+        failureCollector.addFailure(String.format("Invalid job label key '%s'.", keyValue[0]),
+                "A system label already exists with same name.").withConfigProperty(stageConfigProperty);
+        continue;
+      }
+
+      String key = keyValue[0];
+      String value = isValuePresent ? keyValue[1] : "";
+      boolean isKeyValid = true;
+      boolean isValueValid = true;
+
+      // Key cannot be empty
+      if (com.google.api.client.util.Strings.isNullOrEmpty(key)) {
+        failureCollector.addFailure(String.format("Invalid job label key '%s'.", key),
+                "Job label key cannot be empty.").withConfigProperty(stageConfigProperty);
+        isKeyValid = false;
+      }
+
+      // Key cannot be longer than 63 characters
+      if (key.length() > maxKeyLength) {
+        failureCollector.addFailure(String.format("Invalid job label key '%s'.", key),
+                "Job label key cannot be longer than 63 characters.").withConfigProperty(stageConfigProperty);
+        isKeyValid = false;
+      }
+
+      // Value cannot be longer than 63 characters
+      if (value.length() > maxValueLength) {
+        failureCollector.addFailure(String.format("Invalid job label value '%s'.", value),
+                "Job label value cannot be longer than 63 characters.").withConfigProperty(stageConfigProperty);
+        isValueValid = false;
+      }
+
+      if (isKeyValid && (!key.matches(validLabelKeyRegex) || key.matches(capitalLetterRegex))) {
+        failureCollector.addFailure(String.format("Invalid job label key '%s'.", key),
+                        "Job label key can only contain lowercase letters, numeric characters, " +
+                                "underscores, and dashes. Check docs for more details.")
+                .withConfigProperty(stageConfigProperty);
+        isKeyValid = false;
+      }
+
+      if (isValuePresent && isValueValid &&
+              (!value.matches(validLabelValueRegex) || value.matches(capitalLetterRegex))) {
+        failureCollector.addFailure(String.format("Invalid job label value '%s'.", value),
+                "Job label value can only contain lowercase letters, numeric characters, " +
+                        "underscores, and dashes.").withConfigProperty(stageConfigProperty);
+      }
+
+      if (isKeyValid && !uniqueKeys.add(key)) {
+        failureCollector.addFailure(String.format("Duplicate job label key '%s'.", key),
+                "Job label key should be unique.").withConfigProperty(stageConfigProperty);
+      }
+    }
+    // Check if number of labels is greater than 64 - reserved keys
+    if (uniqueKeys.size() > maxLabels) {
+      failureCollector.addFailure("Number of job labels exceeds the limit.",
+                      String.format("Number of job labels cannot be greater than %d.", maxLabels))
+              .withConfigProperty(stageConfigProperty);
+    }
   }
 }

@@ -34,16 +34,19 @@ public interface BigQueryConstants {
   String CONFIG_TABLE_KEY = "cdap.bq.sink.table.key";
   String CONFIG_DEDUPE_BY = "cdap.bq.sink.dedupe.by";
   String CONFIG_TABLE_FIELDS = "cdap.bq.sink.table.fields";
+  String CONFIG_JSON_STRING_FIELDS = "cdap.bq.sink.json.string.fields";
   String CONFIG_FILTER = "cdap.bq.source.filter";
   String CONFIG_PARTITION_FILTER = "cdap.bq.sink.partition.filter";
   String CONFIG_JOB_ID = "cdap.bq.sink.job.id";
   String CONFIG_VIEW_MATERIALIZATION_PROJECT = "cdap.bq.source.view.materialization.project";
   String CONFIG_VIEW_MATERIALIZATION_DATASET = "cdap.bq.source.view.materialization.dataset";
   String CONFIG_PARTITION_TYPE = "cdap.bq.sink.partition.type";
+  String CONFIG_TIME_PARTITIONING_TYPE = "cdap.bq.sink.time.partitioning.type";
   String CONFIG_PARTITION_INTEGER_RANGE_START = "cdap.bq.sink.partition.integer.range.start";
   String CONFIG_PARTITION_INTEGER_RANGE_END = "cdap.bq.sink.partition.integer.range.end";
   String CONFIG_PARTITION_INTEGER_RANGE_INTERVAL = "cdap.bq.sink.partition.integer.range.interval";
   String CONFIG_TEMPORARY_TABLE_NAME = "cdap.bq.source.temporary.table.name";
   String CDAP_BQ_SINK_OUTPUT_SCHEMA = "cdap.bq.sink.output.schema";
   String BQ_FQN_PREFIX = "bigquery";
+  String CONFIG_JOB_LABEL_KEY_VALUE = "cdap.bq.sink.job.label.key.value";
 }

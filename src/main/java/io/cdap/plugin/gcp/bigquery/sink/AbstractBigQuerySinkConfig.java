@@ -34,6 +34,7 @@ import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.CmekUtils;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
@@ -49,8 +50,10 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
   public static final String NAME_TRUNCATE_TABLE = "truncateTable";
   public static final String NAME_LOCATION = "location";
   private static final String NAME_GCS_CHUNK_SIZE = "gcsChunkSize";
+  public static final String NAME_BQ_JOB_LABELS = "jobLabels";
   protected static final String NAME_UPDATE_SCHEMA = "allowSchemaRelaxation";
   private static final String SCHEME = "gs://";
+  protected static final String NAME_JSON_STRING_FIELDS = "jsonStringFields";
 
   @Name(Constants.Reference.REFERENCE_NAME)
   @Nullable
@@ -84,6 +87,19 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
     "This value is ignored if the dataset or temporary bucket already exist.")
   protected String location;
 
+  @Name(NAME_BQ_JOB_LABELS)
+  @Macro
+  @Nullable
+  @Description("Key value pairs to be added as labels to the BigQuery job. Keys must be unique. [job_source, type] " +
+    "are reserved keys and cannot be used as label keys.")
+  protected String jobLabelKeyValue;
+
+  @Name(NAME_JSON_STRING_FIELDS)
+  @Nullable
+  @Description("Fields in input schema that should be treated as JSON strings. " +
+          "The schema of these fields should be of type STRING.")
+  protected String jsonStringFields;
+
   public AbstractBigQuerySinkConfig(BigQueryConnectorConfig connection, String dataset, String cmekKey, String bucket) {
     super(connection, dataset, cmekKey, bucket);
   }
@@ -113,6 +129,15 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
   public String getGcsChunkSize() {
     return gcsChunkSize;
   }
+  @Nullable
+  public String getJobLabelKeyValue() {
+    return jobLabelKeyValue;
+  }
+
+  @Nullable
+  public String getJsonStringFields() {
+    return jsonStringFields;
+  }
 
   public boolean isAllowSchemaRelaxation() {
     return allowSchemaRelaxation == null ? false : allowSchemaRelaxation;
@@ -126,7 +151,6 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
   public boolean isTruncateTableSet() {
     return truncateTable != null && truncateTable;
   }
-
   public void validate(FailureCollector collector) {
     validate(collector, Collections.emptyMap());
   }
@@ -149,6 +173,9 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
     if (!containsMacro(NAME_CMEK_KEY)) {
       validateCmekKey(collector, arguments);
     }
+    if (!containsMacro(NAME_BQ_JOB_LABELS)) {
+      validateJobLabelKeyValue(collector);
+    }
   }
 
   void validateCmekKey(FailureCollector failureCollector, Map<String, String> arguments) {
@@ -158,6 +185,10 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
       return;
     }
     validateCmekKeyLocation(cmekKeyName, null, location, failureCollector);
+  }
+
+  void validateJobLabelKeyValue(FailureCollector failureCollector) {
+    BigQueryUtil.validateJobLabelKeyValue(jobLabelKeyValue, failureCollector, NAME_BQ_JOB_LABELS);
   }
 
   public String getDatasetProject() {

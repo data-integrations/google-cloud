@@ -42,6 +42,14 @@ write BigQuery data to this project.
 Datasets are top-level containers that are used to organize and control access to tables and views.
 If dataset does not exist, it will be created.
 
+**BQ Job Labels:** Key value pairs to be added as labels to the BigQuery job. Keys must be unique. (Macro Enabled)
+
+[job_source, type] are system defined labels used by CDAP for internal purpose and cannot be used as label keys.
+Macro format is supported. example `key1:val1,key2:val2`
+
+Keys and values can contain only lowercase letters, numeric characters, underscores, and dashes.
+For more information about labels, see [Docs](https://cloud.google.com/bigquery/docs/labels-intro#requirements).
+
 **Temporary Bucket Name:** Google Cloud Storage bucket to store temporary data in.
 It will be automatically created if it does not exist. Temporary data will be deleted after it is loaded into BigQuery.
 If the bucket was created automatically, it will be deleted after the run finishes.
@@ -247,3 +255,9 @@ GET https://www.googleapis.com/bigquery/v2/projects/xxxx/datasets/mysql_bq_perm?
 have the permission to read the dataset you specified in this plugin. You must grant "BigQuery Data Editor" role on the
 project identified by the `Dataset Project ID` you specified in this plugin to the service account. If you think you
 already granted the role, check if you granted the role on the wrong project (for example the one identified by the `Project ID`).
+
+Column Names
+------------
+A column name can contain the letters (a-z, A-Z), numbers (0-9), or underscores (_), and it must start with a letter or
+underscore. For more flexible column name support, see
+[flexible column names](https://cloud.google.com/bigquery/docs/schemas#flexible-column-names).

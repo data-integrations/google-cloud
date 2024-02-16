@@ -24,7 +24,7 @@ import com.google.cloud.bigquery.JobConfiguration;
 import com.google.cloud.bigquery.JobId;
 import com.google.cloud.bigquery.JobStatistics;
 import com.google.cloud.bigquery.Table;
-import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
+import com.google.cloud.bigquery.TimePartitioning;
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.Gson;
 import io.cdap.cdap.api.annotation.Description;
@@ -43,6 +43,7 @@ import io.cdap.cdap.etl.api.connector.Connector;
 import io.cdap.cdap.etl.api.engine.sql.SQLEngineOutput;
 import io.cdap.cdap.etl.common.Constants;
 import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnector;
+import io.cdap.plugin.gcp.bigquery.sink.lib.BigQueryTableFieldSchema;
 import io.cdap.plugin.gcp.bigquery.sqlengine.BigQuerySQLEngine;
 import io.cdap.plugin.gcp.bigquery.sqlengine.BigQueryWrite;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
@@ -108,6 +109,10 @@ public final class BigQuerySink extends AbstractBigQuerySink {
     if (schema != null) {
       validateConfiguredSchema(schema, collector);
     }
+
+    if (config.getJsonStringFields() != null && schema != null) {
+      validateJsonStringFields(schema, config.getJsonStringFields() , collector);
+    }
   }
 
   @Override
@@ -131,9 +136,12 @@ public final class BigQuerySink extends AbstractBigQuerySink {
 
     configureTable(outputSchema);
     configureBigQuerySink();
+    Table table = BigQueryUtil.getBigQueryTable(config.getDatasetProject(), config.getDataset(), config.getTable(),
+            config.getServiceAccount(), config.isServiceAccountFilePath(),
+            collector);
     initOutput(context, bigQuery, config.getReferenceName(),
                BigQueryUtil.getFQN(config.getDatasetProject(), config.getDataset(), config.getTable()),
-               config.getTable(), outputSchema, bucket, collector, null);
+               config.getTable(), outputSchema, bucket, collector, null, table);
     initSQLEngineOutput(context, bigQuery, config.getReferenceName(), context.getStageName(), config.getTable(),
                         outputSchema, collector);
   }
@@ -315,6 +323,9 @@ public final class BigQuerySink extends AbstractBigQuerySink {
 
     PartitionType partitioningType = getConfig().getPartitioningType();
     baseConfiguration.setEnum(BigQueryConstants.CONFIG_PARTITION_TYPE, partitioningType);
+
+    TimePartitioning.Type timePartitioningType = getConfig().getTimePartitioningType();
+    baseConfiguration.setEnum(BigQueryConstants.CONFIG_TIME_PARTITIONING_TYPE, timePartitioningType);
 
     if (config.getRangeStart() != null) {
       baseConfiguration.setLong(BigQueryConstants.CONFIG_PARTITION_INTEGER_RANGE_START, config.getRangeStart());

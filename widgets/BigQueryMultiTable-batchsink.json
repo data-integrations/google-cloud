@@ -131,6 +131,23 @@
       "label": "Advanced",
       "properties": [
         {
+          "name": "jobLabels",
+          "label": "BQ Job Labels",
+          "widget-type": "keyvalue",
+          "widget-attributes": {
+            "delimiter": ",",
+            "kv-delimiter": ":",
+            "key-placeholder": "Label key",
+            "value-placeholder": "Label value"
+          }
+        },
+        {
+        "name": "jsonStringFields",
+        "widget-type": "hidden",
+        "label": "JSON String",
+        "widget-attributes": {}
+        },
+        {
           "widget-type": "textbox",
           "label": "Temporary Bucket Name",
           "name": "bucket",

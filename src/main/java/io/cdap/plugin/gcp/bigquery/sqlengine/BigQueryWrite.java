@@ -405,8 +405,9 @@ public class BigQueryWrite {
    * @return Time Partitioning configuration
    */
   protected TimePartitioning getTimePartitioning(BigQuerySinkConfig config) {
-    // Create time partitioning based on DAY
-    TimePartitioning.Builder timePartitioningBuilder = TimePartitioning.newBuilder(TimePartitioning.Type.DAY);
+
+    // Default partitioning type is DAY if not specified
+    TimePartitioning.Builder timePartitioningBuilder = TimePartitioning.newBuilder(config.getTimePartitioningType());
 
     // Set partition field if specified
     if (config.getPartitionByField() != null) {

@@ -24,6 +24,7 @@ import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 import java.io.IOException;
+import java.util.Set;
 import javax.annotation.Nullable;
 
 /**
@@ -35,17 +36,20 @@ public class BigQueryRecordWriter extends RecordWriter<StructuredRecord, NullWri
   private final BigQueryFileFormat fileFormat;
   private final Schema outputSchema;
   private RecordConverter recordConverter;
+  private Set<String> jsonStringFieldsPaths;
 
-  public BigQueryRecordWriter(RecordWriter delegate, BigQueryFileFormat fileFormat, @Nullable Schema outputSchema) {
+  public BigQueryRecordWriter(RecordWriter delegate, BigQueryFileFormat fileFormat, @Nullable Schema outputSchema,
+                              Set<String> jsonStringFieldsPaths) {
     this.delegate = delegate;
     this.fileFormat = fileFormat;
     this.outputSchema = outputSchema;
+    this.jsonStringFieldsPaths = jsonStringFieldsPaths;
     initRecordConverter();
   }
 
   private void initRecordConverter() {
     if (this.fileFormat == BigQueryFileFormat.NEWLINE_DELIMITED_JSON) {
-      recordConverter = new BigQueryJsonConverter();
+      recordConverter = new BigQueryJsonConverter(jsonStringFieldsPaths);
       return;
     }
     recordConverter = new BigQueryAvroConverter();
