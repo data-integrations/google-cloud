@@ -173,3 +173,44 @@ Feature: BigQueryExecute - Verify data transfer using BigQuery Execute plugin
     Then Open and capture logs
     Then Verify the pipeline status is "Succeeded"
     Then Verify 1 records updated in BigQuery table: "bqSourceTable" with query "bqExecuteCountDMLUpdate"
+
+  @BQEXECUTE_SOURCE_TEST @BQ_SINK_TEST @BQEXECUTE_INSERT_SQL @BQExecute_Required
+  Scenario: Verify the successful records transfer from Bigquery source to Bigquery sink using insert sql query in BQExecute with rowAsArguments as false
+    Given Open Datafusion Project to configure pipeline
+    When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
+    When Select plugin: "BigQuery Execute" from the plugins list as: "Conditions and Actions"
+    When Navigate to the properties page of plugin: "BigQuery Execute"
+    Then Replace input plugin property: "projectId" with value: "projectId"
+    Then Enter textarea plugin property: "sql" with value: "bqExecuteInsert"
+    Then Validate "BigQuery Execute" plugin properties
+    Then Close the Plugin Properties page
+    When Expand Plugin group in the LHS plugins list: "Source"
+    When Select plugin: "BigQuery" from the plugins list as: "Source"
+    Then Connect plugins: "BigQuery Execute" and "BigQuery2" to establish connection
+    Then Navigate to the properties page of plugin: "BigQuery2"
+    And Replace input plugin property: "project" with value: "projectId"
+    And Enter input plugin property: "datasetProject" with value: "projectId"
+    And Replace input plugin property: "dataset" with value: "dataset"
+    Then Enter input plugin property: "referenceName" with value: "BQReferenceName"
+    Then Enter input plugin property: "table" with value: "bqSourceTable"
+    Then Validate "BigQuery" plugin properties
+    Then Close the Plugin Properties page
+    When Expand Plugin group in the LHS plugins list: "Sink"
+    When Select plugin: "BigQuery" from the plugins list as: "Sink"
+    Then Connect plugins: "BigQuery2" and "BigQuery3" to establish connection
+    Then Navigate to the properties page of plugin: "BigQuery3"
+    Then Replace input plugin property: "projectId" with value: "projectId"
+    Then Enter input plugin property: "datasetProjectId" with value: "projectId"
+    Then Enter input plugin property: "referenceName" with value: "BQSinkReferenceName"
+    Then Enter input plugin property: "dataset" with value: "dataset"
+    Then Enter input plugin property: "table" with value: "bqTargetTable"
+    Then Validate "BigQuery" plugin properties
+    Then Close the Plugin Properties page
+    Then Save the pipeline
+    Then Deploy the pipeline
+    Then Run the Pipeline in Runtime
+    Then Wait till pipeline is in running state
+    Then Open and capture logs
+    Then Close the pipeline logs
+    Then Verify the pipeline status is "Succeeded"
+    Then Validate the data transferred from BigQuery to BigQuery with actual And expected file for: "bqExecuteInsertFile"
