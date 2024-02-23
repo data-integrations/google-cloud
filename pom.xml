@@ -1248,6 +1248,12 @@
           <scope>test</scope>
         </dependency>
         <dependency>
+          <groupId>mysql</groupId>
+          <artifactId>mysql-connector-java</artifactId>
+          <version>8.0.25</version>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
           <groupId>ch.qos.logback</groupId>
           <artifactId>logback-classic</artifactId>
           <version>1.2.8</version>
