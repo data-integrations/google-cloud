@@ -16,6 +16,8 @@
 package io.cdap.plugin.common.stepsdesign;
 
 import com.google.cloud.bigquery.BigQueryException;
+import com.google.cloud.bigtable.admin.v2.BigtableInstanceAdminClient;
+import com.google.cloud.bigtable.admin.v2.BigtableInstanceAdminSettings;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.StorageException;
 import io.cdap.e2e.pages.actions.CdfConnectionActions;
@@ -23,11 +25,13 @@ import io.cdap.e2e.pages.actions.CdfPluginPropertiesActions;
 import io.cdap.e2e.utils.BigQueryClient;
 import io.cdap.e2e.utils.PluginPropertyUtils;
 import io.cdap.e2e.utils.StorageClient;
+import io.cdap.plugin.utils.BigTableClient;
 import io.cdap.plugin.utils.PubSubClient;
 import io.cdap.plugin.utils.SpannerClient;
 import io.cucumber.java.After;
 import io.cucumber.java.Before;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.hbase.client.Connection;
 import org.junit.Assert;
 import stepsdesign.BeforeActions;
 
@@ -53,7 +57,6 @@ import java.util.stream.Collectors;
  * GCP test hooks.
  */
 public class TestSetupHooks {
-
   public static boolean beforeAllFlag = true;
   public static String gcsSourceBucketName = StringUtils.EMPTY;
   public static String gcsTargetBucketName = StringUtils.EMPTY;
@@ -69,6 +72,18 @@ public class TestSetupHooks {
   public static String spannerTargetTable = StringUtils.EMPTY;
   public static boolean firstSpannerTestFlag = true;
   public static String datasetName = PluginPropertyUtils.pluginProp("dataset");
+  public static boolean firstBigTableTestFlag = true;
+  public static String bigtableInstance = StringUtils.EMPTY;
+  public static String bigtableCluster = StringUtils.EMPTY;
+  public static String bigtableSourceTable = StringUtils.EMPTY;
+  public static String bigtableTargetInstance = StringUtils.EMPTY;
+  public static String bigtableTargetCluster = StringUtils.EMPTY;
+  public static String bigtableTargetTable = StringUtils.EMPTY;
+  public static String bigtableExistingTargetTable = StringUtils.EMPTY;
+  public static BigtableInstanceAdminSettings instanceAdminSettings;
+  public static BigtableInstanceAdminClient adminClient;
+  public static Connection bigTableConnection;
+  public static Connection bigTableExistingTargetTableConnection;
 
   @Before(order = 1)
   public static void overrideServiceAccountFilePathIfProvided() {
@@ -1332,5 +1347,110 @@ public class TestSetupHooks {
   @After(order = 2, value = "@BQEXECUTE_INSERT_SQL")
   public static void setInsertQueryBackWithTableDetailsPlaceholderSql() {
     setQueryBackWithTableDetailsPlaceholder("bqExecuteInsert");
+  }
+
+
+  @Before(order = 1, value = "@BIGTABLE_SOURCE_TEST")
+  public static void testGoogleBigtableSetup() throws IOException, URISyntaxException {
+     String projectId = PluginPropertyUtils.pluginProp("projectId");
+    instanceAdminSettings =
+            BigtableInstanceAdminSettings.newBuilder().setProjectId(projectId).build();
+    adminClient = BigtableInstanceAdminClient.create(instanceAdminSettings);
+
+    if (firstBigTableTestFlag) {
+      Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+        try {
+          BigTableClient.deleteInstance(adminClient, bigtableInstance);
+          BeforeActions.scenario.write("Bigtable instance--" + bigtableInstance + " deleted successfully");
+          bigtableInstance = StringUtils.EMPTY;
+        } catch (Exception e) {
+          if (e.getMessage().contains("NOT FOUND")) {
+            BeforeActions.scenario.write("BigTable instance--" + bigtableInstance + " does not exist.");
+          }
+        }
+      }));
+      firstBigTableTestFlag = false;
+
+      bigtableInstance = "e2e-inst-" + (int) (Math.random() * Integer.MAX_VALUE);
+      bigtableCluster = "e2e-clstr-" + (int) (Math.random() * Integer.MAX_VALUE);
+      try {
+        BigTableClient.createBigTableInstance(adminClient, bigtableInstance, bigtableCluster);
+        BeforeActions.scenario.write("BigTable instance--" + bigtableInstance + " created successfully");
+        bigTableConnection = BigTableClient.connect(projectId, bigtableInstance, null);
+        //Source table creation
+        bigtableSourceTable = "e2e-src-table-" + (int) (Math.random() * Integer.MAX_VALUE);
+        BigTableClient.createTables(bigTableConnection, bigtableSourceTable, null);
+        BeforeActions.scenario.write("sourceTable--" + bigtableSourceTable + " created successfully");
+        BigTableClient.populateData(bigTableConnection, bigtableSourceTable);
+        BeforeActions.scenario.write("sourceTable--" + bigtableSourceTable + " populated successfully");
+        PluginPropertyUtils.addPluginProp("bigtableInstance", bigtableInstance);
+        PluginPropertyUtils.addPluginProp("bigtableCluster", bigtableCluster);
+        PluginPropertyUtils.addPluginProp("bigtableSourceTable", bigtableSourceTable);
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+    }
+  }
+
+  @Before(order = 2, value = "@BIGTABLE_SINK_TEST")
+  public static void setTempTargetBigTableInstanceAndTableName() {
+    bigtableTargetInstance = bigtableInstance;
+    bigtableTargetCluster = bigtableCluster;
+    bigtableTargetTable = "e2e_target_table_"
+            + UUID.randomUUID().toString().substring(0, 10).replaceAll("-", "_");
+    PluginPropertyUtils.addPluginProp("bigtableTargetInstance", bigtableTargetInstance);
+    PluginPropertyUtils.addPluginProp("bigtableTargetCluster", bigtableTargetCluster);
+    PluginPropertyUtils.addPluginProp("bigtableTargetTable", bigtableTargetTable);
+    BeforeActions.scenario.write("BigTable Target instance name - " + bigtableTargetInstance);
+    BeforeActions.scenario.write("BigTable Target cluster name - " + bigtableTargetCluster);
+    BeforeActions.scenario.write("BigTable Target table name - " + bigtableTargetTable);
+  }
+
+  @After(order = 2, value = "@BIGTABLE_SINK_TEST")
+  public static void emptyTargetBigTableInstanceAndTableName() {
+    PluginPropertyUtils.removePluginProp("bigtableTargetInstance");
+    PluginPropertyUtils.removePluginProp("bigtableTargetCluster");
+    PluginPropertyUtils.removePluginProp("bigtableTargetTable");
+    bigtableTargetInstance = StringUtils.EMPTY;
+    bigtableTargetCluster = StringUtils.EMPTY;
+    bigtableTargetTable = StringUtils.EMPTY;
+  }
+
+  @Before(order = 2, value = "@EXISTING_BIGTABLE_SINK")
+  public static void makeExistingBigTableInstanceAndTableName() {
+    try {
+      String projectId = PluginPropertyUtils.pluginProp("projectId");
+      instanceAdminSettings =
+              BigtableInstanceAdminSettings.newBuilder().setProjectId(projectId).build();
+      adminClient = BigtableInstanceAdminClient.create(instanceAdminSettings);
+      bigtableTargetInstance = bigtableInstance;
+      bigtableTargetCluster = bigtableCluster;
+      bigtableExistingTargetTable = "e2e_target_table_"
+              + UUID.randomUUID().toString().substring(0, 10).replaceAll("-", "_");
+
+      BigTableClient.createBigTableInstance(adminClient, bigtableTargetInstance, bigtableTargetCluster);
+      bigTableExistingTargetTableConnection =
+              BigTableClient.connect(projectId, bigtableTargetInstance, null);
+      BigTableClient.createTables(bigTableExistingTargetTableConnection, null, bigtableExistingTargetTable);
+      PluginPropertyUtils.addPluginProp("bigtableTargetInstance", bigtableTargetInstance);
+      PluginPropertyUtils.addPluginProp("bigtableTargetCluster", bigtableTargetCluster);
+      PluginPropertyUtils.addPluginProp("bigtableTargetExistingTable", bigtableExistingTargetTable);
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+    }
+
+  @After(order = 2, value = "@EXISTING_BIGTABLE_SINK")
+  public static void emptyExistingBigTableInstanceAndTableName() {
+    try {
+      PluginPropertyUtils.removePluginProp("bigtableTargetInstance");
+      PluginPropertyUtils.removePluginProp("bigtableTargetCluster");
+      PluginPropertyUtils.removePluginProp("bigtableTargetExistingTable");
+      bigtableTargetInstance = StringUtils.EMPTY;
+      bigtableTargetCluster = StringUtils.EMPTY;
+      bigtableExistingTargetTable = StringUtils.EMPTY;
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
   }
 }
