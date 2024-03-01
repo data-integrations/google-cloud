@@ -1,5 +1,5 @@
 @Spanner_Source @SPANNER_TEST
-Feature: Spanner source - Verification of Spanner to Spanner successful data transfer using connections
+Feature: Spanner source - Verification Of Spanner to Spanner successful data transfer using connections
 
   @SPANNER_SOURCE_BASIC_TEST @SPANNER_SINK_TEST @SPANNER_CONNECTION @Spanner_Source_Required
   Scenario: To verify data transfer from Spanner to Spanner with pipeline connection created from wrangler

@@ -854,6 +854,12 @@
       <version>0.2.0</version>
     </dependency>
     <!-- End: dependency used by the Dataplex connector -->
+    <!-- https://mvnrepository.com/artifact/com.google.cloud/google-cloud-bigtable -->
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-bigtable</artifactId>
+      <version>1.17.1</version>
+    </dependency>
   </dependencies>
 
   <build>
