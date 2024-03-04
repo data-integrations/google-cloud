@@ -198,6 +198,7 @@ public final class BigQueryArgumentSetterConfig extends AbstractBigQueryActionCo
     Map<String, Field> argumentConditionFields = extractArgumentsFields(fields, argumentConditionMap);
 
     checkIfArgumentsColumnsExitsInSource(argumentConditionMap, argumentConditionFields);
+    checkIfArgumentsColumnsListExistsInSource(getArgumentsColumnsList(), fields, collector);
 
     String selectClause = getSelectClause();
     String whereCondition = getWhereCondition(argumentConditionMap.keySet());
@@ -226,6 +227,25 @@ public final class BigQueryArgumentSetterConfig extends AbstractBigQueryActionCo
     throw new RuntimeException(String.format(
       "Columns: \" %s \"do not exist in table. Argument selections columns must exist in table.",
       nonExistingColumnNames));
+  }
+
+  static void checkIfArgumentsColumnsListExistsInSource(
+    List<String> argumentsColumnsList, FieldList fields, FailureCollector collector) {
+    Set<String> fieldsNames = fields.stream().map(Field::getName).collect(Collectors.toSet());
+    List<String> nonExistingColumns = argumentsColumnsList.stream()
+      .filter(columnName -> !fieldsNames.contains(columnName))
+      .collect(Collectors.toList());
+    if (!nonExistingColumns.isEmpty()) {
+      String formattedNonExistingColumnsList = String.join(" ,", nonExistingColumns);
+      String[] oneManyColumn = {"Column", "Columns"};
+      String[] oneManyDo = {"does", "do"};
+      int oneManyIndex = nonExistingColumns.size() == 1 ? 0 : 1;
+      collector.addFailure(
+        String.format("%s: \"%s\" %s not exist in table. Argument columns must exist in table.",
+          oneManyColumn[oneManyIndex], formattedNonExistingColumnsList, oneManyDo[oneManyIndex]),
+        "Ensure correct column names are provided.")
+        .withConfigProperty(NAME_ARGUMENTS_COLUMNS);
+    }
   }
 
   private Map<String, Field> extractArgumentsFields(
