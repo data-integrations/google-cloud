@@ -518,6 +518,18 @@
           "name": "truncateTable"
         }
       ]
+    },
+    {
+      "name": "DedupeByFieldFilter",
+      "condition": {
+        "expression": "operation == 'update' || operation == 'upsert'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "dedupeBy"
+        }
+      ]
     }
   ],
   "jump-config": {
