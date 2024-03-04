@@ -1296,4 +1296,41 @@ public class TestSetupHooks {
   public static void createBucketWithLifeCycle() throws IOException, URISyntaxException {
     gcsTargetBucketName = createGCSBucketLifeCycle();
     BeforeActions.scenario.write("GCS target bucket name - " + gcsTargetBucketName); }
+
+  @Before(order = 1, value = "@BQEXECUTE_SOURCE_TEST")
+  public static void createBQEcxecuteSourceBQTable() throws IOException, InterruptedException {
+    bqSourceTable = "E2E_SOURCE_" + UUID.randomUUID().toString().replaceAll("-", "_");
+    BigQueryClient.getSoleQueryResult("create table `" + datasetName + "." + bqSourceTable + "` " +
+                                        "(ID INT64, Name STRING, " + "Price FLOAT64," +
+                                        "TableName STRING ) ");
+    try {
+      io.cdap.e2e.utils.BigQueryClient.getSoleQueryResult("INSERT INTO `" + datasetName + "." + bqSourceTable + "` " +
+                                                            "(ID,  Name, Price, TableName)" +
+                                                            "VALUES" + "(1, 'string_1', 0.1, 'Test')");
+    } catch (NoSuchElementException e) {
+      // Insert query does not return any record.
+      // Iterator on TableResult values in getSoleQueryResult method throws NoSuchElementException
+      BeforeActions.scenario.write("Error inserting the record in the table" + e.getStackTrace());
+    }
+    PluginPropertyUtils.addPluginProp("bqSourceTable", bqSourceTable);
+    BeforeActions.scenario.write("BQ source Table " + bqSourceTable + " created successfully");
+  }
+
+  @After(order = 1, value = "@BQEXECUTE_SOURCE_TEST")
+  public static void deleteBQExecuteSourceTable() throws IOException, InterruptedException {
+    BigQueryClient.dropBqQuery(bqSourceTable);
+    PluginPropertyUtils.removePluginProp("bqSourceTable");
+    BeforeActions.scenario.write("BQ source Table " + bqSourceTable + " deleted successfully");
+    bqSourceTable = StringUtils.EMPTY;
+  }
+
+  @Before(order = 2, value = "@BQEXECUTE_INSERT_SQL")
+  public static void replaceTableDetailsInInsertQuerySql() {
+    replaceTableDetailsInQuery("bqExecuteInsert", "bqSourceTable");
+  }
+
+  @After(order = 2, value = "@BQEXECUTE_INSERT_SQL")
+  public static void setInsertQueryBackWithTableDetailsPlaceholderSql() {
+    setQueryBackWithTableDetailsPlaceholder("bqExecuteInsert");
+  }
 }

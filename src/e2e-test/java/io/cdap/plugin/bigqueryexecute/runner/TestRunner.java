@@ -25,7 +25,8 @@ import org.junit.runner.RunWith;
 @RunWith(Cucumber.class)
 @CucumberOptions(
   features = {"src/e2e-test/features"},
-  glue = {"io.cdap.plugin.bigqueryexecute.stepsdesign", "io.cdap.plugin.common.stepsdesign", "stepsdesign"},
+  glue = {"io.cdap.plugin.bigqueryexecute.stepsdesign", "io.cdap.plugin.common.stepsdesign", "stepsdesign",
+    "io.cdap.plugin.bigquery.stepsdesign"},
   tags = {"@BQExecute"},
   monochrome = true,
   plugin = {"pretty", "html:target/cucumber-html-report/bqExecute",
