@@ -131,9 +131,10 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
       // this is because spanner exception error message is not very user friendly. It contains class names and new
       // lines in the error message.
       collector.addFailure(String.format(
-          "Unable to connect to spanner instance with error code: %s", e.getErrorCode().name()),
+                  "Unable to connect to spanner instance with error code: %s and error message: %s",
+                  e.getErrorCode().name(), e.getMessage()),
               "Verify spanner configurations such as instance, database, table, project, etc.")
-        .withStacktrace(e.getStackTrace());
+          .withStacktrace(e.getStackTrace());
     }
   }
 
