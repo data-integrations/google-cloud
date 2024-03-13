@@ -55,7 +55,10 @@ public class SpannerSinkConfig extends PluginConfig {
   private static final String NAME_CMEK_KEY = "cmekKey";
 
   @Name(NAME_TABLE)
-  @Description("Cloud Spanner table id. Uniquely identifies your table within the Cloud Spanner database")
+  @Description("Cloud Spanner table id. Uniquely identifies your table within the Cloud Spanner database."
+      + " Note: A table with no primary key columns can have only one row."
+      + " Only GoogleSQL-dialect databases can have tables without a primary key."
+      + " Please refer to https://cloud.google.com/spanner/docs/schema-and-data-model for more details.")
   @Macro
   private String table;
 
