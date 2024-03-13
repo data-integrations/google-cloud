@@ -42,6 +42,10 @@ Each record is composed of columns (also called fields).
 Every table is defined by a schema that describes the column names, data types, and other information.
 If the table does not exist, it will get created.
 
+**Note**: A table with no primary key columns can have only one row.
+Only GoogleSQL-dialect databases can have tables without a primary key.
+Please click [here](https://cloud.google.com/spanner/docs/schema-and-data-model) for more details.
+
 **Primary Key**: If the table does not exist, a primary key must be provided in order to auto-create the table.
 The key can be a composite key of multiple fields in the schema. This is not required if the table already exists.
 
