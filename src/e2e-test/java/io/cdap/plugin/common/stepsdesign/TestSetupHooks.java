@@ -84,6 +84,7 @@ public class TestSetupHooks {
   public static BigtableInstanceAdminClient adminClient;
   public static Connection bigTableConnection;
   public static Connection bigTableExistingTargetTableConnection;
+  public static String spannerExistingTargetTable = StringUtils.EMPTY;
 
   @Before(order = 1)
   public static void overrideServiceAccountFilePathIfProvided() {
@@ -1348,6 +1349,34 @@ public class TestSetupHooks {
   public static void setInsertQueryBackWithTableDetailsPlaceholderSql() {
     setQueryBackWithTableDetailsPlaceholder("bqExecuteInsert");
   }
+
+  @Before(order = 2, value = "@EXISTING_SPANNER_SINK")
+  public static void makeExistingTargetSpannerDBAndTableName() {
+    try {
+      spannerTargetDatabase = spannerDatabase;
+      spannerExistingTargetTable = PluginPropertyUtils.pluginProp("spannerExistingTargetTable");
+      String createQuery = null;
+      try {
+        createQuery = new String(Files.readAllBytes(Paths.get(TestSetupHooks.class.getResource
+                ("/" + PluginPropertyUtils.pluginProp("spannerTestDataCreateExistingSinkTableQueriesFile")).toURI()))
+                , StandardCharsets.UTF_8);
+
+      } catch (Exception e) {
+        BeforeActions.scenario.write("Exception in reading "
+                + PluginPropertyUtils.pluginProp("spannerTestDataCreateExistingSinkTableQueriesFile")
+                + " - " + e.getMessage());
+        Assert.fail("Exception in Spanner testdata prerequisite -"
+                + "error in reading create existing table queries file."
+                + e.getMessage());
+      }
+      SpannerClient.executeDMLQuery(spannerInstance, spannerTargetDatabase, createQuery);
+      PluginPropertyUtils.addPluginProp("spannerTargetDatabase", spannerTargetDatabase);
+      PluginPropertyUtils.addPluginProp("spannerExistingTargetTable", spannerExistingTargetTable);
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
+
 
 
   @Before(order = 1, value = "@BIGTABLE_SOURCE_TEST")
