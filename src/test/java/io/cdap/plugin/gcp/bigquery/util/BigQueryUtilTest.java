@@ -17,6 +17,7 @@
 package io.cdap.plugin.gcp.bigquery.util;
 
 import com.google.cloud.bigquery.Field;
+import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.StandardSQLTypeName;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
@@ -470,4 +471,11 @@ public class BigQueryUtilTest {
             collector.getValidationFailures().get(0).getMessage());
   }
 
+  @Test
+  public void testConvertFieldTypeJsonToString() {
+      Field field = Field.newBuilder("demo", LegacySQLTypeName.valueOf("JSON")).build();
+      Schema expectedSchema = Schema.of(Schema.Type.STRING);
+      Schema result = BigQueryUtil.convertFieldType(field, null, null);
+      Assert.assertEquals(expectedSchema, result);
+  }
 }

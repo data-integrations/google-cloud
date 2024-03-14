@@ -20,6 +20,7 @@ import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.FieldValue;
 import com.google.cloud.bigquery.FieldValueList;
+import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.StandardSQLTypeName;
 import com.google.cloud.bigquery.TableResult;
 import com.google.common.io.BaseEncoding;
@@ -158,5 +159,14 @@ public class BigQueryDataParserTest {
       return value;
     }
     return Strings.repeat('0', length - value.length()) + value;
+  }
+
+  @Test
+  public void testJsonFieldConversionToString() {
+    Field field = Field.newBuilder("demo", LegacySQLTypeName.valueOf("JSON")).build();
+    String jsonValue = "{\"key\":\"value\"}";
+    FieldValue fieldValue = FieldValue.of(FieldValue.Attribute.PRIMITIVE, jsonValue);
+    Object result = BigQueryDataParser.convertValue(field, fieldValue);
+    Assert.assertEquals(jsonValue, result);
   }
 }
