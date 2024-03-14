@@ -292,7 +292,9 @@ public final class BigQueryUtil {
   public static Schema convertFieldType(Field field, @Nullable FailureCollector collector,
                                         @Nullable String recordPrefix) {
     LegacySQLTypeName type = field.getType();
-    StandardSQLTypeName standardType = type.getStandardType();
+    // Treat JSON as string
+    StandardSQLTypeName standardType = LegacySQLTypeName.valueOf("JSON").equals(type) ?
+    StandardSQLTypeName.STRING : type.getStandardType();
     switch (standardType) {
       case FLOAT64:
         // float is a float64, so corresponding type becomes double
