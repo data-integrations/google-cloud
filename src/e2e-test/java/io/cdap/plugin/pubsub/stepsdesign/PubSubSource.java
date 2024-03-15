@@ -16,9 +16,21 @@
 
 package io.cdap.plugin.pubsub.stepsdesign;
 
+import io.cdap.e2e.pages.locators.CdfStudioLocators;
 import io.cdap.e2e.utils.CdfHelper;
+import io.cdap.e2e.utils.ElementHelper;
+import io.cdap.e2e.utils.SeleniumDriver;
+import io.cdap.plugin.common.stepsdesign.TestSetupHooks;
+import io.cdap.plugin.pubsub.actions.PubSubActions;
+import io.cdap.plugin.pubsub.locators.PubSubLocators;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
+import org.openqa.selenium.Keys;
+import org.openqa.selenium.interactions.Actions;
+
+import java.io.IOException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 /**
  * PubSub Source Plugin related step design.
@@ -33,6 +45,61 @@ public class PubSubSource implements CdfHelper {
 
   @Then("Open the PubSub source properties")
   public void openThePubSubSourceProperties() {
-    openSourcePluginProperties("GooglePublisher");
+    openSourcePluginProperties("pubsub");
+  }
+
+  @Then("Enter PubSub source property topic name")
+  public void enterPubSubSourcePropertyTopicName() {
+    PubSubActions.enterPubSubTopic(TestSetupHooks.pubSubSourceTopic);
+  }
+
+  @Then("Enter PubSub source property subscription name")
+  public void enterPubSubSourcePropertySubscriptionName() {
+    PubSubActions.enterSubscription(TestSetupHooks.pubSubSourceSubscription);
+  }
+
+  @Then("Publish the messages")
+  public void publishTheMessage() throws IOException, InterruptedException {
+    TimeUnit time = TimeUnit.SECONDS;
+    time.sleep(120);
+    TestSetupHooks.publishMessageJsonFormat();
+    time.sleep(20);
+  }
+
+  @Then("Publish the messages for text format")
+  public void publishTheMessageTextFormat() throws IOException, InterruptedException, IOException {
+    TimeUnit time = TimeUnit.SECONDS;
+    time.sleep(120);
+    TestSetupHooks.publishMessage();
+    time.sleep(20);
+  }
+
+  @Then("Enter runtime argument value for PubSub source property topic key {string}")
+  public void enterRuntimeArgumentValueForPubSubSourcePropertyTopicKey(String runtimeArgumentKey) {
+    ElementHelper.clickOnElement(PubSubLocators.clickOnRuntimeArgumentButton);
+    ElementHelper.sendKeys(CdfStudioLocators.runtimeArgsValue(runtimeArgumentKey), TestSetupHooks.pubSubSourceTopic);
+  }
+
+  @Then("Enter runtime argument value for PubSub source property subscription key {string}")
+  public void enterRuntimeArgumentValueForPubSubSourcePropertySubscriptionKey(String runtimeArgumentKey) {
+    ElementHelper.sendKeys(CdfStudioLocators.runtimeArgsValue(runtimeArgumentKey),
+                           TestSetupHooks.pubSubSourceSubscription);
+  }
+
+  @Then("Add schema for the message")
+  public void addSchemaForTheMessageWithOptionValue() {
+    PubSubActions.selectDataType();
+    ElementHelper.sendKeys(PubSubLocators.addField, "name");
+    Actions act = new Actions(SeleniumDriver.getDriver());
+    act.sendKeys(Keys.ENTER).perform();
+    ElementHelper.sendKeys(PubSubLocators.addField, "postabbr");
+  }
+
+  @Then("Publish the messages with schema")
+  public void publishTheMessagesWithSchema() throws InterruptedException, IOException, ExecutionException {
+    TimeUnit time = TimeUnit.SECONDS;
+    time.sleep(120);
+    TestSetupHooks.publishMessageAvroFormat();
+    time.sleep(20);
   }
 }
