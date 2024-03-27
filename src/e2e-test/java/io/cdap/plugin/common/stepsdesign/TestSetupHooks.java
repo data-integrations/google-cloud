@@ -61,6 +61,7 @@ public class TestSetupHooks {
   public static String bqTargetTable = StringUtils.EMPTY;
   public static String bqSourceTable = StringUtils.EMPTY;
   public static String bqSourceTable2 = StringUtils.EMPTY;
+  public static String bqTargetTable2 = StringUtils.EMPTY;
   public static String bqSourceView = StringUtils.EMPTY;
   public static String pubSubTargetTopic = StringUtils.EMPTY;
   public static String spannerInstance = StringUtils.EMPTY;
@@ -1389,6 +1390,133 @@ public class TestSetupHooks {
       PluginPropertyUtils.addPluginProp("spannerExistingTargetTable", spannerExistingTargetTable);
     } catch (Exception e) {
       e.printStackTrace();
+    }
+  }
+  @Before(order = 1, value = "@BQ_SINGLE_SOURCE_BQMT_TEST")
+  public static void createSourceBQTableForBqmt() throws IOException, InterruptedException {
+    createSourceBQTableWithQueries(PluginPropertyUtils.pluginProp("bqmtCreateTableQueryFile"),
+                                   PluginPropertyUtils.pluginProp("bqmtInsertDataQueryFile"));
+  }
+
+  @Before(order = 1, value = "@BQ_TWO_SOURCE_BQMT_TEST")
+  public static void createTwoSourceBQTable() throws IOException, InterruptedException {
+    bqSourceTable = "E2E_SOURCE_" + UUID.randomUUID().toString().replaceAll("-", "_");
+    bqSourceTable2 = "E2E_SOURCE_" + UUID.randomUUID().toString().replaceAll("-", "_");
+    io.cdap.e2e.utils.BigQueryClient.getSoleQueryResult("create table `" + datasetName + "." + bqSourceTable2 + "` " +
+                                                          "(ID INT64, tablename STRING," +
+                                                          "Price FLOAT64, Customer_Exists BOOL ) ");
+    try {
+      io.cdap.e2e.utils.BigQueryClient.getSoleQueryResult("INSERT INTO `" + datasetName + "." + bqSourceTable2 + "` " +
+                                                            "(ID,  tablename, Price, Customer_Exists)" +
+                                                            "VALUES" + "(3, 'tabB', 0.5, true )");
+    } catch (NoSuchElementException e) {
+      // Insert query does not return any record.
+      // Iterator on TableResult values in getSoleQueryResult method throws NoSuchElementException
+      BeforeActions.scenario.write("Error inserting the record in the table" + e.getStackTrace());
+    }
+    io.cdap.e2e.utils.BigQueryClient.getSoleQueryResult("create table `" + datasetName + "." + bqSourceTable + "` " +
+                                                          "(ID INT64, tablename STRING," +
+                                                          "Price FLOAT64, Customer_Exists BOOL ) ");
+    try {
+      io.cdap.e2e.utils.BigQueryClient.getSoleQueryResult("INSERT INTO `" + datasetName + "." + bqSourceTable + "` " +
+                                                            "(ID,  tablename, Price, Customer_Exists)" +
+                                                            "VALUES" + "(1, 'tabA', 2.5, true )");
+    } catch (NoSuchElementException e) {
+      // Insert query does not return any record.
+      // Iterator on TableResult values in getSoleQueryResult method throws NoSuchElementException
+      BeforeActions.scenario.write("Error inserting the record in the table" + e.getStackTrace());
+    }
+    PluginPropertyUtils.addPluginProp("bqSourceTable", bqSourceTable);
+    BeforeActions.scenario.write("BQ Source Table " + bqSourceTable + " created successfully");
+    PluginPropertyUtils.addPluginProp("bqSourceTable2", bqSourceTable2);
+    BeforeActions.scenario.write("BQ Source Table2 " + bqSourceTable2 + " created successfully");
+  }
+
+
+  @Before(order = 1, value = "@BQ_EXISTING_TARGET_TEST")
+  public static void createSinkTables() throws IOException, InterruptedException {
+    bqTargetTable = PluginPropertyUtils.pluginProp("bqTargetTable");
+    bqTargetTable2 = PluginPropertyUtils.pluginProp("bqTargetTable2");
+    io.cdap.e2e.utils.BigQueryClient.getSoleQueryResult("create table `" + datasetName + "." + bqTargetTable + "` " +
+                                                          "(ID INT64, tablename STRING," +
+                                                          "Price FLOAT64, Customer_Exists BOOL ) ");
+
+    io.cdap.e2e.utils.BigQueryClient.getSoleQueryResult("create table `" + datasetName + "." + bqTargetTable2 + "` " +
+                                                          "(ID INT64, tablename STRING," +
+                                                          "Price FLOAT64, Customer_Exists BOOL ) ");
+
+    PluginPropertyUtils.addPluginProp("bqTargetTable", bqTargetTable);
+    PluginPropertyUtils.addPluginProp("bqTargetTable2", bqTargetTable2);
+  }
+  @Before(order = 1, value = "@BQ_SOURCE_UPDATE_TEST")
+  public static void createSourceTables() throws IOException, InterruptedException {
+    bqSourceTable = "E2E_SOURCE_" + UUID.randomUUID().toString().replaceAll("-", "_");
+    bqSourceTable2 = "E2E_SOURCE_" + UUID.randomUUID().toString().replaceAll("-", "_");
+    io.cdap.e2e.utils.BigQueryClient.getSoleQueryResult("create table `" + datasetName + "." + bqSourceTable + "` " +
+                                                          "(ID INT64, tablename STRING," +
+                                                          "Price FLOAT64, Customer_Exists BOOL, Address STRING ) ");
+    try {
+      io.cdap.e2e.utils.BigQueryClient.getSoleQueryResult("INSERT INTO `" + datasetName + "." + bqSourceTable + "` " +
+                                                            "(ID,  tablename, Price, Customer_Exists, Address)" +
+                                                            "VALUES" + "(8, 'tabA', 0.5, true, 'GGN')");
+
+    } catch (NoSuchElementException e) {
+      // Insert query does not return any record.
+      // Iterator on TableResult values in getSoleQueryResult method throws NoSuchElementException
+         BeforeActions.scenario.write("Error inserting the record in the table" + e.getStackTrace());
+    }
+    io.cdap.e2e.utils.BigQueryClient.getSoleQueryResult("create table `" + datasetName + "." + bqSourceTable2 + "` " +
+                                                          "(ID INT64, tablename STRING," +
+                                                          "Price FLOAT64, Customer_Exists BOOL, Address STRING ) ");
+    try {
+      io.cdap.e2e.utils.BigQueryClient.getSoleQueryResult("INSERT INTO `" + datasetName + "." + bqSourceTable2 + "` " +
+                                                            "(ID,  tablename, Price, Customer_Exists, Address)" +
+                                                            "VALUES" + "(10, 'tabB', 1.0, true, 'PPU')");
+
+    } catch (NoSuchElementException e) {
+      // Insert query does not return any record.
+      // Iterator on TableResult values in getSoleQueryResult method throws NoSuchElementException
+         BeforeActions.scenario.write("Error inserting the record in the table" + e.getStackTrace());
+    }
+
+    PluginPropertyUtils.addPluginProp("bqSourceTable", bqSourceTable);
+    PluginPropertyUtils.addPluginProp("bqSourceTable2", bqSourceTable2);
+  }
+
+  @After(order = 1, value = "@BQ_DELETE_TABLES_TEST")
+  public static void deleteAllBqTables() throws IOException, InterruptedException {
+    BigQueryClient.dropBqQuery(bqSourceTable);
+    BigQueryClient.dropBqQuery(bqSourceTable2);
+    BigQueryClient.dropBqQuery(PluginPropertyUtils.pluginProp("bqTargetTable"));
+    BigQueryClient.dropBqQuery(PluginPropertyUtils.pluginProp("bqTargetTable2"));
+    PluginPropertyUtils.removePluginProp("bqSourceTable");
+    PluginPropertyUtils.removePluginProp("bqSourceTable2");
+    BeforeActions.scenario.write("BQ source Table " + bqSourceTable + " deleted successfully");
+    BeforeActions.scenario.write("BQ source Table2 " + bqSourceTable2 + " deleted successfully");
+    BeforeActions.scenario.write("BQ target Table " + bqTargetTable + " deleted successfully");
+    BeforeActions.scenario.write("BQ target Table2 " + bqTargetTable + " deleted successfully");
+    bqSourceTable = StringUtils.EMPTY;
+    bqSourceTable2 = StringUtils.EMPTY;
+    bqTargetTable =  StringUtils.EMPTY;
+    bqTargetTable2 = StringUtils.EMPTY;
+  }
+
+  @After(order = 1, value = "@BQ_SINK_BQMT_TEST")
+  public static void deleteTargetBqmtTable() throws IOException, InterruptedException {
+    try {
+      bqTargetTable = PluginPropertyUtils.pluginProp("bqTargetTable");
+      BigQueryClient.dropBqQuery(bqTargetTable);
+      BigQueryClient.dropBqQuery(bqSourceTable);
+      BeforeActions.scenario.write("BQ Target table - " + bqTargetTable + " deleted successfully");
+      BeforeActions.scenario.write("BQ Source table - " + bqSourceTable + " deleted successfully");
+      bqTargetTable = StringUtils.EMPTY;
+    } catch (BigQueryException e) {
+      if (e.getMessage().contains("Not found: Table")) {
+        BeforeActions.scenario.write("BQ Target Table " + bqTargetTable + " does not exist");
+        BeforeActions.scenario.write("BQ Source Table " + bqSourceTable + " does not exist");
+      } else {
+        Assert.fail(e.getMessage());
+      }
     }
   }
 }
