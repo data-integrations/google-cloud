@@ -1,5 +1,5 @@
 @BigQuery_Source
-Feature: BigQuery source - Validate BigQuery source plugin error scenarios
+Feature: BigQuery source - Validate BigQuery source Plugin error scenarios
 
   Scenario Outline:Verify BigQuery Source properties validation errors for mandatory fields
     Given Open Datafusion Project to configure pipeline
