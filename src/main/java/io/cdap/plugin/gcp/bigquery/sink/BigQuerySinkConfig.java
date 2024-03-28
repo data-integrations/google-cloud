@@ -24,6 +24,7 @@ import com.google.cloud.bigquery.TimePartitioning;
 import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
@@ -74,7 +75,6 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   public static final String NAME_RANGE_START = "rangeStart";
   public static final String NAME_RANGE_END = "rangeEnd";
   public static final String NAME_RANGE_INTERVAL = "rangeInterval";
-
   public static final int MAX_NUMBER_OF_COLUMNS = 4;
   // As defined in https://cloud.google.com/bigquery/docs/schemas#column_names
   private static final int MAX_LENGTH_OF_COLUMN_NAME = 300;
@@ -200,13 +200,15 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
                              @Nullable String serviceAccountType, @Nullable String serviceFilePath,
                              @Nullable String serviceAccountJson,
                              @Nullable String dataset, @Nullable String table, @Nullable String location,
-                             @Nullable String cmekKey, @Nullable String bucket, @Nullable String jobLabelKeyValue) {
+                             @Nullable String cmekKey, @Nullable String bucket, @Nullable String jobLabelKeyValue,
+                             @Nullable String timePartitioningType) {
     super(new BigQueryConnectorConfig(project, project, serviceAccountType,
             serviceFilePath, serviceAccountJson), dataset, cmekKey, bucket);
     this.referenceName = referenceName;
     this.table = table;
     this.location = location;
     this.jobLabelKeyValue = jobLabelKeyValue;
+    this.timePartitioningType = timePartitioningType;
   }
 
   public String getTable() {
@@ -282,8 +284,26 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
   }
 
   public TimePartitioning.Type getTimePartitioningType() {
-    return Strings.isNullOrEmpty(timePartitioningType) ? TimePartitioning.Type.DAY :
-            TimePartitioning.Type.valueOf(timePartitioningType.toUpperCase());
+    // Default to DAY if timePartitioningType is not set
+    if (Strings.isNullOrEmpty(timePartitioningType)) {
+      return TimePartitioning.Type.DAY;
+    }
+    switch (timePartitioningType.toUpperCase()) {
+      case "DAY":
+      case "DAILY":
+        return TimePartitioning.Type.DAY;
+      case "HOUR":
+      case "HOURLY":
+        return TimePartitioning.Type.HOUR;
+      case "MONTH":
+      case "MONTHLY":
+        return TimePartitioning.Type.MONTH;
+      case "YEAR":
+      case "YEARLY":
+        return TimePartitioning.Type.YEAR;
+      default:
+        throw new IllegalArgumentException("Invalid time partitioning type: " + timePartitioningType);
+    }
   }
 
   /**
@@ -710,6 +730,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     private String location;
     private String bucket;
     private String jobLabelKeyValue;
+    private String timePartitioningType;
 
     public BigQuerySinkConfig.Builder setReferenceName(@Nullable String referenceName) {
       this.referenceName = referenceName;
@@ -765,6 +786,11 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
       return this;
     }
 
+    public BigQuerySinkConfig.Builder setTimePartitioningType(@Nullable String timePartitioningType) {
+      this.timePartitioningType = timePartitioningType;
+      return this;
+    }
+
     public BigQuerySinkConfig build() {
       return new BigQuerySinkConfig(
         referenceName,
@@ -777,7 +803,8 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
         location,
         cmekKey,
         bucket,
-        jobLabelKeyValue
+        jobLabelKeyValue,
+          timePartitioningType
       );
     }
 
