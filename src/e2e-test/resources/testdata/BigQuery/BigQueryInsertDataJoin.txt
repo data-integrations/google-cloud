@@ -1,0 +1,4 @@
+INSERT INTO DATASET.TABLE_NAME (id, firstname, lastname)
+VALUES
+(1,'joe','root'),
+(2,'douglas','john');

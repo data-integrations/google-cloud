@@ -1,0 +1,5 @@
+INSERT INTO DATASET.TABLE_NAME (name, address, id)
+VALUES
+('joe', 'ggn', 12),
+('root', 'ppu', 13),
+('joe', 'ggn', 12);
