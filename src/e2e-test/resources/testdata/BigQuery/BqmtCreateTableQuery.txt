@@ -1,0 +1,1 @@
+create table `DATASET.TABLE_NAME` (ID INTEGER, tablename STRING, Price Float64, Customer_Exists BOOLEAN )

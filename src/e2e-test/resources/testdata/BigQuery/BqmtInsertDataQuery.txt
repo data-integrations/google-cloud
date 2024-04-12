@@ -1,0 +1,3 @@
+INSERT INTO DATASET.TABLE_NAME (ID, tablename, Price, Customer_Exists)
+VALUES
+(1, 'tabA', 2.5, true);
