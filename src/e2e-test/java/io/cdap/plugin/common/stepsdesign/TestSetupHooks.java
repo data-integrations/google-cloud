@@ -23,6 +23,7 @@ import io.cdap.e2e.pages.actions.CdfPluginPropertiesActions;
 import io.cdap.e2e.utils.BigQueryClient;
 import io.cdap.e2e.utils.PluginPropertyUtils;
 import io.cdap.e2e.utils.StorageClient;
+import io.cdap.plugin.utils.DataStoreClient;
 import io.cdap.plugin.utils.PubSubClient;
 import io.cdap.plugin.utils.SpannerClient;
 import io.cucumber.java.After;
@@ -69,6 +70,8 @@ public class TestSetupHooks {
   public static String spannerTargetTable = StringUtils.EMPTY;
   public static boolean firstSpannerTestFlag = true;
   public static String datasetName = PluginPropertyUtils.pluginProp("dataset");
+  public static String kindName = StringUtils.EMPTY;
+  public static String targetKind = StringUtils.EMPTY;
   public static String spannerExistingTargetTable = StringUtils.EMPTY;
 
   @Before(order = 1)
@@ -1298,6 +1301,33 @@ public class TestSetupHooks {
     gcsTargetBucketName = createGCSBucketLifeCycle();
     BeforeActions.scenario.write("GCS target bucket name - " + gcsTargetBucketName); }
 
+  @Before(order = 1, value = "@DATASTORE_SOURCE_ENTITY")
+  public static void createEntityInCloudDataStore() throws IOException, URISyntaxException {
+    kindName = "cdf-test-" + UUID.randomUUID().toString().substring(0, 8);
+   String entityName = DataStoreClient.createKind(kindName);
+    PluginPropertyUtils.addPluginProp("kindName", entityName);
+    BeforeActions.scenario.write("Kind name - " + entityName + " created successfully");
+    }
+
+  @After(order = 1, value = "@DATASTORE_SOURCE_ENTITY")
+  public static void deleteEntityInCloudDataStore() throws IOException, URISyntaxException {
+    DataStoreClient.deleteEntity(kindName);
+    BeforeActions.scenario.write("Kind name - " + kindName + " deleted successfully");
+}
+
+  @Before(order = 2, value = "@DATASTORE_TARGET_ENTITY")
+  public static void setTempTargetKindName() {
+    targetKind = "cdf-target-test-" + UUID.randomUUID().toString().substring(0, 8);
+    PluginPropertyUtils.addPluginProp("targetKind", targetKind);
+    BeforeActions.scenario.write("Target kind name - " + targetKind);
+  }
+
+  @After(order = 1, value = "@DATASTORE_TARGET_ENTITY")
+  public static void deleteTargetEntityInCloudDataStore() throws IOException, URISyntaxException {
+    DataStoreClient.deleteEntity(targetKind);
+    BeforeActions.scenario.write("Target Kind name - " + targetKind + " deleted successfully");
+  }
+
   @Before(order = 1, value = "@BQEXECUTE_SOURCE_TEST")
   public static void createBQEcxecuteSourceBQTable() throws IOException, InterruptedException {
     bqSourceTable = "E2E_SOURCE_" + UUID.randomUUID().toString().replaceAll("-", "_");
@@ -1361,5 +1391,4 @@ public class TestSetupHooks {
       e.printStackTrace();
     }
   }
-
 }
