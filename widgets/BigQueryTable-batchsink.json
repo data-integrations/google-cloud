@@ -530,6 +530,18 @@
           "name": "dedupeBy"
         }
       ]
+    },
+    {
+      "name": "relationTableKeyFilter",
+      "condition": {
+        "expression": "operation == 'update' || operation == 'upsert'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "relationTableKey"
+        }
+      ]
     }
   ],
   "jump-config": {
