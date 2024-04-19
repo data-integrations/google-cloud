@@ -390,6 +390,10 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     String tableName = getTable();
     String serviceAccount = getServiceAccount();
 
+    if (shouldCreatePartitionedTable()) {
+      validateColumnForPartition(partitionByField, schema, collector);
+    }
+
     if (project == null || dataset == null || tableName == null || serviceAccount == null) {
       return;
     }
@@ -415,11 +419,6 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
       } else if (rangePartitioning != null) {
         validateRangePartitionTableWithInputConfiguration(table, rangePartitioning, collector);
       }
-      validateColumnForPartition(partitionByField, schema, collector);
-      return;
-    }
-    if (shouldCreatePartitionedTable()) {
-      validateColumnForPartition(partitionByField, schema, collector);
     }
   }
 
@@ -538,6 +537,14 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
       collector.addFailure("Range End is not defined.",
                            "For Integer Partitioning, Range End must be defined.")
         .withConfigProperty(NAME_RANGE_END);
+    }
+
+    if (!containsMacro(NAME_RANGE_START) && !containsMacro(NAME_RANGE_END) && rangeStart != null && rangeEnd != null) {
+      if (rangeEnd <= rangeStart) {
+        collector.addFailure("Range End is less than or equal to Range Start.",
+                             "Range End must be greater than Range Start.")
+          .withConfigProperty(NAME_RANGE_END);
+      }
     }
 
     if (!containsMacro(NAME_RANGE_INTERVAL)) {
