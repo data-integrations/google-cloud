@@ -159,7 +159,9 @@ public final class BigQueryDataParser {
      */
   public static Object convertValue(Field field, FieldValue fieldValue) {
     LegacySQLTypeName type = field.getType();
-    StandardSQLTypeName standardType = type.getStandardType();
+    // Treat JSON as string
+    StandardSQLTypeName standardType = LegacySQLTypeName.valueOf("JSON").equals(type) ?
+    StandardSQLTypeName.STRING : type.getStandardType();
     switch (standardType) {
       case TIME:
         return LocalTime.parse(fieldValue.getStringValue());
