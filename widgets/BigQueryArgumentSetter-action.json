@@ -72,7 +72,7 @@
           "widget-type": "csv",
           "widget-attributes" : {
             "delimiter": ",",
-            "placeholder": "The name of the column that contains the arguments for this run."
+            "value-placeholder": "The name of the column that contains the arguments for this run."
           }
         }
       ]
