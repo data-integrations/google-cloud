@@ -75,6 +75,7 @@ public class DelegatingGCSOutputFormat extends OutputFormat<NullWritable, Struct
 
   @Override
   public OutputCommitter getOutputCommitter(TaskAttemptContext context) throws IOException, InterruptedException {
+    outputCommitter.setTaskContext(context);
     return outputCommitter;
   }
 
