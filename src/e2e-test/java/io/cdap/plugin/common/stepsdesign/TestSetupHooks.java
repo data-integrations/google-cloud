@@ -1564,6 +1564,8 @@ public class TestSetupHooks {
 
     PluginPropertyUtils.addPluginProp("bqTargetTable", bqTargetTable);
     PluginPropertyUtils.addPluginProp("bqTargetTable2", bqTargetTable2);
+    BeforeActions.scenario.write("BQ Target Table " + bqTargetTable + " created successfully");
+    BeforeActions.scenario.write("BQ Target Table2 " + bqTargetTable2 + " created successfully");
   }
   @Before(order = 1, value = "@BQ_SOURCE_UPDATE_TEST")
   public static void createSourceTables() throws IOException, InterruptedException {
