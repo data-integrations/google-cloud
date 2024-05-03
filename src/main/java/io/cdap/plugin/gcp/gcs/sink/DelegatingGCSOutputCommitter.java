@@ -28,12 +28,12 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
-import java.io.BufferedInputStream;
 import java.io.BufferedReader;
-import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -44,10 +44,12 @@ import java.util.Set;
 public class DelegatingGCSOutputCommitter extends OutputCommitter {
 
   private TaskAttemptContext taskAttemptContext;
+  private final Map<String, OutputCommitter> committerMap;
   private static final String PARTITIONS_FILE_SUFFIX = "_partitions.txt";
 
 
   public DelegatingGCSOutputCommitter() {
+    committerMap = new HashMap<>();
   }
 
   // Setting Task Context to committer to use at the time of commit job to get task details
@@ -74,6 +76,7 @@ public class DelegatingGCSOutputCommitter extends OutputCommitter {
     gcsOutputCommitter.setupJob(context);
     gcsOutputCommitter.setupTask(context);
     writePartitionFile(context.getConfiguration().get(FileOutputFormat.OUTDIR), context);
+    committerMap.put(tableName, gcsOutputCommitter);
   }
 
   @Override
@@ -92,14 +95,22 @@ public class DelegatingGCSOutputCommitter extends OutputCommitter {
 
   @Override
   public boolean needsTaskCommit(TaskAttemptContext taskAttemptContext) throws IOException {
-    return true;
+    if (committerMap.isEmpty()) {
+      return false;
+    }
+
+    boolean needsTaskCommit = true;
+
+    for (OutputCommitter committer : committerMap.values()) {
+      needsTaskCommit = needsTaskCommit && committer.needsTaskCommit(taskAttemptContext);
+    }
+
+    return needsTaskCommit;
   }
 
   @Override
   public void commitTask(TaskAttemptContext taskAttemptContext) throws IOException {
-    for (String output : getOutputPaths(taskAttemptContext)) {
-      taskAttemptContext.getConfiguration().set(FileOutputFormat.OUTDIR, output);
-      FileOutputCommitter committer = new FileOutputCommitter(new Path(output), taskAttemptContext);
+    for (OutputCommitter committer : committerMap.values()) {
       committer.commitTask(taskAttemptContext);
     }
   }
@@ -107,9 +118,6 @@ public class DelegatingGCSOutputCommitter extends OutputCommitter {
   @Override
   public void commitJob(JobContext jobContext) throws IOException {
     for (String output : getOutputPaths(jobContext)) {
-      jobContext.getConfiguration().set(FileOutputFormat.OUTDIR, output);
-      // todo this taskAttemptContext is coming from Driver class with mapper context and is same for all output paths,
-      //  even though it is working fine still needs to check how it works
       FileOutputCommitter committer = new FileOutputCommitter(new Path(output), taskAttemptContext);
       committer.commitJob(jobContext);
     }
@@ -127,10 +135,8 @@ public class DelegatingGCSOutputCommitter extends OutputCommitter {
   @Override
   public void abortTask(TaskAttemptContext taskAttemptContext) throws IOException {
     IOException ioe = null;
-    for (String output : getOutputPaths(taskAttemptContext)) {
+    for (OutputCommitter committer : committerMap.values()) {
       try {
-        taskAttemptContext.getConfiguration().set(FileOutputFormat.OUTDIR, output);
-        FileOutputCommitter committer = new FileOutputCommitter(new Path(output), taskAttemptContext);
         committer.abortTask(taskAttemptContext);
       } catch (IOException e) {
         if (ioe == null) {
@@ -161,9 +167,10 @@ public class DelegatingGCSOutputCommitter extends OutputCommitter {
         } else {
           ioe.addSuppressed(e);
         }
+      } finally {
+        cleanupJob(jobContext);
       }
     }
-    cleanupJob(jobContext);
     if (ioe != null) {
       throw ioe;
     }
@@ -173,13 +180,6 @@ public class DelegatingGCSOutputCommitter extends OutputCommitter {
   private Set<String> getOutputPaths(JobContext jobContext) throws IOException {
     Path outputPath = new Path(jobContext.getConfiguration().get(DelegatingGCSOutputFormat.OUTPUT_PATH_BASE_DIR));
     FileSystem fs = outputPath.getFileSystem(jobContext.getConfiguration());
-    return getOutputPathsFromTempPartitionFile(outputPath, fs);
-  }
-
-  // return path lists based on TaskAttemptContext configuration.
-  private Set<String> getOutputPaths(TaskAttemptContext context) throws IOException {
-    Path outputPath = new Path(context.getConfiguration().get(DelegatingGCSOutputFormat.OUTPUT_PATH_BASE_DIR));
-    FileSystem fs = outputPath.getFileSystem(context.getConfiguration());
     return getOutputPathsFromTempPartitionFile(outputPath, fs);
   }
 
@@ -198,8 +198,7 @@ public class DelegatingGCSOutputCommitter extends OutputCommitter {
     for (FileStatus status : fs.listStatus(tempPath)) {
       if (status.getPath().getName().endsWith(PARTITIONS_FILE_SUFFIX)) {
         try (FSDataInputStream dis = fs.open(status.getPath());
-             DataInputStream in = new DataInputStream(new BufferedInputStream(dis));
-             BufferedReader br = new BufferedReader(new java.io.InputStreamReader(in))) {
+             BufferedReader br = new BufferedReader(new java.io.InputStreamReader(dis))) {
           String line;
           while ((line = br.readLine()) != null) {
             outputPaths.add(line);
@@ -226,6 +225,8 @@ public class DelegatingGCSOutputCommitter extends OutputCommitter {
     Path taskPartitionFile = new Path(tempPath, String.format("%s%s", taskId, PARTITIONS_FILE_SUFFIX));
     if (!fs.exists(taskPartitionFile)) {
       fs.createNewFile(taskPartitionFile);
+    } else if (committerMap.isEmpty()) {
+      fs.create(taskPartitionFile, true);
     }
     try (DataOutputStream out = fs.append(taskPartitionFile)) {
       out.writeBytes(path + "\n");

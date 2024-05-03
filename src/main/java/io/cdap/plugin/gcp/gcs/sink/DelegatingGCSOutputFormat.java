@@ -64,7 +64,6 @@ public class DelegatingGCSOutputFormat extends OutputFormat<NullWritable, Struct
   public RecordWriter<NullWritable, StructuredRecord> getRecordWriter(TaskAttemptContext context) {
     Configuration hConf = context.getConfiguration();
     String partitionField = hConf.get(PARTITION_FIELD);
-
     return new DelegatingGCSRecordWriter(context, partitionField, outputCommitter);
   }
 
