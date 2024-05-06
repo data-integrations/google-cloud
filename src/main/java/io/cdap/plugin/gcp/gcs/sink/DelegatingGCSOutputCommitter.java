@@ -21,6 +21,7 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.JobContext;
+import org.apache.hadoop.mapreduce.JobID;
 import org.apache.hadoop.mapreduce.JobStatus;
 import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.OutputFormat;
@@ -31,10 +32,9 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
+import javax.annotation.Nullable;
 
 /**
  * Output Committer which creates and delegates operations to other GCS Output Committer instances.
@@ -44,17 +44,12 @@ import java.util.Set;
 public class DelegatingGCSOutputCommitter extends OutputCommitter {
 
   private TaskAttemptContext taskAttemptContext;
-  private final Map<String, OutputCommitter> committerMap;
+  private boolean firstSplit = true;
   private static final String PARTITIONS_FILE_SUFFIX = "_partitions.txt";
 
 
-  public DelegatingGCSOutputCommitter() {
-    committerMap = new HashMap<>();
-  }
-
-  // Setting Task Context to committer to use at the time of commit job to get task details
-  public void setTaskContext(TaskAttemptContext taskContext) {
-    taskAttemptContext = taskContext;
+  public DelegatingGCSOutputCommitter(TaskAttemptContext taskContext) {
+    this.taskAttemptContext = taskContext;
   }
 
   /**
@@ -76,14 +71,14 @@ public class DelegatingGCSOutputCommitter extends OutputCommitter {
     gcsOutputCommitter.setupJob(context);
     gcsOutputCommitter.setupTask(context);
     writePartitionFile(context.getConfiguration().get(FileOutputFormat.OUTDIR), context);
-    committerMap.put(tableName, gcsOutputCommitter);
+    firstSplit = false;
   }
 
   @Override
   public void setupJob(JobContext jobContext) throws IOException {
     Path outputPath = new Path(jobContext.getConfiguration().get(DelegatingGCSOutputFormat.OUTPUT_PATH_BASE_DIR));
     FileSystem fs = outputPath.getFileSystem(jobContext.getConfiguration());
-    Path tempPath = new Path(outputPath, FileOutputCommitter.PENDING_DIR_NAME);
+    Path tempPath = new Path(outputPath, getPendingDirPath(jobContext.getJobID()));
     // creating the _temporary folder in base path
     fs.mkdirs(tempPath);
   }
@@ -95,22 +90,13 @@ public class DelegatingGCSOutputCommitter extends OutputCommitter {
 
   @Override
   public boolean needsTaskCommit(TaskAttemptContext taskAttemptContext) throws IOException {
-    if (committerMap.isEmpty()) {
-      return false;
-    }
-
-    boolean needsTaskCommit = true;
-
-    for (OutputCommitter committer : committerMap.values()) {
-      needsTaskCommit = needsTaskCommit && committer.needsTaskCommit(taskAttemptContext);
-    }
-
-    return needsTaskCommit;
+    return true;
   }
 
   @Override
   public void commitTask(TaskAttemptContext taskAttemptContext) throws IOException {
-    for (OutputCommitter committer : committerMap.values()) {
+    for (String output : getOutputPaths(taskAttemptContext)) {
+      FileOutputCommitter committer = new FileOutputCommitter(new Path(output), taskAttemptContext);
       committer.commitTask(taskAttemptContext);
     }
   }
@@ -129,14 +115,15 @@ public class DelegatingGCSOutputCommitter extends OutputCommitter {
     Path outputPath = new Path(jobContext.getConfiguration().get(DelegatingGCSOutputFormat.OUTPUT_PATH_BASE_DIR));
     FileSystem fs = outputPath.getFileSystem(jobContext.getConfiguration());
     // delete the temporary directory that has partition information in text files.
-    fs.delete(new Path(outputPath, FileOutputCommitter.PENDING_DIR_NAME), true);
+    fs.delete(new Path(outputPath, getPendingDirPath(jobContext.getJobID())), true);
   }
 
   @Override
   public void abortTask(TaskAttemptContext taskAttemptContext) throws IOException {
     IOException ioe = null;
-    for (OutputCommitter committer : committerMap.values()) {
+    for (String output : getOutputPaths(taskAttemptContext)) {
       try {
+        FileOutputCommitter committer = new FileOutputCommitter(new Path(output), taskAttemptContext);
         committer.abortTask(taskAttemptContext);
       } catch (IOException e) {
         if (ioe == null) {
@@ -180,20 +167,39 @@ public class DelegatingGCSOutputCommitter extends OutputCommitter {
   private Set<String> getOutputPaths(JobContext jobContext) throws IOException {
     Path outputPath = new Path(jobContext.getConfiguration().get(DelegatingGCSOutputFormat.OUTPUT_PATH_BASE_DIR));
     FileSystem fs = outputPath.getFileSystem(jobContext.getConfiguration());
-    return getOutputPathsFromTempPartitionFile(outputPath, fs);
+    return getOutputPathsFromTempPartitionFile(outputPath, fs, null, jobContext.getJobID());
+  }
+
+  private Set<String> getOutputPaths(TaskAttemptContext taskAttemptContext) throws IOException {
+    Path outputPath = new Path(
+      taskAttemptContext.getConfiguration().get(DelegatingGCSOutputFormat.OUTPUT_PATH_BASE_DIR));
+    FileSystem fs = outputPath.getFileSystem(taskAttemptContext.getConfiguration());
+    return getOutputPathsFromTempPartitionFile(outputPath, fs,
+                                               taskAttemptContext.getTaskAttemptID().getTaskID().toString(),
+                                               taskAttemptContext.getJobID());
   }
 
   /**
    * This method will return the full path up to path suffix after reading from partitions.txt file
+   * If method is getting called from task context, it will return paths from single file, otherwise all paths
    *
    * @param baseOutputPath
    * @param fs
+   * @param taskId
+   * @param jobID
    * @return
    * @throws IOException
    */
-  private Set<String> getOutputPathsFromTempPartitionFile(Path baseOutputPath, FileSystem fs) throws IOException {
-    Path tempPath = new Path(baseOutputPath, FileOutputCommitter.PENDING_DIR_NAME);
+  private Set<String> getOutputPathsFromTempPartitionFile(Path baseOutputPath, FileSystem fs, @Nullable String taskId,
+                                                          JobID jobID) throws IOException {
     Set<String> outputPaths = new HashSet<>();
+    Path tempPath = taskId == null ? new Path(baseOutputPath, getPendingDirPath(jobID))
+      : new Path(baseOutputPath, String.format("%s/%s%s", getPendingDirPath(jobID), taskId,
+                                               PARTITIONS_FILE_SUFFIX));
+
+    if (!fs.exists(tempPath)) {
+      return outputPaths;
+    }
 
     for (FileStatus status : fs.listStatus(tempPath)) {
       if (status.getPath().getName().endsWith(PARTITIONS_FILE_SUFFIX)) {
@@ -210,28 +216,34 @@ public class DelegatingGCSOutputCommitter extends OutputCommitter {
   }
 
   /**
-   * This method will create a _temporary directory in base directory path and will create a file with name
+   * This method will create a _temporary_{jobID} directory in base directory path and will create a file with name
    * {taskid}_partitions.txt which will store the full path upto path suffix. e.g. gs://basepath/tablename/path_suffix
    *
-   * @param path
+   * @param path    Split file path upto split field name
    * @param context
    * @throws IOException
    */
   private void writePartitionFile(String path, TaskAttemptContext context) throws IOException {
     Path outputPath = new Path(context.getConfiguration().get(DelegatingGCSOutputFormat.OUTPUT_PATH_BASE_DIR));
-    Path tempPath = new Path(outputPath, FileOutputCommitter.PENDING_DIR_NAME);
+    Path tempPath = new Path(outputPath, getPendingDirPath(context.getJobID()));
     FileSystem fs = tempPath.getFileSystem(context.getConfiguration());
     String taskId = context.getTaskAttemptID().getTaskID().toString();
     Path taskPartitionFile = new Path(tempPath, String.format("%s%s", taskId, PARTITIONS_FILE_SUFFIX));
     if (!fs.exists(taskPartitionFile)) {
       fs.createNewFile(taskPartitionFile);
-    } else if (committerMap.isEmpty()) {
+    } else if (firstSplit) {
       fs.create(taskPartitionFile, true);
     }
     try (DataOutputStream out = fs.append(taskPartitionFile)) {
       out.writeBytes(path + "\n");
     }
     taskAttemptContext = context;
+  }
+
+  // This will create a directory with name _temporary_{jobId} to write the partition files
+  // Job ID added as a suffix, so that multiple pipelines can write to same path in parallel.
+  private String getPendingDirPath(JobID jobId) {
+    return String.format("%s_%s", FileOutputCommitter.PENDING_DIR_NAME, jobId);
   }
 
 }
