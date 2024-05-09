@@ -29,8 +29,8 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
-import java.io.BufferedReader;
 import java.io.DataOutputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
@@ -44,12 +44,11 @@ import javax.annotation.Nullable;
 public class DelegatingGCSOutputCommitter extends OutputCommitter {
 
   private TaskAttemptContext taskAttemptContext;
-  private boolean firstSplit = true;
+  private boolean firstTable = true;
   private static final String PARTITIONS_FILE_SUFFIX = "_partitions.txt";
 
-
-  public DelegatingGCSOutputCommitter(TaskAttemptContext taskContext) {
-    this.taskAttemptContext = taskContext;
+  public DelegatingGCSOutputCommitter(TaskAttemptContext taskAttemptContext) {
+    this.taskAttemptContext = taskAttemptContext;
   }
 
   /**
@@ -59,19 +58,19 @@ public class DelegatingGCSOutputCommitter extends OutputCommitter {
    */
   @SuppressWarnings("rawtypes")
   public void addGCSOutputCommitterFromOutputFormat(OutputFormat outputFormat,
-                                                    TaskAttemptContext context,
                                                     String tableName) throws IOException, InterruptedException {
     //Set output directory
-    context.getConfiguration().set(FileOutputFormat.OUTDIR,
-                                   DelegatingGCSOutputUtils.buildOutputPath(context.getConfiguration(), tableName));
+    taskAttemptContext.getConfiguration().set(FileOutputFormat.OUTDIR,
+                                              DelegatingGCSOutputUtils.buildOutputPath(
+                                                taskAttemptContext.getConfiguration(), tableName));
 
     //Wrap output committer into the GCS Output Committer.
-    GCSOutputCommitter gcsOutputCommitter = new GCSOutputCommitter(outputFormat.getOutputCommitter(context));
+    GCSOutputCommitter gcsOutputCommitter = new GCSOutputCommitter(outputFormat.getOutputCommitter(taskAttemptContext));
 
-    gcsOutputCommitter.setupJob(context);
-    gcsOutputCommitter.setupTask(context);
-    writePartitionFile(context.getConfiguration().get(FileOutputFormat.OUTDIR), context);
-    firstSplit = false;
+    gcsOutputCommitter.setupJob(taskAttemptContext);
+    gcsOutputCommitter.setupTask(taskAttemptContext);
+    writePartitionFile(taskAttemptContext.getConfiguration().get(FileOutputFormat.OUTDIR), taskAttemptContext);
+    firstTable = false;
   }
 
   @Override
@@ -79,7 +78,6 @@ public class DelegatingGCSOutputCommitter extends OutputCommitter {
     Path outputPath = new Path(jobContext.getConfiguration().get(DelegatingGCSOutputFormat.OUTPUT_PATH_BASE_DIR));
     FileSystem fs = outputPath.getFileSystem(jobContext.getConfiguration());
     Path tempPath = new Path(outputPath, getPendingDirPath(jobContext.getJobID()));
-    // creating the _temporary folder in base path
     fs.mkdirs(tempPath);
   }
 
@@ -142,21 +140,20 @@ public class DelegatingGCSOutputCommitter extends OutputCommitter {
   @Override
   public void abortJob(JobContext jobContext, JobStatus.State state) throws IOException {
     IOException ioe = null;
-
-    for (String output : getOutputPaths(jobContext)) {
-      try {
+    try {
+      for (String output : getOutputPaths(jobContext)) {
         taskAttemptContext.getConfiguration().set(FileOutputFormat.OUTDIR, output);
         FileOutputCommitter committer = new FileOutputCommitter(new Path(output), taskAttemptContext);
         committer.abortJob(jobContext, state);
-      } catch (IOException e) {
-        if (ioe == null) {
-          ioe = e;
-        } else {
-          ioe.addSuppressed(e);
-        }
-      } finally {
-        cleanupJob(jobContext);
       }
+    } catch (IOException e) {
+      if (ioe == null) {
+        ioe = e;
+      } else {
+        ioe.addSuppressed(e);
+      }
+    } finally {
+      cleanupJob(jobContext);
     }
     if (ioe != null) {
       throw ioe;
@@ -203,11 +200,13 @@ public class DelegatingGCSOutputCommitter extends OutputCommitter {
 
     for (FileStatus status : fs.listStatus(tempPath)) {
       if (status.getPath().getName().endsWith(PARTITIONS_FILE_SUFFIX)) {
-        try (FSDataInputStream dis = fs.open(status.getPath());
-             BufferedReader br = new BufferedReader(new java.io.InputStreamReader(dis))) {
-          String line;
-          while ((line = br.readLine()) != null) {
-            outputPaths.add(line);
+        try (FSDataInputStream dis = fs.open(status.getPath())) {
+          while (true) {
+            try {
+              outputPaths.add(dis.readUTF());
+            } catch (EOFException e) {
+              break;
+            }
           }
         }
       }
@@ -231,13 +230,12 @@ public class DelegatingGCSOutputCommitter extends OutputCommitter {
     Path taskPartitionFile = new Path(tempPath, String.format("%s%s", taskId, PARTITIONS_FILE_SUFFIX));
     if (!fs.exists(taskPartitionFile)) {
       fs.createNewFile(taskPartitionFile);
-    } else if (firstSplit) {
+    } else if (firstTable) {
       fs.create(taskPartitionFile, true);
     }
     try (DataOutputStream out = fs.append(taskPartitionFile)) {
-      out.writeBytes(path + "\n");
+      out.writeUTF(path);
     }
-    taskAttemptContext = context;
   }
 
   // This will create a directory with name _temporary_{jobId} to write the partition files

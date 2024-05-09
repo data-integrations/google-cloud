@@ -20,7 +20,6 @@ import io.cdap.cdap.api.data.format.StructuredRecord;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.JobContext;
-import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.OutputFormat;
 import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
@@ -39,10 +38,8 @@ public class DelegatingGCSOutputFormat extends OutputFormat<NullWritable, Struct
   public static final String DELEGATE_CLASS = "delegating_output_format.delegate";
   public static final String OUTPUT_PATH_BASE_DIR = "delegating_output_format.output.path.base";
   public static final String OUTPUT_PATH_SUFFIX = "delegating_output_format.output.path.suffix";
-  // private  DelegatingGCSOutputCommitter outputCommitter;
 
   public DelegatingGCSOutputFormat() {
-
   }
 
   /**
@@ -65,8 +62,7 @@ public class DelegatingGCSOutputFormat extends OutputFormat<NullWritable, Struct
     Configuration hConf = context.getConfiguration();
     String partitionField = hConf.get(PARTITION_FIELD);
 
-    return new DelegatingGCSRecordWriter(context, partitionField,
-                                         (DelegatingGCSOutputCommitter) getOutputCommitter(context));
+    return new DelegatingGCSRecordWriter(context, partitionField, getOutputCommitter(context));
   }
 
   @Override
@@ -75,9 +71,8 @@ public class DelegatingGCSOutputFormat extends OutputFormat<NullWritable, Struct
   }
 
   @Override
-  public OutputCommitter getOutputCommitter(TaskAttemptContext context) {
-    DelegatingGCSOutputCommitter outputCommitter = new DelegatingGCSOutputCommitter(context);
-    return outputCommitter;
+  public DelegatingGCSOutputCommitter getOutputCommitter(TaskAttemptContext context) {
+    return new DelegatingGCSOutputCommitter(context);
   }
 
 }
