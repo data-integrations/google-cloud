@@ -20,7 +20,7 @@
 
   <groupId>io.cdap.plugin</groupId>
   <artifactId>google-cloud</artifactId>
-  <version>0.23.1-SNAPSHOT</version>
+  <version>0.23.1</version>
   <name>Google Cloud Plugins</name>
   <packaging>jar</packaging>
   <description>Plugins for Google Big Query</description>
@@ -1245,7 +1245,7 @@
         <dependency>
           <groupId>io.cdap.tests.e2e</groupId>
           <artifactId>cdap-e2e-framework</artifactId>
-          <version>0.3.0</version>
+          <version>0.3.1</version>
           <scope>test</scope>
         </dependency>
         <dependency>
