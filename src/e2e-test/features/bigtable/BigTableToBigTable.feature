@@ -14,7 +14,7 @@
 @BigTable @BIGTABLE_SOURCE_TEST
 Feature: BigTable source - Verification of BigTable to BigTable Successful Data Transfer
 
-  @BIGTABLE_SINK_TEST
+  @BIGTABLE_SINK_TEST @bigtable_Required
   Scenario: To verify data is getting transferred from BigTable source table to BigTable sink table
     Given Open Datafusion Project to configure pipeline
     When Select plugin: "Bigtable" from the plugins list as: "Source"
