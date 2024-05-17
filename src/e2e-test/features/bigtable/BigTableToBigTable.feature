@@ -12,7 +12,7 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 @BigTable @BIGTABLE_SOURCE_TEST
-Feature: BigTable source - Verification of BigTable to BigTable Successful Data Transfer
+Feature: BigTable source - Verification of BigTable to BigTable Successful Data transfer
 
   @BIGTABLE_SINK_TEST
   Scenario: To verify data is getting transferred from BigTable source table to BigTable sink table
