@@ -65,7 +65,9 @@ public class TestDelegatingGCSOutputCommitter {
   private static TaskAttemptID taskID = TaskAttemptID.forName(attempt);
   private static String key1 = "key1";
   private static String key2 = "key2";
-  private String schema = "{\"type\":\"record\",\"name\":\"text\",\"fields\":[{\"name\":\"key1\",\"type\":\"string\"},{\"name\":\"key2\",\"type\":\"string\"}]}";
+  private String schema = "{\"type\":\"record\",\"name\":\"text\",\"fields\":" +
+    "[{\"name\":\"key1\",\"type\":\"string\"}," +
+    "{\"name\":\"key2\",\"type\":\"string\"}]}";
   private StructuredRecord record1 = StructuredRecord.builder(Schema.parseJson(schema))
     .set(key1, "abc")
     .set(key2, "val1")
@@ -88,6 +90,8 @@ public class TestDelegatingGCSOutputCommitter {
     try {
       delegatingGCSRecordWriter.write(nullWritable, record1);
       delegatingGCSRecordWriter.write(nullWritable, record2);
+      delegatingGCSRecordWriter.write(nullWritable, record2);
+      delegatingGCSRecordWriter.write(nullWritable, record1);
     } finally {
       delegatingGCSRecordWriter.close(null);
     }
@@ -145,6 +149,8 @@ public class TestDelegatingGCSOutputCommitter {
     StringBuffer expectedOutput = new StringBuffer();
     expectedOutput.append(record1.get(key1).toString()).append('\t').append(record1.get(key2).toString()).append("\n");
     expectedOutput.append(record2.get(key1).toString()).append('\t').append(record2.get(key2).toString()).append("\n");
+    expectedOutput.append(record2.get(key1).toString()).append('\t').append(record2.get(key2).toString()).append("\n");
+    expectedOutput.append(record1.get(key1).toString()).append('\t').append(record1.get(key2).toString()).append("\n");
     String output = slurpAvro(expectedFile);
     assertEquals(output, expectedOutput.toString());
   }
@@ -387,7 +393,6 @@ public class TestDelegatingGCSOutputCommitter {
    */
   public static class CommitterWithFailedThenSucceed extends
     DelegatingGCSOutputCommitter {
-    boolean firstTimeFail = true;
 
     public CommitterWithFailedThenSucceed(TaskAttemptContext context) throws IOException {
       super(context);
