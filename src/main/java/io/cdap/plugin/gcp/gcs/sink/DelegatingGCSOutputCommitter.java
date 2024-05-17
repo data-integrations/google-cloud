@@ -43,8 +43,9 @@ import javax.annotation.Nullable;
  */
 public class DelegatingGCSOutputCommitter extends OutputCommitter {
 
+  //for testing purpose putting a comment here.
   private TaskAttemptContext taskAttemptContext;
-  private boolean firstTable = true;
+  private boolean firstTab = true;
   private static final String PARTITIONS_FILE_SUFFIX = "_partitions.txt";
 
   public DelegatingGCSOutputCommitter(TaskAttemptContext taskAttemptContext) {
@@ -70,7 +71,7 @@ public class DelegatingGCSOutputCommitter extends OutputCommitter {
     gcsOutputCommitter.setupJob(taskAttemptContext);
     gcsOutputCommitter.setupTask(taskAttemptContext);
     writePartitionFile(taskAttemptContext.getConfiguration().get(FileOutputFormat.OUTDIR), taskAttemptContext);
-    firstTable = false;
+    firstTab = false;
   }
 
   @Override
@@ -230,7 +231,7 @@ public class DelegatingGCSOutputCommitter extends OutputCommitter {
     Path taskPartitionFile = new Path(tempPath, String.format("%s%s", taskId, PARTITIONS_FILE_SUFFIX));
     if (!fs.exists(taskPartitionFile)) {
       fs.createNewFile(taskPartitionFile);
-    } else if (firstTable) {
+    } else if (firstTab) {
       fs.create(taskPartitionFile, true);
     }
     try (DataOutputStream out = fs.append(taskPartitionFile)) {
