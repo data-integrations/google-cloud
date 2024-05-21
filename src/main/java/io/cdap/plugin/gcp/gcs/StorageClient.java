@@ -34,11 +34,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.file.FileSystems;
+import java.nio.file.PathMatcher;
+import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
 /**
@@ -111,7 +117,7 @@ public class StorageClient {
   /**
    * Creates the given bucket if it does not exists.
    *
-   * @param path the path of the bucket 
+   * @param path the path of the bucket
    * @param location the location of bucket
    * @param cmekKeyName  the name of the cmek key
    */
@@ -161,6 +167,42 @@ public class StorageClient {
    */
   public void move(GCSPath sourcePath, GCSPath destPath, boolean recursive, boolean overwrite) {
     pairTraverse(sourcePath, destPath, recursive, overwrite, BlobPair::move);
+  }
+
+  /**
+   * Get all the matching wildcard paths given the regex input.
+   */
+  public List<GCSPath> getMatchedPaths(GCSPath sourcePath, boolean recursive, Pattern wildcardRegex) {
+    Page<Blob> blobPage = storage.list(sourcePath.getBucket(), Storage.BlobListOption.prefix(
+        getWildcardPathPrefix(sourcePath, wildcardRegex)
+    ));
+    List<String> blobPageNames = new ArrayList<>();
+    blobPage.getValues().forEach(blob -> blobPageNames.add(blob.getName()));
+    return getFilterMatchedPaths(sourcePath, blobPageNames, recursive);
+  }
+
+  static String getWildcardPathPrefix(GCSPath sourcePath, Pattern wildcardRegex) {
+    String pattern = sourcePath.getName();
+    String[] patternSplits = pattern.split(wildcardRegex.pattern());
+    // prefix may be empty
+    return patternSplits.length >= 1 ? patternSplits[0] : "";
+  }
+
+  static List<GCSPath> getFilterMatchedPaths(GCSPath sourcePath, List<String> blobPageNames, boolean recursive) {
+    Set<GCSPath> matchedPaths = new HashSet<>();
+    String globPattern = "glob:" + sourcePath.getName();
+    PathMatcher matcher = FileSystems.getDefault().getPathMatcher(globPattern);
+    for (String blobName : blobPageNames) {
+      if (matcher.matches(Paths.get(blobName))) {
+        LOG.debug("Blob name {} matches the glob pattern {}", blobName, globPattern);
+        String gcsPath = String.format("gs://%s/%s", sourcePath.getBucket(), blobName);
+        matchedPaths.add(GCSPath.from(gcsPath));
+      }
+    }
+    if (!recursive) {
+      matchedPaths.removeIf(path -> path.getName().endsWith("/"));
+    }
+    return new ArrayList<>(matchedPaths);
   }
 
   /**
