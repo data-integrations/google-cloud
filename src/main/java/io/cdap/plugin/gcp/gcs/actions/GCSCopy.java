@@ -35,7 +35,9 @@ import io.cdap.plugin.gcp.gcs.GCSPath;
 import io.cdap.plugin.gcp.gcs.StorageClient;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import javax.annotation.Nullable;
 
 
@@ -76,9 +78,17 @@ public class GCSCopy extends Action {
     // create the destination bucket if not exist
     storageClient.createBucketIfNotExists(destPath, config.location, cmekKeyName);
 
-    //noinspection ConstantConditions
-    storageClient.copy(config.getSourcePath(), config.getDestPath(), config.recursive, config.shouldOverwrite());
-
+    List<GCSPath> matchedPaths = new ArrayList<>();
+    if (SourceDestConfig.WILDCARD_REGEX.matcher(config.getSourcePath().getName()).find()) {
+      matchedPaths = storageClient.getMatchedPaths(config.getSourcePath(), config.recursive,
+            SourceDestConfig.WILDCARD_REGEX);
+    } else {
+      matchedPaths.add(config.getSourcePath());
+    }
+    for (GCSPath sourcePath : matchedPaths) {
+      //noinspection ConstantConditions
+      storageClient.copy(sourcePath, config.getDestPath(), config.recursive, config.shouldOverwrite());
+    }
   }
 
   /**
