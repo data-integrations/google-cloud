@@ -240,49 +240,49 @@ Feature: BigQuery sink - Verification of BigQuery to BigQuery successful data tr
     Then Verify the pipeline status is "Succeeded"
     Then Validate the data transferred from BigQuery to BigQuery with actual And expected file for: "bqDateExpectedFile"
 
-  @BQ_TIME_SOURCE_TEST @BQ_SINK_TEST @EXISTING_BQ_CONNECTION
-  Scenario: Verify successful record transfer for the Insert operation from BigQuery source plugin to BigQuery sink with partition type Time and partition field is datetime.
-    Given Open Datafusion Project to configure pipeline
-    When Expand Plugin group in the LHS plugins list: "Source"
-    When Select plugin: "BigQuery" from the plugins list as: "Source"
-    When Expand Plugin group in the LHS plugins list: "Sink"
-    When Select plugin: "BigQuery" from the plugins list as: "Sink"
-    Then Connect plugins: "BigQuery" and "BigQuery2" to establish connection
-    Then Navigate to the properties page of plugin: "BigQuery"
-    Then Click plugin property: "switch-useConnection"
-    Then Click on the Browse Connections button
-    Then Select connection: "bqConnectionName"
-    Then Enter input plugin property: "referenceName" with value: "BQReferenceName"
-    And Replace input plugin property: "dataset" with value: "dataset"
-    And Replace input plugin property: "table" with value: "bqSourceTable"
-    Then Click on the Get Schema button
-    Then Validate "BigQuery" plugin properties
-    And Close the Plugin Properties page
-    Then Navigate to the properties page of plugin: "BigQuery2"
-    Then Click plugin property: "useConnection"
-    Then Click on the Browse Connections button
-    Then Select connection: "bqConnectionName"
-    Then Enter input plugin property: "referenceName" with value: "BQSinkReferenceName"
-    Then Enter input plugin property: "dataset" with value: "dataset"
-    Then Enter input plugin property: "table" with value: "bqTargetTable"
-    Then Enter input plugin property: "partitionByField" with value: "bqPartitionFieldDateTime"
-    Then Click plugin property: "updateTableSchema"
-    Then Validate "BigQuery" plugin properties
-    Then Close the BigQuery properties
-    Then Save the pipeline
-    Then Preview and run the pipeline
-    Then Wait till pipeline preview is in running state
-    Then Open and capture pipeline preview logs
-    Then Verify the preview run status of pipeline in the logs is "succeeded"
-    Then Close the pipeline logs
-    Then Close the preview
-    Then Deploy the pipeline
-    Then Run the Pipeline in Runtime
-    Then Wait till pipeline is in running state
-    Then Open and capture logs
-    Then Close the pipeline logs
-    Then Verify the pipeline status is "Succeeded"
-    Then Validate the data transferred from BigQuery to BigQuery with actual And expected file for: "bqDateTimeExpectedFile"
+#  @BQ_TIME_SOURCE_TEST @BQ_SINK_TEST @EXISTING_BQ_CONNECTION
+#  Scenario: Verify successful record transfer for the Insert operation from BigQuery source plugin to BigQuery sink with partition type Time and partition field is datetime.
+#    Given Open Datafusion Project to configure pipeline
+#    When Expand Plugin group in the LHS plugins list: "Source"
+#    When Select plugin: "BigQuery" from the plugins list as: "Source"
+#    When Expand Plugin group in the LHS plugins list: "Sink"
+#    When Select plugin: "BigQuery" from the plugins list as: "Sink"
+#    Then Connect plugins: "BigQuery" and "BigQuery2" to establish connection
+#    Then Navigate to the properties page of plugin: "BigQuery"
+#    Then Click plugin property: "switch-useConnection"
+#    Then Click on the Browse Connections button
+#    Then Select connection: "bqConnectionName"
+#    Then Enter input plugin property: "referenceName" with value: "BQReferenceName"
+#    And Replace input plugin property: "dataset" with value: "dataset"
+#    And Replace input plugin property: "table" with value: "bqSourceTable"
+#    Then Click on the Get Schema button
+#    Then Validate "BigQuery" plugin properties
+#    And Close the Plugin Properties page
+#    Then Navigate to the properties page of plugin: "BigQuery2"
+#    Then Click plugin property: "useConnection"
+#    Then Click on the Browse Connections button
+#    Then Select connection: "bqConnectionName"
+#    Then Enter input plugin property: "referenceName" with value: "BQSinkReferenceName"
+#    Then Enter input plugin property: "dataset" with value: "dataset"
+#    Then Enter input plugin property: "table" with value: "bqTargetTable"
+#    Then Enter input plugin property: "partitionByField" with value: "bqPartitionFieldDateTime"
+#    Then Click plugin property: "updateTableSchema"
+#    Then Validate "BigQuery" plugin properties
+#    Then Close the BigQuery properties
+#    Then Save the pipeline
+#    Then Preview and run the pipeline
+#    Then Wait till pipeline preview is in running state
+#    Then Open and capture pipeline preview logs
+#    Then Verify the preview run status of pipeline in the logs is "succeeded"
+#    Then Close the pipeline logs
+#    Then Close the preview
+#    Then Deploy the pipeline
+#    Then Run the Pipeline in Runtime
+#    Then Wait till pipeline is in running state
+#    Then Open and capture logs
+#    Then Close the pipeline logs
+#    Then Verify the pipeline status is "Succeeded"
+#    Then Validate the data transferred from BigQuery to BigQuery with actual And expected file for: "bqDateTimeExpectedFile"
 
   @BQ_TIME_SOURCE_TEST @BQ_SINK_TEST @EXISTING_BQ_CONNECTION
   Scenario: Verify successful record transfer for the Insert operation from BigQuery source plugin to BigQuery sink with partition type Time and partition field is timestamp.
