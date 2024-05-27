@@ -21,8 +21,6 @@ import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.OutputFormat;
 import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -34,7 +32,6 @@ import java.util.Map;
  * This Record Writer will initialize record writes and Output Committers as needed.
  */
 public class DelegatingGCSRecordWriter extends RecordWriter<NullWritable, StructuredRecord> {
-  private static final Logger LOG = LoggerFactory.getLogger(DelegatingGCSRecordWriter.class);
   private final TaskAttemptContext context;
   private final String partitionField;
   private final Map<String, RecordWriter<NullWritable, StructuredRecord>> delegateMap;
@@ -63,7 +60,7 @@ public class DelegatingGCSRecordWriter extends RecordWriter<NullWritable, Struct
         DelegatingGCSOutputUtils.getDelegateFormat(context.getConfiguration());
 
       //Initialize GCS Output Committer for this format.
-      delegatingGCSOutputCommitter.addGCSOutputCommitterFromOutputFormat(format, context, tableName);
+      delegatingGCSOutputCommitter.addGCSOutputCommitterFromOutputFormat(format, tableName);
 
       //Add record writer to delegate map.
       delegate = format.getRecordWriter(context);
@@ -79,12 +76,6 @@ public class DelegatingGCSRecordWriter extends RecordWriter<NullWritable, Struct
     for (RecordWriter<NullWritable, StructuredRecord> delegate : delegateMap.values()) {
       delegate.close(context);
     }
-
-    // Call the Commit Task and Commit Job implementations of this plugin to copy files into their final directory.
-    // We need to do this at this stage because the OutputCommitter needs to be aware of the different partitions
-    // that have been stored so far.
-    delegatingGCSOutputCommitter.commitTask(context);
-    delegatingGCSOutputCommitter.commitJob(context);
   }
 
 }
