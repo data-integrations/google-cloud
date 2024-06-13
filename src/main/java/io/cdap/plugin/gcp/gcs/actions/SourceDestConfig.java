@@ -33,7 +33,9 @@ import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
 /**
@@ -44,6 +46,7 @@ public class SourceDestConfig extends GCPConfig {
   public static final String NAME_DEST_PATH = "destPath";
   public static final String NAME_LOCATION = "location";
   public static final String READ_TIMEOUT = "readTimeout";
+  public static final Pattern WILDCARD_REGEX = Pattern.compile("[*]");
 
   @Name(NAME_SOURCE_PATH)
   @Macro
@@ -131,6 +134,11 @@ public class SourceDestConfig extends GCPConfig {
         getDestPath();
       } catch (IllegalArgumentException e) {
         collector.addFailure(e.getMessage(), null).withConfigProperty(NAME_DEST_PATH);
+      }
+      if (WILDCARD_REGEX.matcher(destPath).find()) {
+        collector.addFailure("Destination path should not contain wildcard characters.",
+        "Please remove the wildcard characters from the destination path.")
+            .withConfigProperty(NAME_DEST_PATH);
       }
     }
     if (!containsMacro(NAME_CMEK_KEY)) {

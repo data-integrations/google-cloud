@@ -20,16 +20,19 @@ import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BucketInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
+import io.cdap.plugin.gcp.gcs.actions.SourceDestConfig;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.slf4j.Logger;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.times;
@@ -50,12 +53,20 @@ public class StorageClientTest {
   private final ByteArrayOutputStream outContent = new ByteArrayOutputStream();
 
   private final PrintStream originalOut = System.out;
+  private final List<String> blobPageNames = new ArrayList<>();
 
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
     storageClient = new StorageClient(storage);
     System.setOut(new PrintStream(outContent));
+    // Setup blobPageNames
+    blobPageNames.add("mydir/test_web1/report.html");
+    blobPageNames.add("mydir/test_web2/report.html");
+    blobPageNames.add("mydir/test_web2/css/");
+    blobPageNames.add("mydir/test_web2/css/foo.css");
+    blobPageNames.add("mydir/test_mob1/report.html");
+    blobPageNames.add("mydir/test_mob2/report.html");
   }
 
   @After
@@ -143,5 +154,34 @@ public class StorageClientTest {
       return;
     }
     Assert.fail("Test for detecting bucket creation failure did not succeed. No exception caught");
+  }
+
+  @Test
+  public void testGetWildcardPathPrefix() {
+    Assert.assertEquals("mydir/test_web", StorageClient.getWildcardPathPrefix(
+        GCSPath.from("gs://my-bucket/mydir/test_web*/"), SourceDestConfig.WILDCARD_REGEX));
+    Assert.assertEquals("", StorageClient.getWildcardPathPrefix(
+        GCSPath.from("gs://my-bucket/*"), SourceDestConfig.WILDCARD_REGEX));
+  }
+
+  @Test
+  public void testFilterMatchedPaths() {
+    GCSPath sourcePath = GCSPath.from("gs://foobucket/mydir/test_web*/*");
+    List<GCSPath> filterMatchedPaths = StorageClient.getFilterMatchedPaths(sourcePath, blobPageNames, false);
+    filterMatchedPaths.sort(Comparator.comparing(GCSPath::getUri));
+    Assert.assertEquals(2, filterMatchedPaths.size());
+    Assert.assertEquals(GCSPath.from("gs://foobucket/mydir/test_web1/report.html"), filterMatchedPaths.get(0));
+    Assert.assertEquals(GCSPath.from("gs://foobucket/mydir/test_web2/report.html"), filterMatchedPaths.get(1));
+  }
+
+  @Test
+  public void testFilterMatchedPathsWithRecursive() {
+    GCSPath sourcePath = GCSPath.from("gs://foobucket/mydir/test_web*/*");
+    List<GCSPath> filterMatchedPaths = StorageClient.getFilterMatchedPaths(sourcePath, blobPageNames, true);
+    Assert.assertEquals(3, filterMatchedPaths.size());
+    filterMatchedPaths.sort(Comparator.comparing(GCSPath::getUri));
+    Assert.assertEquals(GCSPath.from("gs://foobucket/mydir/test_web1/report.html"), filterMatchedPaths.get(0));
+    Assert.assertEquals(GCSPath.from("gs://foobucket/mydir/test_web2/css/"), filterMatchedPaths.get(1));
+    Assert.assertEquals(GCSPath.from("gs://foobucket/mydir/test_web2/report.html"), filterMatchedPaths.get(2));
   }
 }

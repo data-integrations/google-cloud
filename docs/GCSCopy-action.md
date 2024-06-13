@@ -25,6 +25,7 @@ Properties
 It can be found on the Dashboard in the Google Cloud Platform Console.
 
 **Source Path**: Path to a source object or directory.
+> Use `*` to copy multiple files. For example, `gs://demo0/prod/reports/*.csv` will copy all CSV files in the `reports` directory.
 
 **Destination Path**: Path to the destination. The bucket will be created if it does not exist. 
 
