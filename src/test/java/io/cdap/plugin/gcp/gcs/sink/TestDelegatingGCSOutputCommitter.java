@@ -38,6 +38,7 @@ import org.apache.hadoop.mapred.TaskAttemptContextImpl;
 import org.apache.hadoop.mapred.TaskAttemptID;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -80,6 +81,7 @@ public class TestDelegatingGCSOutputCommitter {
   private static final String pathSuffix = LocalDate.now().format(DateTimeFormatter.ISO_DATE);
 
   public TestDelegatingGCSOutputCommitter() throws IOException {
+    UserGroupInformation.setLoginUser(UserGroupInformation.createRemoteUser("runner"));
   }
 
   private void writeOutput(TaskAttemptContext context, DelegatingGCSOutputCommitter committer) throws IOException,
