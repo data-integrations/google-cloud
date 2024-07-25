@@ -24,12 +24,15 @@ import io.cdap.cdap.etl.mock.validation.MockFailureCollector;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.ArgumentMatchers;
-import org.mortbay.log.Log;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.powermock.api.mockito.PowerMockito.when;
 
 public class BigQueryExecuteConfigTest {
+
+  private static final Logger LOG = LoggerFactory.getLogger(BigQueryExecuteConfigTest.class);
 
   @Test
   public void testBigQueryExecuteValidSQL() throws Exception {
@@ -63,7 +66,7 @@ public class BigQueryExecuteConfigTest {
     when(bigQuery.create(ArgumentMatchers.any(JobInfo.class))).thenThrow(new BigQueryException(404, ""));
 
     config.validateSQLSyntax(failureCollector, bigQuery);
-    Log.warn("size : {}", failureCollector.getValidationFailures().size());
+    LOG.warn("size : {}", failureCollector.getValidationFailures().size());
     Assert.assertEquals(1, failureCollector.getValidationFailures().size());
     Assert.assertEquals(String.format("%s.", errorMessage),
             failureCollector.getValidationFailures().get(0).getMessage());
