@@ -23,6 +23,7 @@ import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.cdap.etl.mock.validation.MockFailureCollector;
+import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceConfig;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize.BigNumeric;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize.Numeric;
 import io.cdap.plugin.gcp.common.GCPUtils;
@@ -477,5 +478,33 @@ public class BigQueryUtilTest {
       Schema expectedSchema = Schema.of(Schema.Type.STRING);
       Schema result = BigQueryUtil.convertFieldType(field, null, null);
       Assert.assertEquals(expectedSchema, result);
+  }
+
+  @Test
+  public void testValidateFieldSchemaMatchesDate() {
+    MockFailureCollector collector = new MockFailureCollector();
+    Field bigQueryField = Field.newBuilder("testFieldRepeatedDate", StandardSQLTypeName.DATE)
+        .setMode(Field.Mode.REPEATED).build();
+    Schema.Field schemaField = Schema.Field.of("testFieldRepeatedDate",
+        Schema.nullableOf(Schema.arrayOf(Schema.of(Schema.LogicalType.DATE))));
+    ValidationFailure failure = BigQueryUtil.validateFieldSchemaMatches(bigQueryField, schemaField, "dataset",
+        "table", BigQuerySourceConfig.SUPPORTED_TYPES, collector);
+    Assert.assertNull(failure);
+    Assert.assertEquals(0, collector.getValidationFailures().size());
+  }
+
+  @Test
+  public void testValidateFieldSchemaNotMatchesDate() {
+    MockFailureCollector collector = new MockFailureCollector();
+    Field bigQueryField = Field.newBuilder("testFieldRepeatedDate", StandardSQLTypeName.DATE)
+        .setMode(Field.Mode.REPEATED).build();
+    Schema.Field schemaField = Schema.Field.of("testFieldRepeatedDate",
+        Schema.nullableOf(Schema.arrayOf(Schema.of(Schema.Type.STRING))));
+    ValidationFailure failure = BigQueryUtil.validateFieldSchemaMatches(bigQueryField, schemaField, "dataset",
+        "table", BigQuerySourceConfig.SUPPORTED_TYPES, collector);
+    Assert.assertNotNull(failure);
+    Assert.assertEquals(1, collector.getValidationFailures().size());
+    Assert.assertEquals("Field 'testFieldRepeatedDate' of type 'string' is incompatible with" +
+        " column 'testFieldRepeatedDate' of type 'date' in BigQuery table 'dataset.table'.", failure.getMessage());
   }
 }
