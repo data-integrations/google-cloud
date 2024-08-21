@@ -95,7 +95,7 @@ public class BigQueryConnectorTest {
     table = "users";
 
     // create dataset, table, and populate table
-    bigQuery = GCPUtils.getBigQuery(project, testEnvironment.getCredentials());
+    bigQuery = GCPUtils.getBigQuery(project, testEnvironment.getCredentials(), null);
     bigQuery.create(DatasetInfo.of(DatasetId.of(project, dataset)));
 
     // TODO: (CDAP-19477) test one of the fields being required instead of nullable

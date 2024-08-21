@@ -581,7 +581,7 @@ public final class BigQueryUtil {
           "serviceFilePath");
       }
     }
-    BigQuery bigQuery = GCPUtils.getBigQuery(datasetProject, credentials);
+    BigQuery bigQuery = GCPUtils.getBigQuery(datasetProject, credentials, null);
 
     Table table;
     try {
@@ -636,7 +636,7 @@ public final class BigQueryUtil {
         throw collector.getOrThrowException();
       }
     }
-    BigQuery bigQuery = GCPUtils.getBigQuery(projectId, credentials);
+    BigQuery bigQuery = GCPUtils.getBigQuery(projectId, credentials, null);
 
     Table table = null;
     try {

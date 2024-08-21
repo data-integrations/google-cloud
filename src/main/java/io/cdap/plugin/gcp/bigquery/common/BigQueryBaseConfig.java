@@ -213,7 +213,7 @@ public class BigQueryBaseConfig extends PluginConfig {
         DatasetId datasetId = DatasetId.of(datasetProjectId, datasetName);
         TableId tableId = tableName == null ? null : TableId.of(datasetProjectId, datasetName, tableName);
         Credentials credentials = connection.getCredentials(failureCollector);
-        BigQuery bigQuery = GCPUtils.getBigQuery(connection.getProject(), credentials);
+        BigQuery bigQuery = GCPUtils.getBigQuery(connection.getProject(), credentials, null);
         Storage storage = GCPUtils.getStorage(connection.getProject(), credentials);
         if (bigQuery == null || storage == null) {
             return;

@@ -125,7 +125,7 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     Credentials credentials = config.getServiceAccount() == null ?
       null : GCPUtils.loadServiceAccountCredentials(config.getServiceAccount(),
                                                     config.isServiceAccountFilePath());
-    BigQuery bigQuery = GCPUtils.getBigQuery(config.getProject(), credentials);
+    BigQuery bigQuery = GCPUtils.getBigQuery(config.getProject(), credentials, config.getReadTimeout());
     //create dataset to store the results if not exists
     if (config.getStoreResults() && !Strings.isNullOrEmpty(datasetName) &&
       !Strings.isNullOrEmpty(tableName)) {
@@ -283,11 +283,13 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     private static final String NAME_MAX_RETRY_DURATION = "maxRetryDuration";
     private static final String NAME_RETRY_MULTIPLIER = "retryMultiplier";
     private static final String NAME_MAX_RETRY_COUNT = "maxRetryCount";
+    private static final String NAME_READ_TIMEOUT = "readTimeout";
     public static final long DEFAULT_INITIAL_RETRY_DURATION_SECONDS = 1L;
     public static final double DEFAULT_RETRY_MULTIPLIER = 2.0;
     public static final int DEFAULT_MAX_RETRY_COUNT = 5;
     // Sn = a * (1 - r^n) / (r - 1)
     public static final long DEFULT_MAX_RETRY_DURATION_SECONDS = 63L;
+    public static final int DEFAULT_READ_TIMEOUT = 120;
 
     @Description("Dialect of the SQL command. The value must be 'legacy' or 'standard'. " +
       "If set to 'standard', the query will use BigQuery's standard SQL: " +
@@ -390,13 +392,19 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
             "are reserved keys and cannot be used as label keys.")
     protected String jobLabelKeyValue;
 
+    @Name(NAME_READ_TIMEOUT)
+    @Nullable
+    @Macro
+    @Description("Timeout in seconds to read data from an established HTTP connection (Default value is 120).")
+    private Integer readTimeout;
+
     private Config(@Nullable String project, @Nullable String serviceAccountType, @Nullable String serviceFilePath,
                    @Nullable String serviceAccountJson, @Nullable String dataset, @Nullable String table,
                    @Nullable String location, @Nullable String cmekKey, @Nullable String dialect, @Nullable String sql,
                    @Nullable String mode, @Nullable Boolean storeResults, @Nullable String jobLabelKeyValue,
                    @Nullable String rowAsArguments, @Nullable Boolean retryOnBackendError,
                    @Nullable Long initialRetryDuration, @Nullable Long maxRetryDuration,
-                   @Nullable Double retryMultiplier, @Nullable Integer maxRetryCount) {
+                   @Nullable Double retryMultiplier, @Nullable Integer maxRetryCount, @Nullable Integer readTimeout) {
       this.project = project;
       this.serviceAccountType = serviceAccountType;
       this.serviceFilePath = serviceFilePath;
@@ -416,6 +424,7 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
       this.maxRetryDuration = maxRetryDuration;
       this.maxRetryCount = maxRetryCount;
       this.retryMultiplier = retryMultiplier;
+      this.readTimeout = readTimeout;
     }
 
     public boolean isLegacySQL() {
@@ -481,6 +490,10 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
       return maxRetryCount == null ? DEFAULT_MAX_RETRY_COUNT : maxRetryCount;
     }
 
+    public int getReadTimeout() {
+      return readTimeout == null ? DEFAULT_READ_TIMEOUT : readTimeout;
+    }
+
     @Override
     public void validate(FailureCollector failureCollector) {
       validate(failureCollector, Collections.emptyMap());
@@ -544,14 +557,15 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
           !containsMacro(NAME_INITIAL_RETRY_DURATION) && !containsMacro(NAME_MAX_RETRY_DURATION) &&
           !containsMacro(NAME_MAX_RETRY_COUNT) && !containsMacro(NAME_RETRY_MULTIPLIER)) {
           validateRetryConfiguration(
-            failureCollector, initialRetryDuration, maxRetryDuration, maxRetryCount, retryMultiplier
+            failureCollector, initialRetryDuration, maxRetryDuration, maxRetryCount, retryMultiplier, readTimeout
           );
       }
       failureCollector.getOrThrowException();
     }
 
     void validateRetryConfiguration(FailureCollector failureCollector, Long initialRetryDuration,
-                                    Long maxRetryDuration, Integer maxRetryCount, Double retryMultiplier) {
+                                    Long maxRetryDuration, Integer maxRetryCount, Double retryMultiplier,
+                                    Integer readTimeout) {
       if (initialRetryDuration != null && initialRetryDuration <= 0) {
         failureCollector.addFailure("Initial retry duration must be greater than 0.",
                         "Please specify a valid initial retry duration.")
@@ -576,6 +590,11 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
         failureCollector.addFailure("Max retry duration must be greater than initial retry duration.",
                         "Please specify a valid max retry duration.")
                 .withConfigProperty(NAME_MAX_RETRY_DURATION);
+      }
+      if (readTimeout != null && readTimeout <= 0) {
+        failureCollector.addFailure("Read timeout must be greater than 0.",
+            "Please specify a valid read timeout")
+            .withConfigProperty(NAME_READ_TIMEOUT);
       }
     }
 
@@ -612,7 +631,8 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
           } else {
                errorMessage = e.getMessage();
           }
-          failureCollector.addFailure(String.format("%s.", errorMessage), "Please specify a valid query.")
+          failureCollector.addFailure(String.format("%s. Error code: %s.", errorMessage, e.getCode()),
+                        "Please specify a valid query.")
                     .withConfigProperty(SQL);
       }
     }
@@ -626,7 +646,7 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
         failureCollector.addFailure(e.getMessage(), null);
         failureCollector.getOrThrowException();
       }
-      return GCPUtils.getBigQuery(getProject(), credentials);
+      return GCPUtils.getBigQuery(getProject(), credentials, getReadTimeout());
     }
 
     public static Builder builder() {
@@ -656,6 +676,7 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
       private Long maxRetryDuration;
       private Integer maxRetryCount;
       private Double retryMultiplier;
+      private Integer readTimeout;
 
       public Builder setProject(@Nullable String project) {
         this.project = project;
@@ -752,6 +773,11 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
         return this;
       }
 
+      public Builder setReadTimeout(@Nullable Integer readTimeout) {
+        this.readTimeout = readTimeout;
+        return this;
+      }
+
       public Config build() {
         return new Config(
           project,
@@ -772,7 +798,8 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
           initialRetryDuration,
           maxRetryDuration,
           retryMultiplier,
-          maxRetryCount
+          maxRetryCount,
+          readTimeout
         );
       }
     }

@@ -171,7 +171,7 @@ public class BigQuerySourceUtils {
     String temporaryTable = configuration.get(BigQueryConstants.CONFIG_TEMPORARY_TABLE_NAME);
     try {
       Credentials credentials = getCredentials(config.getConnection());
-      BigQuery bigQuery = GCPUtils.getBigQuery(config.getProject(), credentials);
+      BigQuery bigQuery = GCPUtils.getBigQuery(config.getProject(), credentials, null);
       bigQuery.delete(TableId.of(config.getDatasetProject(), config.getDataset(), temporaryTable));
       LOG.debug("Deleted temporary table '{}'", temporaryTable);
     } catch (IOException e) {

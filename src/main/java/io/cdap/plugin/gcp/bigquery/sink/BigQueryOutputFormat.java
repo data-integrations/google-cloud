@@ -810,6 +810,6 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
     String projectId = ConfigurationUtil.getMandatoryConfig(config,
         BigQueryConfiguration.PROJECT_ID);
     Credentials credentials = GCPUtils.loadCredentialsFromConf(config);
-    return GCPUtils.getBigQuery(projectId, credentials);
+    return GCPUtils.getBigQuery(projectId, credentials, null);
   }
 }

@@ -136,7 +136,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     // Create BigQuery client
     String serviceAccount = config.getServiceAccount();
     Credentials credentials = BigQuerySourceUtils.getCredentials(config.getConnection());
-    BigQuery bigQuery = GCPUtils.getBigQuery(config.getProject(), credentials);
+    BigQuery bigQuery = GCPUtils.getBigQuery(config.getProject(), credentials, null);
     Dataset dataset = bigQuery.getDataset(DatasetId.of(config.getDatasetProject(), config.getDataset()));
     Storage storage = GCPUtils.getStorage(config.getProject(), credentials);
 

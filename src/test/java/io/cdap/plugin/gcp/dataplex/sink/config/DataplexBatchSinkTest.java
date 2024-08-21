@@ -278,7 +278,7 @@ public class DataplexBatchSinkTest {
 
     PowerMockito.mockStatic(GCPUtils.class);
     BigQuery bigQuery = Mockito.mock(BigQuery.class);
-    Mockito.when(GCPUtils.getBigQuery("datasetProjectName", googleCredentials)).thenReturn(bigQuery);
+    Mockito.when(GCPUtils.getBigQuery("datasetProjectName", googleCredentials, null)).thenReturn(bigQuery);
     List<BigQueryTableFieldSchema> fields = new ArrayList<>();
     BigQueryTableFieldSchema bigQueryTableFieldSchema = new BigQueryTableFieldSchema();
     fields.add(bigQueryTableFieldSchema);

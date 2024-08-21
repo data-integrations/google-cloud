@@ -156,7 +156,7 @@ public class BigQuerySQLEngine
     datasetName = sqlEngineConfig.getDataset();
 
     // Initialize BQ and GCS clients.
-    bigQuery = GCPUtils.getBigQuery(project, credentials);
+    bigQuery = GCPUtils.getBigQuery(project, credentials, null);
     storage = GCPUtils.getStorage(project, credentials);
     Dataset dataset = bigQuery.getDataset(DatasetId.of(datasetProject, datasetName));
     bucket = BigQueryUtil.getStagingBucketName(context.getRuntimeArguments(), sqlEngineConfig.getLocation(),

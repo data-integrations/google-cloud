@@ -28,6 +28,7 @@ import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem;
 import com.google.cloud.hadoop.util.CredentialFactory;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
+import com.google.cloud.http.HttpTransportOptions;
 import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.BucketInfo;
 import com.google.cloud.storage.Storage;
@@ -77,6 +78,7 @@ public class GCPUtils {
   public static final List<String> BIGQUERY_SCOPES = Arrays.asList("https://www.googleapis.com/auth/drive",
                                                                    "https://www.googleapis.com/auth/bigquery");
   public static final String FQN_RESERVED_CHARACTERS_PATTERN = ".*[.:` \t\n].*";
+  public static final int MILLISECONDS_MULTIPLIER = 1000;
 
   /**
    * Load a service account from the local file system.
@@ -233,7 +235,7 @@ public class GCPUtils {
     return properties;
   }
 
-  public static BigQuery getBigQuery(String project, @Nullable Credentials credentials) {
+  public static BigQuery getBigQuery(String project, @Nullable Credentials credentials, @Nullable Integer readTimeout) {
     BigQueryOptions.Builder bigqueryBuilder = BigQueryOptions.newBuilder().setProjectId(project);
     if (credentials != null) {
       Set<String> scopes = new HashSet<>(BIGQUERY_SCOPES);
@@ -252,6 +254,12 @@ public class GCPUtils {
       }
       bigqueryBuilder.setCredentials(credentials);
     }
+
+    if (readTimeout != null) {
+      bigqueryBuilder.setTransportOptions(HttpTransportOptions.newBuilder()
+          .setReadTimeout(readTimeout * MILLISECONDS_MULTIPLIER).build());
+    }
+
     return bigqueryBuilder.build().getService();
   }
 
