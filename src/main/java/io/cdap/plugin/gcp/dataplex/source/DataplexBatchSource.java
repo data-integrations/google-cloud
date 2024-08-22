@@ -217,7 +217,7 @@ public class DataplexBatchSource extends BatchSource<Object, Object, StructuredR
     // Create BigQuery client
     String serviceAccount = config.getServiceAccount();
     Credentials credentials = config.getCredentials(collector);
-    BigQuery bigQuery = GCPUtils.getBigQuery(datasetProject, credentials);
+    BigQuery bigQuery = GCPUtils.getBigQuery(datasetProject, credentials, null);
 
     // Temporary bucket path without BQ template
     bucketPath = UUID.randomUUID().toString();
@@ -382,7 +382,7 @@ public class DataplexBatchSource extends BatchSource<Object, Object, StructuredR
       BigQuerySourceUtils.deleteGcsTemporaryDirectory(configuration, null, bucketPath);
       String temporaryTable = configuration.get(CONFIG_TEMPORARY_TABLE_NAME);
       Credentials credentials = config.getCredentials(context.getFailureCollector());
-      BigQuery bigQuery = GCPUtils.getBigQuery(config.getProject(), credentials);
+      BigQuery bigQuery = GCPUtils.getBigQuery(config.getProject(), credentials, null);
       bigQuery.delete(TableId.of(datasetProject, dataset, temporaryTable));
       LOG.debug("Deleted temporary table '{}'", temporaryTable);
     } else {

@@ -80,7 +80,7 @@ public final class BigQueryArgumentSetter extends AbstractBigQueryAction {
     Credentials credentials = config.getServiceAccount() == null ?
       null : GCPUtils.loadServiceAccountCredentials(config.getServiceAccount(),
                                                     config.isServiceAccountFilePath());
-    BigQuery bigQuery = GCPUtils.getBigQuery(config.getProject(), credentials);
+    BigQuery bigQuery = GCPUtils.getBigQuery(config.getProject(), credentials, null);
     Job queryJob = bigQuery.create(JobInfo.newBuilder(queryConfig).setJobId(jobId).build());
 
     LOG.info("Executing SQL as job {}.", jobId.getJob());

@@ -254,6 +254,15 @@
             "default": "2",
             "placeholder": "The multiplier to use on retry attempts."
           }
+        },
+        {
+          "widget-type": "hidden",
+          "label": "Read Timeout",
+          "name": "readTimeout",
+          "widget-attributes": {
+            "default": "120",
+            "minimum": "0"
+          }
         }
       ]
     }

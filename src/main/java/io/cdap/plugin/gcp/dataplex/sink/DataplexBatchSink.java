@@ -285,7 +285,7 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
     String[] assetValues = asset.getResourceSpec().getName().split("/");
     String datasetName = assetValues[assetValues.length - 1];
     String datasetProject = assetValues[assetValues.length - 3];
-    bigQuery = GCPUtils.getBigQuery(datasetProject, credentials);
+    bigQuery = GCPUtils.getBigQuery(datasetProject, credentials, null);
     // Get required dataset ID and dataset instance (if it exists)
     DatasetId datasetId = DatasetId.of(datasetProject, datasetName);
     Dataset dataset = bigQuery.getDataset(datasetId);

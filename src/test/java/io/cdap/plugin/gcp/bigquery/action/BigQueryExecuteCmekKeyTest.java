@@ -82,7 +82,7 @@ public class BigQueryExecuteCmekKeyTest {
     serviceAccountKey = new String(Files.readAllBytes(Paths.get(new File(serviceAccountFilePath).getAbsolutePath())),
                                    StandardCharsets.UTF_8);
     Credentials credentials = GCPUtils.loadServiceAccountCredentials(serviceAccountKey, false);
-    bigQuery = GCPUtils.getBigQuery(project, credentials);
+    bigQuery = GCPUtils.getBigQuery(project, credentials, null);
   }
 
   private BigQueryExecute.Config.Builder getBuilder() throws NoSuchFieldException {

@@ -88,7 +88,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
     Credentials credentials = serviceAccount == null ?
       null : GCPUtils.loadServiceAccountCredentials(serviceAccount, config.isServiceAccountFilePath());
     String project = config.getProject();
-    bigQuery = GCPUtils.getBigQuery(project, credentials);
+    bigQuery = GCPUtils.getBigQuery(project, credentials, null);
     FailureCollector collector = context.getFailureCollector();
     CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(config.cmekKey, context.getArguments().asMap(), collector);
     collector.getOrThrowException();

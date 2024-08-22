@@ -186,7 +186,7 @@ public final class BigQuerySourceConfig extends BigQueryBaseConfig {
     }
     DatasetId datasetId = DatasetId.of(getDatasetProject(), getDataset());
     Credentials credentials = connection.getCredentials(collector);
-    BigQuery bigQuery = GCPUtils.getBigQuery(getProject(), credentials);
+    BigQuery bigQuery = GCPUtils.getBigQuery(getProject(), credentials, null);
     if (bigQuery == null) {
       return;
     }

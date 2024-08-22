@@ -60,15 +60,16 @@ public class BigQueryExecuteConfigTest {
   public void testBigQueryExecuteSQLWithNonExistentResource() throws Exception {
     String errorMessage = "Resource was not found. Please verify the resource name. If the resource will be created " +
       "at runtime, then update to use a macro for the resource name. Error message received was: ";
+    int errorCode = 404;
     BigQueryExecute.Config config = getConfig("select * from dataset.table where id=1");
     MockFailureCollector failureCollector = new MockFailureCollector();
     BigQuery bigQuery = mock(BigQuery.class);
-    when(bigQuery.create(ArgumentMatchers.any(JobInfo.class))).thenThrow(new BigQueryException(404, ""));
+    when(bigQuery.create(ArgumentMatchers.any(JobInfo.class))).thenThrow(new BigQueryException(errorCode, ""));
 
     config.validateSQLSyntax(failureCollector, bigQuery);
     LOG.warn("size : {}", failureCollector.getValidationFailures().size());
     Assert.assertEquals(1, failureCollector.getValidationFailures().size());
-    Assert.assertEquals(String.format("%s.", errorMessage),
+    Assert.assertEquals(String.format("%s. Error code: %s.", errorMessage, errorCode),
             failureCollector.getValidationFailures().get(0).getMessage());
     Assert.assertEquals("sql",
             failureCollector.getValidationFailures().get(0).getCauses().get(0).getAttribute("stageConfig"));
@@ -77,14 +78,16 @@ public class BigQueryExecuteConfigTest {
   @Test
   public void testBigQueryExecuteInvalidSQL() throws Exception {
     String errorMessage = "Invalid sql";
+    int errorCode = 500;
     BigQueryExecute.Config config = getConfig("secelt * from dataset.table where id=1");
     MockFailureCollector failureCollector = new MockFailureCollector();
     BigQuery bigQuery = mock(BigQuery.class);
-    when(bigQuery.create(ArgumentMatchers.any(JobInfo.class))).thenThrow(new BigQueryException(1, errorMessage));
+    when(bigQuery.create(ArgumentMatchers.any(JobInfo.class)))
+            .thenThrow(new BigQueryException(errorCode, errorMessage));
 
     config.validateSQLSyntax(failureCollector, bigQuery);
     Assert.assertEquals(1, failureCollector.getValidationFailures().size());
-    Assert.assertEquals(String.format("%s.", errorMessage),
+    Assert.assertEquals(String.format("%s. Error code: %s.", errorMessage, errorCode),
             failureCollector.getValidationFailures().get(0).getMessage());
     Assert.assertEquals("sql",
             failureCollector.getValidationFailures().get(0).getCauses().get(0).getAttribute("stageConfig"));

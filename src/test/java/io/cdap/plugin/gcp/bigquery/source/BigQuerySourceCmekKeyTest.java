@@ -93,7 +93,7 @@ public class BigQuerySourceCmekKeyTest {
                                    StandardCharsets.UTF_8);
     Credentials credentials = GCPUtils.loadServiceAccountCredentials(serviceAccountKey, false);
     storage = GCPUtils.getStorage(project, credentials);
-    bigQuery = GCPUtils.getBigQuery(project, credentials);
+    bigQuery = GCPUtils.getBigQuery(project, credentials, null);
   }
 
   @Before

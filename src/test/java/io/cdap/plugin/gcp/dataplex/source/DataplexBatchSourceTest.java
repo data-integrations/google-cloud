@@ -254,7 +254,7 @@ public class DataplexBatchSourceTest {
     BigQuery bigQuery = Mockito.mock(BigQuery.class);
     PowerMockito.mockStatic(GCPUtils.class);
     Storage storage = Mockito.mock(Storage.class);
-    Mockito.when(GCPUtils.getBigQuery("dataset", googleCredentials)).thenReturn(bigQuery);
+    Mockito.when(GCPUtils.getBigQuery("dataset", googleCredentials, null)).thenReturn(bigQuery);
     PowerMockito.when(BigQueryUtil.getBigQueryConfig(null, null, null,
       "account")).thenReturn(configuration);
     Dataset dataset = Mockito.mock(Dataset.class);
@@ -353,7 +353,7 @@ public class DataplexBatchSourceTest {
     PowerMockito.mockStatic(GCPUtils.class);
     Map<String, String> map = new HashMap<>();
     map.put("price", "100");
-    Mockito.when(GCPUtils.getBigQuery("dataset", googleCredentials)).thenReturn(bigQuery);
+    Mockito.when(GCPUtils.getBigQuery("dataset", googleCredentials, null)).thenReturn(bigQuery);
     PowerMockito.mockStatic(ConfigurationUtils.class);
     Mockito.when(ConfigurationUtils.getNonDefaultConfigurations(configuration)).thenReturn(map);
     PowerMockito.when(BigQueryUtil.getBigQueryConfig(null, null, null,
@@ -377,7 +377,7 @@ public class DataplexBatchSourceTest {
     
     dataplexBatchSource.initialize(runtimeContext);
     dataplexBatchSource.prepareRun(context);
-    Mockito.when(GCPUtils.getBigQuery(null, googleCredentials)).thenReturn(bigQuery);
+    Mockito.when(GCPUtils.getBigQuery(null, googleCredentials, null)).thenReturn(bigQuery);
     dataplexBatchSource.onRunFinish(true, context);
     Assert.assertEquals(0, mockFailureCollector.getValidationFailures().size());
   }

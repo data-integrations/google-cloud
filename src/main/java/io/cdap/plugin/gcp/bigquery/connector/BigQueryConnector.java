@@ -132,7 +132,7 @@ public final class BigQueryConnector implements DirectConnector {
     }
 
     try {
-      BigQuery bigQuery = GCPUtils.getBigQuery(config.getDatasetProject(), credentials);
+      BigQuery bigQuery = GCPUtils.getBigQuery(config.getDatasetProject(), credentials, null);
       bigQuery.listDatasets(BigQuery.DatasetListOption.pageSize(1));
     } catch (Exception e) {
       failureCollector.addFailure(String.format("Could not connect to BigQuery: %s", e.getMessage()),
@@ -236,7 +236,7 @@ public final class BigQueryConnector implements DirectConnector {
         GCPUtils.loadServiceAccountCredentials(config.getServiceAccount(), config.isServiceAccountFilePath());
     }
     // Here project decides where the BQ job is run and under which the datasets is listed
-    return GCPUtils.getBigQuery(project, credentials);
+    return GCPUtils.getBigQuery(project, credentials, null);
   }
 
   /**
