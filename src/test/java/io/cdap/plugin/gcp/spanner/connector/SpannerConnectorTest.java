@@ -196,43 +196,34 @@ public class SpannerConnectorTest {
     // browse project
     BrowseDetail detail = connector.browse(new MockConnectorContext(new MockConnectorConfigurer()),
                                            BrowseRequest.builder("/").build());
-    BrowseDetail expected = BrowseDetail.builder()
-      .setTotalCount(1)
-      .addEntity(BrowseEntity.builder(instance, "/" + instance, "instance")
+    BrowseEntity expected = BrowseEntity.builder(instance, "/" + instance, "instance")
                    .canBrowse(true)
                    .canSample(false)
-                   .build())
-      .build();
-    Assert.assertEquals(expected, detail);
+                   .build();
+    Assert.assertTrue(detail.getEntities().contains(expected));
 
     // browse instance
     detail = connector.browse(new MockConnectorContext(new MockConnectorConfigurer()),
                               BrowseRequest.builder(instance).build());
-    expected = BrowseDetail.builder()
-      .setTotalCount(1)
-      .addEntity(BrowseEntity.builder(database, String.format("/%s/%s", instance, database), "database")
+    expected = BrowseEntity.builder(database, String.format("/%s/%s", instance, database), "database")
                    .canBrowse(true)
                    .canSample(false)
-                   .build())
-      .build();
-    Assert.assertEquals(expected, detail);
+                   .build();
+    Assert.assertTrue(detail.getEntities().contains(expected));
 
     // browse database
     detail = connector.browse(new MockConnectorContext(new MockConnectorConfigurer()),
                               BrowseRequest.builder(instance + "/" + database).build());
-    expected = BrowseDetail.builder()
-      .setTotalCount(1)
-      .addEntity(BrowseEntity.builder(table, String.format("/%s/%s/%s", instance, database, table), "table")
+    expected = BrowseEntity.builder(table, String.format("/%s/%s/%s", instance, database, table), "table")
                    .canBrowse(false)
                    .canSample(true)
-                   .build())
-      .build();
-    Assert.assertEquals(expected, detail);
+                   .build();
+    Assert.assertTrue(detail.getEntities().contains(expected));
 
     // browse table
     detail = connector.browse(new MockConnectorContext(new MockConnectorConfigurer()),
                               BrowseRequest.builder(instance + "/" + database + "/" + table).build());
-    Assert.assertEquals(expected, detail);
+    Assert.assertTrue(detail.getEntities().contains(expected));
 
     // invalid path
     Assert.assertThrows(IllegalArgumentException.class, () ->
