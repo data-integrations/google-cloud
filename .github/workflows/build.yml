@@ -58,13 +58,3 @@ jobs:
           path: |
             **/target/rat.txt
             **/target/surefire-reports/*
-      - name: Surefire Report
-        # Pinned 3.5.2 version
-        uses: mikepenz/action-junit-report@16a9560bd02f11e7e3bf6b3e2ef6bba6c9d07c32
-        if: always()
-        with:
-          report_paths: '**/target/surefire-reports/TEST-*.xml'
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          detailed_summary: true
-          commit: ${{ github.event.workflow_run.head_sha }}
-          check_name: Test Report
