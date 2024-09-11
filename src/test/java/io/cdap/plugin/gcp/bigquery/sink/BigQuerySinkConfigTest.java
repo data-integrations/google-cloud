@@ -130,6 +130,34 @@ public class BigQuerySinkConfigTest {
   }
 
   @Test
+  public void testValidateTimePartitioningColumnWithMonthAndDateTime() throws
+    InvocationTargetException, IllegalAccessException {
+
+    String columnName = "partitionFrom";
+    Schema schema = Schema.of(Schema.LogicalType.DATETIME);
+
+    Schema fieldSchema = schema.isNullable() ? schema.getNonNullable() : schema;
+    TimePartitioning.Type timePartitioningType = TimePartitioning.Type.MONTH;
+
+    validateTimePartitioningColumnMethod.invoke(config, columnName, collector, fieldSchema, timePartitioningType);
+    Assert.assertEquals(0, collector.getValidationFailures().size());
+  }
+
+  @Test
+  public void testValidateTimePartitioningColumnWithHourAndDateTime() throws
+    InvocationTargetException, IllegalAccessException {
+
+    String columnName = "partitionFrom";
+    Schema schema = Schema.of(Schema.LogicalType.DATETIME);
+
+    Schema fieldSchema = schema.isNullable() ? schema.getNonNullable() : schema;
+    TimePartitioning.Type timePartitioningType = TimePartitioning.Type.HOUR;
+
+    validateTimePartitioningColumnMethod.invoke(config, columnName, collector, fieldSchema, timePartitioningType);
+    Assert.assertEquals(0, collector.getValidationFailures().size());
+  }
+
+  @Test
   public void testValidateColumnNameWithValidColumnName() {
     String columnName = "test";
     Schema schema = Schema.recordOf("test", Schema.Field.of(columnName, Schema.of(Schema.Type.STRING)));
