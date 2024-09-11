@@ -110,6 +110,17 @@ is ignored if the table already exists.
 **Time Partitioning Type**: Specifies the time partitioning type. Can either be Daily or Hourly or Monthly or Yearly.
 Default is Daily. Ignored when table already exists
 
+> The table below shows the compatibility of different time schema types with various time partitioning types in BigQuery.
+
+| Schema Type / Partion Type  | Hourly  | Daily   | Monthly | Yearly  |
+|-------------------------| ------- | ------- | ------- | ------- |
+| TIMESTAMP_MILLIS        | &check; | &check; | &check; | &check; |
+| TIMESTAMP_MICROS        | &check; | &check; | &check; | &check; |
+| DATETIME                | &check; | &check; | &check; | &check; |
+| DATE                    | &cross; | &check; | &check; | &check; |
+| TIME_MILLIS             | &cross; | &cross; | &cross; | &cross; |
+| TIME_MICROS             | &cross; | &cross; | &cross; | &cross; |
+
 **Range Start**: For integer partitioning, specifies the start of the range. Only used when table doesn’t 
 exist already, and partitioning type is set to Integer.
 * The start value is inclusive.
