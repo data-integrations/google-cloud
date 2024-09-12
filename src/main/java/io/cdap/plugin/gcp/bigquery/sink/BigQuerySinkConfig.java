@@ -526,23 +526,21 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
 
     boolean isTimestamp = logicalType == LogicalType.TIMESTAMP_MICROS || logicalType == LogicalType.TIMESTAMP_MILLIS;
     boolean isDate = logicalType == LogicalType.DATE;
-    boolean isTimestampOrDate = isTimestamp || isDate;
-
-    // If timePartitioningType is HOUR, then logicalType cannot be DATE Only TIMESTAMP_MICROS and TIMESTAMP_MILLIS
-    if (timePartitioningType == TimePartitioning.Type.HOUR && !isTimestamp) {
-      collector.addFailure(
-                      String.format("Partition column '%s' is of invalid type '%s'.",
+    boolean isDateTime = logicalType == LogicalType.DATETIME;
+    boolean isTimestampOrDateOrDateTime = isTimestamp || isDate || isDateTime;
+    boolean isTimestampOrDateTime = isTimestamp || isDateTime;
+    // TimePartitioningType HOUR is supported by TIMESTAMP_MICROS, TIMESTAMP_MILLIS, DATETIME
+    if (timePartitioningType == TimePartitioning.Type.HOUR && !isTimestampOrDateTime) {
+      collector.addFailure(String.format("Partition column '%s' is of invalid type '%s'.",
                               columnName, fieldSchema.getDisplayName()),
-                      "Partition column must be a timestamp.").withConfigProperty(NAME_PARTITION_BY_FIELD)
-              .withOutputSchemaField(columnName).withInputSchemaField(columnName);
-
-    // For any other timePartitioningType (DAY, MONTH, YEAR) logicalType can be DATE, TIMESTAMP_MICROS, TIMESTAMP_MILLIS
-    } else if (!isTimestampOrDate) {
-      collector.addFailure(
-                      String.format("Partition column '%s' is of invalid type '%s'.",
+                      "Partition column must be of type TIMESTAMP or DATETIME")
+        .withConfigProperty(NAME_PARTITION_BY_FIELD).withOutputSchemaField(columnName).withInputSchemaField(columnName);
+    // TimePartitioningType (DAY, MONTH, YEAR) are supported by TIMESTAMP_MICROS, TIMESTAMP_MILLIS, DATE, DATETIME
+    } else if (!isTimestampOrDateOrDateTime) {
+      collector.addFailure(String.format("Partition column '%s' is of invalid type '%s'.",
                               columnName, fieldSchema.getDisplayName()),
-                      "Partition column must be a date or timestamp.").withConfigProperty(NAME_PARTITION_BY_FIELD)
-              .withOutputSchemaField(columnName).withInputSchemaField(columnName);
+                      "Partition column must be of type TIMESTAMP, DATE or DATETIME")
+        .withConfigProperty(NAME_PARTITION_BY_FIELD).withOutputSchemaField(columnName).withInputSchemaField(columnName);
     }
   }
 
