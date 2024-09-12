@@ -43,6 +43,7 @@ import io.cdap.plugin.format.plugin.AbstractFileSourceConfig;
 import io.cdap.plugin.format.plugin.FileSourceProperties;
 import io.cdap.plugin.gcp.common.GCPConnectorConfig;
 import io.cdap.plugin.gcp.common.GCPUtils;
+import io.cdap.plugin.gcp.common.GCSEmptyInputFormat;
 import io.cdap.plugin.gcp.crypto.EncryptedFileSystem;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 import io.cdap.plugin.gcp.gcs.connector.GCSConnector;
@@ -75,6 +76,11 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
   @Override
   public void configurePipeline(PipelineConfigurer pipelineConfigurer) {
     super.configurePipeline(pipelineConfigurer);
+  }
+
+  @Override
+  protected String getEmptyInputFormatClassName() {
+    return GCSEmptyInputFormat.class.getName();
   }
 
   @Override
@@ -266,11 +272,6 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
     @Nullable
     public Long getMinSplitSize() {
       return minSplitSize;
-    }
-
-    @Override
-    public boolean shouldAllowEmptyInput() {
-      return false;
     }
 
     public boolean isCopyHeader() {
