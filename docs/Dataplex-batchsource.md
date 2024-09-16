@@ -89,3 +89,11 @@ Dataplex type.
 | struct        | record                                |
 | time          | time (microseconds)                   |
 | timestamp     | timestamp (microseconds)              |
+
+Limitations
+----------
+
+- The plugin currently does not support CSV data on Cloud Storage
+- Partition Start Date and Partition End Date are not applicable for Cloud Storage Entities
+- The plugin can read data from Cloud Storage entities only if the lake is associated with a Dataproc
+Metastore
