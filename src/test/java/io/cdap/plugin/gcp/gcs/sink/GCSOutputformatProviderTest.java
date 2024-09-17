@@ -25,8 +25,9 @@ public class GCSOutputformatProviderTest {
   @Test
   public void testRecordWriter() throws IOException, InterruptedException {
     RecordWriter mockWriter = Mockito.mock(RecordWriter.class);
-    GCSOutputFormatProvider.GCSRecordWriter recordWriterToTest = new GCSOutputFormatProvider.GCSRecordWriter(
-      mockWriter);
+    ForwardingRecordWriter recordWriterToTest =
+      new ForwardingRecordWriter(new GCSOutputFormatProvider.GCSRecordWriter(
+      mockWriter));
     NullWritable mockWritable = Mockito.mock(NullWritable.class);
     StructuredRecord mockRecord = Mockito.mock(StructuredRecord.class);
     for (int i = 0; i < 5; i++) {

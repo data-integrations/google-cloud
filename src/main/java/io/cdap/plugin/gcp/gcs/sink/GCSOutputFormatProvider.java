@@ -1,8 +1,13 @@
 package io.cdap.plugin.gcp.gcs.sink;
 
 import io.cdap.cdap.api.data.format.StructuredRecord;
+import io.cdap.cdap.api.exception.ErrorCategory;
+import io.cdap.cdap.api.exception.ErrorCategory.ErrorCategoryEnum;
+import io.cdap.cdap.api.exception.ErrorType;
+import io.cdap.cdap.api.exception.ErrorUtils;
 import io.cdap.cdap.etl.api.validation.FormatContext;
 import io.cdap.cdap.etl.api.validation.ValidatingOutputFormat;
+import io.cdap.plugin.gcp.common.GCPUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.JobContext;
@@ -36,13 +41,14 @@ public class GCSOutputFormatProvider implements ValidatingOutputFormat {
 
   @Override
   public String getOutputFormatClassName() {
-    return GCSOutputFormat.class.getName();
+    return ForwardingOutputFormat.class.getName();
   }
 
   @Override
   public Map<String, String> getOutputFormatConfiguration() {
     Map<String, String> outputFormatConfiguration = new HashMap<>(delegate.getOutputFormatConfiguration());
     outputFormatConfiguration.put(DELEGATE_OUTPUTFORMAT_CLASSNAME, delegate.getOutputFormatClassName());
+    outputFormatConfiguration.put(GCPUtils.WRAPPED_OUTPUTFORMAT_CLASSNAME, GCSOutputFormat.class.getName());
     return outputFormatConfiguration;
   }
 
@@ -52,7 +58,7 @@ public class GCSOutputFormatProvider implements ValidatingOutputFormat {
   public static class GCSOutputFormat extends OutputFormat<NullWritable, StructuredRecord> {
     private OutputFormat delegateFormat;
 
-    private OutputFormat getDelegateFormatInstance(Configuration configuration) throws IOException {
+    private OutputFormat getDelegateFormatInstance(Configuration configuration) {
       if (delegateFormat != null) {
         return delegateFormat;
       }
@@ -63,9 +69,9 @@ public class GCSOutputFormatProvider implements ValidatingOutputFormat {
           .newInstance(configuration.getClassByName(delegateClassName), configuration);
         return delegateFormat;
       } catch (ClassNotFoundException e) {
-        throw new IOException(
-          String.format("Unable to instantiate output format for class %s", delegateClassName),
-          e);
+        throw ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategoryEnum.PLUGIN),
+            String.format("Unable to instantiate output format for class '%s'.", delegateClassName),
+            e.getMessage(), ErrorType.SYSTEM, false, e);
       }
     }
 
@@ -74,7 +80,7 @@ public class GCSOutputFormatProvider implements ValidatingOutputFormat {
       IOException, InterruptedException {
       RecordWriter originalWriter = getDelegateFormatInstance(taskAttemptContext.getConfiguration())
         .getRecordWriter(taskAttemptContext);
-      return new GCSRecordWriter(originalWriter);
+      return new ForwardingRecordWriter(new GCSRecordWriter(originalWriter));
     }
 
     @Override
@@ -87,7 +93,7 @@ public class GCSOutputFormatProvider implements ValidatingOutputFormat {
       InterruptedException {
       OutputCommitter delegateCommitter = getDelegateFormatInstance(taskAttemptContext.getConfiguration())
         .getOutputCommitter(taskAttemptContext);
-      return new GCSOutputCommitter(delegateCommitter);
+      return new ForwardingOutputCommitter(new GCSOutputCommitter(delegateCommitter));
     }
   }
 

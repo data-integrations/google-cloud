@@ -17,6 +17,10 @@
 package io.cdap.plugin.gcp.gcs.sink;
 
 import io.cdap.cdap.api.data.format.StructuredRecord;
+import io.cdap.cdap.api.exception.ErrorCategory;
+import io.cdap.cdap.api.exception.ErrorCategory.ErrorCategoryEnum;
+import io.cdap.cdap.api.exception.ErrorType;
+import io.cdap.cdap.api.exception.ErrorUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.OutputFormat;
@@ -36,7 +40,9 @@ public class DelegatingGCSOutputUtils {
         (Class<OutputFormat<NullWritable, StructuredRecord>>) hConf.getClassByName(delegateClassName);
       return delegateClass.newInstance();
     } catch (Exception e) {
-      throw new IOException("Unable to instantiate output format for class " + delegateClassName, e);
+      throw ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategoryEnum.PLUGIN),
+        String.format("Unable to instantiate output format for class '%s'.", delegateClassName),
+        e.getMessage(), ErrorType.SYSTEM, false, e);
     }
   }
 

@@ -21,6 +21,10 @@ import com.google.auth.oauth2.GoogleCredentials;
 import com.google.bigtable.repackaged.com.google.gson.Gson;
 import com.google.cloud.hadoop.util.AccessTokenProvider;
 import com.google.cloud.hadoop.util.CredentialFactory;
+import io.cdap.cdap.api.exception.ErrorCategory;
+import io.cdap.cdap.api.exception.ErrorCategory.ErrorCategoryEnum;
+import io.cdap.cdap.api.exception.ErrorType;
+import io.cdap.cdap.api.exception.ErrorUtils;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import org.apache.hadoop.conf.Configuration;
 
@@ -50,13 +54,20 @@ public class ServiceAccountAccessTokenProvider implements AccessTokenProvider {
       }
       return new AccessToken(token.getTokenValue(), token.getExpirationTime().getTime());
     } catch (IOException e) {
-      throw new RuntimeException(e);
+      throw ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategoryEnum.PLUGIN),
+        "Unable to get service account access token.", e.getMessage(), ErrorType.UNKNOWN, true, e);
     }
   }
 
   @Override
   public void refresh() throws IOException {
-    getCredentials().refresh();
+    try {
+      getCredentials().refresh();
+    } catch (IOException e) {
+      throw ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategoryEnum.PLUGIN),
+        "Unable to refresh service account access token.", e.getMessage(),
+        ErrorType.UNKNOWN, true, e);
+    }
   }
 
   private GoogleCredentials getCredentials() throws IOException {

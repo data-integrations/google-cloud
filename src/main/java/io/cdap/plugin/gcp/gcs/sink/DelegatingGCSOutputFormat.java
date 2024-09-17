@@ -17,6 +17,11 @@
 package io.cdap.plugin.gcp.gcs.sink;
 
 import io.cdap.cdap.api.data.format.StructuredRecord;
+import io.cdap.cdap.api.exception.ErrorCategory;
+import io.cdap.cdap.api.exception.ErrorCategory.ErrorCategoryEnum;
+import io.cdap.cdap.api.exception.ErrorType;
+import io.cdap.cdap.api.exception.ErrorUtils;
+import io.cdap.plugin.gcp.common.GCPUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.JobContext;
@@ -46,11 +51,13 @@ public class DelegatingGCSOutputFormat extends OutputFormat<NullWritable, Struct
    * Get required configuration properties for this Output Format
    */
   public static Map<String, String> configure(String delegateClassName,
+                                              String wrappedClassName,
                                               String filterField,
                                               String outputBaseDir,
                                               String outputSuffix) {
     Map<String, String> config = new HashMap<>();
     config.put(DELEGATE_CLASS, delegateClassName);
+    config.put(GCPUtils.WRAPPED_OUTPUTFORMAT_CLASSNAME, wrappedClassName);
     config.put(PARTITION_FIELD, filterField);
     config.put(OUTPUT_PATH_BASE_DIR, outputBaseDir);
     config.put(OUTPUT_PATH_SUFFIX, outputSuffix);
@@ -62,7 +69,8 @@ public class DelegatingGCSOutputFormat extends OutputFormat<NullWritable, Struct
     Configuration hConf = context.getConfiguration();
     String partitionField = hConf.get(PARTITION_FIELD);
 
-    return new DelegatingGCSRecordWriter(context, partitionField, getOutputCommitter(context));
+    return new ForwardingRecordWriter(new DelegatingGCSRecordWriter(context, partitionField,
+      getOutputCommitter(context), this));
   }
 
   @Override
@@ -71,8 +79,7 @@ public class DelegatingGCSOutputFormat extends OutputFormat<NullWritable, Struct
   }
 
   @Override
-  public DelegatingGCSOutputCommitter getOutputCommitter(TaskAttemptContext context) {
-    return new DelegatingGCSOutputCommitter(context);
+  public ForwardingOutputCommitter getOutputCommitter(TaskAttemptContext context) {
+    return new ForwardingOutputCommitter(new DelegatingGCSOutputCommitter(context));
   }
-
 }

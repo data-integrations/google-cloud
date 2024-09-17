@@ -86,22 +86,52 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
   @Override
   public void prepareRun(BatchSourceContext context) throws Exception {
     // Get location of the source for lineage
-    String location;
-    String bucketName = GCSPath.from(config.getPath()).getBucket();
-    Credentials credentials = config.connection.getServiceAccount() == null ?
-      null : GCPUtils.loadServiceAccountCredentials(config.connection.getServiceAccount(),
-                                                    config.connection.isServiceAccountFilePath());
+    String location = null;
+    String bucketName = null;
+    String path = config.getPath();
+    FailureCollector collector = context.getFailureCollector();
+
+    try {
+      bucketName = GCSPath.from(path).getBucket();
+    } catch (IllegalArgumentException e) {
+      collector.addFailure(e.getMessage(), null)
+          .withStacktrace(e.getStackTrace());
+      collector.getOrThrowException();
+    }
+
+    Boolean isServiceAccountFilePath = config.connection.isServiceAccountFilePath();
+    if (isServiceAccountFilePath == null) {
+      collector.addFailure("Service account type is undefined.",
+          "Must be `filePath` or `JSON`");
+      collector.getOrThrowException();
+    }
+
+    Credentials credentials = null;
+    try {
+      credentials = config.connection.getServiceAccount() == null ?
+          null : GCPUtils.loadServiceAccountCredentials(config.connection.getServiceAccount(),
+          isServiceAccountFilePath);
+    } catch (Exception e) {
+      String errorReason = "Unable to load service account credentials.";
+      collector.addFailure(String.format("%s %s", errorReason, e.getMessage()), null)
+          .withStacktrace(e.getStackTrace());
+      collector.getOrThrowException();
+    }
+
     Storage storage = GCPUtils.getStorage(config.connection.getProject(), credentials);
     try {
       location = storage.get(bucketName).getLocation();
     } catch (StorageException e) {
-      throw new RuntimeException(
-        String.format("Unable to access bucket %s. ", bucketName)
-          + "Ensure you entered the correct bucket path and have permissions for it.", e);
+      String errorReason = String.format("Error code: %s, Unable to access GCS bucket '%s'. ",
+          e.getCode(), bucketName);
+      collector.addFailure(String.format("%s %s", errorReason, e.getMessage()),
+              "Ensure you entered the correct bucket path and have permissions for it.")
+          .withStacktrace(e.getStackTrace());
+      collector.getOrThrowException();
     }
 
     // create asset for lineage
-    String fqn = GCSPath.getFQN(config.getPath());
+    String fqn = GCSPath.getFQN(path);
     String referenceName = Strings.isNullOrEmpty(config.getReferenceName())
         ? ReferenceNames.normalizeFqn(fqn)
         : config.getReferenceName();
@@ -142,7 +172,7 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
 
   @Override
   protected void recordLineage(LineageRecorder lineageRecorder, List<String> outputFields) {
-    lineageRecorder.recordRead("Read", String.format("Read%sfrom Google Cloud Storage.",
+    lineageRecorder.recordRead("Read", String.format("Read %s from Google Cloud Storage.",
                                                      config.isEncrypted() ? " and decrypt " : " "), outputFields);
   }
 

@@ -24,6 +24,12 @@ import com.google.crypto.tink.KmsClients;
 import com.google.crypto.tink.StreamingAead;
 import com.google.crypto.tink.config.TinkConfig;
 import com.google.crypto.tink.integration.gcpkms.GcpKmsClient;
+import io.cdap.cdap.api.exception.ErrorCategory;
+import io.cdap.cdap.api.exception.ErrorCategory.ErrorCategoryEnum;
+import io.cdap.cdap.api.exception.ErrorType;
+import io.cdap.cdap.api.exception.ErrorUtils;
+import io.cdap.cdap.runtime.spi.runtimejob.ProgramRunFailureException;
+import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.crypto.Decryptor;
 import io.cdap.plugin.gcp.crypto.FSInputSeekableByteChannel;
 import org.apache.hadoop.conf.Configurable;
@@ -66,20 +72,22 @@ public class TinkDecryptor implements Decryptor, Configurable {
   @Override
   public SeekableByteChannel open(FileSystem fs, Path path, int bufferSize) throws IOException {
     DecryptInfo decryptInfo = getDecryptInfo(fs, path);
+    Path metadataPath = new Path(path.getParent(), path.getName() + metadataSuffix);
     if (decryptInfo == null) {
-      throw new IllegalArgumentException("Missing encryption metadata for file '" + path
-                                           + "'. Expected metadata path is '"
-                                           + new Path(path.getParent(), path.getName() + metadataSuffix) + "'");
+      throw ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategoryEnum.PLUGIN),
+          String.format("Missing encryption metadata for file '%s'. "
+              + "Expected metadata path is '%s'.", path, metadataPath), null,
+        ErrorType.USER, false, null);
     }
 
     try {
       StreamingAead streamingAead = decryptInfo.getKeysetHandle().getPrimitive(StreamingAead.class);
       return streamingAead.newSeekableDecryptingChannel(new FSInputSeekableByteChannel(fs, path, bufferSize),
                                                         decryptInfo.getAad());
-    } catch (IOException e) {
-      throw e;
     } catch (Exception e) {
-      throw new IOException(e);
+      throw ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategoryEnum.PLUGIN),
+          String.format("Unable to decrypt the file '%s' using encryption metadata file '%s'.",
+              path, metadataPath), e.getMessage(), ErrorType.UNKNOWN, false, e);
     }
   }
 
@@ -88,7 +96,9 @@ public class TinkDecryptor implements Decryptor, Configurable {
     this.configuration = configuration;
     this.metadataSuffix = configuration.get(METADATA_SUFFIX);
     if (metadataSuffix == null) {
-      throw new IllegalArgumentException("Missing configuration '" + METADATA_SUFFIX + "'");
+      throw ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategoryEnum.PLUGIN),
+        String.format("Missing configuration '%s'.", METADATA_SUFFIX), null,
+        ErrorType.USER, false, null);
     }
   }
 
@@ -112,7 +122,13 @@ public class TinkDecryptor implements Decryptor, Configurable {
     }
 
     // Create the DecryptInfo
-    return getDecryptInfo(metadata);
+    try {
+      return getDecryptInfo(metadata);
+    } catch (Exception e) {
+      throw ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategoryEnum.PLUGIN),
+          String.format("Unable to decrypt the file '%s' using encryption metadata file '%s'.",
+              path, metadataPath), e.getMessage(), ErrorType.UNKNOWN, false, e);
+    }
   }
 
   static DecryptInfo getDecryptInfo(JSONObject metadata) throws IOException {

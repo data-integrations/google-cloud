@@ -121,26 +121,42 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
       collector.addFailure("Service account type is undefined.",
                                                "Must be `filePath` or `JSON`");
       collector.getOrThrowException();
-      return;
     }
-    Credentials credentials = config.connection.getServiceAccount() == null ?
-      null : GCPUtils.loadServiceAccountCredentials(config.connection.getServiceAccount(), isServiceAccountFilePath);
-    Storage storage = GCPUtils.getStorage(config.connection.getProject(), credentials);
-    Bucket bucket;
-    String location;
+
+    Credentials credentials = null;
     try {
-      bucket = storage.get(config.getBucket());
+      credentials = config.connection.getServiceAccount() == null ?
+          null : GCPUtils.loadServiceAccountCredentials(config.connection.getServiceAccount(),
+          isServiceAccountFilePath);
+    } catch (Exception e) {
+      String errorReason = "Unable to load service account credentials.";
+      collector.addFailure(String.format("%s %s", errorReason, e.getMessage()), null)
+          .withStacktrace(e.getStackTrace());
+      collector.getOrThrowException();
+    }
+
+    String bucketName = config.getBucket(collector);
+    Storage storage = GCPUtils.getStorage(config.connection.getProject(), credentials);
+    String errorReasonFormat = "Error code: %s, Unable to read or access GCS bucket.";
+    String correctiveAction = "Ensure you entered the correct bucket path and "
+        + "have permissions for it.";
+    Bucket bucket;
+    String location = null;
+    try {
+      bucket = storage.get(bucketName);
+      if (bucket != null) {
+        location = bucket.getLocation();
+      } else {
+        location = config.getLocation();
+        GCPUtils.createBucket(storage, bucketName, location, cmekKeyName);
+      }
     } catch (StorageException e) {
-      throw new RuntimeException(
-        String.format("Unable to access or create bucket %s. ", config.getBucket())
-          + "Ensure you entered the correct bucket path and have permissions for it.", e);
+      String errorReason = String.format(errorReasonFormat, e.getCode());
+      collector.addFailure(String.format("%s %s", errorReason, e.getMessage()), correctiveAction)
+          .withStacktrace(e.getStackTrace());
+      collector.getOrThrowException();
     }
-    if (bucket != null) {
-      location = bucket.getLocation();
-    } else {
-      GCPUtils.createBucket(storage, config.getBucket(), config.getLocation(), cmekKeyName);
-      location = config.getLocation();
-    }
+
     this.outputPath = getOutputDir(context);
     // create asset for lineage
     asset = Asset.builder(config.getReferenceName())
@@ -532,8 +548,15 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
       }
     }
 
-    public String getBucket() {
-      return GCSPath.from(path).getBucket();
+    public String getBucket(FailureCollector collector) {
+      try {
+        return GCSPath.from(path).getBucket();
+      } catch (IllegalArgumentException e) {
+        collector.addFailure(e.getMessage(), null)
+            .withStacktrace(e.getStackTrace());
+        collector.getOrThrowException();
+      }
+      return null;
     }
 
     @Override
@@ -718,8 +741,8 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
         return this;
       }
 
-      public GCSBatchSink.GCSBatchSinkConfig build() {
-        return new GCSBatchSink.GCSBatchSinkConfig(
+      public GCSBatchSinkConfig build() {
+        return new GCSBatchSinkConfig(
           referenceName,
           project,
           fileSystemProperties,

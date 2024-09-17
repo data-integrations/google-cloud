@@ -129,33 +129,48 @@ public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable,
     config.validate(collector, context.getArguments().asMap());
     collector.getOrThrowException();
 
-    Map<String, String> baseProperties = GCPUtils.getFileSystemProperties(config.connection,
-                                                                          config.getPath(), new HashMap<>());
     Map<String, String> argumentCopy = new HashMap<>(context.getArguments().asMap());
-
     CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(config.cmekKey, context.getArguments().asMap(), collector);
     collector.getOrThrowException();
+
     Boolean isServiceAccountFilePath = config.connection.isServiceAccountFilePath();
     if (isServiceAccountFilePath == null) {
-      context.getFailureCollector().addFailure("Service account type is undefined.",
-                                               "Must be `filePath` or `JSON`");
-      context.getFailureCollector().getOrThrowException();
+      collector.addFailure("Service account type is undefined.",
+          "Must be `filePath` or `JSON`");
+      collector.getOrThrowException();
       return;
     }
-    Credentials credentials = config.connection.getServiceAccount() == null ?
-      null : GCPUtils.loadServiceAccountCredentials(config.connection.getServiceAccount(), isServiceAccountFilePath);
-    Storage storage = GCPUtils.getStorage(config.connection.getProject(), credentials);
+
+    Credentials credentials = null;
     try {
-      if (storage.get(config.getBucket()) == null) {
-        GCPUtils.createBucket(storage, config.getBucket(), config.getLocation(), cmekKeyName);
-      }
-    } catch (StorageException e) {
-      // Add more descriptive error message
-      throw new RuntimeException(
-        String.format("Unable to access or create bucket %s. ", config.getBucket())
-          + "Ensure you entered the correct bucket path and have permissions for it.", e);
+      credentials = config.connection.getServiceAccount() == null ?
+          null : GCPUtils.loadServiceAccountCredentials(config.connection.getServiceAccount(),
+          isServiceAccountFilePath);
+    } catch (Exception e) {
+      String errorReason = "Unable to load service account credentials.";
+      collector.addFailure(String.format("%s %s", errorReason, e.getMessage()), null)
+          .withStacktrace(e.getStackTrace());
+      collector.getOrThrowException();
     }
 
+    String bucketName = config.getBucket(collector);
+    Storage storage = GCPUtils.getStorage(config.connection.getProject(), credentials);
+    String errorReasonFormat = "Error code: %s, Unable to read or access GCS bucket.";
+    String correctiveAction = "Ensure you entered the correct bucket path and "
+        + "have permissions for it.";
+    try {
+      if (storage.get(bucketName) == null) {
+        GCPUtils.createBucket(storage, bucketName, config.getLocation(), cmekKeyName);
+      }
+    } catch (StorageException e) {
+      String errorReason = String.format(errorReasonFormat, e.getCode());
+      collector.addFailure(String.format("%s %s", errorReason, e.getMessage()), correctiveAction)
+          .withStacktrace(e.getStackTrace());
+      collector.getOrThrowException();
+    }
+
+    Map<String, String> baseProperties = GCPUtils.getFileSystemProperties(config.connection,
+        config.getPath(), new HashMap<>());
     if (config.getAllowFlexibleSchema()) {
       //Configure MultiSink with support for flexible schemas.
       configureSchemalessMultiSink(context, baseProperties, argumentCopy);
@@ -194,9 +209,10 @@ public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable,
                                                                  config.splitField, name, schema));
       outputProperties.put(FileOutputFormat.OUTDIR, config.getOutputDir(context.getLogicalStartTime(), name));
       outputProperties.put(GCSBatchSink.CONTENT_TYPE, config.getContentType());
+      outputProperties.put(GCPUtils.WRAPPED_OUTPUTFORMAT_CLASSNAME, RecordFilterOutputFormat.class.getName());
       context.addOutput(Output.of(
         config.getReferenceName() + "_" + name,
-        new SinkOutputFormatProvider(RecordFilterOutputFormat.class.getName(), outputProperties)));
+        new SinkOutputFormatProvider(ForwardingOutputFormat.class.getName(), outputProperties)));
     }
   }
 
@@ -208,13 +224,14 @@ public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable,
     Map<String, String> outputProperties = new HashMap<>(baseProperties);
     outputProperties.putAll(validatingOutputFormat.getOutputFormatConfiguration());
     outputProperties.putAll(DelegatingGCSOutputFormat.configure(validatingOutputFormat.getOutputFormatClassName(),
+                                                                DelegatingGCSOutputFormat.class.getName(),
                                                                 config.splitField,
                                                                 config.getOutputBaseDir(),
                                                                 config.getOutputSuffix(context.getLogicalStartTime())));
     outputProperties.put(GCSBatchSink.CONTENT_TYPE, config.getContentType());
     context.addOutput(Output.of(
       config.getReferenceName(),
-      new SinkOutputFormatProvider(DelegatingGCSOutputFormat.class.getName(), outputProperties)));
+      new SinkOutputFormatProvider(ForwardingOutputFormat.class.getName(), outputProperties)));
   }
 
   /**

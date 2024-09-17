@@ -65,7 +65,9 @@ public class DelegatingGCSOutputCommitter extends OutputCommitter {
                                                 taskAttemptContext.getConfiguration(), tableName));
 
     //Wrap output committer into the GCS Output Committer.
-    GCSOutputCommitter gcsOutputCommitter = new GCSOutputCommitter(outputFormat.getOutputCommitter(taskAttemptContext));
+    ForwardingOutputCommitter gcsOutputCommitter =
+        new ForwardingOutputCommitter(
+            new GCSOutputCommitter(outputFormat.getOutputCommitter(taskAttemptContext)));
 
     gcsOutputCommitter.setupJob(taskAttemptContext);
     gcsOutputCommitter.setupTask(taskAttemptContext);

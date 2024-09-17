@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.common;
 
+import com.google.api.client.http.HttpResponseException;
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.ExternalAccountCredentials;
@@ -35,6 +36,10 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
 import com.google.gson.reflect.TypeToken;
+import io.cdap.cdap.api.exception.ErrorCategory;
+import io.cdap.cdap.api.exception.ErrorCategory.ErrorCategoryEnum;
+import io.cdap.cdap.api.exception.ErrorUtils;
+import io.cdap.cdap.api.exception.ProgramFailureException;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 import io.cdap.plugin.gcp.gcs.ServiceAccountAccessTokenProvider;
 import org.apache.hadoop.conf.Configuration;
@@ -79,7 +84,7 @@ public class GCPUtils {
                                                                    "https://www.googleapis.com/auth/bigquery");
   public static final String FQN_RESERVED_CHARACTERS_PATTERN = ".*[.:` \t\n].*";
   public static final int MILLISECONDS_MULTIPLIER = 1000;
-
+  public static final String WRAPPED_OUTPUTFORMAT_CLASSNAME = "wrapped.outputformat.classname";
   /**
    * Load a service account from the local file system.
    *

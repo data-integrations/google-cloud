@@ -35,15 +35,16 @@ public class DelegatingGCSRecordWriter extends RecordWriter<NullWritable, Struct
   private final TaskAttemptContext context;
   private final String partitionField;
   private final Map<String, RecordWriter<NullWritable, StructuredRecord>> delegateMap;
-  private final DelegatingGCSOutputCommitter delegatingGCSOutputCommitter;
+  private final ForwardingOutputCommitter delegatingGCSOutputCommitter;
+  private final DelegatingGCSOutputFormat outputFormat;
 
-  DelegatingGCSRecordWriter(TaskAttemptContext context,
-                            String partitionField,
-                            DelegatingGCSOutputCommitter delegatingGCSOutputCommitter) {
+  DelegatingGCSRecordWriter(TaskAttemptContext context, String partitionField,
+    ForwardingOutputCommitter delegatingGCSOutputCommitter, DelegatingGCSOutputFormat outputFormat) {
     this.context = context;
     this.partitionField = partitionField;
     this.delegateMap = new HashMap<>();
     this.delegatingGCSOutputCommitter = delegatingGCSOutputCommitter;
+    this.outputFormat = outputFormat;
   }
 
   @Override
@@ -55,6 +56,7 @@ public class DelegatingGCSRecordWriter extends RecordWriter<NullWritable, Struct
     if (delegateMap.containsKey(tableName)) {
       delegate = delegateMap.get(tableName);
     } else {
+
       //Get output format from configuration.
       OutputFormat<NullWritable, StructuredRecord> format =
         DelegatingGCSOutputUtils.getDelegateFormat(context.getConfiguration());
@@ -63,7 +65,7 @@ public class DelegatingGCSRecordWriter extends RecordWriter<NullWritable, Struct
       delegatingGCSOutputCommitter.addGCSOutputCommitterFromOutputFormat(format, tableName);
 
       //Add record writer to delegate map.
-      delegate = format.getRecordWriter(context);
+      delegate = new ForwardingRecordWriter(format.getRecordWriter(context));
       delegateMap.put(tableName, delegate);
     }
 

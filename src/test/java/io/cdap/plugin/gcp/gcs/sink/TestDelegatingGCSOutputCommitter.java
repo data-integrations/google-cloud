@@ -87,8 +87,10 @@ public class TestDelegatingGCSOutputCommitter {
   private void writeOutput(TaskAttemptContext context, DelegatingGCSOutputCommitter committer) throws IOException,
     InterruptedException {
     NullWritable nullWritable = NullWritable.get();
-    DelegatingGCSRecordWriter delegatingGCSRecordWriter = new DelegatingGCSRecordWriter(context, key1,
-                                                                                        committer);
+    ForwardingRecordWriter delegatingGCSRecordWriter = new ForwardingRecordWriter(
+      new DelegatingGCSRecordWriter(context, key1,
+      new ForwardingOutputCommitter(committer),
+      new DelegatingGCSOutputFormat()));
     try {
       delegatingGCSRecordWriter.write(nullWritable, record1);
       delegatingGCSRecordWriter.write(nullWritable, record2);

@@ -18,6 +18,7 @@ package io.cdap.plugin.gcp.dataplex.sink;
 
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.api.exception.ProgramFailureException;
 import io.cdap.cdap.etl.api.validation.FormatContext;
 import io.cdap.cdap.etl.api.validation.ValidatingOutputFormat;
 import io.cdap.plugin.gcp.dataplex.common.util.DataplexConstants;
@@ -238,7 +239,7 @@ public class DataPlexOutputFormatProviderTest {
     configuration.set("mapred.bq.output.gcs.fileformat", "AVRO");
     configuration.set(DELEGATE_OUTPUTFORMAT_CLASSNAME, "class");
     when(mockContext.getConfiguration()).thenReturn(configuration);
-    Assert.assertThrows(IOException.class, () -> {
+    Assert.assertThrows(ProgramFailureException.class, () -> {
       dataplexOutputFormat.getRecordWriter(mockContext);
     });
   }

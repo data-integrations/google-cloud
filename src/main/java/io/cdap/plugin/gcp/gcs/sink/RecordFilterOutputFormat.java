@@ -18,6 +18,11 @@ package io.cdap.plugin.gcp.gcs.sink;
 
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.api.exception.ErrorCategory;
+import io.cdap.cdap.api.exception.ErrorCategory.ErrorCategoryEnum;
+import io.cdap.cdap.api.exception.ErrorType;
+import io.cdap.cdap.api.exception.ErrorUtils;
+import io.cdap.plugin.gcp.common.GCPUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.JobContext;
@@ -68,7 +73,8 @@ public class RecordFilterOutputFormat extends OutputFormat<NullWritable, Structu
     String passthroughVal = hConf.get(PASS_VALUE);
     Schema schema = Schema.parseJson(hConf.get(ORIGINAL_SCHEMA));
 
-    return new FilterRecordWriter(delegate, filterField, passthroughVal, schema);
+    return new ForwardingRecordWriter(
+      new FilterRecordWriter(delegate, filterField, passthroughVal, schema));
   }
 
   @Override
@@ -78,8 +84,9 @@ public class RecordFilterOutputFormat extends OutputFormat<NullWritable, Structu
 
   @Override
   public OutputCommitter getOutputCommitter(TaskAttemptContext context) throws IOException, InterruptedException {
-    OutputCommitter outputCommitter = getDelegateFormat(context.getConfiguration()).getOutputCommitter(context);
-    return new GCSOutputCommitter(outputCommitter);
+    Configuration hConf = context.getConfiguration();
+    OutputCommitter outputCommitter = getDelegateFormat(hConf).getOutputCommitter(context);
+    return new ForwardingOutputCommitter(new GCSOutputCommitter(outputCommitter));
   }
 
   private OutputFormat getDelegateFormat(Configuration hConf) throws IOException {
@@ -89,7 +96,9 @@ public class RecordFilterOutputFormat extends OutputFormat<NullWritable, Structu
         (Class<OutputFormat<NullWritable, StructuredRecord>>) hConf.getClassByName(delegateClassName);
       return delegateClass.newInstance();
     } catch (Exception e) {
-      throw new IOException("Unable to instantiate output format for class " + delegateClassName, e);
+      throw ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategoryEnum.PLUGIN),
+          String.format("Unable to instantiate output format for class: '%s'.", delegateClassName),
+          e.getMessage(), ErrorType.SYSTEM, false, e);
     }
   }
 
