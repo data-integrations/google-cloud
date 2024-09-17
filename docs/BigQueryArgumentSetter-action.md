@@ -23,8 +23,6 @@
 
  Properties
  ----------
- **Reference Name:** Name used to uniquely identify this source for lineage, annotating metadata, etc.
-
  **Project ID**: Google Cloud Project ID, which uniquely identifies a project.
  It can be found on the Dashboard in the Google Cloud Platform Console. This is the project
  that the BigQuery job will run in. If a temporary bucket needs to be created, the service account
