@@ -438,15 +438,28 @@ public final class BigQueryUtil {
       if (bqField.getMode() == Field.Mode.REPEATED) {
         fieldSchema = fieldSchema.getComponentSchema();
         type = fieldSchema.getType();
+        logicalType = fieldSchema.getLogicalType();
       }
     }
 
+    String[] incompatibleFieldErrorMessage = {
+      String.format("Field '%s' of type '%s' is incompatible with column '%s' of type '%s' in BigQuery table '%s.%s'.",
+          field.getName(), fieldSchema.getDisplayName(), bqField.getName(),
+          BQ_TYPE_MAP.get(bqField.getType()), dataset, table) ,
+      String.format("It must be of type '%s'.", BQ_TYPE_MAP.get(bqField.getType()))
+    };
+    if (logicalType != null) {
+      if (LOGICAL_TYPE_MAP.get(logicalType) != null && !LOGICAL_TYPE_MAP.get(logicalType).contains(bqField.getType())) {
+        return collector.addFailure(incompatibleFieldErrorMessage[0], incompatibleFieldErrorMessage[1]);
+      }
+
+      // Return once logical types are validated. This is because logical types are represented as primitive types
+      // internally.
+      return null;
+    }
+
     if (TYPE_MAP.get(type) != null && !TYPE_MAP.get(type).contains(bqField.getType())) {
-      return collector.addFailure(
-        String.format("Field '%s' of type '%s' is incompatible with column '%s' of type '%s' " +
-                        "in BigQuery table '%s.%s'.", field.getName(), fieldSchema.getDisplayName(), bqField.getName(),
-                      BQ_TYPE_MAP.get(bqField.getType()), dataset, table),
-        String.format("It must be of type '%s'.", BQ_TYPE_MAP.get(bqField.getType())));
+      return collector.addFailure(incompatibleFieldErrorMessage[0], incompatibleFieldErrorMessage[1]);
     }
     return null;
   }
