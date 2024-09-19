@@ -85,7 +85,7 @@
     <google.cloud.speech.version>1.24.7</google.cloud.speech.version>
     <google.cloud.storage.version>2.3.0</google.cloud.storage.version>
     <google.cloud.datastore.version>1.105.1</google.cloud.datastore.version>
-    <google.protobuf.java.version>3.19.4</google.protobuf.java.version>
+    <google.protobuf.java.version>3.25.5</google.protobuf.java.version>
     <google.tink.version>1.3.0-rc3</google.tink.version>
     <guava.version>27.0.1-jre</guava.version>
     <hadoop.version>3.3.6</hadoop.version>
