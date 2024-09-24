@@ -1193,11 +1193,11 @@ public class TestSetupHooks {
     try {
       BigQueryClient.getSoleQueryResult("INSERT INTO `" + datasetName + "." + bqSourceTable + "` " +
                                           "(ID,  transaction_date, Firstname, transaction_dt, updated_on  )" +
-                                          "VALUES" + "('Agra', '2021-02-20', 'Neera','2019-07-07 11:24:00', " +
+                                          "VALUES" + "('Agra', '2021-02-20', 'Neera','2023-07-31 12:34:56', " +
                                           "'2019-03-10 04:50:01 UTC')," +
-                                          "('Noida', '2021-02-21','', '2019-07-07 11:24:00', " +
+                                          "('Noida', '2021-02-21','', '2023-07-31 12:34:56', " +
                                           "'2019-03-10 04:50:01 UTC')," +
-                                          "('Gurgaon', '2021-02-22', 'singh', '2019-07-07 11:24:00', " +
+                                          "('Gurgaon', '2021-02-22', 'singh', '2023-07-31 12:34:56', " +
                                           "'2019-03-10 04:50:01 UTC' )");
     } catch (NoSuchElementException e) {
       // Insert query does not return any record.
