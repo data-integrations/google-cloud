@@ -26,7 +26,8 @@ import org.junit.runner.RunWith;
 @CucumberOptions(
   features = {"src/e2e-test/features"},
   glue = {"io.cdap.plugin.bigquery.stepsdesign", "io.cdap.plugin.gcs.stepsdesign",
-    "stepsdesign", "io.cdap.plugin.common.stepsdesign"},
+    "stepsdesign", "io.cdap.plugin.common.stepsdesign", "io.cdap.plugin.groupby.actions",
+  "io.cdap.plugin.groupby.locators", "io.cdap.plugin.groupby.stepsdesign"},
   tags = {"@BigQuery_Sink and not @CDAP-20830"},
   //TODO: Enable test once issue is fixed https://cdap.atlassian.net/browse/CDAP-20830
   monochrome = true,

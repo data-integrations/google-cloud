@@ -294,7 +294,7 @@ public class TestSetupHooks {
 
   @After(order = 1, value = "@BQ_SOURCE_TEST or @BQ_PARTITIONED_SOURCE_TEST or @BQ_SOURCE_DATATYPE_TEST or " +
     "@BQ_INSERT_SOURCE_TEST or @BQ_UPDATE_SINK_TEST or @BQ_EXISTING_SOURCE_TEST or @BQ_EXISTING_SINK_TEST or " +
-    "@BQ_EXISTING_SOURCE_DATATYPE_TEST or @BQ_EXISTING_SINK_DATATYPE_TEST")
+    "@BQ_EXISTING_SOURCE_DATATYPE_TEST or @BQ_EXISTING_SINK_DATATYPE_TEST or @BQ_SOURCE_SQLENGINE_TEST")
   public static void deleteTempSourceBQTable() throws IOException, InterruptedException {
     BigQueryClient.dropBqQuery(bqSourceTable);
     PluginPropertyUtils.removePluginProp("bqSourceTable");
@@ -1564,6 +1564,8 @@ public class TestSetupHooks {
 
     PluginPropertyUtils.addPluginProp("bqTargetTable", bqTargetTable);
     PluginPropertyUtils.addPluginProp("bqTargetTable2", bqTargetTable2);
+    BeforeActions.scenario.write("BQ Target Table " + bqTargetTable + " created successfully");
+    BeforeActions.scenario.write("BQ Target Table2 " + bqTargetTable2 + " created successfully");
   }
   @Before(order = 1, value = "@BQ_SOURCE_UPDATE_TEST")
   public static void createSourceTables() throws IOException, InterruptedException {
@@ -1635,5 +1637,47 @@ public class TestSetupHooks {
         Assert.fail(e.getMessage());
       }
     }
+  }
+  @Before(order = 1, value = "@BQ_SOURCE_SQLENGINE_TEST")
+  public static void createSourceBQTableForSqlEngine() throws IOException, InterruptedException {
+    createSourceBQTableWithQueries(PluginPropertyUtils.pluginProp("bqCreateTableQueryFileSQL"),
+                                   PluginPropertyUtils.pluginProp("bqInsertDataQueryFileSQL"));
+  }
+
+  @Before(order = 1, value = "@BQ_SOURCE_JOINER_TEST")
+  public static void createSourceBQTableForJoiner() throws IOException, InterruptedException {
+    createSourceBQTableWithQueries(PluginPropertyUtils.pluginProp("bqCreateTableQueryFileJoin"),
+                                   PluginPropertyUtils.pluginProp("bqInsertDataQueryFileJoin"));
+  }
+
+  @Before(order = 1, value = "@BQ_SOURCE_JOINER2_TEST")
+  public static void createsecondBQTableJoin() throws IOException, InterruptedException {
+    bqSourceTable2 = "E2E_SOURCE_" + UUID.randomUUID().toString().replaceAll("-", "_");
+    BigQueryClient.getSoleQueryResult("create table `" + datasetName + "." + bqSourceTable2 + "` " +
+                                        "(dept_id INT64, dept_name STRING)");
+    try {
+      BigQueryClient.getSoleQueryResult("INSERT INTO `" + datasetName + "." + bqSourceTable2 + "` " +
+                                                            "(dept_id,  dept_name)" +
+                                                            "VALUES (123, 'HR'), " +
+                                                            "(125, 'IT')");
+    } catch (NoSuchElementException e) {
+      // Insert query does not return any record.
+      // Iterator on TableResult values in getSoleQueryResult method throws NoSuchElementException
+      BeforeActions.scenario.write("Error inserting the record in the table" + e.getStackTrace());
+    }
+    PluginPropertyUtils.addPluginProp("bqSourceTable2", bqSourceTable2);
+    BeforeActions.scenario.write("BQ source Table2 " + bqSourceTable2 + " created successfully");
+  }
+
+  @After(order = 1, value = "@BQ_DELETE_JOIN")
+  public static void deleteBQTablesJoin() throws IOException, InterruptedException {
+    BigQueryClient.dropBqQuery(bqSourceTable);
+    BigQueryClient.dropBqQuery(bqSourceTable2);
+    PluginPropertyUtils.removePluginProp("bqSourceTable");
+    PluginPropertyUtils.removePluginProp("bqSourceTable2");
+    BeforeActions.scenario.write("BQ source Table " + bqSourceTable + " deleted successfully");
+    BeforeActions.scenario.write("BQ source Table2 " + bqSourceTable2 + " deleted successfully");
+    bqSourceTable = StringUtils.EMPTY;
+    bqSourceTable2 = StringUtils.EMPTY;
   }
 }

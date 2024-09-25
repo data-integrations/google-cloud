@@ -262,11 +262,11 @@ Feature: BigQuery sink - Verification of BigQuery to BigQuery successful data tr
     Then Click plugin property: "useConnection"
     Then Click on the Browse Connections button
     Then Select connection: "bqConnectionName"
-    Then Enter input plugin property: "referenceName" with value: "BQSinkReferenceName"
     Then Enter input plugin property: "dataset" with value: "dataset"
     Then Enter input plugin property: "table" with value: "bqTargetTable"
     Then Enter input plugin property: "partitionByField" with value: "bqPartitionFieldDateTime"
     Then Click plugin property: "updateTableSchema"
+    Then Enter input plugin property: "referenceName" with value: "BQSinkReferenceName"
     Then Validate "BigQuery" plugin properties
     Then Close the BigQuery properties
     Then Save the pipeline
