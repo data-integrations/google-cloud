@@ -166,6 +166,9 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
     private static final String NAME_FILE_SYSTEM_PROPERTIES = "fileSystemProperties";
     private static final String NAME_FILE_REGEX = "fileRegex";
     private static final String NAME_DELIMITER = "delimiter";
+    private static final String NAME_SHEET = "sheet";
+    private static final String NAME_SHEET_VALUE = "sheetValue";
+    private static final String NAME_TERMINATE_IF_EMPTY_ROW = "terminateIfEmptyRow";
 
     private static final String DEFAULT_ENCRYPTED_METADATA_SUFFIX = ".metadata";
 
@@ -219,6 +222,25 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
     @Nullable
     @Description("The existing connection to use.")
     private GCPConnectorConfig connection;
+
+    @Name(NAME_SHEET)
+    @Macro
+    @Nullable
+    @Description("Select the sheet by name or number. Default is 'Sheet Number'.")
+    private String sheet;
+
+    @Name(NAME_SHEET_VALUE)
+    @Macro
+    @Nullable
+    @Description("The name/number of the sheet to read from. If not specified, the first sheet will be read." +
+            "Sheet Number are 0 based, ie first sheet is 0.")
+    private String sheetValue;
+
+    @Name(NAME_TERMINATE_IF_EMPTY_ROW)
+    @Macro
+    @Nullable
+    @Description("Specify whether to stop reading after encountering the first empty row. Defaults to false.")
+    private String terminateIfEmptyRow;
 
     @Override
     public void validate() {

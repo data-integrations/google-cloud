@@ -33,22 +33,42 @@ You also can use the macro function ${conn(connection-name)}.
 **Project ID:** Google Cloud Project ID, which uniquely identifies a project.
 It can be found on the Dashboard in the Google Cloud Platform Console.
 
+**Service Account Type:** Service account type, file path where the service account is located or the JSON content of 
+the service account.
+
+**Service Account File Path:** Path on the local file system of the service account key. Can be set to 'auto-detect'.
+
+**Service Account JSON:** Contents of the service account JSON file.
+
 **Path:** Path to file(s) to be read. If a directory is specified, terminate the path name with a '/'.
 For example, `gs://<bucket>/path/to/directory/`.
 An asterisk ("\*") can be used as a wildcard to match a filename pattern.
 If no files are found or matched, the pipeline will fail.
 
 **Format:** Format of the data to read.
-The format must be one of 'avro', 'blob', 'csv', 'delimited', 'json', 'parquet', 'text', 'tsv', or the
+The format must be one of 'avro', 'blob', 'csv', 'delimited', 'json', 'parquet', 'text', 'tsv', 'xls', or the
 name of any format plugin that you have deployed to your environment.
 If the format is a macro, only the pre-packaged formats can be used.
 If the format is 'blob', every input file will be read into a separate record.
 The 'blob' format also requires a schema that contains a field named 'body' of type 'bytes'.
 If the format is 'text', the schema must contain a field named 'body' of type 'string'.
 
+**Sample Size:** The maximum number of rows that will get investigated for automatic data type detection. 
+The default value is 1000.
+
+**Override:** A list of columns with the corresponding data types for whom the automatic data type detection gets
+skipped. 
+
+**Terminate If Empty Row:** Specify whether to stop reading after encountering the first empty row. Defaults to false.
+
+**Select Sheet Using:** Select the sheet by name or number. Default is 'Sheet Number'.
+
+**Sheet Value:** The name/number of the sheet to read from. If not specified, the first sheet will be read.
+Sheet Number are 0 based, ie first sheet is 0.
+
 **Delimiter:** Delimiter to use when the format is 'delimited'. This will be ignored for other formats.
 
-**Use First Row as Header:** Whether to use first row as header. Supported formats are 'text', 'csv', 'tsv', 'delimited'.
+**Use First Row as Header:** Whether to use first row as header. Supported formats are 'text', 'csv', 'tsv', 'delimited', 'xls'.
 
 **Enable Quoted Values:** Whether to treat content between quotes as a value. This value will only be used if the format
 is 'csv', 'tsv' or 'delimited'. For example, if this is set to true, a line that looks like `1, "a, b, c"` will output two fields.
