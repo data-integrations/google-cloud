@@ -1,8 +1,26 @@
+/*
+ * Copyright © 2024 Cask Data, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+
 package io.cdap.plugin.gcp.gcs.sink;
 
 import io.cdap.cdap.api.data.format.StructuredRecord;
+import io.cdap.cdap.api.exception.ErrorDetailsProvider;
 import io.cdap.cdap.etl.api.validation.FormatContext;
 import io.cdap.cdap.etl.api.validation.ValidatingOutputFormat;
+import io.cdap.plugin.gcp.common.ExceptionUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.JobContext;
@@ -49,7 +67,8 @@ public class GCSOutputFormatProvider implements ValidatingOutputFormat {
   /**
    * OutputFormat for GCS Sink
    */
-  public static class GCSOutputFormat extends OutputFormat<NullWritable, StructuredRecord> {
+  public static class GCSOutputFormat extends OutputFormat<NullWritable, StructuredRecord>
+    implements ErrorDetailsProvider<Configuration> {
     private OutputFormat delegateFormat;
 
     private OutputFormat getDelegateFormatInstance(Configuration configuration) throws IOException {
@@ -89,12 +108,18 @@ public class GCSOutputFormatProvider implements ValidatingOutputFormat {
         .getOutputCommitter(taskAttemptContext);
       return new GCSOutputCommitter(delegateCommitter);
     }
+
+    @Override
+    public RuntimeException getExceptionDetails(Throwable throwable, Configuration configuration) {
+      return ExceptionUtils.getProgramFailureException(throwable);
+    }
   }
 
   /**
    * RecordWriter for GCSSink
    */
-  public static class GCSRecordWriter extends RecordWriter<NullWritable, StructuredRecord> {
+  public static class GCSRecordWriter extends RecordWriter<NullWritable, StructuredRecord>
+    implements ErrorDetailsProvider<Void> {
 
     private final RecordWriter originalWriter;
     private long recordCount;
@@ -116,6 +141,11 @@ public class GCSOutputFormatProvider implements ValidatingOutputFormat {
       //Since the file details are not available here, pass the value on in configuration
       taskAttemptContext.getConfiguration()
         .setLong(String.format(RECORD_COUNT_FORMAT, taskAttemptContext.getTaskAttemptID()), recordCount);
+    }
+
+    @Override
+    public RuntimeException getExceptionDetails(Throwable throwable, Void conf) {
+      return ExceptionUtils.getProgramFailureException(throwable);
     }
   }
 }

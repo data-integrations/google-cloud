@@ -17,6 +17,8 @@
 package io.cdap.plugin.gcp.gcs.sink;
 
 import io.cdap.cdap.api.data.format.StructuredRecord;
+import io.cdap.cdap.api.exception.ErrorDetailsProvider;
+import io.cdap.plugin.gcp.common.ExceptionUtils;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.OutputFormat;
 import org.apache.hadoop.mapreduce.RecordWriter;
@@ -31,7 +33,8 @@ import java.util.Map;
  * <p>
  * This Record Writer will initialize record writes and Output Committers as needed.
  */
-public class DelegatingGCSRecordWriter extends RecordWriter<NullWritable, StructuredRecord> {
+public class DelegatingGCSRecordWriter extends
+  RecordWriter<NullWritable, StructuredRecord> implements ErrorDetailsProvider<Void> {
   private final TaskAttemptContext context;
   private final String partitionField;
   private final Map<String, RecordWriter<NullWritable, StructuredRecord>> delegateMap;
@@ -78,4 +81,8 @@ public class DelegatingGCSRecordWriter extends RecordWriter<NullWritable, Struct
     }
   }
 
+  @Override
+  public RuntimeException getExceptionDetails(Throwable throwable, Void conf) {
+    return ExceptionUtils.getProgramFailureException(throwable);
+  }
 }

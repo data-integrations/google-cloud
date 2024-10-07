@@ -18,6 +18,8 @@ package io.cdap.plugin.gcp.gcs.sink;
 
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.api.exception.ErrorDetailsProvider;
+import io.cdap.plugin.gcp.common.ExceptionUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.JobContext;
@@ -34,7 +36,8 @@ import java.util.Map;
 /**
  * An OutputFormat that filters records before sending them to a delegate
  */
-public class RecordFilterOutputFormat extends OutputFormat<NullWritable, StructuredRecord> {
+public class RecordFilterOutputFormat extends OutputFormat<NullWritable, StructuredRecord> implements
+  ErrorDetailsProvider<Configuration> {
   public static final String FILTER_FIELD = "record.filter.field";
   public static final String PASS_VALUE = "record.filter.val";
   public static final String ORIGINAL_SCHEMA = "record.original.schema";
@@ -93,10 +96,16 @@ public class RecordFilterOutputFormat extends OutputFormat<NullWritable, Structu
     }
   }
 
+  @Override
+  public RuntimeException getExceptionDetails(Throwable throwable, Configuration conf) {
+    return ExceptionUtils.getProgramFailureException(throwable);
+  }
+
   /**
    * Filters records before writing them out using a delegate.
    */
-  public static class FilterRecordWriter extends RecordWriter<NullWritable, StructuredRecord> {
+  public static class FilterRecordWriter extends RecordWriter<NullWritable, StructuredRecord>
+    implements ErrorDetailsProvider<Void> {
     private final String filterField;
     private final String passthroughValue;
     private final RecordWriter<NullWritable, StructuredRecord> delegate;
@@ -131,6 +140,11 @@ public class RecordFilterOutputFormat extends OutputFormat<NullWritable, Structu
     @Override
     public void close(TaskAttemptContext context) throws IOException, InterruptedException {
       delegate.close(context);
+    }
+
+    @Override
+    public RuntimeException getExceptionDetails(Throwable throwable, Void conf) {
+      return ExceptionUtils.getProgramFailureException(throwable);
     }
   }
 }

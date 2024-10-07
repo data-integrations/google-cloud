@@ -21,6 +21,8 @@ import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import com.google.common.annotations.VisibleForTesting;
+import io.cdap.cdap.api.exception.ErrorDetailsProvider;
+import io.cdap.plugin.gcp.common.ExceptionUtils;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.StorageClient;
 import org.apache.hadoop.conf.Configuration;
@@ -40,7 +42,8 @@ import java.util.Map;
 /**
  * OutputCommitter for GCS
  */
-public class GCSOutputCommitter extends OutputCommitter {
+public class GCSOutputCommitter extends OutputCommitter implements
+  ErrorDetailsProvider<Void> {
 
   private static final Logger LOG = LoggerFactory.getLogger(GCSOutputFormatProvider.class);
   public static final String RECORD_COUNT_FORMAT = "recordcount.%s";
@@ -160,5 +163,10 @@ public class GCSOutputCommitter extends OutputCommitter {
   @Override
   public void recoverTask(TaskAttemptContext taskContext) throws IOException {
     delegate.recoverTask(taskContext);
+  }
+
+  @Override
+  public RuntimeException getExceptionDetails(Throwable throwable, Void conf) {
+    return ExceptionUtils.getProgramFailureException(throwable);
   }
 }

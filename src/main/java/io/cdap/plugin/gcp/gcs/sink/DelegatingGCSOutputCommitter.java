@@ -16,6 +16,8 @@
 
 package io.cdap.plugin.gcp.gcs.sink;
 
+import io.cdap.cdap.api.exception.ErrorDetailsProvider;
+import io.cdap.plugin.gcp.common.ExceptionUtils;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -41,7 +43,8 @@ import javax.annotation.Nullable;
  * <p>
  * Delegated instances are created based on a supplied Output Format and Destination Table Names.
  */
-public class DelegatingGCSOutputCommitter extends OutputCommitter {
+public class DelegatingGCSOutputCommitter extends OutputCommitter implements
+  ErrorDetailsProvider<Void> {
 
   private final TaskAttemptContext taskAttemptContext;
   private boolean firstTable = true;
@@ -244,4 +247,8 @@ public class DelegatingGCSOutputCommitter extends OutputCommitter {
     return String.format("%s_%s", FileOutputCommitter.PENDING_DIR_NAME, jobId);
   }
 
+  @Override
+  public RuntimeException getExceptionDetails(Throwable throwable, Void conf) {
+    return ExceptionUtils.getProgramFailureException(throwable);
+  }
 }

@@ -17,6 +17,8 @@
 package io.cdap.plugin.gcp.gcs.sink;
 
 import io.cdap.cdap.api.data.format.StructuredRecord;
+import io.cdap.cdap.api.exception.ErrorDetailsProvider;
+import io.cdap.plugin.gcp.common.ExceptionUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.JobContext;
@@ -32,7 +34,8 @@ import java.util.Map;
 /**
  * Output Format used to handle Schemaless Records as input.
  */
-public class DelegatingGCSOutputFormat extends OutputFormat<NullWritable, StructuredRecord> {
+public class DelegatingGCSOutputFormat extends OutputFormat<NullWritable, StructuredRecord> implements
+  ErrorDetailsProvider<Configuration> {
 
   public static final String PARTITION_FIELD = "delegating_output_format.partition.field";
   public static final String DELEGATE_CLASS = "delegating_output_format.delegate";
@@ -73,6 +76,11 @@ public class DelegatingGCSOutputFormat extends OutputFormat<NullWritable, Struct
   @Override
   public DelegatingGCSOutputCommitter getOutputCommitter(TaskAttemptContext context) {
     return new DelegatingGCSOutputCommitter(context);
+  }
+
+  @Override
+  public RuntimeException getExceptionDetails(Throwable throwable, Configuration conf) {
+    return ExceptionUtils.getProgramFailureException(throwable);
   }
 
 }
