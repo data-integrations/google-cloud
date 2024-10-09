@@ -39,6 +39,7 @@ import io.cdap.cdap.etl.api.StageMetrics;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.connector.Connector;
+import io.cdap.cdap.etl.api.exception.ErrorDetailsProviderSpec;
 import io.cdap.cdap.etl.api.validation.ValidatingOutputFormat;
 import io.cdap.plugin.common.Asset;
 import io.cdap.plugin.common.ConfigUtil;
@@ -51,6 +52,7 @@ import io.cdap.plugin.format.plugin.AbstractFileSink;
 import io.cdap.plugin.format.plugin.FileSinkProperties;
 import io.cdap.plugin.gcp.common.CmekUtils;
 import io.cdap.plugin.gcp.common.GCPConnectorConfig;
+import io.cdap.plugin.gcp.common.GCPErrorDetailsProvider;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.Formats;
 import io.cdap.plugin.gcp.gcs.GCSPath;
@@ -121,30 +123,50 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
       collector.addFailure("Service account type is undefined.",
                                                "Must be `filePath` or `JSON`");
       collector.getOrThrowException();
-      return;
     }
-    Credentials credentials = config.connection.getServiceAccount() == null ?
-      null : GCPUtils.loadServiceAccountCredentials(config.connection.getServiceAccount(), isServiceAccountFilePath);
-    Storage storage = GCPUtils.getStorage(config.connection.getProject(), credentials);
-    Bucket bucket;
-    String location;
+
+    Credentials credentials = null;
     try {
-      bucket = storage.get(config.getBucket());
+      credentials = config.connection.getServiceAccount() == null ?
+        null : GCPUtils.loadServiceAccountCredentials(config.connection.getServiceAccount(),
+        isServiceAccountFilePath);
+    } catch (Exception e) {
+      String errorReason = "Unable to load service account credentials.";
+      collector.addFailure(String.format("%s %s", errorReason, e.getMessage()), null)
+        .withStacktrace(e.getStackTrace());
+      collector.getOrThrowException();
+    }
+
+    String bucketName = config.getBucket(collector);
+    Storage storage = GCPUtils.getStorage(config.connection.getProject(), credentials);
+    String errorReasonFormat = "Error code: %s, Unable to read or access GCS bucket.";
+    String correctiveAction = "Ensure you entered the correct bucket path and "
+      + "have permissions for it.";
+    Bucket bucket;
+    String location = null;
+    try {
+      bucket = storage.get(bucketName);
+      if (bucket != null) {
+        location = bucket.getLocation();
+      } else {
+        location = config.getLocation();
+        GCPUtils.createBucket(storage, bucketName, location, cmekKeyName);
+      }
     } catch (StorageException e) {
-      throw new RuntimeException(
-        String.format("Unable to access or create bucket %s. ", config.getBucket())
-          + "Ensure you entered the correct bucket path and have permissions for it.", e);
+      String errorReason = String.format(errorReasonFormat, e.getCode());
+      collector.addFailure(String.format("%s %s", errorReason, e.getMessage()), correctiveAction)
+        .withStacktrace(e.getStackTrace());
+      collector.getOrThrowException();
     }
-    if (bucket != null) {
-      location = bucket.getLocation();
-    } else {
-      GCPUtils.createBucket(storage, config.getBucket(), config.getLocation(), cmekKeyName);
-      location = config.getLocation();
-    }
+
     this.outputPath = getOutputDir(context);
     // create asset for lineage
     asset = Asset.builder(config.getReferenceName())
       .setFqn(GCSPath.getFQN(config.getPath())).setLocation(location).build();
+
+    // set error details provider
+    context.setErrorDetailsProvider(
+      new ErrorDetailsProviderSpec(GCPErrorDetailsProvider.class.getName()));
     
     // super is called down here to avoid instantiating the lineage recorder with a null asset
     super.prepareRun(context);
@@ -532,8 +554,20 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
       }
     }
 
-    public String getBucket() {
-      return GCSPath.from(path).getBucket();
+    /**
+     * Get the bucket name from the path.
+     * @param collector failure collector
+     * @return bucket name as {@link String} if found, otherwise null.
+     */
+    public String getBucket(FailureCollector collector) {
+      try {
+        return GCSPath.from(path).getBucket();
+      } catch (IllegalArgumentException e) {
+        collector.addFailure(e.getMessage(), null)
+          .withStacktrace(e.getStackTrace());
+        collector.getOrThrowException();
+      }
+      return null;
     }
 
     @Override
@@ -718,8 +752,8 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
         return this;
       }
 
-      public GCSBatchSink.GCSBatchSinkConfig build() {
-        return new GCSBatchSink.GCSBatchSinkConfig(
+      public GCSBatchSinkConfig build() {
+        return new GCSBatchSinkConfig(
           referenceName,
           project,
           fileSystemProperties,
