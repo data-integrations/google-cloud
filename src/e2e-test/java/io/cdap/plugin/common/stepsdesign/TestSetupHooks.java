@@ -267,7 +267,7 @@ public class TestSetupHooks {
   }
 
   /**
-   * Create BigQuery table with 3 columns (Id - Int, Value - Int, UID - string) containing random testdata.
+   * Create BigQuery Table with 3 columns (Id - Int, Value - Int, UID - string) containing random testdata.
    * Sample row:
    * Id | Value | UID
    * 22 | 968   | 245308db-6088-4db2-a933-f0eea650846a
