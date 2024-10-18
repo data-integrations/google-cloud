@@ -28,11 +28,13 @@ import io.cdap.cdap.api.annotation.Metadata;
 import io.cdap.cdap.api.annotation.MetadataProperty;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
+import io.cdap.cdap.api.exception.ErrorUtils;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
 import io.cdap.cdap.etl.api.connector.Connector;
+import io.cdap.cdap.etl.api.exception.ErrorDetailsProviderSpec;
 import io.cdap.plugin.common.Asset;
 import io.cdap.plugin.common.ConfigUtil;
 import io.cdap.plugin.common.LineageRecorder;
@@ -42,6 +44,7 @@ import io.cdap.plugin.format.plugin.AbstractFileSource;
 import io.cdap.plugin.format.plugin.AbstractFileSourceConfig;
 import io.cdap.plugin.format.plugin.FileSourceProperties;
 import io.cdap.plugin.gcp.common.GCPConnectorConfig;
+import io.cdap.plugin.gcp.common.GCPErrorDetailsProvider;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.common.GCSEmptyInputFormat;
 import io.cdap.plugin.gcp.crypto.EncryptedFileSystem;
@@ -85,28 +88,62 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
 
   @Override
   public void prepareRun(BatchSourceContext context) throws Exception {
-    // Get location of the source for lineage
-    String location;
-    String bucketName = GCSPath.from(config.getPath()).getBucket();
-    Credentials credentials = config.connection.getServiceAccount() == null ?
-      null : GCPUtils.loadServiceAccountCredentials(config.connection.getServiceAccount(),
-                                                    config.connection.isServiceAccountFilePath());
-    Storage storage = GCPUtils.getStorage(config.connection.getProject(), credentials);
+    FailureCollector collector = context.getFailureCollector();
+
+    String path = config.getPath();
+    String bucketName = null;
     try {
+      bucketName = GCSPath.from(path).getBucket();
+    } catch (IllegalArgumentException e) {
+      collector.addFailure(e.getMessage(), null)
+        .withStacktrace(e.getStackTrace());
+      collector.getOrThrowException();
+    }
+
+    Boolean isServiceAccountFilePath = config.connection.isServiceAccountFilePath();
+    if (isServiceAccountFilePath == null) {
+      collector.addFailure("Service account type is undefined.",
+        "Must be `filePath` or `JSON`");
+      collector.getOrThrowException();
+    }
+
+    Credentials credentials = null;
+    try {
+      credentials = config.connection.getServiceAccount() == null ?
+        null : GCPUtils.loadServiceAccountCredentials(config.connection.getServiceAccount(),
+        isServiceAccountFilePath);
+    } catch (Exception e) {
+      String errorReason = "Unable to load service account credentials.";
+      collector.addFailure(String.format("%s %s", errorReason, e.getMessage()), null)
+        .withStacktrace(e.getStackTrace());
+      collector.getOrThrowException();
+    }
+
+    Storage storage = GCPUtils.getStorage(config.connection.getProject(), credentials);
+    String location = null;
+    try {
+      // Get location of the source for lineage
       location = storage.get(bucketName).getLocation();
     } catch (StorageException e) {
-      throw new RuntimeException(
-        String.format("Unable to access bucket %s. ", bucketName)
-          + "Ensure you entered the correct bucket path and have permissions for it.", e);
+      String errorReason = String.format("Error code: %s, Unable to access GCS bucket '%s'. ",
+        e.getCode(), bucketName);
+      collector.addFailure(String.format("%s %s", errorReason, e.getMessage()),
+          "Ensure you entered the correct bucket path and have permissions for it.")
+        .withStacktrace(e.getStackTrace());
+      collector.getOrThrowException();
     }
 
     // create asset for lineage
-    String fqn = GCSPath.getFQN(config.getPath());
+    String fqn = GCSPath.getFQN(path);
     String referenceName = Strings.isNullOrEmpty(config.getReferenceName())
         ? ReferenceNames.normalizeFqn(fqn)
         : config.getReferenceName();
     asset = Asset.builder(referenceName)
         .setFqn(fqn).setLocation(location).build();
+
+    // set error details provider
+    context.setErrorDetailsProvider(
+      new ErrorDetailsProviderSpec(GCPErrorDetailsProvider.class.getName()));
 
     // super is called down here to avoid instantiating the lineage recorder with a null asset
     super.prepareRun(context);
@@ -142,7 +179,7 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
 
   @Override
   protected void recordLineage(LineageRecorder lineageRecorder, List<String> outputFields) {
-    lineageRecorder.recordRead("Read", String.format("Read%sfrom Google Cloud Storage.",
+    lineageRecorder.recordRead("Read", String.format("Read %s from Google Cloud Storage.",
                                                      config.isEncrypted() ? " and decrypt " : " "), outputFields);
   }
 
