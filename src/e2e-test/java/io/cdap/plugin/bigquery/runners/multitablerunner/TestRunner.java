@@ -31,7 +31,8 @@ import org.junit.runner.RunWith;
   monochrome = true,
   plugin = {"pretty", "html:target/cucumber-html-report/bigquerymultitable-sink",
     "json:target/cucumber-reports/cucumber-bigquerymultitable-sink.json",
-    "junit:target/cucumber-reports/cucumber-bigquerymultitable-sink.xml"}
+    "junit:target/cucumber-reports/cucumber-bigquerymultitable-sink.xml",
+    "rerun:target/failed_scenarios.txt"}  // Store failed scenarios here}
 )
 public class TestRunner {
 }

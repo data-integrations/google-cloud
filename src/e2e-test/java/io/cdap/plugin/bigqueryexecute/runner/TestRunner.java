@@ -31,7 +31,8 @@ import org.junit.runner.RunWith;
   monochrome = true,
   plugin = {"pretty", "html:target/cucumber-html-report/bqExecute",
     "json:target/cucumber-reports/cucumber-bqExecute.json",
-    "junit:target/cucumber-reports/cucumber-bqExecute.xml"}
+    "junit:target/cucumber-reports/cucumber-bqExecute.xml",
+    "rerun:target/failed_scenarios.txt"}  // Store failed scenarios here}}
 )
 public class TestRunner {
 }

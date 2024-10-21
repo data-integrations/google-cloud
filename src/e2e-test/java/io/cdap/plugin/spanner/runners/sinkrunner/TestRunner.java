@@ -31,7 +31,8 @@ import org.junit.runner.RunWith;
   monochrome = true,
   plugin = {"pretty", "html:target/cucumber-html-report/spanner-sink",
     "json:target/cucumber-reports/cucumber-spanner-sink.json",
-    "junit:target/cucumber-reports/cucumber-spanner-sink.xml"}
+    "junit:target/cucumber-reports/cucumber-spanner-sink.xml",
+    "rerun:target/failed_scenarios.txt"}  // Store failed scenarios here}}
 )
 public class TestRunner {
 }

@@ -31,7 +31,8 @@ import org.junit.runner.RunWith;
     monochrome = true,
     plugin = {"pretty", "html:target/cucumber-html-report/gcscopy-action",
       "json:target/cucumber-reports/cucumber-gcscopy-action.json",
-      "junit:target/cucumber-reports/cucumber-gcscopy-action.xml"}
+      "junit:target/cucumber-reports/cucumber-gcscopy-action.xml",
+      "rerun:target/failed_scenarios.txt"}  // Store failed scenarios here}}
   )
   public class TestRunner {
   }

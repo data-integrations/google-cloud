@@ -32,7 +32,8 @@ import org.junit.runner.RunWith;
   monochrome = true,
   plugin = {"pretty", "html:target/cucumber-html-report/bigquery-sink",
     "json:target/cucumber-reports/cucumber-bigquery-sink.json",
-    "junit:target/cucumber-reports/cucumber-bigquery-sink.xml"}
+    "junit:target/cucumber-reports/cucumber-bigquery-sink.xml",
+    "rerun:target/failed_scenarios.txt"}  // Store failed scenarios here}}
 )
 public class TestRunner {
 }

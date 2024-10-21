@@ -1202,6 +1202,7 @@
       <properties>
         <testSourceLocation>src/e2e-test/java</testSourceLocation>
         <TEST_RUNNER>TestRunner.java</TEST_RUNNER>
+        <RETRY_RUNNER>RetryTestRunner.java</RETRY_RUNNER>
       </properties>
       <build>
         <testResources>
@@ -1253,6 +1254,18 @@
             <goals>
               <goal>integration-test</goal>
             </goals>
+          </execution>
+          <execution>
+            <id>retry-failed-tests</id>
+            <phase>integration-test</phase>
+            <goals>
+              <goal>integration-test</goal>
+            </goals>
+            <configuration>
+              <includes>
+                <include>${RETRY_RUNNER}</include>
+              </includes>
+            </configuration>
           </execution>
         </executions>
         </plugin>
