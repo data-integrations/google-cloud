@@ -1230,7 +1230,7 @@
           <!--Start configuration to run TestRunners in parallel-->
           <parallel>classes</parallel> <!--Running TestRunner classes in parallel-->
           <threadCount>1</threadCount> <!--Number of classes to run in parallel-->
-          <forkCount>1</forkCount> <!--Number of JVM processes -->
+          <forkCount>2</forkCount> <!--Number of JVM processes -->
           <reuseForks>true</reuseForks>
           <!--End configuration to run TestRunners in parallel-->
           <environmentVariables>
