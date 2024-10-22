@@ -74,15 +74,16 @@ jobs:
       - name: Run all e2e tests
         if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || steps.filter.outputs.e2e-test == 'true'
         run: python3 e2e/src/main/scripts/run_e2e_test.py --testRunner **/${{ matrix.tests }}/**/TestRunner.java
-        # Step to check if there were failures and run retry runner if needed
-      - name: Check for Failed Tests and Run Retry Runner
+      # Step to check if there were failures and run retry runner if needed
+      - name: Check for Failed Tests and Run Retry Test Runner
         if: always()  # Always run this step to check for failures
-        run: if [ -f ./plugin/target/failed_scenarios.txt ]; then
-                   echo "Found failed scenarios. Running retry tests."
-                   python3 e2e/src/main/scripts/run_e2e_test.py --testRunner **/${{ matrix.tests }}/**/RetryTestRunner.java
-                 else
-                   echo "No failed scenarios found."
-                 fi
+        run: |
+          if [ -f ./plugin/target/failed_scenarios.txt ]; then
+            echo "Found failed scenarios. Running retry tests."
+            python3 e2e/src/main/scripts/run_e2e_test.py --testRunner **/${{ matrix.tests }}/**/RetryTestRunner.java
+          else
+            echo "No failed scenarios found."
+          fi
       - name: Upload debug files 
         uses: actions/upload-artifact@v3
         if: always()
