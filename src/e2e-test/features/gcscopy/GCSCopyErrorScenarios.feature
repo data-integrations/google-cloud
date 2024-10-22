@@ -12,7 +12,7 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
-@GCSCopy
+@GCSCopys
 Feature: GCSCopy - Validate GCSCopy plugin error scenarios
 
   @GCSCopy_Required @ITN_TEST
@@ -21,7 +21,7 @@ Feature: GCSCopy - Validate GCSCopy plugin error scenarios
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
     When Select plugin: "GCS Copy" from the plugins list as: "Conditions and Actions"
     When Navigate to the properties page of plugin: "GCS Copy"
-    Then Click on the Validate button
+    Then Click on the Validate buttons
     Then Verify mandatory property error for below listed properties:
       | sourcePath |
       | destPath   |

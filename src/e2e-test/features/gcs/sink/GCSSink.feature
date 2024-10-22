@@ -1,4 +1,4 @@
-@GCS_Sink
+@GCS_Sinks
 Feature: GCS sink - Verification of GCS Sink plugin
 
   @CMEK @GCS_SINK_TEST @BQ_SOURCE_TEST

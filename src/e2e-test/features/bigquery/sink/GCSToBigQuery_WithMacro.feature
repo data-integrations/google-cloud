@@ -6,7 +6,7 @@ Feature: BigQuery sink - Verification of GCS to BigQuery successful data transfe
     Given Open Datafusion Project to configure pipeline
     When Source is GCS
     When Sink is BigQuery
-    Then Open GCS source properties
+    Then Open GCS source propertiess
     Then Enter GCS property reference name
     Then Enter GCS property "projectId" as macro argument "gcsProjectId"
     Then Enter GCS property "serviceAccountType" as macro argument "serviceAccountType"

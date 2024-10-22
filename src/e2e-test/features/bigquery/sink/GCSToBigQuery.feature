@@ -1,4 +1,4 @@
-@BigQuery_Sink
+@BigQuery_Sinks
 Feature: BigQuery sink - Verification of GCS to BigQuery successful data transfer
 
   @CMEK @GCS_CSV_TEST @BQ_SINK_TEST @BigQuery_Sink_Required
@@ -57,7 +57,7 @@ Feature: BigQuery sink - Verification of GCS to BigQuery successful data transfe
     Then Enter BigQuery property reference name
     Then Enter BigQuery property projectId "projectId"
     Then Enter BigQuery property datasetProjectId "projectId"
-    Then Override Service account details if set in environment variables
+    Then Override Service account details if set in environment variablesss
     Then Enter BigQuery property dataset "dataset"
     Then Enter BigQuery sink property table name
     Then Toggle BigQuery sink property truncateTable to true

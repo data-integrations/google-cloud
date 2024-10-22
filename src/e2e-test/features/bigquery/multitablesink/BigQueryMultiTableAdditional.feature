@@ -12,7 +12,7 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
-@BigQueryMultiTable_Sink
+@BigQueryMultiTable_Sinks
 Feature: BigQueryMultiTable sink -Verification of BigQuery to BigQueryMultiTable successful data transfer
 
   @BQ_TWO_SOURCE_BQMT_TEST @BQ_DELETE_TABLES_TEST

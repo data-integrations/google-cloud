@@ -1,4 +1,4 @@
-@BQExecute
+@BQExecutess
 Feature: BigQueryExecute - Verify data transfer using BigQuery Execute plugin with macro arguments
 
   @BQ_SOURCE_TEST @BQ_SINK_TEST @BQ_EXECUTE_SQL

@@ -1,4 +1,4 @@
-@BigQuery_Sink
+@BigQuery_Sinks
 Feature: BigQuery sink - Validate BigQuery sink plugin error scenarios
 
   @BigQuery_Sink_Required

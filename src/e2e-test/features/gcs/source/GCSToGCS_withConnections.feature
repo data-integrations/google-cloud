@@ -1,4 +1,4 @@
-@GCS_Source
+@GCS_Sources
 Feature: GCS source - Verification of GCS to GCS successful data transfer using connections
 
   @GCS_CSV_TEST @GCS_SINK_TEST @GCS_CONNECTION

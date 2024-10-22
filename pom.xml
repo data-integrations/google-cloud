@@ -1201,7 +1201,7 @@
       <id>e2e-tests</id>
       <properties>
         <testSourceLocation>src/e2e-test/java</testSourceLocation>
-        <TEST_RUNNER>TestRunner.java</TEST_RUNNER>
+        <runner>TestRunner.java</runner>
         <RETRY_RUNNER>RetryTestRunner.java</RETRY_RUNNER>
       </properties>
       <build>
@@ -1226,7 +1226,7 @@
         <version>3.0.0-M5</version>
         <configuration>
           <includes>
-            <include>${TEST_RUNNER}</include>
+            <include>${runner}</include>
           </includes>
           <!--Start configuration to run TestRunners in parallel-->
           <parallel>classes</parallel> <!--Running TestRunner classes in parallel-->
@@ -1254,18 +1254,6 @@
             <goals>
               <goal>integration-test</goal>
             </goals>
-          </execution>
-          <execution>
-            <id>retry-failed-tests</id>
-            <phase>integration-test</phase>
-            <goals>
-              <goal>integration-test</goal>
-            </goals>
-            <configuration>
-              <includes>
-                <include>${RETRY_RUNNER}</include>
-              </includes>
-            </configuration>
           </execution>
         </executions>
         </plugin>

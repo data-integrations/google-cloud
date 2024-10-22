@@ -1,4 +1,4 @@
-@GCS_Source
+@GCS_Sources
 Feature: GCS source - Verification of GCS to BQ successful data transfer
 
   @BQ_SINK_TEST @GCS_READ_RECURSIVE_TEST

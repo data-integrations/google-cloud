@@ -1,4 +1,4 @@
-@BQExecute
+@BQExecutes
 Feature: BigQueryExecute - Verify data transfer using BigQuery Execute plugin
 
   @BQ_SOURCE_TEST @BQ_SINK_TEST @BQ_EXECUTE_SQL @BQExecute_Required
@@ -17,7 +17,7 @@ Feature: BigQueryExecute - Verify data transfer using BigQuery Execute plugin
     Then Validate "BigQuery Execute" plugin properties
     Then Close the Plugin Properties page
     Then Save and Deploy Pipeline
-    Then Run the Pipeline in Runtime
+    Then Run the Pipeline in Runtimes
     Then Wait till pipeline is in running state
     Then Open and capture logs
     Then Verify the pipeline status is "Succeeded"

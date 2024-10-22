@@ -12,7 +12,7 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
-@GCSCopy
+@GCSCopys
 Feature:GCSCopy - Verification of successful objects copy from one bucket to another
 
   @CMEK @GCS_CSV_TEST @GCS_SINK_TEST @GCSCopy_Required @ITN_TEST
@@ -22,7 +22,7 @@ Feature:GCSCopy - Verification of successful objects copy from one bucket to ano
     When Select plugin: "GCS Copy" from the plugins list as: "Conditions and Actions"
     When Navigate to the properties page of plugin: "GCS Copy"
     And Replace input plugin property: "project" with value: "projectId"
-    And Enter GCSCopy property source path "gcsCsvFile"
+    And Enter GCSCopy property source path "gcsCsvFile"s
     And Enter GCSCopy property destination path
     Then Override Service account details if set in environment variables
     Then Enter GCSCopy property encryption key name "cmekGCS" if cmek is enabled

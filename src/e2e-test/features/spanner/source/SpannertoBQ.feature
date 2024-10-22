@@ -1,4 +1,4 @@
-@Spanner_Source @SPANNER_TEST
+@Spanner_Sources @SPANNER_TEST
 Feature: Spanner Source - Verification of Spanner to BigQuery successful data transfer
 
   @BQ_SINK_TEST

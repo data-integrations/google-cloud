@@ -1,4 +1,4 @@
-@PubSub_Sink
+@PubSub_Sinks
 Feature: PubSub-Sink - Verify PubSub sink plugin error Scenarios
 
   Scenario Outline: Verify PubSub sink properties validation errors for mandatory fields
@@ -14,7 +14,7 @@ Feature: PubSub-Sink - Verify PubSub sink plugin error Scenarios
 
   Scenario Outline: Verify errors for incorrect values in pubsub advanced properties
     Given Open Datafusion Project to configure pipeline
-    When Sink is PubSub
+    When Sink is PubSubs
     Then Open the PubSub sink properties
     Then Enter PubSub property reference name
     Then Enter PubSub property projectId "projectId"

@@ -12,7 +12,7 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
-@BigQuery_Sink
+@BigQuery_Sinks
 Feature: BigQuery sink - Verification of BigQuery to BigQuery successful data transfer
 
   @BQ_UPSERT_SOURCE_TEST @BQ_UPSERT_SINK_TEST @EXISTING_BQ_CONNECTION
@@ -108,7 +108,7 @@ Feature: BigQuery sink - Verification of BigQuery to BigQuery successful data tr
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Source"
     When Select plugin: "BigQuery" from the plugins list as: "Source"
-    When Expand Plugin group in the LHS plugins list: "Sink"
+    When Expand Plugin group in the LHS plugins list: "Sink"s
     When Select plugin: "BigQuery" from the plugins list as: "Sink"
     Then Connect plugins: "BigQuery" and "BigQuery2" to establish connection
     Then Navigate to the properties page of plugin: "BigQuery"

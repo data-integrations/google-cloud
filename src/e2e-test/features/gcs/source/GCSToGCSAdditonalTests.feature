@@ -1,4 +1,4 @@
-@GCS_Source
+@GCS_Sources
 Feature: GCS source - Verification of GCS to GCS Additional Tests successful
 
   @GCS_AVRO_FILE @GCS_SINK_TEST @GCS_Source_Required @ITN_TEST

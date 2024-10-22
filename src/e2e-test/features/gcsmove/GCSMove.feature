@@ -1,4 +1,4 @@
-@GCSMove
+@GCSMoves
 Feature:GCSMove - Verification of successful objects move from one bucket to another
 
   @CMEK @GCS_CSV_TEST @GCS_SINK_TEST

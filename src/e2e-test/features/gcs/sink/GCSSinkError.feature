@@ -1,4 +1,4 @@
-@GCS_Sink
+@GCS_Sinks
 Feature: GCS sink - Verify GCS Sink plugin error scenarios
 
   Scenario Outline:Verify GCS Sink properties validation errors for mandatory fields

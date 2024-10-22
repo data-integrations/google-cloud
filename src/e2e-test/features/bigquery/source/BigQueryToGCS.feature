@@ -1,4 +1,4 @@
-@BigQuery_Source
+@BigQuery_Sources
 Feature: BigQuery source - Verification of BigQuery to GCS successful data transfer
 
   @CMEK @BQ_SOURCE_TEST @GCS_SINK_TEST

@@ -1,4 +1,4 @@
-@BigQuery_Source
+@BigQuery_Sources
 Feature: BigQuery source - Verification of BigQuery to BigQuery successful data transfer using connections
 
   @BQ_SOURCE_TEST @BQ_SINK_TEST @BQ_CONNECTION @BigQuery_Source_Required

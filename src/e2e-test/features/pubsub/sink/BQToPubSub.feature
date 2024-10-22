@@ -1,4 +1,4 @@
-@PubSub_Sink @PUBSUB_SINK_TEST
+@PubSub_Sinks @PUBSUB_SINK_TEST
 Feature: PubSub-Sink - Verification of BigQuery to PubSub successful data transfer
 
   @CMEK @BQ_SOURCE_TEST
@@ -14,7 +14,7 @@ Feature: PubSub-Sink - Verification of BigQuery to PubSub successful data transf
     Then Close the BigQuery properties
     Then Open the PubSub sink properties
     Then Enter PubSub property projectId "projectId"
-    Then Override Service account details if set in environment variables
+    Then Override Service account sdetails if set in environment variables
     Then Enter PubSub property reference name
     Then Enter PubSub sink property topic name
     Then Select PubSub property format "csv"
