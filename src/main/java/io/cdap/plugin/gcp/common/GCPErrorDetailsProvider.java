@@ -18,6 +18,7 @@ package io.cdap.plugin.gcp.common;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpResponseException;
+import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import io.cdap.cdap.api.exception.ErrorCategory;
 import io.cdap.cdap.api.exception.ErrorCategory.ErrorCategoryEnum;
@@ -75,10 +76,29 @@ public class GCPErrorDetailsProvider implements ErrorDetailsProvider {
       GoogleJsonResponseException exception = (GoogleJsonResponseException) e;
       errorMessage = exception.getDetails() != null ? exception.getDetails().getMessage() :
         exception.getMessage();
+
+      String externalDocumentationLink = getExternalDocumentationLink();
+      if (!Strings.isNullOrEmpty(externalDocumentationLink)) {
+
+        if (!errorReason.endsWith(".")) {
+          errorReason = errorReason + ".";
+        }
+        errorReason = String.format("%s For more details, see %s", errorReason,
+          externalDocumentationLink);
+      }
     }
 
     return ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategoryEnum.PLUGIN),
       errorReason, String.format(errorMessageFormat, errorContext.getPhase(), errorMessage),
       pair.getErrorType(), true, e);
+  }
+
+  /**
+   * Get the external documentation link for the client errors if available.
+   *
+   * @return The external documentation link as a {@link String}.
+   */
+  protected String getExternalDocumentationLink() {
+    return null;
   }
 }

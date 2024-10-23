@@ -28,7 +28,6 @@ import io.cdap.cdap.api.annotation.Metadata;
 import io.cdap.cdap.api.annotation.MetadataProperty;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
-import io.cdap.cdap.api.exception.ErrorUtils;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchSource;
@@ -44,10 +43,10 @@ import io.cdap.plugin.format.plugin.AbstractFileSource;
 import io.cdap.plugin.format.plugin.AbstractFileSourceConfig;
 import io.cdap.plugin.format.plugin.FileSourceProperties;
 import io.cdap.plugin.gcp.common.GCPConnectorConfig;
-import io.cdap.plugin.gcp.common.GCPErrorDetailsProvider;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.common.GCSEmptyInputFormat;
 import io.cdap.plugin.gcp.crypto.EncryptedFileSystem;
+import io.cdap.plugin.gcp.gcs.GCSErrorDetailsProvider;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 import io.cdap.plugin.gcp.gcs.connector.GCSConnector;
 
@@ -143,7 +142,7 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
 
     // set error details provider
     context.setErrorDetailsProvider(
-      new ErrorDetailsProviderSpec(GCPErrorDetailsProvider.class.getName()));
+      new ErrorDetailsProviderSpec(GCSErrorDetailsProvider.class.getName()));
 
     // super is called down here to avoid instantiating the lineage recorder with a null asset
     super.prepareRun(context);

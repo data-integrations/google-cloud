@@ -52,9 +52,9 @@ import io.cdap.plugin.format.plugin.AbstractFileSink;
 import io.cdap.plugin.format.plugin.FileSinkProperties;
 import io.cdap.plugin.gcp.common.CmekUtils;
 import io.cdap.plugin.gcp.common.GCPConnectorConfig;
-import io.cdap.plugin.gcp.common.GCPErrorDetailsProvider;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.Formats;
+import io.cdap.plugin.gcp.gcs.GCSErrorDetailsProvider;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 import io.cdap.plugin.gcp.gcs.StorageClient;
 import io.cdap.plugin.gcp.gcs.connector.GCSConnector;
@@ -166,7 +166,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
 
     // set error details provider
     context.setErrorDetailsProvider(
-      new ErrorDetailsProviderSpec(GCPErrorDetailsProvider.class.getName()));
+      new ErrorDetailsProviderSpec(GCSErrorDetailsProvider.class.getName()));
     
     // super is called down here to avoid instantiating the lineage recorder with a null asset
     super.prepareRun(context);
