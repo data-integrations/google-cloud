@@ -78,6 +78,7 @@ jobs:
       - name: Check for Failed Tests and Run Retry Test Runner
         if: always()  # Always run this step to check for failures
         run: |
+          echo "Checking for failed_scenarios.txt"
           if [ -f ./plugin/target/failed_scenarios.txt ]; then
             echo "Found failed scenarios. Running retry tests."
             python3 e2e/src/main/scripts/run_e2e_test.py --testRunner **/${{ matrix.tests }}/**/RetryTestRunner.java
