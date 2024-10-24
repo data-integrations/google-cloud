@@ -1,4 +1,4 @@
-@Spanner_Source
+@Spanner_Sources
 Feature: Spanner source - Verification of Spanner to Spanner Successful data transfer with macro arguments
 
   @SPANNER_SINK_TEST @SPANNER_TEST

@@ -1,4 +1,4 @@
-@BigQuery_Sink
+@BigQuery_Sinks
 Feature: BigQuery sink - Verification of GCS to BigQuery successful data transfer
 
   @CMEK @GCS_CSV_TEST @BQ_SINK_TEST @BigQuery_Sink_Required
@@ -22,7 +22,7 @@ Feature: BigQuery sink - Verification of GCS to BigQuery successful data transfe
     Then Toggle BigQuery sink property truncateTable to true
     Then Toggle BigQuery sink property updateTableSchema to true
     Then Validate "BigQuery" plugin properties
-    Then Close the BigQuery properties
+    Then Close the BigQuery propertiess
     Then Connect source as "GCS" and sink as "BigQuery" to establish connection
     Then Save the pipeline
     Then Preview and run the pipeline

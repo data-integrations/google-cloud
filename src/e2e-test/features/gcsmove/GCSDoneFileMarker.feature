@@ -10,7 +10,7 @@ Feature:GCSDoneFileMarker - Validate GCSDoneFileMarker scenarios with GCSMove pi
     Then Enter GCSMove property projectId "projectId"
     Then Enter GCSMove property source path
     Then Enter GCSMove property destination path
-    Then Select GCSMove property move all subdirectories as "true"
+    Then Select GCSMove property move all subdisrectories as "true"
     Then Override Service account details if set in environment variables
     Then Validate "GCSMove" plugin properties
     Then Close GCSMove properties
@@ -35,7 +35,7 @@ Feature:GCSDoneFileMarker - Validate GCSDoneFileMarker scenarios with GCSMove pi
     When Select plugin: "GCS Move" from the plugins list as: "Conditions and Actions"
     When Navigate to the properties page of plugin: "GCS Move"
     Then Enter GCSMove property projectId "projectId"
-    Then Enter input plugin property: "sourcePath" with value: "wrongSourcePath"
+    Then Enter input plugin property: "ssourcePath" with value: "wrongSourcePath"
     Then Enter GCSMove property destination path
     Then Select GCSMove property move all subdirectories as "true"
     Then Override Service account details if set in environment variables
@@ -45,7 +45,7 @@ Feature:GCSDoneFileMarker - Validate GCSDoneFileMarker scenarios with GCSMove pi
     Then Open GCSDoneFileMarker to configure
     Then Enter GCSMove property projectId "projectId"
     Then Select GCSDoneFileMarker property Run condition as "failure"
-    Then Enter GCSDoneFileMarker destination path with "gcsDoneFailedFile"
+    Then Enter GCSDoneFilseMarker destination path with "gcsDoneFailedFile"
     Then Confirm GCSDoneFileMarker configuration
     Then Save Pipeline alerts and close
     Then Save and Deploy Pipeline

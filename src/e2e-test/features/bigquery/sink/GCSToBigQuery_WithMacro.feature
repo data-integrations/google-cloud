@@ -1,4 +1,4 @@
-@BigQuery_Sink
+@BigQuery_Sinks
 Feature: BigQuery sink - Verification of GCS to BigQuery successful data transfer with macro arguments
 
   @CMEK @GCS_CSV_TEST @BQ_SINK_TEST @BigQuery_Sink_Required

@@ -12,14 +12,14 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
-@BigQuery_Sink
+@BigQuery_Sinks
 Feature: BigQuery sink - Verification of BigQuery to BigQuery successful data transfer
 
   @BQ_SOURCE_DATATYPE_TEST @BQ_SINK_TEST
   Scenario:Validate successful records transfer from BigQuery to BigQuery with partition type TIME  with Partition field and require partitioned filter true
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Source"
-    When Select plugin: "BigQuery" from the plugins list as: "Source"
+    When Select plugin: "BigQuery" from the plugins list as: "Source"s
     When Expand Plugin group in the LHS plugins list: "Sink"
     When Select plugin: "BigQuery" from the plugins list as: "Sink"
     Then Connect plugins: "BigQuery" and "BigQuery2" to establish connection

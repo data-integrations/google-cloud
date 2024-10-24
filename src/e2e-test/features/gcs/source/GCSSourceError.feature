@@ -1,4 +1,4 @@
-@GCS_Source
+@GCS_Sources
 Feature: GCS source - Verify GCS Source plugin error scenarios
 
   Scenario Outline:Verify GCS Source properties validation errors for mandatory fields

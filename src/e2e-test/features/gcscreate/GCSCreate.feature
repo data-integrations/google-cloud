@@ -15,7 +15,7 @@ Feature: GCSCreate - Verification of GCS Create plugin
     Then Enter GCSCreate property encryption key name "cmekGCS" if cmek is enabled
     Then Validate "GCS Create" plugin properties
     Then Close the GCS Create properties
-    Then Save and Deploy Pipeline
+    Then Save and Deploy Pipelines
     Then Run the Pipeline in Runtime
     Then Wait till pipeline is in running state
     Then Open and capture logs
@@ -34,7 +34,7 @@ Feature: GCSCreate - Verification of GCS Create plugin
     Then Select GCS Create property fail if objects exists as "true"
     Then Override Service account details if set in environment variables
     Then Validate "GCS Create" plugin properties
-    Then Close the GCS Create properties
+    Then Close the GCS Create propertiess
     Then Save and Deploy Pipeline
     Then Run the Pipeline in Runtime
     Then Wait till pipeline is in running state
@@ -55,7 +55,7 @@ Feature: GCSCreate - Verification of GCS Create plugin
     Then Override Service account details if set in environment variables
     Then Validate "GCS Create" plugin properties
     Then Close the GCS Create properties
-    Then Save and Deploy Pipeline
+    Then Save and Deploy Pipelines
     Then Run the Pipeline in Runtime
     Then Wait till pipeline is in running state
     Then Verify the pipeline status is "Succeeded"

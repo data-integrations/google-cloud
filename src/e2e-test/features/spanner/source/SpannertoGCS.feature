@@ -1,4 +1,4 @@
-@Spanner_Source @SPANNER_TEST
+@Spanner_Sources @SPANNER_TEST
 Feature: Spanner Source - Verification of Spanner to GCS successful data transfer
 
   @GCS_SINK_TEST @Spanner_Source_Required

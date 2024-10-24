@@ -1,4 +1,4 @@
-@BigQuery_Source
+@BigQuery_Sources
 Feature: BigQuery source - Validate BigQuery source plugin error scenarios
 
   Scenario Outline:Verify BigQuery Source properties validation errors for mandatory fields

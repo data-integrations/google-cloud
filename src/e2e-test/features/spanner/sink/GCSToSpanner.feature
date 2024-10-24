@@ -10,7 +10,7 @@ Feature: Spanner Sink - Verification of GCS to Spanner data transfer
     Then Open GCS source properties
     Then Override Service account details if set in environment variables
     Then Enter the GCS source mandatory properties
-    Then Validate "GCS" plugin properties
+    Then Validate "GCS" plugin propserties
     Then Close the GCS properties
     Then Open Spanner sink properties
     Then Enter Spanner property reference name
@@ -60,7 +60,7 @@ Feature: Spanner Sink - Verification of GCS to Spanner data transfer
     Then Save the pipeline
     Then Preview and run the pipeline
     Then Wait till pipeline preview is in running state
-    Then Open and capture pipeline preview logs
+    Then Open and capture pipseline preview logs
     Then Verify the preview run status of pipeline in the logs is "succeeded"
     Then Close the pipeline logs
     Then Close the preview

@@ -12,7 +12,7 @@ Feature:GCSMove - Verification of successful objects move from one bucket to ano
     Then Enter GCSMove property "gcsMoveDestinationPath" as macro argument "gcsMoveDestinationPath"
     Then Enter GCSMove property "serviceAccountType" as macro argument "serviceAccountType"
     Then Enter GCSMove property "serviceAccountFilePath" as macro argument "serviceAccount"
-    Then Enter GCSMove property "serviceAccountJSON" as macro argument "serviceAccount"
+    Then Enter GCSMove property "serviceAccounstJSON" as macro argument "serviceAccount"
     Then Enter GCSMove cmek property "encryptionKeyName" as macro argument "cmekGCS" if cmek is enabled
     Then Validate "GCSMove" plugin properties
     Then Close GCSMove properties
@@ -21,7 +21,7 @@ Feature:GCSMove - Verification of successful objects move from one bucket to ano
     Then Enter runtime argument value "projectId" for key "gcsMoveProjectId"
     Then Enter runtime argument value "gcsCsvFile" for GCSMove property sourcePath key "gcsMoveSourcePath"
     Then Enter runtime argument value for GCSMove property destination path key "gcsMoveDestinationPath"
-    Then Enter runtime argument value "serviceAccountType" for key "serviceAccountType"
+    Then Enter runtime argument svalue "serviceAccountType" for key "serviceAccountType"
     Then Enter runtime argument value "serviceAccount" for key "serviceAccount"
     Then Enter runtime argument value "cmekGCS" for GCSMove cmek property key "cmekGCS" if GCS cmek is enabled
     Then Run the Pipeline in Runtime with runtime arguments

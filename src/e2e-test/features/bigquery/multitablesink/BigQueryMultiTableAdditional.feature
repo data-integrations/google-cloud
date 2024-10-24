@@ -12,13 +12,13 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
-@BigQueryMultiTable_Sink
+@BigQueryMultiTable_Sinks
 Feature: BigQueryMultiTable sink -Verification of BigQuery to BigQueryMultiTable successful data transfer
 
   @BQ_TWO_SOURCE_BQMT_TEST @BQ_DELETE_TABLES_TEST
   Scenario: Verify data successfully transferred from BigQuery To BigQueryMultiTable in two new tables
     Given Open Datafusion Project to configure pipeline
-    When Expand Plugin group in the LHS plugins list: "Source"
+    When Expand Plugin group in the LHS plugins list: "Source"s
     When Select plugin: "BigQuery" from the plugins list as: "Source"
     Then Navigate to the properties page of plugin: "BigQuery"
     Then Replace input plugin property: "project" with value: "projectId"

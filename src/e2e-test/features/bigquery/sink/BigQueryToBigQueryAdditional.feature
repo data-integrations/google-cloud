@@ -12,12 +12,12 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
-@BigQuery_Sink
+@BigQuery_Sinks
 Feature: BigQuery sink - Verification of BigQuery to BigQuery successful data transfer
 
   @BQ_UPSERT_SOURCE_TEST @BQ_UPSERT_SINK_TEST @EXISTING_BQ_CONNECTION
   Scenario:Validate successful records transfer from BigQuery source to BigQuery sink with Upsert operation by updating destination table schema and destination table exists with records in it.
-    Given Open Datafusion Project to configure pipeline
+    Given Open Datafusion Project to configure pipelines
     When Expand Plugin group in the LHS plugins list: "Source"
     When Select plugin: "BigQuery" from the plugins list as: "Source"
     When Expand Plugin group in the LHS plugins list: "Sink"

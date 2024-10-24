@@ -12,7 +12,7 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
-@DataStore
+@DataStores
 Feature: DataStore - Verification of Datastore to Datastore Successful Data Transfer
 
   @DATASTORE_SOURCE_ENTITY @datastore_Required
