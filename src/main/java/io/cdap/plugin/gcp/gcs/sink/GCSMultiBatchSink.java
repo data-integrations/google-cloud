@@ -46,8 +46,8 @@ import io.cdap.cdap.etl.api.validation.ValidatingOutputFormat;
 import io.cdap.plugin.common.batch.sink.SinkOutputFormatProvider;
 import io.cdap.plugin.format.FileFormat;
 import io.cdap.plugin.gcp.common.CmekUtils;
-import io.cdap.plugin.gcp.common.GCPErrorDetailsProvider;
 import io.cdap.plugin.gcp.common.GCPUtils;
+import io.cdap.plugin.gcp.gcs.GCSErrorDetailsProvider;
 import io.cdap.plugin.gcp.gcs.connector.GCSConnector;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
@@ -173,7 +173,7 @@ public class GCSMultiBatchSink extends BatchSink<StructuredRecord, NullWritable,
 
     // set error details provider
     context.setErrorDetailsProvider(
-      new ErrorDetailsProviderSpec(GCPErrorDetailsProvider.class.getName()));
+      new ErrorDetailsProviderSpec(GCSErrorDetailsProvider.class.getName()));
 
     Map<String, String> baseProperties = GCPUtils.getFileSystemProperties(config.connection,
       config.getPath(), new HashMap<>());
