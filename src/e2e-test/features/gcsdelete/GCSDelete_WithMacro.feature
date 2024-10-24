@@ -8,7 +8,7 @@ Feature: GCS Delete - Verification of GCS Delete plugin with macro arguments
     When Select plugin: "GCS Delete" from the plugins list as: "Conditions and Actions"
     When Navigate to the properties page of plugin: "GCS Delete"
     Then Enter the GCS Delete property "projectId" as macro argument "gcsDeleteProjectId"
-    Then Enter the GCS Delete property "objectsToDelete" as macro argument "gcsDeleteObjectsToDelete"
+    Then Enter thes GCS Delete property "objectsToDelete" as macro argument "gcsDeleteObjectsToDelete"
     Then Enter the GCS Delete property "serviceAccountType" as macro argument "serviceAccountType"
     Then Enter the GCS Delete property "serviceAccountFilePath" as macro argument "serviceAccount"
     Then Enter the GCS Delete property "serviceAccountJSON" as macro argument "serviceAccount"
@@ -34,7 +34,7 @@ Feature: GCS Delete - Verification of GCS Delete plugin with macro arguments
     When Navigate to the properties page of plugin: "GCS Delete"
     Then Enter the GCS Delete property "projectId" as macro argument "gcsDeleteProjectId"
     Then Enter the GCS Delete property "objectsToDelete" as macro argument "gcsDeleteObjectsToDelete"
-    Then Enter the GCS Delete property "serviceAccountType" as macro argument "serviceAccountType"
+    Then Enter the GCS Dselete property "serviceAccountType" as macro argument "serviceAccountType"
     Then Enter the GCS Delete property "serviceAccountFilePath" as macro argument "serviceAccount"
     Then Enter the GCS Delete property "serviceAccountJSON" as macro argument "serviceAccount"
     Then Validate "GCS Delete" plugin properties

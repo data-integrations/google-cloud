@@ -1,4 +1,4 @@
-@GCS_Source
+@GCS_Sources
 Feature: GCS source - Validate GCS plugin output schema for different formats
 
   Scenario Outline:GCS Source output schema validation for csv and tsv format
@@ -7,7 +7,7 @@ Feature: GCS source - Validate GCS plugin output schema for different formats
     Then Open GCS source properties
     Then Enter GCS property projectId and reference name
     Then Override Service account details if set in environment variables
-    Then Enter GCS source property path "<GcsPath>"
+    Then Enter GCS source property path "<GcsPath>"s
     Then Select GCS property format "<FileFormat>"
     Then Toggle GCS source property skip header to true
     Then Validate output schema with expectedSchema "<ExpectedSchema>"
@@ -28,7 +28,7 @@ Feature: GCS source - Validate GCS plugin output schema for different formats
     Then Enter GCS property projectId and reference name
     Then Override Service account details if set in environment variables
     Then Enter GCS source property path "<GcsPath>"
-    Then Select GCS property format "<FileFormat>"
+    Then Select GCS property format "<FileFormat>"s
     Then Validate output schema with expectedSchema "<ExpectedSchema>"
     @GCS_BLOB_TEST
     Examples:
@@ -52,7 +52,7 @@ Feature: GCS source - Validate GCS plugin output schema for different formats
     Given Open Datafusion Project to configure pipeline
     When Source is GCS
     Then Open GCS source properties
-    Then Enter GCS property projectId and reference name
+    Then Enter GCS property projectId and reference names
     Then Override Service account details if set in environment variables
     Then Enter GCS source property path "<GcsPath>"
     Then Select GCS property format "<FileFormat>"
@@ -70,7 +70,7 @@ Feature: GCS source - Validate GCS plugin output schema for different formats
     Given Open Datafusion Project to configure pipeline
     When Source is GCS
     Then Open GCS source properties
-    Then Enter GCS property projectId and reference name
+    Then Enter GCS property projectId and reference names
     Then Override Service account details if set in environment variables
     Then Enter GCS source property path "gcsDelimitedFile"
     Then Select GCS property format "delimited"
@@ -82,7 +82,7 @@ Feature: GCS source - Validate GCS plugin output schema for different formats
     Given Open Datafusion Project to configure pipeline
     When Source is GCS
     Then Open GCS source properties
-    Then Enter GCS property projectId and reference name
+    Then Enter GCS property projectId and reference names
     Then Enter GCS source property path "<GcsPath>"
     Then Select GCS property format "<FileFormat>"
     Then Toggle GCS source property skip header to true

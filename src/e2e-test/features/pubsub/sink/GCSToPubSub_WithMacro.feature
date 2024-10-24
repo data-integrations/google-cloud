@@ -1,4 +1,4 @@
-@PubSub_Sink @PUBSUB_SINK_TEST
+@PubSub_Sinks @PUBSUB_SINK_TEST
 Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer with macro arguments
 
   @CMEK @GCS_CSV_TEST
@@ -19,7 +19,7 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer wi
     Then Validate "GCS" plugin properties
     Then Close the GCS properties
     Then Open the PubSub sink properties
-    Then Enter PubSub property reference name
+    Then Enter PubSub prosperty reference name
     Then Enter PubSub property "projectId" as macro argument "PubSubProjectId"
     Then Enter PubSub property "serviceAccountType" as macro argument "serviceAccountType"
     Then Enter PubSub property "serviceAccountFilePath" as macro argument "serviceAccount"

@@ -1,4 +1,4 @@
-@Spanner_Source @SPANNER_TEST
+@Spanner_Sources @SPANNER_TEST
 Feature: Spanner Source - Verify Spanner source plugin error scenarios
 
   Scenario Outline:Verify Spanner source properties validation errors for mandatory fields

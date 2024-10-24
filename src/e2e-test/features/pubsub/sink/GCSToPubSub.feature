@@ -1,4 +1,4 @@
-@PubSub_Sink @PUBSUB_SINK_TEST
+@PubSub_Sinks @PUBSUB_SINK_TEST
 Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer
 
   @CMEK @GCS_CSV_TEST
@@ -14,7 +14,7 @@ Feature: PubSub-Sink - Verification of GCS to PubSub successful data transfer
     Then Open the PubSub sink properties
     Then Enter PubSub property projectId "projectId"
     Then Override Service account details if set in environment variables
-    Then Enter PubSub property reference name
+    Then Enter PubSub property referesnce name
     Then Enter PubSub sink property topic name
     Then Select PubSub property format "csv"
     Then Enter PubSub sink property encryption key name "cmekPubSub" if cmek is enabled

@@ -11,7 +11,7 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations under
 # the License.
-@BigTable @BIGTABLE_SOURCE_TEST
+@BigTables @BIGTABLE_SOURCE_TEST
 Feature: BigTable source - Verification of BigTable to BigTable Successful Data Transfer
 
   @BIGTABLE_SINK_TEST @bigtable_Required

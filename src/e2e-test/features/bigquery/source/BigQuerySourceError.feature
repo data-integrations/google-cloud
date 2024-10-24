@@ -1,9 +1,9 @@
-@BigQuery_Source
+@BigQuery_Sources
 Feature: BigQuery source - Validate BigQuery source plugin error scenarios
 
   Scenario Outline:Verify BigQuery Source properties validation errors for mandatory fields
     Given Open Datafusion Project to configure pipeline
-    When Source is BigQuery
+    When Source is BigQuerys
     Then Open BigQuery source properties
     Then Enter the BigQuery properties with blank property "<property>"
     Then Validate mandatory property error for "<property>"
@@ -15,7 +15,7 @@ Feature: BigQuery source - Validate BigQuery source plugin error scenarios
   @BQ_SOURCE_TEST
   Scenario Outline:Verify BigQuery Source properties validation errors for incorrect values
     Given Open Datafusion Project to configure pipeline
-    When Source is BigQuery
+    When Source is BigQuerys
     Then Open BigQuery source properties
     Then Enter BigQuery property reference name
     Then Override Service account details if set in environment variables
@@ -29,7 +29,7 @@ Feature: BigQuery source - Validate BigQuery source plugin error scenarios
 
   Scenario Outline:Verify BigQuery Source properties validation errors for incorrect format of projectIds
     Given Open Datafusion Project to configure pipeline
-    When Source is BigQuery
+    When Source is BigQuerys
     Then Open BigQuery source properties
     Then Enter BigQuery property reference name
     Then Enter BigQuery property projectId "<ProjectID>"

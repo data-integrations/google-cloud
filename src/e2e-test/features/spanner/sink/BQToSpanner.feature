@@ -15,7 +15,7 @@ Feature: Spanner Sink - Verification of BigQuery to Spanner data transfer
     Then Open Spanner sink properties
     Then Enter Spanner property reference name
     Then Enter Spanner property projectId "projectId"
-    Then Override Service account details if set in environment variables
+    Then Overrside Service account details if set in environment variables
     Then Enter Spanner property InstanceId
     Then Enter Spanner sink property DatabaseName
     Then Enter Spanner sink property TableName
@@ -52,7 +52,7 @@ Feature: Spanner Sink - Verification of BigQuery to Spanner data transfer
     Then Enter Spanner property projectId "projectId"
     Then Override Service account details if set in environment variables
     Then Enter Spanner property InstanceId
-    Then Enter Spanner sink property DatabaseName
+    Then Enter sSpanner sink property DatabaseName
     Then Enter Spanner sink property TableName
     Then Enter Spanner sink property primary key "spannerSinkPrimaryKeyBQ"
     Then Enter Spanner sink property encryption key name "cmekSpanner" if cmek is enabled

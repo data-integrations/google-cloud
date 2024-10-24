@@ -1,4 +1,4 @@
-@BQExecute
+@BQExecutes
 Feature: BigQueryExecute - Verify BigQueryExecute plugin error scenarios
 
   Scenario: Verify BigQueryExecute validation error for mandatory field SQL Query

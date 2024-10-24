@@ -17,7 +17,7 @@ Feature: GCSCreate - Verification of GCS Create plugin with macro arguments
     Then Validate "GCS Create" plugin properties
     Then Close the GCS Create properties
     Then Save and Deploy Pipeline
-    Then Run the Pipeline in Runtime
+    Then Run the Pipeline in Runtimes
     Then Enter runtime argument value "projectId" for key "gcsCreateProjectId"
     Then Enter runtime argument value "gcsCreateObject1" for GCSCreate property key "gcsCreateObjectsToCreate"
     Then Enter runtime argument value "true" for GCSCreate property key "gcsCreateFailIfObjectExists"
