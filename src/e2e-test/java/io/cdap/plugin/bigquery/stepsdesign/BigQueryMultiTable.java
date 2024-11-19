@@ -17,6 +17,7 @@
 package io.cdap.plugin.bigquery.stepsdesign;
 
 import io.cdap.e2e.utils.PluginPropertyUtils;
+import io.cdap.plugin.common.stepsdesign.TestSetupHooks;
 import io.cucumber.java.en.Then;
 import org.junit.Assert;
 
@@ -32,11 +33,9 @@ public class BigQueryMultiTable {
   @Then("Validate data transferred from BigQuery To BigQueryMultiTable is equal")
   public void validateDataTransferredFromBigQueryToBigQueryMultiTableIsEqual()
     throws IOException, InterruptedException {
-    List<String> sourceTables = Arrays.asList(PluginPropertyUtils.pluginProp("bqSourceTable"),
-                                        PluginPropertyUtils.pluginProp("bqSourceTable2"));
+    List<String> sourceTables = Arrays.asList(TestSetupHooks.bqSourceTable, TestSetupHooks.bqSourceTable2);
 
-    List<String> targetTables = Arrays.asList(PluginPropertyUtils.pluginProp("bqTargetTable"),
-                                              PluginPropertyUtils.pluginProp("bqTargetTable2"));
+    List<String> targetTables = Arrays.asList(TestSetupHooks.bqmtTargetTable, TestSetupHooks.bqmtTargetTable2);
     boolean recordsMatched = BigQueryMultiTableValidation.validateBQToBigQueryMultiTable(sourceTables, targetTables);
     Assert.assertTrue("Value of records transferred to the BQ sink should be equal to the value " +
                         "of the records in the source table", recordsMatched);
@@ -46,8 +45,8 @@ public class BigQueryMultiTable {
   public void validateDataTransferredFromBigQueryToBigQueryMultiTableInOneTableIsEqual()
     throws IOException, InterruptedException {
     boolean recordsMatched = BigQueryMultiTableValidation.
-      validateBQToBigQueryMultiTable(Collections.singletonList(PluginPropertyUtils.pluginProp("bqSourceTable")),
-                                     Collections.singletonList(PluginPropertyUtils.pluginProp("bqTargetTable")));
+      validateBQToBigQueryMultiTable(Collections.singletonList(TestSetupHooks.bqSourceTable),
+                                     Collections.singletonList(TestSetupHooks.bqmtTargetTable));
     Assert.assertTrue("Value of records transferred to the BQ sink should be equal to the value " +
                         "of the records in the source table", recordsMatched);
   }
