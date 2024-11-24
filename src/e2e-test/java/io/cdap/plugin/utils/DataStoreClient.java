@@ -50,7 +50,7 @@ public class DataStoreClient {
     FullEntity<IncompleteKey> entity = Entity.newBuilder(incompleteKey)
       .set("firstName", PluginPropertyUtils.pluginProp("name"))
       .set("age", Integer.parseInt(PluginPropertyUtils.pluginProp("age")))
-      .set("isValid", PluginPropertyUtils.pluginProp("result").isEmpty())
+      .set("isValid", Boolean.parseBoolean(PluginPropertyUtils.pluginProp("result")))
       .set("postalAdd", Float.parseFloat(PluginPropertyUtils.pluginProp("address")))
       // Add other properties as needed
       .build();
