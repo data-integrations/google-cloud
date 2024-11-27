@@ -15,7 +15,7 @@
 @BigQueryMultiTable_Sink
 Feature: BigQueryMultiTable sink -Verification of BigQuery to BigQueryMultiTable successful data transfer
 
-  @BQ_TWO_SOURCE_BQMT_TEST @BQ_DELETE_TABLES_TEST
+  @BQ_TWO_SOURCE_BQMT_TEST @BQ_TWO_SINK_BQMT_TEST
   Scenario: Verify data successfully transferred from BigQuery To BigQueryMultiTable in two new tables
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Source"
@@ -89,7 +89,7 @@ Feature: BigQueryMultiTable sink -Verification of BigQuery to BigQueryMultiTable
     Then Verify the pipeline status is "Succeeded"
     Then Validate data transferred from BigQuery To BigQueryMultiTable in one table is equal
 
-  @BQ_TWO_SOURCE_BQMT_TEST @BQ_EXISTING_TARGET_TEST @BQ_DELETE_TABLES_TEST
+  @BQ_TWO_SOURCE_BQMT_TEST @BQ_EXISTING_TARGET_TEST @BQ_TWO_SINK_BQMT_TEST
   Scenario: Verify data successfully transferred from BigQuery To BigQueryMultiTable in two existing tables
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Source"
@@ -131,7 +131,7 @@ Feature: BigQueryMultiTable sink -Verification of BigQuery to BigQueryMultiTable
     Then Verify the pipeline status is "Succeeded"
     Then Validate data transferred from BigQuery To BigQueryMultiTable is equal
 
-  @BQ_TWO_SOURCE_BQMT_TEST @BQ_EXISTING_TARGET_TEST @BQ_DELETE_TABLES_TEST
+  @BQ_TWO_SOURCE_BQMT_TEST @BQ_EXISTING_TARGET_TEST @BQ_TWO_SINK_BQMT_TEST
   Scenario: Verify data successfully transferred from BigQuery To BigQueryMultiTable in two existing tables using truncate
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Source"
@@ -174,7 +174,7 @@ Feature: BigQueryMultiTable sink -Verification of BigQuery to BigQueryMultiTable
     Then Verify the pipeline status is "Succeeded"
     Then Validate data transferred from BigQuery To BigQueryMultiTable is equal
 
-  @BQ_SOURCE_UPDATE_TEST @BQ_EXISTING_TARGET_TEST @BQ_DELETE_TABLES_TEST
+  @BQ_SOURCE_UPDATE_TEST @BQ_EXISTING_TARGET_TEST @BQ_TWO_SINK_BQMT_TEST
   Scenario: Verify data successfully transferred from BigQuery To BigQueryMultiTable in two existing tables after updating schema
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Source"

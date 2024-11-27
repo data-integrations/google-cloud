@@ -17,6 +17,7 @@
 package io.cdap.plugin.bigquery.stepsdesign;
 
 import io.cdap.e2e.utils.PluginPropertyUtils;
+import io.cdap.plugin.common.stepsdesign.TestSetupHooks;
 import io.cucumber.java.en.Then;
 import org.junit.Assert;
 
@@ -46,7 +47,7 @@ public class BigQueryMultiTable {
   public void validateDataTransferredFromBigQueryToBigQueryMultiTableInOneTableIsEqual()
     throws IOException, InterruptedException {
     boolean recordsMatched = BigQueryMultiTableValidation.
-      validateBQToBigQueryMultiTable(Collections.singletonList(PluginPropertyUtils.pluginProp("bqSourceTable")),
+      validateBQToBigQueryMultiTable(Collections.singletonList(TestSetupHooks.bqSourceTable),
                                      Collections.singletonList(PluginPropertyUtils.pluginProp("bqTargetTable")));
     Assert.assertTrue("Value of records transferred to the BQ sink should be equal to the value " +
                         "of the records in the source table", recordsMatched);

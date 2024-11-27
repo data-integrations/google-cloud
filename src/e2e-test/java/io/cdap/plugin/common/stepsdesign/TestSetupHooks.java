@@ -294,16 +294,16 @@ public class TestSetupHooks {
     BeforeActions.scenario.write("BQ source Table " + bqSourceTable + " created successfully");
   }
 
-  @After(order = 1, value = "@BQ_SOURCE_TEST or @BQ_PARTITIONED_SOURCE_TEST or @BQ_SOURCE_DATATYPE_TEST or " +
+  @After(order = 2, value = "@BQ_SOURCE_TEST or @BQ_PARTITIONED_SOURCE_TEST or @BQ_SOURCE_DATATYPE_TEST or " +
     "@BQ_INSERT_SOURCE_TEST or @BQ_UPDATE_SINK_TEST or @BQ_EXISTING_SOURCE_TEST or @BQ_EXISTING_SINK_TEST or " +
     "@BQ_EXISTING_SOURCE_DATATYPE_TEST or @BQ_EXISTING_SINK_DATATYPE_TEST or @BQ_UPSERT_SOURCE_TEST or " +
     "@BQ_NULL_MODE_SOURCE_TEST or @BQ_UPDATE_SOURCE_DEDUPE_TEST or @BQ_INSERT_INT_SOURCE_TEST or " +
-    "@BQ_TIME_SOURCE_TEST or @BQ_UPSERT_DEDUPE_SOURCE_TEST or @BQ_PRIMARY_RECORD_SOURCE_TEST")
+    "@BQ_TIME_SOURCE_TEST or @BQ_UPSERT_DEDUPE_SOURCE_TEST or @BQ_PRIMARY_RECORD_SOURCE_TEST or " +
+    "@BQ_SINGLE_SOURCE_BQMT_TEST")
   public static void deleteTempSourceBQTable() throws IOException, InterruptedException {
     BigQueryClient.dropBqQuery(bqSourceTable);
     PluginPropertyUtils.removePluginProp("bqSourceTable");
     BeforeActions.scenario.write("BQ source Table " + bqSourceTable + " deleted successfully");
-    bqSourceTable = StringUtils.EMPTY;
   }
 
   /**
@@ -1604,35 +1604,15 @@ public class TestSetupHooks {
     PluginPropertyUtils.addPluginProp("bqSourceTable2", bqSourceTable2);
   }
 
-  @After(order = 1, value = "@BQ_DELETE_TABLES_TEST")
-  public static void deleteAllBqTables() throws IOException, InterruptedException {
-    BigQueryClient.dropBqQuery(bqSourceTable);
-    BigQueryClient.dropBqQuery(bqSourceTable2);
-    bqTargetTable = PluginPropertyUtils.pluginProp("bqTargetTable");
-    bqTargetTable2 = PluginPropertyUtils.pluginProp("bqTargetTable2");
-    BigQueryClient.dropBqQuery(bqTargetTable);
-    BigQueryClient.dropBqQuery(bqTargetTable2);
-    PluginPropertyUtils.removePluginProp("bqSourceTable");
-    PluginPropertyUtils.removePluginProp("bqSourceTable2");
-    BeforeActions.scenario.write("BQ source Table " + bqSourceTable + " deleted successfully");
-    BeforeActions.scenario.write("BQ source Table2 " + bqSourceTable2 + " deleted successfully");
-    BeforeActions.scenario.write("BQ target Table " + bqTargetTable + " deleted successfully");
-    BeforeActions.scenario.write("BQ target Table2 " + bqTargetTable2 + " deleted successfully");
-  }
-
-  @After(order = 1, value = "@BQ_SINK_BQMT_TEST")
+  @After(order = 2, value = "@BQ_SINK_BQMT_TEST")
   public static void deleteTargetBqmtTable() throws IOException, InterruptedException {
     try {
       bqTargetTable = PluginPropertyUtils.pluginProp("bqTargetTable");
       BigQueryClient.dropBqQuery(bqTargetTable);
-      BigQueryClient.dropBqQuery(bqSourceTable);
       BeforeActions.scenario.write("BQ Target table - " + bqTargetTable + " deleted successfully");
-      BeforeActions.scenario.write("BQ Source table - " + bqSourceTable + " deleted successfully");
-      bqTargetTable = StringUtils.EMPTY;
     } catch (BigQueryException e) {
       if (e.getMessage().contains("Not found: Table")) {
         BeforeActions.scenario.write("BQ Target Table " + bqTargetTable + " does not exist");
-        BeforeActions.scenario.write("BQ Source Table " + bqSourceTable + " does not exist");
       } else {
         Assert.fail(e.getMessage());
       }
@@ -1645,5 +1625,45 @@ public class TestSetupHooks {
     bqSourceTable2 = PluginPropertyUtils.pluginProp("bqSourceTable2");
     PluginPropertyUtils.removePluginProp("bqSourceTable2");
     BeforeActions.scenario.write("BQ source Table2 " + bqSourceTable2 + " deleted successfully");
+  }
+
+  @After(order = 2, value = "@BQ_TWO_SOURCE_BQMT_TEST or @BQ_SOURCE_UPDATE_TEST")
+  public static void deleteTwoSourceTables() throws IOException, InterruptedException {
+    try {
+      BigQueryClient.dropBqQuery(bqSourceTable);
+      BigQueryClient.dropBqQuery(bqSourceTable2);
+      BeforeActions.scenario.write("BQ Source table - " + bqSourceTable + " deleted successfully");
+      BeforeActions.scenario.write("BQ Source table2 - " + bqSourceTable2 + " deleted successfully");
+      PluginPropertyUtils.removePluginProp("bqSourceTable");
+      PluginPropertyUtils.removePluginProp("bqSourceTable2");
+
+    } catch (BigQueryException e) {
+      if (e.getMessage().contains("Not found: Table")) {
+        BeforeActions.scenario.write("BQ Source Table " + bqSourceTable + " does not exist");
+        BeforeActions.scenario.write("BQ Source Table2 " + bqSourceTable2 + " does not exist");
+      } else {
+        Assert.fail(e.getMessage());
+      }
+    }
+  }
+
+  @After(order = 2, value = "@BQ_TWO_SINK_BQMT_TEST")
+  public static void deleteTwoTargetTables() throws IOException, InterruptedException {
+    try {
+      bqTargetTable =  PluginPropertyUtils.pluginProp("bqTargetTable");
+      bqTargetTable2 =  PluginPropertyUtils.pluginProp("bqTargetTable2");
+      BigQueryClient.dropBqQuery(bqTargetTable);
+      BigQueryClient.dropBqQuery(bqTargetTable2);
+      BeforeActions.scenario.write("BQ Target table - " + bqTargetTable + " deleted successfully");
+      BeforeActions.scenario.write("BQ Target table2 - " + bqTargetTable2 + " deleted successfully");
+
+    } catch (BigQueryException e) {
+      if (e.getMessage().contains("Not found: Table")) {
+        BeforeActions.scenario.write("BQ Target Table " + bqTargetTable + " does not exist");
+        BeforeActions.scenario.write("BQ Target Table2 " + bqTargetTable2 + " does not exist");
+      } else {
+        Assert.fail(e.getMessage());
+      }
+    }
   }
 }
