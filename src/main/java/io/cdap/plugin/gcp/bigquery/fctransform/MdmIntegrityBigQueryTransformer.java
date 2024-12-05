@@ -63,19 +63,28 @@ public class MdmIntegrityBigQueryTransformer extends Transform<StructuredRecord,
     FailureCollector failureCollector = context.getFailureCollector();
     outputSchema = config.getSchema(failureCollector);
 
-    String configServerUrl = context.getArguments()
-        .get(MetadataUtils.CONFIGSERVER_METADATA_SCHEMA_URL);
-    String metadataRootPath = context.getArguments().get(MetadataUtils.METADATA_ROOT_PATH);
-    entities = MetadataUtils.getTypeRecordByUrl(configServerUrl,
-                                                metadataRootPath);
+    String version = context.getArguments()
+            .get(MetadataUtils.METADATA_CONFIG_VERSION);
+    String authUsername = context.getArguments()
+            .get(MetadataUtils.METADATA_AUTH_USERNAME);
+    String authPassword = context.getArguments()
+            .get(MetadataUtils.METADATA_AUTH_PASSWORD);
+    String schemaRegistryHost = context.getArguments()
+            .get(MetadataUtils.METADATA_SCHEMA_REGISTRY_HOST);
+    String appAdminHost = context.getArguments()
+            .get(MetadataUtils.METADATA_APP_ADMIN_HOST);
+
+    entities = MetadataUtils.getTypeRecordByParams(version, authUsername,
+            authPassword, schemaRegistryHost,
+            appAdminHost);
     config.validate(failureCollector, entities, context.getInputSchema());
 
     MappingParsingService mappingParsingService
-        = new MappingParsingService(config.getMapping(),
-                                    config.getFullyQualifiedEntityName(),
-                                    failureCollector,
-                                    entities,
-                                    outputSchema);
+            = new MappingParsingService(config.getMapping(),
+            config.getFullyQualifiedEntityName(),
+            failureCollector,
+            entities,
+            outputSchema);
     Optional<MappingObj> mappingOpt = mappingParsingService.getMapping();
     mapping = mappingOpt.orElse(null);
 
@@ -86,7 +95,7 @@ public class MdmIntegrityBigQueryTransformer extends Transform<StructuredRecord,
 
     integrityService = new IntegrityServiceBQ(bigQuery, entities, mapping);
     containsOperationField = outputSchema.getFields()
-        .stream().anyMatch(field -> field.getName().equals(OPERATION));
+            .stream().anyMatch(field -> field.getName().equals(OPERATION));
 
     LOG.info("BigQueryMdmIntegrityValidation initialized.");
   }
@@ -117,7 +126,7 @@ public class MdmIntegrityBigQueryTransformer extends Transform<StructuredRecord,
 
   @Override
   public void transform(StructuredRecord input, Emitter<StructuredRecord> emitter)
-      throws Exception {
+          throws Exception {
     try {
       StructuredRecord structuredRecord = fillIds(input);
       emitter.emit(structuredRecord);
@@ -137,7 +146,7 @@ public class MdmIntegrityBigQueryTransformer extends Transform<StructuredRecord,
         List<String> ids = integrityService.getIds(entryConfig, input);
         if (ids.size() > 1) {
           throw new RuntimeException(
-              "More than one id found for request: " + entryConfig.toString());
+                  "More than one id found for request: " + entryConfig.toString());
         }
         if (ids.size() == 1) {
           result.put(targetFieldName, ids.get(0));
@@ -151,8 +160,8 @@ public class MdmIntegrityBigQueryTransformer extends Transform<StructuredRecord,
 
     if (containsOperationField) {
       String operationType = result.get(MetadataUtils.DEFAULT_TARGET_FIELD) == null
-          ? OPERATION_CREATE
-          : OPERATION_UPDATE;
+              ? OPERATION_CREATE
+              : OPERATION_UPDATE;
       result.put(OPERATION, operationType);
     }
 
