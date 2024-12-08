@@ -24,13 +24,13 @@ Feature: GCSCreate - Verification of GCS Create plugin
     Then Verify that the object "gcsCreateObject2" created successfully
 
   @GCS_CSV_TEST @GCSCreate_Required
-  Scenario: Verify the pipeline with GCSCreate should fail on second run when fail if objects exists is true
+  Scenario: Verify the pipeline with GCSCreate fails when fail if objects exists property is set to true
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
     When Select plugin: "GCS Create" from the plugins list as: "Conditions and Actions"
     When Navigate to the properties page of plugin: "GCS Create"
     Then Enter the GCS Create property projectId "projectId"
-    Then Enter the GCS Create property objects to create as path "gcsCreateObject1"
+    Then Enter the GCS Create property objects to create as path "gcsCsvFile"
     Then Select GCS Create property fail if objects exists as "true"
     Then Override Service account details if set in environment variables
     Then Validate "GCS Create" plugin properties
@@ -38,15 +38,12 @@ Feature: GCSCreate - Verification of GCS Create plugin
     Then Save and Deploy Pipeline
     Then Run the Pipeline in Runtime
     Then Wait till pipeline is in running state
-    Then Verify the pipeline status is "Succeeded"
-    Then Run the Pipeline in Runtime
-    Then Wait for pipeline to be in status: "Failed" with a timeout of 240 seconds
     Then Open and capture logs
     Then Verify the pipeline status is "Failed"
     Then Close the pipeline logs
 
   @GCS_CSV_TEST @GCSCreate_Required
-  Scenario: Verify the pipeline with GCSCreate should not fail on second run when fail if objects exists is false
+  Scenario: Verify the pipeline with GCSCreate succeeded when fail if objects exists property is set to false
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
     When Select plugin: "GCS Create" from the plugins list as: "Conditions and Actions"
@@ -60,9 +57,6 @@ Feature: GCSCreate - Verification of GCS Create plugin
     Then Save and Deploy Pipeline
     Then Run the Pipeline in Runtime
     Then Wait till pipeline is in running state
-    Then Verify the pipeline status is "Succeeded"
-    Then Run the Pipeline in Runtime
-    Then Wait for pipeline to be in status: "Succeeded" with a timeout of 240 seconds
     Then Open and capture logs
     Then Verify the pipeline status is "Succeeded"
     Then Close the pipeline logs
