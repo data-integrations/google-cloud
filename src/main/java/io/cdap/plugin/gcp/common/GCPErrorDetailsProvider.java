@@ -16,27 +16,23 @@
 
 package io.cdap.plugin.gcp.common;
 
-import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpResponseException;
-import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import io.cdap.cdap.api.exception.ErrorCategory;
 import io.cdap.cdap.api.exception.ErrorCategory.ErrorCategoryEnum;
-import io.cdap.cdap.api.exception.ErrorCodeType;
 import io.cdap.cdap.api.exception.ErrorType;
 import io.cdap.cdap.api.exception.ErrorUtils;
 import io.cdap.cdap.api.exception.ProgramFailureException;
 import io.cdap.cdap.etl.api.exception.ErrorContext;
 import io.cdap.cdap.etl.api.exception.ErrorDetailsProvider;
 
-import java.io.IOException;
 import java.util.List;
 
 /**
  * A custom ErrorDetailsProvider for GCP plugins.
  */
 public class GCPErrorDetailsProvider implements ErrorDetailsProvider {
-  private static final String ERROR_MESSAGE_FORMAT = "Error occurred in the phase: '%s'. %s: %s";
+  static final String ERROR_MESSAGE_FORMAT = "Error occurred in the phase: '%s'. %s: %s";
 
   /**
    * Get a ProgramFailureException with the given error
@@ -53,7 +49,8 @@ public class GCPErrorDetailsProvider implements ErrorDetailsProvider {
         return null;
       }
       if (t instanceof HttpResponseException) {
-        return getProgramFailureException((HttpResponseException) t, errorContext);
+        return GCPErrorDetailsProviderUtil.getProgramFailureException((HttpResponseException) t,
+          getExternalDocumentationLink(), errorContext);
       }
       if (t instanceof IllegalArgumentException) {
         return getProgramFailureException((IllegalArgumentException) t, errorContext);
@@ -64,58 +61,6 @@ public class GCPErrorDetailsProvider implements ErrorDetailsProvider {
     }
     return null;
   }
-
-  /**
-   * Get a ProgramFailureException with the given error
-   * information from {@link HttpResponseException}.
-   *
-   * @param e The HttpResponseException to get the error information from.
-   * @return A ProgramFailureException with the given error information.
-   */
-  private ProgramFailureException getProgramFailureException(HttpResponseException e,
-      ErrorContext errorContext) {
-    Integer statusCode = e.getStatusCode();
-    ErrorUtils.ActionErrorPair pair = ErrorUtils.getActionErrorByStatusCode(statusCode);
-    String errorReason = String.format("%s %s. %s", e.getStatusCode(), e.getStatusMessage(),
-      pair.getCorrectiveAction());
-
-    String errorMessage = e.getMessage();
-    String externalDocumentationLink = null;
-    if (e instanceof GoogleJsonResponseException) {
-      errorMessage = getErrorMessage((GoogleJsonResponseException) e);
-
-      externalDocumentationLink = getExternalDocumentationLink();
-      if (!Strings.isNullOrEmpty(externalDocumentationLink)) {
-
-        if (!errorReason.endsWith(".")) {
-          errorReason = errorReason + ".";
-        }
-        errorReason = String.format("%s For more details, see %s", errorReason,
-          externalDocumentationLink);
-      }
-    }
-
-    return ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategoryEnum.PLUGIN),
-      errorReason, String.format(ERROR_MESSAGE_FORMAT, errorContext.getPhase(),
-            e.getClass().getName(), errorMessage),
-      pair.getErrorType(), true, ErrorCodeType.HTTP, statusCode.toString(),
-        externalDocumentationLink, e);
-  }
-
-  private String getErrorMessage(GoogleJsonResponseException exception) {
-    if (!Strings.isNullOrEmpty(exception.getMessage())) {
-      return exception.getMessage();
-    }
-    if (exception.getDetails() != null) {
-      try {
-        return exception.getDetails().toPrettyString();
-      } catch (IOException e) {
-        return exception.getDetails().toString();
-      }
-    }
-    return exception.getMessage();
-  }
-
 
   /**
    * Get a ProgramFailureException with the given error

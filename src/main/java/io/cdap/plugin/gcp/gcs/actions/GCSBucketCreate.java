@@ -16,29 +16,26 @@
 
 package io.cdap.plugin.gcp.gcs.actions;
 
-import com.google.api.pathtemplate.ValidationException;
 import com.google.auth.Credentials;
-import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageException;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
-import io.cdap.cdap.etl.api.Arguments;
+import io.cdap.cdap.api.exception.ErrorCategory;
+import io.cdap.cdap.api.exception.ErrorType;
+import io.cdap.cdap.api.exception.ErrorUtils;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.action.Action;
 import io.cdap.cdap.etl.api.action.ActionContext;
 import io.cdap.plugin.gcp.common.CmekUtils;
 import io.cdap.plugin.gcp.common.GCPConfig;
+import io.cdap.plugin.gcp.common.GCPErrorDetailsProviderUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.GCSPath;
-import io.cdap.plugin.gcp.gcs.sink.GCSBatchSink;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -86,9 +83,16 @@ public final class GCSBucketCreate extends Action {
       return;
     }
     String serviceAccount = config.getServiceAccount();
-    Credentials credentials = serviceAccount == null ?
-      null : GCPUtils.loadServiceAccountCredentials(serviceAccount, isServiceAccountFilePath);
-
+    Credentials credentials = null;
+    try {
+      credentials = serviceAccount == null ? null : GCPUtils.loadServiceAccountCredentials(serviceAccount,
+        isServiceAccountFilePath);
+    } catch (IOException e) {
+      String errorReason = "Failed to load service account credentials.";
+      collector.addFailure(String.format("%s %s: %s", errorReason, e.getClass().getName(), e.getMessage()), null)
+        .withStacktrace(e.getStackTrace());
+      collector.getOrThrowException();
+    }
     Map<String, String> map = GCPUtils.generateGCSAuthProperties(serviceAccount, config.getServiceAccountType());
     map.forEach(configuration::set);
 
@@ -125,11 +129,11 @@ public final class GCSBucketCreate extends Action {
         Bucket bucket = null;
         try {
           bucket = storage.get(gcsPath.getBucket());
-        } catch (StorageException e) {
+        } catch (Exception e) {
           // Add more descriptive error message
-          throw new RuntimeException(
-            String.format("Unable to access or create bucket %s. ", gcsPath.getBucket())
-              + "Ensure you entered the correct bucket path and have permissions for it.", e);
+          String errorReason = String.format("Unable to access GCS bucket '%s'", gcsPath.getBucket());
+          throw GCPErrorDetailsProviderUtil.getHttpResponseExceptionDetailsFromChain(e, errorReason, ErrorType.UNKNOWN,
+            true, GCPUtils.GCS_SUPPORTED_DOC_URL);
         }
         if (bucket == null) {
           GCPUtils.createBucket(storage, gcsPath.getBucket(), config.location, cmekKeyName);
@@ -137,7 +141,9 @@ public final class GCSBucketCreate extends Action {
         } else if (gcsPath.equals(bucketPath) && config.failIfExists()) {
           // if the gcs path is just a bucket, and it exists, fail the pipeline
           rollback = true;
-          throw new Exception(String.format("Path %s already exists", gcsPath));
+          String errorReason = String.format("Path %s already exists", gcsPath);
+          throw ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN),
+            errorReason, errorReason, ErrorType.USER, true, null);
         }
       }
 
@@ -146,7 +152,9 @@ public final class GCSBucketCreate extends Action {
           fs = gcsPath.getFileSystem(configuration);
         } catch (IOException e) {
           rollback = true;
-          throw new Exception("Unable to get GCS filesystem handler. " + e.getMessage(), e);
+          String errorReason = "Unable to get GCS filesystem handler.";
+          throw GCPErrorDetailsProviderUtil.getHttpResponseExceptionDetailsFromChain(e, errorReason, ErrorType.UNKNOWN,
+            true, GCPUtils.GCS_SUPPORTED_DOC_URL);
         }
         if (!fs.exists(gcsPath)) {
           try {
@@ -156,12 +164,16 @@ public final class GCSBucketCreate extends Action {
           } catch (IOException e) {
             LOG.warn(String.format("Failed to create path '%s'", gcsPath));
             rollback = true;
-            throw e;
+            String errorReason = String.format("Failed to create path %s.", gcsPath);
+            throw GCPErrorDetailsProviderUtil.getHttpResponseExceptionDetailsFromChain(e, errorReason,
+              ErrorType.UNKNOWN, true, GCPUtils.GCS_SUPPORTED_DOC_URL);
           }
         } else {
           if (config.failIfExists()) {
             rollback = true;
-            throw new Exception(String.format("Path %s already exists", gcsPath));
+            String errorReason = String.format("Path %s already exists", gcsPath);
+            throw ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN),
+              errorReason, errorReason, ErrorType.SYSTEM, true, null);
           }
         }
       }
