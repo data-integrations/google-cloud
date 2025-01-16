@@ -32,7 +32,6 @@ import io.cdap.cdap.api.annotation.MetadataProperty;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.schema.Schema;
-import io.cdap.cdap.api.exception.ProgramFailureException;
 import io.cdap.cdap.api.plugin.PluginConfig;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
@@ -40,9 +39,7 @@ import io.cdap.cdap.etl.api.StageMetrics;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.connector.Connector;
-import io.cdap.cdap.etl.api.exception.ErrorContext;
 import io.cdap.cdap.etl.api.exception.ErrorDetailsProviderSpec;
-import io.cdap.cdap.etl.api.exception.ErrorPhase;
 import io.cdap.cdap.etl.api.validation.ValidatingOutputFormat;
 import io.cdap.plugin.common.Asset;
 import io.cdap.plugin.common.ConfigUtil;
@@ -141,14 +138,7 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     }
 
     String bucketName = config.getBucket(collector);
-    Storage storage;
-    try {
-      storage = GCPUtils.getStorage(config.connection.getProject(), credentials);
-    } catch (Exception e) {
-      ProgramFailureException ex = new GCSErrorDetailsProvider().getExceptionDetails(e,
-          new ErrorContext(ErrorPhase.READING));
-      throw ex == null ? e : ex;
-    }
+    Storage storage = GCPUtils.getStorage(config.connection.getProject(), credentials);
     Bucket bucket;
     String location = null;
     try {

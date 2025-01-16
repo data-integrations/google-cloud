@@ -63,7 +63,6 @@ import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.CmekUtils;
 import io.cdap.plugin.gcp.common.GCPUtils;
-import io.cdap.plugin.gcp.gcs.GCSErrorDetailsProvider;
 import org.apache.avro.generic.GenericData;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
@@ -180,14 +179,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
                                                           dataset, config.getBucket());
 
     // Configure GCS Bucket to use
-    Storage storage;
-    try {
-      storage =  GCPUtils.getStorage(config.getProject(), credentials);;
-    } catch (Exception e) {
-      ProgramFailureException ex = new GCSErrorDetailsProvider().getExceptionDetails(e,
-          new ErrorContext(ErrorPhase.READING));
-      throw ex == null ? e : ex;
-    }
+    Storage storage =  GCPUtils.getStorage(config.getProject(), credentials);;
     String bucket = null;
     try {
       bucket = BigQuerySourceUtils.getOrCreateBucket(configuration, storage, bucketName, dataset,

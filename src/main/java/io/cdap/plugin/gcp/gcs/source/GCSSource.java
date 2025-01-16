@@ -28,15 +28,12 @@ import io.cdap.cdap.api.annotation.Metadata;
 import io.cdap.cdap.api.annotation.MetadataProperty;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
-import io.cdap.cdap.api.exception.ProgramFailureException;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
 import io.cdap.cdap.etl.api.connector.Connector;
-import io.cdap.cdap.etl.api.exception.ErrorContext;
 import io.cdap.cdap.etl.api.exception.ErrorDetailsProviderSpec;
-import io.cdap.cdap.etl.api.exception.ErrorPhase;
 import io.cdap.plugin.common.Asset;
 import io.cdap.plugin.common.ConfigUtil;
 import io.cdap.plugin.common.LineageRecorder;
@@ -121,14 +118,7 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
       collector.getOrThrowException();
     }
 
-    Storage storage;
-    try {
-       storage = GCPUtils.getStorage(config.connection.getProject(), credentials);
-    } catch (Exception e) {
-      ProgramFailureException ex = new GCSErrorDetailsProvider().getExceptionDetails(e,
-          new ErrorContext(ErrorPhase.READING));
-      throw ex == null ? e : ex;
-    }
+    Storage storage = GCPUtils.getStorage(config.connection.getProject(), credentials);
     String location = null;
     try {
       // Get location of the source for lineage

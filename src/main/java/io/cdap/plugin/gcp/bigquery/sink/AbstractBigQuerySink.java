@@ -46,7 +46,6 @@ import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.CmekUtils;
 import io.cdap.plugin.gcp.common.GCPUtils;
-import io.cdap.plugin.gcp.gcs.GCSErrorDetailsProvider;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.slf4j.Logger;
@@ -112,14 +111,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
     }
 
     // Get the required bucket name and bucket instance (if it exists)
-    Storage storage;
-    try {
-      storage =  GCPUtils.getStorage(project, credentials);;
-    } catch (Exception e) {
-      ProgramFailureException ex = new GCSErrorDetailsProvider().getExceptionDetails(e,
-          new ErrorContext(ErrorPhase.WRITING));
-      throw ex == null ? e : ex;
-    }
+    Storage storage =  GCPUtils.getStorage(project, credentials);;
     String bucketName = BigQueryUtil.getStagingBucketName(context.getArguments().asMap(), config.getLocation(),
                                                           dataset, config.getBucket());
     bucketName = BigQuerySinkUtils.configureBucket(baseConfiguration, bucketName, runUUID.toString());
