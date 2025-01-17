@@ -25,11 +25,13 @@ import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
+import io.cdap.cdap.api.exception.ErrorType;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.action.Action;
 import io.cdap.cdap.etl.api.action.ActionContext;
 import io.cdap.plugin.gcp.common.GCPConfig;
+import io.cdap.plugin.gcp.common.GCPErrorDetailsProviderUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 import org.apache.hadoop.conf.Configuration;
@@ -76,8 +78,17 @@ public final class GCSBucketDelete extends Action {
       return;
     }
     String serviceAccount = config.getServiceAccount();
-    Credentials credentials = serviceAccount == null ?
-      null : GCPUtils.loadServiceAccountCredentials(serviceAccount, isServiceAccountFilePath);
+    Credentials credentials = null;
+    try {
+      credentials = serviceAccount == null ? null : GCPUtils.loadServiceAccountCredentials(serviceAccount,
+        isServiceAccountFilePath);
+    } catch (IOException e) {
+      String errorReason = "Failed to load service account credentials. ";
+      context.getFailureCollector()
+        .addFailure(String.format("%s %s: %s", errorReason, e.getClass().getName(), e.getMessage()), null)
+        .withStacktrace(e.getStackTrace());
+      context.getFailureCollector().getOrThrowException();
+    }
     Map<String, String> map = GCPUtils.generateGCSAuthProperties(serviceAccount, config.getServiceAccountType());
     map.forEach(configuration::set);
     configuration.set("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
@@ -99,9 +110,9 @@ public final class GCSBucketDelete extends Action {
         storage.get(gcsPath.getBucket());
       } catch (StorageException e) {
         // Add more descriptive error message
-        throw new RuntimeException(
-          String.format("Unable to access or create bucket %s. ", gcsPath.getBucket())
-            + "Ensure you entered the correct bucket path and have permissions for it.", e);
+        String errorReason = String.format("Unable to access GCS bucket '%s'", gcsPath.getBucket());
+        throw GCPErrorDetailsProviderUtil.getHttpResponseExceptionDetailsFromChain(e, errorReason, ErrorType.UNKNOWN,
+          true, GCPUtils.GCS_SUPPORTED_DOC_URL);
       }
       String exactGCSPath = "gs://" + gcsPath.getBucket() + "/" + gcsPath.getName();
       if (exactGCSPath.contains("*")) {
