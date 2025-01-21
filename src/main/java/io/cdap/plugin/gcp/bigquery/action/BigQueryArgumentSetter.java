@@ -19,6 +19,7 @@ package io.cdap.plugin.gcp.bigquery.action;
 import com.google.auth.Credentials;
 import com.google.cloud.StringEnumValue;
 import com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldValue;
 import com.google.cloud.bigquery.FieldValueList;
@@ -33,8 +34,12 @@ import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
+import io.cdap.cdap.api.exception.ErrorCategory;
+import io.cdap.cdap.api.exception.ErrorType;
+import io.cdap.cdap.api.exception.ErrorUtils;
 import io.cdap.cdap.etl.api.action.Action;
 import io.cdap.cdap.etl.api.action.ActionContext;
+import io.cdap.plugin.gcp.bigquery.common.BigQueryErrorUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,16 +75,23 @@ public final class BigQueryArgumentSetter extends AbstractBigQueryAction {
   }
 
   @Override
-  public void run(ActionContext context) throws Exception {
+  public void run(ActionContext context) {
     config.validate(context.getFailureCollector());
 
     QueryJobConfiguration queryConfig = config.getQueryJobConfiguration(context.getFailureCollector());
     JobId jobId = JobId.newBuilder().setRandomJob().build();
 
     // API request - starts the query.
-    Credentials credentials = config.getServiceAccount() == null ?
-      null : GCPUtils.loadServiceAccountCredentials(config.getServiceAccount(),
-                                                    config.isServiceAccountFilePath());
+    Credentials credentials = null;
+    try {
+      credentials = config.getServiceAccount() == null ? null :
+        GCPUtils.loadServiceAccountCredentials(config.getServiceAccount(), config.isServiceAccountFilePath());
+    } catch (Exception e) {
+      context.getFailureCollector().addFailure(
+          String.format("Failed to load service account credentials, %s: %s",
+              e.getClass().getName(), e.getMessage()), null).withStacktrace(e.getStackTrace());
+      context.getFailureCollector().getOrThrowException();
+    }
     BigQuery bigQuery = GCPUtils.getBigQuery(config.getProject(), credentials, null);
     Job queryJob = bigQuery.create(JobInfo.newBuilder(queryConfig).setJobId(jobId).build());
 
@@ -87,17 +99,50 @@ public final class BigQueryArgumentSetter extends AbstractBigQueryAction {
     LOG.debug("The BigQuery SQL  {}", queryConfig.getQuery());
 
     // Wait for the query to complete
-    queryJob.waitFor();
+    try {
+      queryJob.waitFor();
+    } catch (BigQueryException e) {
+      String errorMessage = String.format("The bigquery query job failed, %s: %s",
+          e.getClass().getName(), e.getMessage());
+      throw BigQueryErrorUtil.getProgramFailureException(errorMessage, (e).getReason(), e);
+    } catch (InterruptedException e) {
+      String errorMessage = String.format("The bigquery query job interrupted, %s: %s",
+          e.getClass().getName(), e.getMessage());
+      throw ErrorUtils.getProgramFailureException(
+          new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN), errorMessage, errorMessage,
+          ErrorType.UNKNOWN, true, e);
+    }
 
     // Check for errors
     if (queryJob.getStatus().getError() != null) {
-      throw new RuntimeException(queryJob.getStatus().getExecutionErrors().toString());
+      String errorReason = String.format(
+          "The bigquery job failed with reason: %s. For more details, see %s",
+          queryJob.getStatus().getError().getReason(), GCPUtils.BQ_SUPPORTED_DOC_URL);
+      ErrorType type = BigQueryErrorUtil.getErrorType(queryJob.getStatus().getError().getReason());
+      throw ErrorUtils.getProgramFailureException(
+          new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN), errorReason,
+          queryJob.getStatus().getExecutionErrors().toString(), type, true, null, null,
+          GCPUtils.BQ_SUPPORTED_DOC_URL, null);
     }
-
-    TableResult queryResults = queryJob.getQueryResults();
+    TableResult queryResults;
+    try {
+      queryResults = queryJob.getQueryResults();
+    } catch (BigQueryException e) {
+      String errorMessage = String.format("The bigquery query job failed, %s: %s",
+          e.getClass().getName(), e.getMessage());
+      throw BigQueryErrorUtil.getProgramFailureException(errorMessage, e.getReason(), e);
+    } catch (InterruptedException e) {
+      String errorMessage = String.format("The bigquery query job interrupted, %s: %s",
+          e.getClass().getName(), e.getMessage());
+      throw ErrorUtils.getProgramFailureException(
+          new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN), errorMessage, errorMessage,
+          ErrorType.UNKNOWN, false, e);
+    }
     if (queryResults.getTotalRows() == 0 || queryResults.getTotalRows() > 1) {
-      throw new RuntimeException(String.format("The query result total rows should be \"1\" but is \"%d\"",
-                                               queryResults.getTotalRows()));
+      String error = String.format("The query result total rows should be \"1\" but is \"%d\"",
+        queryResults.getTotalRows());
+      throw ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN),
+        error, error, ErrorType.USER, false, null);
     }
 
     Schema schema = queryResults.getSchema();
