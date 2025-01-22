@@ -28,6 +28,9 @@ import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.api.exception.ErrorCategory;
+import io.cdap.cdap.api.exception.ErrorType;
+import io.cdap.cdap.api.exception.ErrorUtils;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.StageConfigurer;
@@ -81,7 +84,7 @@ public final class GCSArgumentSetter extends Action {
   }
 
   @Override
-  public void run(ActionContext context) throws Exception {
+  public void run(ActionContext context) {
     config.validateProperties(context.getFailureCollector());
     String fileContent = GCSArgumentSetter.getContent(config);
 
@@ -94,27 +97,36 @@ public final class GCSArgumentSetter extends Action {
         if (value != null) {
           context.getArguments().set(name, value);
         } else {
-          throw new RuntimeException(
-              "Configuration '" + name + "' is null. Cannot set argument to null.");
+          String errorReason = String.format("Configuration '%s' is null. Cannot set argument to null.", name);
+          throw ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN),
+            errorReason, errorReason, ErrorType.USER, false, null);
         }
       }
     } catch (JsonSyntaxException e) {
-      throw new RuntimeException(
-          String.format(
-              "Could not parse response from '%s': %s", config.getPath(), e.getMessage()));
+      String errorReason = String.format("Could not parse response from '%s': %s", config.getPath(), e.getMessage());
+      throw ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN),
+        errorReason, errorReason, ErrorType.USER, false, null);
     }
   }
 
-  private static Storage getStorage(GCSArgumentSetterConfig config) throws IOException {
+  private static Storage getStorage(GCSArgumentSetterConfig config) {
     String serviceAccount = config.getServiceAccount();
     StorageOptions.Builder builder = StorageOptions.newBuilder().setProjectId(config.getProject());
     if (serviceAccount != null) {
-      builder.setCredentials(GCPUtils.loadServiceAccountCredentials(serviceAccount, config.isServiceAccountFilePath()));
+      try {
+        builder.setCredentials(
+          GCPUtils.loadServiceAccountCredentials(serviceAccount, config.isServiceAccountFilePath()));
+      } catch (IOException e) {
+        String errorReason = "Failed to load service account credentials.";
+        String errorMessage = String.format("%s: %s", e.getClass(), e.getMessage());
+        throw ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN),
+          errorReason, errorMessage, ErrorType.USER, false, e);
+      }
     }
     return builder.build().getService();
   }
 
-  public static String getContent(GCSArgumentSetterConfig config) throws IOException {
+  public static String getContent(GCSArgumentSetterConfig config) {
     Storage storage = getStorage(config);
     GCSPath path = config.getPath();
     Blob blob = storage.get(path.getBucket(), path.getName());
@@ -150,7 +162,9 @@ public final class GCSArgumentSetter extends Action {
 
     public String getValue() {
       if (value == null) {
-        throw new IllegalArgumentException("Null Argument value for name '" + name + "'");
+        String errorReason = String.format("Null Argument value for name '%s'", name);
+        throw ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN),
+          errorReason, errorReason, ErrorType.USER, false, null);
       }
       if (type.equalsIgnoreCase("schema")) {
         return createSchema(value).toString();
@@ -180,7 +194,9 @@ public final class GCSArgumentSetter extends Action {
         return Joiner.on(";").join(values);
       }
 
-      throw new IllegalArgumentException("Invalid argument value '" + value + "'");
+      String errorReason = String.format("Invalid argument value '%s'", value);
+      throw ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN),
+        errorReason, errorReason, ErrorType.USER, false, null);
     }
 
     private Schema createSchema(JsonElement array) {
