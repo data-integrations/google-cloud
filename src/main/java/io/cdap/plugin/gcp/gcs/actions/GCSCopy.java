@@ -17,10 +17,6 @@
 package io.cdap.plugin.gcp.gcs.actions;
 
 import com.google.cloud.kms.v1.CryptoKeyName;
-import com.google.cloud.storage.Bucket;
-import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageException;
-import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
@@ -30,13 +26,11 @@ import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.action.Action;
 import io.cdap.cdap.etl.api.action.ActionContext;
 import io.cdap.plugin.gcp.common.CmekUtils;
-import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 import io.cdap.plugin.gcp.gcs.StorageClient;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nullable;
 
@@ -57,7 +51,7 @@ public class GCSCopy extends Action {
   }
 
   @Override
-  public void run(ActionContext context) throws IOException {
+  public void run(ActionContext context) {
     FailureCollector collector = context.getFailureCollector();
     config.validate(collector, context.getArguments().asMap());
 
