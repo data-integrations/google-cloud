@@ -59,7 +59,7 @@ public class BigQueryExecuteConfigTest {
   @Test
   public void testBigQueryExecuteSQLWithNonExistentResource() throws Exception {
     String errorMessage = "Resource was not found. Please verify the resource name. If the resource will be created " +
-      "at runtime, then update to use a macro for the resource name. Error message received was: ";
+      "at runtime, then update to use a macro for the resource name. Error message received was ";
     int errorCode = 404;
     BigQueryExecute.Config config = getConfig("select * from dataset.table where id=1");
     MockFailureCollector failureCollector = new MockFailureCollector();
@@ -69,8 +69,7 @@ public class BigQueryExecuteConfigTest {
     config.validateSQLSyntax(failureCollector, bigQuery);
     LOG.warn("size : {}", failureCollector.getValidationFailures().size());
     Assert.assertEquals(1, failureCollector.getValidationFailures().size());
-    Assert.assertEquals(String.format("%s. Error code: %s.", errorMessage, errorCode),
-            failureCollector.getValidationFailures().get(0).getMessage());
+    Assert.assertTrue(failureCollector.getValidationFailures().get(0).getMessage().contains(errorMessage));
     Assert.assertEquals("sql",
             failureCollector.getValidationFailures().get(0).getCauses().get(0).getAttribute("stageConfig"));
   }

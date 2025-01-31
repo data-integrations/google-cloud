@@ -69,7 +69,7 @@ public final class GCPErrorDetailsProviderUtil {
       ErrorCodeType.HTTP, statusCode.toString(), externalDocumentationLink, e);
   }
 
-  public static ProgramFailureException getHttpResponseExceptionDetailsFromChain(Exception e, String errorReason,
+  public static ProgramFailureException getHttpResponseExceptionDetailsFromChain(Throwable e, String errorReason,
                                                                                  ErrorType errorType,
                                                                                  boolean dependency,
                                                                                  String externalDocUrl) {
