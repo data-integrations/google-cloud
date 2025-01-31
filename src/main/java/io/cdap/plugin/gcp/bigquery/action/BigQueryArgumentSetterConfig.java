@@ -27,6 +27,9 @@ import com.google.common.collect.Lists;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
+import io.cdap.cdap.api.exception.ErrorCategory;
+import io.cdap.cdap.api.exception.ErrorType;
+import io.cdap.cdap.api.exception.ErrorUtils;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.common.ConfigUtil;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySource;
@@ -224,9 +227,11 @@ public final class BigQueryArgumentSetterConfig extends AbstractBigQueryActionCo
     String nonExistingColumnNames = argumentConditionMap.keySet().stream()
       .filter(columnName -> !argumentConditionFields.containsKey(columnName))
       .collect(Collectors.joining(" ,"));
-    throw new RuntimeException(String.format(
+    String error = String.format(
       "Columns: \" %s \"do not exist in table. Argument selections columns must exist in table.",
-      nonExistingColumnNames));
+      nonExistingColumnNames);
+    throw ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN),
+      error, error, ErrorType.USER, false, null);
   }
 
   static void checkIfArgumentsColumnsListExistsInSource(
