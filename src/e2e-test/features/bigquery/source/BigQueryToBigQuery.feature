@@ -354,3 +354,36 @@ Feature: BigQuery source - Verification of BigQuery to BigQuery successful data 
     Then Open and capture logs
     Then Verify the pipeline status is "Succeeded"
     Then Validate the values of records transferred to BQ sink is equal to the values from source BigQuery table
+
+  @BQ_SOURCE_TEST @BQ_SINK_TEST
+  Scenario:Validate that pipeline run gets failed when incorrect filter values and verify the log error message
+    Given Open Datafusion Project to configure pipeline
+    When Expand Plugin group in the LHS plugins list: "Source"
+    When Select plugin: "BigQuery" from the plugins list as: "Source"
+    Then Navigate to the properties page of plugin: "BigQuery"
+    Then Enter BigQuery property reference name
+    Then Enter BigQuery property projectId "projectId"
+    Then Enter BigQuery property datasetProjectId "projectId"
+    Then Override Service account details if set in environment variables
+    Then Enter BigQuery property dataset "dataset"
+    Then Enter BigQuery source property table name
+    Then Enter input plugin property: "filter" with value: "incorrectFilter"
+    Then Validate output schema with expectedSchema "bqSourceSchema"
+    Then Validate "BigQuery" plugin properties
+    Then Close the BigQuery properties
+    When Expand Plugin group in the LHS plugins list: "Sink"
+    When Select plugin: "BigQuery" from the plugins list as: "Sink"
+    Then Navigate to the properties page of plugin: "BigQuery2"
+    Then Override Service account details if set in environment variables
+    Then Enter the BigQuery sink mandatory properties
+    Then Validate "BigQuery2" plugin properties
+    Then Close the BigQuery properties
+    Then Connect source as "BigQuery" and sink as "BigQuery" to establish connection
+    Then Save the pipeline
+    Then Deploy the pipeline
+    Then Run the Pipeline in Runtime
+    Then Wait till pipeline is in running state
+    Then Verify the pipeline status is "Failed"
+    Then Open Pipeline logs and verify Log entries having below listed Level and Message:
+      | Level | Message                           |
+      | ERROR | errorLogsMessageInvalidFilter     |

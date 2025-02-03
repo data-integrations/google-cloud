@@ -55,3 +55,21 @@ Feature: BigQuery source - Validate BigQuery source plugin error scenarios
     Then Enter BigQuery source property table name
     Then Enter BigQuery property temporary bucket name "bqInvalidTemporaryBucket"
     Then Verify the BigQuery validation error message for invalid property "bucket"
+
+  @BQ_SOURCE_TEST
+  Scenario:To verify error message when unsupported format is provided in Partition Start date and Partition end Date
+    Given Open Datafusion Project to configure pipeline
+    When Expand Plugin group in the LHS plugins list: "Source"
+    When Select plugin: "BigQuery" from the plugins list as: "Source"
+    Then Navigate to the properties page of plugin: "BigQuery"
+    Then Replace input plugin property: "project" with value: "projectId"
+    And Enter input plugin property: "referenceName" with value: "bqInvalidReferenceName"
+    Then Replace input plugin property: "dataset" with value: "dataset"
+    Then Replace input plugin property: "table" with value: "bqSourceTable"
+    And Enter input plugin property: "partitionFrom" with value: "bqIncorrectFormatStartDate"
+    And Enter input plugin property: "partitionTo" with value: "bqIncorrectFormatEndDate"
+    Then Click on the Get Schema button
+    And Click on the Validate button
+    Then Verify that the Plugin Property: "referenceName" is displaying an in-line error message: "errorMessageIncorrectReferenceName"
+    Then Verify that the Plugin Property: "partitionFrom" is displaying an in-line error message: "errorMessageIncorrectPartitionStartDate"
+    Then Verify that the Plugin Property: "partitionTo" is displaying an in-line error message: "errorMessageIncorrectPartitionEndDate"
