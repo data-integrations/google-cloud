@@ -65,3 +65,39 @@ Feature: GCS sink - Verify GCS Sink plugin error scenarios
     Then Select GCS property format "csv"
     Then Click on the Validate button
     Then Verify that the Plugin Property: "format" is displaying an in-line error message: "errorMessageInvalidFormat"
+
+  @BQ_SOURCE_TEST @GCS_SINK_TEST
+  Scenario: To verify and validate the Error message in pipeline logs after deploy with invalid bucket path
+    Given Open Datafusion Project to configure pipeline
+    When Select plugin: "BigQuery" from the plugins list as: "Source"
+    When Expand Plugin group in the LHS plugins list: "Sink"
+    When Select plugin: "GCS" from the plugins list as: "Sink"
+    Then Connect source as "BigQuery" and sink as "GCS" to establish connection
+    Then Open BigQuery source properties
+    Then Enter the BigQuery source mandatory properties
+    Then Validate "BigQuery" plugin properties
+    Then Close the BigQuery properties
+    Then Open GCS sink properties
+    Then Enter GCS property projectId and reference name
+    Then Enter GCS property "path" as macro argument "gcsSinkPath"
+    Then Select GCS property format "csv"
+    Then Click on the Validate button
+    Then Close the GCS properties
+    Then Save the pipeline
+    Then Preview and run the pipeline
+    Then Enter runtime argument value "gcsInvalidBucketNameSink" for key "gcsSinkPath"
+    Then Run the preview of pipeline with runtime arguments
+    Then Wait till pipeline preview is in running state and check if any error occurs
+    Then Open and capture pipeline preview logs
+    Then Close the pipeline logs
+    Then Close the preview
+    Then Deploy the pipeline
+    Then Run the Pipeline in Runtime
+    Then Enter runtime argument value "gcsInvalidBucketNameSink" for key "gcsSinkPath"
+    Then Run the Pipeline in Runtime with runtime arguments
+    Then Wait till pipeline is in running state
+    Then Verify the pipeline status is "Failed"
+    Then Open Pipeline logs and verify Log entries having below listed Level and Message:
+      | Level | Message                           |
+      | ERROR | errorMessageInvalidBucketNameSink |
+    Then Close the pipeline logs
