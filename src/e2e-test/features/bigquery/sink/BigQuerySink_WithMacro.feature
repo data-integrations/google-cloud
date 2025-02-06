@@ -77,3 +77,53 @@ Feature: BigQuery sink - Verification of GCS to BigQuery successful data transfe
     Then Verify the pipeline status is "Succeeded"
     Then Get count of no of records transferred to target BigQuery Table
     Then Validate the cmek key "cmekBQ" of target BigQuery table if cmek is enabled
+
+  @BQ_INSERT_INT_SOURCE_TEST @BQ_SINK_TEST @BigQuery_Sink_Required
+  Scenario:Validate successful records transfer from BigQuery to BigQuery with macro arguments for Advanced and Auto Create sections
+    Given Open Datafusion Project to configure pipeline
+    When Source is BigQuery
+    When Sink is BigQuery
+    Then Open BigQuery source properties
+    Then Enter the BigQuery source mandatory properties
+    Then Validate "BigQuery" plugin properties
+    Then Close the BigQuery properties
+    Then Open BigQuery sink properties
+    Then Enter BigQuery property reference name
+    Then Enter BigQuery property projectId "projectId"
+    Then Enter BigQuery property datasetProjectId "projectId"
+    Then Override Service account details if set in environment variables
+    Then Enter BigQuery property dataset "dataset"
+    Then Enter BigQuery sink property table name
+    Then Enter BiqQuery property encryption key name "cmekBQ" if cmek is enabled
+    Then Toggle BigQuery sink property truncateTable to true
+    Then Toggle BigQuery sink property updateTableSchema to true
+    Then Click on the Macro button of Property: "operation" and set the value to: "BqOperationType"
+    Then Click on the Macro button of Property: "relationTableKey" and set the value to: "tableKey"
+    Then Click on the Macro button of Property: "partitioningType" and set the value to: "BqPartioningType"
+    Then Click on the Macro button of Property: "rangeStart" and set the value to: "BqRangeStart"
+    Then Click on the Macro button of Property: "rangeEnd" and set the value to: "BqRangeEnd"
+    Then Click on the Macro button of Property: "rangeInterval" and set the value to: "BqRangeInterval"
+    Then Click on the Macro button of Property: "partitionByField" and set the value to: "BqPartitionByField"
+    Then Click on the Macro button of Property: "partitionFilter" and set the value to: "BqPartitionFilter"
+    Then Click on the Macro button of Property: "clusteringOrder" and set the value to: "BqClusteringOrder"
+    Then Validate "BigQuery2" plugin properties
+    Then Close the BigQuery properties
+    Then Connect plugins: "BigQuery" and "BigQuery2" to establish connection
+    Then Save the pipeline
+    Then Deploy the pipeline
+    Then Click on the Runtime Arguments Dropdown button
+    Then Enter runtime argument value "bqOperationType" for key "BqOperationType"
+    Then Enter runtime argument value "TableKey" for key "tableKey"
+    Then Enter runtime argument value "bqPartioningType" for key "BqPartioningType"
+    Then Enter runtime argument value "rangeStartValue" for key "BqRangeStart"
+    Then Enter runtime argument value "rangeEndValue" for key "BqRangeEnd"
+    Then Enter runtime argument value "rangeIntervalValue" for key "BqRangeInterval"
+    Then Enter runtime argument value "partitionByFieldValue" for key "BqPartitionByField"
+    Then Enter runtime argument value "bqPartitionFilterMacro" for key "BqPartitionFilter"
+    Then Enter runtime argument value "BqclusterValue" for key "BqClusteringOrder"
+    Then Run the Pipeline in Runtime with runtime arguments
+    Then Wait till pipeline is in running state
+    Then Open and capture logs
+    Then Verify the pipeline status is "Succeeded"
+    Then Get count of no of records transferred to target BigQuery Table
+    Then Validate the cmek key "cmekBQ" of target BigQuery table if cmek is enabled
