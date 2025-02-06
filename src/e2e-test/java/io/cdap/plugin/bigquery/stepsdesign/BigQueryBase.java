@@ -271,4 +271,163 @@ public class BigQueryBase implements E2EHelper {
     BeforeActions.scenario.write("Number of records transferred from source table to target table:" + count);
     Assert.assertEquals(count, countRecordsTarget);
   }
+
+  @Then("Enter BigQuery source properties partitionFrom and partitionTo")
+  public void enterBigQuerySourcePropertiespartitionFromandpartitionTo() throws IOException {
+    CdfBigQueryPropertiesActions.enterPartitionStartDate(new SimpleDateFormat("dd-MM-yyyy").format(new Date()));
+    CdfBigQueryPropertiesActions.enterPartitionEndDate(new SimpleDateFormat("dd-MM-yyyy")
+            .format(DateUtils.addDays(new Date(), 1)));
+  }
+  @Then("Validate BigQuery source incorrect property error for Partition Start date {string} value {string}")
+  public void validateBigQuerySourceIncorrectErrorFor(String property, String value) {
+    CdfBigQueryPropertiesActions.getSchema();
+
+
+    SeleniumHelper.waitElementIsVisible(CdfBigQueryPropertiesLocators.getSchemaButton, 5L);
+    String tableFullName = StringUtils.EMPTY;
+    if (property.equalsIgnoreCase("dataset")) {
+      tableFullName = PluginPropertyUtils.pluginProp("projectId") + ":" + PluginPropertyUtils.pluginProp(value)
+              + "." + TestSetupHooks.bqSourceTable;
+    } else if (property.equalsIgnoreCase("table")) {
+      tableFullName = PluginPropertyUtils.pluginProp("projectId") + ":"
+              + PluginPropertyUtils.pluginProp("dataset")
+              + "." + PluginPropertyUtils.pluginProp(value);
+    } else if (property.equalsIgnoreCase("datasetProject")) {
+      tableFullName = PluginPropertyUtils.pluginProp(value) + ":" + PluginPropertyUtils.pluginProp("dataset")
+              + "." + TestSetupHooks.bqSourceTable;
+
+    }else if (property.equalsIgnoreCase("partitionFrom")) {
+      tableFullName = PluginPropertyUtils.pluginProp("projectId") + ":"
+              + PluginPropertyUtils.pluginProp("dataset")
+              + "." + PluginPropertyUtils.pluginProp(value);}
+
+    String expectedErrorMessage = PluginPropertyUtils.errorProp(E2ETestConstants.ERROR_MSG_INCORRECT_PARTITIONSTARTDATE)
+            .replaceAll("TABLENAME", tableFullName);
+    String actualErrorMessage = PluginPropertyUtils.findPropertyErrorElement("partitionFrom").getText();
+    System.out.println(actualErrorMessage);
+    Assert.assertEquals("Error message mismatch for Partition Start Date", expectedErrorMessage, actualErrorMessage);
+    String actualColor = PluginPropertyUtils.getErrorColor(PluginPropertyUtils.findPropertyErrorElement("partitionFrom"));
+    String expectedColor = ConstantsUtil.ERROR_MSG_COLOR;
+    Assert.assertEquals(expectedColor, actualColor);
+  }
+
+  @Then("Validate BigQuery source incorrect property error for Partition End date {string} value {string}")
+  public void validateBigQuerySourceIncorrectPartitionenddateErrorFor(String property, String value) {
+    CdfBigQueryPropertiesActions.getSchema();
+    SeleniumHelper.waitElementIsVisible(CdfBigQueryPropertiesLocators.getSchemaButton, 5L);
+    String tableFullName = StringUtils.EMPTY;
+    if (property.equalsIgnoreCase("dataset")) {
+      tableFullName = PluginPropertyUtils.pluginProp("projectId") + ":" + PluginPropertyUtils.pluginProp(value)
+              + "." + TestSetupHooks.bqSourceTable;
+    } else if (property.equalsIgnoreCase("table")) {
+      tableFullName = PluginPropertyUtils.pluginProp("projectId") + ":"
+              + PluginPropertyUtils.pluginProp("dataset")
+              + "." + PluginPropertyUtils.pluginProp(value);
+    } else if (property.equalsIgnoreCase("datasetProjectId")) {
+      tableFullName = PluginPropertyUtils.pluginProp(value) + ":" + PluginPropertyUtils.pluginProp("dataset")
+              + "." + TestSetupHooks.bqSourceTable;
+    }else if (property.equalsIgnoreCase("partitionEndDate")) {
+      tableFullName = PluginPropertyUtils.pluginProp(value) + ":"
+              + PluginPropertyUtils.pluginProp("partitionTo")
+              + "." + TestSetupHooks.bqSourceTable;
+    }
+
+    String expectedErrorMessage = PluginPropertyUtils.errorProp(E2ETestConstants.ERROR_MSG_INCORRECT_PARTITIONENDDATE)
+            .replaceAll("TABLENAME", tableFullName);
+    String actualErrorMessage = PluginPropertyUtils.findPropertyErrorElement("partitionTo").getText();
+    System.out.println(actualErrorMessage);
+    Assert.assertEquals("Error message mismatch for Partition End Date", expectedErrorMessage, actualErrorMessage);
+    String actualColor = PluginPropertyUtils.getErrorColor(PluginPropertyUtils.findPropertyErrorElement("partitionTo"));
+    String expectedColor = ConstantsUtil.ERROR_MSG_COLOR;
+    Assert.assertEquals(expectedColor, actualColor);
+  }
+
+  @Then("Enter BigQuery source properties referenceName")
+  public void EnterBigQuerysourcepropertiesreferenceName() throws IOException {
+    CdfBigQueryPropertiesActions.enterBigQueryReferenceName("#$%^");
+
+  }
+
+  @Then("Validate BigQuery source incorrect property error for reference name{string} value {string}")
+  public void validateBigQuerySourceIncorrectPropertyErrorForreferncename(String property, String value) {
+    CdfBigQueryPropertiesActions.getSchema();
+    SeleniumHelper.waitElementIsVisible(CdfBigQueryPropertiesLocators.getSchemaButton, 5L);
+    String tableFullName = StringUtils.EMPTY;
+    if (property.equalsIgnoreCase("dataset")) {
+      tableFullName = PluginPropertyUtils.pluginProp("projectId") + ":" + PluginPropertyUtils.pluginProp(value)
+              + "." + TestSetupHooks.bqSourceTable;
+    } else if (property.equalsIgnoreCase("table")) {
+      tableFullName = PluginPropertyUtils.pluginProp("projectId") + ":"
+              + PluginPropertyUtils.pluginProp("dataset")
+              + "." + PluginPropertyUtils.pluginProp(value);
+    } else if (property.equalsIgnoreCase("datasetProject")) {
+      tableFullName = PluginPropertyUtils.pluginProp(value) + ":" + PluginPropertyUtils.pluginProp("dataset")
+              + "." + TestSetupHooks.bqSourceTable;
+    }
+    else if (property.equalsIgnoreCase("referenceName")) {
+      tableFullName = PluginPropertyUtils.pluginProp(value) + ":" + PluginPropertyUtils.pluginProp("reference")
+              + "." + TestSetupHooks.bqSourceTable;
+    }
+    String expectedErrorMessage = PluginPropertyUtils.errorProp(E2ETestConstants.ERROR_MSG_INCORRECT_REFERENCENAME)
+            .replaceAll("TABLENAME", tableFullName);
+    String actualErrorMessage = PluginPropertyUtils.findPropertyErrorElement("referenceName").getText();
+
+    Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
+    String actualColor = PluginPropertyUtils.getErrorColor(PluginPropertyUtils.findPropertyErrorElement("referenceName"));
+    String expectedColor = ConstantsUtil.ERROR_MSG_COLOR;
+    Assert.assertEquals(expectedColor, actualColor);
+
+  }
+
+  @Then("Enter BigQuery source properties filter")
+  public void EnterBigQuerysourcepropertiesfilter() throws IOException {
+    CdfBigQueryPropertiesActions.enterFilter("%%%%");
+
+  }
+
+  @Then("Enter BigQuery source property output schema {string} as macro argument {string}")
+  public void enterBigQueryPropertyAsMacroArgumentoutputschema(String pluginProperty, String macroArgument) {
+    SCHEMA_LOCATORS.schemaActions.click();
+    SCHEMA_LOCATORS.schemaActionType("macro").click();
+    WaitHelper.waitForElementToBeHidden(SCHEMA_LOCATORS.schemaActionType("macro"), 5);
+    try {
+      enterMacro(CdfPluginPropertyLocator.fromPropertyString(pluginProperty).pluginProperty, macroArgument);
+    } catch (NullPointerException e) {
+      Assert.fail("CDF_PLUGIN_PROPERTY_MAPPING for '" + pluginProperty + "' not present in CdfPluginPropertyLocator.");
+    }
+  }
+
+  @Then("Enter BigQuery property reference name {string}")
+  public void EnterBigQuerypropertyreferencename(String referenceName) throws IOException {
+    CdfBigQueryPropertiesActions.enterBigQueryReferenceName(PluginPropertyUtils.pluginProp(referenceName));
+  }
+
+  @Then("Verify the BigQuery validation error message for reference name {string}")
+  public void VerifytheBigQueryvalidationerrormessageforreferencename (String property) {
+    CdfStudioActions.clickValidateButton();
+    String expectedErrorMessage;
+    if (property.equalsIgnoreCase("gcsChunkSize")) {
+      expectedErrorMessage = PluginPropertyUtils
+              .errorProp(E2ETestConstants.ERROR_MSG_BQ_INCORRECT_CHUNKSIZE);
+    } else if (property.equalsIgnoreCase("bucket")) {
+      expectedErrorMessage = PluginPropertyUtils
+              .errorProp(E2ETestConstants.ERROR_MSG_BQ_INCORRECT_TEMPORARY_BUCKET);
+    } else if (property.equalsIgnoreCase("table")) {
+      expectedErrorMessage = PluginPropertyUtils
+              .errorProp(E2ETestConstants.ERROR_MSG_INCORRECT_TABLE_NAME);
+    } else if (property.equalsIgnoreCase("referenceName")) {
+      expectedErrorMessage = PluginPropertyUtils
+              .errorProp(E2ETestConstants.ERROR_MSG_INCORRECT_REFERENCENAME);
+    } else {
+      expectedErrorMessage = PluginPropertyUtils.errorProp(E2ETestConstants.ERROR_MSG_INCORRECT_REFERENCENAME).
+              replaceAll("referenceName", property.substring(0, 1).toUpperCase() + property.substring(1));
+    }
+    String actualErrorMessage = PluginPropertyUtils.findPropertyErrorElement("referenceName").getText();
+    System.out.println(actualErrorMessage);
+    Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
+    String actualColor = PluginPropertyUtils.getErrorColor(PluginPropertyUtils.findPropertyErrorElement("referenceName"));
+    String expectedColor = ConstantsUtil.ERROR_MSG_COLOR;
+    Assert.assertEquals(expectedColor, actualColor);
+  }
+
 }

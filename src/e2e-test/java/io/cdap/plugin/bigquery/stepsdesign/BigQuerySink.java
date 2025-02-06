@@ -24,8 +24,11 @@ import io.cdap.plugin.common.stepsdesign.TestSetupHooks;
 import io.cdap.plugin.utils.E2EHelper;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
+import org.apache.commons.lang3.time.DateUtils;
 
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.UUID;
 
 /**
@@ -54,8 +57,14 @@ public class BigQuerySink implements E2EHelper {
     CdfBigQueryPropertiesActions.clickTruncatableSwitch();
   }
 
+  @Then("Toggle BigQuery sink property reuire partition filter to true")
+  public void toggleBigQuerysinkpropertyreuirepartitionfiltertotrue() {
+    CdfBigQueryPropertiesActions.toggleRequirePartitionFilter();
+  }
+
   @Then("Toggle BigQuery sink property updateTableSchema to true")
   public void toggleBigQuerySinkPropertyUpdateTableSchemaToTrue() {
+
     CdfBigQueryPropertiesActions.clickUpdateTable();
   }
 

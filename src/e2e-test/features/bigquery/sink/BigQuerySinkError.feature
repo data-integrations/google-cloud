@@ -62,3 +62,16 @@ Feature: BigQuery sink - Validate BigQuery sink plugin error scenarios
     Then Enter BigQuery sink property table name
     Then Enter BigQuery property temporary bucket name "bqInvalidTemporaryBucket"
     Then Verify the BigQuery validation error message for invalid property "bucket"
+
+  @BQ_SINK_TEST
+  Scenario:Verify BigQuery Sink properties validation errors for incorrect value of reference name
+    Given Open Datafusion Project to configure pipeline
+    When Sink is BigQuery
+    Then Open BigQuery sink properties
+    Then Enter BigQuery property reference name "bqInvalidRefName"
+    Then Enter BigQuery property projectId "projectId"
+    Then Enter BigQuery property datasetProjectId "projectId"
+    Then Override Service account details if set in environment variables
+    Then Enter BigQuery property dataset "dataset"
+    Then Enter BigQuery sink property table name
+    Then Verify the BigQuery validation error message for reference name "referenceName"
