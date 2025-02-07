@@ -36,7 +36,10 @@ public enum CdfPluginPropertyLocator {
   GCS_CREATE_OBJECTS_TO_CREATE("paths"),
   GCS_CREATE_FAIL_IF_OBJECT_EXISTS("failIfExists"),
   GCS_MOVE_SOURCE_PATH("sourcePath"),
-  GCS_MOVE_DESTINATION_PATH("destPath");
+  GCS_MOVE_DESTINATION_PATH("destPath"),
+  PARTITION_START_DATE("partitionFrom"),
+  PARTITION_END_DATE("partitionTo"),
+  FILTER("filter");
 
   public String pluginProperty;
   CdfPluginPropertyLocator(String property) {
@@ -74,6 +77,9 @@ public enum CdfPluginPropertyLocator {
       .put("createFailIfObjectExists", CdfPluginPropertyLocator.GCS_CREATE_FAIL_IF_OBJECT_EXISTS)
       .put("gcsMoveSourcePath", CdfPluginPropertyLocator.GCS_MOVE_SOURCE_PATH)
       .put("gcsMoveDestinationPath", CdfPluginPropertyLocator.GCS_MOVE_DESTINATION_PATH)
+      .put("filter", CdfPluginPropertyLocator.FILTER)
+      .put("partitionFrom", CdfPluginPropertyLocator.PARTITION_START_DATE)
+      .put("partitionTo", CdfPluginPropertyLocator.PARTITION_END_DATE)
       .build();
   }
 
