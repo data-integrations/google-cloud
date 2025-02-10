@@ -107,7 +107,6 @@ public class BigQuerySourceUtils {
             String.valueOf(e.getCode()), GCPUtils.GCS_SUPPORTED_DOC_URL, e);
       }
     }
-
     return bucket;
   }
 

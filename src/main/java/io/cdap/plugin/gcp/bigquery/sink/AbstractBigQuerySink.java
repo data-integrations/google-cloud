@@ -30,6 +30,7 @@ import io.cdap.cdap.api.data.batch.OutputFormatProvider;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
+import io.cdap.cdap.api.exception.ErrorType;
 import io.cdap.cdap.api.exception.ProgramFailureException;
 import io.cdap.cdap.etl.api.Emitter;
 import io.cdap.cdap.etl.api.FailureCollector;
@@ -37,7 +38,6 @@ import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.exception.ErrorContext;
 import io.cdap.cdap.etl.api.exception.ErrorDetailsProviderSpec;
-import io.cdap.cdap.etl.api.exception.ErrorPhase;
 import io.cdap.plugin.common.Asset;
 import io.cdap.plugin.gcp.bigquery.common.BigQueryErrorDetailsProvider;
 import io.cdap.plugin.gcp.bigquery.sink.lib.BigQueryTableFieldSchema;
@@ -45,6 +45,7 @@ import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.CmekUtils;
+import io.cdap.plugin.gcp.common.GCPErrorDetailsProviderUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
@@ -105,9 +106,9 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
       bigQuery = GCPUtils.getBigQuery(project, credentials, null);
       dataset = bigQuery.getDataset(datasetId);
     } catch (Exception e) {
-      ProgramFailureException ex = new BigQueryErrorDetailsProvider().getExceptionDetails(e,
-          new ErrorContext(ErrorPhase.WRITING));
-      throw ex == null ? e : ex;
+      throw GCPErrorDetailsProviderUtil.getHttpResponseExceptionDetailsFromChain(e,
+          String.format("Unable to get BQ dataset '%s' details", config.getDataset()),
+          ErrorType.UNKNOWN, true, GCPUtils.BQ_SUPPORTED_DOC_URL);
     }
 
     // Get the required bucket name and bucket instance (if it exists)
@@ -115,7 +116,14 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
     String bucketName = BigQueryUtil.getStagingBucketName(context.getArguments().asMap(), config.getLocation(),
                                                           dataset, config.getBucket());
     bucketName = BigQuerySinkUtils.configureBucket(baseConfiguration, bucketName, runUUID.toString());
-    Bucket bucket = storage.get(bucketName);
+    Bucket bucket;
+    try {
+      bucket = storage.get(bucketName);
+    } catch (Exception e) {
+      throw GCPErrorDetailsProviderUtil.getHttpResponseExceptionDetailsFromChain(e,
+          String.format("Unable to get GCS bucket '%s' details", bucketName),
+          ErrorType.UNKNOWN, true, GCPUtils.GCS_SUPPORTED_DOC_URL);
+    }
 
     // Set user defined job label key value pair
     String jobLabelKeyValue = getConfig().getJobLabelKeyValue();
