@@ -39,6 +39,7 @@ import io.cdap.cdap.api.data.batch.Input;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
+import io.cdap.cdap.api.exception.ErrorType;
 import io.cdap.cdap.api.exception.ProgramFailureException;
 import io.cdap.cdap.etl.api.Emitter;
 import io.cdap.cdap.etl.api.FailureCollector;
@@ -51,7 +52,6 @@ import io.cdap.cdap.etl.api.connector.Connector;
 import io.cdap.cdap.etl.api.engine.sql.SQLEngineInput;
 import io.cdap.cdap.etl.api.exception.ErrorContext;
 import io.cdap.cdap.etl.api.exception.ErrorDetailsProviderSpec;
-import io.cdap.cdap.etl.api.exception.ErrorPhase;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.plugin.common.Asset;
 import io.cdap.plugin.common.LineageRecorder;
@@ -62,6 +62,7 @@ import io.cdap.plugin.gcp.bigquery.sqlengine.BigQuerySQLEngine;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.CmekUtils;
+import io.cdap.plugin.gcp.common.GCPErrorDetailsProviderUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import org.apache.avro.generic.GenericData;
 import org.apache.hadoop.conf.Configuration;
@@ -156,9 +157,9 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
       bigQuery = GCPUtils.getBigQuery(config.getProject(), credentials, null);
       dataset = bigQuery.getDataset(DatasetId.of(config.getDatasetProject(), config.getDataset()));
     } catch (Exception e) {
-      ProgramFailureException ex = new BigQueryErrorDetailsProvider().getExceptionDetails(e,
-          new ErrorContext(ErrorPhase.READING));
-      throw ex == null ? e : ex;
+      throw GCPErrorDetailsProviderUtil.getHttpResponseExceptionDetailsFromChain(e,
+          String.format("Unable to get BQ dataset '%s' details", config.getDataset()),
+          ErrorType.UNKNOWN, false, GCPUtils.BQ_SUPPORTED_DOC_URL);
     }
 
     // Get Configuration for this run
@@ -180,16 +181,8 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
 
     // Configure GCS Bucket to use
     Storage storage =  GCPUtils.getStorage(config.getProject(), credentials);;
-    String bucket = null;
-    try {
-      bucket = BigQuerySourceUtils.getOrCreateBucket(configuration, storage, bucketName, dataset,
-          bucketPath, cmekKeyName);
-    } catch (Exception e) {
-      String errorReason = "Failed to create bucket.";
-      collector.addFailure(String.format("%s %s", errorReason, e.getMessage()), null)
-        .withStacktrace(e.getStackTrace());
-      collector.getOrThrowException();
-    }
+    String bucket = BigQuerySourceUtils.getOrCreateBucket(configuration, storage, bucketName, dataset,
+        bucketPath, cmekKeyName);
 
     // Configure Service account credentials
     BigQuerySourceUtils.configureServiceAccount(configuration, config.getConnection());
