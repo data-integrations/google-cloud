@@ -41,7 +41,6 @@ import io.cdap.cdap.api.exception.ErrorType;
 import io.cdap.cdap.api.exception.ErrorUtils;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
-import io.cdap.cdap.etl.api.exception.ErrorPhase;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.plugin.common.Asset;
 import io.cdap.plugin.common.LineageRecorder;
