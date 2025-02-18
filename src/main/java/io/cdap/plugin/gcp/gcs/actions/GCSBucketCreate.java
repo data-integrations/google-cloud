@@ -25,6 +25,7 @@ import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.exception.ErrorCategory;
+import io.cdap.cdap.api.exception.ErrorCodeType;
 import io.cdap.cdap.api.exception.ErrorType;
 import io.cdap.cdap.api.exception.ErrorUtils;
 import io.cdap.cdap.etl.api.FailureCollector;
@@ -141,9 +142,12 @@ public final class GCSBucketCreate extends Action {
         } else if (gcsPath.equals(bucketPath) && config.failIfExists()) {
           // if the gcs path is just a bucket, and it exists, fail the pipeline
           rollback = true;
-          String errorReason = String.format("Path %s already exists", gcsPath);
-          throw ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN),
-            errorReason, errorReason, ErrorType.USER, true, null);
+          String errorReason = String.format("Path %s already exists. "
+                  + "Please delete the existing path or set 'Fail if Object Exists' to false.",
+              gcsPath);
+          throw ErrorUtils.getProgramFailureException(
+              new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN),
+              errorReason, errorReason, ErrorType.USER, true, null);
         }
       }
 
@@ -171,9 +175,12 @@ public final class GCSBucketCreate extends Action {
         } else {
           if (config.failIfExists()) {
             rollback = true;
-            String errorReason = String.format("Path %s already exists", gcsPath);
-            throw ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN),
-              errorReason, errorReason, ErrorType.SYSTEM, true, null);
+            String errorReason = String.format("Path %s already exists. "
+                + "Please delete the existing path or set 'Fail if Object Exists' to false.",
+                gcsPath);
+            throw ErrorUtils.getProgramFailureException(
+                new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN),
+                errorReason, errorReason, ErrorType.USER, false, null);
           }
         }
       }
