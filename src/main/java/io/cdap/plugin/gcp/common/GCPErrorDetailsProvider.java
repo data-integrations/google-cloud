@@ -41,6 +41,7 @@ public class GCPErrorDetailsProvider implements ErrorDetailsProvider {
    * @param e The Throwable to get the error information from.
    * @return A ProgramFailureException with the given error information, otherwise null.
    */
+  @Override
   public ProgramFailureException getExceptionDetails(Exception e, ErrorContext errorContext) {
     List<Throwable> causalChain = Throwables.getCausalChain(e);
     for (Throwable t : causalChain) {
