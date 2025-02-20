@@ -485,7 +485,7 @@ public final class BigQuerySinkUtils {
     BigQueryTableFieldSchema fieldSchema = new BigQueryTableFieldSchema();
     fieldSchema.setName(field.getName());
     fieldSchema.setMode(getMode(field.getSchema()).name());
-    LegacySQLTypeName type = getTableDataType(field.getSchema());
+    LegacySQLTypeName type = getTableDataType(field, field.getSchema());
     fieldSchema.setType(type.name());
     if (type == LegacySQLTypeName.RECORD) {
       List<Schema.Field> schemaFields;
@@ -518,7 +518,7 @@ public final class BigQuerySinkUtils {
 
   private static Field convertCdapFieldToBigQueryField(Schema.Field field) {
     String name = field.getName();
-    LegacySQLTypeName type = getTableDataType(field.getSchema());
+    LegacySQLTypeName type = getTableDataType(field, field.getSchema());
     Field.Mode mode = getMode(field.getSchema());
 
     Field.Builder fieldBuilder;
@@ -574,7 +574,7 @@ public final class BigQuerySinkUtils {
    * This function returns the LegacySQLTypeName that maps to the given CDAP Schema.
    * If the CDAP Schema is an Array it will return the LegacySQLTypename of the components.
    */
-  private static LegacySQLTypeName getTableDataType(Schema schema) {
+  private static LegacySQLTypeName getTableDataType(Schema.Field field, Schema schema) {
     schema = BigQueryUtil.getNonNullableSchema(schema);
     Schema.LogicalType logicalType = schema.getLogicalType();
 
@@ -599,7 +599,9 @@ public final class BigQuerySinkUtils {
         case DATETIME:
           return LegacySQLTypeName.DATETIME;
         default:
-          throw new IllegalStateException("Unsupported type " + logicalType.getToken());
+          throw new IllegalStateException(
+              String.format("Unsupported type %s for field %s", logicalType.getToken(),
+                  field.toString()));
       }
     }
 
@@ -618,11 +620,12 @@ public final class BigQuerySinkUtils {
       case BYTES:
         return LegacySQLTypeName.BYTES;
       case ARRAY:
-        return getTableDataType(schema.getComponentSchema());
+        return getTableDataType(field, schema.getComponentSchema());
       case RECORD:
         return LegacySQLTypeName.RECORD;
       default:
-        throw new IllegalStateException("Unsupported type " + type);
+        throw new IllegalStateException(String.format("Unsupported type %s for field %s", type,
+            field.toString()));
     }
   }
 
