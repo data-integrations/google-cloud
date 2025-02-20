@@ -184,6 +184,17 @@ public class BigQueryUtilTest {
   }
 
   @Test
+  public void testGetFQNWithNullTableName() {
+    String datasetProject = "project";
+    String datasetName = "dataset";
+    String tableName = null;
+    String expectedFQN = "bigquery:project.dataset";
+
+    String result = BigQueryUtil.getFQN(datasetProject, datasetName, tableName);
+    Assert.assertEquals(result, expectedFQN);
+  }
+
+  @Test
   public void testGetFQNWithoutReservedCharacters() {
     String datasetProject = "project";
     String datasetName = "dataset";
