@@ -147,7 +147,7 @@ public final class GCSBucketCreate extends Action {
               gcsPath);
           throw ErrorUtils.getProgramFailureException(
               new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN),
-              errorReason, errorReason, ErrorType.USER, true, null);
+              errorReason, errorReason, ErrorType.USER, false, null);
         }
       }
 
