@@ -802,18 +802,27 @@ public final class BigQueryUtil {
    *
    * @param datasetProject Name of the BQ project
    * @param datasetName Name of the BQ dataset
-   * @param tableName Name of the BQ table
+   * @param tableName Name of the BQ table, If null, only project and dataset are included.
    * @return String fqn
    */
-  public static String getFQN(String datasetProject, String datasetName, String tableName) {
+  public static String getFQN(String datasetProject, String datasetName,
+      @Nullable String tableName) {
 
     String formattedProject = GCPUtils.formatAsFQNComponent(datasetProject);
     String formattedDataset = GCPUtils.formatAsFQNComponent(datasetName);
-    String formattedTable = GCPUtils.formatAsFQNComponent(tableName);
+    StringBuilder fqnBuilder = new StringBuilder(BigQueryConstants.BQ_FQN_PREFIX)
+        .append(":")
+        .append(formattedProject)
+        .append(".")
+        .append(formattedDataset);
 
-    String fqn = String.format("%s:%s.%s.%s", BigQueryConstants.BQ_FQN_PREFIX, formattedProject,
-        formattedDataset, formattedTable);
-    LOG.trace("Formatted Fully-Qualified Name (FQN): {}", fqn);
+    if (tableName != null) {
+      String formattedTable = GCPUtils.formatAsFQNComponent(tableName);
+      fqnBuilder.append(".").append(formattedTable);
+    }
+
+    String fqn = fqnBuilder.toString();
+    LOG.trace("Constructed Fully-Qualified Name (FQN): {}", fqn);
     return fqn;
   }
 
