@@ -19,6 +19,7 @@ package io.cdap.plugin.gcp.common;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpResponseException;
+import com.google.api.gax.rpc.ApiException;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import io.cdap.cdap.api.exception.ErrorCategory;
@@ -69,21 +70,49 @@ public final class GCPErrorDetailsProviderUtil {
       ErrorCodeType.HTTP, statusCode.toString(), externalDocumentationLink, e);
   }
 
+  /**
+   * Get a ProgramFailureException with the given error
+   * information from {@link ApiException}.
+   *
+   * @param e The ApiException to get the error information from.
+   * @return A ProgramFailureException with the given error information.
+   */
+  public static ProgramFailureException getProgramFailureException(ApiException e, String externalDocUrl,
+                                                                   @Nullable ErrorContext errorContext) {
+    Integer statusCode = e.getStatusCode().getCode().getHttpStatusCode();
+    ErrorUtils.ActionErrorPair pair = ErrorUtils.getActionErrorByStatusCode(statusCode);
+    String errorReason = String.format("%s %s. %s. For more details, see %s", statusCode, e.getMessage(),
+     pair.getCorrectiveAction(), externalDocUrl);
+    String errorMessage = e.getMessage();
+    return ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN), errorReason,
+      errorContext != null ?
+        String.format(GCPErrorDetailsProvider.ERROR_MESSAGE_FORMAT, errorContext.getPhase(), e.getClass().getName(),
+          errorMessage) : String.format("%s: %s", e.getClass().getName(), errorMessage), pair.getErrorType(), true,
+      ErrorCodeType.HTTP, statusCode.toString(), externalDocUrl, e);
+  }
+
   public static ProgramFailureException getHttpResponseExceptionDetailsFromChain(Throwable e, String errorReason,
                                                                                  ErrorType errorType,
                                                                                  boolean dependency,
                                                                                  String externalDocUrl) {
     List<Throwable> causalChain = Throwables.getCausalChain(e);
+    // Check for ProgramFailureException (avoid unnecessary re-wrapping)
     for (Throwable t : causalChain) {
       if (t instanceof ProgramFailureException) {
-        // Avoid double wrap
         return (ProgramFailureException) t;
       }
+    }
+    // Reverse iterate to prioritize HttpResponseException over ApiException
+    for (int i = causalChain.size() - 1; i >= 0; i--) {
+      Throwable t = causalChain.get(i);
       if (t instanceof HttpResponseException) {
         return getProgramFailureException((HttpResponseException) t, externalDocUrl, null);
       }
+      if (t instanceof ApiException) {
+        return getProgramFailureException((ApiException) t, externalDocUrl, null);
+      }
     }
-    // If no HttpResponseException found in the causal chain, return generic program failure exception
+    // If no HttpResponseException or ApiException found in the causal chain, return generic program failure exception
     return ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN), errorReason,
       String.format("%s %s: %s", errorReason, e.getClass().getName(), e.getMessage()), errorType, dependency, e);
   }

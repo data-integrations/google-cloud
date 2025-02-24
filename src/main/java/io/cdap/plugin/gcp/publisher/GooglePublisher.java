@@ -33,11 +33,16 @@ import io.cdap.cdap.api.data.batch.Output;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
+import io.cdap.cdap.api.exception.ErrorCategory;
+import io.cdap.cdap.api.exception.ErrorCodeType;
+import io.cdap.cdap.api.exception.ErrorType;
+import io.cdap.cdap.api.exception.ErrorUtils;
 import io.cdap.cdap.etl.api.Emitter;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
+import io.cdap.cdap.etl.api.exception.ErrorDetailsProviderSpec;
 import io.cdap.cdap.format.StructuredRecordStringConverter;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.common.batch.sink.SinkOutputFormatProvider;
@@ -116,11 +121,16 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, S
           } catch (AlreadyExistsException e1) {
             // can happen if there is a race condition. Ignore this error since all that matters is the topic exists
           } catch (ApiException e1) {
-            throw new IOException(
-              String.format("Could not auto-create topic '%s' in project '%s'. "
-                              + "Please ensure it is created before running the pipeline, "
-                              + "or ensure that the service account has permission to create the topic.",
-                            config.topic, projectId), e);
+            int statusCode = e1.getStatusCode().getCode().getHttpStatusCode();
+            String error = String.format(
+              "Could not auto-create topic '%s' in project '%s'. "
+                + "Please ensure it is created before running the pipeline, "
+                + "or ensure that the service account has permission to create the topic."
+                + "For more details, see %s",
+              config.topic, projectId, GCPUtils.PUBSUB_SUPPORTED_DOC_URL);
+            throw ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN),
+            error, error, ErrorType.UNKNOWN, true, ErrorCodeType.HTTP, String.valueOf(statusCode),
+            GCPUtils.PUBSUB_SUPPORTED_DOC_URL, e1);
           }
         }
       }
@@ -129,6 +139,9 @@ public class GooglePublisher extends BatchSink<StructuredRecord, NullWritable, S
     Schema inputSchema = context.getInputSchema();
     LineageRecorder lineageRecorder = new LineageRecorder(context, config.getReferenceName());
     lineageRecorder.createExternalDataset(inputSchema);
+
+    // set error details provider
+    context.setErrorDetailsProvider(new ErrorDetailsProviderSpec(GooglePublisherErrorDetailsProvider.class.getName()));
 
     Configuration configuration = new Configuration();
     PubSubOutputFormat.configure(configuration, config);
