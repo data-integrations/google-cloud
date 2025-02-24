@@ -81,6 +81,7 @@ public class GCPUtils {
   public static final int MILLISECONDS_MULTIPLIER = 1000;
   public static final String GCS_SUPPORTED_DOC_URL = "https://cloud.google.com/storage/docs/json_api/v1/status-codes";
   public static final String BQ_SUPPORTED_DOC_URL = "https://cloud.google.com/bigquery/docs/error-messages";
+  public static final String PUBSUB_SUPPORTED_DOC_URL = "https://cloud.google.com/pubsub/docs/reference/error-codes";
 
   /**
    * Load a service account from the local file system.

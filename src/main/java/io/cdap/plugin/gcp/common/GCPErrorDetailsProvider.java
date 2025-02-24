@@ -17,6 +17,7 @@
 package io.cdap.plugin.gcp.common;
 
 import com.google.api.client.http.HttpResponseException;
+import com.google.api.gax.rpc.ApiException;
 import com.google.common.base.Throwables;
 import io.cdap.cdap.api.exception.ErrorCategory;
 import io.cdap.cdap.api.exception.ErrorCategory.ErrorCategoryEnum;
@@ -49,9 +50,17 @@ public class GCPErrorDetailsProvider implements ErrorDetailsProvider {
         // if causal chain already has program failure exception, return null to avoid double wrap.
         return null;
       }
+    }
+    // Reverse iterate to prioritize HttpResponseException over ApiException
+    for (int i = causalChain.size() - 1; i >= 0; i--) {
+      Throwable t = causalChain.get(i);
       if (t instanceof HttpResponseException) {
         return GCPErrorDetailsProviderUtil.getProgramFailureException((HttpResponseException) t,
           getExternalDocumentationLink(), errorContext);
+      }
+      if (t instanceof ApiException) {
+        return GCPErrorDetailsProviderUtil.getProgramFailureException((ApiException) t,
+        getExternalDocumentationLink(), errorContext);
       }
       if (t instanceof IllegalArgumentException) {
         return getProgramFailureException((IllegalArgumentException) t, errorContext);
