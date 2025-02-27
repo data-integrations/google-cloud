@@ -31,6 +31,7 @@ import io.cdap.cdap.etl.api.StageMetrics;
 import io.cdap.cdap.etl.api.action.ActionContext;
 
 import io.cdap.cdap.etl.mock.validation.MockFailureCollector;
+import io.cdap.plugin.gcp.common.GCPUtils;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -134,7 +135,7 @@ public class BigQueryExecuteTest {
             BigQueryExecute.Config.DEFULT_MAX_RETRY_DURATION_SECONDS,
             BigQueryExecute.Config.DEFAULT_MAX_RETRY_COUNT,
             BigQueryExecute.Config.DEFAULT_RETRY_MULTIPLIER,
-            BigQueryExecute.Config.DEFAULT_READ_TIMEOUT);
+            GCPUtils.BQ_DEFAULT_READ_TIMEOUT_SECONDS);
     Assert.assertEquals(0, failureCollector.getValidationFailures().size());
   }
 
@@ -144,7 +145,7 @@ public class BigQueryExecuteTest {
             BigQueryExecute.Config.DEFULT_MAX_RETRY_DURATION_SECONDS,
             BigQueryExecute.Config.DEFAULT_MAX_RETRY_COUNT,
             BigQueryExecute.Config.DEFAULT_RETRY_MULTIPLIER,
-            BigQueryExecute.Config.DEFAULT_READ_TIMEOUT);
+            GCPUtils.BQ_DEFAULT_READ_TIMEOUT_SECONDS);
     Assert.assertEquals(1, failureCollector.getValidationFailures().size());
     Assert.assertEquals("Initial retry duration must be greater than 0.",
             failureCollector.getValidationFailures().get(0).getMessage());
@@ -156,7 +157,7 @@ public class BigQueryExecuteTest {
             BigQueryExecute.Config.DEFAULT_INITIAL_RETRY_DURATION_SECONDS, -1L,
             BigQueryExecute.Config.DEFAULT_MAX_RETRY_COUNT,
             BigQueryExecute.Config.DEFAULT_RETRY_MULTIPLIER,
-            BigQueryExecute.Config.DEFAULT_READ_TIMEOUT);
+            GCPUtils.BQ_DEFAULT_READ_TIMEOUT_SECONDS);
     Assert.assertEquals(2, failureCollector.getValidationFailures().size());
     Assert.assertEquals("Max retry duration must be greater than 0.",
             failureCollector.getValidationFailures().get(0).getMessage());
@@ -170,7 +171,7 @@ public class BigQueryExecuteTest {
             BigQueryExecute.Config.DEFAULT_INITIAL_RETRY_DURATION_SECONDS,
             BigQueryExecute.Config.DEFULT_MAX_RETRY_DURATION_SECONDS,
             BigQueryExecute.Config.DEFAULT_MAX_RETRY_COUNT, -1.0,
-            BigQueryExecute.Config.DEFAULT_READ_TIMEOUT);
+            GCPUtils.BQ_DEFAULT_READ_TIMEOUT_SECONDS);
     Assert.assertEquals(1, failureCollector.getValidationFailures().size());
     Assert.assertEquals("Retry multiplier must be strictly greater than 1.",
             failureCollector.getValidationFailures().get(0).getMessage());
@@ -182,7 +183,7 @@ public class BigQueryExecuteTest {
             BigQueryExecute.Config.DEFAULT_INITIAL_RETRY_DURATION_SECONDS,
             BigQueryExecute.Config.DEFULT_MAX_RETRY_DURATION_SECONDS, -1,
             BigQueryExecute.Config.DEFAULT_RETRY_MULTIPLIER,
-            BigQueryExecute.Config.DEFAULT_READ_TIMEOUT);
+            GCPUtils.BQ_DEFAULT_READ_TIMEOUT_SECONDS);
     Assert.assertEquals(1, failureCollector.getValidationFailures().size());
     Assert.assertEquals("Max retry count must be greater than 0.",
             failureCollector.getValidationFailures().get(0).getMessage());
@@ -194,7 +195,7 @@ public class BigQueryExecuteTest {
             BigQueryExecute.Config.DEFAULT_INITIAL_RETRY_DURATION_SECONDS,
             BigQueryExecute.Config.DEFULT_MAX_RETRY_DURATION_SECONDS,
             BigQueryExecute.Config.DEFAULT_MAX_RETRY_COUNT, 1.0,
-            BigQueryExecute.Config.DEFAULT_READ_TIMEOUT);
+            GCPUtils.BQ_DEFAULT_READ_TIMEOUT_SECONDS);
     Assert.assertEquals(1, failureCollector.getValidationFailures().size());
     Assert.assertEquals("Retry multiplier must be strictly greater than 1.",
             failureCollector.getValidationFailures().get(0).getMessage());
@@ -205,7 +206,7 @@ public class BigQueryExecuteTest {
     config.validateRetryConfiguration(failureCollector, 10L, 5L,
             BigQueryExecute.Config.DEFAULT_MAX_RETRY_COUNT,
             BigQueryExecute.Config.DEFAULT_RETRY_MULTIPLIER,
-            BigQueryExecute.Config.DEFAULT_READ_TIMEOUT);
+            GCPUtils.BQ_DEFAULT_READ_TIMEOUT_SECONDS);
     Assert.assertEquals(1, failureCollector.getValidationFailures().size());
     Assert.assertEquals("Max retry duration must be greater than initial retry duration.",
             failureCollector.getValidationFailures().get(0).getMessage());

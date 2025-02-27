@@ -210,7 +210,7 @@ public class DataplexBatchSourceConfig extends DataplexBaseConfig {
   public void validateBigQueryDataset(FailureCollector collector, String project, String dataset, String tableName) {
     BigQueryUtil.validateTable(tableName, NAME_ENTITY, collector);
     Table sourceTable = BigQueryUtil.getBigQueryTable(project, dataset, tableName, this.getServiceAccount(),
-      this.isServiceAccountFilePath(), collector);
+      this.isServiceAccountFilePath(), collector, null);
     if (sourceTable == null) {
       return;
     }
@@ -270,7 +270,8 @@ public class DataplexBatchSourceConfig extends DataplexBaseConfig {
   public TableDefinition.Type getSourceTableType(String datasetProject, String dataSet,
                                                  String tableId) {
     Table sourceTable =
-      BigQueryUtil.getBigQueryTable(datasetProject, dataSet, tableId, getServiceAccount(), isServiceAccountFilePath());
+      BigQueryUtil.getBigQueryTable(datasetProject, dataSet, tableId, getServiceAccount(), isServiceAccountFilePath(),
+        null, null);
     return sourceTable != null ? sourceTable.getDefinition().getType() : null;
   }
 
