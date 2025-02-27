@@ -64,8 +64,7 @@ public class PartitionedBigQueryInputFormatTest {
     StandardTableDefinition tableDefinition = PowerMockito.mock(StandardTableDefinition.class);
     PowerMockito.when(BigQueryUtil.getBigQueryTable(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(),
         ArgumentMatchers.anyString(), ArgumentMatchers.any(), ArgumentMatchers.anyBoolean(), ArgumentMatchers.any(),
-        ArgumentMatchers.any()))
-      .thenReturn(t);
+        ArgumentMatchers.any())).thenReturn(t);
     PowerMockito.when(t.getDefinition()).thenReturn(tableDefinition);
     String generatedQuery = partitionedBigQueryInputFormat.generateQuery(null, null, filter, datasetProject,
                                                                          datasetProject, dataset, table, null, true);

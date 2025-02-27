@@ -33,6 +33,7 @@ import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnectorConfig;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.CmekUtils;
 
+import io.cdap.plugin.gcp.common.GCPUtils;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
@@ -54,6 +55,7 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
   protected static final String NAME_UPDATE_SCHEMA = "allowSchemaRelaxation";
   private static final String SCHEME = "gs://";
   protected static final String NAME_JSON_STRING_FIELDS = "jsonStringFields";
+  private static final String NAME_READ_TIMEOUT = "readTimeout";
 
   @Name(Constants.Reference.REFERENCE_NAME)
   @Nullable
@@ -99,6 +101,16 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
   @Description("Fields in input schema that should be treated as JSON strings. " +
           "The schema of these fields should be of type STRING.")
   protected String jsonStringFields;
+
+  @Name(NAME_READ_TIMEOUT)
+  @Nullable
+  @Macro
+  @Description("Timeout in seconds to read data from an established HTTP connection (Default value is 120).")
+  private Integer readTimeout;
+
+  public int getReadTimeout() {
+    return readTimeout == null ? GCPUtils.BQ_DEFAULT_READ_TIMEOUT_SECONDS : readTimeout;
+  }
 
   public AbstractBigQuerySinkConfig(BigQueryConnectorConfig connection, String dataset, String cmekKey, String bucket) {
     super(connection, dataset, cmekKey, bucket);

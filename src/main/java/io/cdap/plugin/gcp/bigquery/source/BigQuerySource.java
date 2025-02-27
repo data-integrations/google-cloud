@@ -260,6 +260,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     if (config.getViewMaterializationDataset() != null) {
       configuration.set(BigQueryConstants.CONFIG_VIEW_MATERIALIZATION_DATASET, config.getViewMaterializationDataset());
     }
+    configuration.set(BigQueryConstants.CONFIG_BQ_HTTP_READ_TIMEOUT, String.valueOf(config.getReadTimeout()));
   }
 
   public Schema getSchema(FailureCollector collector) {
@@ -308,7 +309,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     String project = config.getDatasetProject();
 
     Table table = BigQueryUtil.getBigQueryTable(project, dataset, tableName, serviceAccount,
-                                                config.isServiceAccountFilePath(), collector, null);
+        config.isServiceAccountFilePath(), collector, config.getReadTimeout());
     if (table == null) {
       // Table does not exist
       collector.addFailure(String.format("BigQuery table '%s:%s.%s' does not exist.", project, dataset, tableName),
@@ -341,7 +342,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     String dataset = config.getDataset();
     String tableName = config.getTable();
     Table sourceTable = BigQueryUtil.getBigQueryTable(project, dataset, tableName, config.getServiceAccount(),
-                                                      config.isServiceAccountFilePath(), collector, null);
+        config.isServiceAccountFilePath(), collector, config.getReadTimeout());
     if (sourceTable == null) {
       return;
     }

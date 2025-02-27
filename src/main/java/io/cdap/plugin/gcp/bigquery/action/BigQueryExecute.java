@@ -45,7 +45,6 @@ import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.exception.ErrorCategory;
-import io.cdap.cdap.api.exception.ErrorCodeType;
 import io.cdap.cdap.api.exception.ErrorType;
 import io.cdap.cdap.api.exception.ErrorUtils;
 import io.cdap.cdap.etl.api.FailureCollector;
@@ -364,7 +363,6 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     public static final int DEFAULT_MAX_RETRY_COUNT = 5;
     // Sn = a * (1 - r^n) / (r - 1)
     public static final long DEFULT_MAX_RETRY_DURATION_SECONDS = 63L;
-    public static final int DEFAULT_READ_TIMEOUT = 120;
     public static final Set<String> VALID_WRITE_PREFERENCES = Arrays.stream(JobInfo.WriteDisposition.values())
         .map(Enum::name).collect(Collectors.toSet());
 
@@ -581,7 +579,7 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     }
 
     public int getReadTimeout() {
-      return readTimeout == null ? DEFAULT_READ_TIMEOUT : readTimeout;
+      return readTimeout == null ? GCPUtils.BQ_DEFAULT_READ_TIMEOUT_SECONDS : readTimeout;
     }
 
     @Override

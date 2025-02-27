@@ -417,7 +417,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     }
 
     Table table = BigQueryUtil.getBigQueryTable(project, dataset, tableName, serviceAccount,
-                                                isServiceAccountFilePath(), collector, null);
+        isServiceAccountFilePath(), collector, getReadTimeout());
     if (table != null) {
       StandardTableDefinition tableDefinition = table.getDefinition();
       TimePartitioning timePartitioning = tableDefinition.getTimePartitioning();

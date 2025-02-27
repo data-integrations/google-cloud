@@ -20,6 +20,7 @@ import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnectorConfig;
+import io.cdap.plugin.gcp.common.GCPUtils;
 
 import javax.annotation.Nullable;
 
@@ -30,6 +31,7 @@ public class BigQueryMultiSinkConfig extends AbstractBigQuerySinkConfig {
 
   private static final String SPLIT_FIELD_DEFAULT = "tablename";
   private static final String NAME_ALLOW_FLEXIBLE_SCHEMA = "allowFlexibleSchema";
+  private static final String NAME_READ_TIMEOUT = "readTimeout";
 
   @Macro
   @Nullable

@@ -603,7 +603,7 @@ public final class BigQueryUtil {
     }
     BigQuery bigQuery = GCPUtils.getBigQuery(projectId, credentials, readTimeoutSeconds);
 
-    Table table = null;
+    Table table;
     try {
       table = bigQuery.getTable(tableId);
     } catch (BigQueryException e) {
