@@ -23,7 +23,6 @@ import com.google.datastore.v1.client.DatastoreException;
 import com.google.datastore.v1.client.DatastoreHelper;
 import com.google.datastore.v1.client.QuerySplitter;
 import com.google.protobuf.TextFormat;
-import io.cdap.plugin.gcp.datastore.exception.DatastoreExecutionException;
 import io.cdap.plugin.gcp.datastore.source.util.DatastoreSourceConstants;
 import io.cdap.plugin.gcp.datastore.util.DatastoreUtil;
 import org.apache.hadoop.conf.Configuration;
@@ -75,7 +74,7 @@ public class DatastoreInputFormat extends InputFormat<LongWritable, Entity> {
         .map(QueryInputSplit::new)
         .collect(Collectors.toList());
     } catch (DatastoreException e) {
-      throw new DatastoreExecutionException("Unable to split the query: " + query, e);
+      throw new IOException("Unable to split the query: " + query, e);
     }
   }
 
