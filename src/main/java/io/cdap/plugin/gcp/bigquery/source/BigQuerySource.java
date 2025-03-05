@@ -40,7 +40,6 @@ import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
 import io.cdap.cdap.api.exception.ErrorType;
-import io.cdap.cdap.api.exception.ProgramFailureException;
 import io.cdap.cdap.etl.api.Emitter;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
@@ -50,7 +49,6 @@ import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
 import io.cdap.cdap.etl.api.connector.Connector;
 import io.cdap.cdap.etl.api.engine.sql.SQLEngineInput;
-import io.cdap.cdap.etl.api.exception.ErrorContext;
 import io.cdap.cdap.etl.api.exception.ErrorDetailsProviderSpec;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.plugin.common.Asset;
@@ -310,7 +308,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     String project = config.getDatasetProject();
 
     Table table = BigQueryUtil.getBigQueryTable(project, dataset, tableName, serviceAccount,
-                                                config.isServiceAccountFilePath(), collector);
+                                                config.isServiceAccountFilePath(), collector, null);
     if (table == null) {
       // Table does not exist
       collector.addFailure(String.format("BigQuery table '%s:%s.%s' does not exist.", project, dataset, tableName),
@@ -343,7 +341,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     String dataset = config.getDataset();
     String tableName = config.getTable();
     Table sourceTable = BigQueryUtil.getBigQueryTable(project, dataset, tableName, config.getServiceAccount(),
-                                                      config.isServiceAccountFilePath(), collector);
+                                                      config.isServiceAccountFilePath(), collector, null);
     if (sourceTable == null) {
       return;
     }

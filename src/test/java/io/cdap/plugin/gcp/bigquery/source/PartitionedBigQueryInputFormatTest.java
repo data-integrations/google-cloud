@@ -27,8 +27,6 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import java.util.Objects;
-
 /**
  *  Unit Tests for generateQuery methods
  */
@@ -65,8 +63,9 @@ public class PartitionedBigQueryInputFormatTest {
     Table t = PowerMockito.mock(Table.class);
     StandardTableDefinition tableDefinition = PowerMockito.mock(StandardTableDefinition.class);
     PowerMockito.when(BigQueryUtil.getBigQueryTable(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(),
-                                                    ArgumentMatchers.anyString(), ArgumentMatchers.any(),
-                                                    ArgumentMatchers.anyBoolean())).thenReturn(t);
+        ArgumentMatchers.anyString(), ArgumentMatchers.any(), ArgumentMatchers.anyBoolean(), ArgumentMatchers.any(),
+        ArgumentMatchers.any()))
+      .thenReturn(t);
     PowerMockito.when(t.getDefinition()).thenReturn(tableDefinition);
     String generatedQuery = partitionedBigQueryInputFormat.generateQuery(null, null, filter, datasetProject,
                                                                          datasetProject, dataset, table, null, true);

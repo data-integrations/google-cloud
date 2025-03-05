@@ -238,7 +238,7 @@ public final class BigQuerySourceConfig extends BigQueryBaseConfig {
   public Type getSourceTableType() {
     Table sourceTable =
       BigQueryUtil.getBigQueryTable(getDatasetProject(), getDataset(), table, getServiceAccount(),
-                                    isServiceAccountFilePath());
+                                    isServiceAccountFilePath(), null, null);
     return sourceTable != null ? sourceTable.getDefinition().getType() : null;
   }
 

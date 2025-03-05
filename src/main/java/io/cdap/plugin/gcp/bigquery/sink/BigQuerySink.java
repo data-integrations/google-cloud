@@ -138,7 +138,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
     configureBigQuerySink();
     Table table = BigQueryUtil.getBigQueryTable(config.getDatasetProject(), config.getDataset(), config.getTable(),
             config.getServiceAccount(), config.isServiceAccountFilePath(),
-            collector);
+            collector, null);
     initOutput(context, bigQuery, config.getReferenceName(),
                BigQueryUtil.getFQN(config.getDatasetProject(), config.getDataset(), config.getTable()),
                config.getTable(), outputSchema, bucket, collector, null, table);
@@ -346,7 +346,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
     Table table = BigQueryUtil.getBigQueryTable(config.getDatasetProject(), config.getDataset(),
                                                 config.getTable(),
                                                 config.getServiceAccount(),
-                                                config.isServiceAccountFilePath());
+                                                config.isServiceAccountFilePath(), null, null);
     baseConfiguration.setBoolean(BigQueryConstants.CONFIG_DESTINATION_TABLE_EXISTS, table != null);
     List<String> tableFieldsNames = null;
     if (table != null) {
@@ -372,7 +372,7 @@ public final class BigQuerySink extends AbstractBigQuerySink {
     String tableName = config.getTable();
     Table table = BigQueryUtil.getBigQueryTable(config.getDatasetProject(), config.getDataset(), tableName,
                                                 config.getServiceAccount(), config.isServiceAccountFilePath(),
-                                                collector);
+                                                collector, null);
 
     if (table != null && !config.containsMacro(AbstractBigQuerySinkConfig.NAME_UPDATE_SCHEMA)) {
       // if table already exists, validate schema against underlying bigquery table

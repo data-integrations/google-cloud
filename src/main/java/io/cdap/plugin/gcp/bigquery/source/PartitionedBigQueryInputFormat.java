@@ -134,7 +134,7 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
     String filter = configuration.get(BigQueryConstants.CONFIG_FILTER, null);
 
     com.google.cloud.bigquery.Table bigQueryTable = BigQueryUtil.getBigQueryTable(
-      datasetProjectId, datasetId, tableName, serviceAccount, isServiceAccountFilePath);
+      datasetProjectId, datasetId, tableName, serviceAccount, isServiceAccountFilePath, null, null);
     Type type = Objects.requireNonNull(bigQueryTable).getDefinition().getType();
 
     String query;
@@ -171,9 +171,9 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
       return null;
     }
     String queryTemplate = "select * from `%s` where %s";
-    com.google.cloud.bigquery.Table sourceTable = BigQueryUtil.getBigQueryTable(datasetProject, dataset, table,
-                                                                                serviceAccount,
-                                                                                isServiceAccountFilePath);
+    com.google.cloud.bigquery.Table sourceTable =
+      BigQueryUtil.getBigQueryTable(datasetProject, dataset, table, serviceAccount, isServiceAccountFilePath, null,
+        null);
     StandardTableDefinition tableDefinition = Objects.requireNonNull(sourceTable).getDefinition();
     TimePartitioning timePartitioning = tableDefinition.getTimePartitioning();
     if (timePartitioning == null && filter == null) {

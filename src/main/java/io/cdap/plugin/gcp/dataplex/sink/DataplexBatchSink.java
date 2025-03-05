@@ -355,7 +355,7 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
       config.getTable(),
       config.getServiceAccount(),
       config.isServiceAccountFilePath(),
-      collector);
+      collector, null);
     baseConfiguration.setBoolean(BigQueryConstants.CONFIG_DESTINATION_TABLE_EXISTS, table != null);
     List<String> tableFieldsNames = null;
     if (table != null) {

@@ -24,7 +24,6 @@ import com.google.cloud.bigquery.TimePartitioning;
 import com.google.cloud.kms.v1.CryptoKeyName;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
@@ -41,7 +40,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -419,7 +417,7 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     }
 
     Table table = BigQueryUtil.getBigQueryTable(project, dataset, tableName, serviceAccount,
-                                                isServiceAccountFilePath(), collector);
+                                                isServiceAccountFilePath(), collector, null);
     if (table != null) {
       StandardTableDefinition tableDefinition = table.getDefinition();
       TimePartitioning timePartitioning = tableDefinition.getTimePartitioning();

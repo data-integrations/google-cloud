@@ -183,7 +183,7 @@ public final class BigQueryArgumentSetterConfig extends AbstractBigQueryActionCo
 
   public QueryJobConfiguration getQueryJobConfiguration(FailureCollector collector) {
     Table sourceTable = BigQueryUtil.getBigQueryTable(getDatasetProject(), dataset, table, getServiceAccount(),
-                                                      isServiceAccountFilePath(), collector);
+                                                      isServiceAccountFilePath(), collector, null);
 
     if (sourceTable == null) {
       // Table does not exist
