@@ -132,9 +132,11 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
     String partitionFromDate = configuration.get(BigQueryConstants.CONFIG_PARTITION_FROM_DATE, null);
     String partitionToDate = configuration.get(BigQueryConstants.CONFIG_PARTITION_TO_DATE, null);
     String filter = configuration.get(BigQueryConstants.CONFIG_FILTER, null);
+    Integer readTimeout = configuration.getInt(BigQueryConstants.CONFIG_BQ_HTTP_READ_TIMEOUT,
+        GCPUtils.BQ_DEFAULT_READ_TIMEOUT_SECONDS);
 
     com.google.cloud.bigquery.Table bigQueryTable = BigQueryUtil.getBigQueryTable(
-      datasetProjectId, datasetId, tableName, serviceAccount, isServiceAccountFilePath, null, null);
+      datasetProjectId, datasetId, tableName, serviceAccount, isServiceAccountFilePath, null, readTimeout);
     Type type = Objects.requireNonNull(bigQueryTable).getDefinition().getType();
 
     String query;

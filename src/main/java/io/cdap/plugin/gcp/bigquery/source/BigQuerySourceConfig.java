@@ -58,6 +58,7 @@ public final class BigQuerySourceConfig extends BigQueryBaseConfig {
   private static final String VALID_DATE_FORMAT = "yyyy-MM-dd";
   private static final String SCHEME = "gs://";
   private static final String WHERE = "WHERE";
+  private static final String NAME_READ_TIMEOUT = "readTimeout";
   public static final Set<Schema.Type> SUPPORTED_TYPES =
     ImmutableSet.of(Schema.Type.LONG, Schema.Type.STRING, Schema.Type.DOUBLE, Schema.Type.BOOLEAN, Schema.Type.BYTES,
                     Schema.Type.ARRAY, Schema.Type.RECORD);
@@ -131,6 +132,12 @@ public final class BigQuerySourceConfig extends BigQueryBaseConfig {
     + "Defaults to the same dataset in which the table is located.")
   private String viewMaterializationDataset;
 
+  @Name(NAME_READ_TIMEOUT)
+  @Nullable
+  @Macro
+  @Description("Timeout in seconds to read data from an established HTTP connection (Default value is 120).")
+  private Integer readTimeout;
+
   public String getTable() {
     return table;
   }
@@ -140,6 +147,10 @@ public final class BigQuerySourceConfig extends BigQueryBaseConfig {
       return ServiceOptions.getDefaultProjectId();
     }
     return connection.getDatasetProject();
+  }
+
+  public int getReadTimeout() {
+    return readTimeout == null ? GCPUtils.BQ_DEFAULT_READ_TIMEOUT_SECONDS : readTimeout;
   }
 
   public void validate(FailureCollector collector) {
@@ -238,7 +249,7 @@ public final class BigQuerySourceConfig extends BigQueryBaseConfig {
   public Type getSourceTableType() {
     Table sourceTable =
       BigQueryUtil.getBigQueryTable(getDatasetProject(), getDataset(), table, getServiceAccount(),
-                                    isServiceAccountFilePath(), null, null);
+                                    isServiceAccountFilePath(), null, getReadTimeout());
     return sourceTable != null ? sourceTable.getDefinition().getType() : null;
   }
 
