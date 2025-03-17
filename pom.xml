@@ -72,8 +72,8 @@
     <avro.version>1.11.0</avro.version>
     <bigquery.connector.hadoop3.version>hadoop3-1.2.0</bigquery.connector.hadoop3.version>
     <commons.codec.version>1.4</commons.codec.version>
-    <cdap.version>6.11.0-SNAPSHOT</cdap.version>
-    <cdap.plugin.version>2.13.0-SNAPSHOT</cdap.plugin.version>
+    <cdap.version>6.11.0</cdap.version>
+    <cdap.plugin.version>2.13.0</cdap.plugin.version>
     <dropwizard.metrics-core.version>3.2.6</dropwizard.metrics-core.version>
     <flogger.system.backend.version>0.7.1</flogger.system.backend.version>
     <gcs.connector.version>hadoop3-2.2.21</gcs.connector.version>
