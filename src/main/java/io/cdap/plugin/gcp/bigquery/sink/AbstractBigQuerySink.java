@@ -103,7 +103,7 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
     DatasetId datasetId = DatasetId.of(config.getDatasetProject(), config.getDataset());
     Dataset dataset;
     try {
-      bigQuery = GCPUtils.getBigQuery(project, credentials, null);
+      bigQuery = GCPUtils.getBigQuery(project, credentials, config.getReadTimeout());
       dataset = bigQuery.getDataset(datasetId);
     } catch (Exception e) {
       throw GCPErrorDetailsProviderUtil.getHttpResponseExceptionDetailsFromChain(e,

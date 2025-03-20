@@ -39,7 +39,6 @@ import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
 import io.cdap.cdap.etl.api.validation.InvalidStageException;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
-import io.cdap.plugin.gcp.bigquery.sink.AbstractBigQuerySinkConfig;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySink;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySource;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceConfig;
@@ -572,94 +571,49 @@ public final class BigQueryUtil {
   /**
    * Get BigQuery table.
    *
-   * @param datasetProject           project where dataset is in
-   * @param datasetId                BigQuery dataset ID
-   * @param tableName                BigQuery table name
-   * @param serviceAccount           service account file path or JSON content
-   * @param isServiceAccountFilePath indicator for whether service account is file or json
-   * @return BigQuery table
-   */
-  @Nullable
-  public static Table getBigQueryTable(String datasetProject, String datasetId, String tableName,
-                                       @Nullable String serviceAccount, boolean isServiceAccountFilePath) {
-    TableId tableId = TableId.of(datasetProject, datasetId, tableName);
-
-    com.google.auth.Credentials credentials = null;
-    if (serviceAccount != null) {
-      try {
-        credentials = GCPUtils.loadServiceAccountCredentials(serviceAccount, isServiceAccountFilePath);
-      } catch (IOException e) {
-        throw new InvalidConfigPropertyException(
-          String.format("Unable to load credentials from %s", isServiceAccountFilePath ? serviceAccount : " JSON."),
-          "serviceFilePath");
-      }
-    }
-    BigQuery bigQuery = GCPUtils.getBigQuery(datasetProject, credentials, null);
-
-    Table table;
-    try {
-      table = bigQuery.getTable(tableId);
-    } catch (BigQueryException e) {
-      throw new InvalidStageException("Unable to get details about the BigQuery table: " + e.getMessage(), e);
-    }
-
-    return table;
-  }
-
-  /**
-   * Get BigQuery table.
-   *
-   * @param projectId          BigQuery project ID
-   * @param datasetId          BigQuery dataset ID
-   * @param tableName          BigQuery table name
-   * @param serviceAccountPath service account file path
-   * @param collector          failure collector
-   * @return BigQuery table
-   */
-  @Nullable
-  public static Table getBigQueryTable(String projectId, String datasetId, String tableName,
-                                       @Nullable String serviceAccountPath, FailureCollector collector) {
-    return getBigQueryTable(projectId, datasetId, tableName, serviceAccountPath, true, collector);
-  }
-
-  /**
-   * Get BigQuery table.
-   *
    * @param projectId                BigQuery project ID
    * @param dataset                  BigQuery dataset name
    * @param tableName                BigQuery table name
    * @param serviceAccount           service account file path or JSON content
    * @param isServiceAccountFilePath indicator for whether service account is file or json
    * @param collector                failure collector
+   * @param readTimeoutSeconds       http read time out in seconds
    * @return BigQuery table
    */
   public static Table getBigQueryTable(String projectId, String dataset, String tableName,
                                        @Nullable String serviceAccount, @Nullable Boolean isServiceAccountFilePath,
-                                       FailureCollector collector) {
+                                       @Nullable FailureCollector collector, @Nullable Integer readTimeoutSeconds) {
     TableId tableId = TableId.of(projectId, dataset, tableName);
     com.google.auth.Credentials credentials = null;
     if (serviceAccount != null) {
       try {
         credentials = GCPUtils.loadServiceAccountCredentials(serviceAccount, isServiceAccountFilePath);
       } catch (IOException e) {
-        collector.addFailure(String.format("Unable to load credentials from %s.",
-                                           isServiceAccountFilePath ? serviceAccount : "provided JSON key"),
-                             "Ensure the service account file is available on the local filesystem.")
-          .withConfigProperty(GCPConfig.NAME_SERVICE_ACCOUNT_FILE_PATH);
-        throw collector.getOrThrowException();
+        if (collector != null) {
+          collector.addFailure(String.format("Unable to load credentials from %s.",
+                isServiceAccountFilePath ? serviceAccount : "provided JSON key"),
+              "Ensure the service account file is available on the local filesystem.")
+            .withConfigProperty(GCPConfig.NAME_SERVICE_ACCOUNT_FILE_PATH);
+          throw collector.getOrThrowException();
+        }
+        throw new InvalidConfigPropertyException(
+          String.format("Unable to load credentials from %s", isServiceAccountFilePath ? serviceAccount : " JSON."),
+          "serviceFilePath");
       }
     }
-    BigQuery bigQuery = GCPUtils.getBigQuery(projectId, credentials, null);
+    BigQuery bigQuery = GCPUtils.getBigQuery(projectId, credentials, readTimeoutSeconds);
 
-    Table table = null;
+    Table table;
     try {
       table = bigQuery.getTable(tableId);
     } catch (BigQueryException e) {
-      collector.addFailure("Unable to get details about the BigQuery table: " + e.getMessage(), null)
-        .withConfigProperty(BigQuerySourceConfig.NAME_TABLE);
-      throw collector.getOrThrowException();
+      if (collector != null) {
+        collector.addFailure("Unable to get details about the BigQuery table: " + e.getMessage(), null)
+          .withConfigProperty(BigQuerySourceConfig.NAME_TABLE);
+        throw collector.getOrThrowException();
+      }
+      throw new InvalidStageException("Unable to get details about the BigQuery table: " + e.getMessage(), e);
     }
-
     return table;
   }
 

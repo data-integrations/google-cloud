@@ -387,7 +387,7 @@ public class DataplexBatchSourceConfigTest {
     PowerMockito.mockStatic(BigQueryUtil.class);
     Mockito.when(BigQueryUtil.getBigQueryTable("project", "datasets", "tablename",
       "service", true,
-      mockFailureCollector)).thenReturn(table);
+      mockFailureCollector, null)).thenReturn(table);
     Mockito.doReturn(credentials).when(dataplexBatchSourceConfig).getCredentials(mockFailureCollector);
     Mockito.doReturn(credentials).when(dataplexBatchSourceConfig).getCredentials(mockFailureCollector);
     dataplexBatchSourceConfig.validateBigQueryDataset(mockFailureCollector, "project",

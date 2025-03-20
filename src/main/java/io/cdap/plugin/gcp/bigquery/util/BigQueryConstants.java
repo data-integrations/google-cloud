@@ -49,4 +49,5 @@ public interface BigQueryConstants {
   String CDAP_BQ_SINK_OUTPUT_SCHEMA = "cdap.bq.sink.output.schema";
   String BQ_FQN_PREFIX = "bigquery";
   String CONFIG_JOB_LABEL_KEY_VALUE = "cdap.bq.sink.job.label.key.value";
+  String CONFIG_BQ_HTTP_READ_TIMEOUT = "cdap.bq.job.http.read.timeout";
 }
