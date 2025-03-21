@@ -19,6 +19,9 @@ package io.cdap.plugin.gcp.spanner.source;
 import com.google.cloud.spanner.BatchTransactionId;
 import com.google.cloud.spanner.Partition;
 import com.google.cloud.spanner.ResultSet;
+import io.cdap.cdap.api.exception.ErrorCategory;
+import io.cdap.cdap.api.exception.ErrorType;
+import io.cdap.cdap.api.exception.ErrorUtils;
 import io.cdap.plugin.gcp.spanner.SpannerConstants;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
@@ -74,7 +77,9 @@ public class SpannerInputFormat extends InputFormat<NullWritable, ResultSet> {
          ObjectInputStream objectInputStream = new ObjectInputStream(byteArrayInputStream)) {
       return (T) objectInputStream.readObject();
     } catch (ClassNotFoundException cfe) {
-      throw new IOException("Exception while trying to deserialize object ", cfe);
+      String errorMessage = String.format("Exception while trying to deserialize object: %s.", cfe);
+      throw ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN),
+                                                  errorMessage, errorMessage, ErrorType.SYSTEM, false, null);
     }
   }
 

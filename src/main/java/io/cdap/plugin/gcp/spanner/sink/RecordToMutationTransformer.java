@@ -24,6 +24,9 @@ import com.google.cloud.spanner.Value;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.format.UnexpectedFormatException;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.api.exception.ErrorCategory;
+import io.cdap.cdap.api.exception.ErrorType;
+import io.cdap.cdap.api.exception.ErrorUtils;
 
 import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
@@ -224,8 +227,10 @@ public class RecordToMutationTransformer {
     } else if (value.getClass().isArray()) {
       return convertToObjectCollection(value);
     } else {
-      throw new UnexpectedFormatException(
-        String.format("Field '%s' of type '%s' has unexpected value '%s'", fieldName, fieldType, value));
+      String errorMessage = String.format
+        ("Field '%s' of type '%s' has unexpected value '%s'.", fieldName, fieldType, value);
+      throw ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN),
+                                                  errorMessage, errorMessage, ErrorType.USER, false, null);
     }
   }
 

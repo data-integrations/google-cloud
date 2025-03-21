@@ -23,8 +23,8 @@ import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Type;
 import com.google.common.base.Charsets;
 import io.cdap.cdap.api.data.format.StructuredRecord;
-import io.cdap.cdap.api.data.format.UnexpectedFormatException;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.api.exception.ProgramFailureException;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -150,7 +150,7 @@ public class ResultSetToRecordTransformerTest {
     Assert.assertEquals(formattedDatetime, record.get("datetime_field"));
   }
 
-  @Test(expected = UnexpectedFormatException.class)
+  @Test(expected = ProgramFailureException.class)
   public void testInvalidDateTime() {
     Schema testSchema = Schema
       .recordOf("record", Schema.Field.of("datetime_field", Schema.of(Schema.LogicalType.DATETIME)));
