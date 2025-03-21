@@ -50,6 +50,7 @@ import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
 import io.cdap.cdap.etl.api.connector.Connector;
+import io.cdap.cdap.etl.api.exception.ErrorDetailsProviderSpec;
 import io.cdap.plugin.common.Asset;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.common.ReferenceNames;
@@ -57,6 +58,7 @@ import io.cdap.plugin.common.SourceInputFormatProvider;
 import io.cdap.plugin.gcp.common.GCPConfig;
 import io.cdap.plugin.gcp.common.Schemas;
 import io.cdap.plugin.gcp.spanner.SpannerConstants;
+import io.cdap.plugin.gcp.spanner.common.SpannerErrorDetailsProvider;
 import io.cdap.plugin.gcp.spanner.common.SpannerUtil;
 import io.cdap.plugin.gcp.spanner.connector.SpannerConnector;
 import org.apache.commons.lang3.StringUtils;
@@ -195,6 +197,10 @@ public class SpannerSource extends BatchSource<NullWritable, ResultSet, Structur
     Asset asset = Asset.builder(referenceName).setFqn(fqn).setLocation(location).build();
     LineageRecorder lineageRecorder = new LineageRecorder(batchSourceContext, asset);
     lineageRecorder.createExternalDataset(configuredSchema);
+
+    // set error details provider
+    batchSourceContext.setErrorDetailsProvider(new ErrorDetailsProviderSpec
+                                                 (SpannerErrorDetailsProvider.class.getName()));
 
     // set input format and pass configuration
     batchSourceContext.setInput(Input.of(referenceName,
