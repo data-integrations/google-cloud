@@ -43,9 +43,12 @@ import io.cdap.cdap.etl.api.StageConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
+import io.cdap.cdap.etl.api.exception.ErrorDetailsProviderSpec;
 import io.cdap.plugin.common.LineageRecorder;
+import io.cdap.plugin.gcp.datastore.common.DatastoreErrorDetailsProvider;
 import io.cdap.plugin.gcp.datastore.source.util.DatastoreSourceConstants;
 import io.cdap.plugin.gcp.datastore.util.DatastoreUtil;
+import io.cdap.plugin.gcp.gcs.GCSErrorDetailsProvider;
 import org.apache.hadoop.io.NullWritable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -129,6 +132,9 @@ public class DatastoreSource extends BatchSource<NullWritable, Entity, Structure
     String pbQuery = config.constructPbQuery(collector).toString();
     String splits = String.valueOf(config.getNumSplits());
 
+    // set error details provider
+    batchSourceContext.setErrorDetailsProvider(
+      new ErrorDetailsProviderSpec(DatastoreErrorDetailsProvider.class.getName()));
     batchSourceContext.setInput(
       Input.of(config.getReferenceName(),
                new DatastoreInputFormatProvider(project, serviceAccount, config.isServiceAccountFilePath(), namespace,
