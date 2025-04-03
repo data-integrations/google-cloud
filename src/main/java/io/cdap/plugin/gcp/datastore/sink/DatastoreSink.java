@@ -31,7 +31,9 @@ import io.cdap.cdap.etl.api.StageConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
+import io.cdap.cdap.etl.api.exception.ErrorDetailsProviderSpec;
 import io.cdap.plugin.common.LineageRecorder;
+import io.cdap.plugin.gcp.datastore.common.DatastoreErrorDetailsProvider;
 import org.apache.hadoop.io.NullWritable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -85,6 +87,8 @@ public class DatastoreSink extends BatchSink<StructuredRecord, NullWritable, Ent
     String batchSize = Integer.toString(config.getBatchSize());
     String shouldUseTransactions = Boolean.toString(config.shouldUseTransactions());
 
+    // set error details provider
+    context.setErrorDetailsProvider(new ErrorDetailsProviderSpec(DatastoreErrorDetailsProvider.class.getName()));
     context.addOutput(Output.of(config.getReferenceName(),
                                 new DatastoreOutputFormatProvider(project, serviceAccount,
                                                                   config.isServiceAccountFilePath(),

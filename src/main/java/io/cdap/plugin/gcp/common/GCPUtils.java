@@ -88,6 +88,7 @@ public class GCPUtils {
   public static final String BQ_SUPPORTED_DOC_URL = "https://cloud.google.com/bigquery/docs/error-messages";
   public static final String PUBSUB_SUPPORTED_DOC_URL = "https://cloud.google.com/pubsub/docs/reference/error-codes";
   public static final int BQ_DEFAULT_READ_TIMEOUT_SECONDS = 120;
+  public static final String DATASTORE_SUPPORTED_DOC_URL = "https://cloud.google.com/datastore/docs/concepts/errors";
 
   /**
    * Load a service account from the local file system.
