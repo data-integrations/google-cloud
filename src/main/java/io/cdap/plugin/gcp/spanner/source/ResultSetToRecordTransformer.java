@@ -22,8 +22,10 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Type;
 import io.cdap.cdap.api.data.format.StructuredRecord;
-import io.cdap.cdap.api.data.format.UnexpectedFormatException;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.api.exception.ErrorCategory;
+import io.cdap.cdap.api.exception.ErrorType;
+import io.cdap.cdap.api.exception.ErrorUtils;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -105,10 +107,10 @@ public class ResultSetToRecordTransformer {
       try {
         LocalDateTime.parse(value);
       } catch (DateTimeParseException exception) {
-        throw new UnexpectedFormatException(
-          String
-            .format("Datetime field '%s' with value '%s' is not in ISO-8601 format.", fieldName, value.toString()),
-          exception);
+        String errorMessage = String.format("Datetime field '%s' with value '%s' is not in ISO-8601 format.", fieldName,
+                                            value.toString());
+        throw ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN),
+                                                    errorMessage, errorMessage, ErrorType.USER, false, exception);
       }
     }
   }
@@ -178,8 +180,10 @@ public class ResultSetToRecordTransformer {
       long micros = TimeUnit.SECONDS.toMicros(instant.getEpochSecond());
       return Math.addExact(micros, TimeUnit.NANOSECONDS.toMicros(instant.getNano()));
     } catch (ArithmeticException e) {
-      throw new UnexpectedFormatException(String.format("Field %s was set to a %s that is too large.", fieldName,
-                                                        logicalType.getToken()));
+      String errorMessage = String.format("Field %s was set to a %s that is too large.", fieldName,
+                                                        logicalType.getToken());
+      throw ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN),
+                                                  errorMessage, errorMessage, ErrorType.USER, false, e);
     }
   }
 }

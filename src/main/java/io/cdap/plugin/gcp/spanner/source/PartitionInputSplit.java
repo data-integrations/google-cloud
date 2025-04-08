@@ -17,6 +17,9 @@
 package io.cdap.plugin.gcp.spanner.source;
 
 import com.google.cloud.spanner.Partition;
+import io.cdap.cdap.api.exception.ErrorCategory;
+import io.cdap.cdap.api.exception.ErrorType;
+import io.cdap.cdap.api.exception.ErrorUtils;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.slf4j.Logger;
@@ -81,7 +84,9 @@ public class PartitionInputSplit extends InputSplit implements Writable {
          ObjectInputStream objectInputStream = new ObjectInputStream(byteArrayInputStream)) {
       partition = (Partition) objectInputStream.readObject();
     } catch (ClassNotFoundException cfe) {
-      throw new IOException("Exception while trying to deserialize object ", cfe);
+      String errorMessage = String.format("Exception while trying to deserialize object: %s.", cfe);
+      throw ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN),
+                                                  errorMessage, errorMessage, ErrorType.SYSTEM, false, null);
     }
   }
 

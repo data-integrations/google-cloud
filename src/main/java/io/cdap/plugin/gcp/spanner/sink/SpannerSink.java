@@ -39,6 +39,7 @@ import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
 import io.cdap.cdap.etl.api.connector.Connector;
+import io.cdap.cdap.etl.api.exception.ErrorDetailsProviderSpec;
 import io.cdap.plugin.common.Asset;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.common.ReferenceBatchSink;
@@ -46,6 +47,7 @@ import io.cdap.plugin.common.ReferenceNames;
 import io.cdap.plugin.common.batch.sink.SinkOutputFormatProvider;
 import io.cdap.plugin.gcp.common.CmekUtils;
 import io.cdap.plugin.gcp.spanner.SpannerConstants;
+import io.cdap.plugin.gcp.spanner.common.SpannerErrorDetailsProvider;
 import io.cdap.plugin.gcp.spanner.common.SpannerUtil;
 import io.cdap.plugin.gcp.spanner.connector.SpannerConnector;
 import org.apache.hadoop.conf.Configuration;
@@ -132,6 +134,9 @@ public final class SpannerSink extends BatchSink<StructuredRecord, NullWritable,
         .build();
     LineageRecorder lineageRecorder = new LineageRecorder(context, asset);
     lineageRecorder.createExternalDataset(schema);
+
+    // set error details provider
+    context.setErrorDetailsProvider(new ErrorDetailsProviderSpec(SpannerErrorDetailsProvider.class.getName()));
 
     SpannerOutputFormat.configure(configuration, config, schema);
     context.addOutput(Output.of(referenceName,
