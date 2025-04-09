@@ -37,25 +37,25 @@ import java.util.Map;
 public class SpannerErrorDetailsProvider extends GCPErrorDetailsProvider {
   private static final String ERROR_MESSAGE_FORMAT = "Error occurred in the phase: '%s'. Error message: %s";
 
-  static Map<ErrorCode, ErrorUtils.ActionErrorPair> actionErrorMap = new HashMap<>();
+  static Map<ErrorCode, Integer> actionErrorMap = new HashMap<>();
 
   static {
-    actionErrorMap.put(ErrorCode.CANCELLED, ErrorUtils.getActionErrorByStatusCode(499));
-    actionErrorMap.put(ErrorCode.UNKNOWN, ErrorUtils.getActionErrorByStatusCode(500));
-    actionErrorMap.put(ErrorCode.INVALID_ARGUMENT, ErrorUtils.getActionErrorByStatusCode(400));
-    actionErrorMap.put(ErrorCode.DEADLINE_EXCEEDED, ErrorUtils.getActionErrorByStatusCode(504));
-    actionErrorMap.put(ErrorCode.NOT_FOUND, ErrorUtils.getActionErrorByStatusCode(404));
-    actionErrorMap.put(ErrorCode.ALREADY_EXISTS, ErrorUtils.getActionErrorByStatusCode(409));
-    actionErrorMap.put(ErrorCode.PERMISSION_DENIED, ErrorUtils.getActionErrorByStatusCode(403));
-    actionErrorMap.put(ErrorCode.UNAUTHENTICATED, ErrorUtils.getActionErrorByStatusCode(401));
-    actionErrorMap.put(ErrorCode.RESOURCE_EXHAUSTED, ErrorUtils.getActionErrorByStatusCode(429));
-    actionErrorMap.put(ErrorCode.FAILED_PRECONDITION, ErrorUtils.getActionErrorByStatusCode(400));
-    actionErrorMap.put(ErrorCode.ABORTED, ErrorUtils.getActionErrorByStatusCode(409));
-    actionErrorMap.put(ErrorCode.OUT_OF_RANGE, ErrorUtils.getActionErrorByStatusCode(400));
-    actionErrorMap.put(ErrorCode.UNIMPLEMENTED, ErrorUtils.getActionErrorByStatusCode(501));
-    actionErrorMap.put(ErrorCode.INTERNAL, ErrorUtils.getActionErrorByStatusCode(500));
-    actionErrorMap.put(ErrorCode.UNAVAILABLE, ErrorUtils.getActionErrorByStatusCode(503));
-    actionErrorMap.put(ErrorCode.DATA_LOSS, ErrorUtils.getActionErrorByStatusCode(500));
+    actionErrorMap.put(ErrorCode.CANCELLED, 499);
+    actionErrorMap.put(ErrorCode.UNKNOWN, 500);
+    actionErrorMap.put(ErrorCode.INVALID_ARGUMENT, 400);
+    actionErrorMap.put(ErrorCode.DEADLINE_EXCEEDED, 504);
+    actionErrorMap.put(ErrorCode.NOT_FOUND, 404);
+    actionErrorMap.put(ErrorCode.ALREADY_EXISTS, 409);
+    actionErrorMap.put(ErrorCode.PERMISSION_DENIED, 403);
+    actionErrorMap.put(ErrorCode.UNAUTHENTICATED, 401);
+    actionErrorMap.put(ErrorCode.RESOURCE_EXHAUSTED, 429);
+    actionErrorMap.put(ErrorCode.FAILED_PRECONDITION, 400);
+    actionErrorMap.put(ErrorCode.ABORTED, 409);
+    actionErrorMap.put(ErrorCode.OUT_OF_RANGE, 400);
+    actionErrorMap.put(ErrorCode.UNIMPLEMENTED, 501);
+    actionErrorMap.put(ErrorCode.INTERNAL, 500);
+    actionErrorMap.put(ErrorCode.UNAVAILABLE, 503);
+    actionErrorMap.put(ErrorCode.DATA_LOSS, 500);
   }
 
   @Override
@@ -79,23 +79,23 @@ public class SpannerErrorDetailsProvider extends GCPErrorDetailsProvider {
   }
 
   private ProgramFailureException getProgramFailureExceptionFromSpannerException(SpannerException se) {
-    String errorCodeName = se.getErrorCode().name();
+    int httpStatusCode = actionErrorMap.get(se.getErrorCode());
     ErrorUtils.ActionErrorPair actionErrorPair = null;
     String errorReason = se.getReason();
     String errorMessage = se.getMessage();
     if (actionErrorMap.containsKey(se.getErrorCode())) {
-      actionErrorPair = actionErrorMap.get(se.getErrorCode());
-      errorReason = String.format("%s %s. %s", errorCodeName, errorMessage, actionErrorPair.getCorrectiveAction());
+      actionErrorPair = ErrorUtils.getActionErrorByStatusCode(httpStatusCode);
+      errorReason = String.format("%s %s. %s", httpStatusCode, errorMessage, actionErrorPair.getCorrectiveAction());
     }
     if (!errorReason.endsWith(".")) {
       errorReason = errorReason + ".";
     }
     errorReason = String.format("%s For more details, see %s.", errorReason, GCPUtils.SPANNER_SUPPORTED_DOC_URL);
 
-    String errorMessageWithCode = String.format("[ErrorCode='%s'] %s", errorCodeName, errorMessage);
+    String errorMessageWithCode = String.format("[ErrorCode='%s'] %s", httpStatusCode, errorMessage);
     return ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN),
-    errorReason, String.format("%s: %s", se.getClass().getName(), errorMessageWithCode),
-    actionErrorPair != null ? actionErrorPair.getErrorType() : ErrorType.UNKNOWN, true, ErrorCodeType.HTTP,
-    errorCodeName, GCPUtils.SPANNER_SUPPORTED_DOC_URL, se);
+     errorReason, String.format("%s: %s", se.getClass().getName(), errorMessageWithCode),
+     actionErrorPair != null ? actionErrorPair.getErrorType() : ErrorType.UNKNOWN, true, ErrorCodeType.HTTP,
+     String.valueOf(httpStatusCode), GCPUtils.SPANNER_SUPPORTED_DOC_URL, se);
   }
 }
