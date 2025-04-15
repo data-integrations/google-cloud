@@ -1,0 +1,7 @@
+name: Trigger build
+on: pull_request
+jobs:
+  whatever:
+    runs-on: ubuntu-latest
+    steps:
+      - run: exit 0
