@@ -17,6 +17,7 @@
 package io.cdap.plugin.gcp.gcs.source;
 
 import com.google.auth.Credentials;
+import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
 import com.google.common.base.Strings;
@@ -55,6 +56,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
@@ -122,7 +124,16 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
     String location = null;
     try {
       // Get location of the source for lineage
-      location = storage.get(bucketName).getLocation();
+      Bucket bucket = storage.get(bucketName);
+      if (Objects.isNull(bucket)) {
+        String errorReason = String.format("Unable to access GCS bucket '%s'.",
+            bucketName);
+        collector.addFailure(
+            String.format("%s Ensure you entered the correct bucket path.", errorReason),
+            null);
+        collector.getOrThrowException();
+      }
+      location = bucket.getLocation();
     } catch (StorageException e) {
       String errorReason = String.format("Error code: %s, Unable to access GCS bucket '%s'. ",
         e.getCode(), bucketName);
