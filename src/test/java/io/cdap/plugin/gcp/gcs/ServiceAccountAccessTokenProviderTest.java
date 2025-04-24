@@ -17,6 +17,7 @@
 package io.cdap.plugin.gcp.gcs;
 
 import com.google.api.client.auth.oauth2.Credential;
+import com.google.auth.oauth2.AccessToken;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration;
 import com.google.cloud.hadoop.util.AccessTokenProvider;
 import com.google.cloud.hadoop.util.CredentialFactory;
@@ -24,11 +25,15 @@ import com.google.cloud.hadoop.util.CredentialFromAccessTokenProviderClassFactor
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
 import com.google.common.collect.ImmutableList;
 import io.cdap.plugin.gcp.common.GCPUtils;
+import io.cdap.plugin.gcp.common.ServerErrorException;
 import org.apache.hadoop.conf.Configuration;
-import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
 import org.junit.Test;
+import org.mockito.Mockito;
+
 import java.io.IOException;
+import java.time.Instant;
+import java.util.Date;
 import java.util.Map;
 
 /**
@@ -70,5 +75,69 @@ public class ServiceAccountAccessTokenProviderTest {
         CredentialFactory.DEFAULT_SCOPES
     );
     Assert.assertNotNull(credential);
+  }
+
+  @Test
+  public void testIsServerErrorWith5xx() {
+    IOException serverError = new IOException(
+      "Unexpected Error code 500 trying to get security access token from Compute Engine metadata for the default " +
+        "service account.");
+    Assert.assertTrue(ServiceAccountAccessTokenProvider.isServerError(serverError));
+  }
+
+  @Test
+  public void testIsServerErrorWithNon5xxErrorCode400() {
+    IOException clientError = new IOException(
+      "Unexpected Error code 400 trying to get security access token from Compute Engine metadata for the default " +
+        "service account.");
+    Assert.assertFalse(ServiceAccountAccessTokenProvider.isServerError(clientError));
+  }
+
+  @Test
+  public void testIsServerErrorWithNon5xxErrorCode403() {
+    IOException forbiddenError = new IOException(
+      "Unexpected Error code 403 trying to get security access token from Compute Engine metadata for the default " +
+        "service account.");
+    Assert.assertFalse(ServiceAccountAccessTokenProvider.isServerError(forbiddenError));
+  }
+
+  @Test
+  public void testIsServerErrorWith5xxErrorCode503() {
+    IOException serverError = new IOException(
+      "Unexpected Error code 503 trying to get security access token from Compute Engine metadata for the default " +
+        "service account.");
+    Assert.assertTrue(ServiceAccountAccessTokenProvider.isServerError(serverError));
+  }
+
+  @Test(expected = ServerErrorException.class)
+  public void testRetryMechanismFailsAfterMaxRetries() throws IOException {
+    ServiceAccountAccessTokenProvider provider = Mockito.spy(new ServiceAccountAccessTokenProvider());
+    Mockito.doThrow(new ServerErrorException(503, "Unexpected Error code 503 trying to get security access token " +
+        "from Compute Engine metadata for the default service account.", null))
+      .when(provider).retrieveAccessToken();
+    provider.getAccessToken();
+  }
+
+  @Test
+  public void testRetryMechanismSucceedsAfterFewRetries() throws IOException {
+    ServiceAccountAccessTokenProvider provider = Mockito.spy(new ServiceAccountAccessTokenProvider());
+
+    // Create a valid token with future expiration
+    AccessToken validToken = new AccessToken("valid-token", Date.from(Instant.now().plusSeconds(3600)));
+
+    // Fail first 2 attempts, then succeed
+    Mockito.doThrow(new ServerErrorException(503, "Unexpected Error code 503 trying to get security access token " +
+        "from Compute Engine metadata for the default service account.", null))
+           .doThrow(new ServerErrorException(500, "Unexpected Error code 500 trying to get security access token " +
+        "from Compute Engine metadata for the default service account.", null))
+      .doReturn(validToken)
+      .when(provider).retrieveAccessToken();
+    AccessTokenProvider.AccessToken accessToken = provider.getAccessToken();
+
+    Assert.assertNotNull(accessToken);
+    Assert.assertEquals("valid-token", accessToken.getToken());
+
+    // Verify that retrieveAccessToken was called 3 times (2 failures + 1 success)
+    Mockito.verify(provider, Mockito.times(3)).retrieveAccessToken();
   }
 }
