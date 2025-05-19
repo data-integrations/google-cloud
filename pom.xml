@@ -102,9 +102,7 @@
 
     <!--FC related properties-->
     <artifactregistry-maven-wagon.version>2.2.0</artifactregistry-maven-wagon.version>
-    <version.cloud-metadata-provider>0.0.20-SNAPSHOT</version.cloud-metadata-provider>
-    <version.cloud-metadata-common>0.0.20-SNAPSHOT</version.cloud-metadata-common>
-    <version.cloud-data-plugins-common>0.0.3-SNAPSHOT</version.cloud-data-plugins-common>
+    <version.cloud-data-plugins-common>0.0.6-SNAPSHOT</version.cloud-data-plugins-common>
     <apache.avro.version>1.11.3</apache.avro.version>
     <version.commons-lang3>3.17.0</version.commons-lang3>
   </properties>
@@ -781,16 +779,6 @@
     </dependency>
     <!-- End: dependency used by the Dataplex connector -->
     <!-- Start: FC related dependencies -->
-    <dependency>
-      <groupId>ai.festcloud</groupId>
-      <artifactId>cloud-metadata-provider</artifactId>
-      <version>${version.cloud-metadata-provider}</version>
-    </dependency>
-    <dependency>
-      <groupId>ai.festcloud</groupId>
-      <artifactId>cloud-metadata-model</artifactId>
-      <version>${version.cloud-metadata-common}</version>
-    </dependency>
     <dependency>
       <groupId>org.apache.avro</groupId>
       <artifactId>avro</artifactId>

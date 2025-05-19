@@ -103,6 +103,15 @@
           "name": "fullyQualifiedEntityName"
         },
         {
+          "widget-type": "textbox",
+          "label": "Manifest version",
+          "name": "manifestVersion",
+          "widget-attributes": {
+            "placeholder": "Manifest version of metadata",
+            "default" : "1"
+          }
+        },
+        {
           "name": "fcidRequired",
           "label": "Is FestCloudID required",
           "widget-type": "toggle",
