@@ -25,6 +25,7 @@ public class MdmIntegrityBigQueryTransformerConfig extends PluginConfig {
   public static final String MAPPING = "mapping";
   public static final String FULLY_QUALIFIED_ENTITY_NAME = "fullyQualifiedEntityName";
   public static final String SCHEMA = "schema";
+  public static final String MANIFEST_VERSION = "manifestVersion";
 
 
   @Name(ConfigUtil.NAME_CONNECTION)
@@ -45,9 +46,14 @@ public class MdmIntegrityBigQueryTransformerConfig extends PluginConfig {
   private final String mapping;
 
   @Name(FULLY_QUALIFIED_ENTITY_NAME)
-  @Description("Metadata server url")
+  @Description("Entity name with namespace")
   @Macro
   private final String fullyQualifiedEntityName;
+
+  @Name(MANIFEST_VERSION)
+  @Description("Metadata manifest version")
+  @Macro
+  private final String manifestVersion;
 
   @Name("fcidRequired")
   @Description("Indicates whether FestCloudID is required. "
@@ -64,12 +70,13 @@ public class MdmIntegrityBigQueryTransformerConfig extends PluginConfig {
 
   public MdmIntegrityBigQueryTransformerConfig(BigQueryConnectorConfig connection,
                                                Boolean useConnection, String mapping,
-                                               String fullyQualifiedEntityName,
+                                               String fullyQualifiedEntityName, String manifestVersion,
                                                Boolean fcidRequired, String schema) {
     this.connection = connection;
     this.useConnection = useConnection;
     this.mapping = mapping;
     this.fullyQualifiedEntityName = fullyQualifiedEntityName;
+    this.manifestVersion = manifestVersion;
     this.fcidRequired = fcidRequired;
     this.schema = schema;
   }
@@ -123,6 +130,10 @@ public class MdmIntegrityBigQueryTransformerConfig extends PluginConfig {
 
   public String getFullyQualifiedEntityName() {
     return fullyQualifiedEntityName;
+  }
+
+  public String getManifestVersion() {
+    return manifestVersion;
   }
 
   public Boolean getFcidRequired() {

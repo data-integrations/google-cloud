@@ -64,8 +64,8 @@ public class MdmIntegrityBigQueryTransformer extends Transform<StructuredRecord,
 
     FailureCollector failureCollector = context.getFailureCollector();
     outputSchema = config.getSchema(failureCollector);
-    String metadataFrameworkHost = context.getArguments().get(MetadataUtils.METADATA_FRAMEWORK_HOST);
-    entities = MetadataUtils.getTypeRecordByParams(metadataFrameworkHost);
+    String schemaRegistryHost = context.getArguments().get(MetadataUtils.SCHEMA_REGISTRY_HOST);
+    entities = MetadataUtils.getTypeRecordsByManifest(schemaRegistryHost, config.getManifestVersion());
     config.validate(failureCollector, entities, context.getInputSchema());
 
     MappingParsingService mappingParsingService
