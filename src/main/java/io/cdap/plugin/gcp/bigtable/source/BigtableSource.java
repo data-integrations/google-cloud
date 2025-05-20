@@ -25,6 +25,9 @@ import io.cdap.cdap.api.data.batch.Input;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
+import io.cdap.cdap.api.exception.ErrorCategory;
+import io.cdap.cdap.api.exception.ErrorType;
+import io.cdap.cdap.api.exception.ErrorUtils;
 import io.cdap.cdap.etl.api.Emitter;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
@@ -32,9 +35,11 @@ import io.cdap.cdap.etl.api.StageConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
+import io.cdap.cdap.etl.api.exception.ErrorDetailsProviderSpec;
 import io.cdap.plugin.common.ConfigUtil;
 import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.common.SourceInputFormatProvider;
+import io.cdap.plugin.gcp.bigtable.common.BigtableErrorDetailsProvider;
 import io.cdap.plugin.gcp.bigtable.common.HBaseColumn;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -121,6 +126,8 @@ public final class BigtableSource extends BatchSource<ImmutableBytesWritable, Re
     // Both emitLineage and setOutputFormat internally try to create an external dataset if it does not already exists.
     // We call emitLineage before since it creates the dataset with schema.
     emitLineage(context, configuredSchema);
+    // set error details provider
+    context.setErrorDetailsProvider(new ErrorDetailsProviderSpec(BigtableErrorDetailsProvider.class.getName()));
     context.setInput(Input.of(config.referenceName, new SourceInputFormatProvider(BigtableInputFormat.class, conf)));
   }
 
@@ -149,7 +156,9 @@ public final class BigtableSource extends BatchSource<ImmutableBytesWritable, Re
           LOG.warn("Failed to process message, skipping it", e);
           break;
         case FAIL_PIPELINE:
-          throw new RuntimeException("Failed to process message", e);
+          String error = String.format("Failed to process message: %s", e.getMessage());
+          throw ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN),
+            error, error, ErrorType.USER, false, e);
         default:
           // this should never happen because it is validated at configure and prepare time
           throw new IllegalStateException(String.format("Unknown error handling strategy '%s'",
