@@ -34,8 +34,10 @@ import io.cdap.cdap.etl.api.StageConfigurer;
 import io.cdap.cdap.etl.api.batch.BatchRuntimeContext;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
+import io.cdap.cdap.etl.api.exception.ErrorDetailsProviderSpec;
 import io.cdap.plugin.common.ConfigUtil;
 import io.cdap.plugin.common.LineageRecorder;
+import io.cdap.plugin.gcp.bigtable.common.BigtableErrorDetailsProvider;
 import io.cdap.plugin.gcp.bigtable.common.HBaseColumn;
 import io.cdap.plugin.gcp.common.SourceOutputFormatProvider;
 import org.apache.hadoop.conf.Configuration;
@@ -139,6 +141,8 @@ public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableByt
     // Both emitLineage and setOutputFormat internally try to create an external dataset if it does not already exists.
     // We call emitLineage before since it creates the dataset with schema.
     emitLineage(context);
+    // set error details provider
+    context.setErrorDetailsProvider(new ErrorDetailsProviderSpec(BigtableErrorDetailsProvider.class.getName()));
     context.addOutput(Output.of(config.getReferenceName(),
                                 new SourceOutputFormatProvider(BigtableOutputFormat.class, conf)));
   }

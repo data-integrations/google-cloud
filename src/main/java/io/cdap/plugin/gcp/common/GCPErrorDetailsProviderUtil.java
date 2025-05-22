@@ -22,6 +22,7 @@ import com.google.api.client.http.HttpResponseException;
 import com.google.api.gax.rpc.ApiException;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableMap;
 import io.cdap.cdap.api.exception.ErrorCategory;
 import io.cdap.cdap.api.exception.ErrorCodeType;
 import io.cdap.cdap.api.exception.ErrorType;
@@ -30,13 +31,35 @@ import io.cdap.cdap.api.exception.ProgramFailureException;
 import io.cdap.cdap.etl.api.exception.ErrorContext;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import javax.annotation.Nullable;
 
 /**
  * Common functions for GCP error details provider related functionalities.
  */
 public final class GCPErrorDetailsProviderUtil {
+
+  // https://github.com/grpc/grpc/blob/master/doc/statuscodes.md
+  public static final Map<Integer, Integer> GCP_GRPC_ERROR_CODE_HTTP_STATUS_CODE_MAP = Collections.unmodifiableMap(
+      new HashMap<Integer, Integer>() {{
+        put(3, 400); // INVALID_ARGUMENT <--> HTTP 400 (Bad Request)
+        put(4, 504); // DEADLINE_EXCEEDED <--> HTTP 504 (Gateway Timeout)
+        put(5, 404); // NOT_FOUND <--> HTTP 404 (Not Found)
+        put(6, 409); // ALREADY_EXISTS <--> HTTP 409 (Conflict)
+        put(7, 403); // PERMISSION_DENIED <--> HTTP 403 (Forbidden)
+        put(8, 429); // RESOURCE_EXHAUSTED <--> HTTP 429 (Too Many Requests)
+        put(9, 400); // FAILED_PRECONDITION <--> HTTP 400 (Bad Request)
+        put(10, 409); // ABORTED <--> HTTP 409 (Conflict)
+        put(11, 400); // OUT_OF_RANGE <--> HTTP 400 (Bad Request)
+        put(12, 501); // UNIMPLEMENTED <--> HTTP 501 (Not Implemented)
+        put(13, 500); // INTERNAL <--> HTTP 500 (Internal Server Error)
+        put(14, 503); // UNAVAILABLE <--> HTTP 503 (Service Unavailable)
+        put(15, 500); // DATA_LOSS <--> HTTP 500 (Internal Server Error)
+        put(16, 401); // UNAUTHENTICATED <--> HTTP 401 (Unauthorized)
+      }});
 
   /**
    * Get a ProgramFailureException with the given error
@@ -129,5 +152,40 @@ public final class GCPErrorDetailsProviderUtil {
       }
     }
     return exception.getMessage();
+  }
+
+
+  /**
+   * Get the HTTP status code for a given gRPC error code.
+   *
+   * @param grpcStatusCode the int value of the gRPC error code
+   */
+  public static ErrorUtils.ActionErrorPair getActionErrorByGrpcStatusCode(int grpcStatusCode) {
+    if (!GCP_GRPC_ERROR_CODE_HTTP_STATUS_CODE_MAP.containsKey(grpcStatusCode)) {
+      return null;
+    }
+    return ErrorUtils.getActionErrorByStatusCode(GCP_GRPC_ERROR_CODE_HTTP_STATUS_CODE_MAP.get(grpcStatusCode));
+  }
+
+  public static ProgramFailureException getProgramFailureExceptionByGrpcStatusCode(int grpcErrorCodeValue,
+      String grpcErrorReason, String grpcErrorMessage, String supportedDocUrl, Exception se) {
+    int httpStatusCode = GCPErrorDetailsProviderUtil.GCP_GRPC_ERROR_CODE_HTTP_STATUS_CODE_MAP.
+      getOrDefault(grpcErrorCodeValue, 500);
+    ErrorUtils.ActionErrorPair actionErrorPair = GCPErrorDetailsProviderUtil.getActionErrorByGrpcStatusCode(
+        grpcErrorCodeValue);
+    String errorReason = grpcErrorReason;
+    if (actionErrorPair != null) {
+      errorReason = String.format("%s %s. %s", httpStatusCode, grpcErrorMessage, actionErrorPair.getCorrectiveAction());
+    }
+    if (!errorReason.endsWith(".")) {
+      errorReason = errorReason + ".";
+    }
+    errorReason = String.format("%s For more details, see %s.", errorReason, supportedDocUrl);
+
+    String errorMessageWithCode = String.format("[ErrorCode='%s'] %s", httpStatusCode, grpcErrorMessage);
+    return ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN), errorReason,
+        String.format("%s: %s", se.getClass().getName(), errorMessageWithCode),
+        actionErrorPair != null ? actionErrorPair.getErrorType() : ErrorType.UNKNOWN, true, ErrorCodeType.HTTP,
+        String.valueOf(httpStatusCode), supportedDocUrl, se);
   }
 }
