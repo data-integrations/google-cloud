@@ -33,6 +33,7 @@ import com.google.cloud.storage.BucketInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
+import com.google.common.collect.ImmutableMap;
 import com.google.gson.reflect.TypeToken;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 import io.cdap.plugin.gcp.gcs.ServiceAccountAccessTokenProvider;
@@ -284,8 +285,12 @@ public class GCPUtils {
     if (cmekKeyName != null) {
       builder.setDefaultKmsKeyName(cmekKeyName.toString());
     }
+    // Add label to indicate bucket is created by cdap
+    builder.setLabels(
+        new ImmutableMap.Builder<String, String>().put("created_by", "cdap").build());
     storage.create(builder.build());
   }
+
   /**
    * Formats a string as a component of a Fully-Qualified Name (FQN).
    *

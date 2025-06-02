@@ -82,14 +82,19 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
   @Override
   public final void prepareRun(BatchSinkContext context) throws Exception {
     prepareRunValidation(context);
-
+    FailureCollector collector = context.getFailureCollector();
+    Credentials credentials = null;
     AbstractBigQuerySinkConfig config = getConfig();
-    String serviceAccount = config.getServiceAccount();
-    Credentials credentials = serviceAccount == null ?
-      null : GCPUtils.loadServiceAccountCredentials(serviceAccount, config.isServiceAccountFilePath());
+    try {
+      credentials = BigQuerySinkUtils.getCredentials(config.getConnection());
+    } catch (Exception e) {
+      String errorReason = "Unable to load service account credentials: ";
+      collector.addFailure(String.format("%s %s", errorReason, e.getMessage()), null)
+          .withStacktrace(e.getStackTrace());
+      collector.getOrThrowException();
+    }
     String project = config.getProject();
     bigQuery = GCPUtils.getBigQuery(project, credentials);
-    FailureCollector collector = context.getFailureCollector();
     CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(config.cmekKey, context.getArguments().asMap(), collector);
     collector.getOrThrowException();
     baseConfiguration = getBaseConfiguration(cmekKeyName);
@@ -121,17 +126,13 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
 
   @Override
   public void onRunFinish(boolean succeeded, BatchSinkContext context) {
-    String gcsPath;
-    String bucket = getConfig().getBucket();
-    if (bucket == null) {
-      gcsPath = String.format("gs://%s", runUUID.toString());
-    } else {
-      gcsPath = String.format(gcsPathFormat, bucket, runUUID.toString());
-    }
     try {
-      BigQueryUtil.deleteTemporaryDirectory(baseConfiguration, gcsPath);
+      Credentials credentials = BigQuerySinkUtils.getCredentials(getConfig().getConnection());
+      Storage storage = GCPUtils.getStorage(getConfig().getProject(), credentials);
+      BigQuerySinkUtils.cleanupGcsBucket(baseConfiguration, runUUID.toString(),
+          getConfig().getBucket(), storage);
     } catch (IOException e) {
-      LOG.warn("Failed to delete temporary directory '{}': {}", gcsPath, e.getMessage());
+      LOG.warn("Failed to load service account credentials: {}", e.getMessage(), e);
     }
   }
 
