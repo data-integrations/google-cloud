@@ -31,12 +31,10 @@ import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
 import io.cdap.cdap.api.exception.ErrorType;
-import io.cdap.cdap.api.exception.ProgramFailureException;
 import io.cdap.cdap.etl.api.Emitter;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
-import io.cdap.cdap.etl.api.exception.ErrorContext;
 import io.cdap.cdap.etl.api.exception.ErrorDetailsProviderSpec;
 import io.cdap.plugin.common.Asset;
 import io.cdap.plugin.gcp.bigquery.common.BigQueryErrorDetailsProvider;
@@ -88,13 +86,18 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
   @Override
   public final void prepareRun(BatchSinkContext context) throws Exception {
     prepareRunValidation(context);
-
-    AbstractBigQuerySinkConfig config = getConfig();
-    String serviceAccount = config.getServiceAccount();
-    Credentials credentials = serviceAccount == null ?
-      null : GCPUtils.loadServiceAccountCredentials(serviceAccount, config.isServiceAccountFilePath());
-    String project = config.getProject();
     FailureCollector collector = context.getFailureCollector();
+    Credentials credentials = null;
+    AbstractBigQuerySinkConfig config = getConfig();
+    try {
+      credentials = BigQuerySinkUtils.getCredentials(config.getConnection());
+    } catch (Exception e) {
+      String errorReason = "Unable to load service account credentials: ";
+      collector.addFailure(String.format("%s %s", errorReason, e.getMessage()), null)
+          .withStacktrace(e.getStackTrace());
+      collector.getOrThrowException();
+    }
+    String project = config.getProject();
     CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(config.cmekKey, context.getArguments().asMap(), collector);
     collector.getOrThrowException();
     baseConfiguration = getBaseConfiguration(cmekKeyName);
@@ -143,17 +146,13 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
 
   @Override
   public void onRunFinish(boolean succeeded, BatchSinkContext context) {
-    String gcsPath;
-    String bucket = getConfig().getBucket();
-    if (bucket == null) {
-      gcsPath = String.format("gs://%s", runUUID);
-    } else {
-      gcsPath = String.format(gcsPathFormat, bucket, runUUID);
-    }
     try {
-      BigQueryUtil.deleteTemporaryDirectory(baseConfiguration, gcsPath);
+      Credentials credentials = BigQuerySinkUtils.getCredentials(getConfig().getConnection());
+      Storage storage = GCPUtils.getStorage(getConfig().getProject(), credentials);
+      BigQuerySinkUtils.cleanupGcsBucket(baseConfiguration, runUUID.toString(),
+          getConfig().getBucket(), storage);
     } catch (IOException e) {
-      LOG.warn("Failed to delete temporary directory '{}': {}", gcsPath, e.getMessage());
+      LOG.warn("Failed to load service account credentials: {}", e.getMessage(), e);
     }
   }
 
