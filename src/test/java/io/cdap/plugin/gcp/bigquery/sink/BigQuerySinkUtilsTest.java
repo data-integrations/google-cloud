@@ -48,7 +48,8 @@ public class BigQuerySinkUtilsTest {
     BigQuerySinkUtils.configureBucket(configuration, null, "some-run-id");
 
     Assert.assertTrue(configuration.getBoolean("fs.gs.bucket.delete.enable", false));
-    Assert.assertEquals("gs://some-run-id/some-run-id", configuration.get("fs.default.name"));
+    Assert.assertEquals("gs://bq-sink-bucket-some-run-id/some-run-id",
+        configuration.get("fs.default.name"));
     Assert.assertTrue(configuration.getBoolean("fs.gs.impl.disable.cache", false));
     Assert.assertFalse(configuration.getBoolean("fs.gs.metadata.cache.enable", true));
   }

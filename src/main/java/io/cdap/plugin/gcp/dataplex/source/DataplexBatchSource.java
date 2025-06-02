@@ -379,9 +379,10 @@ public class DataplexBatchSource extends BatchSource<Object, Object, StructuredR
   @Override
   public void onRunFinish(boolean succeeded, BatchSourceContext context) {
     if (entity.getSystem().equals(StorageSystem.BIGQUERY)) {
-      BigQuerySourceUtils.deleteGcsTemporaryDirectory(configuration, null, bucketPath);
       String temporaryTable = configuration.get(CONFIG_TEMPORARY_TABLE_NAME);
       Credentials credentials = config.getCredentials(context.getFailureCollector());
+      Storage storage = GCPUtils.getStorage(config.getProject(), credentials);
+      BigQuerySourceUtils.cleanupGcsBucket(configuration, bucketPath, null, storage);
       BigQuery bigQuery = GCPUtils.getBigQuery(config.getProject(), credentials, null);
       bigQuery.delete(TableId.of(datasetProject, dataset, temporaryTable));
       LOG.debug("Deleted temporary table '{}'", temporaryTable);
