@@ -81,8 +81,6 @@ import io.cdap.plugin.gcp.gcs.GCSPath;
 import io.cdap.plugin.gcp.gcs.StorageClient;
 import io.cdap.plugin.gcp.gcs.sink.GCSBatchSink;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.slf4j.Logger;
@@ -249,16 +247,18 @@ public final class DataplexBatchSink extends BatchSink<StructuredRecord, Object,
       return;
     }
 
-    Path gcsPath = new Path(DataplexConstants.STORAGE_BUCKET_PATH_PREFIX + runUUID);
     try {
-      FileSystem fs = gcsPath.getFileSystem(baseConfiguration);
-      if (fs.exists(gcsPath)) {
-        fs.delete(gcsPath, true);
-        LOG.debug("Deleted temporary directory '{}'", gcsPath);
-      }
-      emitMetricsForBigQueryDataset(succeeded, context);
+      String serviceAccount = config.getServiceAccount();
+      Credentials credentials = serviceAccount == null ? null
+          : GCPUtils.loadServiceAccountCredentials(serviceAccount,
+          config.isServiceAccountFilePath());
+      Storage storage = GCPUtils.getStorage(config.getProject(), credentials);
+      BigQuerySinkUtils.cleanupGcsBucket(baseConfiguration, runUUID.toString(), null, storage);
     } catch (IOException e) {
-      LOG.warn("Failed to delete temporary directory '{}': {}", gcsPath, e.getMessage());
+      LOG.warn("Failed to load service account credentials: {}", e.getMessage(), e);
+    }
+    try {
+      emitMetricsForBigQueryDataset(succeeded, context);
     } catch (Exception exception) {
       LOG.warn("Exception while trying to emit metric. No metric will be emitted for the number of affected rows.",
         exception);
