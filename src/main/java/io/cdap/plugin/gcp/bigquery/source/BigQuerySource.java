@@ -68,6 +68,7 @@ import org.apache.hadoop.io.LongWritable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.util.List;
@@ -143,7 +144,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     try {
       credentials = BigQuerySourceUtils.getCredentials(config.getConnection());
     } catch (Exception e) {
-      String errorReason = "Unable to load service account credentials.";
+      String errorReason = "Unable to load service account credentials: ";
       collector.addFailure(String.format("%s %s", errorReason, e.getMessage()), null)
         .withStacktrace(e.getStackTrace());
       collector.getOrThrowException();
@@ -178,7 +179,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
                                                           dataset, config.getBucket());
 
     // Configure GCS Bucket to use
-    Storage storage =  GCPUtils.getStorage(config.getProject(), credentials);;
+    Storage storage =  GCPUtils.getStorage(config.getProject(), credentials);
     String bucket = BigQuerySourceUtils.getOrCreateBucket(configuration, storage, bucketName, dataset,
         bucketPath, cmekKeyName);
 
@@ -240,7 +241,13 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
 
   @Override
   public void onRunFinish(boolean succeeded, BatchSourceContext context) {
-    BigQuerySourceUtils.deleteGcsTemporaryDirectory(configuration, config.getBucket(), bucketPath);
+    try {
+      Credentials credentials = BigQuerySourceUtils.getCredentials(config.getConnection());
+      Storage storage = GCPUtils.getStorage(config.getProject(), credentials);
+      BigQuerySourceUtils.cleanupGcsBucket(configuration, bucketPath, config.getBucket(), storage);
+    } catch (IOException e) {
+      LOG.warn("Failed to load service account credentials: {}", e.getMessage(), e);
+    }
     BigQuerySourceUtils.deleteBigQueryTemporaryTable(configuration, config);
   }
 
