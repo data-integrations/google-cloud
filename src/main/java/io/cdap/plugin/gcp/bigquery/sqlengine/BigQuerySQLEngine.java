@@ -190,18 +190,17 @@ public class BigQuerySQLEngine
   public void onRunFinish(boolean succeeded, SQLEngineContext context) {
     super.onRunFinish(succeeded, context);
 
-    String gcsPath;
     // If the bucket was created for this run, we should delete it.
     // Otherwise, just clean the directory within the provided bucket.
-    if (sqlEngineConfig.getBucket() == null) {
-      gcsPath = String.format("gs://%s", bucket);
-    } else {
-      gcsPath = String.format(BigQuerySinkUtils.GS_PATH_FORMAT, bucket, runId);
-    }
     try {
-      BigQueryUtil.deleteTemporaryDirectory(configuration, gcsPath);
+      String serviceAccount = sqlEngineConfig.getServiceAccount();
+      Credentials credentials = serviceAccount == null ?
+          null : GCPUtils.loadServiceAccountCredentials(serviceAccount,
+          sqlEngineConfig.isServiceAccountFilePath());
+      Storage storage = GCPUtils.getStorage(sqlEngineConfig.getProject(), credentials);
+      BigQuerySinkUtils.cleanupGcsBucket(configuration, runId, sqlEngineConfig.getBucket(), storage);
     } catch (IOException e) {
-      LOG.warn("Failed to delete temporary directory '{}': {}", gcsPath, e.getMessage());
+      LOG.warn("Failed to load service account credentials: {}", e.getMessage(), e);
     }
   }
 

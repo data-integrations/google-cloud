@@ -17,6 +17,7 @@
 package io.cdap.plugin.gcp.bigquery.util;
 
 import com.google.api.client.googleapis.media.MediaHttpUploader;
+import com.google.api.gax.paging.Page;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.Dataset;
@@ -30,6 +31,9 @@ import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TimePartitioning;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.kms.v1.CryptoKeyName;
+import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.BlobId;
+import com.google.cloud.storage.Storage;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
@@ -757,6 +761,26 @@ public final class BigQueryUtil {
       fs.delete(path, true);
       LOG.debug("Deleted temporary directory '{}'", path);
     }
+  }
+
+  /**
+   * Deletes the GCS bucket.
+   */
+  public static void deleteGcsBucket(Storage storage, String bucket) {
+    Page<Blob> blobs = storage.list(bucket, Storage.BlobListOption.versions(true));
+    List<BlobId> blobIds = new ArrayList<>();
+    for (Blob blob : blobs.iterateAll()) {
+      blobIds.add(blob.getBlobId());
+      if (blobIds.size() == 100) {
+        storage.delete(blobIds); // Batch delete
+        blobIds.clear();
+      }
+    }
+    if (!blobIds.isEmpty()) {
+      storage.delete(blobIds);
+    }
+    storage.delete(bucket);
+    LOG.debug("Deleted GCS bucket '{}'.", bucket);
   }
 
   public static String generateTimePartitionCondition(StandardTableDefinition tableDefinition,

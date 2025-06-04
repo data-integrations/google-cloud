@@ -64,6 +64,7 @@ import org.apache.hadoop.io.LongWritable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.util.List;
@@ -135,7 +136,16 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
 
     // Create BigQuery client
     String serviceAccount = config.getServiceAccount();
-    Credentials credentials = BigQuerySourceUtils.getCredentials(config.getConnection());
+    Credentials credentials = null;
+    try {
+      credentials = BigQuerySourceUtils.getCredentials(config.getConnection());
+    } catch (Exception e) {
+      String errorReason = "Unable to load service account credentials: ";
+      collector.addFailure(String.format("%s %s", errorReason, e.getMessage()), null)
+        .withStacktrace(e.getStackTrace());
+      collector.getOrThrowException();
+    }
+
     BigQuery bigQuery = GCPUtils.getBigQuery(config.getProject(), credentials);
     Dataset dataset = bigQuery.getDataset(DatasetId.of(config.getDatasetProject(), config.getDataset()));
     Storage storage = GCPUtils.getStorage(config.getProject(), credentials);
@@ -205,7 +215,13 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
 
   @Override
   public void onRunFinish(boolean succeeded, BatchSourceContext context) {
-    BigQuerySourceUtils.deleteGcsTemporaryDirectory(configuration, config.getBucket(), bucketPath);
+    try {
+      Credentials credentials = BigQuerySourceUtils.getCredentials(config.getConnection());
+      Storage storage = GCPUtils.getStorage(config.getProject(), credentials);
+      BigQuerySourceUtils.cleanupGcsBucket(configuration, bucketPath, config.getBucket(), storage);
+    } catch (IOException e) {
+      LOG.warn("Failed to load service account credentials: {}", e.getMessage(), e);
+    }
     BigQuerySourceUtils.deleteBigQueryTemporaryTable(configuration, config);
   }
 
