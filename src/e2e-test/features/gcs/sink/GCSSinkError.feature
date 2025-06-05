@@ -43,7 +43,7 @@ Feature: GCS sink - Verify GCS Sink plugin error scenarios
     Then Open GCS sink properties
     Then Replace input plugin property: "project" with value: "projectId"
     Then Enter input plugin property: "referenceName" with value: "gcsReferenceName"
-    Then Enter GCS source property path "gcsInvalidBucketName"
+    Then Enter input plugin property: "path" with value: "gcsInvalidBucketName"
     Then Select GCS property format "csv"
     Then Click on the Validate button
     Then Verify that the Plugin Property: "path" is displaying an in-line error message: "errorMessageInvalidBucketName"
