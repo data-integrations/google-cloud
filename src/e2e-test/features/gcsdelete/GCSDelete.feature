@@ -12,7 +12,7 @@ Feature: GCS Delete - Verification of GCS Delete plugin
     Then Override Service account details if set in environment variables
     Then Validate "GCS Delete" plugin properties
     Then Close the GCS Delete properties
-    Then Save and Deploy Pipeline
+    Then Save and Deploy Pipelines
     Then Run the Pipeline in Runtime
     Then Wait till pipeline is in running state
     Then Open and capture logs

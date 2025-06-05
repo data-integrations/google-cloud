@@ -2,8 +2,8 @@
 Feature: Spanner Source - Verification of Spanner to GCS successful data transfer
 
   @GCS_SINK_TEST @Spanner_Source_Required
-  Scenario: Verify data is getting transferred from Spanner to GCS successfully
-    Given Open Datafusion Project to configure pipeline
+  Scenario: Verify data is getting transferred from Spanner to GCS successfullys
+    Given Open Datafusion Project to configure pipelines
     When Source is Spanner
     When Sink is GCS
     Then Connect source as "Spanner" and sink as "GCS" to establish connection

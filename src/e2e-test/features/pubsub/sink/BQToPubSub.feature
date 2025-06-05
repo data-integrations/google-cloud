@@ -3,7 +3,7 @@ Feature: PubSub-Sink - Verification of BigQuery to PubSub successful data transf
 
   @CMEK @BQ_SOURCE_TEST
   Scenario: To verify data is getting transferred from BigQuery to PubSub successfully
-    Given Open Datafusion Project to configure pipeline
+    Given Open Datafusion Project to configure pipelines
     When Source is BigQuery
     When Sink is PubSub
     Then Connect source as "BigQuery" and sink as "GooglePublisher" to establish connection

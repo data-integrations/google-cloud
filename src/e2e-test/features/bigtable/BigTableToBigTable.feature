@@ -11,13 +11,13 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations under
 # the License.
-@BigTable @BIGTABLE_SOURCE_TEST
+@BigTable
 Feature: BigTable source - Verification of BigTable to BigTable Successful Data Transfer
 
-  @BIGTABLE_SINK_TEST @bigtable_Required
+  @BIGTABLE_SOURCE_TEST @BIGTABLE_SINK_TEST @bigtable_Required
   Scenario: To verify data is getting transferred from BigTable source table to BigTable sink table
     Given Open Datafusion Project to configure pipeline
-    When Select plugin: "Bigtable" from the plugins list as: "Source"
+    When Select plugin: "Bigtable" from the plugins list as: "Source"S
     When Expand Plugin group in the LHS plugins list: "Sink"
     When Select plugin: "Bigtable" from the plugins list as: "Sink"
     Then Connect plugins: "Bigtable" and "Bigtable2" to establish connection
@@ -51,7 +51,7 @@ Feature: BigTable source - Verification of BigTable to BigTable Successful Data 
     Then Validate OUT record count is equal to IN record count
     Then Validate data transferred to target bigtable table with data of source bigtable table
 
-  @EXISTING_BIGTABLE_SINK
+  @BIGTABLE_SOURCE_TEST @EXISTING_BIGTABLE_SINK
   Scenario: To verify data is getting transferred from BigTable source table to existing BigTable sink
     Given Open Datafusion Project to configure pipeline
     When Select plugin: "Bigtable" from the plugins list as: "Source"
@@ -88,7 +88,7 @@ Feature: BigTable source - Verification of BigTable to BigTable Successful Data 
     Then Validate OUT record count is equal to IN record count
     Then Validate data transferred to existing target bigtable table with data of source bigtable table
 
-  @BIGTABLE_SINK_TEST
+  @BIGTABLE_SOURCE_TEST @BIGTABLE_SINK_TEST
   Scenario: To verify data is getting transferred from unvalidated BigTable source table to BigTable sink table
     Given Open Datafusion Project to configure pipeline
     When Select plugin: "Bigtable" from the plugins list as: "Source"

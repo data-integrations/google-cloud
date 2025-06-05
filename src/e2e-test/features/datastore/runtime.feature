@@ -17,7 +17,7 @@ Feature: DataStore - Verification of Datastore to Datastore Successful Data Tran
 
   @DATASTORE_SOURCE_ENTITY @datastore_Required
   Scenario: To verify data is getting transferred from Datastore to Datastore successfully using filter and custom index
-    Given Open Datafusion Project to configure pipeline
+    Given Open Datafusion Project to configure pipelines
     Then Select plugin: "Datastore" from the plugins list as: "Source"
     And Navigate to the properties page of plugin: "Datastore"
     Then Replace input plugin property: "project" with value: "projectId"

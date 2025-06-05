@@ -3,11 +3,11 @@ Feature:GCSMove - Verification of successful objects move from one bucket to ano
 
   @CMEK @GCS_CSV_TEST @GCS_SINK_TEST
   Scenario:Validate successful move object from one bucket to another new bucket
-    Given Open Datafusion Project to configure pipeline
+    Given Open Datafusion Project to configure pipelinex
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
     When Select plugin: "GCS Move" from the plugins list as: "Conditions and Actions"
     When Navigate to the properties page of plugin: "GCS Move"
-    Then Enter GCSMove property projectId "projectId"
+    Then Enter GCSMove property projectId "projectId"x
     Then Enter GCSMove property source path "gcsCsvFile"
     Then Enter GCSMove property destination path
     Then Override Service account details if set in environment variables
