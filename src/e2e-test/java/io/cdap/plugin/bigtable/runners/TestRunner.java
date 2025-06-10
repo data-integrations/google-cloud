@@ -31,7 +31,8 @@ import org.junit.runner.RunWith;
         monochrome = true,
         plugin = {"pretty", "html:target/cucumber-html-report/bigtable",
                 "json:target/cucumber-reports/cucumber-bigtable.json",
-                "junit:target/cucumber-reports/cucumber-bigtable.xml"}
+                "junit:target/cucumber-reports/cucumber-bigtable.xml"},
+        strict = true // Fail on undefined steps
 )
 public class TestRunner {
 }
