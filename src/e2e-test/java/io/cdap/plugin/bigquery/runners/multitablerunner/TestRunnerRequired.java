@@ -31,7 +31,8 @@ import org.junit.runner.RunWith;
   monochrome = true,
   plugin = {"pretty", "html:target/cucumber-html-report/bigquerymultitable-sink-required",
     "json:target/cucumber-reports/cucumber-bigquerymultitable-sink-required.json",
-    "junit:target/cucumber-reports/cucumber-bigquerymultitable-sink-required.xml"}
+    "junit:target/cucumber-reports/cucumber-bigquerymultitable-sink-required.xml"},
+  strict = true
 )
 public class TestRunnerRequired {
 }

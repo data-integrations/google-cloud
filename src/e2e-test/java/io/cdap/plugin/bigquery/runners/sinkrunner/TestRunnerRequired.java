@@ -32,7 +32,8 @@ import org.junit.runner.RunWith;
   //TODO: Enable test once issue is fixed https://cdap.atlassian.net/browse/CDAP-20830
   plugin = {"pretty", "html:target/cucumber-html-report/bigquery-sink-required",
     "json:target/cucumber-reports/cucumber-bigquery-sink-required.json",
-    "junit:target/cucumber-reports/cucumber-bigquery-sink-required.xml"}
+    "junit:target/cucumber-reports/cucumber-bigquery-sink-required.xml"},
+  strict = true
 )
 public class TestRunnerRequired {
 }

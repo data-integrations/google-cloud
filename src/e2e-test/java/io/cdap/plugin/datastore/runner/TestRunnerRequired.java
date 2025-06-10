@@ -31,7 +31,8 @@ import org.junit.runner.RunWith;
   monochrome = true,
   plugin = {"pretty", "html:target/cucumber-html-report/datastore-required",
     "json:target/cucumber-reports/cucumber-datastore-required.json",
-    "junit:target/cucumber-reports/cucumber-datastore-required.xml"}
+    "junit:target/cucumber-reports/cucumber-datastore-required.xml"},
+  strict = true
 )
 
 public class TestRunnerRequired {

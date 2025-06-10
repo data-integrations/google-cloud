@@ -31,7 +31,8 @@ import org.junit.runner.RunWith;
   monochrome = true,
   plugin = {"pretty", "html:target/cucumber-html-report/spanner-source",
     "json:target/cucumber-reports/cucumber-spanner-source.json",
-    "junit:target/cucumber-reports/cucumber-spanner-source.xml"}
+    "junit:target/cucumber-reports/cucumber-spanner-source.xml"},
+  strict = true
 )
 public class TestRunner {
 }
