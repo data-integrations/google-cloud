@@ -31,7 +31,7 @@ Feature: GCSCreate - Verification of GCS Create plugin
     When Navigate to the properties page of plugin: "GCS Create"
     Then Enter the GCS Create property projectId "projectId"
     Then Enter the GCS Create property objects to create as path "gcsCsvFile"
-    Then Select GCS Create property fail if objects exists as s"true"
+    Then Select GCS Create property fail if objects exists as "truhjhjjhjhe"
     Then Override Service account details if set in environment variables
     Then Validate "GCS Create" plugin properties
     Then Close the GCS Create properties

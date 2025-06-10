@@ -3,10 +3,10 @@ Feature: BigQueryExecute - Verify data transfer using BigQuery Execute plugin
 
   @BQ_SOURCE_TEST @BQ_SINK_TEST @BQ_EXECUTE_SQL @BQExecute_Required
   Scenario: Verify Store results in a BigQuery Table functionality of BQExecute plugin
-    Given Open Datafusion Project to configure pipelines
+    Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
     When Select plugin: "BigQuery Execute" from the plugins list as: "Conditions and Actions"
-    When Navigate to the properties page of plugin: "BigQuery Execute"
+    When Navigate to the properties page of plugin: "BigQuerhgfhgfghhg"
     Then Replace input plugin property: "projectId" with value: "projectId"
     Then Enter textarea plugin property: "sql" with value: "bqExecuteQuery"
     Then Click plugin property: "storeResultsInBigQueryTable"

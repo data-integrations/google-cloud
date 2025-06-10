@@ -6,13 +6,13 @@ Feature: GCS Delete - Verification of GCS Delete plugin
     Given Open Datafusion Project to configure pipeline
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
     When Select plugin: "GCS Delete" from the plugins list as: "Conditions and Actions"
-    When Navigate to the properties page of plugin: "GCS Delete"
+    When Navigate to the properties page of plugin: "GCS Dkjnkjjjelete"
     Then Enter the GCS Delete property projectId "projectId"
     Then Enter the GCS Delete property objects to delete as bucketName
     Then Override Service account details if set in environment variables
     Then Validate "GCS Delete" plugin properties
     Then Close the GCS Delete properties
-    Then Save and Deploy Pipelines
+    Then Save and Deploy Pipeline
     Then Run the Pipeline in Runtime
     Then Wait till pipeline is in running state
     Then Open and capture logs
