@@ -105,6 +105,10 @@
     <version.cloud-data-plugins-common>0.0.8</version.cloud-data-plugins-common>
     <apache.avro.version>1.11.3</apache.avro.version>
     <version.commons-lang3>3.17.0</version.commons-lang3>
+    <jgitflow-maven-plugin.version>1.0-m5.1</jgitflow-maven-plugin.version>
+    <!--for `jgitflow` used by Jenkins -->
+    <git_user />
+    <git_password />
   </properties>
 
   <dependencyManagement>
@@ -940,6 +944,31 @@
             </goals>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <groupId>external.atlassian.jgitflow</groupId>
+        <artifactId>jgitflow-maven-plugin</artifactId>
+        <version>${jgitflow-maven-plugin.version}</version>
+        <configuration>
+          <flowInitContext>
+            <masterBranchName>main</masterBranchName>
+            <developBranchName>develop</developBranchName>
+            <featureBranchPrefix>feature/</featureBranchPrefix>
+            <releaseBranchPrefix>release/</releaseBranchPrefix>
+            <hotfixBranchPrefix>hotfix/</hotfixBranchPrefix>
+            <versionTagPrefix>v</versionTagPrefix>
+          </flowInitContext>
+          <noDeploy>true</noDeploy>
+          <noReleaseBuild>true</noReleaseBuild>
+          <pullDevelop>true</pullDevelop>
+          <pullMaster>true</pullMaster>
+          <pushFeatures>true</pushFeatures>
+          <pushReleases>true</pushReleases>
+          <pushHotfixes>true</pushHotfixes>
+          <username>${git_user}</username>
+          <password>${git_password}</password>
+          <scmCommentPrefix>[jgitflow-maven-plugin] </scmCommentPrefix>
+        </configuration>
       </plugin>
     </plugins>
   </build>
