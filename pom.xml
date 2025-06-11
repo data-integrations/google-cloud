@@ -20,7 +20,7 @@
 
   <groupId>io.cdap.plugin</groupId>
   <artifactId>google-cloud</artifactId>
-  <version>0.22.0.1-SNAPSHOT</version>
+  <version>0.22.0.1</version>
   <name>Google Cloud Plugins</name>
   <packaging>jar</packaging>
   <description>Plugins for Google Big Query</description>
@@ -102,7 +102,7 @@
 
     <!--FC related properties-->
     <artifactregistry-maven-wagon.version>2.2.0</artifactregistry-maven-wagon.version>
-    <version.cloud-data-plugins-common>0.0.7-SNAPSHOT</version.cloud-data-plugins-common>
+    <version.cloud-data-plugins-common>0.0.8</version.cloud-data-plugins-common>
     <apache.avro.version>1.11.3</apache.avro.version>
     <version.commons-lang3>3.17.0</version.commons-lang3>
   </properties>
@@ -124,13 +124,23 @@
 
   <repositories>
     <repository>
-      <id>artifact-registry</id>
+      <id>festcloud.snapshots</id>
       <url>artifactregistry://europe-west4-maven.pkg.dev/gcp-srv-nprd/gcp-srv-nprd-arm-shared</url>
+      <releases>
+        <enabled>false</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </repository>
+    <repository>
+      <id>festcloud.releases</id>
+      <url>artifactregistry://europe-west4-maven.pkg.dev/gcp-srv-prod/gcp-srv-prod-arm-shared</url>
       <releases>
         <enabled>true</enabled>
       </releases>
       <snapshots>
-        <enabled>true</enabled>
+        <enabled>false</enabled>
       </snapshots>
     </repository>
   </repositories>
