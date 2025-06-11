@@ -805,7 +805,7 @@
       <version>2.2.224</version>
     </dependency>
     <dependency>
-      <groupId>ai.festcloud</groupId>
+      <groupId>ai.festcloud.cloud.data.plugins.common</groupId>
       <artifactId>cloud-data-plugins-common</artifactId>
       <version>${version.cloud-data-plugins-common}</version>
     </dependency>
