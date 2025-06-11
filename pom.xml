@@ -57,12 +57,14 @@
 
   <distributionManagement>
     <snapshotRepository>
-      <id>artifact-registry</id>
+      <id>festcloud.snapshots</id>
+      <name>FestCloud Development Snapshot Repository</name>
       <url>artifactregistry://europe-west4-maven.pkg.dev/gcp-srv-nprd/gcp-srv-nprd-arm-shared</url>
     </snapshotRepository>
     <repository>
-      <id>artifact-registry</id>
-      <url>artifactregistry://europe-west4-maven.pkg.dev/gcp-srv-nprd/gcp-srv-nprd-arm-shared</url>
+      <id>festcloud.releases</id>
+      <name>FestCloud Release Distribution Repository</name>
+      <url>artifactregistry://europe-west4-maven.pkg.dev/gcp-srv-prod/gcp-srv-prod-arm-shared</url>
     </repository>
   </distributionManagement>
 
