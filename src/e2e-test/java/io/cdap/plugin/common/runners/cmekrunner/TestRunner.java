@@ -27,11 +27,12 @@ import org.junit.runner.RunWith;
   features = {"src/e2e-test/features"},
   glue = {"io.cdap.plugin.gcs.stepsdesign", "io.cdap.plugin.bigquery.stepsdesign",
     "stepsdesign", "io.cdap.plugin.common.stepsdesign", "io.cdap.plugin.pubsub.stepsdesign",
-          "io.cdap.plugin.gcsmove.stepsdesign"},
+          "io.cdap.plugin.gcsmove.stepsdesign", "io.cdap.plugin.gcscopy.stepsdesign"},
   tags = {"@CMEK"},
   plugin = {"pretty", "html:target/cucumber-html-report/cmek", "json:target/cucumber-reports/cucumber-cmek.json",
     "junit:target/cucumber-reports/cucumber-cmek.xml", "io.cdap.e2e.utils.PropModifier:cmek-config.properties"},
-  monochrome = true
+  monochrome = true,
+  strict = true
 )
 public class TestRunner {
 }

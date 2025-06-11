@@ -31,7 +31,8 @@ import org.junit.runner.RunWith;
   monochrome = true,
   plugin = {"pretty", "html:target/cucumber-html-report/gcscreate-required",
     "json:target/cucumber-reports/cucumber-gcscreate-required.json",
-    "junit:target/cucumber-reports/cucumber-gcscreate-required.xml"}
+    "junit:target/cucumber-reports/cucumber-gcscreate-required.xml"},
+  strict = true
 )
 public class TestRunnerRequired {
 }

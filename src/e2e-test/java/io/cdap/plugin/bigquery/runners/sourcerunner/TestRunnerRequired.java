@@ -31,7 +31,8 @@ import org.junit.runner.RunWith;
   monochrome = true,
   plugin = {"pretty", "html:target/cucumber-html-report/bigquery-source-required",
     "json:target/cucumber-reports/cucumber-bigquery-source-required.json",
-    "junit:target/cucumber-reports/cucumber-bigquery-source-required.xml"}
+    "junit:target/cucumber-reports/cucumber-bigquery-source-required.xml"},
+  strict = true
 )
 public class TestRunnerRequired {
 }

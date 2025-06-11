@@ -28,12 +28,13 @@ import org.junit.runner.RunWith;
   glue = {"io.cdap.plugin.gcs.stepsdesign", "io.cdap.plugin.bigquery.stepsdesign", "stepsdesign",
     "io.cdap.plugin.common.stepsdesign", "io.cdap.plugin.pubsub.stepsdesign",
     "io.cdap.plugin.gcsmove.stepsdesign", "io.cdap.plugin.spanner.stepsdesign",
-    "io.cdap.plugin.gcsdelete.stepsdesign"},
+    "io.cdap.plugin.gcsdelete.stepsdesign", "io.cdap.plugin.gcscopy.stepsdesign"},
   tags = {"@Required"},
   plugin = {"pretty", "html:target/cucumber-html-report/required",
     "json:target/cucumber-reports/cucumber-required.json",
     "junit:target/cucumber-reports/cucumber-required.xml"},
-  monochrome = true
+  monochrome = true,
+  strict = true
 )
 public class TestRunnerRequired {
 }

@@ -31,7 +31,8 @@ import org.junit.runner.RunWith;
   monochrome = true,
   plugin = {"pretty", "html:target/cucumber-html-report/gcsmove-action-required",
     "json:target/cucumber-reports/cucumber-gcsmove-action-required.json",
-    "junit:target/cucumber-reports/cucumber-gcsmove-action-required.xml"}
+    "junit:target/cucumber-reports/cucumber-gcsmove-action-required.xml"},
+  strict = true
 )
 public class TestRunnerRequired {
 }

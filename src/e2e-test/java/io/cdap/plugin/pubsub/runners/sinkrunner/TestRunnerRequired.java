@@ -31,7 +31,8 @@ import org.junit.runner.RunWith;
   monochrome = true,
   plugin = {"pretty", "html:target/cucumber-html-report/pubsub-sink-required",
     "json:target/cucumber-reports/cucumber-pubsub-sink-required.json",
-    "junit:target/cucumber-reports/cucumber-pubsub-sink-required.xml"}
+    "junit:target/cucumber-reports/cucumber-pubsub-sink-required.xml"},
+  strict = true
 )
 
 public class TestRunnerRequired {
