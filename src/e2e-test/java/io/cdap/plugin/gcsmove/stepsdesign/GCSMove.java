@@ -109,7 +109,7 @@ public class GCSMove implements E2EHelper {
                                                                                      String bucketName) {
     CdfStudioActions.clickValidateButton();
     String expectedErrorMessage = PluginPropertyUtils.errorProp(E2ETestConstants.ERROR_MSG_GCS_INVALID_BUCKET_NAME)
-      .replace("BUCKET_NAME", "/" + PluginPropertyUtils.pluginProp(bucketName));
+      .replace("BUCKET_NAME", PluginPropertyUtils.pluginProp(bucketName));
     String actualErrorMessage = PluginPropertyUtils.findPropertyErrorElement(property).getText();
     Assert.assertEquals(expectedErrorMessage, actualErrorMessage);
   }
