@@ -766,7 +766,11 @@ public final class BigQueryUtil {
   /**
    * Deletes the GCS bucket.
    */
-  public static void deleteGcsBucket(Storage storage, String bucket) {
+  public static void deleteGcsBucket(Storage storage, @Nullable String bucket) {
+    if (Strings.isNullOrEmpty(bucket) || storage.get(bucket) == null) {
+      return;
+    }
+
     Page<Blob> blobs = storage.list(bucket, Storage.BlobListOption.versions(true));
     List<BlobId> blobIds = new ArrayList<>();
     for (Blob blob : blobs.iterateAll()) {
