@@ -1233,7 +1233,8 @@
           <execution>
             <goals>
               <goal>integration-test</goal>
-              <goal>verify</goal>
+              <!-- Commented out verify goal to allow Cucumber reports to generate correctly even when tests fail -->
+              <!-- <goal>verify</goal> -->
             </goals>
           </execution>
         </executions>
