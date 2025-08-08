@@ -380,83 +380,6 @@
       </exclusions>
     </dependency>
     <dependency>
-      <!--
-        Required by bigtable-hbase-1.x-mapreduce instead of excluded non-shaded version.
-        Shaded library is used to avoid dependency conflicts with Datastore module on profobuf-java dependency.
-        Bigtable requires version 2.x and Datastore module requires 3.x protocol.
-      -->
-      <groupId>org.apache.hbase</groupId>
-      <artifactId>hbase-shaded-client</artifactId>
-      <version>${hbase-shaded-client.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>org.slf4j</groupId>
-          <artifactId>slf4j-log4j12</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>log4j</groupId>
-          <artifactId>log4j</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.htrace</groupId>
-          <artifactId>htrace-core</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <!--
-        Required by bigtable-hbase-1.x-mapreduce instead of excluded non-shaded version.
-        Shaded library is used to avoid dependency conflicts with Datastore module on profobuf-java dependency.
-        Bigtable requires version 2.x and Datastore module requires 3.x protocol.
-      -->
-      <groupId>org.apache.hbase</groupId>
-      <artifactId>hbase-shaded-server</artifactId>
-      <version>${hbase-shaded-server.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>org.slf4j</groupId>
-          <artifactId>slf4j-log4j12</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>log4j</groupId>
-          <artifactId>log4j</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.htrace</groupId>
-          <artifactId>htrace-core</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-common</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>io.dropwizard.metrics</groupId>
-      <artifactId>metrics-core</artifactId>
-      <version>${dropwizard.metrics-core.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>com.google.cloud</groupId>
-      <artifactId>google-cloud-bigquery</artifactId>
-      <version>${google.cloud.bigquery.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>com.google.crypto.tink</groupId>
-      <artifactId>tink</artifactId>
-      <version>${google.tink.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>com.google.crypto.tink</groupId>
-      <artifactId>tink-gcpkms</artifactId>
-      <version>${google.tink.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>com.google.cloud</groupId>
-      <artifactId>google-cloud-spanner</artifactId>
-      <version>${google.cloud.spanner.version}</version>
-    </dependency>
-    <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-common</artifactId>
       <version>${hadoop.version}</version>
@@ -535,6 +458,83 @@
           <artifactId>slf4j-reload4j</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+    <dependency>
+      <!--
+        Required by bigtable-hbase-1.x-mapreduce instead of excluded non-shaded version.
+        Shaded library is used to avoid dependency conflicts with Datastore module on profobuf-java dependency.
+        Bigtable requires version 2.x and Datastore module requires 3.x protocol.
+      -->
+      <groupId>org.apache.hbase</groupId>
+      <artifactId>hbase-shaded-client</artifactId>
+      <version>${hbase-shaded-client.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>log4j</groupId>
+          <artifactId>log4j</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.htrace</groupId>
+          <artifactId>htrace-core</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <!--
+        Required by bigtable-hbase-1.x-mapreduce instead of excluded non-shaded version.
+        Shaded library is used to avoid dependency conflicts with Datastore module on profobuf-java dependency.
+        Bigtable requires version 2.x and Datastore module requires 3.x protocol.
+      -->
+      <groupId>org.apache.hbase</groupId>
+      <artifactId>hbase-shaded-server</artifactId>
+      <version>${hbase-shaded-server.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>log4j</groupId>
+          <artifactId>log4j</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.htrace</groupId>
+          <artifactId>htrace-core</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-common</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>io.dropwizard.metrics</groupId>
+      <artifactId>metrics-core</artifactId>
+      <version>${dropwizard.metrics-core.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-bigquery</artifactId>
+      <version>${google.cloud.bigquery.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.crypto.tink</groupId>
+      <artifactId>tink</artifactId>
+      <version>${google.tink.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.crypto.tink</groupId>
+      <artifactId>tink-gcpkms</artifactId>
+      <version>${google.tink.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-spanner</artifactId>
+      <version>${google.cloud.spanner.version}</version>
     </dependency>
     <dependency>
       <groupId>com.google.cloud</groupId>
