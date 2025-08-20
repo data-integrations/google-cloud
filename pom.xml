@@ -55,25 +55,14 @@
     <url>https://issues.cask.co/browse/CDAP</url>
   </issueManagement>
 
-  <distributionManagement>
-    <repository>
-      <id>sonatype.release</id>
-      <url>https://oss.sonatype.org/service/local/staging/deploy/maven2</url>
-    </repository>
-    <snapshotRepository>
-      <id>sonatype.snapshots</id>
-      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-    </snapshotRepository>
-  </distributionManagement>
-
   <properties>
     <jee.version>7</jee.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <avro.version>1.11.0</avro.version>
     <bigquery.connector.hadoop3.version>hadoop3-1.2.0</bigquery.connector.hadoop3.version>
     <commons.codec.version>1.4</commons.codec.version>
-    <cdap.version>6.11.0-SNAPSHOT</cdap.version>
-    <cdap.plugin.version>2.13.0-SNAPSHOT</cdap.plugin.version>
+    <cdap.version>6.11.0</cdap.version>
+    <cdap.plugin.version>2.13.0</cdap.plugin.version>
     <dropwizard.metrics-core.version>3.2.6</dropwizard.metrics-core.version>
     <flogger.system.backend.version>0.7.1</flogger.system.backend.version>
     <gcs.connector.version>hadoop3-2.2.21</gcs.connector.version>
@@ -119,18 +108,8 @@
 
   <repositories>
     <repository>
-      <id>sonatype</id>
-      <url>https://oss.sonatype.org/content/groups/public</url>
-      <releases>
-        <enabled>true</enabled>
-      </releases>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-    </repository>
-    <repository>
       <id>sonatype-snapshots</id>
-      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+      <url>https://central.sonatype.com/repository/maven-snapshots</url>
       <releases>
         <enabled>false</enabled>
       </releases>
@@ -394,77 +373,11 @@
           <groupId>org.apache.hbase</groupId>
           <artifactId>hbase-common</artifactId>
         </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <!--
-        Required by bigtable-hbase-1.x-mapreduce instead of excluded non-shaded version.
-        Shaded library is used to avoid dependency conflicts with Datastore module on profobuf-java dependency.
-        Bigtable requires version 2.x and Datastore module requires 3.x protocol.
-      -->
-      <groupId>org.apache.hbase</groupId>
-      <artifactId>hbase-shaded-client</artifactId>
-      <version>${hbase-shaded-client.version}</version>
-      <exclusions>
         <exclusion>
-          <groupId>org.slf4j</groupId>
-          <artifactId>slf4j-log4j12</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>log4j</groupId>
-          <artifactId>log4j</artifactId>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-common</artifactId>
         </exclusion>
       </exclusions>
-    </dependency>
-    <dependency>
-      <!--
-        Required by bigtable-hbase-1.x-mapreduce instead of excluded non-shaded version.
-        Shaded library is used to avoid dependency conflicts with Datastore module on profobuf-java dependency.
-        Bigtable requires version 2.x and Datastore module requires 3.x protocol.
-      -->
-      <groupId>org.apache.hbase</groupId>
-      <artifactId>hbase-shaded-server</artifactId>
-      <version>${hbase-shaded-server.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>org.slf4j</groupId>
-          <artifactId>slf4j-log4j12</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>log4j</groupId>
-          <artifactId>log4j</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>io.dropwizard.metrics</groupId>
-      <artifactId>metrics-core</artifactId>
-      <version>${dropwizard.metrics-core.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>com.google.cloud</groupId>
-      <artifactId>google-cloud-bigquery</artifactId>
-      <version>${google.cloud.bigquery.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>com.google.crypto.tink</groupId>
-      <artifactId>tink</artifactId>
-      <version>${google.tink.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>com.google.crypto.tink</groupId>
-      <artifactId>tink-gcpkms</artifactId>
-      <version>${google.tink.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>com.google.cloud</groupId>
-      <artifactId>google-cloud-spanner</artifactId>
-      <version>${google.cloud.spanner.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>com.google.cloud</groupId>
-      <artifactId>google-cloud-datastore</artifactId>
-      <version>${google.cloud.datastore.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.hadoop</groupId>
@@ -545,6 +458,88 @@
           <artifactId>slf4j-reload4j</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+    <dependency>
+      <!--
+        Required by bigtable-hbase-1.x-mapreduce instead of excluded non-shaded version.
+        Shaded library is used to avoid dependency conflicts with Datastore module on profobuf-java dependency.
+        Bigtable requires version 2.x and Datastore module requires 3.x protocol.
+      -->
+      <groupId>org.apache.hbase</groupId>
+      <artifactId>hbase-shaded-client</artifactId>
+      <version>${hbase-shaded-client.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>log4j</groupId>
+          <artifactId>log4j</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.htrace</groupId>
+          <artifactId>htrace-core</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <!--
+        Required by bigtable-hbase-1.x-mapreduce instead of excluded non-shaded version.
+        Shaded library is used to avoid dependency conflicts with Datastore module on profobuf-java dependency.
+        Bigtable requires version 2.x and Datastore module requires 3.x protocol.
+      -->
+      <groupId>org.apache.hbase</groupId>
+      <artifactId>hbase-shaded-server</artifactId>
+      <version>${hbase-shaded-server.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>log4j</groupId>
+          <artifactId>log4j</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.htrace</groupId>
+          <artifactId>htrace-core</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-common</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>io.dropwizard.metrics</groupId>
+      <artifactId>metrics-core</artifactId>
+      <version>${dropwizard.metrics-core.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-bigquery</artifactId>
+      <version>${google.cloud.bigquery.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.crypto.tink</groupId>
+      <artifactId>tink</artifactId>
+      <version>${google.tink.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.crypto.tink</groupId>
+      <artifactId>tink-gcpkms</artifactId>
+      <version>${google.tink.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-spanner</artifactId>
+      <version>${google.cloud.spanner.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-datastore</artifactId>
+      <version>${google.cloud.datastore.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.hadoop</groupId>
@@ -1150,29 +1145,15 @@
               </execution>
             </executions>
           </plugin>
-
           <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-release-plugin</artifactId>
-            <version>2.5.3</version>
-            <configuration>
-              <tag>v${releaseVersion}</tag>
-              <tagNameFormat>v@{project.version}</tagNameFormat>
-              <autoVersionSubmodules>true</autoVersionSubmodules>
-              <!-- releaseProfiles configuration will actually force a Maven profile
-                – the `releases` profile – to become active during the Release process. -->
-              <releaseProfiles>releases</releaseProfiles>
-            </configuration>
-          </plugin>
-
-          <plugin>
-            <groupId>org.sonatype.plugins</groupId>
-            <artifactId>nexus-staging-maven-plugin</artifactId>
-            <version>1.6.2</version>
+            <groupId>org.sonatype.central</groupId>
+            <artifactId>central-publishing-maven-plugin</artifactId>
+            <version>0.8.0</version>
             <extensions>true</extensions>
             <configuration>
-              <nexusUrl>https://oss.sonatype.org</nexusUrl>
-              <serverId>sonatype.release</serverId>
+              <publishingServerId>sonatype.release</publishingServerId>
+              <autoPublish>false</autoPublish>
+              <ignorePublishedComponents>true</ignorePublishedComponents>
             </configuration>
           </plugin>
         </plugins>
@@ -1296,7 +1277,7 @@
         <dependency>
           <groupId>io.cdap.tests.e2e</groupId>
           <artifactId>cdap-e2e-framework</artifactId>
-          <version>0.4.0-SNAPSHOT</version>
+          <version>0.4.0</version>
           <scope>test</scope>
         </dependency>
         <dependency>

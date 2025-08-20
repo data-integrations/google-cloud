@@ -264,7 +264,7 @@ public class DataplexBatchSinkTest {
     Mockito.when(timePartitioning.getField()).thenReturn("field");
     Mockito.when(
       BigQueryUtil.getBigQueryTable(Mockito.anyString(), Mockito.anyString(), Mockito.anyString(), Mockito.anyString(),
-        Mockito.anyBoolean(), Mockito.any())).thenReturn(table);
+        Mockito.anyBoolean(), Mockito.any(), Mockito.any())).thenReturn(table);
     Asset asset = mock(Asset.class);
     Asset.ResourceSpec assetResourceSpec = mock(Asset.ResourceSpec.class);
     // Assigning the values in DataplexBatchSinkConfig class

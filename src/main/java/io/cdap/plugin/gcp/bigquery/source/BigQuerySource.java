@@ -39,7 +39,7 @@ import io.cdap.cdap.api.data.batch.Input;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
-import io.cdap.cdap.api.exception.ProgramFailureException;
+import io.cdap.cdap.api.exception.ErrorType;
 import io.cdap.cdap.etl.api.Emitter;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
@@ -49,9 +49,7 @@ import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
 import io.cdap.cdap.etl.api.connector.Connector;
 import io.cdap.cdap.etl.api.engine.sql.SQLEngineInput;
-import io.cdap.cdap.etl.api.exception.ErrorContext;
 import io.cdap.cdap.etl.api.exception.ErrorDetailsProviderSpec;
-import io.cdap.cdap.etl.api.exception.ErrorPhase;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.plugin.common.Asset;
 import io.cdap.plugin.common.LineageRecorder;
@@ -62,6 +60,7 @@ import io.cdap.plugin.gcp.bigquery.sqlengine.BigQuerySQLEngine;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.CmekUtils;
+import io.cdap.plugin.gcp.common.GCPErrorDetailsProviderUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import org.apache.avro.generic.GenericData;
 import org.apache.hadoop.conf.Configuration;
@@ -69,6 +68,7 @@ import org.apache.hadoop.io.LongWritable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.util.List;
@@ -144,7 +144,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     try {
       credentials = BigQuerySourceUtils.getCredentials(config.getConnection());
     } catch (Exception e) {
-      String errorReason = "Unable to load service account credentials.";
+      String errorReason = "Unable to load service account credentials: ";
       collector.addFailure(String.format("%s %s", errorReason, e.getMessage()), null)
         .withStacktrace(e.getStackTrace());
       collector.getOrThrowException();
@@ -156,9 +156,9 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
       bigQuery = GCPUtils.getBigQuery(config.getProject(), credentials, null);
       dataset = bigQuery.getDataset(DatasetId.of(config.getDatasetProject(), config.getDataset()));
     } catch (Exception e) {
-      ProgramFailureException ex = new BigQueryErrorDetailsProvider().getExceptionDetails(e,
-          new ErrorContext(ErrorPhase.READING));
-      throw ex == null ? e : ex;
+      throw GCPErrorDetailsProviderUtil.getHttpResponseExceptionDetailsFromChain(e,
+          String.format("Unable to get BQ dataset '%s' details", config.getDataset()),
+          ErrorType.UNKNOWN, false, GCPUtils.BQ_SUPPORTED_DOC_URL);
     }
 
     // Get Configuration for this run
@@ -179,17 +179,9 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
                                                           dataset, config.getBucket());
 
     // Configure GCS Bucket to use
-    Storage storage =  GCPUtils.getStorage(config.getProject(), credentials);;
-    String bucket = null;
-    try {
-      bucket = BigQuerySourceUtils.getOrCreateBucket(configuration, storage, bucketName, dataset,
-          bucketPath, cmekKeyName);
-    } catch (Exception e) {
-      String errorReason = "Failed to create bucket.";
-      collector.addFailure(String.format("%s %s", errorReason, e.getMessage()), null)
-        .withStacktrace(e.getStackTrace());
-      collector.getOrThrowException();
-    }
+    Storage storage =  GCPUtils.getStorage(config.getProject(), credentials);
+    String bucket = BigQuerySourceUtils.getOrCreateBucket(configuration, storage, bucketName, dataset,
+        bucketPath, cmekKeyName);
 
     // Configure Service account credentials
     BigQuerySourceUtils.configureServiceAccount(configuration, config.getConnection());
@@ -249,7 +241,13 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
 
   @Override
   public void onRunFinish(boolean succeeded, BatchSourceContext context) {
-    BigQuerySourceUtils.deleteGcsTemporaryDirectory(configuration, config.getBucket(), bucketPath);
+    try {
+      Credentials credentials = BigQuerySourceUtils.getCredentials(config.getConnection());
+      Storage storage = GCPUtils.getStorage(config.getProject(), credentials);
+      BigQuerySourceUtils.cleanupGcsBucket(configuration, bucketPath, config.getBucket(), storage);
+    } catch (IOException e) {
+      LOG.warn("Failed to load service account credentials: {}", e.getMessage(), e);
+    }
     BigQuerySourceUtils.deleteBigQueryTemporaryTable(configuration, config);
   }
 
@@ -269,6 +267,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     if (config.getViewMaterializationDataset() != null) {
       configuration.set(BigQueryConstants.CONFIG_VIEW_MATERIALIZATION_DATASET, config.getViewMaterializationDataset());
     }
+    configuration.set(BigQueryConstants.CONFIG_BQ_HTTP_READ_TIMEOUT, String.valueOf(config.getReadTimeout()));
   }
 
   public Schema getSchema(FailureCollector collector) {
@@ -317,7 +316,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     String project = config.getDatasetProject();
 
     Table table = BigQueryUtil.getBigQueryTable(project, dataset, tableName, serviceAccount,
-                                                config.isServiceAccountFilePath(), collector);
+        config.isServiceAccountFilePath(), collector, config.getReadTimeout());
     if (table == null) {
       // Table does not exist
       collector.addFailure(String.format("BigQuery table '%s:%s.%s' does not exist.", project, dataset, tableName),
@@ -350,7 +349,7 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     String dataset = config.getDataset();
     String tableName = config.getTable();
     Table sourceTable = BigQueryUtil.getBigQueryTable(project, dataset, tableName, config.getServiceAccount(),
-                                                      config.isServiceAccountFilePath(), collector);
+        config.isServiceAccountFilePath(), collector, config.getReadTimeout());
     if (sourceTable == null) {
       return;
     }

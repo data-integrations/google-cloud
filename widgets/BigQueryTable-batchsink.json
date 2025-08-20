@@ -236,6 +236,15 @@
             },
             "default": "false"
           }
+        },
+        {
+          "widget-type": "hidden",
+          "label": "Read Timeout",
+          "name": "readTimeout",
+          "widget-attributes": {
+            "default": "120",
+            "minimum": "0"
+          }
         }
       ]
     },

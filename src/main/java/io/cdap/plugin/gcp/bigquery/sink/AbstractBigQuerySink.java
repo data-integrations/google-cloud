@@ -30,14 +30,12 @@ import io.cdap.cdap.api.data.batch.OutputFormatProvider;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
-import io.cdap.cdap.api.exception.ProgramFailureException;
+import io.cdap.cdap.api.exception.ErrorType;
 import io.cdap.cdap.etl.api.Emitter;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.batch.BatchSink;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
-import io.cdap.cdap.etl.api.exception.ErrorContext;
 import io.cdap.cdap.etl.api.exception.ErrorDetailsProviderSpec;
-import io.cdap.cdap.etl.api.exception.ErrorPhase;
 import io.cdap.plugin.common.Asset;
 import io.cdap.plugin.gcp.bigquery.common.BigQueryErrorDetailsProvider;
 import io.cdap.plugin.gcp.bigquery.sink.lib.BigQueryTableFieldSchema;
@@ -45,6 +43,7 @@ import io.cdap.plugin.gcp.bigquery.util.BigQueryConstants;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryTypeSize;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.CmekUtils;
+import io.cdap.plugin.gcp.common.GCPErrorDetailsProviderUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
@@ -87,13 +86,18 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
   @Override
   public final void prepareRun(BatchSinkContext context) throws Exception {
     prepareRunValidation(context);
-
-    AbstractBigQuerySinkConfig config = getConfig();
-    String serviceAccount = config.getServiceAccount();
-    Credentials credentials = serviceAccount == null ?
-      null : GCPUtils.loadServiceAccountCredentials(serviceAccount, config.isServiceAccountFilePath());
-    String project = config.getProject();
     FailureCollector collector = context.getFailureCollector();
+    Credentials credentials = null;
+    AbstractBigQuerySinkConfig config = getConfig();
+    try {
+      credentials = BigQuerySinkUtils.getCredentials(config.getConnection());
+    } catch (Exception e) {
+      String errorReason = "Unable to load service account credentials: ";
+      collector.addFailure(String.format("%s %s", errorReason, e.getMessage()), null)
+          .withStacktrace(e.getStackTrace());
+      collector.getOrThrowException();
+    }
+    String project = config.getProject();
     CryptoKeyName cmekKeyName = CmekUtils.getCmekKey(config.cmekKey, context.getArguments().asMap(), collector);
     collector.getOrThrowException();
     baseConfiguration = getBaseConfiguration(cmekKeyName);
@@ -102,12 +106,12 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
     DatasetId datasetId = DatasetId.of(config.getDatasetProject(), config.getDataset());
     Dataset dataset;
     try {
-      bigQuery = GCPUtils.getBigQuery(project, credentials, null);
+      bigQuery = GCPUtils.getBigQuery(project, credentials, config.getReadTimeout());
       dataset = bigQuery.getDataset(datasetId);
     } catch (Exception e) {
-      ProgramFailureException ex = new BigQueryErrorDetailsProvider().getExceptionDetails(e,
-          new ErrorContext(ErrorPhase.WRITING));
-      throw ex == null ? e : ex;
+      throw GCPErrorDetailsProviderUtil.getHttpResponseExceptionDetailsFromChain(e,
+          String.format("Unable to get BQ dataset '%s' details", config.getDataset()),
+          ErrorType.UNKNOWN, true, GCPUtils.BQ_SUPPORTED_DOC_URL);
     }
 
     // Get the required bucket name and bucket instance (if it exists)
@@ -115,7 +119,14 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
     String bucketName = BigQueryUtil.getStagingBucketName(context.getArguments().asMap(), config.getLocation(),
                                                           dataset, config.getBucket());
     bucketName = BigQuerySinkUtils.configureBucket(baseConfiguration, bucketName, runUUID.toString());
-    Bucket bucket = storage.get(bucketName);
+    Bucket bucket;
+    try {
+      bucket = storage.get(bucketName);
+    } catch (Exception e) {
+      throw GCPErrorDetailsProviderUtil.getHttpResponseExceptionDetailsFromChain(e,
+          String.format("Unable to get GCS bucket '%s' details", bucketName),
+          ErrorType.UNKNOWN, true, GCPUtils.GCS_SUPPORTED_DOC_URL);
+    }
 
     // Set user defined job label key value pair
     String jobLabelKeyValue = getConfig().getJobLabelKeyValue();
@@ -135,17 +146,13 @@ public abstract class AbstractBigQuerySink extends BatchSink<StructuredRecord, S
 
   @Override
   public void onRunFinish(boolean succeeded, BatchSinkContext context) {
-    String gcsPath;
-    String bucket = getConfig().getBucket();
-    if (bucket == null) {
-      gcsPath = String.format("gs://%s", runUUID);
-    } else {
-      gcsPath = String.format(gcsPathFormat, bucket, runUUID);
-    }
     try {
-      BigQueryUtil.deleteTemporaryDirectory(baseConfiguration, gcsPath);
+      Credentials credentials = BigQuerySinkUtils.getCredentials(getConfig().getConnection());
+      Storage storage = GCPUtils.getStorage(getConfig().getProject(), credentials);
+      BigQuerySinkUtils.cleanupGcsBucket(baseConfiguration, runUUID.toString(),
+          getConfig().getBucket(), storage);
     } catch (IOException e) {
-      LOG.warn("Failed to delete temporary directory '{}': {}", gcsPath, e.getMessage());
+      LOG.warn("Failed to load service account credentials: {}", e.getMessage(), e);
     }
   }
 

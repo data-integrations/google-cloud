@@ -64,7 +64,7 @@ Feature: BigQuery source - Verification of BigQuery to BigQuery successful data 
     Then Connect source as "BigQuery" and sink as "BigQuery" to establish connection
     Then Save the pipeline
     Then Preview and run the pipeline
-    Then Wait till pipeline preview is in running state
+    Then Wait till pipeline preview is in running state and check if any error occurs
     Then Open and capture pipeline preview logs
     Then Verify the preview run status of pipeline in the logs is "failed"
 

@@ -556,7 +556,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     String tableName = this.getTable();
     Table table = BigQueryUtil.getBigQueryTable(this.tryGetProject(), dataset, tableName,
       connection.getServiceAccount(), connection.isServiceAccountFilePath(),
-      collector);
+      collector, null);
 
     if (table != null && !this.containsMacro(NAME_UPDATE_SCHEMA)) {
       // if table already exists, validate schema against underlying bigquery table
@@ -586,7 +586,7 @@ public class DataplexBatchSinkConfig extends DataplexBaseConfig {
     }
 
     Table table = BigQueryUtil.getBigQueryTable(project, dataset, tableName, serviceAccount,
-      isServiceAccountFilePath(), collector);
+      isServiceAccountFilePath(), collector, null);
     if (table != null) {
       StandardTableDefinition tableDefinition = table.getDefinition();
       TimePartitioning timePartitioning = tableDefinition.getTimePartitioning();

@@ -25,20 +25,19 @@ import com.google.cloud.bigquery.JobStatistics;
 import com.google.cloud.bigquery.JobStatus;
 import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.TableResult;
-import com.google.common.collect.ImmutableSet;
+import io.cdap.cdap.api.exception.ProgramFailureException;
 import io.cdap.cdap.api.metrics.Metrics;
 import io.cdap.cdap.etl.api.StageMetrics;
 import io.cdap.cdap.etl.api.action.ActionContext;
 
 import io.cdap.cdap.etl.mock.validation.MockFailureCollector;
-import io.cdap.plugin.gcp.bigquery.exception.BigQueryJobExecutionException;
+import io.cdap.plugin.gcp.common.GCPUtils;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import java.util.Set;
 
 public class BigQueryExecuteTest {
   @Mock
@@ -109,18 +108,16 @@ public class BigQueryExecuteTest {
     Exception exception = Assert.assertThrows(java.lang.RuntimeException.class, () -> {
       bq.executeQueryWithExponentialBackoff(bigQuery, queryJobConfiguration, context);
     });
-    String actualMessage = exception.getMessage();
-    Assert.assertEquals(mockErrorMessageNoRetry, actualMessage);
+    Assert.assertTrue(exception.getMessage().contains(mockErrorMessageNoRetry));
   }
   @Test
   public void testExecuteQueryWithExponentialBackoffFailsRetryError() {
     Mockito.when(bigQueryError.getReason()).thenReturn("jobBackendError");
     Mockito.when(bigQueryError.getMessage()).thenReturn(errorMessageRetryExhausted);
-    Exception exception = Assert.assertThrows(BigQueryJobExecutionException.class, () -> {
+    Exception exception = Assert.assertThrows(ProgramFailureException.class, () -> {
       bq.executeQueryWithExponentialBackoff(bigQuery, queryJobConfiguration, context);
     });
-    String actualMessage = exception.getMessage();
-    Assert.assertEquals(errorMessageRetryExhausted, actualMessage);
+    Assert.assertTrue(exception.getMessage().contains(errorMessageRetryExhausted));
   }
 
   @Test
@@ -138,7 +135,7 @@ public class BigQueryExecuteTest {
             BigQueryExecute.Config.DEFULT_MAX_RETRY_DURATION_SECONDS,
             BigQueryExecute.Config.DEFAULT_MAX_RETRY_COUNT,
             BigQueryExecute.Config.DEFAULT_RETRY_MULTIPLIER,
-            BigQueryExecute.Config.DEFAULT_READ_TIMEOUT);
+            GCPUtils.BQ_DEFAULT_READ_TIMEOUT_SECONDS);
     Assert.assertEquals(0, failureCollector.getValidationFailures().size());
   }
 
@@ -148,7 +145,7 @@ public class BigQueryExecuteTest {
             BigQueryExecute.Config.DEFULT_MAX_RETRY_DURATION_SECONDS,
             BigQueryExecute.Config.DEFAULT_MAX_RETRY_COUNT,
             BigQueryExecute.Config.DEFAULT_RETRY_MULTIPLIER,
-            BigQueryExecute.Config.DEFAULT_READ_TIMEOUT);
+            GCPUtils.BQ_DEFAULT_READ_TIMEOUT_SECONDS);
     Assert.assertEquals(1, failureCollector.getValidationFailures().size());
     Assert.assertEquals("Initial retry duration must be greater than 0.",
             failureCollector.getValidationFailures().get(0).getMessage());
@@ -160,7 +157,7 @@ public class BigQueryExecuteTest {
             BigQueryExecute.Config.DEFAULT_INITIAL_RETRY_DURATION_SECONDS, -1L,
             BigQueryExecute.Config.DEFAULT_MAX_RETRY_COUNT,
             BigQueryExecute.Config.DEFAULT_RETRY_MULTIPLIER,
-            BigQueryExecute.Config.DEFAULT_READ_TIMEOUT);
+            GCPUtils.BQ_DEFAULT_READ_TIMEOUT_SECONDS);
     Assert.assertEquals(2, failureCollector.getValidationFailures().size());
     Assert.assertEquals("Max retry duration must be greater than 0.",
             failureCollector.getValidationFailures().get(0).getMessage());
@@ -174,7 +171,7 @@ public class BigQueryExecuteTest {
             BigQueryExecute.Config.DEFAULT_INITIAL_RETRY_DURATION_SECONDS,
             BigQueryExecute.Config.DEFULT_MAX_RETRY_DURATION_SECONDS,
             BigQueryExecute.Config.DEFAULT_MAX_RETRY_COUNT, -1.0,
-            BigQueryExecute.Config.DEFAULT_READ_TIMEOUT);
+            GCPUtils.BQ_DEFAULT_READ_TIMEOUT_SECONDS);
     Assert.assertEquals(1, failureCollector.getValidationFailures().size());
     Assert.assertEquals("Retry multiplier must be strictly greater than 1.",
             failureCollector.getValidationFailures().get(0).getMessage());
@@ -186,7 +183,7 @@ public class BigQueryExecuteTest {
             BigQueryExecute.Config.DEFAULT_INITIAL_RETRY_DURATION_SECONDS,
             BigQueryExecute.Config.DEFULT_MAX_RETRY_DURATION_SECONDS, -1,
             BigQueryExecute.Config.DEFAULT_RETRY_MULTIPLIER,
-            BigQueryExecute.Config.DEFAULT_READ_TIMEOUT);
+            GCPUtils.BQ_DEFAULT_READ_TIMEOUT_SECONDS);
     Assert.assertEquals(1, failureCollector.getValidationFailures().size());
     Assert.assertEquals("Max retry count must be greater than 0.",
             failureCollector.getValidationFailures().get(0).getMessage());
@@ -198,7 +195,7 @@ public class BigQueryExecuteTest {
             BigQueryExecute.Config.DEFAULT_INITIAL_RETRY_DURATION_SECONDS,
             BigQueryExecute.Config.DEFULT_MAX_RETRY_DURATION_SECONDS,
             BigQueryExecute.Config.DEFAULT_MAX_RETRY_COUNT, 1.0,
-            BigQueryExecute.Config.DEFAULT_READ_TIMEOUT);
+            GCPUtils.BQ_DEFAULT_READ_TIMEOUT_SECONDS);
     Assert.assertEquals(1, failureCollector.getValidationFailures().size());
     Assert.assertEquals("Retry multiplier must be strictly greater than 1.",
             failureCollector.getValidationFailures().get(0).getMessage());
@@ -209,7 +206,7 @@ public class BigQueryExecuteTest {
     config.validateRetryConfiguration(failureCollector, 10L, 5L,
             BigQueryExecute.Config.DEFAULT_MAX_RETRY_COUNT,
             BigQueryExecute.Config.DEFAULT_RETRY_MULTIPLIER,
-            BigQueryExecute.Config.DEFAULT_READ_TIMEOUT);
+            GCPUtils.BQ_DEFAULT_READ_TIMEOUT_SECONDS);
     Assert.assertEquals(1, failureCollector.getValidationFailures().size());
     Assert.assertEquals("Max retry duration must be greater than initial retry duration.",
             failureCollector.getValidationFailures().get(0).getMessage());

@@ -17,6 +17,7 @@
 package io.cdap.plugin.gcp.bigquery.util;
 
 import com.google.api.client.googleapis.media.MediaHttpUploader;
+import com.google.api.gax.paging.Page;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.Dataset;
@@ -30,6 +31,9 @@ import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TimePartitioning;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.kms.v1.CryptoKeyName;
+import com.google.cloud.storage.Blob;
+import com.google.cloud.storage.BlobId;
+import com.google.cloud.storage.Storage;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
@@ -39,7 +43,6 @@ import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.validation.InvalidConfigPropertyException;
 import io.cdap.cdap.etl.api.validation.InvalidStageException;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
-import io.cdap.plugin.gcp.bigquery.sink.AbstractBigQuerySinkConfig;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySink;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySource;
 import io.cdap.plugin.gcp.bigquery.source.BigQuerySourceConfig;
@@ -572,94 +575,49 @@ public final class BigQueryUtil {
   /**
    * Get BigQuery table.
    *
-   * @param datasetProject           project where dataset is in
-   * @param datasetId                BigQuery dataset ID
-   * @param tableName                BigQuery table name
-   * @param serviceAccount           service account file path or JSON content
-   * @param isServiceAccountFilePath indicator for whether service account is file or json
-   * @return BigQuery table
-   */
-  @Nullable
-  public static Table getBigQueryTable(String datasetProject, String datasetId, String tableName,
-                                       @Nullable String serviceAccount, boolean isServiceAccountFilePath) {
-    TableId tableId = TableId.of(datasetProject, datasetId, tableName);
-
-    com.google.auth.Credentials credentials = null;
-    if (serviceAccount != null) {
-      try {
-        credentials = GCPUtils.loadServiceAccountCredentials(serviceAccount, isServiceAccountFilePath);
-      } catch (IOException e) {
-        throw new InvalidConfigPropertyException(
-          String.format("Unable to load credentials from %s", isServiceAccountFilePath ? serviceAccount : " JSON."),
-          "serviceFilePath");
-      }
-    }
-    BigQuery bigQuery = GCPUtils.getBigQuery(datasetProject, credentials, null);
-
-    Table table;
-    try {
-      table = bigQuery.getTable(tableId);
-    } catch (BigQueryException e) {
-      throw new InvalidStageException("Unable to get details about the BigQuery table: " + e.getMessage(), e);
-    }
-
-    return table;
-  }
-
-  /**
-   * Get BigQuery table.
-   *
-   * @param projectId          BigQuery project ID
-   * @param datasetId          BigQuery dataset ID
-   * @param tableName          BigQuery table name
-   * @param serviceAccountPath service account file path
-   * @param collector          failure collector
-   * @return BigQuery table
-   */
-  @Nullable
-  public static Table getBigQueryTable(String projectId, String datasetId, String tableName,
-                                       @Nullable String serviceAccountPath, FailureCollector collector) {
-    return getBigQueryTable(projectId, datasetId, tableName, serviceAccountPath, true, collector);
-  }
-
-  /**
-   * Get BigQuery table.
-   *
    * @param projectId                BigQuery project ID
    * @param dataset                  BigQuery dataset name
    * @param tableName                BigQuery table name
    * @param serviceAccount           service account file path or JSON content
    * @param isServiceAccountFilePath indicator for whether service account is file or json
    * @param collector                failure collector
+   * @param readTimeoutSeconds       http read time out in seconds
    * @return BigQuery table
    */
   public static Table getBigQueryTable(String projectId, String dataset, String tableName,
                                        @Nullable String serviceAccount, @Nullable Boolean isServiceAccountFilePath,
-                                       FailureCollector collector) {
+                                       @Nullable FailureCollector collector, @Nullable Integer readTimeoutSeconds) {
     TableId tableId = TableId.of(projectId, dataset, tableName);
     com.google.auth.Credentials credentials = null;
     if (serviceAccount != null) {
       try {
         credentials = GCPUtils.loadServiceAccountCredentials(serviceAccount, isServiceAccountFilePath);
       } catch (IOException e) {
-        collector.addFailure(String.format("Unable to load credentials from %s.",
-                                           isServiceAccountFilePath ? serviceAccount : "provided JSON key"),
-                             "Ensure the service account file is available on the local filesystem.")
-          .withConfigProperty(GCPConfig.NAME_SERVICE_ACCOUNT_FILE_PATH);
-        throw collector.getOrThrowException();
+        if (collector != null) {
+          collector.addFailure(String.format("Unable to load credentials from %s.",
+                isServiceAccountFilePath ? serviceAccount : "provided JSON key"),
+              "Ensure the service account file is available on the local filesystem.")
+            .withConfigProperty(GCPConfig.NAME_SERVICE_ACCOUNT_FILE_PATH);
+          throw collector.getOrThrowException();
+        }
+        throw new InvalidConfigPropertyException(
+          String.format("Unable to load credentials from %s", isServiceAccountFilePath ? serviceAccount : " JSON."),
+          "serviceFilePath");
       }
     }
-    BigQuery bigQuery = GCPUtils.getBigQuery(projectId, credentials, null);
+    BigQuery bigQuery = GCPUtils.getBigQuery(projectId, credentials, readTimeoutSeconds);
 
-    Table table = null;
+    Table table;
     try {
       table = bigQuery.getTable(tableId);
     } catch (BigQueryException e) {
-      collector.addFailure("Unable to get details about the BigQuery table: " + e.getMessage(), null)
-        .withConfigProperty(BigQuerySourceConfig.NAME_TABLE);
-      throw collector.getOrThrowException();
+      if (collector != null) {
+        collector.addFailure("Unable to get details about the BigQuery table: " + e.getMessage(), null)
+          .withConfigProperty(BigQuerySourceConfig.NAME_TABLE);
+        throw collector.getOrThrowException();
+      }
+      throw new InvalidStageException("Unable to get details about the BigQuery table: " + e.getMessage(), e);
     }
-
     return table;
   }
 
@@ -759,6 +717,30 @@ public final class BigQueryUtil {
     }
   }
 
+  /**
+   * Deletes the GCS bucket.
+   */
+  public static void deleteGcsBucket(Storage storage, @Nullable String bucket) {
+    if (Strings.isNullOrEmpty(bucket) || storage.get(bucket) == null) {
+      return;
+    }
+
+    Page<Blob> blobs = storage.list(bucket, Storage.BlobListOption.versions(true));
+    List<BlobId> blobIds = new ArrayList<>();
+    for (Blob blob : blobs.iterateAll()) {
+      blobIds.add(blob.getBlobId());
+      if (blobIds.size() == 100) {
+        storage.delete(blobIds); // Batch delete
+        blobIds.clear();
+      }
+    }
+    if (!blobIds.isEmpty()) {
+      storage.delete(blobIds);
+    }
+    storage.delete(bucket);
+    LOG.debug("Deleted GCS bucket '{}'.", bucket);
+  }
+
   public static String generateTimePartitionCondition(StandardTableDefinition tableDefinition,
                                                       String partitionFromDate,
                                                       String partitionToDate) {
@@ -802,18 +784,27 @@ public final class BigQueryUtil {
    *
    * @param datasetProject Name of the BQ project
    * @param datasetName Name of the BQ dataset
-   * @param tableName Name of the BQ table
+   * @param tableName Name of the BQ table, If null, only project and dataset are included.
    * @return String fqn
    */
-  public static String getFQN(String datasetProject, String datasetName, String tableName) {
+  public static String getFQN(String datasetProject, String datasetName,
+      @Nullable String tableName) {
 
     String formattedProject = GCPUtils.formatAsFQNComponent(datasetProject);
     String formattedDataset = GCPUtils.formatAsFQNComponent(datasetName);
-    String formattedTable = GCPUtils.formatAsFQNComponent(tableName);
+    StringBuilder fqnBuilder = new StringBuilder(BigQueryConstants.BQ_FQN_PREFIX)
+        .append(":")
+        .append(formattedProject)
+        .append(".")
+        .append(formattedDataset);
 
-    String fqn = String.format("%s:%s.%s.%s", BigQueryConstants.BQ_FQN_PREFIX, formattedProject,
-        formattedDataset, formattedTable);
-    LOG.trace("Formatted Fully-Qualified Name (FQN): {}", fqn);
+    if (tableName != null) {
+      String formattedTable = GCPUtils.formatAsFQNComponent(tableName);
+      fqnBuilder.append(".").append(formattedTable);
+    }
+
+    String fqn = fqnBuilder.toString();
+    LOG.trace("Constructed Fully-Qualified Name (FQN): {}", fqn);
     return fqn;
   }
 

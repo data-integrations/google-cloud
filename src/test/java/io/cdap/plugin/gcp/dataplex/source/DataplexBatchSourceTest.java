@@ -248,7 +248,7 @@ public class DataplexBatchSourceTest {
     Mockito.when(entity.getDataPath()).thenReturn("project/dataset/table");
     Mockito.when(BigQueryUtil.getBigQueryTable(Mockito.anyString(), Mockito.anyString(),
       Mockito.anyString(), Mockito.anyString(), Mockito.anyBoolean(),
-      Mockito.any())).thenReturn(table);
+      Mockito.any(), Mockito.any())).thenReturn(table);
     PowerMockito.mockStatic(BigQueryUtil.class);
     Configuration configuration = Mockito.mock(Configuration.class);
     BigQuery bigQuery = Mockito.mock(BigQuery.class);
@@ -342,7 +342,7 @@ public class DataplexBatchSourceTest {
     Mockito.when(entity.getDataPath()).thenReturn("project/dataset/table");
     Mockito.when(BigQueryUtil.getBigQueryTable(Mockito.anyString(), Mockito.anyString(),
       Mockito.anyString(), Mockito.anyString(), Mockito.anyBoolean(),
-      Mockito.any())).thenReturn(table);
+      Mockito.any(), Mockito.any())).thenReturn(table);
     PowerMockito.mockStatic(BigQueryUtil.class);
     Configuration configuration = Mockito.mock(Configuration.class);
     String tableName = "cdap.bq.source.temporary.table.name";

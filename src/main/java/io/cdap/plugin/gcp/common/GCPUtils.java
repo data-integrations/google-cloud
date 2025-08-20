@@ -34,10 +34,13 @@ import com.google.cloud.storage.BucketInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
+import com.google.common.collect.ImmutableMap;
 import com.google.gson.reflect.TypeToken;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 import io.cdap.plugin.gcp.gcs.ServiceAccountAccessTokenProvider;
 import org.apache.hadoop.conf.Configuration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.threeten.bp.Duration;
 
 import java.io.ByteArrayInputStream;
@@ -62,6 +65,8 @@ import javax.annotation.Nullable;
  * GCP utility class to get service account credentials
  */
 public class GCPUtils {
+
+  private static final Logger LOG = LoggerFactory.getLogger(GCPUtils.class);
   public static final String FS_GS_PROJECT_ID = "fs.gs.project.id";
   private static final Gson GSON = new Gson();
   private static final Type SCOPES_TYPE = new TypeToken<List<String>>() { }.getType();
@@ -81,6 +86,13 @@ public class GCPUtils {
   public static final int MILLISECONDS_MULTIPLIER = 1000;
   public static final String GCS_SUPPORTED_DOC_URL = "https://cloud.google.com/storage/docs/json_api/v1/status-codes";
   public static final String BQ_SUPPORTED_DOC_URL = "https://cloud.google.com/bigquery/docs/error-messages";
+  public static final String PUBSUB_SUPPORTED_DOC_URL = "https://cloud.google.com/pubsub/docs/reference/error-codes";
+  public static final String SPANNER_SUPPORTED_DOC_URL = "https://cloud.google.com/spanner/docs/error-codes";
+  public static final int BQ_DEFAULT_READ_TIMEOUT_SECONDS = 120;
+  public static final String DATASTORE_SUPPORTED_DOC_URL = "https://cloud.google.com/datastore/docs/concepts/errors";
+  public static final String BIG_TABLE_SUPPORTED_DOC_URL = "https://cloud.google.com/bigtable/docs/status-codes";
+  public static final String GCE_METADATA_SERVER_ERROR_SUPPORTED_DOC_URL =
+    "https://cloud.google.com/compute/docs/troubleshooting/troubleshoot-metadata-server";
 
   /**
    * Load a service account from the local file system.
@@ -258,6 +270,7 @@ public class GCPUtils {
     }
 
     if (readTimeout != null) {
+      LOG.debug("Setting read timeout to {} seconds.", readTimeout);
       bigqueryBuilder.setTransportOptions(HttpTransportOptions.newBuilder()
           .setReadTimeout(readTimeout * MILLISECONDS_MULTIPLIER).build());
     }
@@ -294,8 +307,12 @@ public class GCPUtils {
     if (cmekKeyName != null) {
       builder.setDefaultKmsKeyName(cmekKeyName.toString());
     }
+    // Add label to indicate bucket is created by cdap
+    builder.setLabels(
+        new ImmutableMap.Builder<String, String>().put("created_by", "cdap").build());
     storage.create(builder.build());
   }
+
   /**
    * Formats a string as a component of a Fully-Qualified Name (FQN).
    *

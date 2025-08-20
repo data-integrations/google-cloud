@@ -17,7 +17,9 @@
 package io.cdap.plugin.gcp.common;
 
 import com.google.api.client.http.HttpResponseException;
+import com.google.api.gax.rpc.ApiException;
 import com.google.common.base.Throwables;
+import io.cdap.cdap.api.data.format.UnexpectedFormatException;
 import io.cdap.cdap.api.exception.ErrorCategory;
 import io.cdap.cdap.api.exception.ErrorCategory.ErrorCategoryEnum;
 import io.cdap.cdap.api.exception.ErrorType;
@@ -41,6 +43,7 @@ public class GCPErrorDetailsProvider implements ErrorDetailsProvider {
    * @param e The Throwable to get the error information from.
    * @return A ProgramFailureException with the given error information, otherwise null.
    */
+  @Override
   public ProgramFailureException getExceptionDetails(Exception e, ErrorContext errorContext) {
     List<Throwable> causalChain = Throwables.getCausalChain(e);
     for (Throwable t : causalChain) {
@@ -48,15 +51,26 @@ public class GCPErrorDetailsProvider implements ErrorDetailsProvider {
         // if causal chain already has program failure exception, return null to avoid double wrap.
         return null;
       }
+    }
+    // Reverse iterate to prioritize HttpResponseException over ApiException
+    for (int i = causalChain.size() - 1; i >= 0; i--) {
+      Throwable t = causalChain.get(i);
       if (t instanceof HttpResponseException) {
         return GCPErrorDetailsProviderUtil.getProgramFailureException((HttpResponseException) t,
           getExternalDocumentationLink(), errorContext);
       }
+      if (t instanceof ApiException) {
+        return GCPErrorDetailsProviderUtil.getProgramFailureException((ApiException) t,
+        getExternalDocumentationLink(), errorContext);
+      }
       if (t instanceof IllegalArgumentException) {
-        return getProgramFailureException((IllegalArgumentException) t, errorContext);
+        return getProgramFailureException((IllegalArgumentException) t, errorContext, ErrorType.USER);
       }
       if (t instanceof IllegalStateException) {
-        return getProgramFailureException((IllegalStateException) t, errorContext);
+        return getProgramFailureException((IllegalStateException) t, errorContext, ErrorType.SYSTEM);
+      }
+      if (t instanceof UnexpectedFormatException) {
+        return getProgramFailureException((UnexpectedFormatException) t, errorContext, ErrorType.USER);
       }
     }
     return null;
@@ -64,32 +78,17 @@ public class GCPErrorDetailsProvider implements ErrorDetailsProvider {
 
   /**
    * Get a ProgramFailureException with the given error
-   * information from {@link IllegalArgumentException}.
+   * information from {@link IllegalArgumentException}, {@link UnexpectedFormatException}.
    *
-   * @param e The IllegalArgumentException to get the error information from.
+   * @param e The IllegalArgumentException or UnexpectedFormatException to get the error information from.
    * @return A ProgramFailureException with the given error information.
    */
-  private ProgramFailureException getProgramFailureException(IllegalArgumentException e,
-      ErrorContext errorContext) {
+  private ProgramFailureException getProgramFailureException(Exception e,
+      ErrorContext errorContext, ErrorType errorType) {
     String errorMessage = e.getMessage();
     return ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategoryEnum.PLUGIN),
         errorMessage, String.format(ERROR_MESSAGE_FORMAT, errorContext.getPhase(),
-            e.getClass().getName(), errorMessage), ErrorType.USER, false, e);
-  }
-
-  /**
-   * Get a ProgramFailureException with the given error
-   * information from {@link IllegalStateException}.
-   *
-   * @param e The IllegalStateException to get the error information from.
-   * @return A ProgramFailureException with the given error information.
-   */
-  private ProgramFailureException getProgramFailureException(IllegalStateException e,
-      ErrorContext errorContext) {
-    String errorMessage = e.getMessage();
-    return ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategoryEnum.PLUGIN),
-        errorMessage, String.format(ERROR_MESSAGE_FORMAT, errorContext.getPhase(),
-            e.getClass().getName(), errorMessage), ErrorType.SYSTEM, false, e);
+            e.getClass().getName(), errorMessage), errorType, false, e);
   }
 
   /**

@@ -44,14 +44,19 @@ import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.annotation.Plugin;
+import io.cdap.cdap.api.exception.ErrorCategory;
+import io.cdap.cdap.api.exception.ErrorType;
+import io.cdap.cdap.api.exception.ErrorUtils;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.action.Action;
 import io.cdap.cdap.etl.api.action.ActionContext;
 import io.cdap.cdap.etl.common.Constants;
+import io.cdap.plugin.gcp.bigquery.common.BigQueryErrorUtil;
 import io.cdap.plugin.gcp.bigquery.exception.BigQueryJobExecutionException;
 import io.cdap.plugin.gcp.bigquery.sink.BigQuerySinkUtils;
 import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
 import io.cdap.plugin.gcp.common.CmekUtils;
+import io.cdap.plugin.gcp.common.GCPErrorDetailsProviderUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -93,7 +98,7 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
   }
 
   @Override
-  public void run(ActionContext context) throws Exception {
+  public void run(ActionContext context) {
     FailureCollector collector = context.getFailureCollector();
     config.validate(collector, context.getArguments().asMap());
     QueryJobConfiguration.Builder builder = QueryJobConfiguration.newBuilder(config.getSql());
@@ -125,9 +130,16 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     builder.setUseLegacySql(config.isLegacySQL());
 
     // API request - starts the query.
-    Credentials credentials = config.getServiceAccount() == null ?
-      null : GCPUtils.loadServiceAccountCredentials(config.getServiceAccount(),
-                                                    config.isServiceAccountFilePath());
+    Credentials credentials = null;
+    try {
+      credentials = config.getServiceAccount() == null ?
+        null : GCPUtils.loadServiceAccountCredentials(config.getServiceAccount(),
+        config.isServiceAccountFilePath());
+    } catch (IOException e) {
+      collector.addFailure(String.format("Failed to load service account credentials, %s: %s",
+          e.getClass().getName(), e.getMessage()), null).withStacktrace(e.getStackTrace());
+      collector.getOrThrowException();
+    }
     BigQuery bigQuery = GCPUtils.getBigQuery(config.getProject(), credentials, config.getReadTimeout());
     //create dataset to store the results if not exists
     if (config.getStoreResults() && !Strings.isNullOrEmpty(datasetName) &&
@@ -152,23 +164,46 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
       try {
         executeQueryWithExponentialBackoff(bigQuery, queryConfig, context);
       } catch (Throwable e) {
-        throw new RuntimeException(e);
+        String errorMessage = String.format(
+            "Failed to execute query with exponential backoff, %s: %s", e.getClass().getName(),
+            e.getMessage());
+        if (e instanceof BigQueryException) {
+          throw BigQueryErrorUtil.getProgramFailureException(errorMessage,
+              ((BigQueryException) e).getReason(), (Exception) e);
+        }
+        throw ErrorUtils.getProgramFailureException(
+            new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN), errorMessage, errorMessage,
+            ErrorType.UNKNOWN, true, e);
       }
     } else {
-      executeQuery(bigQuery, queryConfig, context);
+      try {
+        executeQuery(bigQuery, queryConfig, context);
+      } catch (Exception e) {
+        String errorMessage = String.format("The bigquery query execution failed, %s: %s",
+            e.getClass().getName(), e.getMessage());
+        String errorReason = null;
+        if (e instanceof BigQueryException) {
+          errorReason = ((BigQueryException) e).getReason();
+        }
+        throw BigQueryErrorUtil.getProgramFailureException(errorMessage, errorReason, e);
+      }
     }
   }
 
   protected void executeQueryWithExponentialBackoff(BigQuery bigQuery,
-                                                   QueryJobConfiguration queryConfig, ActionContext context)
-          throws Throwable {
+      QueryJobConfiguration queryConfig, ActionContext context) {
     try {
       Failsafe.with(getRetryPolicy()).run(() -> executeQuery(bigQuery, queryConfig, context));
     } catch (FailsafeException e) {
+      String errorReason = String.format("The bigquery query execution failed with message: %s",
+          e.getMessage());
       if (e.getCause() != null) {
-        throw e.getCause();
+        errorReason = String.format("The bigquery query execution failed with message: %s",
+            e.getCause().getMessage());
       }
-      throw e;
+      throw GCPErrorDetailsProviderUtil.getHttpResponseExceptionDetailsFromChain(
+          e.getCause() == null ? e : e.getCause(), errorReason, ErrorType.UNKNOWN, true,
+          GCPUtils.BQ_SUPPORTED_DOC_URL);
     }
   }
 
@@ -185,7 +220,7 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
   }
 
   private void executeQuery(BigQuery bigQuery, QueryJobConfiguration queryConfig, ActionContext context)
-          throws InterruptedException, BigQueryJobExecutionException {
+      throws BigQueryJobExecutionException {
     // Location must match that of the dataset(s) referenced in the query.
     JobId jobId = JobId.newBuilder().setRandomJob().setLocation(config.getLocation()).build();
     Job queryJob;
@@ -199,25 +234,60 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
       // Wait for the query to complete
       queryJob = queryJob.waitFor();
     } catch (BigQueryException e) {
+      String errorMessage = String.format("The bigquery query execution failed, %s: %s",
+          e.getClass().getName(), e.getMessage());
       LOG.error("The query job {} failed. Error: {}", jobId.getJob(), e.getError().getMessage());
       if (RETRY_ON_REASON.contains(e.getError().getReason())) {
         throw new BigQueryJobExecutionException(e.getError().getMessage(), e);
       }
-      throw new RuntimeException(e);
+      throw BigQueryErrorUtil.getProgramFailureException(errorMessage, e.getReason(), e);
+    } catch (InterruptedException e) {
+      String errorMessage = String.format("The bigquery query execution interrupted, %s: %s",
+          e.getClass().getName(), e.getMessage());
+      throw ErrorUtils.getProgramFailureException(
+          new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN), errorMessage, errorMessage,
+          ErrorType.UNKNOWN, true, e);
     }
 
     // Check for errors
     if (queryJob.getStatus().getError() != null) {
       // You can also look at queryJob.getStatus().getExecutionErrors() for all
       // errors, not just the latest one.
-      LOG.error("The query job {} failed. Error: {}", jobId.getJob(), queryJob.getStatus().getError());
+      LOG.error("The query job {} failed with reason: {} and error: {}.", jobId.getJob(),
+          queryJob.getStatus().getError().getReason(),
+          queryJob.getStatus().getExecutionErrors().toString());
       if (RETRY_ON_REASON.contains(queryJob.getStatus().getError().getReason())) {
         throw new BigQueryJobExecutionException(queryJob.getStatus().getError().getMessage());
       }
-      throw new RuntimeException(queryJob.getStatus().getError().getMessage());
+      String errorReason = String.format(
+          "The bigquery query execution failed due to reason: %s and error: %s. "
+              + "For more details, see %s", queryJob.getStatus().getError().getReason(),
+          queryJob.getStatus().getExecutionErrors().toString(), GCPUtils.BQ_SUPPORTED_DOC_URL);
+      String errorMessage = String.format(
+          "The bigquery query execution failed due to reason: %s , error: %s and message: %s",
+          queryJob.getStatus().getError().getReason(),
+          queryJob.getStatus().getExecutionErrors().toString(),
+          queryJob.getStatus().getError().getMessage());
+      ErrorType type = BigQueryErrorUtil.getErrorType(queryJob.getStatus().getError().getReason());
+      throw ErrorUtils.getProgramFailureException(
+          new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN), errorReason, errorMessage,
+          type, true, null, null, GCPUtils.BQ_SUPPORTED_DOC_URL, null);
     }
 
-    TableResult queryResults = queryJob.getQueryResults();
+    TableResult queryResults;
+    try {
+      queryResults = queryJob.getQueryResults();
+    } catch (BigQueryException e) {
+      String errorMessage = String.format("Failed to retrieve query result, %s: %s",
+          e.getClass().getName(), e.getMessage());
+      throw BigQueryErrorUtil.getProgramFailureException(errorMessage, e.getReason(), e);
+    } catch (InterruptedException e) {
+      String errorMessage = String.format("Query result retrieval was interrupted, %s: %s",
+          e.getClass().getName(), e.getMessage());
+      throw ErrorUtils.getProgramFailureException(
+          new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN), errorMessage, errorMessage,
+          ErrorType.UNKNOWN, true, e);
+    }
     long rows = queryResults.getTotalRows();
 
     if (config.shouldSetAsArguments()) {
@@ -293,7 +363,6 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     public static final int DEFAULT_MAX_RETRY_COUNT = 5;
     // Sn = a * (1 - r^n) / (r - 1)
     public static final long DEFULT_MAX_RETRY_DURATION_SECONDS = 63L;
-    public static final int DEFAULT_READ_TIMEOUT = 120;
     public static final Set<String> VALID_WRITE_PREFERENCES = Arrays.stream(JobInfo.WriteDisposition.values())
         .map(Enum::name).collect(Collectors.toSet());
 
@@ -510,7 +579,7 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
     }
 
     public int getReadTimeout() {
-      return readTimeout == null ? DEFAULT_READ_TIMEOUT : readTimeout;
+      return readTimeout == null ? GCPUtils.BQ_DEFAULT_READ_TIMEOUT_SECONDS : readTimeout;
     }
 
     @Override
@@ -659,11 +728,12 @@ public final class BigQueryExecute extends AbstractBigQueryAction {
         bigQuery.create(JobInfo.of(queryJobConfiguration));
       } catch (BigQueryException e) {
           final String errorMessage;
-          if (e.getCode() == ERROR_CODE_NOT_FOUND)  {
-            errorMessage = String.format("Resource was not found. Please verify the resource name. If the resource " +
-              "will be created at runtime, then update to use a macro for the resource name. Error message received " +
-              "was: %s", e.getMessage());
-          } else {
+        if (e.getCode() == ERROR_CODE_NOT_FOUND) {
+          errorMessage = String.format(
+              "Resource was not found. Please verify the resource name. If the resource will be "
+                  + "created at runtime, then update to use a macro for the resource name. "
+                  + "Error message received was %s: %s", e.getClass().getName(), e.getMessage());
+        } else {
                errorMessage = e.getMessage();
           }
           failureCollector.addFailure(String.format("%s. Error code: %s.", errorMessage, e.getCode()),

@@ -26,10 +26,14 @@ import com.google.protobuf.ByteString;
 import com.google.pubsub.v1.ProjectTopicName;
 import com.google.pubsub.v1.PubsubMessage;
 import io.cdap.cdap.api.data.format.StructuredRecord;
+import io.cdap.cdap.api.exception.ErrorCategory;
+import io.cdap.cdap.api.exception.ErrorType;
+import io.cdap.cdap.api.exception.ErrorUtils;
 import io.cdap.cdap.format.StructuredRecordStringConverter;
 import io.cdap.cdap.format.io.StructuredRecordDatumWriter;
 import io.cdap.plugin.format.avro.StructuredToAvroTransformer;
 import io.cdap.plugin.gcp.bigtable.sink.BigtableSinkConfig;
+import io.cdap.plugin.gcp.common.GCPErrorDetailsProviderUtil;
 import io.cdap.plugin.gcp.common.GCPUtils;
 import io.cdap.plugin.gcp.gcs.actions.GCSBucketCreate;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -248,9 +252,11 @@ public class PubSubOutputFormat extends OutputFormat<NullWritable, StructuredRec
       return message;
     }
 
-    private void handleErrorIfAny() throws IOException {
+    private void handleErrorIfAny() {
       if (failures.get() > errorThreshold) {
-        throw new IOException(String.format("Failed to publish %s records", failures.get()), error.get());
+        String errorMessage = String.format("Failed to publish %s records: %s.", failures.get(), error.get());
+        throw ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN),
+        errorMessage, errorMessage, ErrorType.UNKNOWN, true, null);
       }
     }
 
@@ -264,7 +270,9 @@ public class PubSubOutputFormat extends OutputFormat<NullWritable, StructuredRec
           handleErrorIfAny();
         }
       } catch (ExecutionException | InterruptedException e) {
-        throw new IOException("Error publishing records to PubSub", e);
+        String errorReason = String.format("Error publishing records to PubSub: %s.", e.getMessage());
+        throw GCPErrorDetailsProviderUtil.getHttpResponseExceptionDetailsFromChain(e, errorReason, ErrorType.UNKNOWN,
+        true, GCPUtils.PUBSUB_SUPPORTED_DOC_URL);
       } finally {
         try {
           publisher.shutdown();

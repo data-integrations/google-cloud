@@ -17,6 +17,7 @@
 package io.cdap.plugin.gcp.gcs.source;
 
 import com.google.auth.Credentials;
+import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
 import com.google.common.base.Strings;
@@ -55,6 +56,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
@@ -122,7 +124,16 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
     String location = null;
     try {
       // Get location of the source for lineage
-      location = storage.get(bucketName).getLocation();
+      Bucket bucket = storage.get(bucketName);
+      if (Objects.isNull(bucket)) {
+        String errorReason = String.format("Unable to access GCS bucket '%s'.",
+            bucketName);
+        collector.addFailure(
+            String.format("%s Ensure you entered the correct bucket path.", errorReason),
+            null);
+        collector.getOrThrowException();
+      }
+      location = bucket.getLocation();
     } catch (StorageException e) {
       String errorReason = String.format("Error code: %s, Unable to access GCS bucket '%s'. ",
         e.getCode(), bucketName);
@@ -202,6 +213,9 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
     private static final String NAME_FILE_SYSTEM_PROPERTIES = "fileSystemProperties";
     private static final String NAME_FILE_REGEX = "fileRegex";
     private static final String NAME_DELIMITER = "delimiter";
+    private static final String NAME_SHEET = "sheet";
+    private static final String NAME_SHEET_VALUE = "sheetValue";
+    private static final String NAME_TERMINATE_IF_EMPTY_ROW = "terminateIfEmptyRow";
 
     private static final String DEFAULT_ENCRYPTED_METADATA_SUFFIX = ".metadata";
 
@@ -255,6 +269,25 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
     @Nullable
     @Description("The existing connection to use.")
     private GCPConnectorConfig connection;
+
+    @Name(NAME_SHEET)
+    @Macro
+    @Nullable
+    @Description("Select the sheet by name or number. Default is 'Sheet Number'.")
+    private String sheet;
+
+    @Name(NAME_SHEET_VALUE)
+    @Macro
+    @Nullable
+    @Description("The name/number of the sheet to read from. If not specified, the first sheet will be read." +
+            "Sheet Numbers are 0 based, ie first sheet is 0.")
+    private String sheetValue;
+
+    @Name(NAME_TERMINATE_IF_EMPTY_ROW)
+    @Macro
+    @Nullable
+    @Description("Specify whether to stop reading after encountering the first empty row. Defaults to false.")
+    private String terminateIfEmptyRow;
 
     @Override
     public void validate() {

@@ -16,6 +16,8 @@
 
 package io.cdap.plugin.gcp.bigquery.sink;
 
+import com.google.api.gax.paging.Page;
+import com.google.auth.Credentials;
 import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryException;
 import com.google.cloud.bigquery.Dataset;
@@ -29,9 +31,11 @@ import com.google.cloud.bigquery.Table;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
 import com.google.cloud.kms.v1.CryptoKeyName;
+import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
+import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import io.cdap.cdap.api.data.schema.Schema;
@@ -41,10 +45,10 @@ import io.cdap.cdap.api.exception.ErrorType;
 import io.cdap.cdap.api.exception.ErrorUtils;
 import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.batch.BatchSinkContext;
-import io.cdap.cdap.etl.api.exception.ErrorPhase;
 import io.cdap.cdap.etl.api.validation.ValidationFailure;
 import io.cdap.plugin.common.Asset;
 import io.cdap.plugin.common.LineageRecorder;
+import io.cdap.plugin.gcp.bigquery.connector.BigQueryConnectorConfig;
 import io.cdap.plugin.gcp.bigquery.sink.lib.BigQueryOutputConfiguration;
 import io.cdap.plugin.gcp.bigquery.sink.lib.BigQueryTableFieldSchema;
 import io.cdap.plugin.gcp.bigquery.sink.lib.BigQueryTableSchema;
@@ -55,6 +59,8 @@ import io.cdap.plugin.gcp.common.GCPUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
@@ -79,8 +85,12 @@ import javax.annotation.Nullable;
  */
 public final class BigQuerySinkUtils {
 
+  private static final Logger LOG = LoggerFactory.getLogger(BigQuerySinkUtils.class);
   public static final String GS_PATH_FORMAT = "gs://%s/%s";
   private static final String TEMPORARY_BUCKET_FORMAT = GS_PATH_FORMAT + "/input/%s-%s";
+  private static final String BQ_TEMP_BUCKET_NAME_PREFIX = "bq-sink-bucket-";
+  private static final String BQ_TEMP_BUCKET_NAME_TEMPLATE = BQ_TEMP_BUCKET_NAME_PREFIX + "%s";
+  private static final String BQ_TEMP_BUCKET_PATH_TEMPLATE = "gs://" + BQ_TEMP_BUCKET_NAME_TEMPLATE;
   private static final String DATETIME = "DATETIME";
   private static final String RECORD = "RECORD";
   private static final String JSON = "JSON";
@@ -271,7 +281,7 @@ public final class BigQuerySinkUtils {
     boolean deleteBucket = false;
     // If the bucket is null, assign the run ID as the bucket name and mark the bucket for deletion.
     if (bucket == null) {
-      bucket = runId;
+      bucket = String.format(BQ_TEMP_BUCKET_NAME_TEMPLATE, runId);
       deleteBucket = true;
     }
     return configureBucket(baseConfiguration, bucket, runId, deleteBucket);
@@ -486,7 +496,7 @@ public final class BigQuerySinkUtils {
     BigQueryTableFieldSchema fieldSchema = new BigQueryTableFieldSchema();
     fieldSchema.setName(field.getName());
     fieldSchema.setMode(getMode(field.getSchema()).name());
-    LegacySQLTypeName type = getTableDataType(field.getSchema());
+    LegacySQLTypeName type = getTableDataType(field, field.getSchema());
     fieldSchema.setType(type.name());
     if (type == LegacySQLTypeName.RECORD) {
       List<Schema.Field> schemaFields;
@@ -519,7 +529,7 @@ public final class BigQuerySinkUtils {
 
   private static Field convertCdapFieldToBigQueryField(Schema.Field field) {
     String name = field.getName();
-    LegacySQLTypeName type = getTableDataType(field.getSchema());
+    LegacySQLTypeName type = getTableDataType(field, field.getSchema());
     Field.Mode mode = getMode(field.getSchema());
 
     Field.Builder fieldBuilder;
@@ -575,7 +585,7 @@ public final class BigQuerySinkUtils {
    * This function returns the LegacySQLTypeName that maps to the given CDAP Schema.
    * If the CDAP Schema is an Array it will return the LegacySQLTypename of the components.
    */
-  private static LegacySQLTypeName getTableDataType(Schema schema) {
+  private static LegacySQLTypeName getTableDataType(Schema.Field field, Schema schema) {
     schema = BigQueryUtil.getNonNullableSchema(schema);
     Schema.LogicalType logicalType = schema.getLogicalType();
 
@@ -600,7 +610,9 @@ public final class BigQuerySinkUtils {
         case DATETIME:
           return LegacySQLTypeName.DATETIME;
         default:
-          throw new IllegalStateException("Unsupported type " + logicalType.getToken());
+          throw new IllegalStateException(
+              String.format("Unsupported type %s for field %s", logicalType.getToken(),
+                  field.toString()));
       }
     }
 
@@ -619,11 +631,12 @@ public final class BigQuerySinkUtils {
       case BYTES:
         return LegacySQLTypeName.BYTES;
       case ARRAY:
-        return getTableDataType(schema.getComponentSchema());
+        return getTableDataType(field, schema.getComponentSchema());
       case RECORD:
         return LegacySQLTypeName.RECORD;
       default:
-        throw new IllegalStateException("Unsupported type " + type);
+        throw new IllegalStateException(String.format("Unsupported type %s for field %s", type,
+            field.toString()));
     }
   }
 
@@ -1000,6 +1013,59 @@ public final class BigQuerySinkUtils {
         fields.add(String.join(".", path));
       }
       path.remove(path.size() - 1);
+    }
+  }
+
+  /**
+   * Deletes temporary GCS directory.
+   *
+   * @param configuration Hadoop Configuration.
+   * @param bucket the bucket name
+   * @param runId the run ID
+   */
+  private static void deleteGcsTemporaryDirectory(Configuration configuration,
+      @Nullable String bucket, String runId) {
+    String gcsPath;
+    // If the bucket was created for this run, build temp path name using the bucket path and delete the entire bucket.
+    if (bucket == null) {
+      gcsPath = String.format(BQ_TEMP_BUCKET_PATH_TEMPLATE, runId);
+    } else {
+      gcsPath = String.format(GS_PATH_FORMAT, bucket, runId);
+    }
+
+    try {
+      BigQueryUtil.deleteTemporaryDirectory(configuration, gcsPath);
+    } catch (Exception e) {
+      LOG.warn("Failed to delete temporary directory '{}': {}", gcsPath, e.getMessage());
+    }
+  }
+
+  /**
+   * Returns the serviceAccountCredentials if present in the config, otherwise null.
+   */
+  @Nullable
+  public static Credentials getCredentials(BigQueryConnectorConfig config) throws IOException {
+    return config.getServiceAccount() == null ?
+        null : GCPUtils.loadServiceAccountCredentials(config.getServiceAccount(),
+        config.isServiceAccountFilePath());
+  }
+
+  /**
+   * Cleanup temporary GCS bucket if created.
+   */
+  public static void cleanupGcsBucket(Configuration configuration, String runId,
+      @Nullable String bucket, Storage storage) {
+    if (!Strings.isNullOrEmpty(bucket)) {
+      // Only need to delete the bucket if it was created for this run
+      deleteGcsTemporaryDirectory(configuration, bucket, runId);
+      return;
+    }
+    bucket = String.format(BQ_TEMP_BUCKET_NAME_TEMPLATE, runId);
+
+    try {
+      BigQueryUtil.deleteGcsBucket(storage, bucket);
+    } catch (Exception e) {
+      LOG.warn("Failed to delete GCS bucket '{}': {}", bucket, e.getMessage(), e);
     }
   }
 }
