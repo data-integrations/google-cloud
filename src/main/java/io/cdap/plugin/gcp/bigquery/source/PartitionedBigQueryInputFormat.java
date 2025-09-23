@@ -22,6 +22,7 @@ import com.google.api.services.bigquery.model.JobConfigurationQuery;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
+import com.google.cloud.bigquery.RangePartitioning;
 import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.TableDefinition.Type;
 import com.google.cloud.bigquery.TimePartitioning;
@@ -49,6 +50,8 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.hadoop.util.Progressable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -65,6 +68,7 @@ import javax.annotation.Nullable;
  */
 public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<LongWritable, GenericData.Record> {
 
+  private static final Logger LOG = LoggerFactory.getLogger(PartitionedBigQueryInputFormat.class);
   private InputFormat<LongWritable, GenericData.Record> delegateInputFormat =
     new AvroBigQueryInputFormatWithScopes();
 
@@ -128,17 +132,24 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
     String partitionFromDate = configuration.get(BigQueryConstants.CONFIG_PARTITION_FROM_DATE, null);
     String partitionToDate = configuration.get(BigQueryConstants.CONFIG_PARTITION_TO_DATE, null);
     String filter = configuration.get(BigQueryConstants.CONFIG_FILTER, null);
+    String limit = configuration.get(BigQueryConstants.CONFIG_LIMIT, null);
+    String orderBy = configuration.get(BigQueryConstants.CONFIG_ORDER_BY, null);
 
     com.google.cloud.bigquery.Table bigQueryTable = BigQueryUtil.getBigQueryTable(
-      datasetProjectId, datasetId, tableName, serviceAccount, isServiceAccountFilePath);
+        datasetProjectId, datasetId, tableName, serviceAccount, isServiceAccountFilePath, null);
     Type type = Objects.requireNonNull(bigQueryTable).getDefinition().getType();
+    Boolean isPartitionFilterRequired = bigQueryTable.getRequirePartitionFilter();
+    StandardTableDefinition tableDefinition = Objects.requireNonNull(bigQueryTable).getDefinition();
 
     String query;
     if (type == Type.VIEW || type == Type.MATERIALIZED_VIEW || type == Type.EXTERNAL) {
-      query = generateQueryForMaterializingView(datasetProjectId, datasetId, tableName, filter);
+      query = generateQueryForMaterializingView(datasetProjectId, datasetId, tableName, filter,
+          limit, orderBy);
     } else {
-      query = generateQuery(partitionFromDate, partitionToDate, filter, projectId, datasetProjectId, datasetId,
-                            tableName, serviceAccount, isServiceAccountFilePath);
+      query = generateQuery(partitionFromDate, partitionToDate, filter, datasetProjectId,
+          datasetId,
+          tableName, limit, orderBy,
+          isPartitionFilterRequired, tableDefinition);
     }
 
     if (query != null) {
@@ -160,30 +171,35 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
   }
 
   @VisibleForTesting
-  String generateQuery(String partitionFromDate, String partitionToDate, String filter, String project,
-                       String datasetProject, String dataset, String table, @Nullable String serviceAccount,
-                       @Nullable Boolean isServiceAccountFilePath) {
-    if (partitionFromDate == null && partitionToDate == null && filter == null) {
-      return null;
-    }
-    String queryTemplate = "select * from `%s` where %s";
-    com.google.cloud.bigquery.Table sourceTable = BigQueryUtil.getBigQueryTable(datasetProject, dataset, table,
-                                                                                serviceAccount,
-                                                                                isServiceAccountFilePath);
-    StandardTableDefinition tableDefinition = Objects.requireNonNull(sourceTable).getDefinition();
+  String generateQuery(String partitionFromDate, String partitionToDate, String filter,
+      String datasetProject, String dataset, String table, String limit, String orderBy,
+      Boolean isPartitionFilterRequired, StandardTableDefinition tableDefinition) {
+
+    RangePartitioning rangePartitioning = tableDefinition.getRangePartitioning();
     TimePartitioning timePartitioning = tableDefinition.getTimePartitioning();
-    if (timePartitioning == null && filter == null) {
-      return null;
-    }
     StringBuilder condition = new StringBuilder();
+    String partitionCondition = null;
 
     if (timePartitioning != null) {
-      String timePartitionCondition = BigQueryUtil.generateTimePartitionCondition(tableDefinition, partitionFromDate,
-                                                                                  partitionToDate);
-      condition.append(timePartitionCondition);
+      if (partitionFromDate == null && partitionToDate == null
+          && Objects.equals(isPartitionFilterRequired, Boolean.TRUE)) {
+        partitionCondition = BigQueryUtil.generateDefaultTimePartitionCondition(tableDefinition);
+      } else if (partitionFromDate != null || partitionToDate != null) {
+        partitionCondition =
+            BigQueryUtil.generateTimePartitionCondition(tableDefinition, partitionFromDate,
+                partitionToDate);
+      }
+    } else if (rangePartitioning != null && Objects.equals(isPartitionFilterRequired,
+        Boolean.TRUE)) {
+      partitionCondition = BigQueryUtil.generateDefaultRangePartitionCondition(
+          tableDefinition);
     }
 
-    if (filter != null) {
+    if (!Strings.isNullOrEmpty(partitionCondition)) {
+      condition.append("(").append(partitionCondition).append(")");
+    }
+
+    if (!Strings.isNullOrEmpty(filter)) {
       if (condition.length() == 0) {
         condition.append(filter);
       } else {
@@ -192,20 +208,42 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
     }
 
     String tableName = datasetProject + "." + dataset + "." + table;
-    return String.format(queryTemplate, tableName, condition.toString());
+    StringBuilder query = new StringBuilder("select * from ").append(tableName);
+
+    if (condition.length() > 0) {
+      query.append(" where ").append(condition);
+    }
+
+    if (!Strings.isNullOrEmpty(orderBy)) {
+      query.append(" order by ").append(orderBy);
+    }
+
+    if (!Strings.isNullOrEmpty(limit)) {
+      query.append(" limit ").append(limit);
+    }
+
+    LOG.debug("Generated BigQuery query for job: {}", query);
+    return query.toString();
   }
 
   @VisibleForTesting
-  String generateQueryForMaterializingView(String datasetProject, String dataset, String table, String filter) {
-    String queryTemplate = "select * from `%s`%s";
-    StringBuilder condition = new StringBuilder();
-
+  String generateQueryForMaterializingView(String datasetProject, String dataset, String table,
+      String filter, String limit, String orderBy) {
+    String tableName = String.format("`%s.%s.%s`", datasetProject, dataset, table);
+    StringBuilder query = new StringBuilder("select * from ").append(tableName);
     if (!Strings.isNullOrEmpty(filter)) {
-      condition.append(String.format(" where %s", filter));
+      query.append(" where ").append(filter);
     }
 
-    String tableName = datasetProject + "." + dataset + "." + table;
-    return String.format(queryTemplate, tableName, condition.toString());
+    if (!Strings.isNullOrEmpty(orderBy)) {
+      query.append(" order by ").append(orderBy);
+    }
+
+    if (!Strings.isNullOrEmpty(limit)) {
+      query.append(" limit ").append(limit);
+    }
+
+    return query.toString();
   }
 
   /**
