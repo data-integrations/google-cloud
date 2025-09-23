@@ -241,6 +241,13 @@ public final class BigQuerySource extends BatchSource<LongWritable, GenericData.
     if (config.getViewMaterializationDataset() != null) {
       configuration.set(BigQueryConstants.CONFIG_VIEW_MATERIALIZATION_DATASET, config.getViewMaterializationDataset());
     }
+    if (config.getOrderBy() != null) {
+      configuration.set(BigQueryConstants.CONFIG_ORDER_BY, config.getOrderBy());
+    }
+    if (config.getLimit() != null) {
+      configuration.set(BigQueryConstants.CONFIG_LIMIT,  String.valueOf(config.getLimit()));
+    }
+    configuration.set(BigQueryConstants.CONFIG_BQ_HTTP_READ_TIMEOUT, String.valueOf(config.getReadTimeout()));
   }
 
   public Schema getSchema(FailureCollector collector) {
