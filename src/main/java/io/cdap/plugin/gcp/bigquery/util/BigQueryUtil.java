@@ -24,6 +24,7 @@ import com.google.cloud.bigquery.Dataset;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.LegacySQLTypeName;
+import com.google.cloud.bigquery.RangePartitioning;
 import com.google.cloud.bigquery.StandardSQLTypeName;
 import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.Table;
@@ -82,7 +83,7 @@ public final class BigQueryUtil {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryUtil.class);
 
-  private static final String DEFAULT_PARTITION_COLUMN_NAME = "_PARTITIONTIME";
+  public static final String DEFAULT_PARTITION_COLUMN_NAME = "_PARTITIONTIME";
   private static final String BIGQUERY_BUCKET_PREFIX_PROPERTY_NAME = "gcp.bigquery.bucket.prefix";
 
   public static final String BUCKET_PATTERN = "[a-z0-9._-]+";
@@ -776,6 +777,43 @@ public final class BigQueryUtil {
         .append(partitionToDate).append("\")");
     }
     return timePartitionCondition.toString();
+  }
+
+  /**
+   * Generates a default "IS NOT NULL OR IS NULL" partition condition for a time-partitioned table.
+   *
+   * @param tableDefinition The definition of the table.
+   * @return The SQL condition string or an empty string if no condition is needed.
+   */
+  public static String generateDefaultTimePartitionCondition(
+      StandardTableDefinition tableDefinition) {
+    TimePartitioning timePartitioning = tableDefinition.getTimePartitioning();
+    if (timePartitioning == null) {
+      return StringUtils.EMPTY;
+    }
+
+    String columnName = timePartitioning.getField() != null ?
+        timePartitioning.getField() : DEFAULT_PARTITION_COLUMN_NAME;
+
+    return String.format("`%s` IS NOT NULL OR `%s` IS NULL", columnName, columnName);
+  }
+
+  /**
+   * Generates a default "IS NOT NULL OR IS NULL" partition condition for a range-partitioned
+   * table.
+   *
+   * @param tableDefinition The definition of the table.
+   * @return The SQL condition string or an empty string if no condition is needed.
+   */
+  public static String generateDefaultRangePartitionCondition(
+      StandardTableDefinition tableDefinition) {
+    RangePartitioning rangePartitioning = tableDefinition.getRangePartitioning();
+    if (rangePartitioning == null || Strings.isNullOrEmpty(rangePartitioning.getField())) {
+      return StringUtils.EMPTY;
+    }
+
+    String columnName = rangePartitioning.getField();
+    return String.format("`%s` IS NOT NULL OR `%s` IS NULL", columnName, columnName);
   }
 
   /**
