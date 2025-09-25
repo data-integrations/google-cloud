@@ -16,63 +16,271 @@
 
 package io.cdap.plugin.gcp.bigquery.source;
 
+import com.google.cloud.bigquery.Field;
+import com.google.cloud.bigquery.FieldList;
+import com.google.cloud.bigquery.LegacySQLTypeName;
+import com.google.cloud.bigquery.RangePartitioning;
+import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.StandardTableDefinition;
-import com.google.cloud.bigquery.Table;
-import io.cdap.plugin.gcp.bigquery.util.BigQueryUtil;
+import com.google.cloud.bigquery.TimePartitioning;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.ArgumentMatchers;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnitRunner;
 
-/**
- *  Unit Tests for generateQuery methods
- */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(BigQueryUtil.class)
+import static org.mockito.Mockito.when;
+
+@RunWith(MockitoJUnitRunner.class)
 public class PartitionedBigQueryInputFormatTest {
+  private static final String TEST_PROJECT = "test-project";
+  private static final String TEST_DATASET = "test-dataset";
+  private static final String TEST_TABLE = "test-table";
+  private static final String TEST_FILTER = "age > 10";
+  private static final String TEST_LIMIT = "100";
+  private static final String TEST_ORDER_BY = "name asc";
+  private static final String TEST_TABLE_SPEC = String.format("%s.%s.%s", TEST_PROJECT, TEST_DATASET, TEST_TABLE);
+  private static final String TEST_FROM_DATE = "2025-01-01";
+  private static final String TEST_TO_DATE = "2025-01-02";
+  private static final String TEST_PARTITION_CONDITION =
+      "TIMESTAMP(`_PARTITIONTIME`) >= TIMESTAMP(\"2025-01-01\") and "
+          + "TIMESTAMP(`_PARTITIONTIME`) < TIMESTAMP(\"2025-01-02\")";
+  private static final String TEST_DEFAULT_TIME_CONDITION =
+      "(`_PARTITIONTIME` IS NOT NULL OR `_PARTITIONTIME` IS NULL)";
+  private static final String TEST_DEFAULT_RANGE_CONDITION = "(`range_col` IS NOT NULL "
+      + "OR `range_col` IS NULL)";
+  private static final String TEST_TIME_UNIT_COL = "my_date_col";
+  private static final String TEST_TIME_UNIT_PARTITION_CONDITION =
+      "TIMESTAMP(`my_date_col`) >= TIMESTAMP(\"2025-01-01\") and "
+          + "TIMESTAMP(`my_date_col`) < TIMESTAMP(\"2025-01-02\")";
+  private static final String TEST_DEFAULT_TIME_UNIT_CONDITION =
+      "(`my_date_col` IS NOT NULL OR `my_date_col` IS NULL)";
 
-  @Test
-  public void testGenerateQueryForMaterializingView() {
-    String datasetProject = "test_bq_dataset_project";
-    String dataset = "test_bq_dataset";
-    String table = "test_bq_table";
-    String filter = "tableColumn = 'abc'";
-    PartitionedBigQueryInputFormat partitionedBigQueryInputFormat = new PartitionedBigQueryInputFormat();
-    String generatedQuery = partitionedBigQueryInputFormat.generateQueryForMaterializingView(datasetProject, dataset,
-                                                                                             table, filter);
-    String expectedQuery = String.format("select * from `%s.%s.%s` where %s", datasetProject, dataset, table, filter);
-    Assert.assertEquals(expectedQuery, generatedQuery);
 
-    String expectedQueryWithoutFilter = String.format("select * from `%s.%s.%s`", datasetProject, dataset, table);
-    generatedQuery = partitionedBigQueryInputFormat.generateQueryForMaterializingView(datasetProject, dataset,
-                                                                                      table, null);
-    Assert.assertEquals(expectedQueryWithoutFilter, generatedQuery);
+  @Mock
+  private StandardTableDefinition mockTableDefinition;
+  @Mock
+  private TimePartitioning mockTimePartitioning;
+  @Mock
+  private RangePartitioning mockRangePartitioning;
+  @Mock
+  private Schema mockSchema;
+  @Mock
+  private FieldList mockFieldList;
+  @Mock
+  private Field mockField;
+
+  private PartitionedBigQueryInputFormat format;
+
+  @Before
+  public void setUp() {
+    format = new PartitionedBigQueryInputFormat();
+    when(mockTableDefinition.getTimePartitioning()).thenReturn(null);
+    when(mockTableDefinition.getRangePartitioning()).thenReturn(null);
   }
 
   @Test
-  public void testGenerateQuery() {
-    String datasetProject = "test_bq_dataset_project";
-    String dataset = "test_bq_dataset";
-    String table = "test_bq_table";
-    String filter = "tableColumn = 'abc'";
-    PartitionedBigQueryInputFormat partitionedBigQueryInputFormat = new PartitionedBigQueryInputFormat();
-    PowerMockito.mockStatic(BigQueryUtil.class);
-    Table t = PowerMockito.mock(Table.class);
-    StandardTableDefinition tableDefinition = PowerMockito.mock(StandardTableDefinition.class);
-    PowerMockito.when(BigQueryUtil.getBigQueryTable(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(),
-        ArgumentMatchers.anyString(), ArgumentMatchers.any(), ArgumentMatchers.anyBoolean(), ArgumentMatchers.any(),
-        ArgumentMatchers.any())).thenReturn(t);
-    PowerMockito.when(t.getDefinition()).thenReturn(tableDefinition);
-    String generatedQuery = partitionedBigQueryInputFormat.generateQuery(null, null, filter, datasetProject,
-                                                                         datasetProject, dataset, table, null, true);
-    String expectedQuery = String.format("select * from `%s.%s.%s` where %s", datasetProject, dataset, table, filter);
-    Assert.assertEquals(expectedQuery, generatedQuery);
+  public void testGenerateQueryForMaterializingView_WithFilterOnly() {
+    String expectedQuery = String.format("select * from `%s.%s.%s` where %s",
+        TEST_PROJECT, TEST_DATASET, TEST_TABLE, TEST_FILTER);
 
-    generatedQuery = partitionedBigQueryInputFormat.generateQuery(null, null, null, datasetProject, datasetProject,
-                                                                  dataset, table, null, true);
-    Assert.assertNull(generatedQuery);
+    String generatedQuery = format.generateQueryForMaterializingView(
+        TEST_PROJECT, TEST_DATASET, TEST_TABLE, TEST_FILTER, null, null);
+
+    Assert.assertEquals(expectedQuery, generatedQuery);
+  }
+
+  @Test
+  public void testGenerateQueryForMaterializingView_NoFilterOrOptions() {
+    String expectedQuery = String.format("select * from `%s.%s.%s`",
+        TEST_PROJECT, TEST_DATASET, TEST_TABLE);
+
+    String generatedQuery = format.generateQueryForMaterializingView(
+        TEST_PROJECT, TEST_DATASET, TEST_TABLE, null, null, null);
+    Assert.assertEquals(expectedQuery, generatedQuery);
+  }
+
+  @Test
+  public void testGenerateQueryForMaterializingView_AllOptions() {
+    String expectedQuery = String.format("select * from `%s.%s.%s` where %s order by %s limit %s",
+        TEST_PROJECT, TEST_DATASET, TEST_TABLE,
+        TEST_FILTER, TEST_ORDER_BY, TEST_LIMIT);
+
+    String generatedQuery = format.generateQueryForMaterializingView(
+        TEST_PROJECT, TEST_DATASET, TEST_TABLE, TEST_FILTER, TEST_LIMIT, TEST_ORDER_BY);
+    Assert.assertEquals(expectedQuery, generatedQuery);
+  }
+
+  @Test
+  public void testGenerateQuery_WithFilterOnly() {
+    String expectedQuery = String.format("select * from %s where %s",
+        TEST_TABLE_SPEC, TEST_FILTER);
+
+    String generatedQuery = format.generateQuery(null, null,
+        TEST_FILTER, TEST_PROJECT, TEST_DATASET, TEST_TABLE,
+        null, null,
+        false, mockTableDefinition);
+    Assert.assertEquals(expectedQuery, generatedQuery);
+  }
+
+  @Test
+  public void testGenerateQuery_NoOptions() {
+    String expectedQuery = String.format("select * from %s", TEST_TABLE_SPEC);
+
+    String generatedQuery = format.generateQuery(null, null,
+        null, TEST_PROJECT, TEST_DATASET, TEST_TABLE,
+        null, null,
+        false, mockTableDefinition);
+    Assert.assertEquals(expectedQuery, generatedQuery);
+  }
+
+  @Test
+  public void testGenerateQuery_AllOptions() {
+    String expectedQuery = String.format("select * from %s where %s order by %s limit %s",
+        TEST_TABLE_SPEC, TEST_FILTER, TEST_ORDER_BY, TEST_LIMIT);
+
+    String generatedQuery = format.generateQuery(null, null,
+        TEST_FILTER, TEST_PROJECT, TEST_DATASET, TEST_TABLE,
+        TEST_LIMIT, TEST_ORDER_BY,
+        false, mockTableDefinition);
+    Assert.assertEquals(expectedQuery, generatedQuery);
+  }
+
+  @Test
+  public void testGenerateQuery_TimePartitionWithDates() {
+    when(mockTableDefinition.getTimePartitioning()).thenReturn(mockTimePartitioning);
+    when(mockTimePartitioning.getField()).thenReturn(null);
+
+    String expectedQuery = String.format("select * from %s where (%s)",
+        TEST_TABLE_SPEC,
+        TEST_PARTITION_CONDITION);
+
+    String generatedQuery = format.generateQuery(TEST_FROM_DATE, TEST_TO_DATE, null,
+        TEST_PROJECT, TEST_DATASET, TEST_TABLE,
+        null, null,
+        false, mockTableDefinition);
+    Assert.assertEquals(expectedQuery, generatedQuery);
+  }
+
+
+  @Test
+  public void testGenerateQuery_TimePartitionRequiredNoDates() {
+    when(mockTableDefinition.getTimePartitioning()).thenReturn(mockTimePartitioning);
+    when(mockTimePartitioning.getField()).thenReturn(null);
+
+    String expectedQuery = String.format("select * from %s where %s",
+        TEST_TABLE_SPEC, TEST_DEFAULT_TIME_CONDITION);
+
+    String generatedQuery = format.generateQuery(null, null,
+        null, TEST_PROJECT, TEST_DATASET, TEST_TABLE,
+        null, null,
+        true, mockTableDefinition);
+    Assert.assertEquals(expectedQuery, generatedQuery);
+  }
+
+  @Test
+  public void testGenerateQuery_RangePartitionRequiredNoDates() {
+    when(mockTableDefinition.getTimePartitioning()).thenReturn(null);
+    when(mockTableDefinition.getRangePartitioning()).thenReturn(mockRangePartitioning);
+    when(mockRangePartitioning.getField()).thenReturn("range_col");
+
+    String expectedQuery = String.format("select * from %s where %s",
+        TEST_TABLE_SPEC, TEST_DEFAULT_RANGE_CONDITION);
+
+    String generatedQuery = format.generateQuery(null, null, null,
+        TEST_PROJECT, TEST_DATASET, TEST_TABLE,
+        null, null,
+        true, mockTableDefinition);
+    Assert.assertEquals(expectedQuery, generatedQuery);
+  }
+
+  @Test
+  public void testGenerateQuery_TimePartitionRequiredAndFilter() {
+    when(mockTableDefinition.getTimePartitioning()).thenReturn(mockTimePartitioning);
+    when(mockTimePartitioning.getField()).thenReturn(null);
+    String expectedQuery = String.format("select * from %s where %s and (%s)",
+        TEST_TABLE_SPEC, TEST_DEFAULT_TIME_CONDITION, TEST_FILTER);
+
+    String generatedQuery = format.generateQuery(null, null,
+        TEST_FILTER, TEST_PROJECT, TEST_DATASET, TEST_TABLE,
+        null, null,
+        true, mockTableDefinition);
+    Assert.assertEquals(expectedQuery, generatedQuery);
+  }
+
+  @Test
+  public void testGenerateQuery_TimeUnitPartitionWithDates() {
+    when(mockTableDefinition.getTimePartitioning()).thenReturn(mockTimePartitioning);
+    when(mockTimePartitioning.getField()).thenReturn(TEST_TIME_UNIT_COL);
+    when(mockTableDefinition.getSchema()).thenReturn(mockSchema);
+    when(mockSchema.getFields()).thenReturn(mockFieldList);
+    when(mockFieldList.get(TEST_TIME_UNIT_COL)).thenReturn(mockField);
+    when(mockField.getType()).thenReturn(LegacySQLTypeName.DATE);
+
+    String expectedQuery = String.format("select * from %s where (%s)",
+        TEST_TABLE_SPEC, TEST_TIME_UNIT_PARTITION_CONDITION);
+
+    String generatedQuery = format.generateQuery(TEST_FROM_DATE, TEST_TO_DATE, null,
+        TEST_PROJECT, TEST_DATASET, TEST_TABLE,
+        null, null,
+        false, mockTableDefinition);
+    Assert.assertEquals(expectedQuery, generatedQuery);
+  }
+
+  @Test
+  public void testGenerateQuery_TimeUnitPartitionRequiredNoDates() {
+    when(mockTableDefinition.getTimePartitioning()).thenReturn(mockTimePartitioning);
+    when(mockTimePartitioning.getField()).thenReturn(TEST_TIME_UNIT_COL);
+
+    String expectedQuery = String.format("select * from %s where %s",
+        TEST_TABLE_SPEC, TEST_DEFAULT_TIME_UNIT_CONDITION);
+
+    String generatedQuery = format.generateQuery(null, null, null,
+        TEST_PROJECT, TEST_DATASET, TEST_TABLE,
+        null, null,
+        true, mockTableDefinition);
+    Assert.assertEquals(expectedQuery, generatedQuery);
+  }
+
+  @Test
+  public void testGenerateQuery_TimePartitionFilterNotRequiredWithDates() {
+    when(mockTableDefinition.getTimePartitioning()).thenReturn(mockTimePartitioning);
+    when(mockTimePartitioning.getField()).thenReturn(null);
+
+    String expectedQuery = String.format("select * from %s where (%s)",
+        TEST_TABLE_SPEC,
+        TEST_PARTITION_CONDITION);
+
+    String generatedQuery = format.generateQuery(TEST_FROM_DATE, TEST_TO_DATE, null,
+        TEST_PROJECT, TEST_DATASET, TEST_TABLE,
+        null, null,
+        false, mockTableDefinition);
+    Assert.assertEquals(expectedQuery, generatedQuery);
+  }
+
+  @Test
+  public void testGenerateQuery_TimePartitionFilterNotRequiredNoDates() {
+    when(mockTableDefinition.getTimePartitioning()).thenReturn(mockTimePartitioning);
+
+    String expectedQuery = String.format("select * from %s", TEST_TABLE_SPEC);
+    String generatedQuery = format.generateQuery(null, null, null,
+        TEST_PROJECT, TEST_DATASET, TEST_TABLE,
+        null, null,
+        false, mockTableDefinition);
+    Assert.assertEquals(expectedQuery, generatedQuery);
+  }
+
+  @Test
+  public void testGenerateQuery_RangePartitionFilterNotRequired() {
+    when(mockTableDefinition.getRangePartitioning()).thenReturn(mockRangePartitioning);
+
+    String expectedQuery = String.format("select * from %s", TEST_TABLE_SPEC);
+
+    String generatedQuery = format.generateQuery(null, null, null,
+        TEST_PROJECT, TEST_DATASET, TEST_TABLE,
+        null, null,
+        false, mockTableDefinition);
+    Assert.assertEquals(expectedQuery, generatedQuery);
   }
 }
