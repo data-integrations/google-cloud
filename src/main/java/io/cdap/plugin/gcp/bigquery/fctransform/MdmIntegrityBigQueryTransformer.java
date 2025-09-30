@@ -143,7 +143,7 @@ public class MdmIntegrityBigQueryTransformer extends Transform<StructuredRecord,
         }
       }
     });
-    if (result.get(MetadataUtils.DEFAULT_TARGET_FIELD) == null && config.getFcidRequired()) {
+    if (result.get(MetadataUtils.DEFAULT_TARGET_FIELD) == null && config.isFcpIdRequired()) {
       throw new RuntimeException("ID is required but not provided.");
     }
 

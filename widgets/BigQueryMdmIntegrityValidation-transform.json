@@ -112,8 +112,8 @@
           }
         },
         {
-          "name": "fcidRequired",
-          "label": "Is FestCloudID required",
+          "name": "fcpIdRequired",
+          "label": "Is fcp_id required",
           "widget-type": "toggle",
           "widget-attributes": {
             "on": {

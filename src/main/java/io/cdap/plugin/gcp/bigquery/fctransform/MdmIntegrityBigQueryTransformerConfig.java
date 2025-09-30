@@ -55,12 +55,12 @@ public class MdmIntegrityBigQueryTransformerConfig extends PluginConfig {
   @Macro
   private final String manifestVersion;
 
-  @Name("fcidRequired")
-  @Description("Indicates whether FestCloudID is required. "
-      + "If true, records without a FestCloudID are sent to the error flow. "
-      + "If false, records without a FestCloudID are processed and not sent to the error flow.")
+  @Name("fcpIdRequired")
+  @Description("Indicates whether fcp_id is required. "
+      + "If true, records without a fcp_id are sent to the error flow. "
+      + "If false, records without a fcp_id are processed and not sent to the error flow.")
   @Macro
-  private final Boolean fcidRequired;
+  private final Boolean fcpIdRequired;
 
   @Name(SCHEMA)
   @Description("Schema of the output records.")
@@ -71,13 +71,13 @@ public class MdmIntegrityBigQueryTransformerConfig extends PluginConfig {
   public MdmIntegrityBigQueryTransformerConfig(BigQueryConnectorConfig connection,
                                                Boolean useConnection, String mapping,
                                                String fullyQualifiedEntityName, String manifestVersion,
-                                               Boolean fcidRequired, String schema) {
+                                               Boolean fcpIdRequired, String schema) {
     this.connection = connection;
     this.useConnection = useConnection;
     this.mapping = mapping;
     this.fullyQualifiedEntityName = fullyQualifiedEntityName;
     this.manifestVersion = manifestVersion;
-    this.fcidRequired = fcidRequired;
+    this.fcpIdRequired = fcpIdRequired;
     this.schema = schema;
   }
 
@@ -136,8 +136,8 @@ public class MdmIntegrityBigQueryTransformerConfig extends PluginConfig {
     return manifestVersion;
   }
 
-  public Boolean getFcidRequired() {
-    return fcidRequired;
+  public Boolean isFcpIdRequired() {
+    return fcpIdRequired;
   }
 
   public String getSchema() {
