@@ -178,6 +178,12 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
       String datasetProject, String dataset, String table, String limit, String orderBy,
       Boolean isPartitionFilterRequired, StandardTableDefinition tableDefinition) {
 
+    if (Strings.isNullOrEmpty(filter) && Strings.isNullOrEmpty(orderBy) && Strings.isNullOrEmpty(
+        limit)
+        && Strings.isNullOrEmpty(partitionFromDate) && Strings.isNullOrEmpty(partitionToDate)) {
+      return null;
+    }
+
     RangePartitioning rangePartitioning = tableDefinition.getRangePartitioning();
     TimePartitioning timePartitioning = tableDefinition.getTimePartitioning();
     StringBuilder condition = new StringBuilder();
