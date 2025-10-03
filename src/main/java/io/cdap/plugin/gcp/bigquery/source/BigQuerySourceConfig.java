@@ -58,6 +58,7 @@ public final class BigQuerySourceConfig extends BigQueryBaseConfig {
   private static final String VALID_DATE_FORMAT = "yyyy-MM-dd";
   private static final String SCHEME = "gs://";
   private static final String WHERE = "WHERE";
+  private static final String ORDER_BY = "ORDER BY";
   public static final Set<Schema.Type> SUPPORTED_TYPES =
     ImmutableSet.of(Schema.Type.LONG, Schema.Type.STRING, Schema.Type.DOUBLE, Schema.Type.BOOLEAN, Schema.Type.BYTES,
                     Schema.Type.ARRAY, Schema.Type.RECORD);
@@ -70,6 +71,8 @@ public final class BigQuerySourceConfig extends BigQueryBaseConfig {
   public static final String NAME_ENABLE_QUERYING_VIEWS = "enableQueryingViews";
   public static final String NAME_VIEW_MATERIALIZATION_PROJECT = "viewMaterializationProject";
   public static final String NAME_VIEW_MATERIALIZATION_DATASET = "viewMaterializationDataset";
+  public static final String NAME_LIMIT = "limit";
+  public static final String NAME_ORDER_BY = "orderBy";
 
   @Name(Constants.Reference.REFERENCE_NAME)
   @Nullable
@@ -109,6 +112,19 @@ public final class BigQuerySourceConfig extends BigQueryBaseConfig {
   @Description("The WHERE clause filters out rows by evaluating each row against boolean expression, " +
     "and discards all rows that do not return TRUE (that is, rows that return FALSE or NULL).")
   private String filter;
+
+  @Name(NAME_ORDER_BY)
+  @Macro
+  @Nullable
+  @Description("The ORDER BY clause sorts the results of a query based on one or more columns. " +
+      "For example, 'name asc, age desc'.")
+  private String orderBy;
+
+  @Name(NAME_LIMIT)
+  @Macro
+  @Nullable
+  @Description("The LIMIT clause restricts the number of rows returned by the query.")
+  private Long limit;
 
   @Name(NAME_ENABLE_QUERYING_VIEWS)
   @Macro
@@ -175,6 +191,13 @@ public final class BigQuerySourceConfig extends BigQueryBaseConfig {
     }
     if (!containsMacro(NAME_CMEK_KEY)) {
       validateCmekKey(collector, arguments);
+    }
+
+    if (!containsMacro(NAME_LIMIT) && limit != null) {
+      if (limit < 0) {
+        collector.addFailure("Invalid limit value.", "Limit must be a non-negative number.")
+            .withConfigProperty(NAME_LIMIT);
+      }
     }
   }
 
@@ -271,17 +294,44 @@ public final class BigQuerySourceConfig extends BigQueryBaseConfig {
 
   @Nullable
   public String getFilter() {
-    if (filter != null) {
-      filter = filter.trim();
-      if (filter.isEmpty()) {
-        return null;
-      }
-      // remove the WHERE keyword from the filter if the user adds it at the begging of the expression
-      if (filter.toUpperCase().startsWith(WHERE)) {
-        filter = filter.substring(WHERE.length());
-      }
+    return cleanupSqlFragment(filter, WHERE);
+  }
+
+  @Nullable
+  public String getOrderBy() {
+    return cleanupSqlFragment(orderBy, ORDER_BY);
+  }
+
+  @Nullable
+  public Long getLimit() {
+    return limit;
+  }
+
+  /**
+   * Cleans up a SQL fragment by trimming whitespace and stripping a given keyword from the
+   * beginning of the string in a case-insensitive way.
+   *
+   * @param fragment The input SQL string fragment.
+   * @param keyword The SQL keyword to remove (e.g., "WHERE ", "ORDER BY ").
+   * @return The cleaned fragment, or null if the input was null or empty.
+   */
+  @Nullable
+  private String cleanupSqlFragment(@Nullable String fragment, String keyword) {
+    if (Strings.isNullOrEmpty(fragment)) {
+      return null;
     }
-    return filter;
+
+    fragment = fragment.trim();
+
+    if (fragment.isEmpty()) {
+      return null;
+    }
+
+    if (fragment.toUpperCase().startsWith(keyword)) {
+      fragment = fragment.substring(keyword.length()).trim();
+    }
+
+    return fragment.isEmpty() ? null : fragment;
   }
 
   public boolean isEnableQueryingViews() {

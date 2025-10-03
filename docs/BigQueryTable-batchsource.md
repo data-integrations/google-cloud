@@ -57,6 +57,14 @@ name is not null', all output rows will have an 'age' over 50 and a value for th
 This is the same as the WHERE clause in BigQuery. More information can be found at
 https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax#where_clause
 
+**Order By**: The column or list of columns to order the data by. For
+example, `name asc, age desc`. More information can be found
+at https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax#order_by_clause.
+
+**Limit**: The maximum number of rows to read from the source table. More information can be
+found
+at https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax#limit_and_offset_clause.
+
 **Enable Querying Views**: Whether to allow querying views. Since BigQuery views are not materialized 
 by default, querying them may have a performance overhead.
 
