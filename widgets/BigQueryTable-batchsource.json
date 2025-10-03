@@ -153,6 +153,18 @@
         },
         {
           "widget-type": "textbox",
+          "name": "orderBy",
+          "label": "Order By",
+          "widget-attributes": {"placeholder": "Column(s) to order by, e.g., 'name asc, age desc'"}
+        },
+        {
+          "widget-type": "textbox",
+          "name": "limit",
+          "label": "Limit",
+          "widget-attributes": {"placeholder": "Maximum number of rows to read"}
+        },
+        {
+          "widget-type": "textbox",
           "label": "Temporary Bucket Name",
           "name": "bucket",
           "widget-attributes": {
