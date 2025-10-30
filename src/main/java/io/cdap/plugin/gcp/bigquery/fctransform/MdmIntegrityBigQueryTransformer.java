@@ -132,7 +132,7 @@ public class MdmIntegrityBigQueryTransformer extends Transform<StructuredRecord,
     mappingEntryConfigs.forEach((targetFieldName, mappingEntryConfig) -> {
 
       for (MappingEntryConfig entryConfig : mappingEntryConfig) {
-        List<String> ids = integrityService.getIds(entryConfig, input);
+        List<String> ids = integrityService.getIds(entryConfig, input, result);
         if (ids.size() > 1) {
           throw new RuntimeException(
                   "More than one id found for request: " + entryConfig.toString());
