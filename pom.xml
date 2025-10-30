@@ -104,7 +104,7 @@
 
     <!--FC related properties-->
     <artifactregistry-maven-wagon.version>2.2.0</artifactregistry-maven-wagon.version>
-    <version.cloud-data-plugins-common>0.0.14-SNAPSHOT</version.cloud-data-plugins-common>
+    <version.cloud-data-plugins-common>0.0.14</version.cloud-data-plugins-common>
     <apache.avro.version>1.11.3</apache.avro.version>
     <version.commons-lang3>3.17.0</version.commons-lang3>
     <jgitflow-maven-plugin.version>1.0-m5.1</jgitflow-maven-plugin.version>
