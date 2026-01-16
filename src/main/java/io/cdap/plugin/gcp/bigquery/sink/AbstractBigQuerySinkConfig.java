@@ -48,6 +48,7 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
                     Schema.Type.BOOLEAN, Schema.Type.BYTES, Schema.Type.ARRAY, Schema.Type.RECORD);
 
   public static final String NAME_TRUNCATE_TABLE = "truncateTable";
+  public static final String NAME_WRITE_DISPOSITION = "writeDisposition";
   public static final String NAME_LOCATION = "location";
   private static final String NAME_GCS_CHUNK_SIZE = "gcsChunkSize";
   public static final String NAME_BQ_JOB_LABELS = "jobLabels";
@@ -77,8 +78,18 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
   @Macro
   @Nullable
   @Description("Whether or not to truncate the table before writing to it. "
-    + "Should only be used with the Insert operation. This could overwrite the table schema")
+    + "Should only be used with the Insert operation. This could overwrite the table schema based "
+    + "on write disposition value.")
   protected Boolean truncateTable;
+
+  @Name(NAME_WRITE_DISPOSITION)
+  @Macro
+  @Nullable
+  @Description("WRITE_TRUNCATE_DATA preserves the table metadata where as WRITE_TRUNCATE does not. "
+      + "For more details, see "
+      + "https://docs.cloud.google.com/bigquery/docs/reference/auditlogs/rest/Shared.Types/"
+      + "BigQueryAuditMetadata.WriteDisposition.")
+  protected String writeDisposition;
 
   @Name(NAME_LOCATION)
   @Macro
@@ -143,9 +154,16 @@ public abstract class AbstractBigQuerySinkConfig extends BigQueryBaseConfig {
     return allowSchemaRelaxation == null ? false : allowSchemaRelaxation;
   }
 
-  public JobInfo.WriteDisposition getWriteDisposition() {
-    return isTruncateTableSet() ? JobInfo.WriteDisposition.WRITE_TRUNCATE
-      : JobInfo.WriteDisposition.WRITE_APPEND;
+  private String getTruncateTableWriteDisposition() {
+    if (writeDisposition == null) {
+      return JobInfo.WriteDisposition.WRITE_TRUNCATE.name();
+    }
+    return writeDisposition;
+  }
+
+  public String getWriteDisposition() {
+    return isTruncateTableSet() ? getTruncateTableWriteDisposition()
+      : JobInfo.WriteDisposition.WRITE_APPEND.name();
   }
 
   public boolean isTruncateTableSet() {

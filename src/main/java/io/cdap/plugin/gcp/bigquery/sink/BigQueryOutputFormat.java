@@ -351,7 +351,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
 
       Map<String, String> fieldDescriptions = new HashMap<>();
       if (JobInfo.WriteDisposition.WRITE_TRUNCATE
-        .equals(JobInfo.WriteDisposition.valueOf(writeDisposition)) && tableExists) {
+        .equals(writeDisposition.toUpperCase()) && tableExists) {
           List<TableFieldSchema> tableFieldSchemas = Optional.ofNullable(bigQueryHelper.getTable(tableRef))
             .map(it -> it.getSchema())
             .map(it -> it.getFields())
@@ -399,8 +399,8 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
         // Schema update options should only be specified with WRITE_APPEND disposition,
         // or with WRITE_TRUNCATE disposition on a table partition - The logic below should change when we support
         // insertion into single partition
-        if (allowSchemaRelaxation && !JobInfo.WriteDisposition.WRITE_TRUNCATE
-          .equals(JobInfo.WriteDisposition.valueOf(writeDisposition))) {
+        if (allowSchemaRelaxation && !JobInfo.WriteDisposition.WRITE_TRUNCATE.name()
+          .equals(writeDisposition.toUpperCase())) {
           loadConfig.setSchemaUpdateOptions(Arrays.asList(
             JobInfo.SchemaUpdateOption.ALLOW_FIELD_ADDITION.name(),
             JobInfo.SchemaUpdateOption.ALLOW_FIELD_RELAXATION.name()));
@@ -428,7 +428,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
       if (operation.equals(Operation.INSERT) && gcsPaths.size() <= BQ_IMPORT_MAX_BATCH_SIZE) {
         // Directly load data into destination table when total no of input paths is loadable into BQ
         loadConfig.setSourceUris(gcsPaths);
-        loadConfig.setWriteDisposition(writeDisposition);
+        loadConfig.setWriteDisposition(writeDisposition.toUpperCase());
         loadConfig.setDestinationTable(tableRef);
 
         JobConfiguration config = new JobConfiguration();
@@ -487,7 +487,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
         .setTableId(temporaryTableName);
 
       loadConfig.setDestinationTable(temporaryTableReference);
-      loadConfig.setWriteDisposition(JobInfo.WriteDisposition.WRITE_APPEND.toString());
+      loadConfig.setWriteDisposition(JobInfo.WriteDisposition.WRITE_APPEND.name());
 
       // Split the list of files in batches 10000 (current bq load job limit) and import /append onto a temp table
       List<List<String>> gcsPathsInBatches = Lists.partition(gcsPaths, BQ_IMPORT_MAX_BATCH_SIZE);
@@ -723,7 +723,7 @@ public class BigQueryOutputFormat extends ForwardingBigQueryFileOutputFormat<Str
     private void updateFieldDescriptions(String writeDisposition, TableReference tableRef,
                                          Map<String, String> fieldDescriptions) throws IOException {
       if (JobInfo.WriteDisposition.WRITE_TRUNCATE
-        .equals(JobInfo.WriteDisposition.valueOf(writeDisposition))) {
+        .equals(writeDisposition.toUpperCase())) {
 
         Table table = bigQueryHelper.getTable(tableRef);
         List<TableFieldSchema> tableFieldSchemas = Optional.ofNullable(table)
