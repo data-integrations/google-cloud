@@ -199,7 +199,8 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
                              @Nullable String serviceAccountJson,
                              @Nullable String dataset, @Nullable String table, @Nullable String location,
                              @Nullable String cmekKey, @Nullable String bucket, @Nullable String jobLabelKeyValue,
-                             @Nullable String timePartitioningType) {
+                             @Nullable String timePartitioningType, @Nullable String writeDisposition,
+                             @Nullable Boolean truncateTable) {
     super(new BigQueryConnectorConfig(project, project, serviceAccountType,
             serviceFilePath, serviceAccountJson), dataset, cmekKey, bucket);
     this.referenceName = referenceName;
@@ -207,6 +208,8 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     this.location = location;
     this.jobLabelKeyValue = jobLabelKeyValue;
     this.timePartitioningType = timePartitioningType;
+    this.writeDisposition = writeDisposition;
+    this.truncateTable = truncateTable;
   }
 
   public String getTable() {
@@ -734,6 +737,9 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
     private String bucket;
     private String jobLabelKeyValue;
     private String timePartitioningType;
+    private String writeDisposition;
+    private Boolean truncateTable;
+
 
     public BigQuerySinkConfig.Builder setReferenceName(@Nullable String referenceName) {
       this.referenceName = referenceName;
@@ -794,6 +800,16 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
       return this;
     }
 
+    public BigQuerySinkConfig.Builder setWriteDisposition(@Nullable String writeDisposition) {
+      this.writeDisposition = writeDisposition;
+      return this;
+    }
+
+    public BigQuerySinkConfig.Builder setTruncateTable(@Nullable Boolean truncateTable) {
+      this.truncateTable = truncateTable;
+      return this;
+    }
+
     public BigQuerySinkConfig build() {
       return new BigQuerySinkConfig(
         referenceName,
@@ -807,7 +823,9 @@ public final class BigQuerySinkConfig extends AbstractBigQuerySinkConfig {
         cmekKey,
         bucket,
         jobLabelKeyValue,
-          timePartitioningType
+        timePartitioningType,
+        writeDisposition,
+        truncateTable
       );
     }
 
