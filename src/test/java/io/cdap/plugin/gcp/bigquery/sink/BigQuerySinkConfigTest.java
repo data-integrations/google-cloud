@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.gcp.bigquery.sink;
 
+import com.google.cloud.bigquery.JobInfo;
 import com.google.cloud.bigquery.TimePartitioning;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.etl.api.FailureCollector;
@@ -54,6 +55,27 @@ public class BigQuerySinkConfigTest {
                     Schema.class, TimePartitioning.Type.class);
     validateTimePartitioningColumnMethod.setAccessible(true);
     arguments = new HashMap<>();
+  }
+
+  @Test
+  public void testValidateWriteDisposition() {
+    BigQuerySinkConfig bigQuerySinkConfig =
+        BigQuerySinkConfig.builder()
+            .setTruncateTable(true)
+            .setWriteDisposition("WRITE_TRUNCATE_DATA")
+            .build();
+    Assert.assertEquals("WRITE_TRUNCATE_DATA", bigQuerySinkConfig.getWriteDisposition());
+
+    bigQuerySinkConfig = BigQuerySinkConfig.builder().setWriteDisposition("WRITE_APPEND").build();
+    Assert.assertEquals(bigQuerySinkConfig.getWriteDisposition(),
+        JobInfo.WriteDisposition.WRITE_APPEND.name());
+
+    bigQuerySinkConfig = BigQuerySinkConfig.builder()
+        .setTruncateTable(true)
+        .setWriteDisposition("WRITE_TRUNCATE")
+        .build();
+    Assert.assertEquals(bigQuerySinkConfig.getWriteDisposition(),
+        JobInfo.WriteDisposition.WRITE_TRUNCATE.name());
   }
 
   @Test

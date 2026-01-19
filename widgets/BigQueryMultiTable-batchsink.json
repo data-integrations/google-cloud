@@ -124,6 +124,25 @@
               "label": "False"
             }
           }
+        },
+        {
+          "name": "writeDisposition",
+          "widget-type": "radio-group",
+          "label": "Write Disposition",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "WRITE_TRUNCATE",
+            "options": [
+              {
+                "id": "WRITE_TRUNCATE",
+                "label": "WRITE_TRUNCATE"
+              },
+              {
+                "id": "WRITE_TRUNCATE_DATA",
+                "label": "WRITE_TRUNCATE_DATA"
+              }
+            ]
+          }
         }
       ]
     },
@@ -294,6 +313,18 @@
         {
           "type": "property",
           "name": "connection"
+        }
+      ]
+    },
+    {
+      "name": "showWriteDisposition",
+      "condition": {
+        "expression": "truncateTable == true"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "writeDisposition"
         }
       ]
     }

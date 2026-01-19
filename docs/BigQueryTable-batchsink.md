@@ -76,6 +76,9 @@ will be dropped.
 **Truncate Table**: Whether or not to truncate the table before writing to it.
 Should only be used with the Insert operation.
 
+**Write Disposition**: Describes whether a job should truncate table but preserve metadata or not.
+For more details, see [here](https://docs.cloud.google.com/bigquery/docs/reference/auditlogs/rest/Shared.Types/BigQueryAuditMetadata.WriteDisposition).
+
 **Table Key**: List of fields that determines relation between tables during Update and Upsert operations.
 
 **Dedupe By**: Column names and sort order used to choose which input record to update/upsert when there are
