@@ -155,6 +155,9 @@ public class StorageClient {
       if (e.getCode() == 409) {
         LOG.warn("Getting 409 Conflict: {} Bucket at destination path {} may already exist.",
                  e.getMessage(), path.getUri());
+      } else if (e.getCode() == 403) {
+        LOG.warn("Getting 403 Forbidden: {} You may not have permissions to access the bucket at destination path {}.",
+            e.getMessage(), path.getUri());
       } else {
         String errorReason =
           String.format("Unable to create bucket %s. Ensure you entered the correct bucket path and " +
