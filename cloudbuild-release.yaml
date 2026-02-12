@@ -1,0 +1,102 @@
+# Copyright © 2026 Cask Data, Inc.
+#  Licensed under the Apache License, Version 2.0 (the "License"); you may not
+#  use this file except in compliance with the License. You may obtain a copy of
+#  the License at
+#  http://www.apache.org/licenses/LICENSE-2.0
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#  License for the specific language governing permissions and limitations under
+#  the License.
+
+steps:
+    - name: 'gcr.io/cloud-builders/gcloud'
+      id: setup-gpg
+      entrypoint: 'bash'
+      secretEnv: ['GPG_KEY']
+      args:
+        - '-c'
+        - |
+          set -e
+          export GNUPGHOME=/workspace/.gnupg
+          mkdir -p $$GNUPGHOME
+          chmod 700 $$GNUPGHOME
+
+          echo "pinentry-mode loopback" >> $$GNUPGHOME/gpg.conf
+          echo "allow-loopback-pinentry" >> $$GNUPGHOME/gpg-agent.conf
+          
+          echo "$$GPG_KEY" | gpg --batch --import
+          echo "GPG key imported into $$GNUPGHOME."
+
+    - name: 'gcr.io/cloud-builders/mvn:3.8-jdk-8'
+      id: maven-package
+      entrypoint: 'mvn'
+      args:
+        - 'deploy'
+        - '-B'
+        - '-V'
+        - '-DskipTests'
+        - "-Dgpg.passphrase=$${GPG_PASSPHRASE}"
+        - '-Pcommon-artifacts,version-release'
+        - '-DaltDeploymentRepository=local::default::file:///workspace/target'
+        - '-Dmaven.wagon.http.retryHandler.count=5'
+        - '-Dmaven.wagon.httpconnectionManager.ttlSeconds=30'
+      env:
+        - 'GNUPGHOME=/workspace/.gnupg'
+      secretEnv: [ 'GPG_PASSPHRASE' ]
+
+
+    - name: 'bash'
+      id: create-exit-gate-manifest
+      entrypoint: 'bash'
+      args:
+        - '-c'
+        - |
+            set -e
+            MANIFEST_FILE="/workspace/publish_manifest.textproto"
+            echo '# -*- protobuffer -*-' > "$${MANIFEST_FILE}"
+            echo '# proto-file: security/opensource/exit_gate_v1/onboarded/proto/publishing_manifest.proto' >> "$${MANIFEST_FILE}"
+            echo '# proto-message: PublishingManifest' >> "$${MANIFEST_FILE}"
+            echo '' >> "$${MANIFEST_FILE}"
+            echo 'publish_all: true' >> "$${MANIFEST_FILE}"
+            echo "Created manifest file: $${MANIFEST_FILE}"
+      waitFor: ['maven-package']
+
+    - name: 'gcr.io/cloud-builders/gsutil'
+      id: upload-exit-gate-manifest
+      entrypoint: 'bash'
+      args:
+        - '-c'
+        - |
+            set -e
+            GCS_MANIFEST_DIR="gs://oss-exit-gate-prod-projects-bucket/cloud-data-fusion/githubreleases/manifests/"
+            MANIFEST_FILE="/workspace/publish_manifest.textproto"
+            MANIFEST_FILENAME="release_${_VERSION}.textproto"
+            echo "Uploading manifest to $${GCS_MANIFEST_DIR}$${MANIFEST_FILENAME}"
+            gsutil cp "$${MANIFEST_FILE}" "$${GCS_MANIFEST_DIR}$${MANIFEST_FILENAME}"
+            echo "Manifest uploaded successfully."
+      waitFor: ['create-exit-gate-manifest']
+
+
+substitutions:
+  _VERSION: '0.25.0-SNAPSHOT'
+
+artifacts:
+  mavenArtifacts:
+    - repository: 'https://us-east1-maven.pkg.dev/komalyd-dev/my-test-maven-repo'
+      deployFolder: '/workspace/target/'
+      groupId: 'io.cdap.plugin'
+      artifactId: 'google-cloud'
+      version: '${_VERSION}'
+
+options:
+  requestedVerifyOption: VERIFIED
+  machineType: 'E2_HIGHCPU_32'
+
+
+availableSecrets:
+  secretManager:
+    - versionName: projects/cdapio-github-builds/secrets/CDAP_GPG_PRIVATE_KEY/versions/latest
+      env: 'GPG_KEY'
+    - versionName: projects/cdapio-github-builds/secrets/CDAP_GPG_PASSPHRASE/versions/latest
+      env: 'GPG_PASSPHRASE'
