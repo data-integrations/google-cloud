@@ -146,6 +146,18 @@ public class StorageClient {
    * @param cmekKeyName  the name of the cmek key
    */
   public void createBucketIfNotExists(GCSPath path, @Nullable String location, @Nullable CryptoKeyName cmekKeyName) {
+    // Skip bucket creation if bucket already exists.
+    try {
+      if (storage.get(path.getBucket()) != null) {
+        LOG.trace("Bucket {} already exists, skipping creation.", path.getBucket());
+        return;
+      }
+    } catch (StorageException e) {
+      // do not throw error if unable to access bucket for backward compatibility.
+      LOG.warn("Getting unexpected error code {}: {} when checking if bucket {} exists. Attempting to create bucket.",
+          e.getCode(), e.getMessage(), path.getBucket(), e);
+    }
+    // Fallback to bucket creations when get returns null or throws exception.
     try {
       GCPUtils.createBucket(storage, path.getBucket(), location, cmekKeyName);
       LOG.info("Bucket {} has been created successfully", path.getBucket());
@@ -157,7 +169,7 @@ public class StorageClient {
                  e.getMessage(), path.getUri());
       } else {
         String errorReason =
-          String.format("Unable to create bucket %s. Ensure you entered the correct bucket path and " +
+          String.format("Unable to create or get bucket %s. Ensure you entered the correct bucket path and " +
             "have permissions for it.", path.getBucket());
         throw GCPErrorDetailsProviderUtil.getHttpResponseExceptionDetailsFromChain(e, errorReason, ErrorType.UNKNOWN,
           true, GCPUtils.GCS_SUPPORTED_DOC_URL);
