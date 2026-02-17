@@ -147,6 +147,10 @@ public class StorageClient {
    */
   public void createBucketIfNotExists(GCSPath path, @Nullable String location, @Nullable CryptoKeyName cmekKeyName) {
     try {
+      if (storage.get(path.getBucket()) != null) {
+        LOG.info("Bucket {} already exists, skipping creation.", path.getBucket());
+        return;
+      }
       GCPUtils.createBucket(storage, path.getBucket(), location, cmekKeyName);
       LOG.info("Bucket {} has been created successfully", path.getBucket());
     } catch (StorageException e) {
