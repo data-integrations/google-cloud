@@ -146,11 +146,25 @@ public class StorageClient {
    * @param cmekKeyName  the name of the cmek key
    */
   public void createBucketIfNotExists(GCSPath path, @Nullable String location, @Nullable CryptoKeyName cmekKeyName) {
+    // Skip bucket creation if bucket already exists.
     try {
       if (storage.get(path.getBucket()) != null) {
         LOG.info("Bucket {} already exists, skipping creation.", path.getBucket());
         return;
       }
+    } catch (StorageException e) {
+      int errorCode = e.getCode();
+      if (errorCode == 403) {
+        LOG.warn(
+            "Getting 403 Forbidden: {} You may not have permission to access bucket {}. Attempting to create bucket.",
+            e.getMessage(), path.getUri());
+      } else {
+        LOG.warn("Getting unexpected error code {}: {} when checking if bucket {} exists. Attempting to create bucket.",
+            errorCode, e.getMessage(), path.getBucket());
+      }
+    }
+    // Fallback to bucket creations when get returns null or throws exception.
+    try {
       GCPUtils.createBucket(storage, path.getBucket(), location, cmekKeyName);
       LOG.info("Bucket {} has been created successfully", path.getBucket());
     } catch (StorageException e) {
