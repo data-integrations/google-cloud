@@ -155,7 +155,7 @@ public class StorageClient {
     } catch (StorageException e) {
       // do not throw error if unable to access bucket for backward compatibility.
       LOG.warn("Getting unexpected error code {}: {} when checking if bucket {} exists. Attempting to create bucket.",
-          e.getCode(), e.getMessage(), path.getBucket());
+          e.getCode(), e.getMessage(), path.getBucket(), e);
     }
     // Fallback to bucket creations when get returns null or throws exception.
     try {
