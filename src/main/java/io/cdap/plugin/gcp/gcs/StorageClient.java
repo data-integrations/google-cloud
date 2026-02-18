@@ -153,15 +153,9 @@ public class StorageClient {
         return;
       }
     } catch (StorageException e) {
-      int errorCode = e.getCode();
-      if (errorCode == 403) {
-        LOG.warn(
-            "Getting 403 Forbidden: {} You may not have permission to access bucket {}. Attempting to create bucket.",
-            e.getMessage(), path.getUri());
-      } else {
-        LOG.warn("Getting unexpected error code {}: {} when checking if bucket {} exists. Attempting to create bucket.",
-            errorCode, e.getMessage(), path.getBucket());
-      }
+      // do not throw error if unable to access bucket for backward compatibility.
+      LOG.warn("Getting unexpected error code {}: {} when checking if bucket {} exists. Attempting to create bucket.",
+          e.getCode(), e.getMessage(), path.getBucket());
     }
     // Fallback to bucket creations when get returns null or throws exception.
     try {
