@@ -161,7 +161,7 @@ public class StorageClient {
                  e.getMessage(), path.getUri());
       } else {
         String errorReason =
-          String.format("Unable to create bucket %s. Ensure you entered the correct bucket path and " +
+          String.format("Unable to create or get bucket %s. Ensure you entered the correct bucket path and " +
             "have permissions for it.", path.getBucket());
         throw GCPErrorDetailsProviderUtil.getHttpResponseExceptionDetailsFromChain(e, errorReason, ErrorType.UNKNOWN,
           true, GCPUtils.GCS_SUPPORTED_DOC_URL);
