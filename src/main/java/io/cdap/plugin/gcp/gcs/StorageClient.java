@@ -149,7 +149,7 @@ public class StorageClient {
     // Skip bucket creation if bucket already exists.
     try {
       if (storage.get(path.getBucket()) != null) {
-        LOG.info("Bucket {} already exists, skipping creation.", path.getBucket());
+        LOG.trace("Bucket {} already exists, skipping creation.", path.getBucket());
         return;
       }
     } catch (StorageException e) {
