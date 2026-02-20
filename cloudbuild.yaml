@@ -15,7 +15,7 @@
 steps:
 - name: 'gcr.io/cloud-builders/gcloud'
   entrypoint: 'gcloud'
-  args: ['-q', 'storage', 'rsync', '--recursive', '${_GCS_CACHE_PATH}', '/m2_cache']
+  args: ['storage', 'rsync', '--recursive', '${_GCS_CACHE_PATH}', '/m2_cache']
   volumes:
   - path: '/m2_cache'
     name: 'm2_cache'
@@ -30,7 +30,7 @@ steps:
     name: 'm2_cache'
 - name: 'gcr.io/cloud-builders/gcloud'
   entrypoint: 'gcloud'
-  args: ['-q', 'storage', 'rsync', '--recursive', '/m2_cache', '${_GCS_CACHE_PATH}']
+  args: ['storage', 'rsync', '--recursive', '/m2_cache', '${_GCS_CACHE_PATH}']
   volumes:
   - path: '/m2_cache'
     name: 'm2_cache'
