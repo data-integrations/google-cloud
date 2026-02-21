@@ -13,8 +13,9 @@
 # the License.
 
 steps:
-- name: 'gcr.io/cloud-builders/gsutil'
-  args: ['-q', '-m', 'rsync', '-r', '${_GCS_CACHE_PATH}', '/m2_cache']
+- name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'gcloud'
+  args: ['storage', 'rsync', '--recursive', '${_GCS_CACHE_PATH}', '/m2_cache']
   volumes:
   - path: '/m2_cache'
     name: 'm2_cache'
@@ -27,8 +28,9 @@ steps:
   volumes:
   - path: '/m2_cache'
     name: 'm2_cache'
-- name: 'gcr.io/cloud-builders/gsutil'
-  args: ['-q', '-m', 'rsync', '-r', '/m2_cache', '${_GCS_CACHE_PATH}']
+- name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'gcloud'
+  args: ['storage', 'rsync', '--recursive', '/m2_cache', '${_GCS_CACHE_PATH}']
   volumes:
   - path: '/m2_cache'
     name: 'm2_cache'
