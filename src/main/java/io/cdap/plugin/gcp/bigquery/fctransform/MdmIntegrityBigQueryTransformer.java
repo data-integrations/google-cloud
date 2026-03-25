@@ -8,6 +8,8 @@ import ai.festcloud.datafabric.plugins.common.integrity.mapping.MappingEntryConf
 import ai.festcloud.datafabric.plugins.common.integrity.mapping.MappingObj;
 import ai.festcloud.datafabric.plugins.common.integrity.mapping.MappingParsingService;
 import ai.festcloud.metadata.model.TypeRecord;
+import ai.festcloud.platform.token.provider.BearerTokenProvider;
+import ai.festcloud.platform.token.provider.SupplierBearerTokenProvider;
 import com.google.auth.Credentials;
 import com.google.cloud.bigquery.BigQuery;
 import io.cdap.cdap.api.annotation.Description;
@@ -65,7 +67,9 @@ public class MdmIntegrityBigQueryTransformer extends Transform<StructuredRecord,
     FailureCollector failureCollector = context.getFailureCollector();
     outputSchema = config.getSchema(failureCollector);
     String schemaRegistryHost = context.getArguments().get(MetadataUtils.SCHEMA_REGISTRY_HOST);
-    entities = MetadataUtils.getTypeRecordsByManifest(schemaRegistryHost, config.getManifestVersion());
+    String platformServiceToken = context.getArguments().get(MetadataUtils.PLATFORM_SERVICE_TOKEN);
+    BearerTokenProvider bearerTokenProvider = new SupplierBearerTokenProvider(() -> platformServiceToken);
+    entities = MetadataUtils.getTypeRecordsByManifest(schemaRegistryHost, config.getManifestVersion(), bearerTokenProvider);
     config.validate(failureCollector, entities, context.getInputSchema());
 
     MappingParsingService mappingParsingService
