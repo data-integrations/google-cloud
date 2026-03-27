@@ -20,7 +20,7 @@
 
   <groupId>io.cdap.plugin</groupId>
   <artifactId>google-cloud</artifactId>
-  <version>0.24.4</version>
+  <version>0.24.5-SNAPSHOT</version>
   <name>Google Cloud Plugins</name>
   <packaging>jar</packaging>
   <description>Plugins for Google Big Query</description>
@@ -58,7 +58,7 @@
   <properties>
     <jee.version>7</jee.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <avro.version>1.11.0</avro.version>
+    <avro.version>1.11.4</avro.version>
     <bigquery.connector.hadoop3.version>hadoop3-1.2.0</bigquery.connector.hadoop3.version>
     <commons.codec.version>1.4</commons.codec.version>
     <cdap.version>6.11.0</cdap.version>
