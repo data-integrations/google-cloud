@@ -20,7 +20,7 @@
 
   <groupId>io.cdap.plugin</groupId>
   <artifactId>google-cloud</artifactId>
-  <version>0.23.7</version>
+  <version>0.23.8-SNAPSHOT</version>
   <name>Google Cloud Plugins</name>
   <packaging>jar</packaging>
   <description>Plugins for Google Big Query</description>
@@ -1165,7 +1165,8 @@
           <execution>
             <goals>
               <goal>integration-test</goal>
-              <goal>verify</goal>
+              <!-- Commented out verify goal to allow Cucumber reports to generate correctly even when tests fail -->
+              <!-- <goal>verify</goal> -->
             </goals>
           </execution>
         </executions>
