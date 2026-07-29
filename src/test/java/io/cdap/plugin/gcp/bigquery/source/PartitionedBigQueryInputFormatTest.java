@@ -1,4 +1,4 @@
-/*
+  /*
  * Copyright © 2020 Cask Data, Inc.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not
@@ -116,7 +116,7 @@ public class PartitionedBigQueryInputFormatTest {
 
   @Test
   public void testGenerateQuery_WithFilterOnly() {
-    String expectedQuery = String.format("select * from %s where %s",
+    String expectedQuery = String.format("select * from `%s` where %s",
         TEST_TABLE_SPEC, TEST_FILTER);
 
     String generatedQuery = format.generateQuery(null, null,
@@ -128,7 +128,7 @@ public class PartitionedBigQueryInputFormatTest {
 
   @Test
   public void testGenerateQuery_AllOptions() {
-    String expectedQuery = String.format("select * from %s where %s order by %s limit %s",
+    String expectedQuery = String.format("select * from `%s` where %s order by %s limit %s",
         TEST_TABLE_SPEC, TEST_FILTER, TEST_ORDER_BY, TEST_LIMIT);
 
     String generatedQuery = format.generateQuery(null, null,
@@ -143,7 +143,7 @@ public class PartitionedBigQueryInputFormatTest {
     when(mockTableDefinition.getTimePartitioning()).thenReturn(mockTimePartitioning);
     when(mockTimePartitioning.getField()).thenReturn(null);
 
-    String expectedQuery = String.format("select * from %s where (%s)",
+    String expectedQuery = String.format("select * from `%s` where (%s)",
         TEST_TABLE_SPEC,
         TEST_PARTITION_CONDITION);
 
@@ -158,7 +158,7 @@ public class PartitionedBigQueryInputFormatTest {
   public void testGenerateQuery_TimePartitionRequiredAndFilter() {
     when(mockTableDefinition.getTimePartitioning()).thenReturn(mockTimePartitioning);
     when(mockTimePartitioning.getField()).thenReturn(null);
-    String expectedQuery = String.format("select * from %s where %s and (%s)",
+    String expectedQuery = String.format("select * from `%s` where %s and (%s)",
         TEST_TABLE_SPEC, TEST_DEFAULT_TIME_CONDITION, TEST_FILTER);
 
     String generatedQuery = format.generateQuery(null, null,
@@ -177,7 +177,7 @@ public class PartitionedBigQueryInputFormatTest {
     when(mockFieldList.get(TEST_TIME_UNIT_COL)).thenReturn(mockField);
     when(mockField.getType()).thenReturn(LegacySQLTypeName.DATE);
 
-    String expectedQuery = String.format("select * from %s where (%s)",
+    String expectedQuery = String.format("select * from `%s` where (%s)",
         TEST_TABLE_SPEC, TEST_TIME_UNIT_PARTITION_CONDITION);
 
     String generatedQuery = format.generateQuery(TEST_FROM_DATE, TEST_TO_DATE, null,
@@ -192,7 +192,7 @@ public class PartitionedBigQueryInputFormatTest {
     when(mockTableDefinition.getTimePartitioning()).thenReturn(mockTimePartitioning);
     when(mockTimePartitioning.getField()).thenReturn(null);
 
-    String expectedQuery = String.format("select * from %s where (%s)",
+    String expectedQuery = String.format("select * from `%s` where (%s)",
         TEST_TABLE_SPEC,
         TEST_PARTITION_CONDITION);
 
@@ -214,7 +214,7 @@ public class PartitionedBigQueryInputFormatTest {
 
   @Test
   public void testGenerateQuery_WithLimitOnly_ShouldAssertQuery() {
-    String expectedQuery = String.format("select * from %s limit %s", TEST_TABLE_SPEC,
+    String expectedQuery = String.format("select * from `%s` limit %s", TEST_TABLE_SPEC,
         TEST_LIMIT);
 
     String generatedQuery = format.generateQuery(null, null,
@@ -226,7 +226,7 @@ public class PartitionedBigQueryInputFormatTest {
 
   @Test
   public void testGenerateQuery_WithOrderByOnly_ShouldAssertQuery() {
-    String expectedQuery = String.format("select * from %s order by %s", TEST_TABLE_SPEC,
+    String expectedQuery = String.format("select * from `%s` order by %s", TEST_TABLE_SPEC,
         TEST_ORDER_BY);
 
     String generatedQuery = format.generateQuery(null, null,
@@ -241,7 +241,7 @@ public class PartitionedBigQueryInputFormatTest {
     when(mockTableDefinition.getTimePartitioning()).thenReturn(mockTimePartitioning);
     when(mockTimePartitioning.getField()).thenReturn(null);
 
-    String expectedQuery = String.format("select * from %s where (%s)",
+    String expectedQuery = String.format("select * from `%s` where (%s)",
         TEST_TABLE_SPEC,
         TEST_PARTITION_CONDITION);
 
@@ -257,7 +257,7 @@ public class PartitionedBigQueryInputFormatTest {
     when(mockTableDefinition.getTimePartitioning()).thenReturn(mockTimePartitioning);
     when(mockTimePartitioning.getField()).thenReturn(null);
 
-    String expectedQuery = String.format("select * from %s where %s and (%s)",
+    String expectedQuery = String.format("select * from `%s` where %s and (%s)",
         TEST_TABLE_SPEC, TEST_DEFAULT_TIME_CONDITION, TEST_FILTER);
 
     String generatedQuery = format.generateQuery(null, null,
@@ -272,7 +272,7 @@ public class PartitionedBigQueryInputFormatTest {
     when(mockTableDefinition.getRangePartitioning()).thenReturn(mockRangePartitioning);
     when(mockRangePartitioning.getField()).thenReturn("range_col");
 
-    String expectedQuery = String.format("select * from %s where %s and (%s)",
+    String expectedQuery = String.format("select * from `%s` where %s and (%s)",
         TEST_TABLE_SPEC, TEST_DEFAULT_RANGE_CONDITION, TEST_FILTER);
 
     String generatedQuery = format.generateQuery(null, null, TEST_FILTER,
@@ -287,7 +287,7 @@ public class PartitionedBigQueryInputFormatTest {
     when(mockTableDefinition.getRangePartitioning()).thenReturn(mockRangePartitioning);
     when(mockRangePartitioning.getField()).thenReturn("range_col");
 
-    String expectedQuery = String.format("select * from %s where %s limit %s",
+    String expectedQuery = String.format("select * from `%s` where %s limit %s",
         TEST_TABLE_SPEC, TEST_DEFAULT_RANGE_CONDITION, TEST_LIMIT);
 
     String generatedQuery = format.generateQuery(null, null, null,
@@ -302,7 +302,7 @@ public class PartitionedBigQueryInputFormatTest {
     when(mockTableDefinition.getTimePartitioning()).thenReturn(mockTimePartitioning);
     when(mockTimePartitioning.getField()).thenReturn(TEST_TIME_UNIT_COL);
 
-    String expectedQuery = String.format("select * from %s where %s and (%s)",
+    String expectedQuery = String.format("select * from `%s` where %s and (%s)",
         TEST_TABLE_SPEC, TEST_DEFAULT_TIME_UNIT_CONDITION, TEST_FILTER);
 
     String generatedQuery = format.generateQuery(null, null, TEST_FILTER,
@@ -317,7 +317,7 @@ public class PartitionedBigQueryInputFormatTest {
     when(mockTableDefinition.getTimePartitioning()).thenReturn(mockTimePartitioning);
     when(mockTimePartitioning.getField()).thenReturn(TEST_TIME_UNIT_COL);
 
-    String expectedQuery = String.format("select * from %s where %s limit %s",
+    String expectedQuery = String.format("select * from `%s` where %s limit %s",
         TEST_TABLE_SPEC, TEST_DEFAULT_TIME_UNIT_CONDITION, TEST_LIMIT);
 
     String generatedQuery = format.generateQuery(null, null, null,
