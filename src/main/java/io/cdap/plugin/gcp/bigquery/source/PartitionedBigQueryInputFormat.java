@@ -221,7 +221,7 @@ public class PartitionedBigQueryInputFormat extends AbstractBigQueryInputFormat<
       }
     }
 
-    String tableName = datasetProject + "." + dataset + "." + table;
+    String tableName = String.format("`%s.%s.%s`", datasetProject, dataset, table);
     StringBuilder query = new StringBuilder("select * from ").append(tableName);
 
     if (condition.length() > 0) {
