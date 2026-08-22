@@ -1,0 +1,127 @@
+{
+    "artifact": {
+        "name": "cdap-data-pipeline",
+        "version": "6.4.0-SNAPSHOT",
+        "scope": "SYSTEM"
+    },
+    "description": "Data Pipeline Application",
+    "name": "example-gcs-argument-setter",
+    "config": {
+        "resources": {
+            "memoryMB": 2048,
+            "virtualCores": 1
+        },
+        "driverResources": {
+            "memoryMB": 2048,
+            "virtualCores": 1
+        },
+        "connections": [
+            {
+                "from": "File",
+                "to": "Trash"
+            },
+            {
+                "from": "GCS Argument Setter",
+                "to": "File"
+            }
+        ],
+        "comments": [],
+        "postActions": [],
+        "properties": {},
+        "processTimingEnabled": true,
+        "stageLoggingEnabled": false,
+        "stages": [
+            {
+                "name": "File",
+                "plugin": {
+                    "name": "File",
+                    "type": "batchsource",
+                    "label": "File",
+                    "artifact": {
+                        "name": "core-plugins",
+                        "version": "2.6.0-SNAPSHOT",
+                        "scope": "SYSTEM"
+                    },
+                    "properties": {
+                        "format": "csv",
+                        "skipHeader": "true",
+                        "filenameOnly": "false",
+                        "recursive": "false",
+                        "ignoreNonExistingFolders": "false",
+                        "referenceName": "source",
+                        "path": "${path}",
+                        "delimiter": ",",
+                        "fileEncoding": "UTF-8"
+                    }
+                },
+                "outputSchema": [
+                    {
+                        "name": "etlSchemaBody",
+                        "schema": ""
+                    }
+                ],
+                "id": "File"
+            },
+            {
+                "name": "Trash",
+                "plugin": {
+                    "name": "Trash",
+                    "type": "batchsink",
+                    "label": "Trash",
+                    "artifact": {
+                        "name": "trash-plugin",
+                        "version": "1.2.0",
+                        "scope": "USER"
+                    },
+                    "properties": {
+                        "referenceName": "Trash"
+                    }
+                },
+                "outputSchema": [
+                    {
+                        "name": "etlSchemaBody",
+                        "schema": ""
+                    }
+                ],
+                "inputSchema": [
+                    {
+                        "name": "File",
+                        "schema": ""
+                    }
+                ],
+                "id": "Trash"
+            },
+            {
+                "name": "GCS Argument Setter",
+                "plugin": {
+                    "name": "GCSArgumentSetter",
+                    "type": "action",
+                    "label": "GCS Argument Setter",
+                    "artifact": {
+                        "name": "google-cloud",
+                        "version": "0.17.0-SNAPSHOT",
+                        "scope": "SYSTEM"
+                    },
+                    "properties": {
+                        "project": "auto-detect",
+                        "serviceAccountType": "filePath",
+                        "serviceFilePath": "auto-detect",
+                        "path": "${argumentPath}"
+                    }
+                },
+                "outputSchema": [
+                    {
+                        "name": "etlSchemaBody",
+                        "schema": ""
+                    }
+                ],
+                "id": "GCS-Argument-Setter"
+            }
+        ],
+        "schedule": "0 * * * *",
+        "engine": "spark",
+        "numOfRecordsPreview": 100,
+        "description": "Data Pipeline Application",
+        "maxConcurrentRuns": 1
+    }
+}
