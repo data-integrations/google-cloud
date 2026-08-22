@@ -349,6 +349,16 @@ public class BigQueryRelation implements Relation {
     return new BigQueryRelation(datasetName, columns, featureFlagsProvider, this, supplier);
   }
 
+  /**
+   * Adds schema information to the relation. This can be used for validation purposes.
+   *
+   * @param schema The schema.
+   * @return A new relation with the schema added.
+   */
+  public Relation addSchema(@Nullable Schema schema) {
+    return new BigQueryRelation(datasetName, columns, featureFlagsProvider, this, sqlStatementSupplier, schema);
+  }
+
   private static String buildBaseSelect(Map<String, Expression> columns,
                                         String sourceTable,
                                         String datasetName) {
