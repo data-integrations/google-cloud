@@ -48,7 +48,7 @@
           }
         },
         {
-          "widget-type": "textarea",
+          "widget-type": "securekey-textarea",
           "label": "Service Account JSON",
           "name": "serviceAccountJSON"
         }
