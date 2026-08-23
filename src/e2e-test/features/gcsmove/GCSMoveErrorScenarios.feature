@@ -19,7 +19,7 @@ Feature: GCSMove - Validate GCSMove plugin error scenarios
     When Expand Plugin group in the LHS plugins list: "Conditions and Actions"
     When Select plugin: "GCS Move" from the plugins list as: "Conditions and Actions"
     When Navigate to the properties page of plugin: "GCS Move"
-    Then Enter GCSMove property source path "gcsInvalidBucketName"
+    Then Enter input plugin property: "sourcePath" with value: "gcsInvalidBucketName"
     Then Enter GCSMove property destination path
     Then Verify GCS Move property "sourcePath" invalid bucket name error message is displayed for bucket "gcsInvalidBucketName"
 
@@ -30,5 +30,5 @@ Feature: GCSMove - Validate GCSMove plugin error scenarios
     When Select plugin: "GCS Move" from the plugins list as: "Conditions and Actions"
     When Navigate to the properties page of plugin: "GCS Move"
     Then Enter GCSMove property source path "gcsCsvFile"
-    Then Enter GCSMove property destination path "gcsInvalidBucketName"
+    Then Enter input plugin property: "destPath" with value: "gcsInvalidBucketName"
     Then Verify GCS Move property "destPath" invalid bucket name error message is displayed for bucket "gcsInvalidBucketName"

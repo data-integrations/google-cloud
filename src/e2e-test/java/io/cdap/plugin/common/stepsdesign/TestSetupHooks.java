@@ -177,13 +177,13 @@ public class TestSetupHooks {
 
   @After(order = 1, value = "@GCS_CSV_TEST or @GCS_TSV_TEST or @GCS_BLOB_TEST " +
     "or @GCS_DELIMITED_TEST or @GCS_TEXT_TEST or @GCS_OUTPUT_FIELD_TEST or @GCS_DATATYPE_1_TEST or " +
-    "@GCS_DATATYPE_2_TEST or @GCS_READ_RECURSIVE_TEST or @GCS_DELETE_WILDCARD_TEST or @GCS_CSV_RANGE_TEST or" +
-    " @GCS_PARQUET_TEST or @GCS_AVRO_TEST or @GCS_DATATYPE_TEST or @GCS_AVRO_FILE")
+    "@GCS_DATATYPE_2_TEST or @GCS_READ_RECURSIVE_TEST or @GCS_DELETE_WILDCARD_TEST or @GCS_CSV_RANGE_TEST or " +
+    "@GCS_PARQUET_TEST or @GCS_AVRO_TEST or @GCS_DATATYPE_TEST or @GCS_AVRO_FILE or @GCS_CSV or " +
+    "@GCS_JSON_TEST")
   public static void deleteSourceBucketWithFile() {
     deleteGCSBucket(gcsSourceBucketName);
     PluginPropertyUtils.removePluginProp("gcsSourceBucketName");
     PluginPropertyUtils.removePluginProp("gcsSourcePath");
-    gcsSourceBucketName = StringUtils.EMPTY;
   }
 
   @After(order = 1, value = "@GCS_DELETE_MULTIPLE_BUCKETS_TEST")
@@ -211,7 +211,7 @@ public class TestSetupHooks {
     BeforeActions.scenario.write("GCS target bucket name - " + gcsTargetBucketName);
   }
 
-  @After(order = 1, value = "@GCS_SINK_TEST or @GCS_SINK_EXISTING_BUCKET_TEST")
+  @After(order = 1, value = "@GCS_SINK_TEST or @GCS_SINK_EXISTING_BUCKET_TEST or @GCS_SINK_MULTI_PART_UPLOAD")
   public static void deleteTargetBucketWithFile() {
     deleteGCSBucket(gcsTargetBucketName);
     PluginPropertyUtils.removePluginProp("gcsTargetBucketName");
@@ -226,7 +226,8 @@ public class TestSetupHooks {
     BeforeActions.scenario.write("BQ Target table name - " + bqTargetTable);
   }
 
-  @After(order = 1, value = "@BQ_SINK_TEST")
+  @After(order = 1, value = "@BQ_SINK_TEST or @BQ_UPSERT_SINK_TEST or @BQ_UPDATE_SINK_DEDUPE_TEST or " +
+    "@BQ_EXISTING_SINK_TEST or @BQ_UPSERT_DEDUPE_SINK_TEST or @BQ_INSERT_SINK_TEST")
   public static void deleteTempTargetBQTable() throws IOException, InterruptedException {
     try {
       BigQueryClient.dropBqQuery(bqTargetTable);
@@ -270,7 +271,10 @@ public class TestSetupHooks {
 
   @After(order = 1, value = "@BQ_SOURCE_TEST or @BQ_PARTITIONED_SOURCE_TEST or @BQ_SOURCE_DATATYPE_TEST or " +
     "@BQ_INSERT_SOURCE_TEST or @BQ_UPDATE_SINK_TEST or @BQ_EXISTING_SOURCE_TEST or @BQ_EXISTING_SINK_TEST or " +
-    "@BQ_EXISTING_SOURCE_DATATYPE_TEST or @BQ_EXISTING_SINK_DATATYPE_TEST")
+    "@BQ_EXISTING_SOURCE_DATATYPE_TEST or @BQ_EXISTING_SINK_DATATYPE_TEST or @BQ_UPSERT_SOURCE_TEST or " +
+    "@BQ_NULL_MODE_SOURCE_TEST or @BQ_UPDATE_SOURCE_DEDUPE_TEST or @BQ_INSERT_INT_SOURCE_TEST or " +
+    "@BQ_TIME_SOURCE_TEST or @BQ_UPSERT_DEDUPE_SOURCE_TEST or @BQ_PRIMARY_RECORD_SOURCE_TEST or " +
+    "@BQ_SINGLE_SOURCE_BQMT_TEST")
   public static void deleteTempSourceBQTable() throws IOException, InterruptedException {
     BigQueryClient.dropBqQuery(bqSourceTable);
     PluginPropertyUtils.removePluginProp("bqSourceTable");
@@ -394,7 +398,7 @@ public class TestSetupHooks {
   }
 
   private static String createGCSBucketWithFile(String filePath) throws IOException, URISyntaxException {
-    String bucketName = StorageClient.createBucket("00000000-e2e-" + UUID.randomUUID()).getName();
+    String bucketName = StorageClient.createBucket("cdf-e2e-test-" + UUID.randomUUID()).getName();
     StorageClient.uploadObject(bucketName, filePath, filePath);
     PluginPropertyUtils.addPluginProp("gcsSourceBucketName", bucketName);
     PluginPropertyUtils.addPluginProp("gcsSourcePath", "gs://" + bucketName + "/" + filePath);
@@ -936,12 +940,18 @@ public class TestSetupHooks {
     gcsSourceBucketName = createGCSBucketWithMultipleFiles(PluginPropertyUtils.pluginProp("gcsMultipleFilesPath"));
   }
 
+  @After(order = 1, value = "@GCS_MULTIPLE_FILES_TEST or @GCS_MULTIPLE_FILES_REGEX_TEST")
+  public static void deleteSourceBucketWithMultipleFile() {
+    deleteGCSBucket(gcsSourceBucketName);
+    PluginPropertyUtils.removePluginProp("gcsSourceBucketName");
+    PluginPropertyUtils.removePluginProp("gcsSourcePath");
+  }
+
   @Before(order = 1, value = "@GCS_MULTIPLE_FILES_REGEX_TEST")
   public static void createBucketWithMultipleTestFilesWithRegex () throws IOException, URISyntaxException {
     gcsSourceBucketName = createGCSBucketWithMultipleFiles(PluginPropertyUtils.pluginProp(
       "gcsMultipleFilesFilterRegexPath"));
-    PluginPropertyUtils.addPluginProp(" bqTargetTable", bqTargetTable);
-    BeforeActions.scenario.write("BQ Target Table " + bqTargetTable + " updated successfully");
+    PluginPropertyUtils.addPluginProp(" gcsSourceBucketName", gcsSourceBucketName);
   }
 
   @Before(order = 1, value = "@BQ_EXISTING_SOURCE_TEST")
