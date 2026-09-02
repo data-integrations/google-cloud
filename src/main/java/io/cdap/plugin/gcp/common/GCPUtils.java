@@ -118,7 +118,7 @@ public class GCPUtils {
                                                                 boolean isServiceAccountFilePath)
     throws IOException {
     try (InputStream inputStream = openServiceAccount(serviceAccount, isServiceAccountFilePath)) {
-      return GoogleCredentials.fromStream(inputStream);
+      return ServiceAccountCredentials.fromStream(inputStream);
     }
   }
 
