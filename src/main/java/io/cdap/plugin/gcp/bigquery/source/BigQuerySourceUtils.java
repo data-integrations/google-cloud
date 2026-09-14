@@ -87,28 +87,41 @@ public class BigQuerySourceUtils {
       // By default, this option is false, meaning the job can not delete the bucket. So enable it only when bucket name
       // is not provided.
       configuration.setBoolean("fs.gs.bucket.delete.enable", true);
-      GCPUtils.createBucket(storage, bucket, dataset.getLocation(), cmekKeyName);
+      createBucket(storage, bucket, dataset, cmekKeyName);
     } else if (storage != null && storage.get(bucket) == null) {
-      try {
-        GCPUtils.createBucket(storage, bucket, dataset.getLocation(), cmekKeyName);
-      } catch (StorageException e) {
-        if (e.getCode() == 409) {
-          // A conflict means the bucket already exists
-          // This most likely means multiple stages in the same pipeline are trying to create the same bucket.
-          // Ignore this and move on, since all that matters is that the bucket exists.
-          return bucket;
-        }
-        String errorMessage = String.format("Unable to create Cloud Storage bucket '%s' in the same "
-                + "location ('%s') as BigQuery dataset '%s'. " + "Please use a bucket "
-                + "that is in the same location as the dataset. For more details, see %s",
-            bucket, dataset.getLocation(), dataset.getDatasetId().getDataset(),
-            GCPUtils.GCS_SUPPORTED_DOC_URL);
-        throw ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN),
-          errorMessage, e.getMessage(), ErrorType.USER, true, ErrorCodeType.HTTP,
-            String.valueOf(e.getCode()), GCPUtils.GCS_SUPPORTED_DOC_URL, e);
-      }
+      createBucket(storage, bucket, dataset, cmekKeyName);
     }
     return bucket;
+  }
+
+  private static void createBucket(@Nullable Storage storage,
+                                   String bucket,
+                                   Dataset dataset,
+                                   @Nullable CryptoKeyName cmekKeyName) {
+    if (storage == null) {
+      return;
+    }
+    try {
+      GCPUtils.createBucket(storage, bucket, dataset.getLocation(), cmekKeyName);
+    } catch (StorageException e) {
+      if (e.getCode() == 409) {
+        // A conflict means the bucket already exists.
+        // This most likely means multiple stages in the same pipeline are trying to create the same bucket,
+        // or a retry occurred after a successful bucket creation.
+        // Ignore this and move on, since all that matters is that the bucket exists.
+        LOG.debug("Bucket '{}' already exists, ignoring 409 Conflict: {}", bucket, e.getMessage());
+        return;
+      }
+      String datasetName = dataset.getDatasetId() != null ? dataset.getDatasetId().getDataset() : "";
+      String errorMessage = String.format("Unable to create Cloud Storage bucket '%s' in the same "
+              + "location ('%s') as BigQuery dataset '%s'. " + "Please use a bucket "
+              + "that is in the same location as the dataset. For more details, see %s",
+          bucket, dataset.getLocation(), datasetName,
+          GCPUtils.GCS_SUPPORTED_DOC_URL);
+      throw ErrorUtils.getProgramFailureException(new ErrorCategory(ErrorCategory.ErrorCategoryEnum.PLUGIN),
+        errorMessage, e.getMessage(), ErrorType.USER, true, ErrorCodeType.HTTP,
+          String.valueOf(e.getCode()), GCPUtils.GCS_SUPPORTED_DOC_URL, e);
+    }
   }
 
   /**
