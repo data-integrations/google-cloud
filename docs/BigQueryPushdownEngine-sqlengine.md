@@ -2,7 +2,7 @@
 
 Description
 -----------
-The BigQuery pushdown engine offloads certains pipeline operations into BigQuery for execution.
+The BigQuery pushdown engine offloads certain pipeline operations into BigQuery for execution.
 
 Currently, the supported operations are the following:
 1. Dataset join operations using the **Joiner** plugin
