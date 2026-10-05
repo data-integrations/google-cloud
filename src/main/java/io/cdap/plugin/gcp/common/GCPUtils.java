@@ -16,6 +16,10 @@
 
 package io.cdap.plugin.gcp.common;
 
+import com.google.api.client.json.GenericJson;
+import com.google.api.client.json.JsonObjectParser;
+import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.client.util.Data;
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.auth.Credentials;
 import com.google.auth.oauth2.ExternalAccountCredentials;
@@ -35,6 +39,7 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.io.ByteStreams;
 import com.google.gson.reflect.TypeToken;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 import io.cdap.plugin.gcp.gcs.ServiceAccountAccessTokenProvider;
@@ -94,6 +99,14 @@ public class GCPUtils {
   public static final String GCE_METADATA_SERVER_ERROR_SUPPORTED_DOC_URL =
     "https://cloud.google.com/compute/docs/troubleshooting/troubleshoot-metadata-server";
 
+  // Credential configuration type for workload identity federation
+  private static final String EXTERNAL_ACCOUNT_TYPE = "external_account";
+  // Expected values of the endpoints an external account configuration sends tokens to, as documented at
+  // https://cloud.google.com/docs/authentication/client-libraries#validate_other_credential_configurations
+  private static final String STS_TOKEN_URL = "https://sts.googleapis.com/v1/token";
+  private static final Pattern IAM_IMPERSONATION_URL_PATTERN = Pattern.compile(
+    "^https://iamcredentials\\.googleapis\\.com/v1/projects/-/serviceAccounts/[^/?#:]+:generateAccessToken$");
+
   /**
    * Load a service account from the local file system.
    *
@@ -117,9 +130,66 @@ public class GCPUtils {
   public static GoogleCredentials loadServiceAccountCredentials(String serviceAccount,
                                                                 boolean isServiceAccountFilePath)
     throws IOException {
+    byte[] serviceAccountBytes;
     try (InputStream inputStream = openServiceAccount(serviceAccount, isServiceAccountFilePath)) {
-      return GoogleCredentials.fromStream(inputStream);
+      serviceAccountBytes = ByteStreams.toByteArray(inputStream);
     }
+    validateExternalAccountCredentials(serviceAccountBytes);
+    return GoogleCredentials.fromStream(new ByteArrayInputStream(serviceAccountBytes));
+  }
+
+  /**
+   * Validates a credential configuration of type 'external_account' before it is used.
+   *
+   * An external account (workload identity federation) configuration instructs the auth library where to obtain a
+   * subject token from ({@code credential_source}) and where to send it to: the subject token is sent to
+   * {@code token_url} and the resulting access token to {@code service_account_impersonation_url}. When the
+   * configuration is supplied by a user, these two endpoints must be the Google endpoints documented at
+   * https://cloud.google.com/docs/authentication/client-libraries#validate_other_credential_configurations,
+   * otherwise the configuration could be used to read the ambient credentials of the environment and send them to
+   * an arbitrary endpoint. With both endpoints pinned to Google, whatever the configuration reads can only be sent
+   * to Google.
+   *
+   * The content is parsed with the same parser as {@link GoogleCredentials#fromStream(InputStream)} so that both
+   * see identical content. Content that does not parse fails here with the library's own error. Configurations of
+   * any other type are not validated and are handled by the library as before.
+   *
+   * @param credentialBytes the raw content of the credential configuration
+   * @throws IOException if the content cannot be parsed, or is of type 'external_account' and is not allowed
+   */
+  private static void validateExternalAccountCredentials(byte[] credentialBytes) throws IOException {
+    GenericJson json = new JsonObjectParser(GsonFactory.getDefaultInstance())
+      .parseAndClose(new ByteArrayInputStream(credentialBytes), StandardCharsets.UTF_8, GenericJson.class);
+    if (!EXTERNAL_ACCOUNT_TYPE.equals(json.get("type"))) {
+      return;
+    }
+
+    if (!STS_TOKEN_URL.equals(getStringField(json, "token_url"))) {
+      throw new IOException("Invalid external account credentials: 'token_url' must be " + STS_TOKEN_URL);
+    }
+    String impersonationUrl = getStringField(json, "service_account_impersonation_url");
+    if (impersonationUrl != null && !IAM_IMPERSONATION_URL_PATTERN.matcher(impersonationUrl).matches()) {
+      throw new IOException("Invalid external account credentials: 'service_account_impersonation_url' must be "
+                              + "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/"
+                              + "<service account email>:generateAccessToken");
+    }
+  }
+
+  /**
+   * Returns the value of the given field as a string, or null if the field is absent or null.
+   *
+   * @throws IOException if the field is present but not a string
+   */
+  @Nullable
+  private static String getStringField(Map<String, Object> json, String field) throws IOException {
+    Object value = json.get(field);
+    if (value == null || Data.isNull(value)) {
+      return null;
+    }
+    if (!(value instanceof String)) {
+      throw new IOException(String.format("Invalid external account credentials: '%s' must be a string.", field));
+    }
+    return (String) value;
   }
 
   /**
