@@ -118,7 +118,14 @@ public class GCPUtils {
                                                                 boolean isServiceAccountFilePath)
     throws IOException {
     try (InputStream inputStream = openServiceAccount(serviceAccount, isServiceAccountFilePath)) {
-      return GoogleCredentials.fromStream(inputStream);
+      GoogleCredentials credentials = GoogleCredentials.fromStream(inputStream);
+      if (!(credentials instanceof ServiceAccountCredentials)) {
+        // Audit log: record usage of credential types other than 'service_account' supplied via the
+        // service account file path / JSON, so that such usage can be identified.
+        LOG.warn("Audit: loaded GCP credentials of type '{}' from the service account {}.",
+                 credentials.getClass().getSimpleName(), isServiceAccountFilePath ? "file path" : "JSON");
+      }
+      return credentials;
     }
   }
 
