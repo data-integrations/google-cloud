@@ -904,6 +904,13 @@
   </dependencies>
 
   <build>
+    <extensions>
+      <extension>
+        <groupId>com.google.cloud.artifactregistry</groupId>
+        <artifactId>artifactregistry-maven-wagon</artifactId>
+        <version>2.2.5</version>
+      </extension>
+    </extensions>
     <testSourceDirectory>${testSourceLocation}</testSourceDirectory>
     <plugins>
       <plugin>
@@ -1058,7 +1065,13 @@
   <!-- Profile for release. Includes signing of jars. -->
   <profiles>
     <profile>
-      <id>release</id>
+      <id>version-release</id>
+      <distributionManagement>
+        <repository>
+          <id>artifact-registry</id>
+          <url>artifactregistry://us-east1-maven.pkg.dev/komalyd-dev/my-test-maven-repo</url>
+        </repository>
+      </distributionManagement>
       <build>
         <plugins>
           <!-- Source JAR -->
@@ -1145,20 +1158,10 @@
               </execution>
             </executions>
           </plugin>
-          <plugin>
-            <groupId>org.sonatype.central</groupId>
-            <artifactId>central-publishing-maven-plugin</artifactId>
-            <version>0.8.0</version>
-            <extensions>true</extensions>
-            <configuration>
-              <publishingServerId>sonatype.release</publishingServerId>
-              <autoPublish>false</autoPublish>
-              <ignorePublishedComponents>true</ignorePublishedComponents>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
+      </plugins>
+    </build>
+  </profile>
+
     <profile>
       <id>cloudBuild</id>
       <activation>
