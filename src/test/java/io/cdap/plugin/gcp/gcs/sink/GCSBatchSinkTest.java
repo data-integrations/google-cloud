@@ -24,6 +24,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.List;
+import java.util.Map;
 import javax.annotation.Nullable;
 
 public class GCSBatchSinkTest {
@@ -58,6 +59,59 @@ public class GCSBatchSinkTest {
     MockFailureCollector collector = new MockFailureCollector("gcssink");
     config.validate(collector);
     Assert.assertEquals(1, collector.getValidationFailures().size());
+  }
+
+  @Test
+  public void testReservedFSPropertiesAreRejected() {
+    String[] reservedKeys = {
+      "fs.gs.storage.root.url",
+      "fs.gs.token.server.url",
+      "google.cloud.token.server.url",
+      "fs.gs.auth.access.token.provider.impl",
+      "cdap.auth.service.account"
+    };
+    for (String key : reservedKeys) {
+      GCSBatchSinkConfig config = getBuilder("{\"" + key + "\":\"https://evil.example.com/\"}").build();
+      MockFailureCollector collector = new MockFailureCollector("gcssink");
+      config.validate(collector);
+      List<ValidationFailure> failures = collector.getValidationFailures();
+      Assert.assertEquals(key + " should be rejected", 1, failures.size());
+      Assert.assertTrue(failures.get(0).getMessage().contains(key));
+      List<ValidationFailure.Cause> causes = failures.get(0).getCauses();
+      Assert.assertEquals(1, causes.size());
+      Assert.assertEquals("fileSystemProperties", causes.get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
+    }
+  }
+
+  @Test
+  public void testEveryReservedFSPropertyIsReported() {
+    GCSBatchSinkConfig config = getBuilder("{\"fs.gs.storage.root.url\":\"https://evil.example.com/\","
+                                             + "\"fs.gs.proxy.address\":\"evil.example.com:8080\","
+                                             + "\"fs.gs.outputstream.upload.chunk.size\":\"1048576\"}").build();
+    MockFailureCollector collector = new MockFailureCollector("gcssink");
+    config.validate(collector);
+    Assert.assertEquals(2, collector.getValidationFailures().size());
+  }
+
+  @Test
+  public void testGetFileSystemPropertiesDropsReservedUserKeys() {
+    GCSBatchSinkConfig config = getBuilder(
+      "{\"fs.gs.storage.root.url\":\"https://evil.example.com/\","
+        + "\"google.cloud.token.server.url\":\"https://evil.example.com/token\","
+        + "\"cdap.auth.service.account\":\"{}\","
+        + "\"fs.gs.auth.access.token.provider.impl\":\"com.example.EvilProvider\","
+        + "\"fs.gs.outputstream.upload.chunk.size\":\"1048576\"}")
+      .setProject("my-project")
+      .build();
+    GCSBatchSink sink = new GCSBatchSink(config);
+    Map<String, String> properties = sink.getFileSystemProperties(null);
+
+    Assert.assertFalse(properties.containsKey("fs.gs.storage.root.url"));
+    Assert.assertFalse(properties.containsKey("google.cloud.token.server.url"));
+    Assert.assertFalse(properties.containsKey("cdap.auth.service.account"));
+    Assert.assertEquals("io.cdap.plugin.gcp.gcs.ServiceAccountAccessTokenProvider",
+                        properties.get("fs.gs.auth.access.token.provider.impl"));
+    Assert.assertEquals("1048576", properties.get("fs.gs.outputstream.upload.chunk.size"));
   }
 
   @Test
