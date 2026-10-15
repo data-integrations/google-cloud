@@ -308,7 +308,8 @@ public class GCSSource extends AbstractFileSource<GCSSource.GCSSourceConfig> {
       }
       if (!containsMacro(NAME_FILE_SYSTEM_PROPERTIES)) {
         try {
-          getFileSystemProperties();
+          Map<String, String> fileSystemProperties = getFileSystemProperties();
+          GCPUtils.validateFileSystemProperties(fileSystemProperties, NAME_FILE_SYSTEM_PROPERTIES, collector);
         } catch (Exception e) {
           collector.addFailure("File system properties must be a valid json.", null)
             .withConfigProperty(NAME_FILE_SYSTEM_PROPERTIES).withStacktrace(e.getStackTrace());

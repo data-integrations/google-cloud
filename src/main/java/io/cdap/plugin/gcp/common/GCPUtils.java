@@ -34,8 +34,11 @@ import com.google.cloud.storage.BucketInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.gson.reflect.TypeToken;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.gcp.gcs.GCSPath;
 import io.cdap.plugin.gcp.gcs.ServiceAccountAccessTokenProvider;
 import org.apache.hadoop.conf.Configuration;
@@ -93,6 +96,47 @@ public class GCPUtils {
   public static final String BIG_TABLE_SUPPORTED_DOC_URL = "https://cloud.google.com/bigtable/docs/status-codes";
   public static final String GCE_METADATA_SERVER_ERROR_SUPPORTED_DOC_URL =
     "https://cloud.google.com/compute/docs/troubleshooting/troubleshoot-metadata-server";
+
+  /**
+   * Hadoop configuration keys that users are not allowed to set through the 'fileSystemProperties' plugin
+   * property. These keys control where the GCS connector sends requests and the bearer token that authenticates
+   * them, or which credentials and classes it loads. Letting a user override them would allow the credentials of
+   * the environment the plugin runs in (for example, the service account of the CDAP system service during
+   * pipeline validation) to be sent to an arbitrary endpoint or used to impersonate another identity.
+   */
+  private static final Set<String> RESERVED_FS_PROPERTY_KEYS = ImmutableSet.of(
+    // GCS API endpoint. The connector sends 'Authorization: Bearer <token>' to whatever is configured here.
+    "fs.gs.storage.root.url",
+    "fs.gs.storage.service.path",
+    // OAuth token endpoint used to obtain or refresh access tokens.
+    "fs.gs.token.server.url",
+    // HTTP transport used by the credential and proxy code paths.
+    "fs.gs.http.transport.type",
+    // Deprecated aliases of 'fs.gs.auth.service.account.*' keys that the connector still honors.
+    "fs.gs.enable.service.account.auth",
+    "fs.gs.service.account.auth.email",
+    "fs.gs.service.account.auth.keyfile",
+    // FileSystem implementation classes.
+    "fs.gs.impl",
+    "fs.AbstractFileSystem.gs.impl");
+
+  /**
+   * Prefixes of Hadoop configuration keys that users are not allowed to set through the 'fileSystemProperties'
+   * plugin property. See {@link #RESERVED_FS_PROPERTY_KEYS}.
+   */
+  private static final List<String> RESERVED_FS_PROPERTY_PREFIXES = ImmutableList.of(
+    // Proxy address, username and password. Routes every connector request through a user-controlled host.
+    "fs.gs.proxy.",
+    // Credential sources, access token provider class and service account impersonation.
+    "fs.gs.auth.",
+    // Classes instantiated by the connector.
+    "fs.gs.authorization.handler.",
+    "fs.gs.delegation.token.",
+    // The connector resolves every 'fs.gs.<suffix>' credential key through 'google.cloud.<suffix>' as well,
+    // so the fallback prefix has to be reserved too or the keys above could be set through it.
+    "google.cloud.",
+    // Keys this class uses to pass the service account of the plugin to ServiceAccountAccessTokenProvider.
+    "cdap.auth.");
 
   /**
    * Load a service account from the local file system.
@@ -234,6 +278,12 @@ public class GCPUtils {
   private static Map<String, String> getFileSystemProperties(String project, String serviceAccount,
                                                              String serviceAccountType, String path,
                                                              Map<String, String> properties) {
+    // The given properties can contain user-supplied entries. Reserved keys are rejected by
+    // validateFileSystemProperties() at validation time; dropping them here as well guarantees they never reach
+    // the Hadoop configuration, even for values that were resolved from macros after validation.
+    // Work on a copy so that the caller's map is not mutated and immutable or null maps are accepted.
+    properties = properties == null ? new HashMap<>() : new HashMap<>(properties);
+    properties.keySet().removeIf(GCPUtils::isReservedFileSystemProperty);
     try {
       properties.putAll(generateGCSAuthProperties(serviceAccount, serviceAccountType));
     } catch (Exception ignored) {
@@ -247,6 +297,52 @@ public class GCPUtils {
     properties.put("fs.gs.working.dir", GCSPath.ROOT_DIR);
     properties.put("fs.gs.impl.disable.cache", "true");
     return properties;
+  }
+
+  /**
+   * Returns whether the given Hadoop configuration key is reserved and must not be set by users through the
+   * 'fileSystemProperties' plugin property.
+   *
+   * @param key the Hadoop configuration key
+   * @return true if the key is reserved
+   */
+  public static boolean isReservedFileSystemProperty(@Nullable String key) {
+    if (key == null) {
+      return false;
+    }
+    String trimmedKey = key.trim();
+    if (RESERVED_FS_PROPERTY_KEYS.contains(trimmedKey)) {
+      return true;
+    }
+    for (String prefix : RESERVED_FS_PROPERTY_PREFIXES) {
+      if (trimmedKey.startsWith(prefix)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Validates that user-supplied file system properties do not set any reserved Hadoop configuration key.
+   * One failure is added to the collector for every reserved key found, so that all offending keys are reported
+   * at once.
+   *
+   * @param properties the user-supplied file system properties, may be null
+   * @param configProperty the name of the plugin property the file system properties were read from
+   * @param collector the failure collector to report reserved keys to
+   */
+  public static void validateFileSystemProperties(@Nullable Map<String, String> properties, String configProperty,
+                                                  FailureCollector collector) {
+    if (properties == null) {
+      return;
+    }
+    for (String key : properties.keySet()) {
+      if (isReservedFileSystemProperty(key)) {
+        collector.addFailure(
+          String.format("File system property '%s' is reserved and cannot be overridden.", key),
+          "Remove it from the file system properties.").withConfigProperty(configProperty);
+      }
+    }
   }
 
   public static BigQuery getBigQuery(String project, @Nullable Credentials credentials, @Nullable Integer readTimeout) {
