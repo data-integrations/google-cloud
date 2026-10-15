@@ -61,6 +61,38 @@ public class GCSBatchSinkTest {
   }
 
   @Test
+  public void testReservedFSPropertiesAreRejected() {
+    String[] reservedKeys = {
+      "fs.gs.storage.root.url",
+      "fs.gs.token.server.url",
+      "google.cloud.token.server.url",
+      "fs.gs.auth.access.token.provider.impl",
+      "cdap.auth.service.account"
+    };
+    for (String key : reservedKeys) {
+      GCSBatchSinkConfig config = getBuilder("{\"" + key + "\":\"https://evil.example.com/\"}").build();
+      MockFailureCollector collector = new MockFailureCollector("gcssink");
+      config.validate(collector);
+      List<ValidationFailure> failures = collector.getValidationFailures();
+      Assert.assertEquals(key + " should be rejected", 1, failures.size());
+      Assert.assertTrue(failures.get(0).getMessage().contains(key));
+      List<ValidationFailure.Cause> causes = failures.get(0).getCauses();
+      Assert.assertEquals(1, causes.size());
+      Assert.assertEquals("fileSystemProperties", causes.get(0).getAttribute(CauseAttributes.STAGE_CONFIG));
+    }
+  }
+
+  @Test
+  public void testEveryReservedFSPropertyIsReported() {
+    GCSBatchSinkConfig config = getBuilder("{\"fs.gs.storage.root.url\":\"https://evil.example.com/\","
+                                             + "\"fs.gs.proxy.address\":\"evil.example.com:8080\","
+                                             + "\"fs.gs.outputstream.upload.chunk.size\":\"1048576\"}").build();
+    MockFailureCollector collector = new MockFailureCollector("gcssink");
+    config.validate(collector);
+    Assert.assertEquals(2, collector.getValidationFailures().size());
+  }
+
+  @Test
   public void testValidContentType() {
     GCSBatchSinkConfig.Builder builder = getBuilder(null);
     GCSBatchSinkConfig config = builder.build();
