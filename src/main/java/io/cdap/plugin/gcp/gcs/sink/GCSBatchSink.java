@@ -177,7 +177,16 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
     Map<String, String> properties = GCPUtils.getFileSystemProperties(config.connection, config.getPath(),
                                                                       new HashMap<>());
     properties.put(GCSBatchSink.CONTENT_TYPE, config.getContentType());
-    properties.putAll(config.getFileSystemProperties());
+    // user-supplied properties are merged last so they can tune the output format, but reserved keys are never
+    // taken from the user. They are rejected during validation; this guards values resolved from macros afterwards.
+    Map<String, String> userProperties = config.getFileSystemProperties();
+    if (userProperties != null) {
+      for (Map.Entry<String, String> entry : userProperties.entrySet()) {
+        if (!GCPUtils.isReservedFileSystemProperty(entry.getKey())) {
+          properties.put(entry.getKey(), entry.getValue());
+        }
+      }
+    }
     String outputFileBaseName = config.getOutputFileNameBase();
     if (outputFileBaseName == null || outputFileBaseName.isEmpty()) {
       return properties;
@@ -456,7 +465,8 @@ public class GCSBatchSink extends AbstractFileSink<GCSBatchSink.GCSBatchSinkConf
       }
 
       try {
-        getFileSystemProperties();
+        Map<String, String> fileSystemProperties = getFileSystemProperties();
+        GCPUtils.validateFileSystemProperties(fileSystemProperties, NAME_FS_PROPERTIES, collector);
       } catch (IllegalArgumentException e) {
         collector.addFailure("File system properties must be a valid json.", null)
           .withConfigProperty(NAME_FS_PROPERTIES).withStacktrace(e.getStackTrace());
