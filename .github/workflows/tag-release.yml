@@ -14,6 +14,9 @@ name: Maven Central Release
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
 
   release-job:
@@ -23,7 +26,7 @@ jobs:
 
       - name: Get Secrets from GCP Secret Manager
         id: 'secrets'
-        uses: 'google-github-actions/get-secretmanager-secrets@v0'
+        uses: 'google-github-actions/get-secretmanager-secrets@bdbd22a6198303dd1c27ca96e4a133f2ae92503d' # v0
         with:
           secrets: |-
             CDAP_OSSRH_USERNAME:cdapio-github-builds/CDAP_OSSRH_USERNAME
@@ -32,12 +35,13 @@ jobs:
             CDAP_GPG_PRIVATE_KEY:cdapio-github-builds/CDAP_GPG_PRIVATE_KEY
 
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ inputs.ref }}
+          persist-credentials: false
 
       - name: Cache
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.m2/repository
           key: ${{ runner.os }}-maven-${{ github.workflow }}-${{ hashFiles('**/pom.xml') }}

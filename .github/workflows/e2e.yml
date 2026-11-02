@@ -22,6 +22,9 @@ on:
     types: [opened, synchronize, reopened, labeled]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: k8s-runner-e2e
@@ -44,9 +47,10 @@ jobs:
       fail-fast: false
     steps:
       # Pinned 1.0.0 version
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           path: plugin
+          persist-credentials: false
       - uses: dorny/paths-filter@4512585405083f25c027a35db413c2b3b9006d50
         # Pinned version 2.11.1
         if: github.event_name != 'workflow_dispatch' && github.event_name != 'push'
@@ -57,12 +61,13 @@ jobs:
             e2e-test:
               - '**/e2e-test/**'
       - name: Checkout e2e test repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: cdapio/cdap-e2e-tests
           path: e2e
+          persist-credentials: false
       - name: Cache
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.m2/repository
           key: ${{ runner.os }}-maven-${{ github.workflow }}-${{ hashFiles('**/pom.xml') }}
@@ -70,22 +75,30 @@ jobs:
             ${{ runner.os }}-maven-${{ github.workflow }}
       - name: Run required e2e tests
         if: github.event_name != 'workflow_dispatch' && github.event_name != 'push' && steps.filter.outputs.e2e-test == 'false'
-        run: python3 e2e/src/main/scripts/run_e2e_test.py --testRunner **/${{ matrix.tests }}/**/TestRunnerRequired.java
+        env:
+          MATRIX_TESTS: ${{ matrix.tests }}
+        run: python3 e2e/src/main/scripts/run_e2e_test.py --testRunner **/"$MATRIX_TESTS"/**/TestRunnerRequired.java
       - name: Run all e2e tests
         if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || steps.filter.outputs.e2e-test == 'true'
-        run: python3 e2e/src/main/scripts/run_e2e_test.py --testRunner **/${{ matrix.tests }}/**/TestRunner.java
+        env:
+          MATRIX_TESTS: ${{ matrix.tests }}
+        run: python3 e2e/src/main/scripts/run_e2e_test.py --testRunner **/"$MATRIX_TESTS"/**/TestRunner.java
       - name: Upload debug files 
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: Debug files - ${{ matrix.tests }}
           path: ./**/target/e2e-debug
       - name: Upload files to GCS
-        uses: google-github-actions/upload-cloud-storage@v2
+        uses: google-github-actions/upload-cloud-storage@c0f6160ff80057923ff50e5e567695cea181ec23 # v2
         if: always()
         with:
           path: ./plugin/target/cucumber-reports
           destination: e2e-tests-cucumber-reports/${{ github.event.repository.name }}/${{ github.ref }}/${{ matrix.tests }}
       - name: Cucumber Report URL
         if: always()
-        run: echo "https://storage.googleapis.com/e2e-tests-cucumber-reports/${{ github.event.repository.name }}/${{ github.ref }}/${{ matrix.tests }}/cucumber-reports/advanced-reports/cucumber-html-reports/overview-features.html"
+        env:
+          REPO_NAME: ${{ github.event.repository.name }}
+          GITHUB_REF_NAME: ${{ github.ref }}
+          MATRIX_TESTS: ${{ matrix.tests }}
+        run: echo "https://storage.googleapis.com/e2e-tests-cucumber-reports/${REPO_NAME}/${GITHUB_REF_NAME}/${MATRIX_TESTS}/cucumber-reports/advanced-reports/cucumber-html-reports/overview-features.html"
