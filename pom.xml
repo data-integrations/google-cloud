@@ -79,7 +79,8 @@
     <guava.version>27.0.1-jre</guava.version>
     <hadoop.version>3.3.6</hadoop.version>
     <hbase-shaded-mapreduce.version>2.6.6-hadoop3</hbase-shaded-mapreduce.version>
-    <httpclient.version>4.5.13</httpclient.version>
+    <httpclient.version>4.5.14</httpclient.version>
+    <httpcore.version>4.4.16</httpcore.version>
     <jackson.core.version>2.13.4.2</jackson.core.version>
     <junit.version>4.13.1</junit.version>
     <powermock.version>2.0.2</powermock.version>
@@ -101,6 +102,16 @@
         <groupId>com.google.apis</groupId>
         <artifactId>google-api-services-storage</artifactId>
         <version>v1-rev20211201-1.32.1</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.httpcomponents</groupId>
+        <artifactId>httpclient</artifactId>
+        <version>${httpclient.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.httpcomponents</groupId>
+        <artifactId>httpcore</artifactId>
+        <version>${httpcore.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -613,6 +624,16 @@
       <artifactId>avro-mapred</artifactId>
       <version>${avro.version}</version>
       <exclusions>
+        <!-- avro-ipc is only needed for Avro RPC / tether jobs, which the plugins do not use.
+             It brings in velocity-engine-core and, through avro-ipc-jetty, Jetty. -->
+        <exclusion>
+          <groupId>org.apache.avro</groupId>
+          <artifactId>avro-ipc</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.avro</groupId>
+          <artifactId>avro-ipc-jetty</artifactId>
+        </exclusion>
         <exclusion>
           <groupId>com.fasterxml.jackson.core</groupId>
           <artifactId>jackson-core</artifactId>
@@ -766,7 +787,7 @@
     <dependency>
       <groupId>org.xerial.snappy</groupId>
       <artifactId>snappy-java</artifactId>
-      <version>1.1.10.5</version>
+      <version>1.1.10.12</version>
     </dependency>
     <!-- Start: dependency for Google PubSub Streaming Source -->
     <dependency>
