@@ -68,7 +68,7 @@
     <google.oauth.client.version>1.33.3</google.oauth.client.version>
     <flogger.system.backend.version>0.7.1</flogger.system.backend.version>
     <gcs.connector.version>hadoop3-2.2.21</gcs.connector.version>
-    <google.cloud.bigtable.version>1.17.1</google.cloud.bigtable.version>
+    <google.cloud.bigtable.version>2.21.0</google.cloud.bigtable.version>
     <google.cloud.bigquery.version>1.137.1</google.cloud.bigquery.version>
     <google.cloud.kms.version>2.0.2</google.cloud.kms.version>
     <google.cloud.pubsub.version>1.108.1</google.cloud.pubsub.version>
@@ -81,8 +81,7 @@
     <org.json.version>20260814</org.json.version>
     <guava.version>27.0.1-jre</guava.version>
     <hadoop.version>3.3.6</hadoop.version>
-    <hbase-shaded-client.version>1.4.13</hbase-shaded-client.version>
-    <hbase-shaded-server.version>1.4.13</hbase-shaded-server.version>
+    <hbase-shaded-mapreduce.version>2.5.16-hadoop3</hbase-shaded-mapreduce.version>
     <httpclient.version>4.5.14</httpclient.version>
     <httpcore.version>4.4.16</httpcore.version>
     <jackson.core.version>2.23.0</jackson.core.version>
@@ -399,32 +398,17 @@
       </exclusions>
     </dependency>
     <dependency>
+      <!--
+        Shaded Bigtable HBase 2.x client (it bundles and relocates grpc, gax, protobuf and guava).
+        Its unshaded hbase-client is replaced by hbase-shaded-mapreduce below.
+      -->
       <groupId>com.google.cloud.bigtable</groupId>
-      <artifactId>bigtable-hbase-1.x-mapreduce</artifactId>
+      <artifactId>bigtable-hbase-2.x-hadoop</artifactId>
       <version>${google.cloud.bigtable.version}</version>
       <exclusions>
         <exclusion>
           <groupId>org.apache.hbase</groupId>
           <artifactId>hbase-client</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.hbase</groupId>
-          <artifactId>hbase-server</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.hbase</groupId>
-          <artifactId>hbase-annotations</artifactId>
-        </exclusion>
-        <!-- bigtable-hbase-1.x-mapreduce version 1.17.1 has a dependency on hbase-common:1.4.12
-        which masks the shaded dependencies below . Exclude this dependency.
-        All the classes should be present in the shaded jars-->
-        <exclusion>
-          <groupId>org.apache.hbase</groupId>
-          <artifactId>hbase-common</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-common</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -510,53 +494,29 @@
     </dependency>
     <dependency>
       <!--
-        Required by bigtable-hbase-1.x-mapreduce instead of excluded non-shaded version.
-        Shaded library is used to avoid dependency conflicts with Datastore module on profobuf-java dependency.
-        Bigtable requires version 2.x and Datastore module requires 3.x protocol.
+        HBase client and TableInputFormat / TableOutputFormat used by the Bigtable source and sink, with
+        HBase's own third-party dependencies (protobuf, netty, guava, ...) relocated. Hadoop is provided by CDAP.
       -->
       <groupId>org.apache.hbase</groupId>
-      <artifactId>hbase-shaded-client</artifactId>
-      <version>${hbase-shaded-client.version}</version>
+      <artifactId>hbase-shaded-mapreduce</artifactId>
+      <version>${hbase-shaded-mapreduce.version}</version>
       <exclusions>
-        <exclusion>
-          <groupId>org.slf4j</groupId>
-          <artifactId>slf4j-log4j12</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>log4j</groupId>
-          <artifactId>log4j</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.htrace</groupId>
-          <artifactId>htrace-core</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <!--
-        Required by bigtable-hbase-1.x-mapreduce instead of excluded non-shaded version.
-        Shaded library is used to avoid dependency conflicts with Datastore module on profobuf-java dependency.
-        Bigtable requires version 2.x and Datastore module requires 3.x protocol.
-      -->
-      <groupId>org.apache.hbase</groupId>
-      <artifactId>hbase-shaded-server</artifactId>
-      <version>${hbase-shaded-server.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>org.slf4j</groupId>
-          <artifactId>slf4j-log4j12</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>log4j</groupId>
-          <artifactId>log4j</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.htrace</groupId>
-          <artifactId>htrace-core</artifactId>
-        </exclusion>
         <exclusion>
           <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-common</artifactId>
+          <artifactId>*</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.logging.log4j</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+        <!-- Keep javax.annotation-api 1.3.2 from the Google Cloud clients instead of 1.2. -->
+        <exclusion>
+          <groupId>javax.annotation</groupId>
+          <artifactId>javax.annotation-api</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -949,12 +909,6 @@
       <version>0.2.0</version>
     </dependency>
     <!-- End: dependency used by the Dataplex connector -->
-    <!-- https://mvnrepository.com/artifact/com.google.cloud/google-cloud-bigtable -->
-    <dependency>
-      <groupId>com.google.cloud</groupId>
-      <artifactId>google-cloud-bigtable</artifactId>
-      <version>1.17.1</version>
-    </dependency>
     <dependency>
       <groupId>com.google.api.grpc</groupId>
       <artifactId>proto-google-common-protos</artifactId>
@@ -1339,6 +1293,13 @@
           <groupId>io.cdap.tests.e2e</groupId>
           <artifactId>cdap-e2e-framework</artifactId>
           <version>0.5.0-SNAPSHOT</version>
+          <scope>test</scope>
+        </dependency>
+        <!-- Bigtable admin client used by the e2e test setup only. -->
+        <dependency>
+          <groupId>com.google.cloud</groupId>
+          <artifactId>google-cloud-bigtable</artifactId>
+          <version>1.17.1</version>
           <scope>test</scope>
         </dependency>
         <dependency>
