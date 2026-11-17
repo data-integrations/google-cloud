@@ -19,6 +19,7 @@ import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.format.UnexpectedFormatException;
 import io.cdap.cdap.api.data.schema.Schema;
 import org.apache.hadoop.hbase.Cell;
+import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
 
@@ -49,10 +50,11 @@ public class HBaseResultToRecordTransformer {
       recordBuilder.set(keyAlias, value);
     }
     for (Cell cell : result.rawCells()) {
-      String columnName = Bytes.toString(cell.getFamilyArray()) + ':' + Bytes.toString(cell.getQualifierArray());
+      String columnName = Bytes.toString(CellUtil.cloneFamily(cell)) + ':' +
+        Bytes.toString(CellUtil.cloneQualifier(cell));
       String fieldName = columnMappings.get(columnName);
       if (fieldName != null) {
-        Object value = convertBytesToFieldValue(cell.getValueArray(), fieldName);
+        Object value = convertBytesToFieldValue(CellUtil.cloneValue(cell), fieldName);
         recordBuilder.set(fieldName, value);
       }
     }

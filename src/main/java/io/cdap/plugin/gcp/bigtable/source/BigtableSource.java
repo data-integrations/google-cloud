@@ -192,8 +192,8 @@ public final class BigtableSource extends BatchSource<ImmutableBytesWritable, Re
     TableName tableName = TableName.valueOf(config.table);
     try (Connection connection = BigtableConfiguration.connect(configuration);
          Table table = connection.getTable(tableName)) {
-      Set<String> existingFamilies = table.getTableDescriptor()
-        .getFamiliesKeys()
+      Set<String> existingFamilies = table.getDescriptor()
+        .getColumnFamilyNames()
         .stream()
         .map(Bytes::toString)
         .collect(Collectors.toSet());
