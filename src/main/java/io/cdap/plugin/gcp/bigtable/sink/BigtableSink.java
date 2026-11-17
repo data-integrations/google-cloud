@@ -41,14 +41,14 @@ import io.cdap.plugin.gcp.bigtable.common.BigtableErrorDetailsProvider;
 import io.cdap.plugin.gcp.bigtable.common.HBaseColumn;
 import io.cdap.plugin.gcp.common.SourceOutputFormatProvider;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.HColumnDescriptor;
-import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Admin;
+import org.apache.hadoop.hbase.client.ColumnFamilyDescriptorBuilder;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.client.TableDescriptorBuilder;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.mapreduce.TableOutputFormat;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -222,15 +222,15 @@ public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableByt
 
   private void createTable(Connection connection, TableName tableName, FailureCollector collector) {
     try (Admin admin = connection.getAdmin()) {
-      HTableDescriptor tableDescriptor = new HTableDescriptor(tableName);
+      TableDescriptorBuilder tableDescriptor = TableDescriptorBuilder.newBuilder(tableName);
       config.getColumnMappings(collector)
         .values()
         .stream()
         .map(HBaseColumn::getFamily)
         .distinct()
-        .map(HColumnDescriptor::new)
-        .forEach(tableDescriptor::addFamily);
-      admin.createTable(tableDescriptor);
+        .map(family -> ColumnFamilyDescriptorBuilder.of(family))
+        .forEach(tableDescriptor::setColumnFamily);
+      admin.createTable(tableDescriptor.build());
     } catch (IOException e) {
       collector.addFailure(
         String.format("Failed to create table '%s' in Bigtable : %s", tableName, e.getMessage()), null)
@@ -242,8 +242,8 @@ public final class BigtableSink extends BatchSink<StructuredRecord, ImmutableByt
   private void validateExistingTable(Connection connection, TableName tableName, FailureCollector collector)
     throws IOException {
     try (Table table = connection.getTable(tableName)) {
-      Set<String> existingFamilies = table.getTableDescriptor()
-        .getFamiliesKeys()
+      Set<String> existingFamilies = table.getDescriptor()
+        .getColumnFamilyNames()
         .stream()
         .map(Bytes::toString)
         .collect(Collectors.toSet());
