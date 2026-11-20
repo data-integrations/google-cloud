@@ -85,12 +85,12 @@ public final class BigQueryDataParser {
       FieldList subFields = field.getSubFields();
 
       if (attribute == Attribute.REPEATED) {
-        // Process each field of the array and then add it to the StructuredRecord
+        // Process each field of the array, then add it to the StructuredRecord
         List<Object> list = new ArrayList<>();
         List<FieldValue> fieldValueList = fieldValue.getRepeatedValue();
 
         for (FieldValue localValue : fieldValueList) {
-          // If the field contains multiple fields then we have to process it recursively.
+          // If the field contains multiple fields, it must be processed recursively.
           if (localValue.getValue() instanceof FieldValueList) {
             FieldValueList localFieldValueListNoSchema = localValue.getRecordValue();
             FieldValueList localFieldValueList =
@@ -105,7 +105,7 @@ public final class BigQueryDataParser {
         recordBuilder.set(fieldName, list);
 
       } else if (attribute == Attribute.RECORD) {
-        // If the field contains a Record then we need to process each field independently
+        // If the field contains a Record, each field must be processed independently.
         FieldValue localValue = fieldValue;
         Object value;
         if (localValue.getValue() instanceof FieldValueList) {
