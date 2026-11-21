@@ -64,6 +64,8 @@
     <cdap.version>6.11.0</cdap.version>
     <cdap.plugin.version>2.13.0</cdap.plugin.version>
     <dropwizard.metrics-core.version>3.2.6</dropwizard.metrics-core.version>
+    <google.http.client.version>1.41.8</google.http.client.version>
+    <google.oauth.client.version>1.33.3</google.oauth.client.version>
     <flogger.system.backend.version>0.7.1</flogger.system.backend.version>
     <gcs.connector.version>hadoop3-2.2.21</gcs.connector.version>
     <google.cloud.bigtable.version>2.18.3</google.cloud.bigtable.version>
@@ -74,13 +76,15 @@
     <google.cloud.speech.version>1.24.7</google.cloud.speech.version>
     <google.cloud.storage.version>2.3.0</google.cloud.storage.version>
     <google.cloud.datastore.version>1.105.1</google.cloud.datastore.version>
-    <google.protobuf.java.version>3.19.4</google.protobuf.java.version>
+    <google.protobuf.java.version>3.25.5</google.protobuf.java.version>
     <google.tink.version>1.3.0-rc3</google.tink.version>
+    <org.json.version>20260814</org.json.version>
     <guava.version>27.0.1-jre</guava.version>
     <hadoop.version>3.3.6</hadoop.version>
     <hbase-shaded-mapreduce.version>2.6.6-hadoop3</hbase-shaded-mapreduce.version>
-    <httpclient.version>4.5.13</httpclient.version>
-    <jackson.core.version>2.13.4.2</jackson.core.version>
+    <httpclient.version>4.5.14</httpclient.version>
+    <httpcore.version>4.4.16</httpcore.version>
+    <jackson.core.version>2.23.0</jackson.core.version>
     <junit.version>4.13.1</junit.version>
     <powermock.version>2.0.2</powermock.version>
     <slf4j.version>1.7.5</slf4j.version>
@@ -92,6 +96,41 @@
 
   <dependencyManagement>
     <dependencies>
+      <!-- Aligns every Jackson module (jackson-core, -databind, -dataformat-cbor, ...) on one version. -->
+      <dependency>
+        <groupId>com.fasterxml.jackson</groupId>
+        <artifactId>jackson-bom</artifactId>
+        <version>${jackson.core.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <!-- Aligns protobuf-java and protobuf-java-util. -->
+      <dependency>
+        <groupId>com.google.protobuf</groupId>
+        <artifactId>protobuf-bom</artifactId>
+        <version>${google.protobuf.java.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <!-- google-oauth-client 1.33.3 is built against google-http-client 1.41.x. -->
+      <dependency>
+        <groupId>com.google.http-client</groupId>
+        <artifactId>google-http-client-bom</artifactId>
+        <version>${google.http.client.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.google.oauth-client</groupId>
+        <artifactId>google-oauth-client</artifactId>
+        <version>${google.oauth.client.version}</version>
+      </dependency>
+      <!-- org.json comes in through tink and is used by GCSTinkTool / TinkDecryptor. -->
+      <dependency>
+        <groupId>org.json</groupId>
+        <artifactId>json</artifactId>
+        <version>${org.json.version}</version>
+      </dependency>
       <dependency>
         <groupId>com.google.apis</groupId>
         <artifactId>google-api-services-bigquery</artifactId>
@@ -101,6 +140,16 @@
         <groupId>com.google.apis</groupId>
         <artifactId>google-api-services-storage</artifactId>
         <version>v1-rev20211201-1.32.1</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.httpcomponents</groupId>
+        <artifactId>httpclient</artifactId>
+        <version>${httpclient.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.httpcomponents</groupId>
+        <artifactId>httpcore</artifactId>
+        <version>${httpcore.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -613,6 +662,16 @@
       <artifactId>avro-mapred</artifactId>
       <version>${avro.version}</version>
       <exclusions>
+        <!-- avro-ipc is only needed for Avro RPC / tether jobs, which the plugins do not use.
+             It brings in velocity-engine-core and, through avro-ipc-jetty, Jetty. -->
+        <exclusion>
+          <groupId>org.apache.avro</groupId>
+          <artifactId>avro-ipc</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.avro</groupId>
+          <artifactId>avro-ipc-jetty</artifactId>
+        </exclusion>
         <exclusion>
           <groupId>com.fasterxml.jackson.core</groupId>
           <artifactId>jackson-core</artifactId>
@@ -766,7 +825,7 @@
     <dependency>
       <groupId>org.xerial.snappy</groupId>
       <artifactId>snappy-java</artifactId>
-      <version>1.1.10.5</version>
+      <version>1.1.10.12</version>
     </dependency>
     <!-- Start: dependency for Google PubSub Streaming Source -->
     <dependency>
