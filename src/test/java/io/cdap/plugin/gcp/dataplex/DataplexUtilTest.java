@@ -18,6 +18,7 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
@@ -25,6 +26,8 @@ import java.io.IOException;
 import java.util.List;
 
 @RunWith(PowerMockRunner.class)
+@PowerMockIgnore({"javax.management.*", "javax.xml.*", "org.xml.*", "org.w3c.*",
+  "com.sun.org.apache.xerces.*", "jdk.internal.reflect.*"})
 @PrepareForTest({Schema.class, Entity.class, Storage.class, GCPUtils.class, GoogleCredentials.class,
   MetadataServiceClient.class})
 public class DataplexUtilTest {
