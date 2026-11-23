@@ -66,6 +66,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.internal.util.reflection.FieldSetter;
 import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 import org.powermock.reflect.Whitebox;
@@ -89,6 +90,8 @@ import static org.mockito.Mockito.when;
  * Tests for DataplexBatchSource
  */
 @RunWith(PowerMockRunner.class)
+@PowerMockIgnore({"javax.management.*", "javax.xml.*", "org.xml.*", "org.w3c.*",
+  "com.sun.org.apache.xerces.*", "jdk.internal.reflect.*"})
 @PrepareForTest({DataplexBatchSource.class, DataplexBatchSourceConfig.class, BigQueryUtil.class, DataplexUtil.class,
   GCPUtils.class, JobUtils.class, ServiceAccountCredentials.class, ConfigurationUtils.class,
   BigQuerySourceUtils.class, FileSystem.class})

@@ -30,6 +30,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 import org.slf4j.Logger;
@@ -46,6 +47,8 @@ import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.powermock.api.mockito.PowerMockito.when;
 
 @RunWith(PowerMockRunner.class)
+@PowerMockIgnore({"javax.management.*", "javax.xml.*", "org.xml.*", "org.w3c.*",
+  "com.sun.org.apache.xerces.*", "jdk.internal.reflect.*"})
 @PrepareForTest({BigQuerySQLEngine.class, LoggerFactory.class})
 public class BigQuerySQLEngineTest {
 

@@ -23,6 +23,7 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
@@ -50,6 +51,8 @@ import static org.powermock.api.mockito.PowerMockito.doReturn;
 import static org.powermock.api.mockito.PowerMockito.spy;
 
 @RunWith(PowerMockRunner.class)
+@PowerMockIgnore({"javax.management.*", "javax.xml.*", "org.xml.*", "org.w3c.*",
+  "com.sun.org.apache.xerces.*", "jdk.internal.reflect.*"})
 @PrepareForTest({UnaryCallable.class, PullResponse.class, GeneratedMessageV3.class, ReceivedMessage.class})
 public class PubSubReceiverMessagePullingTest {
 
