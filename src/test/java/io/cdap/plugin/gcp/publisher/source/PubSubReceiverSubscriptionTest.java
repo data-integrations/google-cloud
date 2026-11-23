@@ -22,6 +22,7 @@ import org.mockito.Mock;
 import org.mockito.internal.util.reflection.FieldSetter;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
@@ -47,6 +48,8 @@ import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.spy;
 
 @RunWith(PowerMockRunner.class)
+@PowerMockIgnore({"javax.management.*", "javax.xml.*", "org.xml.*", "org.w3c.*",
+  "com.sun.org.apache.xerces.*", "jdk.internal.reflect.*"})
 @PrepareForTest(SubscriptionAdminClient.class)
 public class PubSubReceiverSubscriptionTest {
 

@@ -34,6 +34,7 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
@@ -43,6 +44,8 @@ public class RecordToMutationTransformerTest {
   @Test
   public void testConvertToValueAllTypes() {
     ZonedDateTime now = ZonedDateTime.now(ZoneId.ofOffset("UTC", ZoneOffset.UTC));
+    ZonedDateTime nowMillis = now.truncatedTo(ChronoUnit.MILLIS);
+    ZonedDateTime nowMicros = now.truncatedTo(ChronoUnit.MICROS);
     
     Schema schema = Schema.recordOf(
       "schema",
@@ -149,11 +152,13 @@ public class RecordToMutationTransformerTest {
                         transformer.convertToValue("DATE_COL",
                                                    schema.getField("DATE_COL").getSchema(), record));
 
-    Assert.assertEquals(Value.timestamp(Timestamp.ofTimeSecondsAndNanos(now.toEpochSecond(), now.getNano())),
+    Assert.assertEquals(Value.timestamp(Timestamp.ofTimeSecondsAndNanos(nowMillis.toEpochSecond(),
+                                                                        nowMillis.getNano())),
                         transformer.convertToValue("TIMESTAMP_MILLIS_COL",
                                                    schema.getField("TIMESTAMP_MILLIS_COL").getSchema(), record));
 
-    Assert.assertEquals(Value.timestamp(Timestamp.ofTimeSecondsAndNanos(now.toEpochSecond(), now.getNano())),
+    Assert.assertEquals(Value.timestamp(Timestamp.ofTimeSecondsAndNanos(nowMicros.toEpochSecond(),
+                                                                        nowMicros.getNano())),
                         transformer.convertToValue("TIMESTAMP_MICROS_COL",
                                                    schema.getField("TIMESTAMP_MICROS_COL").getSchema(), record));
 
@@ -199,20 +204,20 @@ public class RecordToMutationTransformerTest {
                                                    schema.getField("ARRAY_DATE_COL").getSchema(), record));
 
     Assert.assertEquals(Value.timestampArray(Arrays.asList(
-      Timestamp.ofTimeSecondsAndNanos(now.toEpochSecond(), now.getNano()),
-      Timestamp.ofTimeSecondsAndNanos(now.plusDays(1).toEpochSecond(), now.plusDays(1).getNano()),
+      Timestamp.ofTimeSecondsAndNanos(nowMillis.toEpochSecond(), nowMillis.getNano()),
+      Timestamp.ofTimeSecondsAndNanos(nowMillis.plusDays(1).toEpochSecond(), nowMillis.plusDays(1).getNano()),
       null)),
                         transformer.convertToValue("ARRAY_TIMESTAMP_MILLIS_COL",
                                                    schema.getField("ARRAY_TIMESTAMP_MILLIS_COL").getSchema(),
                                                    record));
 
     Assert.assertEquals(Value.timestampArray(Arrays.asList(
-      Timestamp.ofTimeSecondsAndNanos(now.toEpochSecond(), now.getNano()),
-      Timestamp.ofTimeSecondsAndNanos(now.plusDays(1).toEpochSecond(), now.plusDays(1).getNano()),
+      Timestamp.ofTimeSecondsAndNanos(nowMicros.toEpochSecond(), nowMicros.getNano()),
+      Timestamp.ofTimeSecondsAndNanos(nowMicros.plusDays(1).toEpochSecond(), nowMicros.plusDays(1).getNano()),
       null)),
                         transformer.convertToValue("ARRAY_TIMESTAMP_MICROS_COL",
-                                                              schema.getField("ARRAY_TIMESTAMP_MICROS_COL").getSchema(),
-                                                              record));
+                                                   schema.getField("ARRAY_TIMESTAMP_MICROS_COL").getSchema(),
+                                                   record));
   }
 
   @Test
