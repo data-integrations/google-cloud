@@ -613,6 +613,16 @@
       <artifactId>avro-mapred</artifactId>
       <version>${avro.version}</version>
       <exclusions>
+        <!-- avro-ipc is only needed for Avro RPC / tether jobs, which the plugins do not use.
+             It brings in velocity-engine-core and, through avro-ipc-jetty, Jetty. -->
+        <exclusion>
+          <groupId>org.apache.avro</groupId>
+          <artifactId>avro-ipc</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.avro</groupId>
+          <artifactId>avro-ipc-jetty</artifactId>
+        </exclusion>
         <exclusion>
           <groupId>com.fasterxml.jackson.core</groupId>
           <artifactId>jackson-core</artifactId>
