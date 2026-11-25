@@ -462,32 +462,11 @@
     <dependency>
       <!--
         Required by bigtable-hbase-1.x-mapreduce instead of excluded non-shaded version.
-        Shaded library is used to avoid dependency conflicts with Datastore module on profobuf-java dependency.
+        Shaded library is used to avoid dependency conflicts with Datastore module on protobuf-java dependency.
         Bigtable requires version 2.x and Datastore module requires 3.x protocol.
-      -->
-      <groupId>org.apache.hbase</groupId>
-      <artifactId>hbase-shaded-client</artifactId>
-      <version>${hbase-shaded-client.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>org.slf4j</groupId>
-          <artifactId>slf4j-log4j12</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>log4j</groupId>
-          <artifactId>log4j</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.htrace</groupId>
-          <artifactId>htrace-core</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <!--
-        Required by bigtable-hbase-1.x-mapreduce instead of excluded non-shaded version.
-        Shaded library is used to avoid dependency conflicts with Datastore module on profobuf-java dependency.
-        Bigtable requires version 2.x and Datastore module requires 3.x protocol.
+        hbase-shaded-server already bundles every HBase client, common, protocol, and MapReduce class;
+        omitting the redundant hbase-shaded-client artifact avoids packaging its unused shaded Jetty 6
+        (org.mortbay.jetty) classes and Maven metadata.
       -->
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-shaded-server</artifactId>
@@ -995,6 +974,54 @@
             <goals>
               <goal>bundle</goal>
             </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!--
+        Cloud Bigtable plugins connect over gRPC and never start HBase's embedded Jetty HTTP UI.
+        Strip the unused HBase Jetty connector class from the embedded hbase-shaded-server JAR.
+      -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <version>3.1.0</version>
+        <executions>
+          <execution>
+            <id>strip-jetty-from-hbase-shaded-server</id>
+            <phase>process-resources</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <delete dir="${project.build.directory}/stripped-hbase"/>
+                <mkdir dir="${project.build.directory}/stripped-hbase/lib"/>
+                <zip destfile="${project.build.directory}/stripped-hbase/lib/hbase-shaded-server-${hbase-shaded-server.version}.jar">
+                  <zipfileset src="${org.apache.hbase:hbase-shaded-server:jar}">
+                    <exclude name="org/apache/hadoop/hbase/jetty/**"/>
+                    <exclude name="org/apache/hadoop/hbase/shaded/org/mortbay/**"/>
+                    <exclude name="META-INF/maven/org.mortbay.jetty/**"/>
+                    <exclude name="META-INF/maven/org.eclipse.jetty/**"/>
+                  </zipfileset>
+                </zip>
+              </target>
+            </configuration>
+          </execution>
+          <execution>
+            <id>replace-hbase-shaded-server-in-bundle</id>
+            <phase>package</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <jar update="true"
+                     destfile="${project.build.directory}/${project.build.finalName}.jar"
+                     basedir="${project.build.directory}/stripped-hbase"
+                     includes="lib/hbase-shaded-server-${hbase-shaded-server.version}.jar"/>
+              </target>
+            </configuration>
           </execution>
         </executions>
       </plugin>
