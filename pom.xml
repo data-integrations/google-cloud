@@ -78,7 +78,6 @@
     <google.tink.version>1.3.0-rc3</google.tink.version>
     <guava.version>27.0.1-jre</guava.version>
     <hadoop.version>3.3.6</hadoop.version>
-    <hbase-shaded-client.version>1.4.13</hbase-shaded-client.version>
     <hbase-shaded-server.version>1.4.13</hbase-shaded-server.version>
     <httpclient.version>4.5.13</httpclient.version>
     <jackson.core.version>2.13.4.2</jackson.core.version>
@@ -998,7 +997,10 @@
                 <delete dir="${project.build.directory}/stripped-hbase"/>
                 <mkdir dir="${project.build.directory}/stripped-hbase/lib"/>
                 <zip destfile="${project.build.directory}/stripped-hbase/lib/hbase-shaded-server-${hbase-shaded-server.version}.jar">
+                  <!-- Keep the manifest first so JarInputStream can read it. -->
+                  <zipfileset src="${org.apache.hbase:hbase-shaded-server:jar}" includes="META-INF/MANIFEST.MF"/>
                   <zipfileset src="${org.apache.hbase:hbase-shaded-server:jar}">
+                    <exclude name="META-INF/MANIFEST.MF"/>
                     <exclude name="org/apache/hadoop/hbase/jetty/**"/>
                     <exclude name="org/apache/hadoop/hbase/shaded/org/mortbay/**"/>
                     <exclude name="META-INF/maven/org.mortbay.jetty/**"/>
@@ -1016,10 +1018,44 @@
             </goals>
             <configuration>
               <target>
-                <jar update="true"
-                     destfile="${project.build.directory}/${project.build.finalName}.jar"
-                     basedir="${project.build.directory}/stripped-hbase"
-                     includes="lib/hbase-shaded-server-${hbase-shaded-server.version}.jar"/>
+                <property name="plugin.bundle" value="${project.build.directory}/${project.build.finalName}.jar"/>
+                <property name="repacked.bundle" value="${project.build.directory}/${project.build.finalName}.jar.tmp"/>
+                <property name="hbase.jar.name" value="hbase-shaded-server-${hbase-shaded-server.version}.jar"/>
+                <property name="stripped.hbase.jar" value="${project.build.directory}/stripped-hbase/lib/${hbase.jar.name}"/>
+                <property name="bundle.check.dir" value="${project.build.directory}/bundle-check"/>
+                <fail message="Missing stripped HBase JAR: ${stripped.hbase.jar}">
+                  <condition>
+                    <not><available file="${stripped.hbase.jar}"/></not>
+                  </condition>
+                </fail>
+
+                <!-- Rebuild the bundle unconditionally; jar update="true" skips files with close timestamps. -->
+                <delete file="${repacked.bundle}"/>
+                <zip destfile="${repacked.bundle}">
+                  <zipfileset src="${plugin.bundle}" includes="META-INF/MANIFEST.MF"/>
+                  <zipfileset src="${plugin.bundle}" excludes="META-INF/MANIFEST.MF lib/hbase-shaded-server-*.jar"/>
+                  <zipfileset file="${stripped.hbase.jar}" prefix="lib"/>
+                </zip>
+                <move file="${repacked.bundle}" tofile="${plugin.bundle}" overwrite="true"/>
+
+                <!-- Fail the build unless the bundle embeds exactly the stripped HBase JAR. -->
+                <delete dir="${bundle.check.dir}"/>
+                <unzip src="${plugin.bundle}" dest="${bundle.check.dir}">
+                  <patternset includes="lib/${hbase.jar.name}"/>
+                </unzip>
+                <fail message="${plugin.bundle} does not embed the stripped ${hbase.jar.name}">
+                  <condition>
+                    <not><filesmatch file1="${stripped.hbase.jar}" file2="${bundle.check.dir}/lib/${hbase.jar.name}"/></not>
+                  </condition>
+                </fail>
+                <fail message="${plugin.bundle} must not embed hbase-shaded-client">
+                  <condition>
+                    <resourcecount when="greater" count="0">
+                      <zipfileset src="${plugin.bundle}" includes="lib/hbase-shaded-client-*.jar"/>
+                    </resourcecount>
+                  </condition>
+                </fail>
+                <delete dir="${bundle.check.dir}"/>
               </target>
             </configuration>
           </execution>
@@ -1071,6 +1107,15 @@
                     loader, it prevents the class loader from being garbage collected leading
                     to leaks. If no implementation of TracingComponent is found at runtime,
                     Open Census uses a NoopTraceComponent.
+                  </message>
+                </bannedDependencies>
+                <bannedDependencies>
+                  <excludes>
+                    <exclude>org.apache.hbase:hbase-shaded-client</exclude>
+                  </excludes>
+                  <message>
+                    hbase-shaded-server already contains every HBase client class the Bigtable plugins use.
+                    hbase-shaded-client is redundant and bundles unused shaded Jetty 6 classes.
                   </message>
                 </bannedDependencies>
               </rules>
