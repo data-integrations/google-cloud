@@ -29,6 +29,7 @@ import org.junit.Test;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
@@ -44,6 +45,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.jar.JarInputStream;
+import java.util.jar.Manifest;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
@@ -87,6 +90,15 @@ public class BigtableShadedJarPackagingTest {
     File strippedJar = findStrippedHBaseJar();
     File upstreamJar = new File(Put.class.getProtectionDomain().getCodeSource().getLocation().toURI());
     Assert.assertTrue("Upstream hbase-shaded-mapreduce JAR should exist: " + upstreamJar, upstreamJar.isFile());
+
+    try (JarInputStream strippedStream = new JarInputStream(new FileInputStream(strippedJar));
+         JarInputStream upstreamStream = new JarInputStream(new FileInputStream(upstreamJar))) {
+      Manifest strippedManifest = strippedStream.getManifest();
+      Assert.assertNotNull("Stripped JAR must keep META-INF/MANIFEST.MF first for JarInputStream",
+                           strippedManifest);
+      Assert.assertEquals("Stripped JAR manifest should match upstream manifest",
+                          upstreamStream.getManifest(), strippedManifest);
+    }
 
     try (ZipFile zipFile = new ZipFile(strippedJar)) {
       List<String> entryNames = new ArrayList<>();
