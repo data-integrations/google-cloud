@@ -1058,8 +1058,11 @@
                        target="1.8"
                        includeantruntime="false"
                        debug="false"/>
+                <!-- Keep META-INF/MANIFEST.MF first so JarInputStream can read it. -->
                 <zip destfile="${project.build.directory}/stripped-hbase/lib/hbase-shaded-mapreduce-${hbase-shaded-mapreduce.version}.jar">
+                  <zipfileset src="${org.apache.hbase:hbase-shaded-mapreduce:jar}" includes="META-INF/MANIFEST.MF"/>
                   <zipfileset src="${org.apache.hbase:hbase-shaded-mapreduce:jar}">
+                    <exclude name="META-INF/MANIFEST.MF"/>
                     <exclude name="org/apache/hbase/thirdparty/org/eclipse/jetty/**"/>
                     <exclude name="META-INF/maven/org.eclipse.jetty/**"/>
                     <exclude name="META-INF/maven/org.apache.hbase.thirdparty/hbase-shaded-jetty/**"/>
@@ -1086,10 +1089,48 @@
             </goals>
             <configuration>
               <target>
-                <jar update="true"
-                     destfile="${project.build.directory}/${project.build.finalName}.jar"
-                     basedir="${project.build.directory}/stripped-hbase"
-                     includes="lib/hbase-shaded-mapreduce-${hbase-shaded-mapreduce.version}.jar"/>
+                <property name="bundle.jar" value="${project.build.directory}/${project.build.finalName}.jar"/>
+                <property name="hbase.jar.entry" value="lib/hbase-shaded-mapreduce-${hbase-shaded-mapreduce.version}.jar"/>
+                <property name="stripped.hbase.jar" value="${project.build.directory}/stripped-hbase/${hbase.jar.entry}"/>
+                <property name="repacked.bundle.jar" value="${project.build.directory}/repacked-bundle.jar"/>
+                <property name="bundle.check.dir" value="${project.build.directory}/bundle-hbase-check"/>
+                <fail message="Missing stripped HBase JAR: ${stripped.hbase.jar}">
+                  <condition>
+                    <not><available file="${stripped.hbase.jar}"/></not>
+                  </condition>
+                </fail>
+
+                <!--
+                  Always rebuild the bundle instead of using <jar update="true">, which skips entries
+                  whose source is not newer than the existing entry. The bundle manifest is copied
+                  unchanged and kept as the first entry.
+                -->
+                <delete file="${repacked.bundle.jar}"/>
+                <zip destfile="${repacked.bundle.jar}">
+                  <zipfileset src="${bundle.jar}" includes="META-INF/MANIFEST.MF"/>
+                  <zipfileset src="${bundle.jar}" excludes="META-INF/MANIFEST.MF,lib/hbase-shaded-mapreduce-*.jar"/>
+                  <zipfileset dir="${project.build.directory}/stripped-hbase" includes="${hbase.jar.entry}"/>
+                </zip>
+                <move file="${repacked.bundle.jar}" tofile="${bundle.jar}" overwrite="true"/>
+
+                <!-- Fail the build unless the bundle embeds exactly the stripped HBase JAR. -->
+                <delete dir="${bundle.check.dir}"/>
+                <unzip src="${bundle.jar}" dest="${bundle.check.dir}">
+                  <patternset includes="${hbase.jar.entry}"/>
+                </unzip>
+                <fail message="${bundle.jar} does not embed the stripped ${hbase.jar.entry}">
+                  <condition>
+                    <not><filesmatch file1="${stripped.hbase.jar}" file2="${bundle.check.dir}/${hbase.jar.entry}"/></not>
+                  </condition>
+                </fail>
+                <fail message="${bundle.jar} embeds an unexpected lib/hbase-shaded-mapreduce-*.jar">
+                  <condition>
+                    <resourcecount when="greater" count="0">
+                      <zipfileset src="${bundle.jar}" includes="lib/hbase-shaded-mapreduce-*.jar"
+                                  excludes="${hbase.jar.entry}"/>
+                    </resourcecount>
+                  </condition>
+                </fail>
               </target>
             </configuration>
           </execution>

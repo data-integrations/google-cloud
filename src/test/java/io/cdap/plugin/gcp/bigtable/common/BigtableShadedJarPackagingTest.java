@@ -18,6 +18,8 @@ package io.cdap.plugin.gcp.bigtable.common;
 
 import com.google.bigtable.repackaged.io.grpc.StatusRuntimeException;
 import com.google.cloud.bigtable.hbase.BigtableConfiguration;
+import com.google.common.collect.ImmutableList;
+import com.google.common.io.ByteStreams;
 import io.cdap.plugin.gcp.bigtable.source.BigtableSource;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.Put;
@@ -25,7 +27,6 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.IOException;
@@ -35,8 +36,6 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -49,15 +48,20 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
-import java.util.zip.ZipInputStream;
 
 /**
  * Verifies that unused relocated Jetty classes and metadata are stripped from the packaged
  * HBase MapReduce JAR without breaking Cloud Bigtable client or MapReduce classloading.
+ *
+ * <p>The final plugin bundle is checked during the Maven package phase in pom.xml, because unit
+ * tests run before the bundle is built.
  */
 public class BigtableShadedJarPackagingTest {
-  private static final Pattern DESCRIPTOR_CLASS_PATTERN = Pattern.compile("L([a-zA-Z0-9_$/]+);");
-  private static final List<String> AUDITED_HBASE_PACKAGES = Collections.unmodifiableList(Arrays.asList(
+  private static final String CLASS_FILE_SUFFIX = ".class";
+  private static final int CLASS_FILE_MAGIC = 0xCAFEBABE;
+  private static final Pattern DESCRIPTOR_CLASS_PATTERN = Pattern.compile("L([a-zA-Z0-9_$/]+)[;<]");
+  private static final String HBASE_HTTP_PACKAGE = "org/apache/hadoop/hbase/http/";
+  private static final List<String> AUDITED_HBASE_PACKAGES = ImmutableList.of(
     "org/apache/hadoop/hbase/client/",
     "org/apache/hadoop/hbase/mapreduce/",
     "org/apache/hadoop/hbase/io/",
@@ -65,7 +69,18 @@ public class BigtableShadedJarPackagingTest {
     "org/apache/hadoop/hbase/filter/",
     "org/apache/hadoop/hbase/shaded/",
     "org/apache/hadoop/hbase/security/"
-  ));
+  );
+  private static final List<String> EXCLUDED_HBASE_PREFIXES = ImmutableList.of(
+    "META-INF/maven/org.apache.hbase/hbase-http/",
+    "org/apache/hadoop/hbase/master/http/",
+    "org/apache/hadoop/hbase/regionserver/http/",
+    "org/apache/hadoop/hbase/generated/",
+    "org/apache/hadoop/hbase/tool/Canary"
+  );
+  private static final List<String> ALLOWED_HBASE_HTTP_ENTRIES = ImmutableList.of(
+    HBASE_HTTP_PACKAGE,
+    HBASE_HTTP_PACKAGE + "HttpServer.class"
+  );
 
   @Test
   public void testStrippedHBaseJarHasNoJettyAndNoDanglingRefs() throws Exception {
@@ -73,59 +88,53 @@ public class BigtableShadedJarPackagingTest {
     File upstreamJar = new File(Put.class.getProtectionDomain().getCodeSource().getLocation().toURI());
     Assert.assertTrue("Upstream hbase-shaded-mapreduce JAR should exist: " + upstreamJar, upstreamJar.isFile());
 
-    Set<String> upstreamClasses = collectClassNames(upstreamJar);
-    Set<String> strippedClasses = new HashSet<>();
-    List<String> forbiddenEntries = new ArrayList<>();
-
     try (ZipFile zipFile = new ZipFile(strippedJar)) {
+      List<String> entryNames = new ArrayList<>();
       Enumeration<? extends ZipEntry> entries = zipFile.entries();
       while (entries.hasMoreElements()) {
-        ZipEntry entry = entries.nextElement();
-        String name = entry.getName();
-        if (name.endsWith(".class")) {
-          strippedClasses.add(name.substring(0, name.length() - 6));
-        }
-        if (isForbiddenJettyEntry(name)) {
+        entryNames.add(entries.nextElement().getName());
+      }
+
+      List<String> forbiddenEntries = new ArrayList<>();
+      for (String name : entryNames) {
+        if (isForbiddenJettyEntry(name) || startsWithAny(name, EXCLUDED_HBASE_PREFIXES)
+          || (name.startsWith(HBASE_HTTP_PACKAGE) && !ALLOWED_HBASE_HTTP_ENTRIES.contains(name))) {
           forbiddenEntries.add(name);
         }
       }
+      Assert.assertTrue("Unexpected stripped entries in JAR: " + forbiddenEntries, forbiddenEntries.isEmpty());
 
-      Assert.assertTrue("Unexpected Jetty entries in stripped JAR: " + forbiddenEntries,
-                        forbiddenEntries.isEmpty());
+      Set<String> strippedClasses = toClassNames(entryNames);
+      Assert.assertTrue("Expected >20000 classes in stripped JAR, actual: " + strippedClasses.size(),
+                        strippedClasses.size() > 20000);
 
-      Set<String> removedClasses = new HashSet<>(upstreamClasses);
+      Set<String> removedClasses = collectClassNames(upstreamJar);
       removedClasses.removeAll(strippedClasses);
       Assert.assertTrue("Expected >1000 Jetty/HTTP classes removed, actual: " + removedClasses.size(),
                         removedClasses.size() > 1000);
 
+      int auditedClassCount = 0;
       List<String> danglingRefs = new ArrayList<>();
-      Enumeration<? extends ZipEntry> auditEntries = zipFile.entries();
-      while (auditEntries.hasMoreElements()) {
-        ZipEntry entry = auditEntries.nextElement();
-        String name = entry.getName();
-        if (!name.endsWith(".class") || !startsWithAny(name, AUDITED_HBASE_PACKAGES)) {
+      for (String name : entryNames) {
+        if (!name.endsWith(CLASS_FILE_SUFFIX) || !startsWithAny(name, AUDITED_HBASE_PACKAGES)) {
           continue;
         }
-        byte[] classBytes = readAllBytes(zipFile.getInputStream(entry));
-        Set<String> referencedClasses = extractConstantPoolClassReferences(classBytes);
-        for (String ref : referencedClasses) {
+        auditedClassCount++;
+        for (String ref : extractConstantPoolClassReferences(readEntry(zipFile, name))) {
           if (removedClasses.contains(ref)) {
             danglingRefs.add(name + " -> " + ref);
           }
         }
       }
+      Assert.assertTrue("Expected audited HBase classes, actual: " + auditedClassCount, auditedClassCount > 0);
       Assert.assertTrue("Dangling references to removed classes: " + danglingRefs, danglingRefs.isEmpty());
-    }
-
-    File packagedBundle = findOptionalPackagedPluginBundle();
-    if (packagedBundle != null) {
-      auditPackagedPluginBundle(packagedBundle);
     }
   }
 
   @Test
   public void testBigtableAndHBaseClassesLoadFromStrippedJar() throws Exception {
     File strippedJar = findStrippedHBaseJar();
+    File upstreamJar = new File(Put.class.getProtectionDomain().getCodeSource().getLocation().toURI());
     URL strippedUrl = strippedJar.toURI().toURL();
     Set<URL> isolatedUrls = new LinkedHashSet<>();
     isolatedUrls.add(strippedUrl);
@@ -138,7 +147,12 @@ public class BigtableShadedJarPackagingTest {
       assertClassAbsent(loader, "org.apache.hbase.thirdparty.org.eclipse.jetty.server.Server");
       assertClassAbsent(loader, "org.apache.hadoop.hbase.http.InfoServer");
 
-      List<String> classesToLoadAndInitialize = Arrays.asList(
+      URL hbaseDefaults = loader.getResource("hbase-default.xml");
+      Assert.assertNotNull(hbaseDefaults);
+      Assert.assertTrue("hbase-default.xml should load from the stripped JAR: " + hbaseDefaults,
+                        hbaseDefaults.toString().startsWith("jar:" + strippedUrl + "!/"));
+
+      List<String> classesToLoadAndInitialize = ImmutableList.of(
         "io.cdap.plugin.gcp.bigtable.source.BigtableSource",
         "io.cdap.plugin.gcp.bigtable.sink.BigtableSink",
         "io.cdap.plugin.gcp.bigtable.source.BigtableInputFormat",
@@ -155,21 +169,24 @@ public class BigtableShadedJarPackagingTest {
         Class.forName(className, true, loader);
       }
 
-      Class<?> btInputFormatClass = Class.forName("io.cdap.plugin.gcp.bigtable.source.BigtableInputFormat",
-                                                  true, loader);
-      Assert.assertNotNull(btInputFormatClass.getDeclaredConstructor().newInstance());
+      Class<?> bigtableInputFormatClass =
+        Class.forName("io.cdap.plugin.gcp.bigtable.source.BigtableInputFormat", true, loader);
+      Assert.assertNotNull(bigtableInputFormatClass.getDeclaredConstructor().newInstance());
 
-      Class<?> btOutputFormatClass = Class.forName("io.cdap.plugin.gcp.bigtable.sink.BigtableOutputFormat",
-                                                   true, loader);
-      Assert.assertNotNull(btOutputFormatClass.getDeclaredConstructor().newInstance());
+      Class<?> bigtableOutputFormatClass =
+        Class.forName("io.cdap.plugin.gcp.bigtable.sink.BigtableOutputFormat", true, loader);
+      Assert.assertNotNull(bigtableOutputFormatClass.getDeclaredConstructor().newInstance());
 
       Class<?> hbaseConfClass = Class.forName("org.apache.hadoop.hbase.HBaseConfiguration", true, loader);
       Configuration conf = (Configuration) hbaseConfClass.getMethod("create").invoke(null);
       Assert.assertNotNull(conf);
 
-      Class<?> btConfClass = Class.forName("com.google.cloud.bigtable.hbase.BigtableConfiguration", true, loader);
-      btConfClass.getMethod("configure", Configuration.class, String.class, String.class)
+      Class<?> bigtableConfClass =
+        Class.forName("com.google.cloud.bigtable.hbase.BigtableConfiguration", true, loader);
+      bigtableConfClass.getMethod("configure", Configuration.class, String.class, String.class)
         .invoke(null, conf, "test-project", "test-instance");
+      Assert.assertEquals("test-project", conf.get("google.bigtable.project.id"));
+      Assert.assertEquals("test-instance", conf.get("google.bigtable.instance.id"));
 
       byte[] rowKey = "row-1".getBytes(StandardCharsets.UTF_8);
       byte[] family = "cf".getBytes(StandardCharsets.UTF_8);
@@ -193,55 +210,26 @@ public class BigtableShadedJarPackagingTest {
       Object scan = scanClass.getDeclaredConstructor().newInstance();
       scanClass.getMethod("addColumn", byte[].class, byte[].class).invoke(scan, family, qualifier);
 
-      Class<?> tmrUtilClass = Class.forName("org.apache.hadoop.hbase.mapreduce.TableMapReduceUtil", true, loader);
-      Method convertScanToString = tmrUtilClass.getMethod("convertScanToString", scanClass);
+      Class<?> tableMapReduceUtilClass =
+        Class.forName("org.apache.hadoop.hbase.mapreduce.TableMapReduceUtil", true, loader);
+      Method convertScanToString = tableMapReduceUtilClass.getMethod("convertScanToString", scanClass);
       String encodedScan = (String) convertScanToString.invoke(null, scan);
       Assert.assertNotNull(encodedScan);
       Assert.assertFalse(encodedScan.isEmpty());
 
-      Method addHBaseDepJars = tmrUtilClass.getMethod("addHBaseDependencyJars", Configuration.class);
-      addHBaseDepJars.invoke(null, conf);
+      tableMapReduceUtilClass.getMethod("addHBaseDependencyJars", Configuration.class).invoke(null, conf);
+      String tmpJars = conf.get("tmpjars");
+      Assert.assertNotNull(tmpJars);
+      Assert.assertTrue("tmpjars should include the stripped JAR: " + tmpJars,
+                        tmpJars.contains(strippedJar.getAbsolutePath()));
+      Assert.assertFalse("tmpjars should not include the upstream JAR: " + tmpJars,
+                         tmpJars.contains(upstreamJar.getAbsolutePath()));
     }
   }
 
   private static void assertClassAbsent(ClassLoader loader, String className) {
-    try {
-      Class.forName(className, false, loader);
-      Assert.fail("Expected class to be stripped from JAR: " + className);
-    } catch (ClassNotFoundException expected) {
-      // expected
-    }
-  }
-
-  private static void auditPackagedPluginBundle(File bundleJar) throws IOException {
-    boolean foundStrippedHBaseJar = false;
-    List<String> violations = new ArrayList<>();
-    try (ZipFile outerZip = new ZipFile(bundleJar)) {
-      Enumeration<? extends ZipEntry> entries = outerZip.entries();
-      while (entries.hasMoreElements()) {
-        ZipEntry entry = entries.nextElement();
-        String name = entry.getName();
-        if (isForbiddenJettyEntry(name)) {
-          violations.add(bundleJar.getName() + "!/" + name);
-        }
-        if (name.startsWith("lib/hbase-shaded-mapreduce-") && name.endsWith(".jar")) {
-          foundStrippedHBaseJar = true;
-        }
-        if (name.endsWith(".jar")) {
-          try (ZipInputStream nestedZip = new ZipInputStream(outerZip.getInputStream(entry))) {
-            ZipEntry nestedEntry;
-            while ((nestedEntry = nestedZip.getNextEntry()) != null) {
-              String nestedName = nestedEntry.getName();
-              if (isForbiddenJettyEntry(nestedName)) {
-                violations.add(bundleJar.getName() + "!/" + name + "!/" + nestedName);
-              }
-            }
-          }
-        }
-      }
-    }
-    Assert.assertTrue("Expected lib/hbase-shaded-mapreduce-*.jar inside " + bundleJar, foundStrippedHBaseJar);
-    Assert.assertTrue("Forbidden Jetty entries in packaged plugin bundle: " + violations, violations.isEmpty());
+    Assert.assertThrows("Expected class to be stripped from JAR: " + className, ClassNotFoundException.class,
+                        () -> Class.forName(className, false, loader));
   }
 
   private static boolean isForbiddenJettyEntry(String entryName) {
@@ -249,15 +237,7 @@ public class BigtableShadedJarPackagingTest {
     if (!lower.contains("jetty") && !lower.contains("mortbay")) {
       return false;
     }
-    if (entryName.endsWith(".class") && isAllowedNettyOrGrpcTlsWrapper(entryName)) {
-      return false;
-    }
-    if (entryName.startsWith("META-INF/maven/org.apache.avro/avro-ipc-jetty")
-        || entryName.equals("lib/avro-ipc-jetty-1.11.4.jar")
-        || entryName.startsWith("org/apache/avro/ipc/jetty/")) {
-      return false;
-    }
-    return true;
+    return !(entryName.endsWith(CLASS_FILE_SUFFIX) && isAllowedNettyOrGrpcTlsWrapper(entryName));
   }
 
   private static boolean isAllowedNettyOrGrpcTlsWrapper(String entryName) {
@@ -276,21 +256,8 @@ public class BigtableShadedJarPackagingTest {
     return matches[0];
   }
 
-  private static File findOptionalPackagedPluginBundle() {
-    File targetDir = findTargetDirectory();
-    File[] matches = targetDir.listFiles(
-      (dir, name) -> name.startsWith("google-cloud-")
-        && name.endsWith(".jar")
-        && !name.endsWith("-sources.jar")
-        && !name.endsWith("-javadoc.jar")
-        && !name.endsWith("-tests.jar"));
-    if (matches == null || matches.length == 0) {
-      return null;
-    }
-    return matches[0];
-  }
-
   private static File findTargetDirectory() {
+    // Surefire sets java.io.tmpdir to ${project.build.directory} in pom.xml.
     String tmpDir = System.getProperty("java.io.tmpdir");
     if (tmpDir != null) {
       File candidate = new File(tmpDir);
@@ -304,14 +271,21 @@ public class BigtableShadedJarPackagingTest {
   }
 
   private static Set<String> collectClassNames(File jarFile) throws IOException {
-    Set<String> classes = new HashSet<>();
+    List<String> entryNames = new ArrayList<>();
     try (ZipFile zipFile = new ZipFile(jarFile)) {
       Enumeration<? extends ZipEntry> entries = zipFile.entries();
       while (entries.hasMoreElements()) {
-        String name = entries.nextElement().getName();
-        if (name.endsWith(".class")) {
-          classes.add(name.substring(0, name.length() - 6));
-        }
+        entryNames.add(entries.nextElement().getName());
+      }
+    }
+    return toClassNames(entryNames);
+  }
+
+  private static Set<String> toClassNames(List<String> entryNames) {
+    Set<String> classes = new HashSet<>();
+    for (String name : entryNames) {
+      if (name.endsWith(CLASS_FILE_SUFFIX)) {
+        classes.add(name.substring(0, name.length() - CLASS_FILE_SUFFIX.length()));
       }
     }
     return classes;
@@ -326,35 +300,59 @@ public class BigtableShadedJarPackagingTest {
     return false;
   }
 
-  private static byte[] readAllBytes(InputStream in) throws IOException {
-    ByteArrayOutputStream out = new ByteArrayOutputStream();
-    byte[] buffer = new byte[8192];
-    int read;
-    while ((read = in.read(buffer)) != -1) {
-      out.write(buffer, 0, read);
+  private static byte[] readEntry(ZipFile zipFile, String name) throws IOException {
+    try (InputStream in = zipFile.getInputStream(zipFile.getEntry(name))) {
+      return ByteStreams.toByteArray(in);
     }
-    return out.toByteArray();
   }
 
+  /**
+   * Returns the internal names of all classes referenced from the constant pool, either directly
+   * through CONSTANT_Class entries or through field, method and generic signature descriptors.
+   */
   private static Set<String> extractConstantPoolClassReferences(byte[] classBytes) throws IOException {
+    Map<Integer, String> utf8Entries = new HashMap<>();
+    List<Integer> classNameIndices = new ArrayList<>();
+    readConstantPool(classBytes, utf8Entries, classNameIndices);
+
+    Set<String> referenced = new HashSet<>();
+    for (Integer nameIndex : classNameIndices) {
+      String className = unwrapArrayClassName(utf8Entries.get(nameIndex));
+      if (className != null) {
+        referenced.add(className);
+      }
+    }
+    for (String utf8 : utf8Entries.values()) {
+      if (looksLikeDescriptor(utf8)) {
+        Matcher matcher = DESCRIPTOR_CLASS_PATTERN.matcher(utf8);
+        while (matcher.find()) {
+          referenced.add(matcher.group(1));
+        }
+      }
+    }
+    return referenced;
+  }
+
+  /**
+   * Parses the class file constant pool, collecting CONSTANT_Utf8 values by index and the name
+   * indices of CONSTANT_Class entries.
+   */
+  private static void readConstantPool(byte[] classBytes, Map<Integer, String> utf8Entries,
+                                       List<Integer> classNameIndices) throws IOException {
     DataInputStream in = new DataInputStream(new ByteArrayInputStream(classBytes));
     int magic = in.readInt();
-    if (magic != 0xCAFEBABE) {
-      return Collections.emptySet();
+    if (magic != CLASS_FILE_MAGIC) {
+      throw new IOException(String.format("Invalid class file magic: 0x%08X", magic));
     }
     in.readUnsignedShort(); // minor
     in.readUnsignedShort(); // major
-    int cpCount = in.readUnsignedShort();
+    int constantPoolCount = in.readUnsignedShort();
 
-    Map<Integer, String> utf8Entries = new HashMap<>();
-    List<Integer> classNameIndices = new ArrayList<>();
-
-    int idx = 1;
-    while (idx < cpCount) {
+    for (int index = 1; index < constantPoolCount; index++) {
       int tag = in.readUnsignedByte();
       switch (tag) {
         case 1: // CONSTANT_Utf8
-          utf8Entries.put(idx, in.readUTF());
+          utf8Entries.put(index, in.readUTF());
           break;
         case 7: // CONSTANT_Class
           classNameIndices.add(in.readUnsignedShort());
@@ -364,6 +362,9 @@ public class BigtableShadedJarPackagingTest {
         case 19: // CONSTANT_Module
         case 20: // CONSTANT_Package
           in.skipBytes(2);
+          break;
+        case 15: // CONSTANT_MethodHandle
+          in.skipBytes(3);
           break;
         case 3: // CONSTANT_Integer
         case 4: // CONSTANT_Float
@@ -378,45 +379,47 @@ public class BigtableShadedJarPackagingTest {
         case 5: // CONSTANT_Long
         case 6: // CONSTANT_Double
           in.skipBytes(8);
-          idx++;
-          break;
-        case 15: // CONSTANT_MethodHandle
-          in.skipBytes(3);
+          index++; // 8-byte constants take two constant pool slots.
           break;
         default:
           throw new IOException("Unsupported constant pool tag: " + tag);
       }
-      idx++;
     }
-
-    Set<String> referenced = new HashSet<>();
-    for (Integer nameIndex : classNameIndices) {
-      String raw = utf8Entries.get(nameIndex);
-      if (raw == null) {
-        continue;
-      }
-      if (raw.startsWith("[")) {
-        int objStart = raw.indexOf('L');
-        if (objStart >= 0 && raw.endsWith(";")) {
-          referenced.add(raw.substring(objStart + 1, raw.length() - 1));
-        }
-      } else {
-        referenced.add(raw);
-      }
-    }
-
-    for (String utf8 : utf8Entries.values()) {
-      if (utf8.indexOf('/') >= 0 && (utf8.indexOf('(') >= 0 || utf8.startsWith("L") || utf8.startsWith("["))) {
-        Matcher matcher = DESCRIPTOR_CLASS_PATTERN.matcher(utf8);
-        while (matcher.find()) {
-          referenced.add(matcher.group(1));
-        }
-      }
-    }
-    return referenced;
   }
 
+  /**
+   * Returns the element class name of an array class such as {@code [[Lfoo/Bar;}, the name itself
+   * for a non-array class, or {@code null} for primitive arrays and missing names.
+   */
+  private static String unwrapArrayClassName(String rawName) {
+    if (rawName == null || !rawName.startsWith("[")) {
+      return rawName;
+    }
+    int objectStart = rawName.indexOf('L');
+    if (objectStart < 0 || !rawName.endsWith(";")) {
+      return null;
+    }
+    return rawName.substring(objectStart + 1, rawName.length() - 1);
+  }
+
+  private static boolean looksLikeDescriptor(String utf8) {
+    return utf8.indexOf('/') >= 0
+      && (utf8.indexOf('(') >= 0 || utf8.startsWith("L") || utf8.startsWith("[") || utf8.startsWith("<"));
+  }
+
+  /**
+   * Loads HBase, Bigtable and plugin classes and resources only from the given URLs so that the
+   * upstream hbase-shaded-mapreduce JAR on the test classpath cannot satisfy them.
+   */
   private static final class IsolatedHBaseClassLoader extends URLClassLoader {
+    private static final List<String> ISOLATED_RESOURCE_PREFIXES = ImmutableList.of(
+      "org/apache/hadoop/hbase/",
+      "org/apache/hbase/",
+      "hbase-default.xml",
+      "META-INF/services/org.apache.hadoop.hbase.",
+      "META-INF/services/org.apache.hbase."
+    );
+
     IsolatedHBaseClassLoader(URL[] urls, ClassLoader parent) {
       super(urls, parent);
     }
@@ -439,12 +442,26 @@ public class BigtableShadedJarPackagingTest {
       }
     }
 
+    @Override
+    public URL getResource(String name) {
+      return isIsolatedResource(name) ? findResource(name) : super.getResource(name);
+    }
+
+    @Override
+    public Enumeration<URL> getResources(String name) throws IOException {
+      return isIsolatedResource(name) ? findResources(name) : super.getResources(name);
+    }
+
     private static boolean isIsolatedPackage(String name) {
       return name.startsWith("org.apache.hadoop.hbase.")
         || name.startsWith("org.apache.hbase.")
         || name.startsWith("com.google.cloud.bigtable.")
         || name.startsWith("com.google.bigtable.")
         || name.startsWith("io.cdap.plugin.gcp.bigtable.");
+    }
+
+    private static boolean isIsolatedResource(String name) {
+      return startsWithAny(name, ISOLATED_RESOURCE_PREFIXES);
     }
   }
 }
