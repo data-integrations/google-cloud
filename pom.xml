@@ -81,7 +81,6 @@
     <org.json.version>20260814</org.json.version>
     <guava.version>33.8.0-jre</guava.version>
     <hadoop.version>3.3.6</hadoop.version>
-    <hbase-shaded-client.version>1.4.13</hbase-shaded-client.version>
     <hbase-shaded-server.version>1.4.13</hbase-shaded-server.version>
     <httpclient.version>4.5.14</httpclient.version>
     <httpcore.version>4.4.16</httpcore.version>
@@ -519,32 +518,11 @@
     <dependency>
       <!--
         Required by bigtable-hbase-1.x-mapreduce instead of excluded non-shaded version.
-        Shaded library is used to avoid dependency conflicts with Datastore module on profobuf-java dependency.
+        Shaded library is used to avoid dependency conflicts with Datastore module on protobuf-java dependency.
         Bigtable requires version 2.x and Datastore module requires 3.x protocol.
-      -->
-      <groupId>org.apache.hbase</groupId>
-      <artifactId>hbase-shaded-client</artifactId>
-      <version>${hbase-shaded-client.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>org.slf4j</groupId>
-          <artifactId>slf4j-log4j12</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>log4j</groupId>
-          <artifactId>log4j</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.htrace</groupId>
-          <artifactId>htrace-core</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <!--
-        Required by bigtable-hbase-1.x-mapreduce instead of excluded non-shaded version.
-        Shaded library is used to avoid dependency conflicts with Datastore module on profobuf-java dependency.
-        Bigtable requires version 2.x and Datastore module requires 3.x protocol.
+        hbase-shaded-server already bundles every HBase client, common, protocol, and MapReduce class;
+        omitting the redundant hbase-shaded-client artifact avoids packaging its unused shaded Jetty 6
+        (org.mortbay.jetty) classes and Maven metadata.
       -->
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-shaded-server</artifactId>
@@ -1111,6 +1089,15 @@
                     loader, it prevents the class loader from being garbage collected leading
                     to leaks. If no implementation of TracingComponent is found at runtime,
                     Open Census uses a NoopTraceComponent.
+                  </message>
+                </bannedDependencies>
+                <bannedDependencies>
+                  <excludes>
+                    <exclude>org.apache.hbase:hbase-shaded-client</exclude>
+                  </excludes>
+                  <message>
+                    hbase-shaded-server already contains every HBase client class the Bigtable plugins use.
+                    hbase-shaded-client is redundant and bundles unused shaded Jetty 6 classes.
                   </message>
                 </bannedDependencies>
               </rules>
