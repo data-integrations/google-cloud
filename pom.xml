@@ -62,7 +62,7 @@
     <bigquery.connector.hadoop3.version>hadoop3-1.2.0</bigquery.connector.hadoop3.version>
     <commons.codec.version>1.4</commons.codec.version>
     <cdap.version>6.11.0</cdap.version>
-    <cdap.plugin.version>2.13.0</cdap.plugin.version>
+    <cdap.plugin.version>2.14.0-SNAPSHOT</cdap.plugin.version>
     <dropwizard.metrics-core.version>3.2.6</dropwizard.metrics-core.version>
     <google.http.client.version>1.41.8</google.http.client.version>
     <google.oauth.client.version>1.33.3</google.oauth.client.version>
