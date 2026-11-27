@@ -1025,6 +1025,118 @@
         </executions>
       </plugin>
 
+      <!--
+        Cloud Bigtable plugins connect over gRPC via bigtable-hbase-2.x-hadoop and never start
+        HBase's embedded Jetty HTTP UI. Strip unused relocated Jetty 9.4 classes (CVE-2026-2332,
+        CVE-2026-10050, CVE-2024-6763), HBase daemon HTTP UI classes, and Jetty Maven metadata
+        from the embedded hbase-shaded-mapreduce JAR while keeping a minimal Jetty-free HttpServer
+        class literal target for TableMapReduceUtil.addHBaseDependencyJars.
+      -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <version>3.2.0</version>
+        <executions>
+          <execution>
+            <id>strip-jetty-from-hbase-shaded-mapreduce</id>
+            <phase>process-resources</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <delete dir="${project.build.directory}/hbase-http-stub-src"/>
+                <delete dir="${project.build.directory}/hbase-http-stub-classes"/>
+                <delete dir="${project.build.directory}/stripped-hbase"/>
+                <mkdir dir="${project.build.directory}/hbase-http-stub-src/org/apache/hadoop/hbase/http"/>
+                <mkdir dir="${project.build.directory}/hbase-http-stub-classes"/>
+                <mkdir dir="${project.build.directory}/stripped-hbase/lib"/>
+                <echo file="${project.build.directory}/hbase-http-stub-src/org/apache/hadoop/hbase/http/HttpServer.java">package org.apache.hadoop.hbase.http; public final class HttpServer { private HttpServer() {} }</echo>
+                <javac srcdir="${project.build.directory}/hbase-http-stub-src"
+                       destdir="${project.build.directory}/hbase-http-stub-classes"
+                       source="1.8"
+                       target="1.8"
+                       includeantruntime="false"
+                       debug="false"/>
+                <!-- Keep META-INF/MANIFEST.MF first so JarInputStream can read it. -->
+                <zip destfile="${project.build.directory}/stripped-hbase/lib/hbase-shaded-mapreduce-${hbase-shaded-mapreduce.version}.jar">
+                  <zipfileset src="${org.apache.hbase:hbase-shaded-mapreduce:jar}" includes="META-INF/MANIFEST.MF"/>
+                  <zipfileset src="${org.apache.hbase:hbase-shaded-mapreduce:jar}">
+                    <exclude name="META-INF/MANIFEST.MF"/>
+                    <exclude name="org/apache/hbase/thirdparty/org/eclipse/jetty/**"/>
+                    <exclude name="META-INF/maven/org.eclipse.jetty/**"/>
+                    <exclude name="META-INF/maven/org.apache.hbase.thirdparty/hbase-shaded-jetty/**"/>
+                    <exclude name="META-INF/maven/org.apache.hbase/hbase-http/**"/>
+                    <exclude name="META-INF/services/org.apache.hbase.thirdparty.org.eclipse.jetty.*"/>
+                    <exclude name="jetty-dir.css"/>
+                    <exclude name="org/apache/hadoop/hbase/shaded/org/apache/zookeeper/server/admin/JettyAdminServer*.class"/>
+                    <exclude name="org/apache/hadoop/hbase/http/**"/>
+                    <exclude name="org/apache/hadoop/hbase/master/http/**"/>
+                    <exclude name="org/apache/hadoop/hbase/regionserver/http/**"/>
+                    <exclude name="org/apache/hadoop/hbase/generated/**"/>
+                    <exclude name="org/apache/hadoop/hbase/tool/Canary*"/>
+                  </zipfileset>
+                  <fileset dir="${project.build.directory}/hbase-http-stub-classes"/>
+                </zip>
+              </target>
+            </configuration>
+          </execution>
+          <execution>
+            <id>replace-hbase-shaded-mapreduce-in-bundle</id>
+            <phase>package</phase>
+            <goals>
+              <goal>run</goal>
+            </goals>
+            <configuration>
+              <target>
+                <property name="bundle.jar" value="${project.build.directory}/${project.build.finalName}.jar"/>
+                <property name="hbase.jar.entry" value="lib/hbase-shaded-mapreduce-${hbase-shaded-mapreduce.version}.jar"/>
+                <property name="stripped.hbase.jar" value="${project.build.directory}/stripped-hbase/${hbase.jar.entry}"/>
+                <property name="repacked.bundle.jar" value="${project.build.directory}/repacked-bundle.jar"/>
+                <property name="bundle.check.dir" value="${project.build.directory}/bundle-hbase-check"/>
+                <fail message="Missing stripped HBase JAR: ${stripped.hbase.jar}">
+                  <condition>
+                    <not><available file="${stripped.hbase.jar}"/></not>
+                  </condition>
+                </fail>
+
+                <!--
+                  Always rebuild the bundle instead of using <jar update="true">, which skips entries
+                  whose source is not newer than the existing entry. The bundle manifest is copied
+                  unchanged and kept as the first entry.
+                -->
+                <delete file="${repacked.bundle.jar}"/>
+                <zip destfile="${repacked.bundle.jar}">
+                  <zipfileset src="${bundle.jar}" includes="META-INF/MANIFEST.MF"/>
+                  <zipfileset src="${bundle.jar}" excludes="META-INF/MANIFEST.MF,lib/hbase-shaded-mapreduce-*.jar"/>
+                  <zipfileset dir="${project.build.directory}/stripped-hbase" includes="${hbase.jar.entry}"/>
+                </zip>
+                <move file="${repacked.bundle.jar}" tofile="${bundle.jar}" overwrite="true"/>
+
+                <!-- Fail the build unless the bundle embeds exactly the stripped HBase JAR. -->
+                <delete dir="${bundle.check.dir}"/>
+                <unzip src="${bundle.jar}" dest="${bundle.check.dir}">
+                  <patternset includes="${hbase.jar.entry}"/>
+                </unzip>
+                <fail message="${bundle.jar} does not embed the stripped ${hbase.jar.entry}">
+                  <condition>
+                    <not><filesmatch file1="${stripped.hbase.jar}" file2="${bundle.check.dir}/${hbase.jar.entry}"/></not>
+                  </condition>
+                </fail>
+                <fail message="${bundle.jar} embeds an unexpected lib/hbase-shaded-mapreduce-*.jar">
+                  <condition>
+                    <resourcecount when="greater" count="0">
+                      <zipfileset src="${bundle.jar}" includes="lib/hbase-shaded-mapreduce-*.jar"
+                                  excludes="${hbase.jar.entry}"/>
+                    </resourcecount>
+                  </condition>
+                </fail>
+              </target>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
       <plugin>
         <groupId>io.cdap</groupId>
         <artifactId>cdap-maven-plugin</artifactId>
