@@ -79,7 +79,7 @@
     <google.protobuf.java.version>3.25.5</google.protobuf.java.version>
     <google.tink.version>1.3.0-rc3</google.tink.version>
     <org.json.version>20260814</org.json.version>
-    <guava.version>27.0.1-jre</guava.version>
+    <guava.version>33.8.0-jre</guava.version>
     <hadoop.version>3.3.6</hadoop.version>
     <hbase-shaded-mapreduce.version>2.6.6-hadoop3</hbase-shaded-mapreduce.version>
     <httpclient.version>4.5.14</httpclient.version>
@@ -96,6 +96,14 @@
 
   <dependencyManagement>
     <dependencies>
+      <!-- Aligns Guava across all Google Cloud client libraries. -->
+      <dependency>
+        <groupId>com.google.guava</groupId>
+        <artifactId>guava-bom</artifactId>
+        <version>${guava.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
       <!-- Aligns every Jackson module (jackson-core, -databind, -dataformat-cbor, ...) on one version. -->
       <dependency>
         <groupId>com.fasterxml.jackson</groupId>
@@ -1300,7 +1308,7 @@
         <dependency>
           <groupId>com.google.guava</groupId>
           <artifactId>guava</artifactId>
-          <version>31.1-jre</version>
+          <version>${guava.version}</version>
         </dependency>
         <dependency>
           <groupId>io.cdap.tests.e2e</groupId>
