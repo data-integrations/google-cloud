@@ -1009,7 +1009,12 @@
         <extensions>true</extensions>
         <configuration>
           <instructions>
-            <Embed-Dependency>*;inline=false;scope=compile</Embed-Dependency>
+            <!--
+              Inline only the non-@Plugin Avro helper classes used by BigQuery,
+              Pub/Sub, and Dataplex so format-avro's dead nested lib/*.jar
+              entries are not embedded inside google-cloud.jar!/lib/.
+            -->
+            <Embed-Dependency>format-avro;inline=io/cdap/plugin/format/avro/AvroToStructuredTransformer*.class|io/cdap/plugin/format/avro/StructuredToAvroTransformer*.class|io/cdap/plugin/format/avro/input/CombineAvroInputFormat*.class|io/cdap/plugin/format/avro/input/PathTrackingAvroInputFormat*.class;scope=compile,!format-avro,*;inline=false;scope=compile</Embed-Dependency>
             <Embed-Transitive>true</Embed-Transitive>
             <Embed-Directory>lib</Embed-Directory>
             <!--Only @Plugin classes in the export packages will be included as plugin-->
